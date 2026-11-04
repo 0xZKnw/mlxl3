@@ -24,6 +24,11 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
     let checkpoint =
         crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
+    let initial_cross_layer_enabled = gpu.cross_layer.get();
+    ensure!(
+        initial_cross_layer_enabled,
+        "requires accepted L1 on qualified M5"
+    );
     let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
     ensure!(model.prefetcher.is_none() && model.lookahead_depth == 0);
     ensure!(
@@ -50,7 +55,10 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
         model.restore(&saved)?;
         select(&mut model, false, true)?;
         let count = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+        let triples = gpu.cross_layer_triples.get();
         let expected = model.forward(token)?;
+        let control_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(control_cross_layer_triples == 34);
         ensure!(
             EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) == count && finite_logits(&expected)
         );
@@ -76,12 +84,17 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
                     .iter()
                     .all(|v| f32::from_le_bytes(*v).is_finite())
         );
+        let triples = gpu.cross_layer_triples.get();
         let (expected_next, expected_states) = model.forward_trace(11)?;
+        ensure!(gpu.cross_layer_triples.get() == triples);
         check_tensors(&expected_states)?;
         model.restore(&saved)?;
         select(&mut model, true, true)?;
         let count = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+        let triples = gpu.cross_layer_triples.get();
         let actual = model.forward(token)?;
+        let cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(cross_layer_triples == 34);
         let extra = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) - count;
         actual_extra_submissions += extra;
         ensure!(extra <= 48 && actual == expected && finite_logits(&actual));
@@ -96,7 +109,10 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
         let candidate = model.snapshot();
         select(&mut model, false, false)?;
         let count = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+        let triples = gpu.cross_layer_triples.get();
         let (next, states) = model.forward_trace(11)?;
+        let continuation_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(continuation_cross_layer_triples == 0);
         ensure!(
             EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) == count
                 && next == expected_next
@@ -114,7 +130,7 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
             );
         }
         model.restore(&candidate)?;
-        cases.push(serde_json::json!({"token":token,"actual_extra_submissions":extra,"control_extra_submissions":0,"snapshot_position":candidate.position()}));
+        cases.push(serde_json::json!({"token":token,"control_cross_layer_triples":control_cross_layer_triples,"cross_layer_triples":cross_layer_triples,"continuation_cross_layer_triples":continuation_cross_layer_triples,"actual_extra_submissions":extra,"control_extra_submissions":0,"snapshot_position":candidate.position()}));
     }
     ensure!(
         actual_extra_submissions > 0
@@ -123,9 +139,63 @@ fn bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation() ->
             && model.offset() == 4
             && gpu.readers()?.in_flight() == 0
     );
+    // Exercise the accepted deferred boundary after real extra SSD work, then replay the
+    // retained prefix. A merely enabled flag with no extra submission is not a valid oracle.
+    let prefix = model.snapshot();
+    let held_hidden = model
+        .last_hidden()
+        .context("missing retained hidden")?
+        .clone();
+    let held_bytes = held_hidden.export_bytes(&gpu)?;
+    select(&mut model, false, true)?;
+    let recovery = model.forward(19)?;
+    let (recovery_next, recovery_states) = model.forward_trace(11)?;
+    ensure!(finite_logits(&recovery) && finite_logits(&recovery_next));
+    check_tensors(&recovery_states)?;
+    model.restore(&prefix)?;
+    select(&mut model, true, true)?;
+    gpu.cross_layer_fail_after.set(Some(20));
+    let extras = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+    let triples = gpu.cross_layer_triples.get();
+    let failed = model.forward(42);
+    gpu.cross_layer_fail_after.set(None);
+    let failure_extra_submissions = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) - extras;
+    let failure_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+    let error = failed.err().context("expected the injected late failure")?;
+    ensure!(format!("{error:#}").contains("injected late layer failure 20"));
+    ensure!(
+        failure_extra_submissions > 0
+            && failure_cross_layer_triples > 0
+            && model.offset() == prefix.position()
+    );
+    ensure!(
+        held_hidden.export_bytes(&gpu)? == held_bytes
+            && model
+                .last_hidden()
+                .context("rollback lost hidden")?
+                .export_bytes(&gpu)?
+                == held_bytes
+    );
+    select(&mut model, true, true)?;
+    ensure!(model.forward(19)? == recovery);
+    select(&mut model, false, false)?;
+    let (next, states) = model.forward_trace(11)?;
+    ensure!(next == recovery_next && finite_logits(&next) && states.len() == recovery_states.len());
+    let rollback_state_words = check_tensors(&states)?;
+    for (actual, expected) in states.iter().zip(&recovery_states) {
+        ensure!(
+            actual.name == expected.name
+                && actual.shape == expected.shape
+                && actual.data == expected.data,
+            "L1+L2 rollback changed {}",
+            actual.name
+        );
+    }
+    model.restore(&prefix)?;
+    ensure!(model.offset() == 4 && gpu.readers()?.in_flight() == 0);
     eprintln!(
         "NATIVE_SSD_EXTRA_WAVE_MODEL {}",
-        serde_json::json!({"steps":cases,"actual_extra_submissions":actual_extra_submissions,"compared_state_words":compared,"compared_logits":1986560,"initial_archive_states":84,"context":4096,"cold_control_and_candidate":true,"explicit_legacy_continuation":true,"parity":true})
+        serde_json::json!({"steps":cases,"actual_extra_submissions":actual_extra_submissions,"compared_state_words":compared,"compared_logits":1986560,"initial_cross_layer_enabled":initial_cross_layer_enabled,"initial_archive_states":84,"context":4096,"cold_control_and_candidate":true,"late_failure_layer":20,"failure_extra_submissions":failure_extra_submissions,"failure_cross_layer_triples":failure_cross_layer_triples,"rollback_state_words":rollback_state_words,"rollback_logits":496640,"retained_prefix":true,"late_failure_recovery":true,"explicit_legacy_continuation":true,"parity":true})
     );
     Ok(())
 }

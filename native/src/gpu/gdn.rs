@@ -593,6 +593,8 @@ impl<'a> FlashGdnLayer<'a> {
             let read = read.finish(false)?;
             let attention = self.attention.finish(pending)?;
             #[cfg(test)]
+            drop(_scope);
+            #[cfg(test)]
             gpu.cross_layer_triples
                 .set(gpu.cross_layer_triples.get() + 1);
             self.residual.forward_after_attention_read(

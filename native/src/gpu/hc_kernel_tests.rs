@@ -150,6 +150,11 @@ fn physical_hc_kernel_variants_preserve_components_and_fallbacks() -> Result<()>
 fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Result<()> {
     let c = checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = ready()?;
+    let initial_cross_layer_enabled = gpu.cross_layer.get();
+    ensure!(
+        initial_cross_layer_enabled,
+        "requires accepted L1 on qualified M5"
+    );
     let workspace_enabled = gpu.hc_workspace_enabled.get();
     gpu.hc_workspace_enabled.set(false);
     set(&gpu, false, false);
@@ -169,7 +174,10 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
         set(&gpu, false, false);
         ensure!(finite_logits(&model.forward(19)?));
         model.restore(&saved)?;
+        let triples = gpu.cross_layer_triples.get();
         let expected = model.forward(token)?;
+        let control_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(control_cross_layer_triples == 34);
         ensure!(finite_logits(&expected));
         let expected_hidden = model
             .last_hidden()
@@ -184,7 +192,9 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
                     .all(|&v| f32::from_le_bytes(v).is_finite())
         );
         let control_state = model.snapshot();
+        let triples = gpu.cross_layer_triples.get();
         let (expected_next, expected_states) = model.forward_trace(11)?;
+        ensure!(gpu.cross_layer_triples.get() == triples);
         check_tensors(&expected_states)?;
         for (up, down) in [(false, false), (true, false), (false, true), (true, true)] {
             model.restore(&saved)?;
@@ -192,7 +202,10 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
             set(&gpu, up, down);
             let before = (gpu.hc_up_mix_uses.get(), gpu.hc_down_inject_uses.get());
             let workspace_before = gpu.hc_workspace_uses.get();
+            let triples = gpu.cross_layer_triples.get();
             let actual = model.forward(token)?;
+            let cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+            ensure!(cross_layer_triples == 34);
             let workspace_uses = gpu.hc_workspace_uses.get() - workspace_before;
             ensure!(workspace_uses == if workspace_enabled { 97 } else { 0 });
             let counts = (
@@ -214,7 +227,10 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
             );
             gpu.hc_workspace_enabled.set(false);
             set(&gpu, false, false);
+            let triples = gpu.cross_layer_triples.get();
             let (next, states) = model.forward_trace(11)?;
+            let continuation_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+            ensure!(continuation_cross_layer_triples == 0);
             ensure!(next == expected_next && finite_logits(&next) && states.len() == 84);
             compared += check_tensors(&states)?;
             for (actual, expected) in states.iter().zip(&expected_states) {
@@ -226,7 +242,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
                     actual.name
                 );
             }
-            cases.push(serde_json::json!({"token":token,"up":up,"down":down,"up_uses":counts.0,"down_uses":counts.1,"workspace_uses":workspace_uses,"parity":true}));
+            cases.push(serde_json::json!({"token":token,"control_cross_layer_triples":control_cross_layer_triples,"cross_layer_triples":cross_layer_triples,"continuation_cross_layer_triples":continuation_cross_layer_triples,"up":up,"down":down,"up_uses":counts.0,"down_uses":counts.1,"workspace_uses":workspace_uses,"parity":true}));
         }
         model.restore(&control_state)?;
     }
@@ -238,7 +254,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
     );
     eprintln!(
         "NATIVE_HC_KERNEL_MODEL {}",
-        serde_json::json!({"cases":cases,"case_count":16,"workspace_enabled":workspace_enabled,"reference_workspace_off":true,"continuation_workspace_off":true,"initial_archive_states":84,"compared_state_words":compared,"compared_logits":7946240,"context":4096,"explicit_legacy_continuation":true,"parity":true})
+        serde_json::json!({"cases":cases,"case_count":16,"workspace_enabled":workspace_enabled,"reference_workspace_off":true,"continuation_workspace_off":true,"initial_cross_layer_enabled":initial_cross_layer_enabled,"initial_archive_states":84,"compared_state_words":compared,"compared_logits":7946240,"context":4096,"explicit_legacy_continuation":true,"parity":true})
     );
     Ok(())
 }

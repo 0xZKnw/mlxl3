@@ -205,6 +205,11 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
     let checkpoint =
         crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
+    let initial_cross_layer_enabled = gpu.cross_layer.get();
+    ensure!(
+        initial_cross_layer_enabled,
+        "requires accepted L1 on qualified M5"
+    );
     let initial_workspace_enabled = gpu.hc_workspace_enabled.get();
     ensure!(
         initial_workspace_enabled,
@@ -225,7 +230,10 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
         let prefix = model.snapshot();
         gpu.hc_workspace_enabled.set(false);
         let uses = gpu.hc_workspace_uses.get();
+        let triples = gpu.cross_layer_triples.get();
         let expected = model.forward(token)?;
+        let control_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(control_cross_layer_triples == 34);
         ensure!(gpu.hc_workspace_uses.get() == uses && finite(&expected));
         let hidden = model
             .last_hidden()
@@ -239,13 +247,18 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
                     .iter()
                     .all(|v| f32::from_le_bytes(*v).is_finite())
         );
+        let triples = gpu.cross_layer_triples.get();
         let (expected_next, expected_states) = model.forward_trace(11)?;
+        ensure!(gpu.cross_layer_triples.get() == triples);
         check_tensors(&expected_states)?;
         ensure!(finite(&expected_next));
         model.restore(&prefix)?;
         gpu.hc_workspace_enabled.set(true);
         let uses = gpu.hc_workspace_uses.get();
+        let triples = gpu.cross_layer_triples.get();
         let actual = model.forward(token)?;
+        let cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(cross_layer_triples == 34);
         let actual_uses = gpu.hc_workspace_uses.get() - uses;
         ensure!(actual_uses == 97 && actual == expected && finite(&actual));
         ensure!(model.offset() == prefix.position() + 1);
@@ -260,7 +273,10 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
         // Read the candidate state through the unchanged workspace-OFF continuation.
         gpu.hc_workspace_enabled.set(false);
         let uses = gpu.hc_workspace_uses.get();
+        let triples = gpu.cross_layer_triples.get();
         let (next, states) = model.forward_trace(11)?;
+        let continuation_cross_layer_triples = gpu.cross_layer_triples.get() - triples;
+        ensure!(continuation_cross_layer_triples == 0);
         ensure!(gpu.hc_workspace_uses.get() == uses && next == expected_next && finite(&next));
         state_words += check_tensors(&states)?;
         ensure!(states.len() == expected_states.len());
@@ -274,13 +290,13 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
             );
         }
         model.restore(&candidate)?;
-        steps.push(serde_json::json!({"token":token,"workspace_uses":actual_uses,"control_workspace_uses":0,"continuation_workspace_uses":0,"snapshot_position":candidate.position()}));
+        steps.push(serde_json::json!({"token":token,"control_cross_layer_triples":control_cross_layer_triples,"cross_layer_triples":cross_layer_triples,"continuation_cross_layer_triples":continuation_cross_layer_triples,"workspace_uses":actual_uses,"control_workspace_uses":0,"continuation_workspace_uses":0,"snapshot_position":candidate.position()}));
     }
     ensure!(steps.len() == 4 && state_words == 115_212_288 && model.offset() == 4);
     ensure!(gpu.readers()?.in_flight() == 0);
     eprintln!(
         "I125_HC_WORKSPACE_MODEL {}",
-        serde_json::json!({"parity":true,"initial_workspace_enabled":initial_workspace_enabled,"steps":steps,"actual_workspace_uses":388,"compared_state_words":state_words,"compared_logits":1986560,"compared_hidden_words":40960,"initial_archive_states":84,"context":4096,"retained_prefix":true,"explicit_legacy_continuation":true})
+        serde_json::json!({"parity":true,"initial_workspace_enabled":initial_workspace_enabled,"steps":steps,"actual_workspace_uses":388,"compared_state_words":state_words,"compared_logits":1986560,"compared_hidden_words":40960,"initial_cross_layer_enabled":initial_cross_layer_enabled,"initial_archive_states":84,"context":4096,"retained_prefix":true,"explicit_legacy_continuation":true})
     );
     Ok(())
 }

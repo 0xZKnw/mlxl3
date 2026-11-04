@@ -1733,7 +1733,7 @@
     ".dtype": 1,
     ".eval": 1,
     ".shape": 1,
-    ".take": 1,
+    ".take": 2,
     "array::Array": 1,
     "array::readback_profile_enable": 2,
     "mlx": 4
@@ -1908,7 +1908,13 @@
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1,
-    ".ready": 2
+    ".ready": 2,
+    "config MLXL3_NATIVE_CROSS_LAYER": 1,
+    "config MLXL3_NATIVE_HC_DOWN_INJECT": 1,
+    "config MLXL3_NATIVE_HC_GDN_CHAIN": 1,
+    "config MLXL3_NATIVE_HC_UP_MIX": 1,
+    "config MLXL3_NATIVE_HC_WORKSPACE": 1,
+    "config MLXL3_NATIVE_SSD_EXTRA_WAVE": 1
   },
   "native/src/gpu/gdn.rs": {
     ".finish": 5,

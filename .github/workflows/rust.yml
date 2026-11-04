@@ -59,6 +59,7 @@ jobs:
             --harness global_frequency_aging_matches_wide_arithmetic_for_all_counters
             --harness flash_profile::readback_profile_accepts_exactly_valid_bounded_durations
             --harness flash_profile::stage_retention_restores_symbolic_nested_scopes
+            --harness flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards
       - name: Preserve each proof verdict and log
         if: always()
         uses: actions/upload-artifact@v4
