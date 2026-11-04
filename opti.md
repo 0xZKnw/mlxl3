@@ -1,5 +1,17 @@
 # MLXL3 — journal des optimisations
 
+## I120-P00-P04-20261104 — current baseline diagnosis then exact GPU greedy
+
+Preregistered before new optimization source research/prototypes/measurements. User approved issue120 P00 then P04, still Flash Next AR without MTP/DFlash,32-token initial speed screens, and PR publication when qualified. Baseline is open PR119 e4c4bcc4 (main d8438059 underneath), qualified default CLI f4b592bc/libtest af2c8eb3. Use a new isolated worktree; original personal checkout remains dirty/untouched. The single-expert encoder prototype f9ff/bf48 was stopped by explicit user request after its negative/inconclusive32-token pilot; it is not part of this baseline or issue120. Preserve all old files and reports, no swap-abort rule.
+
+First source audits: identify reusable native profiling/trace instrumentation and the narrowest current-baseline P00 observation that separates GPU, host encode/wait, SSD, copies/allocations and sampling readbacks; trace the actual AR sampler/head/normalization/selection callers and independent numerical oracles for P04. Consult the relevant historical T05/native readback reports before proposing a repeat. P00 must distinguish instrumented diagnostics from uninstrumented production; do not infer per-kernel cost from composite trace labels or count a wait as eliminated time. Do not recreate a profiling/reporting framework when existing tools suffice. Bound recording and process lifetimes; raw Instruments TOC/XML may expose environment/other apps and stays private.
+
+P04 intended scope, to be preregistered precisely after caller audit: retain the native head result on GPU, use the canonical half logsumexp and half-rounded subtraction, then a deterministic first-maximum finite selection. Read only token/status for the proven plain AR greedy policy; preserve full exports/trace and the existing fallback for penalties/constraints/non-greedy. NaN/+inf rejection, -inf masking, signed-zero ties, normalization-created ties and invalid/all-masked cases are contracts, not approximations. No changed EXL3 kernels, arithmetic order, routes, state/snapshots, cache budget or draft inference. A readback-byte reduction is not a speed gain.
+
+This initial entry authorizes source/oracle/profiler discovery only. Before instrumentation or executable edits, add the exact source/flag/capability/ownership, quality and measurement plans. Reuse unchanged oracles and bounded Kani contracts; verify altered production paths, complete finite states/logits and actual CLI before speed/default activation. One GPU process/model, no compilation/prover/other inference concurrently. Record each failure and close every launched trial. No main merge, app replacement or release is authorized.
+
+Status: P00/P04 discovery in progress, no new executable change or GPU run.
+
 ## I75-AR-ROUND2-20261104 — next native Flash AR optimizations
 
 Preregistered before new root optimization/API research. User asks to continue native Flash Next AR optimization, explicitly excluding MTP/DFlash and authorizing PR publication as soon as a chunk is validated. Remote main21cfc9ad0b6679f9e6975bf6f02bc7a5b7b96d47 is tree-identical to qualified PR118 head34adade01c86c3b7aef406272a6936633d4d1c8c; old binaries942d/4253 and all raw results stay untouched. The original personal checkout remains dirty and is not used for validation.
