@@ -1,0 +1,117 @@
+{
+  "status": "frozen_ready",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/direct-cli",
+      "sha256": "d860f20b0b8a92058465d7ba177a106ea295a2ac2ff9bdeb4b4113b9d3a336cd"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+      "sha256": "e9b12a2548f5294da7088b89aa573f5d5da8c048190b21648db0a8c6a7b46ce8"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_SSD_DIRECT": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "label": "io",
+      "test": "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+      "marker": "NATIVE_SSD_DIRECT_IO",
+      "timeout_seconds": 60,
+      "expected": {
+        "range_cases": 4,
+        "distinct_live_backings": 4,
+        "exact_record_bytes": 1248012,
+        "partial_eof": true,
+        "post_enqueue_truncation": true,
+        "timeout_retained": true,
+        "stale_generation_rejected": true,
+        "batch_and_service_drop_drained": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    },
+    {
+      "label": "expert",
+      "test": "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+      "marker": "NATIVE_SSD_DIRECT_EXPERT",
+      "timeout_seconds": 120,
+      "expected": {
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    },
+    {
+      "label": "model",
+      "test": "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+      "marker": "NATIVE_SSD_DIRECT_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "compared_state_words": 57606144,
+        "compared_logits": 744960,
+        "initial_archive_states": 84,
+        "finite": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    },
+    {
+      "label": "cli4096-short",
+      "marker": "NATIVE_SSD_DIRECT_CLI",
+      "timeout_seconds": 180,
+      "expected": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/quality-02"
+      ]
+    }
+  ],
+  "limits": "Three physical tests then one CLI completion; old six optimization flags absent; no speed or extended gates; source/bin freeze pending.",
+  "source_head": "2b8553a5",
+  "freeze_path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/freeze02.json",
+  "freeze_sha256": "6c73e8bd6e96ca8c44c0d2652664f5a96fe1c150623c84ff5b89640108ec6953",
+  "prior_failed_quality": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/quality-01/report.json"
+}

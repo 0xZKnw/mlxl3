@@ -1,0 +1,77 @@
+{
+  "scope": "exact helper source mutation only, not worker-publication mutation or OS/Metal proof",
+  "source_helper_sha256": "3974ab1aa0b9ad62c61387907bdd179bc947c24ae3a1508e249a4637de53307d",
+  "constant": "pub const EXPERT_BYTES: u64 = 1_248_012;",
+  "checks": [
+    {
+      "name": "original-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/original.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/original-test"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1322967080050148,
+      "expected": 0,
+      "joined": true
+    },
+    {
+      "name": "mutant-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/mutant.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/mutant-test"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1283253750007134,
+      "expected": 0,
+      "joined": true
+    },
+    {
+      "name": "original",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/original-test",
+        "--exact",
+        "rejects_non_shared_owned_destination"
+      ],
+      "exit_code": 0,
+      "seconds": 0.6152529169921763,
+      "expected": 0,
+      "joined": true
+    },
+    {
+      "name": "without-shared-guard",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/mutant-test",
+        "--exact",
+        "rejects_non_shared_owned_destination"
+      ],
+      "exit_code": 101,
+      "seconds": 0.290203417011071,
+      "expected": 101,
+      "joined": true
+    },
+    {
+      "name": "original-reused",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa/mutation-shared-guard/original-test",
+        "--exact",
+        "rejects_non_shared_owned_destination"
+      ],
+      "exit_code": 0,
+      "seconds": 0.011975083994911984,
+      "expected": 0,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true,
+  "status": "mutation_detected_original_passed",
+  "seconds": 1.1788709169777576,
+  "worktree_executable_sources_modified": false
+}

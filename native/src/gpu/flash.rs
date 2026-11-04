@@ -35,11 +35,12 @@ impl<'a> Layer<'a> {
         token: u32,
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
-    ) -> Result<MatrixView> {
+        defer_write: bool,
+    ) -> Result<super::gdn::LayerOutput> {
         match self {
-            Self::Gdn(a) => a.forward_lookahead(x, next, depth),
-            Self::Ple(a) => a.forward_lookahead(x, token, next, depth),
-            Self::Qsa(a) => a.forward_lookahead(x, next, depth),
+            Self::Gdn(a) => a.forward_deferred(x, next, depth, defer_write),
+            Self::Ple(a) => a.forward_deferred(x, token, next, depth, defer_write),
+            Self::Qsa(a) => a.forward_deferred(x, next, depth, defer_write),
         }
     }
     fn moe(&mut self) -> &mut super::FlashMoeRow<'a> {
@@ -361,7 +362,8 @@ impl<'a> FlashNext<'a> {
         mut trace: Option<&mut Vec<FlashTraceTensor>>,
         mut captures: Option<(&[usize], &mut Vec<MatrixView>)>,
     ) -> Result<MatrixView> {
-        let mut streams = self.streams(token)?;
+        use super::gdn::LayerOutput;
+        let mut streams = LayerOutput::Ready(self.streams(token)?);
         for i in 0..self.layers.len() {
             #[cfg(test)]
             let _layer = crate::flash_profile::span("native.layer");
@@ -371,20 +373,43 @@ impl<'a> FlashNext<'a> {
             }
             let (current, remaining) = self.layers.split_at_mut(i + 1);
             let layer = &mut current[i];
+            let defer_write = crate::flash_support::cross_layer_eligible(
+                self.gpu.cross_layer.get(),
+                self.gpu.hc_gdn_chain.get(),
+                self.lookahead_depth,
+                trace.is_some() || captures.is_some(),
+                matches!(remaining.first(), Some(Layer::Gdn(_))),
+            );
             let next = remaining.first_mut().map(Layer::moe);
-            streams = layer
-                .forward(&streams, token, next, self.lookahead_depth)
-                .with_context(|| format!("running Flash layer {i}"))?;
+            streams = match streams {
+                LayerOutput::Ready(streams) => {
+                    layer.forward(&streams, token, next, self.lookahead_depth, defer_write)
+                }
+                LayerOutput::Pending(write) => match layer {
+                    Layer::Gdn(layer) => {
+                        layer.forward_pending(write, defer_write).with_context(|| {
+                            format!("consuming deferred HC output of Flash layer {}", i - 1)
+                        })
+                    }
+                    _ => anyhow::bail!("deferred HC output requires a regular GDN consumer"),
+                },
+            }
+            .with_context(|| format!("running Flash layer {i}"))?;
+            #[cfg(test)]
+            ensure!(
+                self.gpu.cross_layer_fail_after.get() != Some(i),
+                "injected late layer failure {i}"
+            );
             if let Some((ids, rows)) = &mut captures
                 && ids.contains(&i)
             {
-                rows.push(streams.clone());
+                rows.push(streams.ready()?.clone());
             }
             if let Some(t) = &mut trace {
                 t.push(FlashTraceTensor {
                     name: format!("layer_{i}"),
                     shape: vec![1, 10240],
-                    data: streams.export_bytes(self.gpu)?,
+                    data: streams.ready()?.export_bytes(self.gpu)?,
                 });
                 if let Some(r) = layer.recurrent() {
                     t.push(FlashTraceTensor {
@@ -395,7 +420,7 @@ impl<'a> FlashNext<'a> {
                 }
             }
         }
-        Ok(streams)
+        streams.complete(self.gpu)
     }
 
     #[cfg(feature = "chat")]
@@ -702,6 +727,21 @@ mod tests {
         ensure!(prompt.len() == 87);
         let c = crate::checkpoint::inspect(&path)?;
         let gpu = Metal::new()?;
+        ensure!(
+            [
+                "MLXL3_NATIVE_SSD_DIRECT",
+                "MLXL3_NATIVE_AR_HC_CHAIN",
+                "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+                "MLXL3_NATIVE_FLASH_STATIC_K",
+                "MLXL3_NATIVE_FLASH_NT2",
+                "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+                "MLXL3_NATIVE_ROUTED_SCRATCH",
+            ]
+            .iter()
+            .all(|name| std::env::var_os(name).is_none()),
+            "native8 requires actual default policies, no explicit optimization flags"
+        );
+        ensure!(gpu.ssd_direct_enabled && gpu.hc_chain.get() && gpu.hc_gate_chain.get());
         let mut model = FlashNext::load(&gpu, &c, 4096)?;
         ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
         let (first, first_states) = model.forward_trace(248044)?;
@@ -765,12 +805,54 @@ mod tests {
             ("native.logprobs", 7),
             ("native.cpu_select", 7),
             ("native.projection_readback_copy", 7),
+            ("native.hc.encode_read", 7 * 97),
+            ("native.hc.chain_write_read_gate", 7 * 48),
+            ("native.gdn.frame", 7 * 36),
         ] {
             ensure!(
                 events.iter().filter(|e| e["name"] == name).count() == count,
                 "wrong event coverage{name}"
             );
         }
+        let separate_gdn = events
+            .iter()
+            .filter(|e| e["name"] == "native.gdn.body")
+            .count();
+        let joined_gdn = events
+            .iter()
+            .filter(|e| e["name"] == "native.hc_gdn.joined")
+            .count();
+        ensure!(separate_gdn + joined_gdn == 7 * 36);
+        ensure!(joined_gdn == if gpu.hc_gdn_chain.get() { 7 * 36 } else { 0 });
+        for (exclusive, row_total) in [
+            ("allocation_requests", "metal_requests"),
+            ("allocation_requested_bytes", "metal_requested_bytes"),
+            ("allocation_api_ns", "metal_allocation_host_ns"),
+        ] {
+            let attributed = events
+                .iter()
+                .map(|e| e[exclusive].as_u64().unwrap())
+                .sum::<u64>();
+            let rows = events
+                .iter()
+                .filter(|e| e["name"] == "native.row")
+                .map(|e| e["data"][row_total].as_u64().unwrap())
+                .sum::<u64>();
+            ensure!(
+                attributed > 0 && attributed == rows,
+                "allocation attribution lost or double-counted {exclusive}"
+            );
+        }
+        let workspace_requests = events
+            .iter()
+            .filter(|e| {
+                e["name"]
+                    .as_str()
+                    .is_some_and(|name| name.starts_with("native.hc.workspace."))
+            })
+            .map(|e| e["allocation_requests"].as_u64().unwrap())
+            .sum::<u64>();
+        ensure!(workspace_requests == 7 * 97 * 4);
         ensure!(
             events
                 .iter()

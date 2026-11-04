@@ -58,6 +58,8 @@ pub(crate) mod gdn_epilogue;
 pub mod gemma4;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub mod gpu;
+#[cfg(any(test, kani))]
+mod hc_gdn_policy_tests;
 pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
@@ -97,7 +99,7 @@ pub mod ssd_moe;
     kani
 ))]
 pub(crate) mod ssd_prefetch;
-#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test))]
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) mod ssd_reads;
 pub mod streaming;
 pub mod structured;

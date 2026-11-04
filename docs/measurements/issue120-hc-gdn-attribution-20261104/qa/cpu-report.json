@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "label": "clippy",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 7.924743750016205,
+      "joined": true
+    },
+    {
+      "label": "profile-tests",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat",
+        "--lib",
+        "flash_profile::",
+        "--",
+        "--test-threads=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 6.64200650001294,
+      "joined": true
+    }
+  ]
+}

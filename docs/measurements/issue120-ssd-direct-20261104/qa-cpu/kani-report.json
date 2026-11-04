@@ -1,0 +1,54 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "native_direct_destination_requires_exact_shared_extent",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "native_direct_destination_requires_exact_shared_extent"
+      ],
+      "status": "passed",
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "seconds": 3.6828070409828797,
+      "joined": true
+    },
+    {
+      "name": "native_direct_reads_require_depth_zero_without_prefetch",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "native_direct_reads_require_depth_zero_without_prefetch"
+      ],
+      "status": "passed",
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "seconds": 1.39787354200962,
+      "joined": true
+    },
+    {
+      "name": "native_direct_flag_preserves_off_and_qualified_exact_override",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "native_direct_flag_preserves_off_and_qualified_exact_override"
+      ],
+      "status": "passed",
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "seconds": 18.63782158299,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true
+}

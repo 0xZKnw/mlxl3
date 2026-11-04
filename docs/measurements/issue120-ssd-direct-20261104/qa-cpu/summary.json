@@ -1,0 +1,35 @@
+{
+  "status": "CPU_qualified_physical_pending",
+  "source_worktree_modified": true,
+  "checks_report": "report.json",
+  "proof_report": "kani-report.json",
+  "tests": {
+    "ssd_reads_passed": 8,
+    "ssd_reads_ignored_physical": 1,
+    "counter_oracle_passed": 1,
+    "python_passed": 6,
+    "python_skipped_linux_only": 44
+  },
+  "proofs": {
+    "tool": "Kani0.68/CBMC6.11",
+    "kind": "bounded source model checking of actual production helpers",
+    "checks": 242,
+    "covers_satisfied": 15,
+    "unreachable": 7,
+    "unreachable_scope": "std fmt/align/UTF8 guards; none functional",
+    "assumptions": 0,
+    "stubs": 0,
+    "flag_string_bound_bytes": 4,
+    "flag_unwind": 10,
+    "extent_domain": "all usize/u64/shared bool",
+    "eligibility_domain": "all bool/usize/bool"
+  },
+  "unverified": [
+    "Metal/OS initialized-memory semantics",
+    "concurrent interleavings",
+    "all3ignored physical IO/expert/model gates",
+    "real CLI and speed",
+    "mutation publication-before-success pending coordinator"
+  ],
+  "owned_children_joined": true
+}

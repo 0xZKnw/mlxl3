@@ -1,0 +1,325 @@
+{
+  "status": "four_inventory_entries_locally_validated_remote_CI_pending",
+  "PR": 122,
+  "head_before_fix": "038abd98a59b382fd49cb376560571a91840933c",
+  "baseline_PR": 119,
+  "baseline_head": "1e42e52f26ce3dd334b48aec1b33a18ae1b70c76",
+  "current_PR_merge_checkout": "c1d0676be035d4824265903a1f6b52e41ea56c2c",
+  "inventory_failure": {
+    "run": 41857314490,
+    "job": 126669317872,
+    "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314490/job/126669317872",
+    "four_entries": [
+      "native/src/gpu.rs: config MLXL3_NATIVE_SSD_DIRECT 0 -> 1",
+      "native/src/gpu/ssd_direct_tests.rs: config MLXL3_FLASH_MODEL 0 -> 2",
+      "native/src/ssd_reads/direct_tests.rs: .ready 0 -> 7",
+      "native/src/ssd_reads/direct_tests.rs: .try_clone 0 -> 8"
+    ],
+    "cause": "prior local --inventory call only emitted actual data and did not compare reviewed baseline"
+  },
+  "Kani_version": "0.68.0 / bundled nightly2026-08-21",
+  "Kani_cases": [
+    {
+      "harness": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots",
+      "current": {
+        "status": "process_error",
+        "seconds": 84.926,
+        "at_UTC": "2026-11-04T15:48:55.6522288Z",
+        "job_id": 126670337061,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337061"
+      },
+      "baseline": {
+        "status": "process_error",
+        "seconds": 59.734,
+        "at_UTC": "2026-11-04T14:33:21.5304379Z",
+        "job_id": 126630966164,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966164"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "two standard-library SpecFill unwind assertions, no functional counterexample established"
+    },
+    {
+      "harness": "flash_support::verification::two_routes_preserve_hits_and_never_alias_distinct_experts",
+      "current": {
+        "status": "timeout",
+        "seconds": 550.004,
+        "at_UTC": "2026-11-04T16:11:20.8138309Z",
+        "job_id": 126670337061,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337061"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T14:52:01.9404822Z",
+        "job_id": 126630966164,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966164"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "flash_support::grouped_route_verification::grouped_expert_routes_cover_eight_symbolic_origins_exactly",
+      "current": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T15:43:49.3298156Z",
+        "job_id": 126670337332,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337332"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T14:36:51.0380182Z",
+        "job_id": 126630966711,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966711"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "flash_support::grouped_route_verification::grouped_expert_routes_eighty_symbolic_inputs_are_bounded",
+      "current": {
+        "status": "timeout",
+        "seconds": 600.004,
+        "at_UTC": "2026-11-04T15:53:49.3385416Z",
+        "job_id": 126670337332,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337332"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T14:46:51.0429484Z",
+        "job_id": 126630966711,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966711"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
+      "current": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T15:44:27.5305909Z",
+        "job_id": 126670337522,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337522"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T14:38:13.0914541Z",
+        "job_id": 126630966306,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966306"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+      "current": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T15:56:55.6243000Z",
+        "job_id": 126670337522,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337522"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T14:50:45.1484339Z",
+        "job_id": 126630966306,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966306"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
+      "current": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T16:08:36.9833824Z",
+        "job_id": 126670337522,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337522"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 600.002,
+        "at_UTC": "2026-11-04T15:02:31.9325189Z",
+        "job_id": 126630966306,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966306"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "current": {
+        "status": "timeout",
+        "seconds": 63.402,
+        "at_UTC": "2026-11-04T16:11:37.4132258Z",
+        "job_id": 126670337522,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41857314391/job/126670337522"
+      },
+      "baseline": {
+        "status": "timeout",
+        "seconds": 38.664,
+        "at_UTC": "2026-11-04T15:05:09.4305538Z",
+        "job_id": 126630966306,
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/41846409461/job/126630966306"
+      },
+      "classification": "pre_existing_same_harness_and_diagnostic",
+      "diagnostic": "time limit; obligation remains unverified, not a counterexample"
+    }
+  ],
+  "jobs": [
+    {
+      "phase": "current",
+      "job_id": 126670337061,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/job-126670337061.log",
+      "raw_sha256": "32671988d798623095f0901930e6f65be274bf9e9adca8d119c34b7c7b7e0549",
+      "cases": [
+        "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots",
+        "flash_support::verification::two_routes_preserve_hits_and_never_alias_distinct_experts"
+      ],
+      "tested_head": "c1d0676b Merge 038abd98a59b382fd49cb376560571a91840933c into 28f1a84e5371775205aeace22f4bf391a301a884"
+    },
+    {
+      "phase": "current",
+      "job_id": 126670337332,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/job-126670337332.log",
+      "raw_sha256": "1241712dd4f5a0150ed23a863062b349ec96b89351b5bb7d85ced217a8cd629d",
+      "cases": [
+        "flash_support::grouped_route_verification::grouped_expert_routes_cover_eight_symbolic_origins_exactly",
+        "flash_support::grouped_route_verification::grouped_expert_routes_eighty_symbolic_inputs_are_bounded"
+      ],
+      "tested_head": "c1d0676b Merge 038abd98a59b382fd49cb376560571a91840933c into 28f1a84e5371775205aeace22f4bf391a301a884"
+    },
+    {
+      "phase": "current",
+      "job_id": 126670337522,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/job-126670337522.log",
+      "raw_sha256": "4fd84d7f5f30b270048a816fd26de405c11141cd8f63264177726b0665dcb6c6",
+      "cases": [
+        "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
+        "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+        "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
+        "hub::verification::accepted_checkpoint_paths_have_no_traversal_component"
+      ],
+      "tested_head": "c1d0676b Merge 038abd98a59b382fd49cb376560571a91840933c into 28f1a84e5371775205aeace22f4bf391a301a884"
+    },
+    {
+      "phase": "baseline",
+      "job_id": 126630966164,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/baseline-job-126630966164.log",
+      "raw_sha256": "a7d99b28d8870ef3330f70f808489d9de81061bc50ec256d832fd47412973945",
+      "cases": [
+        "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots",
+        "flash_support::verification::two_routes_preserve_hits_and_never_alias_distinct_experts"
+      ],
+      "tested_head": "a7fbf990 Merge 1e42e52f26ce3dd334b48aec1b33a18ae1b70c76 into d843805972d395bccfa380c4e144929e306f498b"
+    },
+    {
+      "phase": "baseline",
+      "job_id": 126630966711,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/baseline-job-126630966711.log",
+      "raw_sha256": "f4fdecb212a0fef90c9c653d3b1309449881d3956a05121991bc33c8d52e4d96",
+      "cases": [
+        "flash_support::grouped_route_verification::grouped_expert_routes_cover_eight_symbolic_origins_exactly",
+        "flash_support::grouped_route_verification::grouped_expert_routes_eighty_symbolic_inputs_are_bounded"
+      ],
+      "tested_head": "a7fbf990 Merge 1e42e52f26ce3dd334b48aec1b33a18ae1b70c76 into d843805972d395bccfa380c4e144929e306f498b"
+    },
+    {
+      "phase": "baseline",
+      "job_id": 126630966306,
+      "raw_log": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/pr122-ci/raw/baseline-job-126630966306.log",
+      "raw_sha256": "0a46878b1089f77bff67c18b255f9e62b2124e981b579a8054b11331100c2061",
+      "cases": [
+        "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
+        "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+        "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
+        "hub::verification::accepted_checkpoint_paths_have_no_traversal_component"
+      ],
+      "tested_head": "a7fbf990 Merge 1e42e52f26ce3dd334b48aec1b33a18ae1b70c76 into d843805972d395bccfa380c4e144929e306f498b"
+    }
+  ],
+  "source_identity": [
+    {
+      "path": "native/src/flash_support.rs",
+      "baseline_sha256": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+      "head_sha256": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+      "identical": true
+    },
+    {
+      "path": "native/src/contracts.rs",
+      "baseline_sha256": "6472d241d2e6a4f1f4511f4de9c65c16c63333cd84e5a69d55a189299125ebfa",
+      "head_sha256": "6472d241d2e6a4f1f4511f4de9c65c16c63333cd84e5a69d55a189299125ebfa",
+      "identical": true
+    },
+    {
+      "path": "native/src/convert_matmul.rs",
+      "baseline_sha256": "6206f0077ce40e6ab8431a2a9607ae947210f5bc4b74efd8af19277b84547981",
+      "head_sha256": "6206f0077ce40e6ab8431a2a9607ae947210f5bc4b74efd8af19277b84547981",
+      "identical": true
+    },
+    {
+      "path": "native/src/hub.rs",
+      "baseline_sha256": "e4fceb1e000555d2d56b6d1a5e7f555e97fed838bbf63c8d44b617fa5fec9ecc",
+      "head_sha256": "e4fceb1e000555d2d56b6d1a5e7f555e97fed838bbf63c8d44b617fa5fec9ecc",
+      "identical": true
+    },
+    {
+      "path": "scripts/kani_ci.py",
+      "baseline_sha256": "f1892bd8b5e5b6bba18aa935d49e504495dbcb50a66fb40a01006f335262123f",
+      "head_sha256": "f1892bd8b5e5b6bba18aa935d49e504495dbcb50a66fb40a01006f335262123f",
+      "identical": true
+    },
+    {
+      "path": ".github/workflows/rust.yml",
+      "baseline_sha256": "bed72efd3e610c789ff4f1ae37dd6aab1ada410b79e7344c2111eadfae05d257",
+      "head_sha256": "bed72efd3e610c789ff4f1ae37dd6aab1ada410b79e7344c2111eadfae05d257",
+      "identical": true
+    }
+  ],
+  "limits": [
+    "Kani was not rerun and no domains/unwind/time limits were changed.",
+    "The timeout and unwind cases remain unverified; identical baseline failure does not establish their correctness.",
+    "This correction targets only four newly omitted inventory entries, not all pre-existing CI failures.",
+    "Seven diagnostic-only tags from PR123 are excluded.",
+    "No runtime, shader, model, binary, compilation, proof or GPU was changed or run."
+  ],
+  "planned_checks": [
+    "QPY scripts/check_native_coverage.py (without --inventory)",
+    "QPY -m pytest -q tests/test_native_coverage.py::NativeCoverageTest::test_guard_rejects_growth_and_removal_until_reviewed"
+  ],
+  "local_checks": {
+    "normal_inventory": {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.530137292,
+      "output": "MLX source inventory matches 249 files",
+      "joined": true
+    },
+    "regression": {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_native_coverage.py::NativeCoverageTest::test_guard_rejects_growth_and_removal_until_reviewed"
+      ],
+      "exit_code": 0,
+      "seconds": 0.2077705,
+      "output": ".                                                                        [100%]\n1 passed in 0.16s",
+      "passed": 1,
+      "joined": true
+    }
+  },
+  "CPU_grant": "root explicit17:15UTC; all root GPU joined",
+  "checked_UTC": "2026-11-04T17:17:31.838328+00:00",
+  "Kani_case_scope": "Eight printed failed/timeout verdicts compared. Job console does not establish completion of new P01 harnesses after the shard budget; no global/new-harness CI pass is claimed."
+}

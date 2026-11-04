@@ -1,0 +1,163 @@
+"""Four P01 essential gates; adapted from round2 essential_helper.py, never auto-starts."""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+HERE = Path('/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/final-quality')
+REPORT = HERE / 'report.json'
+PLAN = Path('/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/final-plan.json')
+
+
+def save(report):
+    temporary = REPORT.with_suffix('.tmp')
+    temporary.write_text(json.dumps(report, indent=2) + '\n')
+    temporary.replace(REPORT)
+
+
+def journal(text):
+    with (ROOT / 'opti.md').open('a') as sink:
+        sink.write('\nI120-P01 FINAL ' + text + '\n')
+
+
+def members(pgid):
+    rows = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,pid='], text=True, timeout=5)
+    return [int(row.split()[1]) for row in rows.splitlines() if row.split() and int(row.split()[0]) == pgid]
+
+
+def stop(child):
+    if child is None:
+        return True
+    for sig, seconds in [(signal.SIGTERM, 5), (signal.SIGKILL, 15)]:
+        try:
+            os.killpg(child.pid, sig)
+        except ProcessLookupError:
+            pass
+        try:
+            child.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            continue
+        if not members(child.pid):
+            return True
+    child.wait(timeout=15)
+    return not members(child.pid)
+
+
+def exact_fields(actual, expected):
+    assert isinstance(actual, dict)
+    for key, value in expected.items():
+        assert key in actual and type(actual[key]) is type(value), key
+        if isinstance(value, list):
+            assert len(actual[key]) == len(value) and all(type(a) is type(b) and a == b for a, b in zip(actual[key], value, strict=True)), key
+        else:
+            assert actual[key] == value, (key, actual[key], value)
+
+
+def validate_rust(log, phase):
+    marker=phase['marker']+' '
+    payloads=[json.loads(line.split(marker,1)[1]) for line in log.splitlines() if marker in line]
+    assert len(payloads)==1, 'missing/duplicate evidence marker'
+    actual=payloads[0]
+    exact_fields(actual, phase['expected'])
+    if phase['label']!='cli4096-short':
+        assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in log, 'exactly one selected test'
+        images=[line.lower() for line in log.splitlines() if line.startswith('dyld[')]
+        assert images and not any(k in x for x in images for k in ['/libmlx','/libjaccl','/site-packages/mlx/'])
+    if phase['label'] in ('expert','model'):
+        branches=actual['branches']
+        assert len(branches)==2 and [b['enabled'] for b in branches]==[False,True]
+        off,on=(b['counters'] for b in branches)
+        assert all(type(n) is int for n in off+on)
+        assert off[0:2]==[0,0] and off[2]>0 and on[0]>0 and on[0]*1248012==on[1]==off[2] and on[2]==0
+        if phase['label']=='expert':
+            assert off[2]==12480120
+            assert all(b['cold_bytes']==12480120 and b['hot_bytes']==0 and b['finite_words']==2560 for b in branches)
+        else:
+            assert all(b['rows']==3 and b['trace_rows']==2 and b['offset']==3 and b['snapshot_position_before_continuation']==2 for b in branches)
+    if phase.get('require_initial_direct'):
+        assert all(b['initial_direct_enabled'] is True for b in actual['branches'])
+    return actual
+
+
+def validate(log, phase):
+    if phase['kind']=='rust-marker':
+        return validate_rust(log, phase)
+    if phase['kind']=='cli-json':
+        result=json.loads(Path(phase['report_path']).read_text())
+        exact_fields(result, {'status':'verified','parity':True,'completed':4,'cancelled':['context_usage','delta'],'rejected':1,'token_hash':'9f850af1cbba074b','mlx_loaded':False})
+        assert result['engine_sha256']==phase['engine_sha256']
+        assert len(result['ledger']['expert_slots_by_layer'])==48 and all(n==53 for n in result['ledger']['expert_slots_by_layer'])
+        return result
+    if phase['kind']=='budget':
+        assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in log
+        assert 'Native budget bridge replay matches the independent two-token hash after rejection and memory-saver cleanup' in log
+        images=[line.lower() for line in log.splitlines() if line.startswith('dyld[')]
+        assert images and not any(k in line for line in images for k in ['/libmlx','/libjaccl','/site-packages/mlx/'])
+        return {'golden':'9f850af1cbba074b','completions':2,'memory_saver_recovery':True,'noMLX':True}
+    assert phase['kind']=='prefix'
+    marker=phase['marker']+' '
+    items=[json.loads(line.split(marker,1)[1]) for line in log.splitlines() if marker in line]
+    assert len(items)==1
+    exact_fields(items[0],phase['expected'])
+    return items[0]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run-after-root-grant', action='store_true')
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error('GPU execution requires an explicit root grant and --run-after-root-grant')
+    plan = json.loads(PLAN.read_text())
+    assert plan['status'] == 'frozen_ready', 'artifact freeze not bound yet'
+    with REPORT.open('x') as sink:
+        report = {'status': 'started', 'parity': False, 'all_children_joined': False, 'expected_phases': 6, 'phases': [], 'plan_sha256': hashlib.sha256(PLAN.read_bytes()).hexdigest()}
+        json.dump(report, sink)
+    env = {key: value for key, value in os.environ.items() if not key.startswith(('MLXL3_', 'DYLD_'))}
+    env.update(plan['environment'])
+    child = None
+    try:
+        for name, item in plan['artifacts'].items():
+            assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest() == item['sha256'], 'artifact changed: ' + name
+        for phase in plan['phases']:
+            record = {**phase, 'status': 'running', 'parity': False, 'joined': False, 'pgid_empty': False}
+            report['phases'].append(record)
+            save(report)
+            journal(phase['label'] + ' STARTED, exclusive root GPU grant, no speed measurement')
+            started = time.monotonic()
+            child = None
+            try:
+                with (HERE / (phase['label'] + '.log')).open('xb') as log:
+                    child = subprocess.Popen(phase['command'], cwd=ROOT, env={**env, **phase.get('environment', {})}, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    record['pid'] = child.pid
+                    save(report)
+                    code = child.wait(timeout=phase['timeout_seconds'])
+                assert code == 0, 'child exit ' + str(code)
+                assert not members(child.pid), 'owned process group retained children'
+                evidence = validate((HERE / (phase['label'] + '.log')).read_text(), phase)
+                record.update(status='validated', parity=True, joined=True, pgid_empty=True, returncode=code, elapsed_seconds=time.monotonic()-started, evidence=evidence)
+                save(report)
+                journal(phase['label'] + ' VALIDATED ' + json.dumps(evidence, sort_keys=True))
+                print(phase['label'] + ' validated', flush=True)
+            except BaseException:
+                joined = stop(child)
+                record.update(status='failed', parity=False, joined=joined, pgid_empty=joined, elapsed_seconds=time.monotonic()-started)
+                raise
+        assert len(report['phases']) == 6 and all(p['parity'] is True and p['joined'] and p['pgid_empty'] for p in report['phases'])
+        report.update(status='essential_validated', parity=True, all_children_joined=True)
+        journal('6/6 VALIDATED, all owned processes joined/PGIDs empty; normal test scopes drop/join native readers; no speed measurement')
+    except BaseException as error:
+        report.update(status='failed', parity=False, error=repr(error), all_children_joined=all(p.get('joined') is True for p in report['phases']))
+        journal('FAILED ' + repr(error) + ', no speed qualification')
+        raise
+    finally:
+        save(report)
+
+
+if __name__ == '__main__':
+    main()

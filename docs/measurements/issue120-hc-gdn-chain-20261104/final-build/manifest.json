@@ -1,0 +1,37 @@
+{
+  "logs": {
+    "build-final-cli.log": {
+      "raw_sha256": "f492d5380fd9646fa5d84fb38b46db67e9bdadc1462bc9603b4b82996e28b0ef",
+      "raw_bytes": 405
+    },
+    "build-final-libtest.log": {
+      "raw_sha256": "bcbc361217b92c975fd9948f4c34233632a9afd90025450e52451442be4ec5a6",
+      "raw_bytes": 405
+    },
+    "clippy-final-direct.log": {
+      "raw_sha256": "926f711d6f2f260c4ad6e8a5f60c70ad528abb5699f332b081efed8b0f2bcf7f",
+      "raw_bytes": 414
+    },
+    "clippy-final-mlx.log": {
+      "raw_sha256": "c2472b849481033c39c0ad0ee4cf99023530e999d07cd1f36919b91a1aeaf83a",
+      "raw_bytes": 414
+    }
+  },
+  "source_dependencies": {
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9",
+    "scripts/benchmark-flash-bridge.py": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8"
+  },
+  "tool_versions": {
+    "rust": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+  },
+  "commands": [
+    "cargo build --locked --release --no-default-features --features direct-metal,chat --bin mlxl3-rs",
+    "cargo test --locked --release --features chat --lib --no-run --message-format=json",
+    "cargo clippy --locked --features chat --all-targets -- -D warnings",
+    "cargo clippy --locked --features mlx,chat --all-targets -- -D warnings"
+  ],
+  "scope": "Final default-only policy. All GDN/HC/shader hashes exactly S2; source identities in freeze-final.json. No installed app or release replaced."
+}

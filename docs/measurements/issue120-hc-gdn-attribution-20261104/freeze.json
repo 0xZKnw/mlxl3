@@ -1,0 +1,36 @@
+{
+  "status": "CPU_qualified_frozen_before_GPU",
+  "source_head": "cf78d014dd1313f4d7b4131b0e4f282bf824a868",
+  "source_dirty": true,
+  "source_sha256": {
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9",
+    "native/src/flash_profile.rs": "f21796effbae405f2ec0fccd652cf1e3475c8159041193d1829de1a55b5c396f",
+    "native/src/gpu.rs": "23432cea10c22e8a24f71bf7fe1cd7915e13fda775c061fcf2ccae69492087d1",
+    "native/src/gpu/hc.rs": "44bdddfbd1ef2cfeb43550bb22a950e61dcad43c501bbdf7c655dabd3b272b05",
+    "native/src/gpu/gdn.rs": "fa97013cae90dc52c305a13e58400b775939b5abb5aa068683abac84130d72eb",
+    "native/src/gpu/flash.rs": "b5b47d2921d06bb2bdc21a48218ff9d3208bf46e01f787bda64ee90ddab36b73",
+    "docs/native-coverage/mlx-sites.json": "90f6e5a095441457894240b1ca3c0b682efae8bed883afe447fad675c94bbf93"
+  },
+  "artifact": {
+    "path": "/Users/justin/.codex/worktrees/issue120-next-profile/mix-stq1_0/build/hc-gdn/frozen/hc-gdn-libtest",
+    "sha256": "4ef4d51884b4c2982415e91db5dd459acfd9d9fd67062dc25ff37b92d902a7e2",
+    "bytes": 9286384,
+    "minos": "26.2",
+    "sdk": "27.2"
+  },
+  "CPU": {
+    "fmt": "passed",
+    "inventory": "249 files; seven new flag references plus four inherited P01 gaps explicitly recorded",
+    "strict_direct_alltargets": "passed",
+    "profile_tests": "7passed/0ignored",
+    "parent_doublecount_mutation": "mutant failed101/restored original passed; source hash restored",
+    "new_counter_Kani": "ICE3.233s before obligations; NOT_VERIFIED; four symbolic u64/two scopes/unwind33/noassumes/noclockstubs",
+    "release_libtest": "passed39.212s"
+  },
+  "all_owned_CPU_children_joined": true,
+  "physical_run": "NOT_RUN; root grant required",
+  "reference_production_CLI": "P01 d419a9ffa3264af50096779760392f4d43f9cd0d40cba2d6297f337e6958a9fb unchanged; no new CLI build",
+  "limits": "cfgtest intrusive diagnostic; allocation events exclusively owned; no aligned CPU Instant epoch, devicewide utilization, exclusive wait savings, perkernel attribution, or full Metal/OS proof"
+}

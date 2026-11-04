@@ -1,0 +1,41 @@
+{
+  "status": "source_v2_frozen_fmt_clippy_passed_GPU_unrun",
+  "changes": [
+    {
+      "path": "native/src/gpu/gdn.rs",
+      "old_sha256": "00c063f32cd3d005c8939b446b6ad0f51c8e40272ad902f6c503338a9a7debb7",
+      "old_source_reconstructed_exact_freeze_match": true,
+      "new_sha256": "0846bfda289ddf7b6922066d04a66fcda5bd987c5cb01e2fdaed5aa302998dae"
+    },
+    {
+      "path": "native/src/gpu/hc_gdn_tests.rs",
+      "old_sha256": "80a148d9588c1e66e06d8a29abace922436196e0f4b284ab8015b43a8f41c34d",
+      "old_source_reconstructed_exact_freeze_match": true,
+      "new_sha256": "ca4426ec9345531795ace1e5c6942d7a5054685b49940c5851c05331389a88f9"
+    }
+  ],
+  "unchanged_frozen_source_files": true,
+  "scope": "Pending stepsOption with eager trace.then_some in encode; remove redundant previous/input/out_half Rust holders. Command/next/values/Completed guard, private API, shader/math/allocations/flags unchanged.",
+  "evidence": [
+    "MTLCommandQueue standard commandBuffer strong resource references (installed SDK27.2 header27-34), metal-rs0.33 standard queue path; existing adaptation-review.md."
+  ],
+  "checks": {
+    "fmt": "PASS",
+    "strict_direct_alltargets_Clippy": "PASS2.62s"
+  },
+  "proof_limits": "Existing CPU helper Kani contracts unchanged and reused; Metal/OS/concurrency not formally proved. New physical parity required.",
+  "old_frozen_preserved": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen/direct-cli",
+      "sha256": "e621c4303a1e7292332915c62b196f47e357c44bb399bee6ec730d4565c85f54",
+      "bytes": 10123808
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen/native-libtest",
+      "sha256": "bd2fe763fabe2bd2a0312d6fcae766651c9b9ff96734d19ddbacd21f2fbdce4f",
+      "bytes": 9341104
+    }
+  },
+  "runtime_policy": "defaultOFF remains; no speed claim for this change",
+  "raw_log_directory": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/v2"
+}

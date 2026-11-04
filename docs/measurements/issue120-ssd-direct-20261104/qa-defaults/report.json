@@ -1,0 +1,93 @@
+{
+  "scope": "actual CPU flag helper; not Metal/OS/concurrency verification",
+  "checks": [
+    {
+      "name": "kani-qualified-default",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "native_direct_flag_preserves_qualified_default_and_exact_override"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 17.75209308398189,
+      "joined": true
+    },
+    {
+      "name": "original-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/original.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/original-test"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.3274710000259802,
+      "joined": true
+    },
+    {
+      "name": "mutant-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/mutant.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/mutant-test"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.09009795801830478,
+      "joined": true
+    },
+    {
+      "name": "original",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/original-test",
+        "--exact",
+        "actual_qualified_default_contract"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 1.1270805830135942,
+      "joined": true
+    },
+    {
+      "name": "mutant-default-false",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/mutant-test",
+        "--exact",
+        "actual_qualified_default_contract"
+      ],
+      "exit_code": 101,
+      "expected_exit_code": 101,
+      "seconds": 0.266293416992994,
+      "joined": true
+    },
+    {
+      "name": "original-reused",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/qa-defaults/mutation/original-test",
+        "--exact",
+        "actual_qualified_default_contract"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.009562584018567577,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true,
+  "status": "passed",
+  "source_helper_sha256": "d93cf77bcc6d48feaef9d7052dcfa383a5e88089c289540af6de69369e3d9a49",
+  "hc_helper_sha256": "2d30bdae710d6f567249a3d43392317e853855107511dd9dceb117da098571ac",
+  "mutation_scope": "exact two production helpers plus exact current test assertion; drop hardware default at call only",
+  "bound": "arbitrary valid UTF8 strings <=4 bytes, qualified bool, None; unwind10; no assume/stub",
+  "unchanged_extent_eligibility": "proofs reused, not rerun"
+}
