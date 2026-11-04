@@ -1,0 +1,42 @@
+{
+  "status": "CPU_checked_trace_replay_passed",
+  "base_main": "17c66327a93af96f94d062f809d31b41e8fe5215",
+  "source_before_extension": "318a5dee",
+  "analyzer_sha256": "04047687ba8dd9854a18338b06d20570a104400039bae3c855410e9a711bad92",
+  "checks": {
+    "focused": {
+      "passed": 49,
+      "ignored": 0
+    },
+    "relevant_reporting_suites": {
+      "passed": 304,
+      "ignored": 0,
+      "seconds": 3.32
+    },
+    "format": "passed after initial two test-format findings corrected",
+    "ruff": "passed",
+    "py_compile": "passed",
+    "original_regression": "integration test fails KeyError aggregated_encoder_groups on318a5dee",
+    "mutation": {
+      "mutation": "sort and deduplicate actual parsed names",
+      "exit_code": 1,
+      "detected": true
+    },
+    "crosshair_finite_composite_order": "one condition Confirmed over all paths for actual parser called with two ordered names from {a,Z,_,a1};16 combinations; symbolic search, not general proof",
+    "crosshair_bounded_arbitrary_unicode": "two conditions Not confirmed,20s each;labelsNone orUnicode<=128characters; no counterexample, not proof",
+    "crosshair_direct_private_function": "exit0/no analyzed condition messages: no verification verdict",
+    "crosshair_initial_failure": "pytest absent in formal virtualenv; retried with existing project .venv site-packages in PYTHONPATH",
+    "workflow": "focused tests/lint on PR/main; bounded CrossHair order check added to existing pinned profile workflow; exact-head hosted status pending publication"
+  },
+  "commands": [
+    "python -m pytest -q tests/test_native_trace_analyzer.py",
+    "python -m pytest -q tests/test_native_trace_analyzer.py tests/test_flash_trace_report.py tests/test_flash_profile.py tests/test_decode_p09_attribution.py tests/test_flash_profile_export.py",
+    "python -m ruff format --check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py",
+    "python -m ruff check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py",
+    "python -m py_compile scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py",
+    "crosshair check tests.test_native_trace_analyzer.crosshair_composite_keeps_order_and_repetition --report_all --per_condition_timeout=20",
+    "crosshair check tests.test_native_trace_analyzer.crosshair_bounded_sequence_is_whole --report_all --per_condition_timeout=20"
+  ],
+  "raw_local_evidence_directory": "build/trace-analyzer-aggregate-20261104",
+  "formal_limits": "XML/filesystems/concurrency/Metal/inference are unproved; no GPU run by analyzer agent"
+}

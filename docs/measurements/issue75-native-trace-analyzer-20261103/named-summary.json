@@ -1,0 +1,87 @@
+{
+  "status": "analyzed_encoder_activity_not_speed_validation",
+  "time_unit": "ns; raw xctrace start-time/duration values",
+  "analyzer_sha256": "0ac2a8ea0a5699afe744d418984a72edba62366cf8595c3a1976e3609e0a2bf9",
+  "input_sha256": {
+    "metal-gpu-intervals.xml": "a4dbf1a1612e1ec55a9c9b01bb91d86aa3de122d4d80c7d2556879cf42585da0",
+    "metal-application-encoders-list.xml": "5c156f0410bf0093e864be3857ac7fa0bd745d9c2d038611f55c12fbb056f572",
+    "metal-shader-profiler-shader-list.xml": "d508a1567c5ef0b9fd64fa3fe3d957c281acc901e2be77628264ec4638581003",
+    "metal-shader-profiler-intervals.xml": "cf818b151cc26467e59f519954ccd69c6621bb21394550266b563c687e6e9c16"
+  },
+  "target_PID_filtered": true,
+  "GPU": {
+    "total_rows": 36748,
+    "target_rows": 6955,
+    "active_rows": 6955,
+    "states": {
+      "Active": 6955
+    },
+    "depths": {
+      "0": 6610,
+      "1": 345
+    },
+    "channels": {
+      "Compute": 6929,
+      "Fragment": 21,
+      "Vertex": 5
+    },
+    "raw_duration_ns": 1705357809,
+    "per_encoder_union_sum_ns": 1705188434,
+    "global_interval_union_ns": 1658390805,
+    "within_encoder_overlap_ns": 169375,
+    "cross_encoder_overlap_ns": 46797629,
+    "observed_span_ns": 4942294458
+  },
+  "join": {
+    "CPU_encoder_rows": 6920,
+    "CPU_duplicate_rows": 0,
+    "CPU_unique_encoders": 6920,
+    "GPU_unique_encoders": 6917,
+    "matched_GPU_rows": 6955,
+    "unmapped_GPU_encoders": 0,
+    "CPU_encoders_without_active_GPU": 3
+  },
+  "CPU_encoding": {
+    "event_types": {
+      "Encoding": 6920
+    },
+    "raw_duration_ns": 71095317,
+    "scope": "CPU Encoding duration, not GPU kernel time"
+  },
+  "shader_metadata": {
+    "target_rows": 79,
+    "scope": "shader/PSO catalog only; no invocation or timing inferred"
+  },
+  "shader_timeline": {
+    "target_rows": 0,
+    "timing_analyzed": false
+  },
+  "named_encoder_groups": [
+    {
+      "declared_single_dispatch_encoder_kernel": "hc_write_float",
+      "encoders": 1535,
+      "gpu_intervals": 1539,
+      "raw_duration_ns": 4962898,
+      "interval_union_ns": 4962898,
+      "per_encoder_union_sum_ns": 4962898
+    },
+    {
+      "declared_single_dispatch_encoder_kernel": "flash_logsumexp",
+      "encoders": 15,
+      "gpu_intervals": 15,
+      "raw_duration_ns": 291873,
+      "interval_union_ns": 291873,
+      "per_encoder_union_sum_ns": 291873
+    }
+  ],
+  "unknown_or_unmapped": {
+    "GPU_intervals": 5401,
+    "interval_union_ns": 1653136034
+  },
+  "limits": [
+    "Named groups require the explicit diagnostic encoder-label contract, not shader-catalog guesses.",
+    "Encoder activity can contain nested/overlapping events; group sums are not exclusive GPU percentages.",
+    "No correctness, clean measurement conditions, full-generation coverage or release speed gain is established.",
+    "Zero ShaderTimeline rows do not mean zero kernel work or per-kernel timing."
+  ]
+}

@@ -34,6 +34,11 @@ jobs:
           PYTHONPATH=scripts crosshair check build_manifest.runtime_backend --analysis_kind=PEP316 --report_all --per_condition_timeout=10 > build/proofs/native-package.log 2>&1
           cat build/proofs/native-package.log
           python -c "from pathlib import Path; text = Path('build/proofs/native-package.log').read_text(); assert text.count('info: Confirmed over all paths.') == 2, text"
+      - name: Check native trace composite ordering on the bounded name domain
+        run: |
+          PYTHONPATH=. crosshair check tests.test_native_trace_analyzer.crosshair_composite_keeps_order_and_repetition --report_all --per_condition_timeout=20 > build/proofs/native-trace-composite.log 2>&1
+          cat build/proofs/native-trace-composite.log
+          python -c "from pathlib import Path; text = Path('build/proofs/native-trace-composite.log').read_text(); assert text.count('info: Confirmed over all paths.') == 1, text"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
