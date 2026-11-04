@@ -1,0 +1,111 @@
+{
+  "status": "preregistered_not_run",
+  "source_commit": "51e90e6ec05ed6d8b6cb6d8c0f3ac272dcdfac68",
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0"
+  },
+  "conditions": "Root exclusive GPU grant; all other CPU/GPU drained; no speed inference. Static setting absent in every child. Existing stock inputs/outputs retained, no oracle regeneration.",
+  "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+  "phases": [
+    {
+      "label": "component-0",
+      "kind": "component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-default",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/default-quality-01/component-0",
+        "MLXL3_NATIVE_FLASH_NT2": "0"
+      },
+      "reference": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-1/mode-0",
+      "enabled": 0
+    },
+    {
+      "label": "component-1",
+      "kind": "component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-default",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/default-quality-01/component-1",
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      },
+      "reference": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-1/mode-1",
+      "enabled": 1
+    },
+    {
+      "label": "component-default",
+      "kind": "component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-default",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/default-quality-01/component-default"
+      },
+      "reference": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-1/mode-default",
+      "enabled": 1
+    },
+    {
+      "label": "target-absent",
+      "kind": "target",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-default",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NATIVE_FLASH_NT2": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      }
+    },
+    {
+      "label": "ar-absent",
+      "kind": "bridge",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/direct-cli-default",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/default-quality-01/ar.json",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 240,
+      "env": {
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      }
+    }
+  ],
+  "cleanup": "Own PGID, finite outer wait, TERM5/KILL15, join, group absence, failclosed and stopfirstfailure"
+}

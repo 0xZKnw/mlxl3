@@ -1,0 +1,27 @@
+{
+  "status": "source_adaptation_cause_identified_runtime_recheck_pending",
+  "time_utc": "2026-11-04T09:59:02.516986+00:00",
+  "source": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "observed": {
+    "prefix0": "242->194helpercommands;48jointpairs and28803072finiteF32statewords exact",
+    "prefix2": "242->206helpercommands;combinedcounterassertionfailsbeforelogit/statecomparison;paircountnotseparatelyprinted",
+    "prefix9": "not reached"
+  },
+  "source_scenario": [
+    "FlashQsaState.snapshot clones Rc<Slab>;Slab.published is shared Cell<u32>.",
+    "Atprefix2 saved snapshot hasoffset2,published2. Controlforward11 thenforward_trace7 advance that slab published to4.",
+    "restore(saved) restoresoffset2 andRcslab but does not rewind shared published4. qsa_append(2,4,64) requires fork.",
+    "QSAfork with offset>0 creates one gpu.command blit for KV prefix copy; model has12QSA layers (i%4==3 of48).",
+    "Those12nonHC helpercommands are paid only by restored candidate in initial fixture. Source prediction242-(194+12)=36 matches observed command difference.",
+    "Atprefix0 fork byteoffset0 skips copycommand, predicting observed48difference."
+  ],
+  "recommended_smallest_change": "Test-only: after taking saved snapshot, run one finite model.forward(11) and restore(saved) before recording control commands. Both measured branches then restore the same already-publishedprefix and perform the same QSA COW copies. Keep exact48globalhelpercommand reduction,48actualjointpairs and allnumeric checks unchanged.",
+  "unchanged_required_oracles": [
+    "prefix0/2/9 full248320logits+hidden+84states each,86409216finiteF32words total",
+    "lateIOrollback/invalidtoken/emptyprefill/recovery",
+    "existingindependentarchivedstates+HCwrites",
+    "realARbridge+budget/rejection/cancellation/recovery"
+  ],
+  "limits": "Source-based causal explanation matches observed counts but the changed fixture has not been implemented or rerun; fullAR remains failed. No speed/newGPU/runtimecode changes.",
+  "next_gate": "Wait root CPU window after static-K ABBA, then test-onlyedit and affectedchecks/libtestrebuild before physical requalification."
+}

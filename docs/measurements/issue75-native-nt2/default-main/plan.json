@@ -1,0 +1,60 @@
+{
+  "status": "preregistered_not_run",
+  "scope": "Current-main integration of previously qualified unconfigured default; no unchanged component repetition and no speculative generation",
+  "candidate_sha256": "35ce39a75746c7016b3a87c530ed0714c9ccdb7ff71f42f9b356c544ffcf4a3d",
+  "environment_policy": "remove all inherited MLXL3_/DYLD_ settings, set listed values, MLXL3_NATIVE_FLASH_NT2 absent",
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0"
+  },
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/direct-cli",
+      "sha256": "a232cbf31bacad26c52bc5749f714d29e022ccf1c2c196caa468238b01f4d3b4",
+      "bytes": 10107632
+    },
+    "libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/libtest",
+      "sha256": "15814fbb70a83d0f931ba16beb51741bc0d617cb3d0ce75db7a1f00749420cfc",
+      "bytes": 9043728
+    }
+  },
+  "ownership": "Popen start_new_session; finite outer wait; killpg/join on error; persist failure before rethrow; refuse overwrite",
+  "phases": [
+    {
+      "label": "target-main-default",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 180,
+      "expected": "exactly1selected passing test;84states/28803072 finiteF32 words +496640half logits; nonzero prefetch; DYLDMetal/noMLX; setting absent"
+    },
+    {
+      "label": "ar-main-default",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/ar.json"
+      ],
+      "timeout_seconds": 240,
+      "expected": "AR2 golden9f850af1cbba074b, invalid messages/context+delta cancel/recovery,48x53 slots, noMLX; setting absent"
+    }
+  ]
+}

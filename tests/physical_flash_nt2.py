@@ -1,4 +1,4 @@
-"""Qualify native resident NT2 against independent stock and same-binary NT1."""
+"""Qualify native resident NT2 and static-K defaults against independent stock."""
 
 import argparse
 import hashlib
@@ -116,9 +116,34 @@ def words(actual: list[int], expected: list[int]) -> int:
     return len(actual)
 
 
+def static_counts(result: dict, enabled: bool) -> list[int]:
+    """Require a complete actual-submission vector for each selected static PSO.
+
+    raises: AssertionError, KeyError, TypeError
+    post: len(__return__) == 5
+    post: all(n >= 0 for n in __return__)
+    """
+    assert result["static_k"] is enabled and result["cases"]
+    assert len(result["static_submissions"]) == 5 and all(
+        type(n) is int and n >= 0 for n in result["static_submissions"]
+    )
+    total = [0] * 5
+    for case in result["cases"]:
+        key, counts = case["static_key"], case["static_submissions"]
+        assert key is None or (enabled and type(key) is int and 0 <= key < 5)
+        assert len(counts) == 5 and all(type(n) is int and n >= 0 for n in counts)
+        assert counts == [int(key == index) for index in range(5)]
+        total = [a + b for a, b in zip(total, counts, strict=True)]
+    assert result["static_submissions"] == total
+    return total
+
+
 def verify(args, root, report):
     cases = fixtures(root, args.model.resolve())
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+    static_k = getattr(args, "static_k", None)
+    if static_k is not None:
+        env["MLXL3_NATIVE_FLASH_STATIC_K"] = str(static_k)
     process(
         [
             str(args.stock),
@@ -134,7 +159,17 @@ def verify(args, root, report):
     assert len(refs) == len(cases) > 0
     compared = 0
     report["modes"] = []
-    for enabled in (0, 1):
+    static_total = [0] * 5
+    for setting in (0, 1, None):
+        enabled = 1 if setting is None else setting
+        label = "default" if setting is None else str(setting)
+        mode_root = root / f"mode-{label}"
+        mode_root.mkdir()
+        (mode_root / "stock.json").write_text(json.dumps(refs))
+        (mode_root / "native-cases.json").write_text(json.dumps(cases))
+        native_env = {**env, "MLXL3_NT2_FIXTURES": str(mode_root), "DYLD_PRINT_LIBRARIES": "1"}
+        if setting is not None:
+            native_env["MLXL3_NATIVE_FLASH_NT2"] = str(setting)
         stderr = process(
             [
                 str(args.native),
@@ -143,13 +178,8 @@ def verify(args, root, report):
                 "--ignored",
                 "--test-threads=1",
             ],
-            {
-                **env,
-                "MLXL3_NATIVE_FLASH_NT2": str(enabled),
-                "MLXL3_NT2_FIXTURES": str(root),
-                "DYLD_PRINT_LIBRARIES": "1",
-            },
-            root / f"native-{enabled}.log",
+            native_env,
+            root / f"native-{label}.log",
         )
         images = [line.lower() for line in stderr.splitlines() if line.startswith("dyld[")]
         assert images and not any(
@@ -157,7 +187,7 @@ def verify(args, root, report):
             for line in images
             for key in ("/libmlx", "/libjaccl", "/site-packages/mlx/")
         )
-        result = json.loads((root / f"native-{enabled}.json").read_text())
+        result = json.loads((mode_root / f"native-{enabled}.json").read_text())
         assert result["parity"] is True and result["unequal"] == 0
         assert len(result["cases"]) == len(cases)
         submissions = 0
@@ -167,13 +197,46 @@ def verify(args, root, report):
             assert item["case"] == i and item["nt"] == nt and item["nt2_submissions"] == count
             assert item["words"] == case["words"]
             submissions += count
-            actual = np.fromfile(root / f"native-{enabled}-{i}.bin", dtype="<u2").tolist()
+            actual = np.fromfile(mode_root / f"native-{enabled}-{i}.bin", dtype="<u2").tolist()
             assert len(actual) == case["words"] > 0
             compared += words(actual, ref)
             if enabled:
-                words(actual, np.fromfile(root / f"native-0-{i}.bin", dtype="<u2").tolist())
+                words(
+                    actual, np.fromfile(root / "mode-0" / f"native-0-{i}.bin", dtype="<u2").tolist()
+                )
+            if setting is None:
+                words(
+                    actual, np.fromfile(root / "mode-1" / f"native-1-{i}.bin", dtype="<u2").tolist()
+                )
         assert result["nt2_submissions"] == submissions and (submissions > 0) == bool(enabled)
-        report["modes"].append(result)
+        counts = static_counts(result, static_k != 0)
+        static_total = [a + b for a, b in zip(static_total, counts, strict=True)]
+        report["modes"].append({**result, "setting": setting})
+    assert all(n > 0 for n in static_total) if static_k != 0 else static_total == [0] * 5
+    report["static_submissions"] = static_total
+    if static_k is not None:
+        process(
+            [
+                str(args.native),
+                "gpu::projection::physical_flash_resident_nt2",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+            ],
+            {
+                **env,
+                "MLXL3_NATIVE_FLASH_NT2": "1",
+                "MLXL3_NATIVE_FLASH_STATIC_K": "true",
+                "MLXL3_NT2_FIXTURES": str(root),
+            },
+            root / "static-invalid-flag.log",
+        )
+        assert json.loads((root / "static-invalid-flag.json").read_text()) == {
+            "rejected": True,
+            "fc_hidden": True,
+            "fallbacks": True,
+        }
+        report["static_invalid_flag_recovery"] = True
     process(
         [
             str(args.native),
@@ -198,6 +261,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("native", "stock", "model", "report"):
         parser.add_argument(name, type=Path)
+    parser.add_argument(
+        "--static-k", type=int, choices=(0, 1), help="override native enabled default"
+    )
     args = parser.parse_args()
     report = {
         "status": "started",

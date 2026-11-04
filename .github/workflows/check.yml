@@ -30,8 +30,9 @@ jobs:
       - run: python scripts/check_native_coverage.py
       - run: python -m pip install pytest==8.3.5 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
       - run: PYTHONPATH=. python -m pytest -q tests/test_physical_flash_ar_bridge.py tests/test_native_json_process.py
-      - run: python -m ruff check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py
-      - run: python -m ruff format --check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py
+      - run: PYTHONPATH=. python -m pytest -q tests/test_kani_manifest.py
+      - run: python -m ruff check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py tests/test_kani_ci.py tests/test_kani_manifest.py
+      - run: python -m ruff format --check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py tests/test_kani_ci.py tests/test_kani_manifest.py
       - run: PYTHONPATH=src python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py tests/test_build_manifest.py tests/test_native_quantizer.py tests/test_native_transforms.py tests/test_native_converter_host.py tests/test_native_capture.py tests/test_native_feedback.py
       - run: python -m ruff format --check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py
       - run: python -m ruff check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py
