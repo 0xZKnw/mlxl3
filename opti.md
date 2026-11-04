@@ -1,5 +1,13 @@
 # MLXL3 — journal des optimisations
 
+## I120-P01-PILOT-CLOSED-DEFAULTS-20261104 — résultat et finalisation avant code
+
+Pilote32ABBA CLOS FAVORABLE dans sa portée courte : CLId860/source runtimeb0dc contre référencef4b5, MAIN médiane6.230027→6.343250tok/s(+1.817364%), HOLD6.261465→6.483449(+3.545251%). Chacun des deux candidats dépasse chacun des deux témoins surlesdeuxprompts ; dériveA-1.028/-0.594%,B-1.092/+1.128%. Tempsréponseentière-2.764/-2.398%, TTFTmédiane-3.109/-2.017%(HOLDéchantillonssechevauchent, paslatenceuniverselle).16sortiesfulltext/hash/32tokens31decodeexactes,4processus/lecteursjoints, Metal6608617472Bidentique8mesures.3GiB/48×53/readers4/dynamic0/depth0/prefixoff/T0/K1/penalty1, secteur100%/appsarrièreplanconnues/températurenonmesurée, aucunautrebuild/proof/inférencependantGPU. Pasaddition avecP04annulénianciennesoptis, pasgrosboost/soutenu/longcontexte. Rapportsdocs/measurements/issue120-ssd-direct-20261104/performance{,-protocol,-summary} etbrutsbuild/p01/performance. Nouveau main28f1a84e est treeexactdebasec330 etdescendant, donc aucuneadaptationruntime/relancedueàmerge119/121.
+
+Décision d’intégration avantmodification : retenir ce petitgainmesuré et finaliser défautON uniquement nomexactAppleM5 pour ARdepth0/sansprefetcher ; 0rollback,autreshardwareOFF. ModifierSEULEMENTNone→qualifieddansvraihelperdirect_flag ettests/Kanicorrespondants ; littéraux0/1/invalides, ownershipdestinations, shader/math etcodeexplicite1dupiloteinchangés. Pasdenouvellemesurevitessepourcedéfaut ; qualifierABSENCEréelleflagavecmarkersinitiauxtruepuiscompteursdirects/CLI. Aucun seuilminimumgainarbitraire.
+
+Contrôlesfinalsaffectés : fmt/inventaire/strictClippyCPU-direct-MLX etfullsuitespertinentesunefois ; KaniflagactualUTF8<=4/unwind10nouveaucontrat, extent+éligibilitépreuvesinchangéesréutilisées. PuisreleasesCLIfinal/libtestfinaldistinctsdesanciensetdrainCPU. GrantGPUfinalséparé : vraiCLI4096annulation/reprise/ledger+budgetfixturefce0→finalCLI, préfixeAR-only/erroretreprisecomposantsaffectésdéjàenIOphysique, fallbackdepth1sansforcerdirect etqualificationdefaultABSENTmodel/expert+CLIcourte. NechargeraucunMTP/DFlash ; vieuxprefixfixture3modesexclu. Conserverquality01échecfixtureetquality02pass/mutationgardeShared ; mutation réelledepublicationworkerresteNONEXÉCUTÉE, paspreuveMetal/OS/concurrence. Uneéventuelleerreurcodefinal bloqueactivation/pubjusqu’aucorrigé. ToutpushenPRsurmainautoriséuserdèsqualification, aucunmerge/app/release.
+
 ## I120-PROFILE-PRIORITIES-20261104 — choix guidé par les coûts observés
 
 Préenregistré avant nouvelles recherches/prototypes : l’utilisateur demande de poursuivre #120 selon le profil, sans suivre son ordre. P04 est annulé explicitement, non publié et defaultOFF dans son ancien worktree local ; son pilote AR32 dérive7–10% et n’établit aucun gain. Ne pas reprendre son code ni ses tests interrompus. Nouveau worktree propre sur PR121/c330f846 (PR119/e4 sous-jacente), production de référence f4b592bc ; modèle Flash Next65c89531/EXL3 2.05bpw/M5-24GiB, AR uniquement, aucun MTP/DFlash, aucun prototype expert-encoder.
@@ -24550,3 +24558,25 @@ I120-P01 ESSENTIAL quality-01 CLOS ÉCHEC fixtureIO/exit101/0.415s, sourceb0dcf2
 I120-P01 QUALITY01 IO ÉCHEC FIXTURE conservé avantcorrection :101en0.42s,tousenfantsPGIDjoints ; assertion real-sameslot/génération échoue carcachepartiellementoccupé choisitautrecasevideplusancienne. Aucun défautproductiondéduit. Correctionpréenregistréeavantrebuild : cachefrais10slots,9Ready ids32..40 publiésviaDemandPlanréel,puisreadbloquéexpert22dansuniquevide ; dropold/current22doitreutilisermêmecaseetnouvellegénération,assertionconservée. Seulementdonnées/semisfixtureIO etjournal,aucunpoids/modèle/runtime/math/flagchangé. Contrôlesaffectésfmt+SSDCPUciblésseulement ; ancienlib443c conservé,root/statiqueconstruiranouveaulibtest,CLId860immuable ; aucuneGPUrelanceparcetowner.
 
 I120-P01 QUALITY01 fixturefix CPU CLOS : rustfmtPASS,SSDCPU8pass0fail1physiqueignore ; mêmeshypothèses,assertsameslot+nouvellegénérationconservée,seed9Ready32..40danscachefrais10. SHAfixture5050fff42c16a7c729910da31b24d78c90f785e05430f25c8d853047b54fba0e. Tousenfantsjoints/pscompilerprovertestsvides,aucunGPU/Kani/mathrelancé ; logbuild/p01/qa/ssd-tests-fixture-fix.log,validationphysiquefixENATTENTEowner/root.
+
+I120-P01 IOFIX RELEASEGEL02 : source2b8553a5/fixture5050fff4 seulementtest, productionb0dc/CLId860etancienlib443inchangés ; nouveau frozen/native-libtest-iofix e9b12a2548f5294da7088b89aa573f5d5da8c048190b21648db0a8c6a7b46ce8 minos26.2/sdk27.2, freeze02.json/sourcehashes. Release libtestseulePASS, tousMESenfantsCPUjoints, aucunGPU/check/Kanirerun ; quality01échecpréconditionpréservé, quality02ENATTENTEgrantroot.
+
+I120-P01 ESSENTIAL io STARTED, exclusive root GPU grant, no speed measurement
+
+I120-P01 ESSENTIAL io VALIDATED {"batch_and_service_drop_drained": true, "distinct_live_backings": 4, "exact_record_bytes": 1248012, "parity": true, "partial_eof": true, "post_enqueue_truncation": true, "range_cases": 4, "stale_generation_rejected": true, "timeout_retained": true}
+
+I120-P01 ESSENTIAL expert STARTED, exclusive root GPU grant, no speed measurement
+
+I120-P01 ESSENTIAL expert VALIDATED {"branches": [{"cold_bytes": 12480120, "counters": [0, 0, 12480120], "enabled": false, "finite_words": 2560, "hot_bytes": 0}, {"cold_bytes": 12480120, "counters": [10, 12480120, 0], "enabled": true, "finite_words": 2560, "hot_bytes": 0}], "independent_route_bytes": "owned IO fixture separately validates exact packed records", "parity": true}
+
+I120-P01 ESSENTIAL model STARTED, exclusive root GPU grant, no speed measurement
+
+I120-P01 ESSENTIAL model VALIDATED {"branches": [{"counters": [0, 0, 1395277416], "enabled": false, "offset": 3, "rows": 3, "snapshot_position_before_continuation": 2, "trace_rows": 2}, {"counters": [1118, 1395277416, 0], "enabled": true, "offset": 3, "rows": 3, "snapshot_position_before_continuation": 2, "trace_rows": 2}], "compared_logits": 744960, "compared_state_words": 57606144, "finite": true, "initial_archive_states": 84, "parity": true}
+
+I120-P01 ESSENTIAL cli4096-short STARTED, exclusive root GPU grant, no speed measurement
+
+I120-P01 ESSENTIAL cli4096-short VALIDATED {"child_joined": true, "completed": 1, "context_length": 4096, "mlx_loaded": false, "parity": true, "status": "verified", "token_hash": "9f850af1cbba074b"}
+
+I120-P01 ESSENTIAL 4/4 VALIDATED, all owned processes joined/PGIDs empty; normal test scopes drop/join native readers; no speed measurement
+
+I120-P01 DEFAULTS QA PRÉCISION avantmutation : testsNoneattendSomequalified etKaniflagrenomménative_direct_flag_preserves_qualified_default_and_exact_override,2coversNoneM5/nonM5ajoutées,stringUTF8<=4/unwind10sansassume/stub ; extent/éligibilitéinchangésnonrelancés. Mutationstandaloneprévue aprèsKaniencours : deuxhelpersproductiondirect_flag/hc_chain_flagextraitsverbatim+assertionactuelletestNone ; originalPASS, appeldefaultqualified→falsemutantdoitéchouer101,puisoriginalréutiliséPASS. Aucunworktreesourcegelé/binairetouchépendantmutation. Fixturesphysiquescapturentinitial_direct_enabledavantoverride etexigenttrue/markerbool ; defaultsABSENTqualifiésultérieurementsousgrantroot.

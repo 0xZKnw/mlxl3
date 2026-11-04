@@ -36,7 +36,7 @@ impl ReadPayload {
 
 #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
 pub(crate) fn direct_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
-    crate::flash_support::hc_chain_flag(value, false).map(|enabled| enabled && qualified_m5)
+    crate::flash_support::hc_chain_flag(value, qualified_m5).map(|enabled| enabled && qualified_m5)
 }
 
 #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]

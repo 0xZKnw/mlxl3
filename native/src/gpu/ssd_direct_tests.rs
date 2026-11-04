@@ -49,9 +49,10 @@ fn direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters() -> Resul
     let mut observed = Vec::new();
     for enabled in [false, true] {
         let mut gpu = Metal::new()?;
+        let initial_direct_enabled = gpu.ssd_direct_enabled;
         ensure!(
-            gpu.ssd_direct_enabled,
-            "launch with MLXL3_NATIVE_SSD_DIRECT=1 on qualified M5"
+            initial_direct_enabled,
+            "qualified Apple M5 direct SSD setting required"
         );
         // Test override precedes every model/queue operation; the production snapshot is immutable.
         gpu.ssd_direct_enabled = enabled;
@@ -91,7 +92,7 @@ fn direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters() -> Resul
         } else {
             reference = Some((cold.indices.clone(), cold_values));
         }
-        observed.push(serde_json::json!({"enabled":enabled,"cold_bytes":cold.read_bytes,"hot_bytes":hot.read_bytes,"counters":after_cold,"finite_words":2560}));
+        observed.push(serde_json::json!({"enabled":enabled,"initial_direct_enabled":initial_direct_enabled,"cold_bytes":cold.read_bytes,"hot_bytes":hot.read_bytes,"counters":after_cold,"finite_words":2560}));
     }
     eprintln!(
         "NATIVE_SSD_DIRECT_EXPERT {}",
@@ -182,9 +183,10 @@ fn direct_ssd_preserves_archived_full_states_logits_and_continuation() -> Result
     let mut words = 0usize;
     for enabled in [false, true] {
         let mut gpu = Metal::new()?;
+        let initial_direct_enabled = gpu.ssd_direct_enabled;
         ensure!(
-            gpu.ssd_direct_enabled,
-            "qualified M5 and explicit flag1 required"
+            initial_direct_enabled,
+            "qualified Apple M5 direct SSD setting required"
         );
         gpu.ssd_direct_enabled = enabled;
         let mut model = FlashNext::load(&gpu, &checkpoint, 64)?;
@@ -261,7 +263,7 @@ fn direct_ssd_preserves_archived_full_states_logits_and_continuation() -> Result
                 "direct changed demanded record bytes"
             );
         }
-        branches.push(serde_json::json!({"enabled":enabled,"counters":counts,"rows":3,"trace_rows":2,"offset":model.offset(),"snapshot_position_before_continuation":2}));
+        branches.push(serde_json::json!({"enabled":enabled,"initial_direct_enabled":initial_direct_enabled,"counters":counts,"rows":3,"trace_rows":2,"offset":model.offset(),"snapshot_position_before_continuation":2}));
         if reference.is_none() {
             reference = Some(ModelReference {
                 rows: actual,

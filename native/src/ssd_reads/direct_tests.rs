@@ -33,7 +33,7 @@ fn direct_destination_and_policy_reject_every_unqualified_boundary() {
         }
     }
     for qualified in [false, true] {
-        assert_eq!(direct_flag(None, qualified), Some(false));
+        assert_eq!(direct_flag(None, qualified), Some(qualified));
         assert_eq!(direct_flag(Some("0"), qualified), Some(false));
         assert_eq!(direct_flag(Some("1"), qualified), Some(qualified));
         for value in ["", "01", "true", " 1", "1\n", "é", "\0"] {
@@ -88,11 +88,14 @@ fn native_direct_reads_require_depth_zero_without_prefetch() {
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(10)]
-fn native_direct_flag_preserves_off_and_qualified_exact_override() {
+fn native_direct_flag_preserves_qualified_default_and_exact_override() {
     let raw: [u8; 4] = kani::any();
     let len = usize::from(kani::any::<u8>() % 5);
     let qualified: bool = kani::any();
-    assert_eq!(direct_flag(None, qualified), Some(false));
+    let default = direct_flag(None, qualified);
+    assert_eq!(default, Some(qualified));
+    kani::cover!(qualified && default == Some(true));
+    kani::cover!(!qualified && default == Some(false));
     if let Ok(value) = std::str::from_utf8(&raw[..len]) {
         let actual = direct_flag(Some(value), qualified);
         assert_eq!(
