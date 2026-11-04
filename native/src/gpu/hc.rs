@@ -49,6 +49,42 @@ pub struct FlashHcRead {
     pub trace: Option<FlashHcTrace>,
 }
 
+// These views remain owned until the enclosing command has completed.
+struct ReadBuffers {
+    normalized: MatrixView,
+    down: MatrixView,
+    active: MatrixView,
+    up: MatrixView,
+    mixed: MatrixView,
+    gate: Option<MatrixView>,
+}
+impl ReadBuffers {
+    fn finish(self, trace: bool) -> Result<FlashHcRead> {
+        let Self {
+            normalized,
+            down,
+            active,
+            up,
+            mixed,
+            gate,
+        } = self;
+        Ok(FlashHcRead {
+            mixed,
+            gate,
+            trace: trace
+                .then(|| -> Result<_> {
+                    Ok(FlashHcTrace {
+                        normalized: normalized.read_output()?,
+                        down: down.read_output()?,
+                        active: active.read_output()?,
+                        up: up.read_output()?,
+                    })
+                })
+                .transpose()?,
+        })
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct FlashHcTrace {
     normalized: Vec<u32>,
@@ -138,6 +174,17 @@ impl<'a> FlashHc<'a> {
     }
 
     pub fn read(&self, x: &MatrixView, trace: bool) -> Result<FlashHcRead> {
+        self.gpu
+            .command(|cmd| self.encode_read(cmd, x, trace))?
+            .finish(trace)
+    }
+
+    fn encode_read(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+    ) -> Result<ReadBuffers> {
         let p = self.pipeline(x, 10240)?;
         let storage = if trace {
             Storage::StorageModeShared
@@ -145,84 +192,107 @@ impl<'a> FlashHc<'a> {
             Storage::StorageModePrivate
         };
         let output = |w, mode| MatrixView::output(self.gpu, x.dtype, 1, w, mode);
-        let (normalized, down, active, up, mixed, gate) = self.gpu.command(|cmd| {
-            let normalized = self
-                .gpu
-                .encode_stream_norm(cmd, x, &self.gain, self.eps, storage)?;
-            let gemv = |v: &MatrixView, weight: &Buffer, n: u32| -> Result<MatrixView> {
-                let width = v.shape()[1];
-                let (count, threads) = crate::contracts::flash_hc_dispatch(width, n)
-                    .context("invalid Flash HC matrix dimensions")?;
-                let pipeline = if width == 320 { &p.wide } else { &p.narrow };
-                ensure!(
-                    pipeline.thread_execution_width() == 32
-                        && pipeline.max_total_threads_per_threadgroup() >= u64::from(threads),
-                    "unsupported Flash HC GEMV geometry"
-                );
-                let out = output(n, storage)?;
-                Metal::encode(
-                    cmd,
-                    pipeline,
-                    &[&v.buffer, weight, &out.buffer],
-                    [n],
-                    groups(count),
-                    threads as usize,
-                );
-                Ok(out)
-            };
-            let activate = |v: &MatrixView, gate: bool| -> Result<MatrixView> {
-                let n = v.shape()[1];
-                let a = output(
-                    n,
-                    if gate {
-                        Storage::StorageModeShared
-                    } else {
-                        storage
-                    },
-                )?;
-                Metal::encode(
-                    cmd,
-                    &p.activate,
-                    &[&v.buffer, &a.buffer],
-                    [n, u32::from(gate)],
-                    groups(n.div_ceil(32)),
-                    32,
-                );
-                Ok(a)
-            };
-            let down = gemv(&normalized, &self.down, 320)?;
-            let active = activate(&down, false)?;
-            let up = gemv(&active, &self.up, 10240)?;
-            let mixed = output(2560, Storage::StorageModeShared)?;
+        let normalized = self
+            .gpu
+            .encode_stream_norm(cmd, x, &self.gain, self.eps, storage)?;
+        let gemv = |v: &MatrixView, weight: &Buffer, n: u32| -> Result<MatrixView> {
+            let width = v.shape()[1];
+            let (count, threads) = crate::contracts::flash_hc_dispatch(width, n)
+                .context("invalid Flash HC matrix dimensions")?;
+            let pipeline = if width == 320 { &p.wide } else { &p.narrow };
+            ensure!(
+                pipeline.thread_execution_width() == 32
+                    && pipeline.max_total_threads_per_threadgroup() >= u64::from(threads),
+                "unsupported Flash HC GEMV geometry"
+            );
+            let out = output(n, storage)?;
             Metal::encode(
                 cmd,
-                &p.mix,
-                &[&up.buffer, &normalized.buffer, &mixed.buffer],
-                [2560u32],
-                groups(80),
+                pipeline,
+                &[&v.buffer, weight, &out.buffer],
+                [n],
+                groups(count),
+                threads as usize,
+            );
+            Ok(out)
+        };
+        let activate = |v: &MatrixView, gate: bool| -> Result<MatrixView> {
+            let n = v.shape()[1];
+            let a = output(
+                n,
+                if gate {
+                    Storage::StorageModeShared
+                } else {
+                    storage
+                },
+            )?;
+            Metal::encode(
+                cmd,
+                &p.activate,
+                &[&v.buffer, &a.buffer],
+                [n, u32::from(gate)],
+                groups(n.div_ceil(32)),
                 32,
             );
-            let gate = self
-                .inject
-                .as_ref()
-                .map(|w| activate(&gemv(&normalized, w, 4)?, true))
-                .transpose()?;
-            Ok((normalized, down, active, up, mixed, gate))
-        })?;
-        Ok(FlashHcRead {
+            Ok(a)
+        };
+        let down = gemv(&normalized, &self.down, 320)?;
+        let active = activate(&down, false)?;
+        let up = gemv(&active, &self.up, 10240)?;
+        let mixed = output(2560, Storage::StorageModeShared)?;
+        Metal::encode(
+            cmd,
+            &p.mix,
+            &[&up.buffer, &normalized.buffer, &mixed.buffer],
+            [2560u32],
+            groups(80),
+            32,
+        );
+        let gate = self
+            .inject
+            .as_ref()
+            .map(|w| activate(&gemv(&normalized, w, 4)?, true))
+            .transpose()?;
+        Ok(ReadBuffers {
+            normalized,
+            down,
+            active,
+            up,
             mixed,
             gate,
-            trace: trace
-                .then(|| -> Result<_> {
-                    Ok(FlashHcTrace {
-                        normalized: normalized.read_output()?,
-                        down: down.read_output()?,
-                        active: active.read_output()?,
-                        up: up.read_output()?,
-                    })
-                })
-                .transpose()?,
         })
+    }
+
+    pub(super) fn read_after_write(
+        &self,
+        writer: &FlashHc,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+    ) -> Result<(MatrixView, FlashHcRead)> {
+        ensure!(
+            self.inject.is_some(),
+            "Flash MLP requires an injection gate"
+        );
+        if !self.gpu.hc_chain.get() {
+            let written = writer.write(streams, branch, gate)?;
+            let read = self.read(&written, false)?;
+            return Ok((written, read));
+        }
+        ensure!(
+            std::ptr::eq(self.gpu, writer.gpu),
+            "HC chain requires the same Metal instance"
+        );
+        let (written, read) = self.gpu.command(|cmd| {
+            let written = writer.encode_write(cmd, streams, branch, gate)?;
+            let read = self.encode_read(cmd, &written, false)?;
+            #[cfg(test)]
+            self.gpu
+                .hc_chain_pairs
+                .set(self.gpu.hc_chain_pairs.get() + 1);
+            Ok((written, read))
+        })?;
+        Ok((written, read.finish(false)?))
     }
 
     /// Read the four streams, run the ordinary demand-loaded MLP and inject its residual.
@@ -247,6 +317,16 @@ impl<'a> FlashHc<'a> {
             "Flash MLP requires an injection gate"
         );
         let read = self.read(streams, trace)?;
+        self.forward_moe_read(streams, moe, read, next, depth)
+    }
+    pub(super) fn forward_moe_read<'b>(
+        &self,
+        streams: &MatrixView,
+        moe: &mut super::FlashMoeRow<'b>,
+        read: FlashHcRead,
+        next: Option<&mut super::FlashMoeRow<'b>>,
+        depth: usize,
+    ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
         let experts = moe.lookahead(&read.mixed, next, depth)?;
         let written = self.write(
             streams,
@@ -257,6 +337,16 @@ impl<'a> FlashHc<'a> {
     }
     pub fn write(
         &self,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+    ) -> Result<MatrixView> {
+        self.gpu
+            .command(|cmd| self.encode_write(cmd, streams, branch, gate))
+    }
+    fn encode_write(
+        &self,
+        cmd: &metal::CommandBufferRef,
         streams: &MatrixView,
         branch: &MatrixView,
         gate: &MatrixView,
@@ -273,26 +363,24 @@ impl<'a> FlashHc<'a> {
         } else {
             streams.dtype
         };
-        self.gpu.command(|cmd| {
-            let out = MatrixView::output(self.gpu, dtype, 1, 10240, Storage::StorageModeShared)?;
-            Metal::encode(
-                cmd,
-                &p.write,
-                &[&streams.buffer, &branch.buffer, &gate.buffer, &out.buffer],
-                [
-                    streams.layout.offset,
-                    streams.layout.strides[1],
-                    branch.layout.offset,
-                    branch.layout.strides[1],
-                    gate.layout.offset,
-                    gate.layout.strides[1],
-                    i64::from(branch.dtype == FloatType::F32),
-                ],
-                groups(320),
-                32,
-            );
-            Ok(out)
-        })
+        let out = MatrixView::output(self.gpu, dtype, 1, 10240, Storage::StorageModeShared)?;
+        Metal::encode(
+            cmd,
+            &p.write,
+            &[&streams.buffer, &branch.buffer, &gate.buffer, &out.buffer],
+            [
+                streams.layout.offset,
+                streams.layout.strides[1],
+                branch.layout.offset,
+                branch.layout.strides[1],
+                gate.layout.offset,
+                gate.layout.strides[1],
+                i64::from(branch.dtype == FloatType::F32),
+            ],
+            groups(320),
+            32,
+        );
+        Ok(out)
     }
 }
 
@@ -313,6 +401,129 @@ mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
     use serde_json::Value;
+
+    #[test]
+    #[ignore = "physical HC write/read chain, exact values and actual command count"]
+    fn joint_write_read_keeps_buffers_values_and_rejects_invalid_inputs() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let writer = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.attn_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let reader = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.mlp_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let row = |width: usize, half: bool, strided: bool| -> Result<MatrixView> {
+            let stride = if strided { 2 } else { 1 };
+            let offset = i64::from(strided);
+            let values: Vec<_> = (0..width * stride + strided as usize)
+                .map(|i| ((i * 17 % 97) as f32 - 48.) / 128.)
+                .collect();
+            let data = if half {
+                gpu.f16_storage(
+                    &values
+                        .iter()
+                        .map(|&v| f16::from_f32(v).to_bits())
+                        .collect::<Vec<_>>(),
+                )?
+            } else {
+                gpu.f32_storage(&values)?
+            };
+            data.matrix(MatrixLayout {
+                shape: [1, width as u32],
+                strides: [(width * stride) as i64, stride as i64],
+                offset,
+            })
+        };
+        let mut words = 0;
+        for strided in [false, true] {
+            for half_branch in [false, true] {
+                let streams = row(10240, false, strided)?;
+                let branch = row(2560, half_branch, strided)?;
+                let gate = row(4, false, strided)?;
+                gpu.hc_chain.set(false);
+                let before = gpu.helper_commands.get();
+                let (written, read) = reader.read_after_write(&writer, &streams, &branch, &gate)?;
+                ensure!(gpu.helper_commands.get() - before == 2);
+                let expected = [
+                    written.export_bytes(&gpu)?,
+                    read.mixed.export_bytes(&gpu)?,
+                    read.gate
+                        .context("missing eager gate")?
+                        .export_bytes(&gpu)?,
+                ];
+                gpu.hc_chain.set(true);
+                let before = gpu.helper_commands.get();
+                let pairs = gpu.hc_chain_pairs.get();
+                let (written, read) = reader.read_after_write(&writer, &streams, &branch, &gate)?;
+                ensure!(
+                    gpu.helper_commands.get() - before == 1
+                        && gpu.hc_chain_pairs.get() - pairs == 1
+                );
+                let actual = [
+                    written.export_bytes(&gpu)?,
+                    read.mixed.export_bytes(&gpu)?,
+                    read.gate
+                        .context("missing joint gate")?
+                        .export_bytes(&gpu)?,
+                ];
+                for ((a, b), count) in actual.iter().zip(&expected).zip([10240, 2560, 4]) {
+                    ensure!(
+                        a == b
+                            && a.len() == count * 4
+                            && a.as_chunks::<4>()
+                                .0
+                                .iter()
+                                .all(|v| f32::from_le_bytes(*v).is_finite())
+                    );
+                    words += count;
+                }
+                let bad = row(3, false, false)?;
+                let pairs = gpu.hc_chain_pairs.get();
+                ensure!(
+                    reader
+                        .read_after_write(&writer, &streams, &branch, &bad)
+                        .is_err()
+                        && gpu.hc_chain_pairs.get() == pairs
+                );
+                let (again, _) = reader.read_after_write(&writer, &streams, &branch, &gate)?;
+                ensure!(again.export_bytes(&gpu)? == expected[0]);
+            }
+        }
+        ensure!(words == 51_216);
+        let other = Metal::new()?;
+        other.hc_chain.set(true);
+        let foreign = FlashHc::load(
+            &other,
+            &c,
+            "model.language_model.layers.0.mlp_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        ensure!(
+            foreign
+                .read_after_write(
+                    &writer,
+                    &row(10240, false, false)?,
+                    &row(2560, false, false)?,
+                    &row(4, false, false)?
+                )
+                .is_err()
+        );
+        eprintln!(
+            "HC chain:4cases,51216 finite F32 words exact, actual helper commands2->1, strided/mixed dtype/error/recovery/owner checks passed"
+        );
+        Ok(())
+    }
 
     #[test]
     fn hc_weights_decode_supported_storage_and_reject_integer_weights() -> Result<()> {

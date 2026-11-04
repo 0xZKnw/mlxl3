@@ -1,0 +1,209 @@
+{
+  "status": "passed",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/cargo-target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2"
+  },
+  "checks": [
+    {
+      "name": "package-clean",
+      "command": [
+        "cargo",
+        "clean",
+        "--package",
+        "mlxl3-native"
+      ],
+      "status": "passed",
+      "pid": 90494,
+      "exit_code": 0,
+      "seconds": 0.6630754589859862,
+      "joined": true
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "status": "passed",
+      "pid": 90495,
+      "exit_code": 0,
+      "seconds": 0.6163887080037966,
+      "joined": true
+    },
+    {
+      "name": "inventory",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "status": "passed",
+      "pid": 90500,
+      "exit_code": 0,
+      "seconds": 0.48713154200231656,
+      "joined": true
+    },
+    {
+      "name": "clippy-cpu",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 90502,
+      "exit_code": 0,
+      "seconds": 10.606888207985321,
+      "joined": true
+    },
+    {
+      "name": "clippy-direct",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 90963,
+      "exit_code": 0,
+      "seconds": 4.708754583989503,
+      "joined": true
+    },
+    {
+      "name": "clippy-compat",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 91020,
+      "exit_code": 0,
+      "seconds": 8.556829874985851,
+      "joined": true
+    },
+    {
+      "name": "test-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "pid": 91085,
+      "exit_code": 0,
+      "seconds": 32.26741962498636,
+      "joined": true
+    },
+    {
+      "name": "test-direct",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "pid": 91824,
+      "exit_code": 0,
+      "seconds": 33.37669662499684,
+      "joined": true
+    },
+    {
+      "name": "test-compat",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "pid": 92657,
+      "exit_code": 0,
+      "seconds": 42.18619870900875,
+      "joined": true
+    },
+    {
+      "name": "python",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_native_coverage.py",
+        "tests/test_kani_manifest.py",
+        "tests/test_kani_ci.py"
+      ],
+      "status": "passed",
+      "pid": 93435,
+      "exit_code": 0,
+      "seconds": 0.4781850419822149,
+      "joined": true
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--bin",
+        "mlxl3-rs"
+      ],
+      "status": "passed",
+      "pid": 93448,
+      "exit_code": 0,
+      "seconds": 36.978004500007955,
+      "joined": true
+    },
+    {
+      "name": "release-libtest",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": "passed",
+      "pid": 93916,
+      "exit_code": 0,
+      "seconds": 35.29306587498286,
+      "joined": true
+    }
+  ]
+}

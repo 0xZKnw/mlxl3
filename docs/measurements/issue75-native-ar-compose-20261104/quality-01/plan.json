@@ -1,0 +1,105 @@
+{
+  "status": "preregistered_before_launch",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "phases": [
+    {
+      "label": "hc-full-ar",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+        "gpu::flash::tests::hc_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;prefix0/2/9,248320finitehalflogits+hidden and84states perprefix;86409216finiteF32statewords bitexact;48actualjointpairs and48fewerhelpercommands perforward;lateIOrollback/invalidtoken/emptyprefill/recovery.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "target-independent-states",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;84states28803072finiteF32wordsmatcharchivedindependenthashes,496640finitehalflogits,resetprefill/continuation;nonzeroprefetchsubmitted/published,inflight0. Lookahead1required byexistingfixture,correctnessonly.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "production-ar-bridge",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/docs/measurements/issue75-native-ar-compose-20261104/quality-01/ar-bridge.json",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240,
+      "expected": "Reportstatusverified/paritytrue,4completegolden9f850af1cbba074b+text/cachecontextequal,invalidmessagesrefused,context+deltaSIGUSR1cancel/recovery,48x53slots,noMLXMetalDYLD,allownedchildrenjoined.",
+      "status": "not_run",
+      "parity": false,
+      "environment_override": {}
+    },
+    {
+      "label": "production-ar-budget",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+        "MLXL3_FLASH_TEST_CACHE_GIB": "0.6"
+      },
+      "timeout_seconds": 360,
+      "expected": "Exactly1selectedpass/0ignored;oldfixturebodybyteidenticaltosourcecb93,invokesfreshCLIexplicitly;8GiBrequestbudgetARonly,2completeindependentgoldenresponses,memory-saverstatescleared,readers0,ledgerallocated>0,noMLX,shutdownjoined. MTP/DFlashconfiguration/generaterequestsareonlyrejected;noMTP/DFlashmodel/draftinference. Internal0.6GiBqualityonly,nospeedcomparison.",
+      "status": "not_run",
+      "parity": false
+    }
+  ],
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1"
+  },
+  "default_contract": "HC and STATIC_K variables absent;M5realdefaults,NT2=1. RequireactualinitialHCtrue/HCpairs>0/K2>0/K4>0,notonlyifconditionalparity.",
+  "bounds": "oneprocess/model;phase180/240/360s;TERM5/KILL15+ownedPGIDverification;stopfirstfailure;nogains."
+}

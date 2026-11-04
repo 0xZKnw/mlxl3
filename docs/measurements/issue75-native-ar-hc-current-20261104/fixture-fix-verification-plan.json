@@ -1,0 +1,57 @@
+{
+  "status": "prepared_not_run_CPU_waiting",
+  "trial": "I75-AR-HC-CURRENT-FIXTURE-02",
+  "changed_source": "native/src/gpu/flash.rs only;cfg(test) ignored fixture,three added lines,production HC/shaders unchanged",
+  "scope": "Primer+restore normalizes QSA COW before counting; preserve exact48command/48pair/fullnumeric assertions. Original physical-result.json failed campaign is never overwritten.",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "commands": [
+    [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    [
+      "cargo",
+      "test",
+      "--locked",
+      "--features",
+      "chat"
+    ],
+    [
+      "python",
+      "scripts/check_native_coverage.py"
+    ],
+    [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ]
+  ],
+  "formal_attempt": "Reuse existing actual-source disposable Kani probe pattern, expose real fixture/counters under cfg(kani), wrapper calls same fixed physical test body. No Metal/FS stubs or rewritten model. Hard practical bound45s, preserve unsupported/timeout/ICE; no CPU flag harness repetition.",
+  "physical_reuse": "Phases hc-component and hc-independent-writes passed on retained f026 runtime;hc.rs andshaders byte-identical. Reuse these receipts, then run corrected fullAR plus3previouslynotrun phases with new frozenlibtest; same frozenproductionCLI1e282c47 unless executablechanges discovered.",
+  "quality_status": "not validated until newfullARprefix0/2/9 states/logits+remainingindependent/bridge/budget pass",
+  "concurrency": "No listed command launched before explicit rootCPUgrant after staticKABBA.",
+  "unchanged_checks_not_repeated": "CPU-only/nochat/MLXcompatibility runtime/source unaffected by three cfg(test) lines; previous current-source checks retained. Directchat is relevant affected physical-test configuration."
+}

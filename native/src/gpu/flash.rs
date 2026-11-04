@@ -599,6 +599,129 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "physical Flash AR HC chain counts, full target states and late IO rollback"]
+    fn hc_chain_keeps_ar_logits_states_and_actual_command_savings() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        eprintln!("HC chain initially enabled: {}", gpu.hc_chain.get());
+        let mut model = FlashNext::load(&gpu, &c, 64)?;
+        let prompt = [248044, 78768, 11, 7, 19, 31, 13, 29, 17];
+        let finite =
+            |x: &[u16]| x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite());
+        let mut compared = 0;
+        for prefix in [0, 2, 9] {
+            model.reset();
+            gpu.hc_chain.set(false);
+            if prefix > 0 {
+                ensure!(finite(&model.prefill(&prompt[..prefix])?));
+            }
+            let saved = model.snapshot();
+            // Give both restored branches the same QSA copy-on-write cost.
+            ensure!(finite(&model.forward(11)?));
+            model.restore(&saved)?;
+            let commands = gpu.helper_commands.get();
+            let pairs = gpu.hc_chain_pairs.get();
+            let expected = model.forward(11)?;
+            let control_commands = gpu.helper_commands.get() - commands;
+            ensure!(finite(&expected) && gpu.hc_chain_pairs.get() == pairs);
+            let hidden = model
+                .last_hidden()
+                .context("missing control row")?
+                .export_bytes(&gpu)?;
+            ensure!(
+                hidden.len() == 40960
+                    && hidden
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite())
+            );
+            let (next, states) = model.forward_trace(7)?;
+            ensure!(finite(&next) && states.len() == 84);
+            model.restore(&saved)?;
+            gpu.hc_chain.set(true);
+            let commands = gpu.helper_commands.get();
+            let pairs = gpu.hc_chain_pairs.get();
+            let actual = model.forward(11)?;
+            let candidate_commands = gpu.helper_commands.get() - commands;
+            ensure!(
+                gpu.hc_chain_pairs.get() - pairs == 48
+                    && candidate_commands + 48 == control_commands,
+                "joint encoding did not remove exactly48 helper commands at prefix={prefix}: {control_commands}->{candidate_commands}"
+            );
+            ensure!(actual == expected && finite(&actual) && model.offset() as usize == prefix + 1);
+            ensure!(
+                model
+                    .last_hidden()
+                    .context("missing candidate row")?
+                    .export_bytes(&gpu)?
+                    == hidden
+            );
+            let (actual_next, actual_states) = model.forward_trace(7)?;
+            ensure!(actual_next == next && actual_states.len() == 84);
+            let mut words = 0;
+            for (a, b) in actual_states.iter().zip(&states) {
+                let count = a
+                    .shape
+                    .iter()
+                    .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                    .context("HC trace overflow")?;
+                ensure!(
+                    count > 0
+                        && a.name == b.name
+                        && a.shape == b.shape
+                        && a.data == b.data
+                        && a.data.len() == count * 4
+                        && a.data
+                            .as_chunks::<4>()
+                            .0
+                            .iter()
+                            .all(|v| f32::from_le_bytes(*v).is_finite()),
+                    "HC chain changed state {} at prefix={prefix}",
+                    a.name
+                );
+                words += count;
+            }
+            ensure!(words == 28_803_072);
+            compared += words;
+            eprintln!(
+                "HC chain AR prefix={prefix}:48joint pairs, helper commands={control_commands}->{candidate_commands}, logits=248320, finite state_words={words}"
+            );
+        }
+        ensure!(compared == 86_409_216);
+        model.reset();
+        gpu.hc_chain.set(true);
+        model.prefill(&prompt[..2])?;
+        let before = model.snapshot();
+        let expected = model.forward(7)?;
+        model.restore(&before)?;
+        let short = super::first_embedding(&model.embed)?;
+        let embed = std::mem::replace(&mut model.embed, short);
+        ensure!(model.prefill(&[0, 1]).is_err() && model.offset() == before.offset);
+        model.embed = embed;
+        let recovered = model.forward(7)?;
+        ensure!(
+            finite(&recovered) && recovered == expected,
+            "late failed row changed AR recovery"
+        );
+        let before = model.snapshot();
+        ensure!(model.forward(248320).is_err() && model.offset() == before.offset);
+        ensure!(model.prefill(&[]).is_err() && model.offset() == before.offset);
+        let static_submissions = gpu
+            .flash_static_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
+        if gpu.flash_static_setting == Some(true) {
+            ensure!(static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0);
+        } else {
+            ensure!(static_submissions == [0; 5]);
+        }
+        eprintln!("HC chain static QMV submissions: {static_submissions:?}");
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Apple Metal half-vocabulary logsumexp"]
     fn normalized_greedy_preserves_half_ties_and_rejects_invalid_distribution() -> Result<()> {
         let gpu = Metal::new()?;
@@ -648,6 +771,7 @@ mod tests {
         let c =
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
+        let hc_initially_enabled = gpu.hc_chain.get();
         let mut model = FlashNext::load(&gpu, &c, 64)?;
         ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
         let oracle: serde_json::Value = serde_json::from_str(include_str!(
@@ -734,6 +858,10 @@ mod tests {
         eprintln!(
             "NATIVE_FLASH_STATIC_SUBMISSIONS {}",
             serde_json::json!(static_submissions)
+        );
+        eprintln!(
+            "NATIVE_FLASH_COMPOSED_FEATURES {}",
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions})
         );
         Ok(())
     }

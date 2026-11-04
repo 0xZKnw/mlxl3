@@ -179,6 +179,11 @@ fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
 pub struct Metal {
     device: Device,
     queue: CommandQueue,
+    hc_chain: std::cell::Cell<bool>,
+    #[cfg(test)]
+    helper_commands: std::cell::Cell<usize>,
+    #[cfg(test)]
+    hc_chain_pairs: std::cell::Cell<usize>,
     pack_pipeline: ComputePipelineState,
     decode_pipeline: ComputePipelineState,
     codebook_pipeline: ComputePipelineState,
@@ -235,6 +240,15 @@ impl Metal {
     pub fn new() -> Result<Self> {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
+            let qualified_m5 = device.name() == "Apple M5";
+            let hc_chain = match std::env::var("MLXL3_NATIVE_AR_HC_CHAIN") {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
             // Snapshot once; cold expert records never re-read this environment.
             // Defer malformed-setting errors to eligible projection loads.
             let flash_static_setting =
@@ -421,6 +435,11 @@ impl Metal {
             Ok(Self {
                 device,
                 queue,
+                hc_chain: std::cell::Cell::new(hc_chain),
+                #[cfg(test)]
+                helper_commands: std::cell::Cell::new(0),
+                #[cfg(test)]
+                hc_chain_pairs: std::cell::Cell::new(0),
                 pack_pipeline,
                 decode_pipeline,
                 codebook_pipeline,
@@ -465,6 +484,8 @@ impl Metal {
     fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
         objc::rc::autoreleasepool(|| {
             let cmd = self.queue.new_command_buffer();
+            #[cfg(test)]
+            self.helper_commands.set(self.helper_commands.get() + 1);
             let value = encode(cmd)?;
             cmd.commit();
             cmd.wait_until_completed();

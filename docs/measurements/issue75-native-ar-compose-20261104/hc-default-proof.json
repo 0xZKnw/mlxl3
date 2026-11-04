@@ -1,0 +1,47 @@
+{
+  "status": "bounded_model_check_passed",
+  "checks": 237,
+  "failed": 0,
+  "covers_satisfied": 7,
+  "covers_total": 7,
+  "unreachable": [
+    {
+      "check": "5: std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "- Description: \"attempt to shift left with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "38: core::str::validations::run_utf8_validation.assertion.2",
+      "description": "- Description: \"attempt to subtract with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation"
+    },
+    {
+      "check": "39: core::str::validations::run_utf8_validation.assertion.3",
+      "description": "- Description: \"attempt to add with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation"
+    },
+    {
+      "check": "54: core::str::validations::run_utf8_validation.assertion.18",
+      "description": "- Description: \"attempt to add with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:238:21 in function core::str::validations::run_utf8_validation"
+    },
+    {
+      "check": "73: std::ptr::align_offset::mod_inv.assertion.1",
+      "description": "- Description: \"attempt to subtract with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "74: std::ptr::align_offset::mod_inv.assertion.2",
+      "description": "- Description: \"attempt to shift right with overflow\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "75: std::ptr::align_offset::mod_inv.assertion.3",
+      "description": "- Description: \"index out of bounds: the length is less than or equal to the given index\"",
+      "location": "- Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+    }
+  ],
+  "domain": "arbitraryqualifiedM5bool,presentbool,bytes[4],length0..4 validUTF8;noassumptions;unwind10retainsassertions",
+  "limits": "Onlyflaghelper/boundedstrdomain;noMetal/allocator/concurrency/generationproof",
+  "initial90sHCflagtimeout": "preserved in originalHCsource receipt; not relabeled current proof"
+}
