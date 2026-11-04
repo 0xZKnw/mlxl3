@@ -1,5 +1,15 @@
 # MLXL3 — journal des optimisations
 
+## I120-PROFILE-PRIORITIES-20261104 — choix guidé par les coûts observés
+
+Préenregistré avant nouvelles recherches/prototypes : l’utilisateur demande de poursuivre #120 selon le profil, sans suivre son ordre. P04 est annulé explicitement, non publié et defaultOFF dans son ancien worktree local ; son pilote AR32 dérive7–10% et n’établit aucun gain. Ne pas reprendre son code ni ses tests interrompus. Nouveau worktree propre sur PR121/c330f846 (PR119/e4 sous-jacente), production de référence f4b592bc ; modèle Flash Next65c89531/EXL3 2.05bpw/M5-24GiB, AR uniquement, aucun MTP/DFlash, aucun prototype expert-encoder.
+
+Données de départ : P00 natif8,7rows MAIN87/ctx4096/3GiB/4readers/depth0,83ddec44, rapport docs/measurements/issue120-native8-profile-20261104/run-01/safe-summary.json.39701demandesMetal/79.071mshost(11.296ms/row), uploadcopy89.391ms(12.770ms/row,1372868204B), logprobs+greedyenviron0.467ms/row. Ces enveloppes instrumentées ne sont pas des gains récupérables ni des temps exclusifs additionnables. SSDattenteexposée, unionGPU actuelle et durées individuelles GDN/HC restent non isolées ; le vieux profilGPU sert d’indice, pas de classement causal actuel.
+
+Trois audits SOURCE/ARTEFACTS seuls, parallèles et courts : (A) réemploi GDN/HC/QSA hors scratch expert déjà intégré, historique et propriété de rétention/snapshot/rollback, plus petit candidat P03 ; (B) records SSD/upload, allocations/zéro/copie P01 et traîne P02, extraction des workers/bytes du profil existant sans refaire une mesure ; (C) postesGPU/command waits et pistes P08/P09/P11/P13, distinguer calcul obligatoire, waitinclusif, lacunes de P00 et mécanisme concret. Chaque audit lit l’historique pertinent, cherche les implémentations existantes et cite précisément code/données ; aucune extrapolation de gain ou doublecomptage.
+
+Livrable immédiat : classement argumenté par preuve/impact accessible/risque, puis choisir un seul petit essai concrètement motivé ou une seule mesure ciblée si l’attribution manque. Ajouter son protocole exact AVANT implémentation/mesure, qualité numérique avant vitesse, écran32tokens comme demandé, process bornés et oracles existants. Pas de nouvelles matrices complètes pour chaque micro-essai. Une fois qualifié, pousser en PR selon autorisation utilisateur ; aucun merge/main/app/release. État audits EN COURS, aucun nouveau code exécutable/build/proof/GPU.
+
 ## I120-P00-P04-20261104 — current baseline diagnosis then exact GPU greedy
 
 Preregistered before new optimization source research/prototypes/measurements. User approved issue120 P00 then P04, still Flash Next AR without MTP/DFlash,32-token initial speed screens, and PR publication when qualified. Baseline is open PR119 e4c4bcc4 (main d8438059 underneath), qualified default CLI f4b592bc/libtest af2c8eb3. Use a new isolated worktree; original personal checkout remains dirty/untouched. The single-expert encoder prototype f9ff/bf48 was stopped by explicit user request after its negative/inconclusive32-token pilot; it is not part of this baseline or issue120. Preserve all old files and reports, no swap-abort rule.
