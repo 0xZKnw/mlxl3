@@ -24014,6 +24014,47 @@ Kani réel ciblé puis restauré : **61 contrôles sans échec, 5/5 couvertures*
 Décision parent explicite : conserver HEADS1 comme élimination de travail validée numériquement, HEADS0 pour retour eager ; présenter seulement la petite observation MAIN de cet écran, aucun boost universel/soutenu/decode ni somme avec d'autres ports. Confirmation 64 tokens, long contexte et combinaison non lancés. Nouvelle priorité utilisateur AR uniquement : aucun nouvel essai DFlash/MTP. Publication administrative de cette tranche déjà qualifiée autorisée, sans merge/release ni remplacement d'app.
 
 **Publication de la tranche qualifiée.** Branche poussée et [PR111](https://github.com/0xZKnw/mlxl3/pull/111) ouverte via le connecteur GitHub, base #109 `be43ee15` encore ouverte/mergeable, main `59962812` reconfirmée. Sources et binaires mesurés inchangés ; preuve locale copiée avec liens relatifs résolus et logs gzip byte-exacts, aucun bras non exécuté inclus. Cette publication administrative termine le travail DFlash autorisé avant la nouvelle priorité AR. CI de la tête exacte à inspecter ; aucun succès hébergé présumé, aucun merge/release/app installée.
+## ISSUE75-NATIVE-TRACE-ANALYZER-01 — 2026-11-03 — préenregistré avant code
+
+Vérifier les exports du profil natif existant, sans nouvelle capture/inférence. Implémentation standard-library/ElementTree minimale sur branche main `59962812` isolée, HC figé ailleurs. Protocole [README](docs/measurements/issue75-native-trace-analyzer-20261103/README.md). Schémas, largeur rows, refs imbriquées locales à chaque table, filtre process.pid réel, jointure CB/encoder explicites et non-vacuité cible. Labels anonymes ou non reconnus restent inconnus ; seul contrat `mlxl3.kernel/<fonction>` désigne un encodeur à dispatch unique, pas un ShaderTimeline absent.
+
+Unions par encodeur/globales et sommes brutes distinguées ; chevauchements imbriqués/dupliqués séparés du chevauchement entre encodeurs. Tests déterministes oracle indépendant de couverture entière, fuzz/limites, entrées XML/refs/schémas/PID invalides, parcours CLI complet/échec et publication atomique exclusive. CrossHair sur vrai helper pur avec durée pratique et portée explicite, pas preuve du parseur ou moteur. Conserver chiffres anonymes trace02 et ses limites de conditions (cleanup chevauchant) ; aucune donnée d'autres processus/TOC/environnement brut en PR. État initial : préenregistré avant implémentation, source seulement, CPU focalisé autorisé par root, aucun GPU.
+
+Résultat CPU : 31 tests ciblés et 286 tests pertinents passés ; format/Ruff/py_compile passés. 784 paires exhaustives et 500 listes fuzz déterministes contre oracle indépendant de couverture entière. Mutation somme brute détectée (duplicata [-3,-2) : 2 au lieu de 1), source originale intacte. CrossHair confirme le contrat indépendant à 2 intervalles ; les 2 postconditions pour liste arbitraire restent **non confirmées**, recherche symbolique sans verdict, pas preuve générale. Premiers échecs Ruff/registration CrossHair/assertion du wrapper de mutation conservés dans [rapport](docs/measurements/issue75-native-trace-analyzer-20261103/README.md).
+
+Relecture de l'ancienne trace : 8395 lignes cible, union 2059396071 ns reproduite exactement, somme brute 2144923578 ns et somme des unions par encodeur 2144836661 ns. 8394 lignes jointes, 1 encodeur GPU non mappé ; **0 groupe de kernel nommé**, 80 entrées de catalogue et 0 timeline shader. [Résumé anonymisé + empreintes XML/source](docs/measurements/issue75-native-trace-analyzer-20261103/old-unnamed-summary.json). Conclusion : outil de diagnostic validé par ces tests et cette relecture, aucune attribution kernel de l'ancienne trace, aucun gain/speedup. Conditions cleanup chevauchant conservées. État : code local non publié, CPU drainé, pas d'inférence/GPU ; HC inchangé. Attente nouvelle trace avec contrat labels vérifié par agent SSD.
+
+Revalidation ciblée avant nouvelle analyse : rebase main `17c66327`, logique de l'analyseur inchangée et suppression d'une boucle de test sans effet ; format/Ruff/py_compile et 31 tests repassés (0,16 s). Nouvelle entrée d'analyse préenregistrée : capture `xctrace-03-labelled` fournie par root, processus cible 68782, quatre exports terminés exit 0. Contrat des labels single-dispatch revu par root/SSD, génération 64 tokens et parité validées par root avant transmission. Rejouer le même CLI sur cette nouvelle entrée, vérifier couverture nommée non nulle, jointures explicites et unions ; publier seulement résumé cible anonyme + empreintes. C'est une analyse CPU de capture existante, aucune capture/inférence de cet agent ni nouveau test de vitesse.
+
+### ISSUE75-NATIVE-TRACE-ANALYZER-02 — 2026-11-04 — préenregistré avant extension
+
+L'analyse initiale de la trace03 joint les 6 955 lignes GPU cible mais ne reconnaît
+que deux labels individuels. Inspection ciblée du XML : les autres labels sont
+des séquences ordonnées complètes `mlxl3.kernel/<fonction> & ...`, avec répétitions,
+réunissant plusieurs encodeurs logiques dans une même identité exportée. La
+raison nouvelle est cette agrégation observée, sans nouvelle capture ni modèle.
+Étendre seulement le rapport avec des groupes agrégés séparés, ordre/répétitions
+conservés ; ne jamais répartir leur durée entre kernels. Reconnaître uniquement
+la chaîne entière avec séparateur exact ` & ` et identifiants ASCII du contrat ;
+un seul fragment générique/invalide laisse tout le groupe inconnu.
+
+Baseline : analyseur `318a5dee`, résumé strict initial `named-summary.json` conservé
+(union globale 1 658 390 805 ns ; 5 401 intervalles inconnus). Protocole CPU autorisé
+par root : régression reproduisant ce classement inconnu sur l'ancienne source,
+tests de frontière et CLI de la nouvelle séquence, mutation de perte d'ordre ou
+d'attribution partielle, format/Ruff/py_compile et suites reporting pertinentes ;
+tentative CrossHair sur le vrai parseur pur, bornes et limites explicites. Rejouer
+uniquement les quatre XML existants du PID68782, contrôler les unions avec oracle
+indépendant et publier seulement résumé cible, empreintes et protocole. Aucun
+GPU, changement moteur, gain de vitesse ou division de temps inféré. État initial :
+préenregistrement écrit, extension pas encore implémentée.
+
+ANALYZER-02 relecture existante terminée : 6 955 lignes GPU, toutes jointes ; union globale inchangée 1 658 390 805 ns. Deux groupes individuels et 32 séquences agrégées ; 192 intervalles génériques/inconnus restants, union 331247 ns. Partition des lignes vérifiée, champs GPU/jointure/CPU/catalogue/timeline byte-égaux au résumé initial. Nouveau rapport named-aggregate-summary.json ; aucune nouvelle capture/inférence ni durée par kernel constituant.
+
+ANALYZER-02 CPU clos : 49 tests ciblés / 304 tests reporting pertinents passent ; format/Ruff/py_compile passent après deux corrections de format de test. Mutation tri/dédoublonnage dans copie du vrai parseur détectée. CrossHair confirme seulement les16 combinaisons de deux noms du domaine fini ; deux propriétés Unicode arbitraire<=128 restent non confirmées (20s chacune). Essai direct helper privé exit0 sans condition analysée n’est pas une preuve. Premier import CrossHair sans pytest conservé puis environnement corrigé sans dépendance ajoutée. Commandes/résultats/limites dans aggregate-validation.json ; logs bruts locaux build/trace-analyzer-aggregate-20261104. CI PR/main inspectée, contrat fini ajouté au workflow existant. Aucun CPU/proof/GPU restant de cet agent ; publication administrative autorisée en préparation, pas de gain ni app modifiée.
+
+ANALYZER-01/02 publication administrative : branche poussée et [PR114](https://github.com/0xZKnw/mlxl3/pull/114) ouverte/mergeable sur main17c66327, source qualifiée f5687cf9b69f2970fd60d3bc8530d2006b3dc41c. Les deux résumés nommés (strict initial et agrégats) et le contrôle qualité root sanitizé sont conservés, aucun rawTOC/XML/trace/environnement publié. CI de cette tête exacte observée : NativeRust queued ; Flashprofile/Regression/EXL3/Apple en cours, checks analyseur encore pending ; aucun vert présumé. Reçu publication.json ; commit suivant seulement métadonnées, code testé inchangé. Pas de merge, app/release ni gain annoncé. Tous processus locaux joints ; HC reste e37c physique non exécuté en attente créneau root.
+
 
 ## I75-KANI-CI-BOUNDS-20261104 — préenregistrement avant réparation de harnais
 
