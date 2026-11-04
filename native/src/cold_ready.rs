@@ -197,6 +197,7 @@ fn two_job_priority_keeps_records_and_stable_order() {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::unwind(8)]
 fn cold_row_limit_has_only_qualified_and_opt_in_values() {
     let choice: u8 = kani::any();
     let value = match choice {
