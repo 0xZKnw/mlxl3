@@ -46,6 +46,9 @@ pub use projection::{
     FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
 };
 
+#[cfg(test)]
+thread_local! { static BUFFER_REQUESTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 #[allow(
     unexpected_cfgs,
     reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
@@ -58,6 +61,8 @@ fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
     // Metal may return nil on allocation failure. A successful new method returns +1.
     let ptr: *mut objc::runtime::Object =
         unsafe { msg_send![device, newBufferWithLength:length options:storage] };
+    #[cfg(test)]
+    BUFFER_REQUESTS.with(|count| count.set(count.get() + 1));
     ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
     Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
 }
@@ -209,6 +214,13 @@ pub struct Metal {
     flash_fixed_setting: Option<bool>,
     #[cfg(test)]
     flash_fixed_submissions: [std::cell::Cell<u64>; 2],
+    flash_expert_scratch_setting: Option<bool>,
+    #[cfg(test)]
+    flash_scratch_bindings: std::cell::Cell<[[usize; 2]; 3]>,
+    #[cfg(test)]
+    flash_scratch_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    flash_expert_outputs: std::cell::Cell<[usize; 4]>,
     #[cfg(test)]
     flash_static_submissions: [std::cell::Cell<u64>; 5],
     dense_qmv: [[ComputePipelineState; 3]; 2],
@@ -292,6 +304,11 @@ impl Metal {
                 }
             } else {
                 Some(false)
+            };
+            let flash_expert_scratch_setting = match std::env::var("MLXL3_NATIVE_ROUTED_SCRATCH") {
+                Ok(value) => crate::flash_expert_scratch::flag(Some(&value)),
+                Err(std::env::VarError::NotPresent) => crate::flash_expert_scratch::flag(None),
+                Err(std::env::VarError::NotUnicode(_)) => None,
             };
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
@@ -514,6 +531,13 @@ impl Metal {
                 flash_fixed_setting,
                 #[cfg(test)]
                 flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
+                flash_expert_scratch_setting,
+                #[cfg(test)]
+                flash_scratch_bindings: std::cell::Cell::new([[0; 2]; 3]),
+                #[cfg(test)]
+                flash_scratch_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                flash_expert_outputs: std::cell::Cell::new([0; 4]),
                 #[cfg(test)]
                 flash_static_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 dense_qmv,

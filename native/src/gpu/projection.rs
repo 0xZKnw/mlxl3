@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail, ensure};
 use half::{bf16, f16};
 use metal::{
     Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize,
+    MTLResourceOptions as Storage, MTLSize, foreign_types::ForeignType,
 };
 
 pub struct FlashProjection<'a> {
@@ -350,22 +350,50 @@ impl<'a> FlashProjection<'a> {
         [inputs, partials, outputs]: [u32; 3],
         storage: Storage,
     ) -> Result<Buffer> {
+        self.encode_with_scratch(cmd, x, [inputs, partials, outputs], storage, None)
+    }
+
+    fn encode_with_scratch(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [inputs, partials, outputs]: [u32; 3],
+        storage: Storage,
+        scratch: Option<(&Buffer, &Buffer)>,
+    ) -> Result<Buffer> {
         let gpu = self.metal;
+        if let Some((prepared, partial)) = scratch {
+            ensure!(
+                crate::flash_expert_scratch::fits(
+                    [inputs, partials, outputs],
+                    [prepared.length(), partial.length()]
+                ) && prepared.device().registry_id() == gpu.device.registry_id()
+                    && partial.device().registry_id() == gpu.device.registry_id()
+                    && prepared.as_ptr() != partial.as_ptr(),
+                "invalid expert scratch prefixes"
+            );
+        }
         let batch = inputs / self.input;
         ensure!(
             !self.mtp_hidden || batch == 4,
             "MTP hidden projection requires four streams"
         );
-        let prepared = buffer(
-            &gpu.device,
-            u64::from(inputs) * 2,
-            Storage::StorageModePrivate,
-        )?;
+        let owned_prepared;
+        let prepared = if let Some((prepared, _)) = scratch {
+            prepared
+        } else {
+            owned_prepared = buffer(
+                &gpu.device,
+                u64::from(inputs) * 2,
+                Storage::StorageModePrivate,
+            )?;
+            &owned_prepared
+        };
         match x {
             Activation::Contiguous(x) => Metal::encode_bound(
                 cmd,
                 &gpu.prepare128_pipeline,
-                [(x, 0), (&self.suh, self.offsets.suh), (&prepared, 0)].into_iter(),
+                [(x, 0), (&self.suh, self.offsets.suh), (prepared, 0)].into_iter(),
                 [self.input, 0, 0, 0, 0],
                 MTLSize::new(u64::from(inputs / 128), 1, 1),
                 64,
@@ -373,14 +401,28 @@ impl<'a> FlashProjection<'a> {
             Activation::View(x) => {
                 let scales =
                     MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
-                gpu.encode_prepare_view(cmd, x, &scales, &prepared)?;
+                gpu.encode_prepare_view(cmd, x, &scales, prepared)?;
             }
         }
-        let partial = buffer(
-            &gpu.device,
-            u64::from(partials) * 4,
-            Storage::StorageModePrivate,
-        )?;
+        let owned_partial;
+        let partial = if let Some((_, partial)) = scratch {
+            partial
+        } else {
+            owned_partial = buffer(
+                &gpu.device,
+                u64::from(partials) * 4,
+                Storage::StorageModePrivate,
+            )?;
+            &owned_partial
+        };
+        #[cfg(test)]
+        if scratch.is_some() {
+            let count = gpu.flash_scratch_uses.get();
+            let mut bindings = gpu.flash_scratch_bindings.get();
+            bindings[count % 3] = [prepared.as_ptr() as usize, partial.as_ptr() as usize];
+            gpu.flash_scratch_bindings.set(bindings);
+            gpu.flash_scratch_uses.set(count + 1);
+        }
         let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
         let (pipeline, third, groups) = if self.k == 7 {
             (&gpu.k7_pipeline, (&gpu.inverse, 0), self.output)
@@ -415,10 +457,10 @@ impl<'a> FlashProjection<'a> {
             cmd,
             pipeline,
             [
-                (&prepared, 0),
+                (prepared, 0),
                 (&self.packed, self.offsets.trellis),
                 third,
-                (&partial, 0),
+                (partial, 0),
             ]
             .into_iter(),
             [batch, self.k, self.cb as u32, self.input, self.output],
@@ -438,7 +480,7 @@ impl<'a> FlashProjection<'a> {
                 &gpu.finish128_pipeline
             },
             [
-                (&partial, 0),
+                (partial, 0),
                 (&self.svh, self.offsets.svh),
                 self.bias
                     .as_ref()
@@ -899,6 +941,7 @@ pub struct FlashExpert<'a> {
     gate: FlashProjection<'a>,
     up: FlashProjection<'a>,
     down: FlashProjection<'a>,
+    routed: bool,
 }
 
 impl<'a> FlashExpert<'a> {
@@ -927,7 +970,12 @@ impl<'a> FlashExpert<'a> {
             ),
             "incompatible Flash expert projection geometry"
         );
-        Ok(Self { gate, up, down })
+        Ok(Self {
+            gate,
+            up,
+            down,
+            routed: false,
+        })
     }
 
     pub(super) fn input_hidden(&self) -> [u32; 2] {
@@ -971,6 +1019,7 @@ impl<'a> FlashExpert<'a> {
             down: projection(0, 640, 2560)?,
             gate: projection(1, 2560, 640)?,
             up: projection(2, 2560, 640)?,
+            routed: true,
         })
     }
     pub(super) fn encode_view(
@@ -1022,22 +1071,56 @@ impl<'a> FlashExpert<'a> {
         [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
         storage: Storage,
     ) -> Result<Buffer> {
-        let gate = self
-            .gate
-            .encode(cmd, x, gate_extents, Storage::StorageModePrivate)?;
-        let up = self
-            .up
-            .encode(cmd, x, up_extents, Storage::StorageModePrivate)?;
+        let gpu = self.gate.metal;
+        let reuse = crate::flash_expert_scratch::select(
+            self.routed,
+            [gate_extents, up_extents, down_extents],
+            gpu.flash_expert_scratch_setting,
+        )
+        .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_ROUTED_SCRATCH must be 0 or 1"))?;
+        let pair = if reuse {
+            let [prepared, partial] = crate::flash_expert_scratch::CAPACITIES;
+            Some((
+                buffer(&gpu.device, prepared, Storage::StorageModePrivate)?,
+                buffer(&gpu.device, partial, Storage::StorageModePrivate)?,
+            ))
+        } else {
+            None
+        };
+        let scratch = pair.as_ref().map(|(prepared, partial)| (prepared, partial));
+        let gate = self.gate.encode_with_scratch(
+            cmd,
+            x,
+            gate_extents,
+            Storage::StorageModePrivate,
+            scratch,
+        )?;
+        let up = self.up.encode_with_scratch(
+            cmd,
+            x,
+            up_extents,
+            Storage::StorageModePrivate,
+            scratch,
+        )?;
         let activated =
             self.gate
                 .metal
                 .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
-        self.down.encode(
+        let output = self.down.encode_with_scratch(
             cmd,
             Activation::Contiguous(&activated),
             down_extents,
             storage,
-        )
+            scratch,
+        )?;
+        #[cfg(test)]
+        gpu.flash_expert_outputs.set([
+            gate.as_ptr() as usize,
+            up.as_ptr() as usize,
+            activated.as_ptr() as usize,
+            output.as_ptr() as usize,
+        ]);
+        Ok(output)
     }
 }
 
@@ -1630,3 +1713,7 @@ fn ordinary_projection_group_preserves_owners_and_rejects_wrong_inputs() -> Resu
     );
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "routed_scratch_tests.rs"]
+mod routed_scratch_tests;
