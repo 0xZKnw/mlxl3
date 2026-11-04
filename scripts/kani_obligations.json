@@ -1,6 +1,9 @@
 {
   "baseline_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
   "required_harnesses": [
+    "ssd_reads::direct_tests::native_direct_destination_requires_exact_shared_extent",
+    "ssd_reads::direct_tests::native_direct_reads_require_depth_zero_without_prefetch",
+    "ssd_reads::direct_tests::native_direct_flag_preserves_off_and_qualified_exact_override",
     "flash_expert_scratch::native_routed_scratch_selection_preserves_all_fallbacks",
     "flash_expert_scratch::native_routed_scratch_prefix_capacities_use_wide_arithmetic",
     "flash_qmv::native_static_qmv_key_matches_the_actual_pso_table_and_every_fallback",

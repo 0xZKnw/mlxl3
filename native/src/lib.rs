@@ -92,7 +92,7 @@ pub mod ssd_moe;
     kani
 ))]
 pub(crate) mod ssd_prefetch;
-#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test))]
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) mod ssd_reads;
 pub mod streaming;
 pub mod structured;
