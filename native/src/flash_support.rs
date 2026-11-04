@@ -72,6 +72,54 @@ pub(crate) fn hc_gdn_chain_eligible(
 }
 
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn cross_layer_eligible(
+    enabled: bool,
+    hc_gdn: bool,
+    depth: usize,
+    exporting: bool,
+    next_gdn: bool,
+) -> bool {
+    enabled && hc_gdn && depth == 0 && !exporting && next_gdn
+}
+
+#[test]
+fn cross_layer_keeps_every_export_depth_and_consumer_fallback() {
+    for enabled in [false, true] {
+        for hc_gdn in [false, true] {
+            for depth in [0, 1, 11, usize::MAX] {
+                for exporting in [false, true] {
+                    for next_gdn in [false, true] {
+                        assert_eq!(
+                            cross_layer_eligible(enabled, hc_gdn, depth, exporting, next_gdn),
+                            (enabled, hc_gdn, depth, exporting, next_gdn)
+                                == (true, true, 0, false, true)
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn cross_layer_selection_requires_all_transaction_guards() {
+    let (enabled, hc_gdn, depth, exporting, next_gdn): (bool, bool, usize, bool, bool) =
+        kani::any();
+    let result = cross_layer_eligible(enabled, hc_gdn, depth, exporting, next_gdn);
+    assert_eq!(
+        result,
+        (enabled, hc_gdn, depth, exporting, next_gdn) == (true, true, 0, false, true)
+    );
+    kani::cover!(result);
+    kani::cover!(!enabled && hc_gdn && depth == 0 && !exporting && next_gdn);
+    kani::cover!(enabled && !hc_gdn && depth == 0 && !exporting && next_gdn);
+    kani::cover!(enabled && hc_gdn && depth == 1 && !exporting && next_gdn);
+    kani::cover!(enabled && hc_gdn && depth == 0 && exporting && next_gdn);
+    kani::cover!(enabled && hc_gdn && depth == 0 && !exporting && !next_gdn);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn hc_gate_chain_eligible(
     enabled: bool,
     hc_enabled: bool,
