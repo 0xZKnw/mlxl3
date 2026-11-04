@@ -1,0 +1,93 @@
+{
+  "status": "verified_existing_artifact_copy_not_new_measurement",
+  "base_sha": "17c66327a93af96f94d062f809d31b41e8fe5215",
+  "source_directory": "/Users/justin/.codex/worktrees/issue75-native-flash-opti/mix-stq1_0/docs/measurements/issue75-native-reuse-20261103/ar-lookahead-one",
+  "files": [
+    {
+      "path": "summary.json",
+      "bytes": 14407,
+      "sha256": "dbfc4573f8baec31b4e088690e17ad3825e4f79fefa87d8d2ccbdfbbbfad5592",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-1-control/report.json",
+      "bytes": 15082,
+      "sha256": "d8a6920052196fda46464380db4bbaacbc505bd2a36bc6a1658d459be5b4ac06",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-1-control/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-2-candidate/report.json",
+      "bytes": 15231,
+      "sha256": "01ea4e6dc202285916d0ddd0e8ca1315753710d8ca1807b1c97852ea4100610d",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-2-candidate/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-3-candidate/report.json",
+      "bytes": 15217,
+      "sha256": "a1ca4336f11c80fe32339316fb688e666565e74383dd0cc3bc6d364e5a067134",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-3-candidate/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-4-control/report.json",
+      "bytes": 15084,
+      "sha256": "6ad3ef73e5f3506ff0fed14eba190d06f5debcf1cacc71d25e64940e2805ac08",
+      "copied_byte_exact": true
+    },
+    {
+      "path": "screen-4-control/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copied_byte_exact": true
+    }
+  ],
+  "selected_files": 9,
+  "json_files": 5,
+  "empty_stderr_files": 4,
+  "quality_scope": "Existing nonempty text/hash/token/context/capacity parity and cleanup reports cross-checked; independent numerical logits/states not rerun",
+  "privacy_scope": "No trace, TOC, complete host environment, credentials or external MCP configuration copied; report environment keys are exactly the nine fixed benchmark options",
+  "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+  "compiled_source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+  "decision": "Keep depth0; global performance inconclusive; no model/default/app change",
+  "original_finished_utc": "2026-11-03T21:33:39Z",
+  "other_cleanup_started_no_earlier_than_utc": "2026-11-03T21:48:54Z",
+  "concurrency_conclusion": "Original screen predates the separate Cargo cleanup; do not use that cleanup to explain the late MAIN control collapse.",
+  "protocol": {
+    "device": "Apple M5",
+    "memory_bytes": 25769803776,
+    "os": "macOS27.2 build26B123",
+    "model": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "average_bpw": 2.05,
+    "runtime_version": "2.0.2",
+    "runtime_build_stamp": "599628120c95-dirty",
+    "build_stamp_scope": "Retained original self-report; source freeze identifies89fdabbf, not a clean599628 source tree.",
+    "runtime_profile": "release",
+    "bridge_protocol": 1,
+    "harness": "scripts/benchmark-flash-bridge.py",
+    "harness_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+    "context": 4096,
+    "temperature": 0,
+    "top_k": 1,
+    "repetition_penalty": 1,
+    "reuse_prompt_cache": false,
+    "compiler_and_dependency_versions": "not independently reconstructed by this documentation-only archive; source/binary/harness identities are preserved"
+  }
+}
