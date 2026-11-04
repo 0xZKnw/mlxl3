@@ -67,11 +67,11 @@ class Nt2EvidenceTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             driver.static_counts(evidence(0, [1, 0, 0, 0, 0]), False)
 
-    def invoke(self, mutation=None, *, default_off=False, static_k=None):
+    def invoke(self, mutation=None, *, default_off=False, static_k=None, static_default_off=False):
         root = self.root / f"invoke-{self.invocations}"
         self.invocations += 1
         root.mkdir()
-        size = 1 if static_k is None else 5
+        size = 5
         cases = [
             {"generic": False, "candidate_nt": 2, "control_nt": 1, "words": 2} for _ in range(size)
         ]
@@ -108,13 +108,15 @@ class Nt2EvidenceTests(unittest.TestCase):
                 "cases": records,
                 "nt2_submissions": enabled * size,
             }
-            if static_k is not None:
-                for i, record in enumerate(records):
-                    record.update(
-                        static_key=i if static_k else None,
-                        static_submissions=[int(bool(static_k) and i == j) for j in range(5)],
-                    )
-                result.update(static_k=bool(static_k), static_submissions=[static_k] * 5)
+            static_enabled = static_k != 0
+            if static_default_off and "MLXL3_NATIVE_FLASH_STATIC_K" not in env:
+                static_enabled = False
+            for i, record in enumerate(records):
+                record.update(
+                    static_key=i if static_enabled else None,
+                    static_submissions=[int(static_enabled and i == j) for j in range(5)],
+                )
+            result.update(static_k=static_enabled, static_submissions=[int(static_enabled)] * 5)
             if mutation and (enabled or static_k is not None):
                 mutation(result)
             (mode_root / f"native-{enabled}.json").write_text(json.dumps(result))
@@ -132,7 +134,7 @@ class Nt2EvidenceTests(unittest.TestCase):
 
     def test_actual_path_and_complete_corpus_required(self):
         result = self.invoke()
-        self.assertEqual(result["compared"], 6)
+        self.assertEqual(result["compared"], 30)
         self.assertEqual([m["setting"] for m in result["modes"]], [0, 1, None])
         mutations = [
             lambda r: r.update(parity=False),
@@ -160,6 +162,10 @@ class Nt2EvidenceTests(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             self.invoke(omit_fifth, static_k=1)
+
+    def test_static_unconfigured_path_cannot_keep_disabled_default_with_equal_values(self):
+        with self.assertRaises(AssertionError):
+            self.invoke(static_default_off=True)
 
     def test_process_timeout_and_nonzero_exit_are_retained(self):
         log = self.root / "child.log"

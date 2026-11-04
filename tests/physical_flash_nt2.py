@@ -1,4 +1,4 @@
-"""Qualify native resident NT2 against independent stock and same-binary NT1."""
+"""Qualify native resident NT2 and static-K defaults against independent stock."""
 
 import argparse
 import hashlib
@@ -209,13 +209,12 @@ def verify(args, root, report):
                     actual, np.fromfile(root / "mode-1" / f"native-1-{i}.bin", dtype="<u2").tolist()
                 )
         assert result["nt2_submissions"] == submissions and (submissions > 0) == bool(enabled)
-        if static_k is not None:
-            counts = static_counts(result, bool(static_k))
-            static_total = [a + b for a, b in zip(static_total, counts, strict=True)]
+        counts = static_counts(result, static_k != 0)
+        static_total = [a + b for a, b in zip(static_total, counts, strict=True)]
         report["modes"].append({**result, "setting": setting})
+    assert all(n > 0 for n in static_total) if static_k != 0 else static_total == [0] * 5
+    report["static_submissions"] = static_total
     if static_k is not None:
-        assert all(n > 0 for n in static_total) if static_k else static_total == [0] * 5
-        report["static_submissions"] = static_total
         process(
             [
                 str(args.native),
@@ -262,7 +261,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("native", "stock", "model", "report"):
         parser.add_argument(name, type=Path)
-    parser.add_argument("--static-k", type=int, choices=(0, 1))
+    parser.add_argument(
+        "--static-k", type=int, choices=(0, 1), help="override native enabled default"
+    )
     args = parser.parse_args()
     report = {
         "status": "started",

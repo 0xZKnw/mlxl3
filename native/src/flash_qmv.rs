@@ -15,8 +15,8 @@ pub(crate) const SPECS: [Spec; 5] = [
 
 pub(crate) fn flag(value: Option<&str>) -> Option<bool> {
     match value {
-        None | Some("0") => Some(false),
-        Some("1") => Some(true),
+        None | Some("1") => Some(true),
+        Some("0") => Some(false),
         Some(_) => None,
     }
 }
@@ -51,7 +51,7 @@ pub(crate) fn select(
 #[test]
 fn static_qmv_default_flags_and_each_pso_identity() {
     for (value, expected) in [
-        (None, Some(false)),
+        (None, Some(true)),
         (Some("0"), Some(false)),
         (Some("1"), Some(true)),
         (Some(""), None),
@@ -123,7 +123,7 @@ fn native_static_qmv_flag_preserves_default_and_bounded_utf8_literals() {
     let length = usize::from(kani::any::<u8>() % 5);
     let present: bool = kani::any();
     if !present {
-        assert_eq!(flag(None), Some(false));
+        assert_eq!(flag(None), Some(true));
         kani::cover!(!present);
     } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
         let expected = match (length, bytes[0]) {
