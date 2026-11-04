@@ -18,7 +18,10 @@ pub(super) struct Pipelines {
     pub(super) to_float: ComputePipelineState,
 }
 impl Pipelines {
-    pub(super) fn load(p: &impl Fn(&str) -> Result<ComputePipelineState>, norm_gate: bool) -> Result<Self> {
+    pub(super) fn load(
+        p: &impl Fn(&str) -> Result<ComputePipelineState>,
+        norm_gate: bool,
+    ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
@@ -191,20 +194,52 @@ impl<'a> FlashGdn<'a> {
     ) -> Result<(Option<MatrixView>, MatrixView)> {
         let gpu = self.gpu;
         let p = &gpu.gdn;
-        let storage = if trace { Storage::StorageModeShared } else { Storage::StorageModePrivate };
-        if crate::flash_support::gdn_private_epilogue_eligible(gpu.gdn_norm_gate.get(), trace, private_f32_consumer) {
-            let pipeline = p.norm_gate.as_ref().context("GDN norm/gate pipeline was not selected at initialization")?;
+        let storage = if trace {
+            Storage::StorageModeShared
+        } else {
+            Storage::StorageModePrivate
+        };
+        if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_norm_gate.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            let pipeline = p
+                .norm_gate
+                .as_ref()
+                .context("GDN norm/gate pipeline was not selected at initialization")?;
             ensure!(pipeline.thread_execution_width() == 32);
             let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
-            Metal::encode(cmd, pipeline, &[&delta.buffer, &self.gain, &z.buffer, &gated.buffer], [self.eps.to_bits()], MTLSize::new(48, 1, 1), 32);
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[&delta.buffer, &self.gain, &z.buffer, &gated.buffer],
+                [self.eps.to_bits()],
+                MTLSize::new(48, 1, 1),
+                32,
+            );
             #[cfg(test)]
             gpu.gdn_norm_gate_uses.set(gpu.gdn_norm_gate_uses.get() + 1);
             return Ok((None, gated));
         }
         let normed = MatrixView::output(gpu, FloatType::F32, 1, 6144, storage)?;
-        Metal::encode(cmd, &p.norm, &[&delta.buffer, &self.gain, &normed.buffer], [self.eps.to_bits()], MTLSize::new(48, 1, 1), 32);
+        Metal::encode(
+            cmd,
+            &p.norm,
+            &[&delta.buffer, &self.gain, &normed.buffer],
+            [self.eps.to_bits()],
+            MTLSize::new(48, 1, 1),
+            32,
+        );
         let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
-        Metal::encode(cmd, &p.gate, &[&normed.buffer, &z.buffer, &gated.buffer], [6144u32], MTLSize::new(192, 1, 1), 32);
+        Metal::encode(
+            cmd,
+            &p.gate,
+            &[&normed.buffer, &z.buffer, &gated.buffer],
+            [6144u32],
+            MTLSize::new(192, 1, 1),
+            32,
+        );
         Ok((Some(normed), gated))
     }
 
@@ -327,7 +362,8 @@ impl<'a> FlashGdn<'a> {
             g(1, u64::from(value_groups), 48),
             64,
         );
-        let (normed, gated) = self.encode_norm_gate(cmd, &delta, &z, trace, private_f32_consumer)?;
+        let (normed, gated) =
+            self.encode_norm_gate(cmd, &delta, &z, trace, private_f32_consumer)?;
         let out_half = self.out.encode_row(cmd, &gated, storage)?;
         let values = if crate::flash_support::gdn_private_epilogue_eligible(
             gpu.gdn_half_elision.get(),
@@ -350,19 +386,26 @@ impl<'a> FlashGdn<'a> {
             );
             values
         };
-        let steps = if trace { Some([
-            ("qkv", qkv),
-            ("z", z),
-            ("a", a),
-            ("b", b),
-            ("conv", conv),
-            ("q", q),
-            ("k", k),
-            ("v", v),
-            ("delta", delta),
-            ("normed", normed.context("trace requires materialized norm")?),
-            ("gated", gated),
-        ]) } else { None };
+        let steps = if trace {
+            Some([
+                ("qkv", qkv),
+                ("z", z),
+                ("a", a),
+                ("b", b),
+                ("conv", conv),
+                ("q", q),
+                ("k", k),
+                ("v", v),
+                ("delta", delta),
+                (
+                    "normed",
+                    normed.context("trace requires materialized norm")?,
+                ),
+                ("gated", gated),
+            ])
+        } else {
+            None
+        };
         Ok(PendingGdn {
             command: cmd.to_owned(),
             next,
