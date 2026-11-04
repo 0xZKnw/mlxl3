@@ -189,6 +189,7 @@ impl FlashNext<'_> {
         self.gpu.ensure_reads_idle()?;
         self.gpu.command(|_| Ok(()))?;
         self.reset();
+        self.mixer.release_workspace()?;
         for layer in &mut self.layers {
             layer.release_idle_state()?;
         }
@@ -198,8 +199,13 @@ impl FlashNext<'_> {
         let Some(limit) = self.request_limit else {
             return Ok(None);
         };
-        let plan = ResourcePlan::native_ar(u32::try_from(positions)?, self.context)
+        let mut plan = ResourcePlan::native_ar(u32::try_from(positions)?, self.context)
             .context("invalid Flash request length")?;
+        if self.gpu.hc_workspace_enabled.get() {
+            plan = plan
+                .with_hc_workspace(self.layers.len() as u64 * 2 + 1, !self.gpu.hc_up_mix.get())
+                .context("HC workspace admission overflow")?;
+        }
         self.release_idle_state()?;
         let mut ledger = self.memory_ledger(None)?;
         let minimum_cache = self.layers.len() as u64 * 10 * crate::flash_support::EXPERT_BYTES;
@@ -336,11 +342,16 @@ mod tests {
         ensure!(
             active.state_backing_bytes["gdn"] > 0 && active.state_backing_bytes["last_hidden"] > 0
         );
+        if gpu.hc_workspace_enabled.get() {
+            let expected = if gpu.hc_up_mix.get() { 4_221_440 } else { 8_194_560 };
+            ensure!(active.state_backing_bytes.get("hc_workspace") == Some(&expected));
+        }
         target.release_idle_state()?;
         let idle = target.memory_ledger(None)?;
         ensure!(
             !idle.state_backing_bytes.contains_key("gdn")
                 && !idle.state_backing_bytes.contains_key("last_hidden")
+                && !idle.state_backing_bytes.contains_key("hc_workspace")
         );
         target.restore(&snapshot)?;
         let (replayed, replayed_states) = target.forward_trace(1)?;
@@ -350,7 +361,13 @@ mod tests {
         drop(snapshot);
         target.release_idle_state()?;
         let before = target.memory_ledger(None)?;
-        let plan = ResourcePlan::native_ar(64, target.context).unwrap();
+        let mut plan = ResourcePlan::native_ar(64, target.context).unwrap();
+        if gpu.hc_workspace_enabled.get() {
+            let with_up = !gpu.hc_up_mix.get();
+            plan = plan.with_hc_workspace(97, with_up).unwrap();
+            let expected = if with_up { 8_194_560 } else { 4_221_440 };
+            ensure!(serde_json::to_value(plan)?["hc_workspace_reserve_bytes"] == expected);
+        }
         let minimum_cache = 48 * 10 * crate::flash_support::EXPERT_BYTES;
         let limit = gpu
             .observed_memory()?

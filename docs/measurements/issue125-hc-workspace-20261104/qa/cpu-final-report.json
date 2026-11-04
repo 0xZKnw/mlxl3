@@ -1,0 +1,278 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "fmt-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--check"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.6667314160149544,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "inventory-final",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.6713235420174897,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "manifest-final",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_kani_manifest.py"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.346309625019785,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 90,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 7.947992957982933,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 90,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 4.681363290990703,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 14.834756958007347,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "full-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 46.083078083000146,
+      "joined": true,
+      "test_results": [
+        [
+          252,
+          0,
+          8
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "full-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 44.805286291986704,
+      "joined": true,
+      "test_results": [
+        [
+          267,
+          0,
+          50
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "full-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "limit_seconds": 240,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 47.38335387498955,
+      "joined": true,
+      "test_results": [
+        [
+          294,
+          0,
+          260
+        ],
+        [
+          44,
+          0,
+          9
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  ],
+  "all_children_joined": true
+}

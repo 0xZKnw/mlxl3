@@ -542,7 +542,9 @@ impl LayerResidual<'_> {
         self.moe.record_memory(backings)
     }
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
-        self.moe.drain()
+        self.moe.drain()?;
+        self.attn_hc.release_workspace()?;
+        self.mlp_hc.release_workspace()
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
         self.moe.shrink(slots)

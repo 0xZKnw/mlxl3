@@ -60,6 +60,8 @@ pub mod gemma4;
 pub mod gpu;
 #[cfg(any(test, kani))]
 mod hc_gdn_policy_tests;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod hc_workspace_policy;
 pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;

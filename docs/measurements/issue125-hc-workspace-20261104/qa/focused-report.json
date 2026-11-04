@@ -1,0 +1,161 @@
+{
+  "status": "focused_CPU_passed_full_suites_and_physical_pending",
+  "base": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "sources_sha256": {
+    "native/src/hc_workspace_policy.rs": "9720c6febcf9be19866fc2bf807bcfc1930d2b71d0f903dd3406a58dd57964f2",
+    "native/src/hc_workspace_policy_tests.rs": "514c6c78d3edeebe998c2007b1b5e1353816a67057ec63bceff277096e2a135b",
+    "native/src/gpu/hc_workspace.rs": "95c42fee6c5ae2c1abcb9cdcb33d0d4149d3b6a9adb1a152e61c93a361f00a8e",
+    "native/src/gpu/hc_workspace_tests.rs": "1de8a155633d91804905a1eea9905ae238bbca89bc5f363e101e7cc9998dfc28",
+    "native/src/flash_memory.rs": "28dac068e847ef71e1f24686228caefc80c1e8ac6e537de3ab2e79e735dbc081",
+    "native/src/gpu.rs": "0e99f432bd19d385b2179262b99efc72c52c5b64a33ce479cb6a5d9fa05a8183",
+    "native/src/gpu/gdn.rs": "e2db566deb45bc4df8c3364a48d2eceb0db28db833dea57eff9b220281fa6a94",
+    "native/src/gpu/hc.rs": "8f9009e37fa14563b637e58bab29d9211758847d147f692f2065ebbe22065c4f",
+    "native/src/gpu/memory.rs": "71f032be946e319170da914cd30627c45b64cb293a556e1d73458dbb0e5a125b",
+    "native/src/lib.rs": "509d87df99e8317f729cf2b2da6e4cfdcd781101b02072e8f77bf54125be98b4",
+    "scripts/kani_obligations.json": "e12199396cee1dcbe06bee7515dfd275f9f9e3f75e0b2939038238a7dc6251b5",
+    "tests/test_kani_ci.py": "3e96f186b13b0c725de733e75261ab06ac62ab31b856c61116025db9e20d97e1",
+    "docs/native-coverage/mlx-sites.json": "975ecf17e338b7b5417d2fd8faca2931d2f91d254d9b60320f4e7e0ae536ad1b"
+  },
+  "format": true,
+  "strict_direct_all_targets": true,
+  "policy_unit_tests": 4,
+  "inventory_files": 252,
+  "manifest_tests": 2,
+  "kani": {
+    "version": "0.68.0",
+    "harnesses": 4,
+    "checks": 481,
+    "covers": 12,
+    "unreachable_std_guards": 7,
+    "domain": "state keys and completion booleans arbitrary; reserve/admission count arbitraryu64; UTF8 flaglength<=4/unwind10,stateunwind6; noassume/stubs",
+    "not_proved": "Metal,actualCommandBufferstatus/retention,OS,driver,GPU,fullgeneration"
+  },
+  "mutation": {
+    "scope": "exact actual Key/State sourceprefix copied to disposable standaloneRusttest",
+    "change": "remove busyguard",
+    "original_exit": 0,
+    "mutant_exit": 101,
+    "restored_exit": 0,
+    "source_runtime_modified": false
+  },
+  "failures_preserved": [
+    "initial direct alltargets compile: testcounter expectedu64 but actualusize; fixedtestsignature only",
+    "inventory intentionally detectsnewflag/sites, exactentriesreviewedandupdated"
+  ],
+  "physical": "not_executed_no_GPU_grant",
+  "full_suites": "pendingCPUslot",
+  "speed": "not_measured",
+  "all_children_joined": true,
+  "receipts": [
+    {
+      "path": "kani-report.json",
+      "uncompressed_sha256": "a6b26aa76eb2a16fee084b6a1aa5a841bdba802128e5c4f2be0af46be7475274",
+      "bytes": 1895
+    },
+    {
+      "path": "fmt.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions.log.gz",
+      "uncompressed_sha256": "6b1867c417586fdb59329c6fc4da3e7e919bf7ec6848e9400b5627d0c8246447",
+      "bytes": 49224
+    },
+    {
+      "path": "unit-policy.log.gz",
+      "uncompressed_sha256": "0f20aa090de6b9dd754b0f06459bf00d5853b0285083731e0ab3db9a3f9c68a2",
+      "bytes": 1371
+    },
+    {
+      "path": "hc_workspace_reserve_is_exact_or_rejects_overflow.log.gz",
+      "uncompressed_sha256": "1a1d950763185026ee62c14addd94e82d6170fca1342050badb9d10afd6c71ce",
+      "bytes": 31338
+    },
+    {
+      "path": "clippy-direct.log.gz",
+      "uncompressed_sha256": "4503f9393abf8f0ecb4bdea8b8c196c5b9213348059bab3f932e885a3e678ee7",
+      "bytes": 414
+    },
+    {
+      "path": "kani-obligations.json",
+      "uncompressed_sha256": "701103768521541244fe6c092a2d253eac1eb7da3a2accd4e67bdb61d75648f8",
+      "bytes": 3506
+    },
+    {
+      "path": "manifest.log.gz",
+      "uncompressed_sha256": "fa9cd0e25dcc1e230610463c80c04cc48c6c326debe3521403b94a8e7f25f4ae",
+      "bytes": 98
+    },
+    {
+      "path": "check-direct.log.gz",
+      "uncompressed_sha256": "2480bcb059ecb8bcb78b5cf8667586e8643b2720b6cca3d3abe4c1f690897f7a",
+      "bytes": 4974
+    },
+    {
+      "path": "clippy-direct-initial-counter-type-error.log.gz",
+      "uncompressed_sha256": "254ff8c672de9ccfd428423f8d9352c976ed204b9be24838be23b5347b52dbbb",
+      "bytes": 851
+    },
+    {
+      "path": "inventory-before.log.gz",
+      "uncompressed_sha256": "213aeab390abc7553a9e79568653fc5f3f4ef3d232147ebd33bcb26a3d31e4c7",
+      "bytes": 266
+    },
+    {
+      "path": "hc_workspace_flag_preserves_off_default_and_bounded_literals.log.gz",
+      "uncompressed_sha256": "b9e11bed7f6edf48ba6813ef39410312ce10958041cf2813051d4d91e9e96308",
+      "bytes": 224472
+    },
+    {
+      "path": "package-clean.log.gz",
+      "uncompressed_sha256": "224389ac602205874fca9bf5f394cd57cba7d852bc186d45f716aa605c362fdd",
+      "bytes": 38
+    },
+    {
+      "path": "hc_workspace_actual_admission_sum_is_checked_and_includes_every_buffer.log.gz",
+      "uncompressed_sha256": "4ba2ff70b6f3166a6f27557848f793d980bff5fe647e7bee6a92b440bb177b69",
+      "bytes": 38109
+    },
+    {
+      "path": "inventory.log.gz",
+      "uncompressed_sha256": "85667b4eb532dcc71ac8aed7476d1b1bcf6bd6f63ab088c52dabc93246f13c93",
+      "bytes": 39
+    },
+    {
+      "path": "mutation/ignore-busy-mutant.log.gz",
+      "uncompressed_sha256": "5095141884940e12345dd8ab5503807c0dbd816ab1bb62831a227809fb168de1",
+      "bytes": 516
+    },
+    {
+      "path": "mutation/original-restored.log.gz",
+      "uncompressed_sha256": "7ab7c4f4c486c2ead5eb0ccc67ad4399dc33586aa54f97d6a25c8907801f2f7f",
+      "bytes": 172
+    },
+    {
+      "path": "mutation/original.log.gz",
+      "uncompressed_sha256": "7ab7c4f4c486c2ead5eb0ccc67ad4399dc33586aa54f97d6a25c8907801f2f7f",
+      "bytes": 172
+    },
+    {
+      "path": "mutation/original-build.log.gz",
+      "uncompressed_sha256": "d7793c462d031104c452e3da0f050ad1017fdbecc1689183de54aa0d890f35a7",
+      "bytes": 697
+    },
+    {
+      "path": "mutation/ignore-busy-mutant-build.log.gz",
+      "uncompressed_sha256": "85c6b6e5eddc3acd6f181e68b604768bf8d667470385e8ebf38ca3f7ff0f8c8f",
+      "bytes": 717
+    },
+    {
+      "path": "mutation/original-restored-build.log.gz",
+      "uncompressed_sha256": "ac7101af135cc8aeac3ae9ba73dc526297e6190a5a029586867b98c0a3230ec2",
+      "bytes": 715
+    },
+    {
+      "path": "mutation/report.json",
+      "uncompressed_sha256": "35e0fc662fdb1a6b74aed1544159e20f1f1388d00b6e3c3fee782151ca9dc239",
+      "bytes": 943
+    }
+  ]
+}

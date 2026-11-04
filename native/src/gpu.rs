@@ -215,6 +215,9 @@ pub struct Metal {
     hc_up_mix_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     hc_down_inject_uses: std::cell::Cell<usize>,
+    hc_workspace_enabled: std::cell::Cell<bool>,
+    #[cfg(test)]
+    hc_workspace_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     hc_gdn_pairs: std::cell::Cell<usize>,
     ssd_direct_enabled: bool,
@@ -338,6 +341,14 @@ impl Metal {
             };
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
+            let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
+                Ok(value) => crate::hc_workspace_policy::flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::hc_workspace_policy::flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_HC_WORKSPACE must be 0 or 1")?;
             let hc_gdn_chain = match std::env::var("MLXL3_NATIVE_HC_GDN_CHAIN") {
                 Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -600,6 +611,9 @@ impl Metal {
                 hc_up_mix_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 hc_down_inject_uses: std::cell::Cell::new(0),
+                hc_workspace_enabled: std::cell::Cell::new(hc_workspace_enabled),
+                #[cfg(test)]
+                hc_workspace_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 hc_gdn_pairs: std::cell::Cell::new(0),
                 ssd_direct_enabled,
