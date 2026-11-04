@@ -719,6 +719,22 @@ mod tests {
             "native prefetch model: {}",
             serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
         );
+        let static_submissions = gpu
+            .flash_static_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
+        if gpu.flash_static_setting == Some(true) {
+            ensure!(
+                static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0,
+                "static K target did not execute both cold K2 and resident K4"
+            );
+        } else {
+            ensure!(static_submissions == [0; 5]);
+        }
+        eprintln!(
+            "NATIVE_FLASH_STATIC_SUBMISSIONS {}",
+            serde_json::json!(static_submissions)
+        );
         Ok(())
     }
 

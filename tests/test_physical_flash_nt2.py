@@ -34,17 +34,60 @@ class Nt2EvidenceTests(unittest.TestCase):
             with self.subTest(a=a, b=b), self.assertRaises(AssertionError):
                 driver.words(a, b)
 
-    def invoke(self, mutation=None, *, default_off=False):
+    def test_static_psos_require_complete_actual_submissions_and_valid_identity(self):
+        def evidence(key, counts):
+            return {
+                "static_k": True,
+                "cases": [{"static_key": key, "static_submissions": counts}],
+                "static_submissions": counts,
+            }
+
+        for key in range(5):
+            counts = [int(i == key) for i in range(5)]
+            self.assertEqual(driver.static_counts(evidence(key, counts), True), counts)
+        self.assertEqual(driver.static_counts(evidence(None, [0] * 5), True), [0] * 5)
+        for key, counts in [
+            (0, [0] * 5),
+            (5, [0] * 5),
+            (-1, [0] * 5),
+            (True, [0, 1, 0, 0, 0]),
+            (0, [1]),
+            (0, [1.0, 0, 0, 0, 0]),
+            (None, [1, 0, 0, 0, 0]),
+        ]:
+            with self.subTest(key=key, counts=counts), self.assertRaises(AssertionError):
+                driver.static_counts(evidence(key, counts), True)
+        broken = evidence(0, [1, 0, 0, 0, 0])
+        broken["static_submissions"] = [0] * 5
+        with self.assertRaises(AssertionError):
+            driver.static_counts(broken, True)
+        broken["static_submissions"] = [True, 0, 0, 0, 0]
+        with self.assertRaises(AssertionError):
+            driver.static_counts(broken, True)
+        with self.assertRaises(AssertionError):
+            driver.static_counts(evidence(0, [1, 0, 0, 0, 0]), False)
+
+    def invoke(self, mutation=None, *, default_off=False, static_k=None):
         root = self.root / f"invoke-{self.invocations}"
         self.invocations += 1
         root.mkdir()
-        cases = [{"generic": False, "candidate_nt": 2, "control_nt": 1, "words": 2}]
-        ref = [[0x3C00, 0x4000]]
-        args = SimpleNamespace(model=self.root, native=Path("native"), stock=Path("stock"))
+        size = 1 if static_k is None else 5
+        cases = [
+            {"generic": False, "candidate_nt": 2, "control_nt": 1, "words": 2} for _ in range(size)
+        ]
+        ref = [[0x3C00, 0x4000] for _ in range(size)]
+        args = SimpleNamespace(
+            model=self.root, native=Path("native"), stock=Path("stock"), static_k=static_k
+        )
 
         def child(command, env, log):
             if command[0] == "stock":
                 (root / "stock.json").write_text(json.dumps(ref))
+                return ""
+            if env.get("MLXL3_NATIVE_FLASH_STATIC_K") == "true":
+                (root / "static-invalid-flag.json").write_text(
+                    json.dumps({"rejected": True, "fc_hidden": True, "fallbacks": True})
+                )
                 return ""
             if env.get("MLXL3_NATIVE_FLASH_NT2") == "true":
                 (root / "invalid-flag.json").write_text(
@@ -55,12 +98,28 @@ class Nt2EvidenceTests(unittest.TestCase):
             if default_off and "MLXL3_NATIVE_FLASH_NT2" not in env:
                 enabled = 0
             mode_root = Path(env["MLXL3_NT2_FIXTURES"])
-            record = {"case": 0, "nt": 2 if enabled else 1, "nt2_submissions": enabled, "words": 2}
-            result = {"parity": True, "unequal": 0, "cases": [record], "nt2_submissions": enabled}
-            if mutation and enabled:
+            records = [
+                {"case": i, "nt": 2 if enabled else 1, "nt2_submissions": enabled, "words": 2}
+                for i in range(size)
+            ]
+            result = {
+                "parity": True,
+                "unequal": 0,
+                "cases": records,
+                "nt2_submissions": enabled * size,
+            }
+            if static_k is not None:
+                for i, record in enumerate(records):
+                    record.update(
+                        static_key=i if static_k else None,
+                        static_submissions=[int(bool(static_k) and i == j) for j in range(5)],
+                    )
+                result.update(static_k=bool(static_k), static_submissions=[static_k] * 5)
+            if mutation and (enabled or static_k is not None):
                 mutation(result)
             (mode_root / f"native-{enabled}.json").write_text(json.dumps(result))
-            np.array(ref[0], dtype="<u2").tofile(mode_root / f"native-{enabled}-0.bin")
+            for i in range(size):
+                np.array(ref[i], dtype="<u2").tofile(mode_root / f"native-{enabled}-{i}.bin")
             return "dyld[1]: /System/Library/Frameworks/Metal.framework/Metal"
 
         report = {"status": "started", "parity": False}
@@ -90,6 +149,17 @@ class Nt2EvidenceTests(unittest.TestCase):
     def test_unconfigured_path_cannot_silently_keep_old_disabled_default(self):
         with self.assertRaises((FileNotFoundError, AssertionError)):
             self.invoke(default_off=True)
+
+    def test_static_matrix_requires_all_five_actual_psos(self):
+        self.assertEqual(self.invoke(static_k=1)["static_submissions"], [3] * 5)
+        self.assertEqual(self.invoke(static_k=0)["static_submissions"], [0] * 5)
+
+        def omit_fifth(result):
+            result["cases"][4].update(static_key=None, static_submissions=[0] * 5)
+            result["static_submissions"][4] = 0
+
+        with self.assertRaises(AssertionError):
+            self.invoke(omit_fifth, static_k=1)
 
     def test_process_timeout_and_nonzero_exit_are_retained(self):
         log = self.root / "child.log"

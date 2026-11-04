@@ -109,6 +109,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::native_flash_resident_nt2_selector_preserves_every_fallback",
         "contracts::native_flash_reference_grid_covers_only_complete_output_tiles",
         "contracts::native_flash_nt2_default_and_supported_overrides_are_exact",
+        "flash_qmv::native_static_qmv_key_matches_the_actual_pso_table_and_every_fallback",
+        "flash_qmv::native_static_qmv_flag_preserves_default_and_bounded_utf8_literals",
         "contracts::native_flash_nt2_flag_default_and_bounded_unicode_literals",
         "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
         "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",

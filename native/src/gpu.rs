@@ -186,6 +186,11 @@ pub struct Metal {
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
     flash_qmv_nt2: ComputePipelineState,
+    flash_static_qmv: [ComputePipelineState; 5],
+    flash_static_supported: [bool; 5],
+    flash_static_setting: Option<bool>,
+    #[cfg(test)]
+    flash_static_submissions: [std::cell::Cell<u64>; 5],
     dense_qmv: [[ComputePipelineState; 3]; 2],
     dense_finish: ComputePipelineState,
     mapped_glu: ComputePipelineState,
@@ -230,6 +235,18 @@ impl Metal {
     pub fn new() -> Result<Self> {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
+            // Snapshot once; cold expert records never re-read this environment.
+            // Defer malformed-setting errors to eligible projection loads.
+            let flash_static_setting =
+                if device.name() == "Apple M5" || device.name().starts_with("Apple M5 ") {
+                    match std::env::var("MLXL3_NATIVE_FLASH_STATIC_K") {
+                        Ok(value) => crate::flash_qmv::flag(Some(&value)),
+                        Err(std::env::VarError::NotPresent) => crate::flash_qmv::flag(None),
+                        Err(std::env::VarError::NotUnicode(_)) => None,
+                    }
+                } else {
+                    Some(false)
+                };
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
@@ -244,6 +261,10 @@ impl Metal {
                 .replace(
                     "#include \"flash_projection.metal\"",
                     include_str!("../shaders/flash_projection.metal"),
+                )
+                .replace(
+                    "#include \"flash_static_qmv.metal\"",
+                    include_str!("../shaders/flash_static_qmv.metal"),
                 )
                 .replace(
                     "#include \"_qmv_tile_kernel.metal\"",
@@ -331,6 +352,20 @@ impl Metal {
             let qmv_pipeline = pipeline("exl3_qmv")?;
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
             let flash_qmv_nt2 = pipeline("flash_reference_qmv_nt2")?;
+            let static_pipeline = |key: usize| {
+                let spec = &crate::flash_qmv::SPECS[key];
+                pipeline(&format!("flash_static_k{}_nt{}", spec.k, spec.nt))
+            };
+            let flash_static_qmv = [
+                static_pipeline(0)?,
+                static_pipeline(1)?,
+                static_pipeline(2)?,
+                static_pipeline(3)?,
+                static_pipeline(4)?,
+            ];
+            let flash_static_supported = flash_static_qmv.each_ref().map(|p| {
+                p.thread_execution_width() == 32 && p.max_total_threads_per_threadgroup() >= 128
+            });
             let dense_qmv = [
                 [
                     pipeline("dense_qmv_s4_n1")?,
@@ -393,6 +428,11 @@ impl Metal {
                 prepare128_pipeline,
                 flash_qmv_pipeline,
                 flash_qmv_nt2,
+                flash_static_qmv,
+                flash_static_supported,
+                flash_static_setting,
+                #[cfg(test)]
+                flash_static_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 dense_qmv,
                 dense_finish,
                 mapped_glu,
