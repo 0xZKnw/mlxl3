@@ -273,9 +273,19 @@ mod physical {
         drain(&pool.active)?;
         ensure!(timed_out && retained && reuse_refused);
 
+        // Nine Ready entries leave exactly one slot for both generations of expert22.
+        // These are cache metadata fixtures; no model weights are changed or loaded.
+        let stale_cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+        let seeded = DemandPlan::reserve(&stale_cache, &(32..41).collect::<Vec<_>>())?;
+        ensure!(seeded.reads.len() == 9);
+        for &lease in &seeded.reads {
+            ensure!(seeded.publish(lease));
+        }
+        drop(seeded);
+        ensure!((32..41).all(|id| stale_cache.borrow().contains(id)));
         let gate = Arc::new(Barrier::new(2));
         pool.set_test_gate(Some(gate));
-        let old = DemandPlan::reserve(&cache, &[22])?;
+        let old = DemandPlan::reserve(&stale_cache, &[22])?;
         let old_lease = old.reads[0];
         let mut pending = pool.start_shared(
             vec![(old_lease, file.try_clone()?, 0, 17)],
@@ -283,7 +293,7 @@ mod physical {
             &device,
         )?;
         drop(old);
-        let current = DemandPlan::reserve(&cache, &[22])?;
+        let current = DemandPlan::reserve(&stale_cache, &[22])?;
         let current_lease = current.reads[0];
         let newer = old_lease != current_lease && old_lease.slot == current_lease.slot;
         pool.release_test_gate();
@@ -291,7 +301,7 @@ mod physical {
         ensure!(completed.len() == 1 && completed[0].0 == old_lease && newer);
         let (_, payload) = completed.into_iter().next().unwrap();
         let stale = shared(payload, &source[..17])?;
-        ensure!(!current.publish(old_lease) && !cache.borrow().contains(22));
+        ensure!(!current.publish(old_lease) && !stale_cache.borrow().contains(22));
         let mut fresh = pool.start_shared(
             vec![(current_lease, file.try_clone()?, 32, 17)],
             Duration::from_secs(2),
@@ -302,7 +312,7 @@ mod physical {
         let (_, payload) = completed.into_iter().next().unwrap();
         let replacement = shared(payload, &source[32..49])?;
         ensure!(stale.contents() != replacement.contents() && current.publish(current_lease));
-        ensure!(!current.publish(old_lease) && cache.borrow().contains(22));
+        ensure!(!current.publish(old_lease) && stale_cache.borrow().contains(22));
         drop((pending, fresh));
 
         let retiring = ReadService::new(1)?;
