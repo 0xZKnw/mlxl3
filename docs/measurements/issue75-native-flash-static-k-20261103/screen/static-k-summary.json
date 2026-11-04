@@ -1,0 +1,195 @@
+{
+  "status": "validated_short_screen",
+  "decision": "retain K/codebook specialization; activate default only after separate default-path qualification",
+  "parity": true,
+  "source_commit": "b8f0323313b046456fa887f54fc12f913613a49b",
+  "binary_sha256": "d2ff7420acae31ca0123e5ccff9d12bec5198c47947a739c2c51e016c3b04c8e",
+  "generated_utc": "2026-11-04T10:04:48.267745+00:00",
+  "order": [
+    "0",
+    "1",
+    "1",
+    "0"
+  ],
+  "tokens": 32,
+  "measured_responses": 8,
+  "warmup_responses": 8,
+  "samples_per_variant_per_prompt": 2,
+  "expert_bank_capacity_bytes": 3174942528,
+  "slots_by_layer": [
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53
+  ],
+  "all_children_reaped_and_readers_joined": true,
+  "power": [
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "by_prompt": {
+    "MAIN": {
+      "control_tps": [
+        4.923571870331541,
+        5.002442018721761
+      ],
+      "candidate_tps": [
+        5.4125737227220805,
+        5.471049050491717
+      ],
+      "control_median_tps": 4.963006944526651,
+      "candidate_median_tps": 5.441811386606899,
+      "median_change_percent": 9.647466695735485,
+      "paired_change_percent": [
+        9.93185161644876,
+        9.367565481342567
+      ],
+      "control_drift_percent": 1.6018888414217392,
+      "candidate_drift_percent": 1.0803608553941135,
+      "control_median_ttft_seconds": 17.622295042,
+      "candidate_median_ttft_seconds": 16.2179281035,
+      "ttft_change_percent": -7.969262432350099,
+      "candidate_both_above_both_controls": true
+    },
+    "HOLD": {
+      "control_tps": [
+        5.088677489449253,
+        4.985240872767727
+      ],
+      "candidate_tps": [
+        5.592275534121506,
+        5.452041872121257
+      ],
+      "control_median_tps": 5.0369591811084895,
+      "candidate_median_tps": 5.522158703121382,
+      "median_change_percent": 9.632786460384102,
+      "paired_change_percent": [
+        9.896442557352113,
+        9.3636598765662
+      ],
+      "control_drift_percent": -2.032681711426787,
+      "candidate_drift_percent": -2.507631484618511,
+      "control_median_ttft_seconds": 17.0687733335,
+      "candidate_median_ttft_seconds": 15.06214202,
+      "ttft_change_percent": -11.756154202139935,
+      "candidate_both_above_both_controls": true
+    }
+  },
+  "measured_memory_values": {
+    "native_metal_allocated_bytes": [
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472
+    ],
+    "process_footprint_bytes": [
+      7233787736,
+      7224366936,
+      7232657216,
+      7238932288,
+      7237080920,
+      7224547160,
+      7228102464,
+      7231297344
+    ],
+    "process_lifetime_peak_bytes": [
+      7267784536,
+      7267784536,
+      7264900928,
+      7270192984,
+      7268652864,
+      7275009880,
+      7261509440,
+      7264606016
+    ],
+    "process_compressed_logical_bytes": [
+      3282403328,
+      3364438016,
+      2359148544,
+      2366291968,
+      2388721664,
+      2467332096,
+      2278146048,
+      2443640832
+    ],
+    "process_decompressions": [
+      1123817,
+      1461584,
+      866722,
+      1114188,
+      838828,
+      1117060,
+      968726,
+      1310300
+    ]
+  },
+  "limits": [
+    "Only32-token MAIN/HOLD, two measured samples per variant/prompt. No sustained or long-context gain established.",
+    "Same release binary explicit flag0/1; default activation and final executable validation remain separate.",
+    "No MTP/DFlash inference, app installation, main merge or release.",
+    "Do not add this gain to older NT2 screens using different binaries and conditions.",
+    "Background desktop activity observed; thermal state not measured."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "status": "correctness_validated_short_composition_screen_retained",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "real_defaults": "HC and STATIC_K environment variables absent;NT2explicit1",
+  "quality": {
+    "full_AR_seconds": 7.573000874981517,
+    "full_AR_prefixes": [
+      0,
+      2,
+      9
+    ],
+    "finite_F32_state_words_exact": 86409216,
+    "hidden_logits_and48pairs_command_savings": "exact/pass",
+    "independent_archive_seconds": 3.543111292005051,
+    "independent_F32_words": 28803072,
+    "independent_half_logits": 496640,
+    "actual_features_same_Metal_fixture": {
+      "hc_initially_enabled": true,
+      "hc_joint_pairs": 192,
+      "static_submissions": [
+        5760,
+        0,
+        0,
+        480,
+        723
+      ]
+    },
+    "production_AR_seconds": 56.15786449998268,
+    "production_AR_golden_completions": 4,
+    "rejected": 1,
+    "cancelled": [
+      "context_usage",
+      "delta"
+    ],
+    "exact_recovery": true,
+    "budget_seconds": 23.53909616699093,
+    "budget_golden_completions": 2,
+    "budget_memory_saver_ledger_recovery": "passed",
+    "no_speculative_inference": true,
+    "loaded_image_audits": "Metal present,MLX/JACCL absent",
+    "selected_Rust_tests_ignored": 0,
+    "all_owned_process_groups_empty": true
+  },
+  "reused_oracles": "Kcomponent/shaders/table andHCcomponent+6independentwrites sourcebyteidentical; no stockrerun",
+  "CPU": "full333/342/378passed9/41/259ignored; aftermarker253librarypassed37ignored;3strictconfigs,fmt,inventory246;Python6passed44Linuxskips+2directpolicychecks",
+  "bounded_proof": "actualHChelper237checks/0fail/7covers;7standard-libraryunreachablelisted;hardwareboolean+absence+UTF8<=4/unwind10,noassumptions;notGPUproof",
+  "retained_limits": "OldHCfailedfixture+QSAaudit and90stimeout/GPUICE preserved;MTP/DFlash/longcontext/sustainedperformance unmeasured;onlyqualifiedAppleM5HCdefault1,otherGPUsdefault0/explicit1experimental",
+  "integration": "localcandidateonly;rootglobalABBAagainstfixedK0/HC0pending;noadditionisolatedgains,noapp/mainmerge/release",
+  "performance_result": "composition/composition-summary.json;directwholeensemble,noisolatedgainsum"
+}

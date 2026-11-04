@@ -1,0 +1,96 @@
+{
+  "status": "static_screen_complete_HC_timing_gated",
+  "id": "I75-AR-KERNEL-SCREEN-20261104",
+  "time_utc": "2026-11-04T09:51:24.739706+00:00",
+  "hypotheses": {
+    "static-k": "Make K and codebook literals in the unchanged canonical QMV body. This may reduce GPU work in GDN, MoE and resident projections. Trace03 supports testing these groups, but cannot predict recoverable time.",
+    "hc-chain": "Combine adjacent attention HC write and MLP HC read using the same shaders and allocations with one final wait. The expected48 fewer helper commands per row do not establish a timing gain."
+  },
+  "historical_comparisons": "Do not repeat the old54Q scratch variants, T01B or DEC-ONE. These native mechanisms have separate preregistrations. Preserve the short NT2 screen, negative/inconclusive lookahead screen and intrusive trace03 costs.",
+  "harness": {
+    "path": "scripts/benchmark-flash-bridge.py",
+    "sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+    "preexisting_checks": "77regressiontests previouslypassed; unchangedsource reused"
+  },
+  "model": {
+    "path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "average_bpw": 2.05
+  },
+  "fixed": {
+    "mode": "AR",
+    "tokens": 32,
+    "context": 4096,
+    "temperature": 0,
+    "top_k": 1,
+    "repetition_penalty": 1,
+    "prompts": [
+      "MAIN",
+      "HOLD"
+    ],
+    "warmups_per_prompt_per_process": 1,
+    "measured_per_prompt_per_process": 1,
+    "repeats": 1,
+    "cache_gib": 3,
+    "expected_slots": 53,
+    "layers": 48,
+    "reuse_prompt_cache": false,
+    "timeout_seconds_per_exchange": 300
+  },
+  "environment": {
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_NATIVE_AR_HC_CHAIN": "0",
+    "MLXL3_NATIVE_FLASH_STATIC_K": "0"
+  },
+  "sanitize_environment": "Remove inherited MLXL3_* and DYLD_* before applying fixed flags; no swap abort.",
+  "matrices": [
+    {
+      "candidate": "static-k",
+      "flag": "MLXL3_NATIVE_FLASH_STATIC_K",
+      "frozen_binary": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/direct-cli",
+      "order": [
+        "0",
+        "1",
+        "1",
+        "0"
+      ],
+      "status": "validated_short_screen_default_activation_pending",
+      "binary_sha256": "d2ff7420acae31ca0123e5ccff9d12bec5198c47947a739c2c51e016c3b04c8e",
+      "source_commit": "b8f0323313b046456fa887f54fc12f913613a49b",
+      "quality_report": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/report.json"
+    },
+    {
+      "candidate": "hc-chain",
+      "flag": "MLXL3_NATIVE_AR_HC_CHAIN",
+      "frozen_binary": "FREEZE_QUALITY_VERIFIED_BEFORE_LAUNCH",
+      "order": [
+        "0",
+        "1",
+        "1",
+        "0"
+      ],
+      "status": "quality_interrupted_by_command_count_failure_timing_not_run",
+      "failure": "HC component and independent writes passed. Full-AR prefix0 passed; at prefix2 actual48 jointpairs but36 fewer global helpercommands instead of48. Source audit identifies12 extra QSA COW prefix blits after restoring a snapshot whose published watermark advanced. A test-only symmetric priming correction is planned; all numerical prefix2/9 and remaining gates must still pass."
+    }
+  ],
+  "quality_gate": "Each candidate must first pass independent component checks, finite full states/logits, the real native AR error/cancellation/recovery path and memory budget. Missing tests, partial reports or divergence prevent timing eligibility.",
+  "cross_arm_checks": [
+    "Identical complete32-token hashes and full text per prompt, including warmups.",
+    "Exactly32 generated and31 decoded tokens; finite, positive, consistent timing values.",
+    "Identical effective expert-cache capacity:53 slots across each of48 layers.",
+    "Report native Metal allocated bytes separately from process footprint.",
+    "Join every native child and benchmark reader at shutdown.",
+    "Record source, binary and environment identities."
+  ],
+  "conditions": "M5/24GiB, macOS27.2, Xcode27.2, AC100% before quality. Background desktop Equibop activity around8% CPU was observed at09:47UTC; no other inference was observed. Record conditions before/after each arm. Keep compilers, provers and other inference stopped. Thermal state is not measured.",
+  "decision": "Retain only numerically qualified work. Report all paired samples and control drift. The user waived the3% acceptance gate; small consistent gains may be retained. Inconsistent or drifting results remain inconclusive. Do not add gains across binaries or protocols.",
+  "publication": "Push qualified chunks in pull requests as authorized; do not merge, release or replace the installed app."
+}

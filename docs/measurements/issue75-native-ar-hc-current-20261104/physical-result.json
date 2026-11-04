@@ -1,0 +1,103 @@
+{
+  "status": "failed_or_interrupted",
+  "parity": false,
+  "source_commit": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "start_utc": "2026-11-04T09:55:03.068703+00:00",
+  "conditions": {
+    "power": "AC100% root observation at grant",
+    "background": "Equibop desktop~8%CPU observed by root",
+    "temperature": "not measured",
+    "concurrency": "root exclusiveGPU grant after allownedCPU/proof/model jobs drained",
+    "swap_stop": "disabled by explicit user preference"
+  },
+  "phases": [
+    {
+      "label": "hc-component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::hc::tests::joint_write_read_keeps_buffers_values_and_rejects_invalid_inputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T09:55:03.069051+00:00",
+      "environment_override": {},
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 83890,
+      "exit_code": 0,
+      "dyld_images": 706,
+      "mlx_loaded": false,
+      "elapsed_seconds": 1.4791821249818895,
+      "joined": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "label": "hc-independent-writes",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::hc::tests::frozen_residual_writes_preserve_mixed_precision_rounding",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T09:55:04.554692+00:00",
+      "environment_override": {
+        "MLXL3_HC_FROZEN": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+        "MLXL3_HC_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 83896,
+      "exit_code": 0,
+      "dyld_images": 706,
+      "mlx_loaded": false,
+      "elapsed_seconds": 0.7747794169990811,
+      "joined": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "label": "hc-full-ar",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::flash::tests::hc_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "status": "failed_or_interrupted",
+      "parity": false,
+      "start_utc": "2026-11-04T09:55:05.336269+00:00",
+      "environment_override": {},
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 83899,
+      "exit_code": 101,
+      "error": "AssertionError('nonzero exit')",
+      "elapsed_seconds": 3.8931699999957345,
+      "joined": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "elapsed_seconds": 6.169759707991034,
+  "all_owned_children_joined": true,
+  "remaining_phases": [
+    "target-independent-states",
+    "production-ar-bridge",
+    "production-ar-budget"
+  ],
+  "post_inspection": {
+    "time_utc": "2026-11-04T09:56:17.139309+00:00",
+    "owned_process_groups_empty": true,
+    "actual_failure": "FullAR prefix0:48pairs,242->194commands and28803072finiteF32states pass; prefix2 expected48helpercommand reduction but242->206 (36). Stops before prefix2 numeric checks.",
+    "status": "component+independentwritequalified_fullARnotqualified",
+    "next": "Source-only adaptation audit of non-HC helpercommands/snapshot/COW asymmetry before any fix or rerun."
+  }
+}

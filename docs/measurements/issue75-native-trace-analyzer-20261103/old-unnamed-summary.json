@@ -1,0 +1,71 @@
+{
+  "status": "analyzed_encoder_activity_not_speed_validation",
+  "time_unit": "ns; raw xctrace start-time/duration values",
+  "analyzer_sha256": "0ac2a8ea0a5699afe744d418984a72edba62366cf8595c3a1976e3609e0a2bf9",
+  "input_sha256": {
+    "metal-gpu-intervals.xml": "601575693741777922267af78e6731b36d96b60ff448b5f490536e20cb0c5c32",
+    "metal-application-encoders-list.xml": "2c41ace84e49435bb2ee6ba095320039e11b1159845741b084d142e6f8cdcbe7",
+    "metal-shader-profiler-shader-list.xml": "883d8bcf160d0f5a159f544702dc4a52495179f8bed19879a0a531744c17d6ec",
+    "metal-shader-profiler-intervals.xml": "cf818b151cc26467e59f519954ccd69c6621bb21394550266b563c687e6e9c16"
+  },
+  "target_PID_filtered": true,
+  "GPU": {
+    "total_rows": 39890,
+    "target_rows": 8395,
+    "active_rows": 8395,
+    "states": {
+      "Active": 8395
+    },
+    "depths": {
+      "0": 7917,
+      "1": 477,
+      "2": 1
+    },
+    "channels": {
+      "Compute": 8379,
+      "Fragment": 12,
+      "Vertex": 4
+    },
+    "raw_duration_ns": 2144923578,
+    "per_encoder_union_sum_ns": 2144836661,
+    "global_interval_union_ns": 2059396071,
+    "within_encoder_overlap_ns": 86917,
+    "cross_encoder_overlap_ns": 85440590,
+    "observed_span_ns": 5527114416
+  },
+  "join": {
+    "CPU_encoder_rows": 8312,
+    "CPU_duplicate_rows": 0,
+    "CPU_unique_encoders": 8312,
+    "GPU_unique_encoders": 8311,
+    "matched_GPU_rows": 8394,
+    "unmapped_GPU_encoders": 1,
+    "CPU_encoders_without_active_GPU": 2
+  },
+  "CPU_encoding": {
+    "event_types": {
+      "Encoding": 8312
+    },
+    "raw_duration_ns": 75902768,
+    "scope": "CPU Encoding duration, not GPU kernel time"
+  },
+  "shader_metadata": {
+    "target_rows": 80,
+    "scope": "shader/PSO catalog only; no invocation or timing inferred"
+  },
+  "shader_timeline": {
+    "target_rows": 0,
+    "timing_analyzed": false
+  },
+  "named_encoder_groups": [],
+  "unknown_or_unmapped": {
+    "GPU_intervals": 8395,
+    "interval_union_ns": 2059396071
+  },
+  "limits": [
+    "Named groups require the explicit diagnostic encoder-label contract, not shader-catalog guesses.",
+    "Encoder activity can contain nested/overlapping events; group sums are not exclusive GPU percentages.",
+    "No correctness, clean measurement conditions, full-generation coverage or release speed gain is established.",
+    "Zero ShaderTimeline rows do not mean zero kernel work or per-kernel timing."
+  ]
+}

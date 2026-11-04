@@ -1,0 +1,56 @@
+{
+  "status": "existing_capture_analyzed_no_new_inference",
+  "capture_date_utc": "2026-11-03",
+  "model": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "average_bits_per_weight": 2.05,
+  "hardware": "Apple M5,24GiB,macOS27.2(26B123),Xcode/Instruments27.2(27B52)",
+  "binary_sha256": "b99bd613aad16eb354a1140fb9f6ba41ed0fef21ad1556378358eca3501b1ea4",
+  "diagnostic_source": "f15575292c120b62a29add3c534d4a4a2481a4ae",
+  "flags": {
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "generation": {
+    "mode": "AR",
+    "prompt": "MAIN87 production tokenizer IDs",
+    "context": 256,
+    "budget": 64,
+    "phases": [
+      "unobserved warm",
+      "unobserved control",
+      "observed prefill",
+      "bounded PID ready/release gate",
+      "observed decode"
+    ],
+    "quality": "Root physical test:64greedy IDs,full hidden/logits and84continuationstates/28,803,072finiteF32words exact against control; archived independent observer passivity also passed; no EOS; readers drained; zero unknown label lookups. Test process/profiler exited0 and joined."
+  },
+  "capture": {
+    "template": "Metal System Trace",
+    "attach": "already-loaded native test at decode gate",
+    "requested_seconds": 5,
+    "start_utc": "2026-11-03T22:35:35.918Z",
+    "end_utc": "2026-11-03T22:35:41.694Z",
+    "duration_seconds": 5.775173,
+    "decode_gate_released_utc": "2026-11-03T22:35:36.730689Z",
+    "scope": "partial observed decode only; initial capture portion is gated idle; no frame-to-token inference"
+  },
+  "conditions": {
+    "power": "AC100% recorded before capture; after not measured here",
+    "temperature": "not measured",
+    "concurrency": "root coordinated no other owned compilation/proof/inference; other cleanup chat completed22:02:03UTC, before this capture"
+  },
+  "analysis": "Strict actual targetPID filter, explicitCB/encoder IDs, preserve individual and exact ordered composite labels separately, whole-group duration only, per-encoder and global interval unions, shader catalog not timing",
+  "limits": [
+    "Instrumented cfg(test) CPU bookkeeping/labels adds overhead; not release throughput.",
+    "Exporter aggregates logical encoder labels; constituent kernel costs cannot be separated.",
+    "Groups can overlap; do not sum as exclusive percentages or recoverable time.",
+    "Raw trace/XML/TOC/environment stay local; public summary carries source hashes.",
+    "No speed gain, app update or default activation established by this analysis."
+  ],
+  "kernel_source": "89fdabbff6ef66ea131fab5ff95d28341959a061"
+}

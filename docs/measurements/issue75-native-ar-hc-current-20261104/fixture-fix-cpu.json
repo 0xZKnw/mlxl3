@@ -1,0 +1,135 @@
+{
+  "status": "corrected_fixture_CPU_passed_physical_pending",
+  "time_utc": "2026-11-04T10:08:54.903928+00:00",
+  "production_cli": {
+    "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/mlxl3-rs",
+    "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/direct-cli",
+    "sha256": "1e282c471a8e525191d69d5e2b1c7b11b21923dd3d747654d5c0d5f99a8608c4",
+    "bytes": 10101792
+  },
+  "new_libtest": {
+    "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen-fixture-02/native-libtest",
+    "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/deps/mlxl3_native-bd13435986c206bf",
+    "sha256": "2e9c7341e034fc76c8245c64b01f86691a7ab87c4c35624b81af848d395f0c2c",
+    "bytes": 9061808
+  },
+  "source_change_sha256": "c704fbdb73a6ddebdfa78d4cbf8eb67cc44f6635a463681e7cdbdd6bd262f216",
+  "source_diff": "Only three test-only primer/restore lines; production sources unchanged",
+  "checks": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "fmt",
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "status": "passed",
+        "exit_code": 0,
+        "seconds": 0.6526242499821819,
+        "joined": true
+      },
+      {
+        "name": "inventory",
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "scripts/check_native_coverage.py"
+        ],
+        "status": "passed",
+        "exit_code": 0,
+        "seconds": 0.6431890419917181,
+        "joined": true
+      },
+      {
+        "name": "clippy-direct",
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--features",
+          "chat",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "status": "passed",
+        "exit_code": 0,
+        "seconds": 5.02076958399266,
+        "joined": true
+      },
+      {
+        "name": "test-direct",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--features",
+          "chat"
+        ],
+        "status": "passed",
+        "exit_code": 0,
+        "seconds": 31.324257999978727,
+        "joined": true
+      },
+      {
+        "name": "release-libtest",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--release",
+          "--features",
+          "chat",
+          "--lib",
+          "--no-run",
+          "--message-format=json"
+        ],
+        "status": "passed",
+        "exit_code": 0,
+        "seconds": 52.90902862499934,
+        "joined": true
+      }
+    ]
+  },
+  "full_direct_counts": {
+    "passed": 341,
+    "ignored": 41
+  },
+  "Kani": {
+    "command": [
+      "cargo",
+      "kani",
+      "--manifest-path",
+      "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/fixture-fix-kani/source/Cargo.toml",
+      "--lib",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "-Z",
+      "stubbing",
+      "--harness",
+      "actual_corrected_hc_full_ar_fixture",
+      "--output-format",
+      "terse"
+    ],
+    "status": "completed",
+    "scope": "Actual corrected fixed physical test body in disposable source copy; expose test/counters to cfg(kani) and explicit proof wrapper only. No Metal/FS stubs, no rewritten state model. Fixedprefixes0/2/9; attempt is not symbolicGPUproof.",
+    "source_sha256": "c704fbdb73a6ddebdfa78d4cbf8eb67cc44f6635a463681e7cdbdd6bd262f216",
+    "timeout_seconds": 45,
+    "exit_code": 1,
+    "seconds": 9.880374875006964,
+    "joined": true,
+    "diagnosis": "Kani compiler ICE intrinsics.rs:243:17 before obligations; no source-property verdict; actual changed body selected by explicit proof wrapper"
+  },
+  "unchanged_source_files_from_first_oracles": {
+    "native/src/gpu.rs": "b3746a25331a4e1b9d4395b40ed579dc2585460283f9605b73dde0cf1ce18323",
+    "native/src/gpu/hc.rs": "4832339a12964b2b15bc6984c285c8b5601de0d8adb07325963aee28b2f89f0a",
+    "native/src/gpu/gdn.rs": "57495fa007372a90295b3fc63d263baeda2eeb76000e0483a9d8a1834e4dd95c",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159"
+  }
+}

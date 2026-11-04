@@ -1,0 +1,246 @@
+{
+  "date_utc": "2026-11-04T09:47:23.187625+00:00",
+  "status": "cpu_qualified_physical_not_run",
+  "base": "717b92312e1c12a1a31386608dffcd78e3c0f916",
+  "source_state": "modified checkout; final fixture Rust and Python hashes are included",
+  "artifacts": {
+    "build/static-k/direct-cli": {
+      "sha256": "d2ff7420acae31ca0123e5ccff9d12bec5198c47947a739c2c51e016c3b04c8e",
+      "bytes": 10109056
+    },
+    "build/static-k/libtest": {
+      "sha256": "b6d5b305c09972101db9359f284cb72a3b008d12d9203065b13580f677e664e7",
+      "bytes": 9061920
+    },
+    "build/static-k/libtest-with-static-fixtures": {
+      "sha256": "94693c6d3efcd6c039685471752e6b7ba2980f3db2903c298f7b7a6a0402e4ef",
+      "bytes": 9062432
+    },
+    "build/static-k/libtest-static-final": {
+      "sha256": "9825ac7debdfaf22e1d6ea7d532df6451857cf9a35f751878192fba975dd7613",
+      "bytes": 9062432
+    },
+    "native/src/flash_qmv.rs": {
+      "sha256": "9d1865883dcef3526277f220845fb9bab0dc5742b4fef09dc222efba13e9792e",
+      "bytes": 4380
+    },
+    "native/src/gpu.rs": {
+      "sha256": "f3e6f1d927af22efa266e397e46c868ff20ccfccf2841bdfc2a649d20b88e4ea",
+      "bytes": 26616
+    },
+    "native/src/gpu/projection.rs": {
+      "sha256": "15def64cb237cc25d4df9aa5a5f1d527cd3d31aec6a1f1ab01cead1039b2c3d6",
+      "bytes": 54258
+    },
+    "native/src/gpu/flash.rs": {
+      "sha256": "33d8f6fbc6bb6966cbebbb21f221baf00cef37be3fd23db6e1cdb84d0a76a152",
+      "bytes": 29475
+    },
+    "native/shaders/flash_projection.metal": {
+      "sha256": "87a497173ad84314ba56babfb6914c90d8c243dac051f30890fe3be805bcb351",
+      "bytes": 1987
+    },
+    "native/shaders/flash_static_qmv.metal": {
+      "sha256": "7ea92d537787e5d95f50cb03d009fd40a8375b5806e6eb9755457b59af0d3e15",
+      "bytes": 1343
+    },
+    "tests/physical_flash_nt2.py": {
+      "sha256": "a78f17c7f34d0b0562009560bc5a823b35e31f62ecca9d39e54d6cb5681461c4",
+      "bytes": 11430
+    },
+    "tests/test_physical_flash_nt2.py": {
+      "sha256": "23a1beea2b2c6eb1e20e34148724cf3cde49a781ba9a5bb51a324aa6dd72691e",
+      "bytes": 8552
+    }
+  },
+  "checks": {
+    "prior_complete_suites": {
+      "cpu": {
+        "passed": 326,
+        "ignored": 8
+      },
+      "direct": {
+        "passed": 341,
+        "ignored": 39
+      },
+      "mlx_chat_compatibility": {
+        "passed": 377,
+        "ignored": 257
+      }
+    },
+    "prior_strict_clippy": [
+      "cpu",
+      "direct_chat",
+      "mlx_chat"
+    ],
+    "prior_python": {
+      "passed": 46,
+      "subtests": 13
+    },
+    "affected_direct_suite": {
+      "passed": 341,
+      "ignored": 39,
+      "note": "Final subsequent Rust edit only strengthens an ignored physical-fixture nonempty control; final Clippy and release libtest compile that guard, which remains physically unexecuted."
+    },
+    "affected_python": {
+      "passed": 7,
+      "subtests": 20,
+      "mutation": "omitted fifth PSO with self-consistent partial counters is rejected by actual verify path; malformed/missing/boolean counters rejected"
+    },
+    "affected_clippy": "direct-metal,chat --all-targets -- -D warnings passed",
+    "coverage": "246 files; no new MLX call"
+  },
+  "verification": {
+    "kani": {
+      "version": "0.68.0",
+      "cbmc": "6.11.0",
+      "harnesses": [
+        {
+          "name": "flash_qmv::native_static_qmv_flag_preserves_default_and_bounded_utf8_literals",
+          "checks": 226,
+          "covers": 5,
+          "domain": "arbitrary4bytes, length0..4, absent/present, validUTF8branches; unwind10, unwindingassertions retained",
+          "unreachable": 7,
+          "unreachable_scope": "std fmt/UTF8/alignment branches, not selector assertions or covers"
+        },
+        {
+          "name": "flash_qmv::native_static_qmv_key_matches_the_actual_pso_table_and_every_fallback",
+          "checks": 64,
+          "covers": 8,
+          "domain": "arbitraryu32 K,CB,NT, eligibilitybool and three-state setting; no assumptions"
+        }
+      ],
+      "failures": 0,
+      "source": "unchanged real production helper since original checks; fixtures add no release behavior"
+    },
+    "crosshair": {
+      "command": "PYTHONPATH=tests:<existing numpy site-packages> crosshair check physical_flash_nt2.static_counts --per_condition_timeout=15 --report_all",
+      "initial": "failed import numpy; retained",
+      "final": "both postconditions Not confirmed, exit0; symbolic search only, no proof",
+      "limitations": "subprocess orchestration, Metal and label/PSO execution unproved"
+    }
+  },
+  "physical_plan": {
+    "coordinator": "root owns exclusive GPU; no build/prover/other inference in window",
+    "component_command": "<QPY> tests/physical_flash_nt2.py <libtest-static-final> <independent stock-oracle> <FlashNext-model> <new-report.json> --static-k {0,1}",
+    "component_contract": "48existing independent cases \u00d73NT2modes; finite exactwords, all5actualstaticPSOs under1, no static submissions under0, fc_hidden/K7/generic/codebook exclusions, malformed flags and fallback nonempty checks",
+    "target_test": "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation --exact --ignored --nocapture --test-threads=1",
+    "target_environment": {
+      "MLXL3_NATIVE_FLASH_STATIC_K": "0 or1",
+      "MLXL3_NATIVE_FLASH_NT2": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "1",
+      "MLXL3_FLASH_MODEL": "local qualified FlashNext checkpoint"
+    },
+    "target_contract": "84independent archived states /28,803,072finiteF32 words+496,640logits, continuation/reset, actual K2cold-record andK4resident staticcounts",
+    "production": "current native CLI AR error/cancel/recovery and cache-budget fixture before model timing",
+    "limits": "component driver has contiguous FP16/FP32 input views, not a new dedicated strided-input matrix; input preparation unchanged. fc_hidden exclusion loads/checks invalid geometry, not speculative generation."
+  },
+  "logs": {
+    "fmt.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "compressed_path": "logs/fmt.log.gz"
+    },
+    "clippy-cpu.log": {
+      "sha256": "6c35f634f51a3121756c33c8385d7b3eec30e0699d856c8bf479fd31d1873393",
+      "bytes": 179,
+      "compressed_path": "logs/clippy-cpu.log.gz"
+    },
+    "clippy-direct.log": {
+      "sha256": "aea1d790fb852517dcdf7e75f49560dfe28dc53c43c22b0a2ee2d339e4132b31",
+      "bytes": 422,
+      "compressed_path": "logs/clippy-direct.log.gz"
+    },
+    "clippy-stock.log": {
+      "sha256": "151c2b1613dce156b0bede7a2c9ee4b555886e178edddd5b35c46e6e57b3a029",
+      "bytes": 423,
+      "compressed_path": "logs/clippy-stock.log.gz"
+    },
+    "suite-cpu.log": {
+      "sha256": "03ae0869b8155adf25588b2a1dcd23978ee6fd4eabc180d8813a86eb8aca5485",
+      "bytes": 31835,
+      "compressed_path": "logs/suite-cpu.log.gz"
+    },
+    "suite-direct.log": {
+      "sha256": "fb948c51282425ffa664673274dfaec0a982c7097498fd1e5b1ddca286cca92e",
+      "bytes": 38413,
+      "compressed_path": "logs/suite-direct.log.gz"
+    },
+    "suite-stock.log": {
+      "sha256": "3a19490018b4e7306d0acb0b88521cee28a08e85a48509b4b524dd2dcba3209c",
+      "bytes": 74606,
+      "compressed_path": "logs/suite-stock.log.gz"
+    },
+    "kani.log": {
+      "sha256": "56a44a5a37600690b9ff02220007de5e0933db53056021beb0dd1c67422013f4",
+      "bytes": 246718,
+      "compressed_path": "logs/kani.log.gz"
+    },
+    "python-tests.log": {
+      "sha256": "36cdf1a715692a75838ae459b13587f0a0434e0a7855c55054f6d50a5faab7d2",
+      "bytes": 106,
+      "compressed_path": "logs/python-tests.log.gz"
+    },
+    "python-lint.log": {
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "compressed_path": "logs/python-lint.log.gz"
+    },
+    "python-format.log": {
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "bytes": 26,
+      "compressed_path": "logs/python-format.log.gz"
+    },
+    "coverage.log": {
+      "sha256": "7e159fde2b44d2349ff898f0428d904a407e217fa1e5f641291f0a7e3de28edd",
+      "bytes": 39,
+      "compressed_path": "logs/coverage.log.gz"
+    },
+    "release.log": {
+      "sha256": "112108babe518f1222ba19b8e916e714d5cebbe52d22c35b267a12a9694139ef",
+      "bytes": 413,
+      "compressed_path": "logs/release.log.gz"
+    },
+    "libtest.log": {
+      "sha256": "af6bf8d0c454360890a8a6454065228c9a3209c7416b00e5ca43ec7525c2a16a",
+      "bytes": 413,
+      "compressed_path": "logs/libtest.log.gz"
+    },
+    "fixtures-libtest-final.log": {
+      "sha256": "031f7aff9d6170220ba5726cbd77d71759e0206664d65bdd9efd2ac28651532d",
+      "bytes": 413,
+      "compressed_path": "logs/fixtures-libtest-final.log.gz"
+    },
+    "fixtures-clippy-final.log": {
+      "sha256": "aed5909afad18f4b7831a0f230af27ef99abad0c9ece3dbf9ebff2f7b6f1f6f5",
+      "bytes": 422,
+      "compressed_path": "logs/fixtures-clippy-final.log.gz"
+    },
+    "fixtures-suite-direct.log": {
+      "sha256": "b387a511ea39dafbf0bc88b3c0541f147fa39030de5ddba3a2ca53627f87c709",
+      "bytes": 38413,
+      "compressed_path": "logs/fixtures-suite-direct.log.gz"
+    },
+    "fixtures-python-final.log": {
+      "sha256": "dffc27739ff1146d0d16f0d9751cae938c58fad31b298ff2a2ac7d3b84460507",
+      "bytes": 98,
+      "compressed_path": "logs/fixtures-python-final.log.gz"
+    },
+    "fixtures-crosshair.log": {
+      "sha256": "3bffc0032eea450acaafcd7e9a363817388c37581540aaf005cffa0f156dcc04",
+      "bytes": 1466,
+      "compressed_path": "logs/fixtures-crosshair.log.gz"
+    },
+    "fixtures-crosshair-envfix.log": {
+      "sha256": "2bb6c3b41ffb8b1f5a7a0a82fc1580888796edb9bbdd6f1edecd31d1ce6e6c05",
+      "bytes": 252,
+      "compressed_path": "logs/fixtures-crosshair-envfix.log.gz"
+    },
+    "fixtures-crosshair-final.log": {
+      "sha256": "2bb6c3b41ffb8b1f5a7a0a82fc1580888796edb9bbdd6f1edecd31d1ce6e6c05",
+      "bytes": 252,
+      "compressed_path": "logs/fixtures-crosshair-final.log.gz"
+    }
+  },
+  "integration": "isolated prototype, defaultOFF; no push/merge/app replacement; speed not measured"
+}

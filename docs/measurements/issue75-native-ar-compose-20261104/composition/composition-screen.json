@@ -1,0 +1,95 @@
+{
+  "status": "validated_screen_complete",
+  "parity": true,
+  "candidate": "static-k_and_hc",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "protocol": "composition-protocol.json",
+  "start_utc": "2026-11-04T10:54:48.802237+00:00",
+  "arms": [
+    {
+      "index": 1,
+      "kind": "reference",
+      "status": "validated",
+      "parity": true,
+      "path": "composition-1-reference",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 5.163498681224448,
+        "HOLD": 5.174579640752747
+      },
+      "reaped": true,
+      "reader_joined": true,
+      "elapsed_seconds": 92.38686641698587,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "index": 2,
+      "kind": "ensemble",
+      "status": "validated",
+      "parity": true,
+      "path": "composition-2-ensemble",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 5.942994556196665,
+        "HOLD": 5.772072181331143
+      },
+      "reaped": true,
+      "reader_joined": true,
+      "elapsed_seconds": 81.26690016701468,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "index": 3,
+      "kind": "ensemble",
+      "status": "validated",
+      "parity": true,
+      "path": "composition-3-ensemble",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 5.940775262348728,
+        "HOLD": 5.553228482126535
+      },
+      "reaped": true,
+      "reader_joined": true,
+      "elapsed_seconds": 80.65299849997973,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "index": 4,
+      "kind": "reference",
+      "status": "validated",
+      "parity": true,
+      "path": "composition-4-reference",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 5.090796929157393,
+        "HOLD": 5.0980993897690485
+      },
+      "reaped": true,
+      "reader_joined": true,
+      "elapsed_seconds": 92.78437520802254,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "limits": [
+    "Whole ensemble against fixed reference; no addition of isolated percentages.",
+    "Short32-token screen, two measured samples per variant/prompt; no sustained/long-context claim.",
+    "Thermal state not measured; background desktop activity remains present."
+  ],
+  "elapsed_seconds": 347.13920087501174
+}
