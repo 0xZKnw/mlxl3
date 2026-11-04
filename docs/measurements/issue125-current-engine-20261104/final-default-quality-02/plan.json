@@ -1,0 +1,239 @@
+{
+  "trial": "I125-CURRENT-FINAL-DEFAULTS-PLAN-20261104",
+  "status": "frozen_ready_after_root_GPU_grant",
+  "freeze_path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/freeze-defaults.json",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+      "sha256": "ae3730adedcceca5d03e7bda7e41b04a199dfa4139e0e82cc63162535b730402",
+      "bytes": 10159664,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+      "sha256": "a69d5f53f0f2ea76b5d7378321e1312b29ad3cccef4d2537fec40618a27bf066",
+      "bytes": 9564416,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "old-budget-fixture": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+      "sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006"
+    }
+  },
+  "dependencies": [
+    {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt",
+      "sha256": "984aaecdd5691b72169b71298dac6e6146608c8b357bea983bd36b03d415ae85"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-workspace/mix-stq1_0/build/hc-workspace/quality.py",
+      "sha256": "ea32efafad3cb173570faf782c8fa8ca249ff8735ef2dd9eb9d4f4cfb89ce651"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+      "sha256": "2bdcf1e914d6487767505711e4c7fccbfcee66c9466ca6f93e647d7af57ca930"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/prefix_ar.py",
+      "sha256": "34a72a07bb5e5a958aca420788ec3edc2f56b8df2f195c6a3439b96fc9307eea"
+    }
+  ],
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "name": "hc-model",
+      "kind": "hc-model",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "marker": "NATIVE_HC_KERNEL_MODEL",
+      "environment": {
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "1"
+      }
+    },
+    {
+      "name": "workspace-model",
+      "kind": "workspace-model",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "gpu::hc::workspace_tests::physical_workspace_preserves_model_states_logits_hidden_and_prefix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "marker": "I125_HC_WORKSPACE_MODEL"
+    },
+    {
+      "name": "ledger",
+      "kind": "ledger",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "marker": "native memory ledger"
+    },
+    {
+      "name": "cli4096-full",
+      "kind": "cli",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/final-default-quality-02/cli4096-full.json",
+        "--context-length",
+        "4096",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240,
+      "report_path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/final-default-quality-02/cli4096-full.json",
+      "engine_sha256": "ae3730adedcceca5d03e7bda7e41b04a199dfa4139e0e82cc63162535b730402"
+    },
+    {
+      "name": "budget",
+      "kind": "budget",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli"
+      }
+    },
+    {
+      "name": "prefix-ar",
+      "kind": "prefix",
+      "marker": "NATIVE_SSD_DIRECT_PREFIX",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/prefix_ar.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/final-default-quality-02"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_PROMPT_CACHE_MIB": "512"
+      },
+      "expected": {
+        "status": "verified",
+        "parity": true,
+        "completed": 2,
+        "prefix_hits": 1,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    },
+    {
+      "name": "native8",
+      "kind": "native8",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "marker": "I120_NATIVE8_PROFILE",
+      "expected": {
+        "status": "diagnostic_complete",
+        "parity": true,
+        "prompt_tokens": 87,
+        "context": 4096,
+        "decode_rows": 7,
+        "initial_workspace_enabled": true,
+        "initial_up_mix_enabled": true,
+        "initial_cross_layer_enabled": true,
+        "workspace_allocation_requests": 0,
+        "workspace_uses": 679,
+        "up_mix_uses": 679,
+        "down_inject_uses": 0,
+        "cross_layer_triples": 238,
+        "hc_gdn_doubles": 14,
+        "gdn_separate": 0,
+        "profile_scope_ancestry_checked": true,
+        "independent_first_state": true,
+        "independent_first_logits": true,
+        "continuation_state_words": 28803072
+      }
+    },
+    {
+      "name": "l2-model-defaults",
+      "kind": "l2-model",
+      "marker": "NATIVE_SSD_EXTRA_WAVE_MODEL",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "1"
+      }
+    }
+  ],
+  "limits": [
+    "Final grant received; only source helpers/processowner inherited, adapted validator selfchecks pending.",
+    "W/UP/L1+old flags absent; DOWN1 onlyHCmodelPSO,EXTRA1onlyL2model.",
+    "No full proof of Metal/OS/concurrency; native8 intrusive diagnostic is not release speed."
+  ],
+  "after_quality_confirmation": {
+    "status": "requires separate parent grant after joined quality",
+    "reference_path": "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen-default/cli",
+    "reference_sha256": "9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c",
+    "candidate": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+    "driver": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+    "driver_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+    "order": [
+      "reference",
+      "candidate"
+    ],
+    "prompt": "MAIN",
+    "tokens": 32,
+    "repeats": 1,
+    "warmups": 1,
+    "limits": "N1/MAINonly/shortconfirmation; no sustained gain or addition of singles"
+  },
+  "reused_report": {
+    "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/final-default-quality/report.json",
+    "sha256": "f9fc94a90f36472c94206e2f85e86e540e49cce17d7ed4d0eb34aa417371aa4a"
+  }
+}

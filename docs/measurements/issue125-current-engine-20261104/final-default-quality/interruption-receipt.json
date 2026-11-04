@@ -1,0 +1,30 @@
+{
+  "status": "interrupted_admin_failure_not_runtime_failure",
+  "controller_exit_code": 1,
+  "owned_groups_empty_observed": true,
+  "owned_pgids": [
+    80257,
+    80353,
+    80445,
+    80452
+  ],
+  "reuse_only": [
+    [
+      "hc-model",
+      "validated"
+    ],
+    [
+      "workspace-model",
+      "validated"
+    ],
+    [
+      "ledger",
+      "validated"
+    ]
+  ],
+  "unqualified": [
+    "cli4096-full"
+  ],
+  "cause": "selfcheck L2 test injected nonexistent workspace_uses field; shell continued after failed assertion. Controller interrupted, inherited cleanup PermissionError retained; child/group absence observed separately.",
+  "runtime_unchanged": true
+}

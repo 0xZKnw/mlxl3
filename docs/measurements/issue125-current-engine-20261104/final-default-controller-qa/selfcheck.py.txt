@@ -1,0 +1,146 @@
+"""Deterministic checks of actual final validators; no child/GPU is launched."""
+
+import copy
+import json
+import runpy
+import sys
+import tempfile
+from pathlib import Path
+
+base = Path(__file__).parent
+m = runpy.run_path(str(Path(sys.argv[1]) if len(sys.argv) > 1 else base / "run.py"))
+h = runpy.run_path(str(m["HELPER"]))
+w = runpy.run_path(str(m["WORKSPACE"]))
+plan = h["strict_json"]((base / "plan.json").read_text())
+prefix = "test result: ok. 1 passed; 0 failed; 0 ignored;\ndyld[1]: /System/Library/Frameworks/Metal.framework/Metal\n"
+root = m["ROOT"]
+valid = []
+for kind, file, marker in [
+    ("hc-model", "fast-w-up-main32/model.log", "NATIVE_HC_KERNEL_MODEL"),
+    ("workspace-model", "fast-workspace-main32/model.log", "I125_HC_WORKSPACE_MODEL"),
+]:
+    a = h["marker"](
+        (root / "docs/measurements/issue125-current-engine-20261104" / file).read_text(), marker
+    )
+    a["initial_up_mix_enabled"] = True
+    valid.append((kind, a))
+valid += [
+    (
+        "ledger",
+        {
+            "success_uses_fresh_unpopulated_reservations": True,
+            "initial": {"state_backing_bytes": {}},
+            "active": {"state_backing_bytes": {"hc_workspace": 4221440}},
+            "idle": {"state_backing_bytes": {}},
+        },
+    ),
+    ("prefix", dict(plan["phases"][5]["expected"])),
+]
+a = dict(plan["phases"][6]["expected"])
+a.update(
+    tokens=list(range(8)),
+    moe_wait_events=1,
+    moe_gpu_intervals=1,
+    events=[
+        {
+            "name": "native.row",
+            "data": {"hc_workspace_uses": 97, "hc_up_mix_uses": 97, "hc_down_inject_uses": 0},
+        }
+        for _ in range(7)
+    ],
+)
+valid.append(("native8", a))
+valid.append(
+    (
+        "l2-model",
+        h["marker"](
+            (
+                root
+                / "docs/measurements/issue125-current-engine-20261104/fast-main32/quality/model.log"
+            ).read_text(),
+            "NATIVE_SSD_EXTRA_WAVE_MODEL",
+        ),
+    )
+)
+count = 0
+with tempfile.TemporaryDirectory(prefix="current-final-validator-") as temp:
+    m["validate"].__globals__["HERE"] = Path(temp)
+
+    def run(kind, a):
+        phase = next(p for p in plan["phases"] if p["kind"] == kind)
+        text = prefix + phase["marker"] + " " + json.dumps(a) + "\n"
+        if kind == "ledger":
+            text += 'native memory warm admission {"plan_extra":9000000}\nnative memory fresh admission {"plan_extra":9000000}\n'
+        return m["validate"](text, phase, h, w)
+
+    for kind, a in valid:
+        run(kind, a)
+        invalid = []
+        for key in a:
+            bad = copy.deepcopy(a)
+            bad.pop(key)
+            invalid.append(bad)
+        for key in [
+            "parity",
+            "initial_workspace_enabled",
+            "initial_up_mix_enabled",
+            "initial_cross_layer_enabled",
+            "profile_scope_ancestry_checked",
+        ]:
+            if key in a:
+                bad = copy.deepcopy(a)
+                bad[key] = False
+                invalid.append(bad)
+        if kind in ["hc-model", "workspace-model", "l2-model"]:
+            rows = "cases" if kind == "hc-model" else "steps"
+            bad = copy.deepcopy(a)
+            bad[rows] = []
+            invalid.append(bad)
+            for key in ["token", "cross_layer_triples"]:
+                bad = copy.deepcopy(a)
+                bad[rows][0][key] = True
+                invalid.append(bad)
+            bad = copy.deepcopy(a)
+            bad[rows][0]["actual_extra_submissions" if kind == "l2-model" else "workspace_uses"] = 0
+            invalid.append(bad)
+        if kind == "ledger":
+            for key, val in [
+                ("active", True),
+                ("active", 0),
+                ("idle", 4221440),
+                ("initial", 4221440),
+            ]:
+                bad = copy.deepcopy(a)
+                bad[key]["state_backing_bytes"]["hc_workspace"] = val
+                invalid.append(bad)
+        if kind == "native8":
+            for key, val in [
+                ("workspace_uses", True),
+                ("workspace_uses", 678),
+                ("tokens", []),
+                ("events", []),
+                ("moe_wait_events", 0),
+            ]:
+                bad = copy.deepcopy(a)
+                bad[key] = val
+                invalid.append(bad)
+            bad = copy.deepcopy(a)
+            bad["events"][0]["data"]["hc_up_mix_uses"] = 0
+            invalid.append(bad)
+        for bad in invalid:
+            try:
+                run(kind, bad)
+            except (AssertionError, KeyError, TypeError, ValueError):
+                count += 1
+            else:
+                raise AssertionError("invalid " + kind + " evidence accepted")
+    print(
+        json.dumps(
+            {
+                "status": "passed",
+                "valid_kinds": len(valid),
+                "invalid_rejected": count,
+                "scope": "actual imported validate/strict helpers; synthetic parser data, no GPU/process validation",
+            }
+        )
+    )

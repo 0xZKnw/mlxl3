@@ -1,0 +1,43 @@
+{
+  "status": "exploratory_previous_control_screen",
+  "parity": true,
+  "all_children_joined": true,
+  "gain_established": false,
+  "outputs_checked": 6,
+  "previous_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-hc-main32/performance/3-closing-A2/report.json",
+  "first_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json",
+  "first_control_decode_tps": 6.561890387484125,
+  "candidate_vs_first_control_percent": 3.033849103951547,
+  "metrics": {
+    "decode_tps": {
+      "reference": 6.614966436247115,
+      "candidate": 6.760968240207095,
+      "single_sample_percent": 2.2071435337895906
+    },
+    "decode_seconds": {
+      "reference": 4.68634275,
+      "candidate": 4.585142082999999,
+      "single_sample_percent": -2.1594806952607293
+    },
+    "ttft_seconds": {
+      "reference": 13.101635917000001,
+      "candidate": 12.900842125,
+      "single_sample_percent": -1.5325856501588575
+    },
+    "elapsed_seconds": {
+      "reference": 17.787992542,
+      "candidate": 17.4859985,
+      "single_sample_percent": -1.6977409974000657
+    }
+  },
+  "metal_allocated_bytes": [
+    6608617472,
+    6613647360
+  ],
+  "logical_workspace_ledger_bytes": 4221440,
+  "limits": [
+    "previous dated A, not adjacent contemporaneous control",
+    "one warmup and one measured response each; no drift estimate",
+    "MAIN only; no established/sustained gain"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "status": "exploratory_previous_control_screen",
+  "parity": true,
+  "all_children_joined": true,
+  "gain_established": false,
+  "outputs_checked": 4,
+  "previous_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json",
+  "metrics": {
+    "decode_tps": {
+      "reference": 6.561890387484125,
+      "candidate": 6.696875093580052,
+      "single_sample_percent": 2.0571008981404404
+    },
+    "decode_seconds": {
+      "reference": 4.724248375,
+      "candidate": 4.629024667000001,
+      "single_sample_percent": -2.0156372070509243
+    },
+    "ttft_seconds": {
+      "reference": 13.4188145,
+      "candidate": 13.106371749,
+      "single_sample_percent": -2.328393100597681
+    },
+    "elapsed_seconds": {
+      "reference": 18.143075667,
+      "candidate": 17.735411542,
+      "single_sample_percent": -2.246940554525112
+    }
+  },
+  "metal_allocated_bytes": [
+    6608617472,
+    6618415104
+  ],
+  "logical_workspace_ledger_bytes": 8194560,
+  "limits": [
+    "previous dated A, not adjacent contemporaneous control",
+    "one warmup and one measured response each; no drift estimate",
+    "MAIN only; no established/sustained gain"
+  ]
+}

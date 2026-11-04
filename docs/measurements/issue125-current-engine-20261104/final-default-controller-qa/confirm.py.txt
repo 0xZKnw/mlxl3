@@ -1,0 +1,259 @@
+"""One authorized final-default MAIN32 A/B; uses the unchanged benchmark driver."""
+
+import hashlib
+import json
+import math
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path("/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0")
+BASE = Path(
+    "/Users/justin/.codex/worktrees/issue125-hc-workspace/mix-stq1_0/build/hc-workspace/current-engine/final-defaults"
+)
+OUT = ROOT / "docs/measurements/issue125-current-engine-20261104/final-default-main32"
+PYTHON = "/Users/justin/Documents/mix-stq1_0/.venv/bin/python"
+MODEL = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+REFERENCE = {
+    "path": "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen-default/cli",
+    "sha256": "9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c",
+}
+
+
+def main():
+    h = runpy.run_path(
+        str(
+            ROOT
+            / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"
+        )
+    )
+    quality = h["strict_json"](
+        (
+            ROOT
+            / "docs/measurements/issue125-current-engine-20261104/final-default-quality-02/report.json"
+        ).read_text()
+    )
+    h["exact_fields"](
+        quality,
+        {"status": "validated", "parity": True, "all_children_joined": True, "expected_phases": 8},
+    )
+    assert len(quality["phases"]) == 8 and all(
+        p["parity"] is True and p["joined"] is True for p in quality["phases"]
+    )
+    freeze_path = ROOT / "docs/measurements/issue125-current-engine-20261104/freeze-defaults.json"
+    freeze = h["strict_json"](freeze_path.read_text())
+    candidate = freeze["artifacts"]["direct-cli"]
+    driver = ROOT / "scripts/benchmark-flash-bridge.py"
+    assert (
+        hashlib.sha256(driver.read_bytes()).hexdigest()
+        == "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8"
+    )
+    for item in [REFERENCE, candidate]:
+        assert hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest() == item["sha256"]
+    for file, sha in freeze["source_files"].items():
+        assert hashlib.sha256((ROOT / file).read_bytes()).hexdigest() == sha
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+    env.update(
+        {
+            "PYTHONPATH": str(ROOT),
+            "MLXL3_SSD_READERS": "4",
+            "MLXL3_SSD_DYNAMIC_READERS": "0",
+            "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+            "MLXL3_SSD_OVERLAP": "1",
+            "MLXL3_SSD_CACHE_POLICY": "auto",
+            "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+            "MLXL3_PROMPT_CACHE_MIB": "0",
+        }
+    )
+    OUT.mkdir(exist_ok=False)
+    (OUT / "controller.py.txt").write_text(Path(__file__).read_text())
+    (OUT / "protocol.json").write_text(
+        json.dumps(
+            {
+                "trial": "I125-CURRENT-FINAL-DEFAULTS-MAIN32-CONFIRM-20261104",
+                "reference": REFERENCE,
+                "candidate": candidate,
+                "freeze_path": str(freeze_path),
+                "controller_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "driver_sha256": hashlib.sha256(driver.read_bytes()).hexdigest(),
+                "order": ["reference", "candidate"],
+                "prompt": "MAIN",
+                "tokens": 32,
+                "warmups": 1,
+                "repeats": 1,
+                "environment": {
+                    k: v for k, v in env.items() if k.startswith(("MLXL3_", "PYTHONPATH"))
+                },
+                "limits": [
+                    "One measured sample per variant, A/B order, MAIN only.",
+                    "No within-arm drift estimate, sustained/statistical gain or addition of earlier results.",
+                    "Actual final defaults absent, not earlier flag1 prototype.",
+                ],
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    report = {"status": "running", "parity": False, "all_children_joined": False, "processes": []}
+
+    def save():
+        (OUT / "campaign.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    def journal(text):
+        with (ROOT / "opti.md").open("a") as sink:
+            sink.write("\nI125-CURRENT-FINAL-DEFAULTS MAIN32 " + text + "\n")
+
+    save()
+    journal("STARTED A/B under prior explicit grant, eight quality gates passed and joined")
+    reports = []
+    try:
+        for i, (kind, artifact) in enumerate(
+            [("reference", REFERENCE), ("candidate", candidate)], 1
+        ):
+            folder = OUT / (str(i) + "-" + kind)
+            command = [
+                PYTHON,
+                str(driver),
+                artifact["path"],
+                MODEL,
+                str(folder),
+                "--prompt",
+                "MAIN",
+                "--tokens",
+                "32",
+                "--repeats",
+                "1",
+                "--cache-gib",
+                "3",
+                "--timeout",
+                "300",
+            ]
+            row = {"kind": kind, "command": command, "status": "running", "joined": False}
+            report["processes"].append(row)
+            child = None
+            start = time.monotonic()
+            save()
+            try:
+                with (OUT / (kind + ".log")).open("xb") as log:
+                    child = subprocess.Popen(
+                        command,
+                        cwd=ROOT,
+                        env=env,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    row["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=600)
+                assert code == 0 and not h["members"](child.pid)
+                a = h["strict_json"]((folder / "report.json").read_text())
+                h["exact_fields"](
+                    a,
+                    {
+                        "status": "validated",
+                        "reaped": True,
+                        "reader_joined": True,
+                        "tokens": 32,
+                        "repeats": 1,
+                        "binary_sha256": artifact["sha256"],
+                    },
+                )
+                assert set(a["prompts"]) == {"MAIN"} and len(a["warmup"]) == len(a["runs"]) == 1
+                for value in a["warmup"] + a["runs"]:
+                    assert (
+                        value["prompt"] == "MAIN"
+                        and type(value["text"]) is str
+                        and value["text"]
+                        and type(value["token_hash"]) is str
+                        and value["token_hash"]
+                    )
+                    h["exact_fields"](
+                        value["stats"],
+                        {
+                            "generated_tokens": 32,
+                            "decode_tokens": 31,
+                            "cached_prompt_tokens": 0,
+                            "context_limit": 4096,
+                        },
+                    )
+                    h["exact_fields"](
+                        value["generation_mode"], {"mtp_active": False, "dflash_active": False}
+                    )
+                    for key in ["decode_tps", "decode_seconds", "ttft_seconds", "elapsed_seconds"]:
+                        n = value["stats"][key]
+                        assert type(n) in (int, float) and math.isfinite(n) and n > 0
+                reports.append(a)
+                row.update(
+                    status="validated",
+                    joined=True,
+                    seconds=time.monotonic() - start,
+                    measured=a["runs"][0]["stats"],
+                )
+                save()
+                journal(
+                    kind
+                    + " VALIDATED "
+                    + json.dumps(
+                        {
+                            k: row["measured"][k]
+                            for k in ["decode_tps", "ttft_seconds", "elapsed_seconds"]
+                        }
+                    )
+                )
+                print(kind + " " + str(row["measured"]["decode_tps"]), flush=True)
+            except BaseException as error:
+                row.update(status="failed", joined=h["stop"](child), error=repr(error))
+                save()
+                raise
+        values = [value for a in reports for value in a["warmup"] + a["runs"]]
+        assert len(values) == 4 and all(
+            (v["text"], v["token_hash"]) == (values[0]["text"], values[0]["token_hash"])
+            for v in values
+        )
+        a, b = [r["runs"][0]["stats"] for r in reports]
+        summary = {
+            "status": "final_default_short_confirmation",
+            "parity": True,
+            "all_children_joined": True,
+            "outputs_checked": 4,
+            "gain_established": False,
+            "metrics": {
+                k: {
+                    "reference": a[k],
+                    "candidate": b[k],
+                    "single_sample_percent": 100 * (b[k] / a[k] - 1),
+                }
+                for k in ["decode_tps", "decode_seconds", "ttft_seconds", "elapsed_seconds"]
+            },
+            "metal_allocated_bytes": [
+                a["memory"]["native_metal_allocated_bytes"],
+                b["memory"]["native_metal_allocated_bytes"],
+            ],
+            "logical_workspace_ledger_bytes": 4221440,
+            "limits": [
+                "One A then one B; MAIN only, no within-arm drift estimate.",
+                "No sustained/statistical gain claim or addition of prior singles.",
+            ],
+        }
+        (OUT / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
+        report.update(status="validated", parity=True, all_children_joined=True)
+        journal("CLOSED " + json.dumps(summary, sort_keys=True))
+        print(json.dumps(summary), flush=True)
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error=repr(error),
+            all_children_joined=all(p["joined"] for p in report["processes"]),
+        )
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()
