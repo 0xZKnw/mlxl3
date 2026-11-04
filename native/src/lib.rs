@@ -45,6 +45,8 @@ pub mod flash_memory;
 pub(crate) mod flash_ngrams;
 #[cfg(test)]
 pub(crate) mod flash_profile;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod flash_qmv;
 pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;

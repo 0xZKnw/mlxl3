@@ -1,0 +1,132 @@
+{
+  "base_main": "17c66327a93af96f94d062f809d31b41e8fe5215",
+  "followup_source": "4f82ca80",
+  "status": "validated_current_main_default_path",
+  "unchanged_compared_to_isolated_qualified_source": "4e3630bd97b9e3455bfc68044b28484beb5d6969",
+  "kernel_dispatch_build_input_hashes": {
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9",
+    "native/src/gpu.rs": "ef4daf7deb64bf9c8803263195fcf63264a6fe847e47a413608ea65eae8333f3",
+    "native/src/gpu/projection.rs": "f97199e99f20fd080e6472182df70ed6db84cc00f1f1d6d4c6d4c94e72fb7898",
+    "native/shaders/_expert_qmm_tensor_kernel.metal": "73b2133c69cb90e309f3a4abbad52c21d2840206a742ff31932448eb4672761e",
+    "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "native/shaders/_qmv_inner_kernel.metal": "32363169d5f378502afc09501963a1db13b6d779be9fc6cc0a4b3776e40b62bf",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "02f91b3a97be9c6323fbc0a4c9d4d1ef13f68504eef1065b60d2c50a7def98c8",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "native/shaders/convert_matmul.metal": "dbb88231f2157657f2a98ca18ee71c8a3d6dce8d372c2f4cb039713d038b3d5f",
+    "native/shaders/convert_matmul_nax.metal": "ef4c22519acc435993054f18036a7199417880d971faf3dcf6035ed8fda17219",
+    "native/shaders/dense_projection.metal": "425f0e31ddd8efcf4c36ba921abd4c582604f62efbbbea58e8c8d0cdf4705aa6",
+    "native/shaders/dflash_conv.metal": "d200efaab5c07399a36df60c3d8a6901f5eff84219983fe81edc16baa541f0d0",
+    "native/shaders/dflash_q4.metal": "50a14c3d4f038123740042f8efea0e52497f5b421730f577abeea6e4dc8e4d7f",
+    "native/shaders/dflash_q4_mpp.h": "7983faeeca8f66daf3f3a0e8edbe7e93a40dc4df9c2fb05f88fbe739a757da52",
+    "native/shaders/dflash_select.h": "7ae0ee396675928f323efae72c5b7b7cc188280b61f68be8408f87872276f71a",
+    "native/shaders/dflash_select.metal": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00",
+    "native/shaders/exl3.metal": "407bf05d5996dc2771b6eeec77bdede7c434b6ad0f3a34b923b05096efab3935",
+    "native/shaders/flash_dec_one_finish.metal": "be8893810143a4476ebc4e2c6780d5c2d28e14953b21042dff8c2e8d4bb308d2",
+    "native/shaders/flash_dense_epilogue.metal": "ac5dfbdcd6c49891d4c7ad2277d0d3973d173d1f359d030cb125c47d68bb5d05",
+    "native/shaders/flash_draft_ring.h": "80d3fd4bd36d999f6e505f226dba292342292628a9fd3c9e9b432476768379ff",
+    "native/shaders/flash_draft_top16.metal": "ace89bc26dde21d0b733950c4150c6490b530988d38a52b1649db013a8c2936a",
+    "native/shaders/flash_gate.metal": "5fd898b80cd71b701056a2013775baef7cd20c772103ebf32d377b3bf7d8f678",
+    "native/shaders/flash_gdn.metal": "eda971935fdc600bc8a1ee27a07281223451171e1a61db59d71374309f88b6ed",
+    "native/shaders/flash_gdn_epilogue.metal": "1fa5b6ae214104186021ff2aa43a5e7b083e838fb0a410cf886326aaf8f9ca44",
+    "native/shaders/flash_gdn_prepare.metal": "8a278a6d6cecfd68bbf8792f92a32201f9d877ad71ee4d1fc49d7281d3aad7e4",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159",
+    "native/shaders/flash_logsumexp.metal": "f81192e5cfbbfbf3a66c841fb24df2738ed43295213b87194a006b2506f6d3e3",
+    "native/shaders/flash_moe.metal": "0b2c1cc901e1b538ccece69973d237ed9dfeec4deca749efa8400c10365b6dfa",
+    "native/shaders/flash_mtp.metal": "8e542990aea2cb6bb7e0cc4d96692a23374f7d606ed6e3e814bc7c8284ab4e76",
+    "native/shaders/flash_ple.metal": "d452d4d1410ea9ab4e5ac943becf3f4aa95eaff8903953e22a64a8c818cbd8e8",
+    "native/shaders/flash_projection.metal": "0c8d86c304cd822e0852225e897fa7506a5c99249b2e74af74999f84ffa5e727",
+    "native/shaders/flash_qsa.metal": "1e3abeb50ed35ef17dec3161d88411b51b2808db4999596490d4af9865418f62",
+    "native/shaders/flash_qsa_nax.metal": "eba8deeac86eb5117d2c0c42d578260594d9c6eeda7d50486c61937ec8865167",
+    "native/shaders/flash_reference_reduction.h": "f588157e30d595e0b72a5f3e56c6282a6a8610c36210e69a126a05ba688d99a4",
+    "native/shaders/flash_rope.metal": "3da88069cd73a5fbd290da5c4c2922d3d832662c3bdd19e2575691ce4fe39957",
+    "native/shaders/flash_weighted_epilogue.metal": "ad4e58575c56d4bcbf91821efd77b5460c4090fdbafa0cf476a528e5cdfa0f8b",
+    "native/shaders/gated_delta_packed.metal": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+    "native/shaders/gated_delta_prepare.metal": "44aa2c25f8f17b133b56879c815f505c4298383b64b50788a400f8abe19a2f23",
+    "native/shaders/gated_delta_replay.metal": "d9a617b14a15e7f7d9a36812b9cd5e88501d458e029b2794e527c09585a93bc7",
+    "native/shaders/mapped_expert.metal": "9dc9aa9b836770cabb9dc2ad5bf5231fa6e1b3c282737280f3d1f0c31873c1ca",
+    "native/shaders/model_ops.metal": "1d143fd3ddb278200fb1aa2491f348f6b102b1e2841ef86ad2ff7e4415977f88",
+    "native/shaders/mtp_add_rms.metal": "38dbfd1ea661cfd97ba929d09f4a5bf6d5ad9450fb11b55b9c947df8fce48fb7",
+    "native/shaders/packed_embedding.metal": "d4d1f077d43303ee1142407eb75324bc0d098e2e69a85ae166ab074423e7c726",
+    "native/shaders/quantize_tiles.metal": "053b6af8f7265a792f7f7770f9d25be8e61683eea8d2a2de23b0184199e27b50",
+    "native/shaders/qwen_gdn.metal": "5d2fa4222f8abc3ea356489e77a028d09ab185516e9fd3cf2878d7e89799167d",
+    "native/shaders/router_topk.h": "25504198d214e7febc9c66cb4158dce5faa07a3cbed2476ed6dd77ebe97db185"
+  },
+  "shader_dispatch_changed": false,
+  "current_main_runtime_changed": [
+    "prompt cache",
+    "bridge lifecycle",
+    "DFlash HEADONLY prefill"
+  ],
+  "CPU_suites": {
+    "CPU": {
+      "passed": 325,
+      "ignored": 8
+    },
+    "direct_chat": {
+      "passed": 340,
+      "ignored": 39
+    },
+    "compatibility": {
+      "passed": 376,
+      "ignored": 257
+    }
+  },
+  "strict_lints": 3,
+  "python": {
+    "passed": 46,
+    "subtests": 13
+  },
+  "source_inventory_files": 246,
+  "Kani": {
+    "targeted_checks": 332,
+    "covers": 17,
+    "unreachable_std_only": 7,
+    "domain": "supported options; valid UTF8 strings0..4bytes plus absent, unwind10; arbitrary u32/bool selector/grid; no assumptions",
+    "package": "nonverified: -Zstubbing required, then known compiler ICE intrinsics.rs243",
+    "not_proved": [
+      "unbounded strings",
+      "Metal",
+      "allocator",
+      "concurrency",
+      "whole engine"
+    ]
+  },
+  "attempt01": "cross-worktree owned target attempt stopped/group joined143; logs retained; all Rust checks repeated after APFS clone into new worktree private target and package-only clean",
+  "speed": "not measured on current-main executable; isolated f20 explicit-flag AR32 screen remains separate",
+  "physical": {
+    "outer_NT2_setting": "absent",
+    "target": {
+      "selected_tests": 1,
+      "states": 84,
+      "finite_F32_words": 28803072,
+      "logits": 496640,
+      "bitwise_exact": true,
+      "DYLD_events": 706,
+      "no_MLX": true
+    },
+    "AR": "independent hash9f850af1cbba074b; four completions, invalid messages, context/delta cancellation and exact recovery;48x53slots, noMLX",
+    "all_children_joined": true,
+    "scope": "AR only; no MTP/DFlash generation; reuse_prompt_cache=false; no new speed claim"
+  },
+  "commands": {
+    "environment": {
+      "PATH": "/Users/justin/.cargo/bin:$PATH",
+      "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue75-native-flash-nt2-default/mix-stq1_0/build/nt2-default-main/cargo-target",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "cargo": [
+      "cargo clean -p mlxl3-native",
+      "cargo fmt --all --check",
+      "cargo clippy --all-targets --no-default-features [each: no features / direct-metal,chat / mlx,direct-metal,chat] -- -D warnings",
+      "cargo test --no-default-features [same three feature modes]",
+      "cargo build --release --no-default-features --features direct-metal,chat --bin mlxl3-rs",
+      "cargo test --release --lib --no-run --no-default-features --features direct-metal,chat --message-format=json"
+    ],
+    "proof": "cargo kani --lib --no-default-features --exact --harness contracts::native_flash_nt2_default_and_supported_overrides_are_exact --harness contracts::native_flash_nt2_flag_default_and_bounded_unicode_literals --harness contracts::native_flash_resident_nt2_selector_preserves_every_fallback --harness contracts::native_flash_reference_grid_covers_only_complete_output_tiles",
+    "package": "cargo kani --lib --no-default-features -Z stubbing; nonverified compiler ICE",
+    "Python": "PYTHONPATH=.:tests .venv/bin/python -m pytest -q tests/test_kani_manifest.py tests/test_physical_flash_nt2.py tests/test_physical_flash_ar_bridge.py tests/test_native_json_process.py"
+  }
+}

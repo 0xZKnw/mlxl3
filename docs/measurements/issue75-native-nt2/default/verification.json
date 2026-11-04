@@ -1,0 +1,63 @@
+{
+  "source_runtime_parser_commit": "cf07802dfbd2f6eea26eec0718597a4a187acad3",
+  "followup_source_commit": "f938b8b76672619b32bf77642f63aa732e075c1b",
+  "production_default": "enabled",
+  "rollback": "MLXL3_NATIVE_FLASH_NT2=0",
+  "kernels": "all shader hashes unchanged from f20",
+  "before_regression": "actual None parser failed expected enabled on old code",
+  "full_suites": {
+    "CPU": [
+      323,
+      8
+    ],
+    "direct_chat": [
+      337,
+      36
+    ],
+    "compatibility": [
+      373,
+      256
+    ]
+  },
+  "strict_lints": 3,
+  "Python": "46 passed,13subtests; portable inventory checks execute on Mac; original Linux process orchestration remains OS-specific",
+  "Kani": {
+    "supported_settings": {
+      "checks": 64,
+      "covers": 3,
+      "unwind": 10,
+      "assumptions": 0
+    },
+    "valid_UTF8_0_to_4_bytes_plus_absence": {
+      "checks": 228,
+      "unreachable_std_only": 7,
+      "covers": 6,
+      "unwind": 10,
+      "assumptions": 0
+    },
+    "selector_grid": {
+      "checks": 40,
+      "covers": 8
+    },
+    "prior_attempt": "supported literals without loop bound timed out90s in builtin memcmp, retained",
+    "global": "known compiler ICE, not a proof",
+    "limits": "No unbounded-string, Metal, allocator or concurrency proof"
+  },
+  "physical": {
+    "component_settings": [
+      0,
+      1,
+      null
+    ],
+    "component_words": 2214912,
+    "nt2_submission_counts": [
+      0,
+      30,
+      30
+    ],
+    "unset_target_state_words": 28803072,
+    "unset_target_logits": 496640,
+    "AR": "unconfigured; independent2token hash/error/context and delta cancellation/recovery; no MLX",
+    "speed": "no new timing experiment; previous f20 explicit flags short screen retained separately"
+  }
+}

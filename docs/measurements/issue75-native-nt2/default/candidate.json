@@ -1,0 +1,35 @@
+{
+  "runtime_parser_source_commit": "cf07802dfbd2f6eea26eec0718597a4a187acad3",
+  "default": "1",
+  "rollback": "MLXL3_NATIVE_FLASH_NT2=0",
+  "artifacts": {
+    "default-direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-direct-cli",
+      "sha256": "57e4ccd88f2fa3fd80af4fa30837fa2352ba46fa80619f333cf718becef853e7",
+      "bytes": 10067776
+    },
+    "default-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-libtest",
+      "sha256": "cdac996f463f9267c427f86f0afe56da0508057618c5499bbff8dbedc0731893",
+      "bytes": 9009360
+    },
+    "default-stock-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-stock-cli",
+      "sha256": "d4ec788612ed8021917ca3b662f49ba31a2848954324b3d77378d8dd9e727dbb",
+      "bytes": 11844272
+    }
+  },
+  "quality": "CPU passed; actual unconfigured GPU path unrun",
+  "proof_only_revision": "supported-literals harness bounded10 with unwinding assertions retained; no production/parser/kernel changes after cf078",
+  "all_shader_hashes_match_f20": true,
+  "actual_production_parser_unchanged_after_build": true,
+  "parser_sha256": "103bff6d39cff1ca2eb053459946479a49a919e77ceaed687c09ca536d63df23",
+  "sources": {
+    "native/src/contracts.rs": "3d75ba4a58d70f064256a11b059f8a5f4853ddac645253923b01e42b0b5c5047",
+    "native/src/gpu/projection.rs": "f97199e99f20fd080e6472182df70ed6db84cc00f1f1d6d4c6d4c94e72fb7898",
+    "tests/physical_flash_nt2.py": "e881f3e8a1fafa2714b2d6bb826c1142235766b0e632201f80766c5a4cf34bb0",
+    "tests/test_physical_flash_nt2.py": "e3f494b84ae0312b17cc9e4b7a1e6008cd9457794c88d45172af43ad2d6ff766",
+    "tests/test_kani_ci.py": "e20b8cd98e82749e77d41e994249e82d2e0c6afa39893ac4df7ae618bfbd8404",
+    "tests/test_kani_manifest.py": "0c0b6e77981549213e95e4b807c608abcb9af02870a8431c1a200895ab364e61"
+  }
+}
