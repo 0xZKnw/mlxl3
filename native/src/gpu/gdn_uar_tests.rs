@@ -175,6 +175,7 @@ fn physical_private_gdn_epilogues_preserve_model_states_and_actual_paths() -> Re
     component_fallbacks(&gpu, &c)?;
     let mut model = FlashNext::load(&gpu, &c, 4096)?;
     ensure!(model.prefetcher.is_none());
+    let dynamic_before = gpu.readers()?.dynamic_submissions.get();
     let empty = model.snapshot();
     let (initial, states) = model.forward_trace(248044)?;
     check_initial(&initial, &states)?;
@@ -246,9 +247,16 @@ fn physical_private_gdn_epilogues_preserve_model_states_and_actual_paths() -> Re
             && model.offset() == 2
             && gpu.readers()?.in_flight() == 0
     );
+    let dynamic_reads = gpu.readers()?.dynamic_submissions.get() - dynamic_before;
+    if std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() == Ok("1") {
+        ensure!(
+            dynamic_reads > 0,
+            "common SSD queue did not submit actual model reads"
+        );
+    }
     eprintln!(
         "NATIVE_GDN_EPILOGUE_MODEL {}",
-        serde_json::json!({"parity":true,"cases":cases,"case_count":8,"compared_state_words":compared,"compared_logits":3973120,"compared_hidden_words":81920,"initial_archive_states":84,"context":4096,"norm_gate_component_values":6144,"t17_known_subnormal":true,"public_f32_fallback":true,"trace_fallback":true,"half_stream_fallback":true,"explicit_legacy_continuation":true})
+        serde_json::json!({"parity":true,"cases":cases,"case_count":8,"compared_state_words":compared,"compared_logits":3973120,"compared_hidden_words":81920,"initial_archive_states":84,"context":4096,"norm_gate_component_values":6144,"t17_known_subnormal":true,"dynamic_read_submissions":dynamic_reads,"public_f32_fallback":true,"trace_fallback":true,"half_stream_fallback":true,"explicit_legacy_continuation":true})
     );
     Ok(())
 }

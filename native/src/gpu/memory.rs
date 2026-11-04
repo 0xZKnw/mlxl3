@@ -206,8 +206,10 @@ impl FlashNext<'_> {
     }
     pub fn release_idle_state(&mut self) -> Result<()> {
         self.gpu.ensure_reads_idle()?;
-        self.gpu.command(|_| Ok(()))?;
-        self.fixed_residency = None;
+        if self.fixed_residency.is_some() {
+            self.gpu.command(|_| Ok(()))?;
+            self.fixed_residency = None;
+        }
         self.fixed_residency_checked = false;
         self.reset();
         self.mixer.release_workspace()?;

@@ -64,6 +64,10 @@ pub(super) struct DeferredHcWrite {
     gate: MatrixView,
     producer: Option<super::MoeOutput>,
 }
+#[allow(
+    clippy::large_enum_variant,
+    reason = "one pending row owns its GPU producers on the stack, avoiding a per-boundary allocation"
+)]
 pub(super) enum LayerOutput {
     Ready(MatrixView),
     Pending(DeferredHcWrite),
