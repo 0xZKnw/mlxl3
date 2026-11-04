@@ -67,6 +67,23 @@ kernel void gdn_norm_row(const device half* delta [[buffer(0)]], const device fl
     float inverse=precise::rsqrt(simd_sum(sum)/128.0f+as_type<float>(params[0]));
     for(uint i=0;i<4;++i) normed[at+i]=gain[lane*4+i]*(values[i]*inverse);
 }
+kernel void gdn_norm_gate_row(const device half* delta [[buffer(0)]], const device float* gain [[buffer(1)]],
+    const device half* z [[buffer(2)]], device half* output [[buffer(3)]], constant uint* params [[buffer(4)]],
+    uint lane [[thread_index_in_simdgroup]], uint head [[threadgroup_position_in_grid]]) {
+    const uint at=head*128+lane*4;
+    float values[4],sum=0;
+    for(uint i=0;i<4;++i) {values[i]=float(delta[at+i]);sum+=values[i]*values[i];}
+    float inverse=precise::rsqrt(simd_sum(sum)/128.0f+as_type<float>(params[0]));
+    for(uint i=0;i<4;++i) {
+        // Preserve the F32 materialization between canonical norm and the T17 epilogue.
+        volatile float normalized=gain[lane*4+i]*(values[i]*inverse);
+        float gate=float(z[at+i]);
+        float y=1.0f/(1.0f+metal::precise::exp(metal::abs(gate)));
+        volatile float probability=gate<0.0f?y:1.0f-y;
+        volatile float product=normalized*probability;
+        output[at+i]=half(product);
+    }
+}
 kernel void gdn_gate_row(const device float* normed0 [[buffer(0)]], const device half* z [[buffer(1)]],
     device half* output [[buffer(2)]],constant uint* extent [[buffer(3)]],uint3 thread_position_in_grid [[thread_position_in_grid]]) {
 #define ROWS 1
