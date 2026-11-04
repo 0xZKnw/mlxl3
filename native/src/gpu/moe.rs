@@ -14,6 +14,11 @@ mod prefetch;
 pub(super) use prefetch::PrefetchPool;
 pub(crate) use prefetch::PrefetchStats;
 
+#[cfg(test)]
+thread_local! {
+    pub(super) static EXTRA_WAVE_SUBMISSIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 /// One AR row, with immutable per-slot compressed records.
 pub struct FlashMoeRow<'a> {
     gpu: &'a Metal,
@@ -25,6 +30,7 @@ pub struct FlashMoeRow<'a> {
     slots: prefetch::Slots<'a>,
     pub(super) prefetcher: Option<Rc<RefCell<PrefetchPool<'a>>>>,
     predictor_half: bool,
+    pub(super) extra_wave_enabled: bool,
     last: Vec<CommandBuffer>,
 }
 
@@ -37,6 +43,8 @@ pub struct MoeOutput {
     multiplier_trace: Option<MatrixView>,
     #[cfg(test)]
     timeline: Vec<serde_json::Value>,
+    #[cfg(test)]
+    pub(super) extra_wave_submissions: usize,
 }
 
 impl MoeOutput {
@@ -76,6 +84,16 @@ impl<'a> FlashMoeRow<'a> {
         prefix: &str,
         capacity: usize,
     ) -> Result<Self> {
+        let extra_wave_enabled = match std::env::var("MLXL3_NATIVE_SSD_EXTRA_WAVE") {
+            Ok(value) => {
+                crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
+            }
+            Err(std::env::VarError::NotPresent) => {
+                crate::ssd_reads::extra_wave_flag(None, gpu.device.name() == "Apple M5")
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_SSD_EXTRA_WAVE must be 0 or 1")?;
         let mut cache = ExpertCache::new(capacity)?;
         let control = |name, default: &str| -> Result<String> {
             match std::env::var(name) {
@@ -124,6 +142,7 @@ impl<'a> FlashMoeRow<'a> {
             slots: Rc::new(RefCell::new((0..capacity).map(|_| None).collect())),
             prefetcher: None,
             predictor_half,
+            extra_wave_enabled,
             switch: read_weight(&gpu.device, switch, 5120)?,
             last: Vec::new(),
         })
@@ -258,6 +277,8 @@ impl<'a> FlashMoeRow<'a> {
         let output = objc::rc::autoreleasepool(|| {
             #[cfg(test)]
             let mut timeline = Vec::new();
+            #[cfg(test)]
+            let mut extra_wave_submissions = 0;
             let mut outputs = BTreeMap::new();
             let multiplier = MatrixView::output(
                 gpu,
@@ -294,14 +315,14 @@ impl<'a> FlashMoeRow<'a> {
                     );
                 }
             }
-            // Hot work is submitted before waiting for any cold record. The next two
-            // waves bind only CPU-complete, generation-checked immutable buffers.
+            // Every cold wave binds only CPU-complete, generation-checked immutable buffers.
             if reads.remaining() > 0 {
                 #[cfg(test)] timeline.push(serde_json::json!({"event":"hot_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
                 command.commit();
                 self.last.push(command);
                 command = gpu.queue.new_command_buffer().to_owned();
                 let mut wave = reads.ready(false)?;
+                let mut extra_used = false;
                 loop {
                     for (lease, payload) in wave {
                         let backing = gpu.completed_record(payload)?;
@@ -319,13 +340,35 @@ impl<'a> FlashMoeRow<'a> {
                     if reads.remaining() == 0 {
                         break;
                     }
-                    #[cfg(test)] timeline.push(serde_json::json!({"event":"w1_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                    #[cfg(test)] timeline.push(serde_json::json!({"event":if extra_used { "extra_submit" } else { "w1_submit" },"time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
                     command.commit();
                     self.last.push(command);
                     #[cfg(test)]
-                    gpu.readers()?.release_test_gate();
+                    if extra_used {
+                        extra_wave_submissions += 1;
+                        EXTRA_WAVE_SUBMISSIONS.with(|count| count.set(count.get() + 1));
+                    }
+                    let extra = crate::ssd_reads::extra_wave(
+                        crate::ssd_reads::direct_read_eligible(
+                            self.extra_wave_enabled,
+                            depth,
+                            self.prefetcher.is_some(),
+                        ),
+                        reads.remaining(),
+                        extra_used,
+                    );
+                    #[cfg(test)]
+                    {
+                        gpu.readers()?.release_test_gate();
+                        gpu.readers()?.release_wave_test_gate(!extra);
+                    }
                     command = gpu.queue.new_command_buffer().to_owned();
-                    wave = reads.ready(true)?;
+                    wave = if extra {
+                        extra_used = true;
+                        reads.ready_min(2)?
+                    } else {
+                        reads.ready(true)?
+                    };
                 }
             }
             let mut bindings = plan
@@ -360,6 +403,8 @@ impl<'a> FlashMoeRow<'a> {
                 commands: self.last.clone(),
                 #[cfg(test)]
                 timeline,
+                #[cfg(test)]
+                extra_wave_submissions,
                 values,
                 read_bytes: plan.reads.len() as u64 * EXPERT_BYTES,
                 multiplier_trace: trace.then_some(multiplier),
@@ -448,6 +493,16 @@ impl FlashMoeRow<'_> {
         self.last.clear();
         Ok(())
     }
+    #[cfg(test)]
+    pub(super) fn clear_test_cache(&mut self) -> Result<()> {
+        self.drain()?;
+        self.cache.borrow_mut().invalidate();
+        self.slots
+            .borrow_mut()
+            .iter_mut()
+            .for_each(|slot| *slot = None);
+        Ok(())
+    }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
         ensure!(
             (10..=self.slots.borrow().len()).contains(&slots),
@@ -471,6 +526,104 @@ impl FlashMoeRow<'_> {
 mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
+
+    #[test]
+    #[ignore = "physical Flash checkpoint: bounded extra cold wave versus old schedule"]
+    fn bounded_extra_wave_submits_two_records_before_the_held_tail() -> Result<()> {
+        let path = std::env::var_os("MLXL3_MOE_CHECKPOINT").context("Flash checkpoint required")?;
+        let checkpoint = checkpoint::inspect(std::path::Path::new(&path))?;
+        let gpu = Metal::new()?;
+        let initial = crate::ssd_reads::extra_wave_flag(
+            std::env::var("MLXL3_NATIVE_SSD_EXTRA_WAVE").ok().as_deref(),
+            gpu.device.name() == "Apple M5",
+        );
+        ensure!(
+            initial == Some(true),
+            "requires explicit extra-wave flag1 on qualified M5"
+        );
+        let input = (0..2560)
+            .map(|i| ((i % 73) as f32 - 36.) / 53.)
+            .collect::<Vec<_>>();
+        let initial_submissions = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+        let mut cases = 0;
+        for fp32 in [false, true] {
+            let layout = MatrixLayout {
+                shape: [1, 2560],
+                strides: [2560, 1],
+                offset: 0,
+            };
+            let x = if fp32 {
+                gpu.f32_storage(&input)?
+            } else {
+                gpu.f16_storage(
+                    &input
+                        .iter()
+                        .map(|&v| half::f16::from_f32(v).to_bits())
+                        .collect::<Vec<_>>(),
+                )?
+            }
+            .matrix(layout)?;
+            let mut expected = None;
+            for enabled in [false, true] {
+                let mut layer =
+                    FlashMoeRow::load(&gpu, &checkpoint, "model.language_model.layers.0.mlp", 10)?;
+                ensure!(layer.extra_wave_enabled, "load did not snapshot flag1");
+                layer.extra_wave_enabled = enabled;
+                let gates = gpu.readers()?.set_wave_test_gates();
+                let outcome = (|| -> Result<Vec<u32>> {
+                    let output = layer.submit(&x)?;
+                    ensure!(output.hits == 0 && output.read_bytes == 10 * EXPERT_BYTES);
+                    ensure!(output.commands.len() == if enabled { 4 } else { 3 });
+                    ensure!(output.extra_wave_submissions == usize::from(enabled));
+                    let extras = output
+                        .timeline
+                        .iter()
+                        .filter(|v| v["event"] == "extra_submit")
+                        .collect::<Vec<_>>();
+                    ensure!(extras.len() == usize::from(enabled));
+                    if enabled {
+                        ensure!(extras[0]["remaining_reads"] == 7);
+                    }
+                    let values = output.read()?;
+                    ensure!(values.len() == 2560 && values.iter().any(|&v| v != 0));
+                    ensure!(values.iter().all(|&v| if fp32 {
+                        f32::from_bits(v).is_finite()
+                    } else {
+                        half::f16::from_bits(v as u16).is_finite()
+                    }));
+                    let hot = layer.submit(&x)?;
+                    ensure!(
+                        hot.hits == 10
+                            && hot.read_bytes == 0
+                            && hot.commands.len() == 1
+                            && hot.extra_wave_submissions == 0
+                    );
+                    ensure!(hot.read()? == values);
+                    Ok(values)
+                })();
+                for gate in gates {
+                    gate.release();
+                }
+                gpu.readers()?.release_wave_test_gate(true);
+                let values = outcome?;
+                gpu.ensure_reads_idle()?;
+                if let Some(expected) = &expected {
+                    ensure!(&values == expected, "OFF/ON cold wave mismatch");
+                } else {
+                    expected = Some(values);
+                }
+                cases += 1;
+            }
+        }
+        let actual_submissions =
+            EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) - initial_submissions;
+        ensure!(cases == 4 && actual_submissions == 2);
+        eprintln!(
+            "NATIVE_SSD_EXTRA_WAVE {}",
+            serde_json::json!({"cases":cases,"finite_words":cases*2560,"actual_extra_submissions":actual_submissions,"max_commands":4,"oracle":"unchanged OFF schedule; independent full-model oracle separate"})
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Flash checkpoint: next-gate predictions, bounded prefetch, faults and shrink"]
@@ -692,7 +845,8 @@ mod tests {
         let first = layer.submit(&x)?;
         let second = layer.submit(&x)?;
         ensure!(
-            first.commands.len() == 3
+            first.extra_wave_submissions <= 1
+                && first.commands.len() == 3 + first.extra_wave_submissions
                 && second.commands.len() == 1
                 && first.hits == 0
                 && first.read_bytes == 10 * EXPERT_BYTES

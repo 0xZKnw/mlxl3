@@ -49,6 +49,39 @@ pub(crate) fn direct_destination_valid(bytes: usize, length: u64, shared: bool) 
     bytes > 0 && bytes <= EXPERT_BYTES as usize && length == bytes as u64 && shared
 }
 
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn extra_wave_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    crate::flash_support::hc_chain_flag(value, false).map(|enabled| enabled && qualified_m5)
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn extra_wave(enabled: bool, remaining: usize, extra_used: bool) -> bool {
+    enabled && !extra_used && remaining >= 3
+}
+
+pub(crate) fn ready_minimum_valid(minimum: usize, remaining: usize) -> bool {
+    minimum <= remaining && (minimum > 0 || remaining == 0)
+}
+
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct TestReadGate(std::sync::Mutex<bool>, std::sync::Condvar);
+#[cfg(test)]
+impl TestReadGate {
+    fn wait(&self) {
+        let released = self.0.lock().unwrap();
+        let (released, _) = self
+            .1
+            .wait_timeout_while(released, Duration::from_secs(5), |v| !*v)
+            .unwrap();
+        assert!(*released, "test read gate was not released");
+    }
+    pub(crate) fn release(&self) {
+        *self.0.lock().unwrap() = true;
+        self.1.notify_all();
+    }
+}
+
 pub(crate) struct Completed {
     lease: SlotLease,
     result: Result<ReadPayload>,
@@ -83,6 +116,8 @@ struct Read {
     ticket: Ticket,
     #[cfg(test)]
     gate: Option<Arc<std::sync::Barrier>>,
+    #[cfg(test)]
+    wave_gate: Option<Arc<TestReadGate>>,
 }
 impl Read {
     fn run(self) {
@@ -96,11 +131,17 @@ impl Read {
             ticket,
             #[cfg(test)]
             gate,
+            #[cfg(test)]
+            wave_gate,
         } = self;
         #[cfg(test)]
         let started = Instant::now();
         #[cfg(test)]
         if let Some(gate) = gate {
+            gate.wait();
+        }
+        #[cfg(test)]
+        if let Some(gate) = wave_gate {
             gate.wait();
         }
         let result = (|| -> Result<ReadPayload> {
@@ -148,6 +189,8 @@ pub(crate) struct ReadService {
     active: Arc<AtomicUsize>,
     #[cfg(test)]
     gate: std::cell::RefCell<Option<Arc<std::sync::Barrier>>>,
+    #[cfg(test)]
+    wave_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
 }
 impl ReadService {
     pub(crate) fn new(readers: usize) -> Result<Self> {
@@ -158,6 +201,8 @@ impl ReadService {
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             gate: std::cell::RefCell::new(None),
+            #[cfg(test)]
+            wave_gates: std::cell::RefCell::new(None),
         };
         for index in 0..readers {
             let (sender, receiver) = mpsc::sync_channel::<Read>(10);
@@ -180,6 +225,28 @@ impl ReadService {
     pub(crate) fn release_test_gate(&self) {
         if let Some(gate) = self.gate.borrow_mut().take() {
             gate.wait();
+        }
+    }
+    #[cfg(test)]
+    pub(crate) fn set_wave_test_gates(&self) -> [Arc<TestReadGate>; 2] {
+        let gates = [
+            Arc::new(TestReadGate::default()),
+            Arc::new(TestReadGate::default()),
+        ];
+        *self.wave_gates.borrow_mut() = Some(gates.clone());
+        gates
+    }
+    #[cfg(test)]
+    pub(crate) fn release_wave_test_gate(&self, final_tail: bool) {
+        let mut gates = self.wave_gates.borrow_mut();
+        if let Some(gates) = gates.as_ref() {
+            gates[0].release();
+            if final_tail {
+                gates[1].release();
+            }
+        }
+        if final_tail {
+            *gates = None;
         }
     }
     pub(crate) fn in_flight(&self) -> usize {
@@ -315,6 +382,14 @@ impl ReadService {
                 gate: (batch.remaining + 1 == count)
                     .then(|| self.gate.borrow().clone())
                     .flatten(),
+                #[cfg(test)]
+                wave_gate: self.wave_gates.borrow().as_ref().and_then(|gates| {
+                    match batch.remaining {
+                        0 => None,
+                        1 | 2 => Some(gates[0].clone()),
+                        _ => Some(gates[1].clone()),
+                    }
+                }),
             };
             let worker = self.next.get();
             self.next.set((worker + 1) % self.workers.len());
@@ -369,9 +444,20 @@ impl ReadBatch {
         }
     }
     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
+        self.ready_min(if all {
+            self.remaining
+        } else {
+            self.remaining.min(1)
+        })
+    }
+    pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+        ensure!(
+            ready_minimum_valid(minimum, self.remaining),
+            "invalid native SSD ready minimum"
+        );
         let mut completed = Vec::new();
         while self.remaining > 0 {
-            let next = if completed.is_empty() || all {
+            let next = if completed.len() < minimum {
                 self.receiver
                     .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
                     .context("native SSD demand deadline or reader failure")?
@@ -615,3 +701,7 @@ mod tests {
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/direct_tests.rs"]
 mod direct_tests;
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/wave_tests.rs"]
+mod wave_tests;

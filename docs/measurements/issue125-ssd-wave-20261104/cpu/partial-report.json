@@ -1,0 +1,292 @@
+{
+  "status": "CPU_PARTIAL_GPU_NOT_RUN",
+  "baseline": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "source_hashes": {
+    "native/src/ssd_reads.rs": "273ff4729284d8751a0bc65cebb048f0f53cea6e4860682778a7548a65c6d76a",
+    "native/src/ssd_reads/wave_tests.rs": "47b064726ce9942c53c53a789ecca7cba64294784d837431d13d8af7a29e0d1b",
+    "native/src/gpu/moe.rs": "c113558ba8e72417c7f01fdd87d03e5862a9c8235dfbcf414bdb4948355f55df",
+    "native/src/gpu/flash.rs": "a40daf47c6a4f2b6c453f764e395dcc7297ea2db8cda595f574b2f1b4f7fb09d",
+    "native/src/gpu/ssd_wave_model_tests.rs": "10b89bb77c2034e36d84f0f91d071f693f77ef06ba28f2301eb3b1f584e3e296",
+    "scripts/kani_obligations.json": "4be4817a9ad62b580ba7bd25d8038761adf23f4f3526c86cdf880862917d40dd",
+    "tests/test_kani_ci.py": "80069edd2e5837fe3d63e4f5df156509454351db9e895ee9b3ae992492245941",
+    "docs/native-coverage/mlx-sites.json": "6db99d298a74c05a9dfbb17b77018634831fd325a49dcc329a44533a27302886"
+  },
+  "counts": {
+    "full-cpu": {
+      "passed": 340,
+      "failed": 0,
+      "ignored": 8,
+      "sections": [
+        [
+          252,
+          0,
+          8
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "full-direct": {
+      "passed": 356,
+      "failed": 0,
+      "ignored": 54,
+      "sections": [
+        [
+          267,
+          0,
+          50
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "focused_ssd": {
+    "passed": 12,
+    "ignored": 0
+  },
+  "mutations": {
+    "cases": [
+      {
+        "mutation": "threshold",
+        "exit_code": 101,
+        "seconds": 1.304344999982277,
+        "detected": true
+      },
+      {
+        "mutation": "minimum",
+        "exit_code": 101,
+        "seconds": 1.2669139170029666,
+        "detected": true
+      }
+    ],
+    "source_restored": true
+  },
+  "kani": {
+    "version": "0.68.0",
+    "CBMC": "6.11.0",
+    "kind": "bounded model checking of actual pure helpers only",
+    "checks": 255,
+    "covers_satisfied": 13,
+    "unreachable_standard_library_guards": 7,
+    "domains": {
+      "policy": "symbolic bools and unrestricted usize remaining",
+      "minimum": "unrestricted usize minimum/remaining",
+      "flag": "qualified bool; absent; valid UTF8 from 0..4 symbolic bytes; unwind10"
+    },
+    "limitations": [
+      "No proof of channels, worker interleavings, OS IO, Metal lifetime or full model.",
+      "Package-wide inherited harness suite not rerun; only three affected harnesses attempted."
+    ]
+  },
+  "passed": [
+    "CPU/direct/MLX strict Clippy (final model fixture included by direct-final Clippy only)",
+    "12 focused SSD tests before and after two detected mutations",
+    "CPU and direct full suites before new ignored model fixture was appended",
+    "6 Python inventory/policy regressions",
+    "inventory251 before new model config marker; marker updated, normal final check pending"
+  ],
+  "pending": [
+    "final normal inventory and fmt checks",
+    "full MLX suite",
+    "release CLI and native-libtest with minos26.2 in private package-clean target",
+    "physical component forced1/2/7 cohorts; full OFF/ON model ctx4096; actual CLI4096/error/cancel/recovery",
+    "no speed measurement or PR publication"
+  ],
+  "all_children_joined": true,
+  "hold_reason": "Root GPU window for L1; no new cargo/proof/Metal until explicit resume",
+  "logs": [
+    {
+      "raw": "build/ssd-wave/ssd-tests-01-compile-failure.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/ssd-tests-01-compile-failure.log.gz",
+      "raw_sha256": "b2e60f7270a8b39898299a421b3fb1547435c5e6cf993712d9cb81474d63e3dc",
+      "raw_bytes": 2174,
+      "archive_sha256": "865a4861ba465a7680231abb2c0dfc53c1290863d2d14fac0dd5339a5991783e"
+    },
+    {
+      "raw": "build/ssd-wave/ssd-tests.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/ssd-tests.log.gz",
+      "raw_sha256": "c674b5eae796ad4291aec06b78ac52cbec0fafe425a54686c01b0f89bb81e548",
+      "raw_bytes": 1551,
+      "archive_sha256": "8efd0227d869a2b5f486a1617eb9eb579fea2a8a6f68f1875366d5e3db9990bb"
+    },
+    {
+      "raw": "build/ssd-wave/ssd-tests-restored.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/ssd-tests-restored.log.gz",
+      "raw_sha256": "4613f7f3ed71948c388b2fc1efd477284f3002cb22e10fa18d159efcfdabe3cb",
+      "raw_bytes": 1551,
+      "archive_sha256": "4b2364bf416391400c623259230bb4819dc61228528436baa0cef21d6a9ce75c"
+    },
+    {
+      "raw": "build/ssd-wave/mutation-threshold.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/mutation-threshold.log.gz",
+      "raw_sha256": "ef8557d4f4ae305641c0188882f0caa4c315140459ba485cf73f8b087276a706",
+      "raw_bytes": 1072,
+      "archive_sha256": "fe9f9d9fb61d423f5ed8db2dca8888827a5e6f96cc98b12eb88b224ca287fc09"
+    },
+    {
+      "raw": "build/ssd-wave/mutation-minimum.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/mutation-minimum.log.gz",
+      "raw_sha256": "a86b219a4c5ae73296842867fb4389b8c3f38f6f32ab8e00487ed28968ab0740",
+      "raw_bytes": 1016,
+      "archive_sha256": "d09d32fc0341aeee60395aa286b4a1122fc2b685212ecb29cc1a73f41ad83965"
+    },
+    {
+      "raw": "build/ssd-wave/clippy-cpu.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/clippy-cpu.log.gz",
+      "raw_sha256": "444f7037048a8942daf5de44f50786d50e15da5b346479df7fe07f1892fc3b45",
+      "raw_bytes": 167,
+      "archive_sha256": "9f041541414b22340e2795d9ad80a4d69e1e2064ddfa7644037a2b289547675c"
+    },
+    {
+      "raw": "build/ssd-wave/clippy-direct.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/clippy-direct.log.gz",
+      "raw_sha256": "220cfbfb5fe4c787df2537a8594ec47ff1ef23121832c92d35677ef411165930",
+      "raw_bytes": 410,
+      "archive_sha256": "a8f454b334faa5237725d9975e384b64b767f054cc7ba8c184eba7170dbc5f19"
+    },
+    {
+      "raw": "build/ssd-wave/clippy-direct-final.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/clippy-direct-final.log.gz",
+      "raw_sha256": "801f45b810bf399d63337a2a2e0ef4c4c492564e8bc13427f59ae2fb74bb76fc",
+      "raw_bytes": 410,
+      "archive_sha256": "55da525a447f779109da64fc70cf9984a7edab0da95d13e4d577668e73495a83"
+    },
+    {
+      "raw": "build/ssd-wave/clippy-mlx.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/clippy-mlx.log.gz",
+      "raw_sha256": "f5a4e767bad2d93e25dfde5cb31865f99fa74ea9db5787eda0460191a8755390",
+      "raw_bytes": 411,
+      "archive_sha256": "2abaeda845d1d252745dde20441e00e0bb0d2c708e806743e75363f427ff9543"
+    },
+    {
+      "raw": "build/ssd-wave/full-cpu.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/full-cpu.log.gz",
+      "raw_sha256": "12ec713a25f20c722c88796dd703025734a0475bc685c7f8766aeb8c5f09fe52",
+      "raw_bytes": 33107,
+      "archive_sha256": "e58cdaa5aacc5dabb29421ebebb5b87e737ae25bfed174d393220faeb1d72e00"
+    },
+    {
+      "raw": "build/ssd-wave/full-direct.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/full-direct.log.gz",
+      "raw_sha256": "5a94756335b5166fa8c9fadbb08d736c008e88723be7b9ada140dbd4ae69c2dc",
+      "raw_bytes": 42488,
+      "archive_sha256": "5c81a23c61d41c2e1f233d8bd438474acca044b510317bd59c58961b1f58f45b"
+    },
+    {
+      "raw": "build/ssd-wave/kani-policy.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/kani-policy.log.gz",
+      "raw_sha256": "63df8bb839e28051a69424a165409d446f81ddd556214cdb5e628821c9e9feb5",
+      "raw_bytes": 15554,
+      "archive_sha256": "959a92a2754a11b16b81f831632b176ee8b9fc7c726dfaac30c17c4732436f1c"
+    },
+    {
+      "raw": "build/ssd-wave/kani-flag.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/kani-flag.log.gz",
+      "raw_sha256": "228e6c3753882e1f2d95beb229fa38e8eab69519214b3e18c1a46bbde05679d4",
+      "raw_bytes": 232922,
+      "archive_sha256": "54755fd95990aee3bb1bd293b70af9a6eb19e8e465914818553ced351f9f80e6"
+    },
+    {
+      "raw": "build/ssd-wave/kani-minimum.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/kani-minimum.log.gz",
+      "raw_sha256": "f3dae668aec2b54afd1ddbdfbbf3de656903f9c55eb1a0949a8ab115db4d18dc",
+      "raw_bytes": 14160,
+      "archive_sha256": "1085b7f2e5fd87afef269cd2f2f3c5ae26a760a3b49cd41ed3165eaa69ae0f7b"
+    },
+    {
+      "raw": "build/ssd-wave/inventory-01.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/inventory-01.log.gz",
+      "raw_sha256": "853b508f00a45732b34007a6e69d66c4f3e060da107e56e523b06598a66a4b23",
+      "raw_bytes": 277,
+      "archive_sha256": "af5338a00ea7e9e599851850721ad56386b39ef3b1f062daf10a9a80b323af23"
+    },
+    {
+      "raw": "build/ssd-wave/inventory-02.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/inventory-02.log.gz",
+      "raw_sha256": "bfba8a5f3d1c23b3d5978c6888ac3fb1f1518a882a053f49032d07a37617f849",
+      "raw_bytes": 72,
+      "archive_sha256": "9b169c219f5fd3b03179b3f2ad9ebebed3f9784a22b84f5b1857b830906e328f"
+    },
+    {
+      "raw": "build/ssd-wave/inventory.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/inventory.log.gz",
+      "raw_sha256": "05a9b590ed9bfaa0505f0d6b24dbea0cbe64207e56b6708b88d0fe03a2e39504",
+      "raw_bytes": 39,
+      "archive_sha256": "d19472e179d880f43be49a3c34970faf125107c3b599c115633a75c569da1d4b"
+    },
+    {
+      "raw": "build/ssd-wave/python-checks.log",
+      "archive": "docs/measurements/issue125-ssd-wave-20261104/cpu/python-checks.log.gz",
+      "raw_sha256": "2b0629437046edf89a33cc088f4cc22685d44b1e154e6d9af02a0954cba3ac22",
+      "raw_bytes": 98,
+      "archive_sha256": "03e78d05bf22762508d392350008fa34ff03b902014efc8849f402b88b6f9f53"
+    }
+  ]
+}

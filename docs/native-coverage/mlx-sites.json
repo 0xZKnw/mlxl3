@@ -1942,9 +1942,10 @@
     ".take": 1,
     ".to_f32": 1,
     ".transpose": 2,
-    "config MLXL3_MOE_CHECKPOINT": 2,
+    "config MLXL3_MOE_CHECKPOINT": 3,
     "config MLXL3_SSD_CACHE_POLICY": 1,
-    "config MLXL3_SSD_PREDICTOR_DTYPE": 1
+    "config MLXL3_SSD_PREDICTOR_DTYPE": 1,
+    "config MLXL3_NATIVE_SSD_EXTRA_WAVE": 2
   },
   "native/src/gpu/mtp.rs": {
     ".shape": 1,
@@ -3215,6 +3216,14 @@
     "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/gpu/cross_layer_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/ssd_reads/wave_tests.rs": {
+    ".ready": 3,
+    ".start": 1,
+    ".try_clone": 1
+  },
+  "native/src/gpu/ssd_wave_model_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
   }
 }

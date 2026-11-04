@@ -1425,3 +1425,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "ssd_wave_model_tests.rs"]
+mod ssd_wave_tests;
