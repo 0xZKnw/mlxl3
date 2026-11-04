@@ -23,6 +23,8 @@ Only after qualification and root's labelled-profile priority: same frozen relea
 
 Affected direct suite **341passed/39ignored**, strict Clippy and final release-libtest build pass; Python **7passed/20subtests**, Ruff and source inventory246 pass. Deterministic missing-fifth-PSO mutation through the real Python verification path is rejected even with otherwise self-consistent counters. The final ignored Rust fixture guard was strengthened to require both generic/K7 controls; final Clippy/build compile it, but it is still physically unexecuted. CrossHair first fails import (numpy absent in formal venv), then existing compatible numpy path enables actual helper analysis; both15s postconditions remain **Not confirmed**, including final source; no proof claim. Kani remains the existing real unchanged helper results, with7 standard-library-only unreachable obligations and all13important covers satisfied. All owned CPU/proof children exited/joined; no GPU model or speed test launched. [Durable CPU receipt, hashes, commands, limitations and compressed logs](docs/measurements/issue75-native-flash-static-k-20261103/cpu-receipt.json). DefaultOFF, isolated local prototype; composition, AR bridge and physical quality remain coordinator-owned next steps.
 
+**2026-11-04 physical quality01 VALIDATED, speed still separate.** Frozen source b8f03233 /CLI d2ff7420 /libtest9825ac7d /independent stock405b025f. Six phases pass in152.68s; all owned processes joined and groups absent, explicit handback09:53:11UTC. Component STATIC_K0 and1 each48cases×NT2=0/1/unset, **2,214,912finiteHalfwords exact**; selected staticPSO counts0=[0,0,0,0,0],1=[6,32,28,16,32], allfive exercised. Invalid flags, K7/generic nonempty exact fallbacks, malformedinput, fc_hidden exclusion pass. Both full-target independent oracles pass **84states/28,803,072finiteF32words+496,640logits per setting**, continuation/reset; enabled actual counts[5760,0,0,480,723] confirm K2cold+K4resident. Budget/admission/shrink/alias/replay passes. Real release AR1 passes61.93s,4golden completions,1rejection,2cancellation phases+exactrecoveries,48x53slots and nativeDYLD/noMLX. Root-exclusive window, AC100%; known desktopEquibop~8%CPU recorded; no speed inference from qualification durations. [Physical results/limits](docs/measurements/issue75-native-flash-static-k-20261103/README.md). Root owns subsequent matched ABBA release screen, no executable edits afterward. Composition, dedicated strided-input matrix and isolated extra-PSO cold-start cost remain unverified; prototype defaultOFF, no publication/app replacement here.
+
 ## I75-NT2-DEFAULT-20261103 — user-requested native AR default activation
 
 Before executable edits or validation. User explicitly requests NT2 enabled by default after the independently qualified component/full-AR path and short matched AR32 screen. Preserve the earlier default-OFF f20 experiment and all raw data; its explicit0/1 measurements are not a physical test of the new unconfigured default or its new executable bytes. Change only production parser None→enabled, keep literal0 rollback/literal1 enable, malformed literals rejected and all M5/K3-K4/MUL1/resident/shape/fc_hidden/routed/generic exclusions unchanged. No kernel or numerical edit.
@@ -23988,3 +23990,31 @@ Kani réel ciblé puis restauré : **61 contrôles sans échec, 5/5 couvertures*
 Décision parent explicite : conserver HEADS1 comme élimination de travail validée numériquement, HEADS0 pour retour eager ; présenter seulement la petite observation MAIN de cet écran, aucun boost universel/soutenu/decode ni somme avec d'autres ports. Confirmation 64 tokens, long contexte et combinaison non lancés. Nouvelle priorité utilisateur AR uniquement : aucun nouvel essai DFlash/MTP. Publication administrative de cette tranche déjà qualifiée autorisée, sans merge/release ni remplacement d'app.
 
 **Publication de la tranche qualifiée.** Branche poussée et [PR111](https://github.com/0xZKnw/mlxl3/pull/111) ouverte via le connecteur GitHub, base #109 `be43ee15` encore ouverte/mergeable, main `59962812` reconfirmée. Sources et binaires mesurés inchangés ; preuve locale copiée avec liens relatifs résolus et logs gzip byte-exacts, aucun bras non exécuté inclus. Cette publication administrative termine le travail DFlash autorisé avant la nouvelle priorité AR. CI de la tête exacte à inspecter ; aucun succès hébergé présumé, aucun merge/release/app installée.
+
+- I75-FLASH-STATIC-KCB quality01 launch 2026-11-04T09:50:30.533266+00:00 sourceb8f03233 /lib9825ac7d/CLId2ff7420/stock405b025f; exact component0/1, archivedtarget0/1, memorybudget1, realAR1. Preregistered plan quality-01/plan.json; known desktopCPU acknowledged, no performance test.
+
+- I75-FLASH-STATIC-KCB quality01 component-0 running; bounded240s
+
+- I75-FLASH-STATIC-KCB quality01 component-0 result=validated,parity=True,elapsed=40.94s,parentjoined=True,remaining=[]; raw quality-01/component-0.*.log
+
+- I75-FLASH-STATIC-KCB quality01 component-1 running; bounded240s
+
+- I75-FLASH-STATIC-KCB quality01 component-1 result=validated,parity=True,elapsed=40.31s,parentjoined=True,remaining=[]; raw quality-01/component-1.*.log
+
+- I75-FLASH-STATIC-KCB quality01 target-0 running; bounded180s
+
+- I75-FLASH-STATIC-KCB quality01 target-0 result=validated,parity=True,elapsed=3.76s,parentjoined=True,remaining=[]; raw quality-01/target-0.*.log
+
+- I75-FLASH-STATIC-KCB quality01 target-1 running; bounded180s
+
+- I75-FLASH-STATIC-KCB quality01 target-1 result=validated,parity=True,elapsed=2.96s,parentjoined=True,remaining=[]; raw quality-01/target-1.*.log
+
+- I75-FLASH-STATIC-KCB quality01 memory-1 running; bounded240s
+
+- I75-FLASH-STATIC-KCB quality01 memory-1 result=validated,parity=True,elapsed=2.77s,parentjoined=True,remaining=[]; raw quality-01/memory-1.*.log
+
+- I75-FLASH-STATIC-KCB quality01 ar-1 running; bounded240s
+
+- I75-FLASH-STATIC-KCB quality01 ar-1 result=validated,parity=True,elapsed=61.93s,parentjoined=True,remaining=[]; raw quality-01/ar-1.*.log
+
+- I75-FLASH-STATIC-KCB quality01 final=validated,parity=True,all_children_joined=True,elapsed=152.68s. No speed measurement; raw report quality-01/report.json.
