@@ -101,8 +101,10 @@ fn physical_workspace_reuses_only_completed_private_temporaries() -> Result<()> 
             workspace::Cache::acquire(&hc.workspace, &gpu, &cmd, input.dtype, with_up)?
                 .context("expected lease")?;
         let ids = [&views.normalized, &views.down, &views.active]
-            .into_iter().chain(views.up.as_ref())
-            .map(|v| v.buffer.as_ptr() as usize).collect::<Vec<_>>();
+            .into_iter()
+            .chain(views.up.as_ref())
+            .map(|v| v.buffer.as_ptr() as usize)
+            .collect::<Vec<_>>();
         ensure!(ids.len() == if with_up { 4 } else { 3 });
         ensure!(
             ids.iter()
@@ -170,7 +172,8 @@ fn physical_workspace_reuses_only_completed_private_temporaries() -> Result<()> 
         let before = requests();
         let uses = gpu.hc_workspace_uses.get();
         hc.read(&other, false)?;
-        let other_fused = crate::contracts::flash_hc_kernel_eligible(gpu.hc_up_mix.get(), false, !fp32);
+        let other_fused =
+            crate::contracts::flash_hc_kernel_eligible(gpu.hc_up_mix.get(), false, !fp32);
         ensure!(requests() - before == if other_fused { 6 } else { 7 });
         ensure!(gpu.hc_workspace_uses.get() == uses);
         let before = requests();
@@ -195,13 +198,18 @@ fn physical_workspace_reuses_only_completed_private_temporaries() -> Result<()> 
 #[test]
 #[ignore = "physical HC workspace OFF/ON four rows, independent initial archive and full states; run alone"]
 fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Result<()> {
-    use super::super::{FlashNext, ssd_direct_tests::{check_initial, check_tensors}};
-    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(
-        &std::env::var("MLXL3_FLASH_MODEL")?,
-    ))?;
+    use super::super::{
+        FlashNext,
+        ssd_direct_tests::{check_initial, check_tensors},
+    };
+    let checkpoint =
+        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
     let initial_workspace_enabled = gpu.hc_workspace_enabled.get();
-    ensure!(initial_workspace_enabled, "requires explicit workspace1 on qualified M5");
+    ensure!(
+        initial_workspace_enabled,
+        "requires explicit workspace1 on qualified M5"
+    );
     let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
     gpu.hc_workspace_enabled.set(false);
     let empty = model.snapshot();
@@ -219,9 +227,18 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
         let uses = gpu.hc_workspace_uses.get();
         let expected = model.forward(token)?;
         ensure!(gpu.hc_workspace_uses.get() == uses && finite(&expected));
-        let hidden = model.last_hidden().context("missing control hidden")?.export_bytes(&gpu)?;
-        ensure!(hidden.len() == 40960 && hidden.as_chunks::<4>().0.iter()
-            .all(|v| f32::from_le_bytes(*v).is_finite()));
+        let hidden = model
+            .last_hidden()
+            .context("missing control hidden")?
+            .export_bytes(&gpu)?;
+        ensure!(
+            hidden.len() == 40960
+                && hidden
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|v| f32::from_le_bytes(*v).is_finite())
+        );
         let (expected_next, expected_states) = model.forward_trace(11)?;
         check_tensors(&expected_states)?;
         ensure!(finite(&expected_next));
@@ -232,7 +249,13 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
         let actual_uses = gpu.hc_workspace_uses.get() - uses;
         ensure!(actual_uses == 97 && actual == expected && finite(&actual));
         ensure!(model.offset() == prefix.position() + 1);
-        ensure!(model.last_hidden().context("missing candidate hidden")?.export_bytes(&gpu)? == hidden);
+        ensure!(
+            model
+                .last_hidden()
+                .context("missing candidate hidden")?
+                .export_bytes(&gpu)?
+                == hidden
+        );
         let candidate = model.snapshot();
         // Read the candidate state through the unchanged workspace-OFF continuation.
         gpu.hc_workspace_enabled.set(false);
@@ -242,14 +265,22 @@ fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Resul
         state_words += check_tensors(&states)?;
         ensure!(states.len() == expected_states.len());
         for (actual, expected) in states.iter().zip(&expected_states) {
-            ensure!(actual.name == expected.name && actual.shape == expected.shape
-                && actual.data == expected.data, "workspace changed {}", actual.name);
+            ensure!(
+                actual.name == expected.name
+                    && actual.shape == expected.shape
+                    && actual.data == expected.data,
+                "workspace changed {}",
+                actual.name
+            );
         }
         model.restore(&candidate)?;
         steps.push(serde_json::json!({"token":token,"workspace_uses":actual_uses,"control_workspace_uses":0,"continuation_workspace_uses":0,"snapshot_position":candidate.position()}));
     }
     ensure!(steps.len() == 4 && state_words == 115_212_288 && model.offset() == 4);
     ensure!(gpu.readers()?.in_flight() == 0);
-    eprintln!("I125_HC_WORKSPACE_MODEL {}", serde_json::json!({"parity":true,"initial_workspace_enabled":initial_workspace_enabled,"steps":steps,"actual_workspace_uses":388,"compared_state_words":state_words,"compared_logits":1986560,"compared_hidden_words":40960,"initial_archive_states":84,"context":4096,"retained_prefix":true,"explicit_legacy_continuation":true}));
+    eprintln!(
+        "I125_HC_WORKSPACE_MODEL {}",
+        serde_json::json!({"parity":true,"initial_workspace_enabled":initial_workspace_enabled,"steps":steps,"actual_workspace_uses":388,"compared_state_words":state_words,"compared_logits":1986560,"compared_hidden_words":40960,"initial_archive_states":84,"context":4096,"retained_prefix":true,"explicit_legacy_continuation":true})
+    );
     Ok(())
 }

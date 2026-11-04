@@ -343,7 +343,11 @@ mod tests {
             active.state_backing_bytes["gdn"] > 0 && active.state_backing_bytes["last_hidden"] > 0
         );
         if gpu.hc_workspace_enabled.get() {
-            let expected = if gpu.hc_up_mix.get() { 4_221_440 } else { 8_194_560 };
+            let expected = if gpu.hc_up_mix.get() {
+                4_221_440
+            } else {
+                8_194_560
+            };
             ensure!(active.state_backing_bytes.get("hc_workspace") == Some(&expected));
         }
         target.release_idle_state()?;

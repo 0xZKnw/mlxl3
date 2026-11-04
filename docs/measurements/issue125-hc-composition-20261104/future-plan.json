@@ -1,5 +1,5 @@
 {
-  "status": "await_future_CPU_grant_then_fresh_freeze_and_GPU_grant",
+  "status": "CPU_frozen_ready_await_exclusive_root_GPU_grant",
   "environment": {
     "MACOSX_DEPLOYMENT_TARGET": "26.2",
     "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
@@ -12,7 +12,22 @@
     "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
     "MLXL3_PROMPT_CACHE_MIB": "0"
   },
-  "artifacts": null,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-composition/mix-stq1_0/build/hc-composition/frozen/direct-cli",
+      "sha256": "5e3ac213928457f9c85a88d2ce2e3ff05b3ca1d206a42c6ae61cd432fe6cff4c",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-composition/mix-stq1_0/build/hc-composition/frozen/native-libtest",
+      "sha256": "8a70d7cbeaa06699b26281ce01fc386fb34d826180b05d4b5ae78de6a1c3f87f",
+      "bytes": 9448800,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
   "tests_not_executed": [
     {
       "name": "gpu::hc::workspace_tests::physical_workspace_reuses_only_completed_private_temporaries",
