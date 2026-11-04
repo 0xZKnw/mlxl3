@@ -33,7 +33,8 @@ def complete(event: dict, mode: dict, text: str) -> str:
     return event["token_hash"]
 
 
-def verify(engine, model, root, report, timeout=180.0):
+def verify(engine, model, root, report, timeout=180.0, *, context_length=256):
+    assert type(context_length) is int and context_length in (256, 4096)
     with (
         (root / "stderr.log").open("x") as error,
         (root / "events.jsonl").open("x") as raw,
@@ -46,7 +47,7 @@ def verify(engine, model, root, report, timeout=180.0):
                 "bridge",
                 str(model),
                 "--context-length",
-                "256",
+                str(context_length),
             ],
             stderr=error,
             env=os.environ,
@@ -148,6 +149,7 @@ def main():
     for name in ("engine", "model", "report"):
         parser.add_argument(name, type=Path)
     parser.add_argument("--timeout", type=positive_seconds, default=180.0)
+    parser.add_argument("--context-length", type=int, choices=(256, 4096), default=256)
     args = parser.parse_args()
     report = {
         "status": "started",
@@ -158,7 +160,14 @@ def main():
         try:
             root = args.report.with_suffix("")
             root.mkdir()
-            verify(args.engine, args.model, root, report, args.timeout)
+            verify(
+                args.engine,
+                args.model,
+                root,
+                report,
+                args.timeout,
+                context_length=args.context_length,
+            )
         except BaseException as error:
             report.update(status="failed", parity=False, error=repr(error))
             raise

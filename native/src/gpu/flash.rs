@@ -713,7 +713,11 @@ mod tests {
             .each_ref()
             .map(std::cell::Cell::get);
         if gpu.flash_static_setting == Some(true) {
-            ensure!(static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0);
+            ensure!(
+                (static_submissions[0] > 0
+                    || gpu.flash_fixed_submissions.iter().all(|c| c.get() > 0))
+                    && static_submissions[3] + static_submissions[4] > 0
+            );
         } else {
             ensure!(static_submissions == [0; 5]);
         }
@@ -849,7 +853,9 @@ mod tests {
             .map(std::cell::Cell::get);
         if gpu.flash_static_setting == Some(true) {
             ensure!(
-                static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0,
+                (static_submissions[0] > 0
+                    || gpu.flash_fixed_submissions.iter().all(|c| c.get() > 0))
+                    && static_submissions[3] + static_submissions[4] > 0,
                 "static K target did not execute both cold K2 and resident K4"
             );
         } else {
@@ -861,8 +867,101 @@ mod tests {
         );
         eprintln!(
             "NATIVE_FLASH_COMPOSED_FEATURES {}",
-            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions})
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":gpu.flash_fixed_submissions.each_ref().map(std::cell::Cell::get)})
         );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Flash fixed K2 dimensions context4096 full states, indexer and continuation"]
+    fn fixed_dimensions_keep_context4096_states_logits_and_continuation() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut gpu = Metal::new()?;
+        ensure!(
+            gpu.flash_fixed_setting == Some(true) && gpu.flash_fixed_qmv.is_some(),
+            "requires fixed dims1 on Apple M5"
+        );
+        let finite =
+            |x: &[u16]| x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite());
+        let mut expected = Vec::new();
+        let mut expected_continuation = None;
+        for enabled in [false, true] {
+            gpu.flash_fixed_setting = Some(enabled);
+            let before = gpu
+                .flash_fixed_submissions
+                .each_ref()
+                .map(std::cell::Cell::get);
+            let mut model = FlashNext::load(&gpu, &c, 4096)?;
+            for (step, token) in [248044, 1, 7].into_iter().enumerate() {
+                let (logits, states) = model.forward_trace(token)?;
+                ensure!(finite(&logits) && states.len() == 84);
+                let mut words = 0;
+                for state in &states {
+                    let count = state
+                        .shape
+                        .iter()
+                        .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                        .context("fixed trace overflow")?;
+                    ensure!(
+                        count > 0
+                            && state.data.len() == count * 4
+                            && state
+                                .data
+                                .as_chunks::<4>()
+                                .0
+                                .iter()
+                                .all(|v| f32::from_le_bytes(*v).is_finite())
+                    );
+                    words += count;
+                }
+                ensure!(words == 28_803_072);
+                if enabled {
+                    let (ref_logits, ref_states): &(Vec<u16>, Vec<FlashTraceTensor>) =
+                        &expected[step];
+                    ensure!(logits == *ref_logits);
+                    ensure!(
+                        states.iter().zip(ref_states).all(|(a, b)| a.name == b.name
+                            && a.shape == b.shape
+                            && a.data == b.data)
+                    );
+                } else {
+                    expected.push((logits, states));
+                }
+            }
+            let saved = model.snapshot();
+            let next = model.forward(11)?;
+            ensure!(finite(&next));
+            if enabled {
+                ensure!(expected_continuation.as_ref() == Some(&next));
+            } else {
+                expected_continuation = Some(next.clone());
+            }
+            model.restore(&saved)?;
+            ensure!(model.forward(11)? == next);
+            if let Some(pool) = &model.prefetcher {
+                pool.borrow_mut().drain()?;
+                ensure!(pool.borrow().in_flight() == 0);
+            }
+            drop(model);
+            let after = gpu
+                .flash_fixed_submissions
+                .each_ref()
+                .map(std::cell::Cell::get);
+            let delta: Vec<_> = after.iter().zip(before).map(|(a, b)| a - b).collect();
+            ensure!(
+                if enabled {
+                    delta == [4860, 2400]
+                } else {
+                    after == before
+                },
+                "fixed4096 did not execute all routed and12 resident indexer projections per row: {delta:?}"
+            );
+            eprintln!(
+                "NATIVE_FLASH_FIXED_4096 {}",
+                serde_json::json!({"enabled":enabled,"steps":3,"states":252,"state_words":86_409_216,"logits":744960,"fixed_submissions":delta,"continuation":true})
+            );
+        }
         Ok(())
     }
 

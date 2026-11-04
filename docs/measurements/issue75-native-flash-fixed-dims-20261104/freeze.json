@@ -1,0 +1,30 @@
+{
+  "status": "CPU-qualified; physical pending root composition",
+  "baseline": "21cfc9ad0b6679f9e6975bf6f02bc7a5b7b96d47",
+  "created": "2026-11-04T11:51:57.053542+00:00",
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-cli": "4ae5605e267c0f740ae649e5443128f85d10e6ff886adff2a3a45945462482d1",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest": "5efca15dff0d88cd4e7724310234b03c4c7f2fbf86284589a9d90b63f96b13ab"
+  },
+  "sources": {
+    "native/src/flash_qmv.rs": "54414481947bd9ae06817a7753c58dbf4763a9d65b7c5a1dfefc95b36d7cda66",
+    "native/src/gpu.rs": "21969cb649386965509b37bb08d514cdf7aaa7f15f63819eb139e0c8ede6542f",
+    "native/src/gpu/projection.rs": "c160a6738b93e9d4e65380b78a574daa9083763e5033772b2a1dcc2bd89ea63e",
+    "native/src/gpu/flash.rs": "3ddb317ac754a58326ed3df52364ce327e9189ba006b2d1b20654593f38552ee",
+    "native/shaders/flash_static_qmv.metal": "c4aafe7c2265292957d43ba75af523b519fd802c8b09572ff0db80a1ff51f22a",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "tests/physical_flash_nt2.py": "fa5a2d4c70f60180f3648cbd817e261951317d97c4ae9806953b715d1f4d6d4a",
+    "tests/physical_flash_ar_bridge.py": "2bdcf1e914d6487767505711e4c7fccbfcee66c9466ca6f93e647d7af57ca930"
+  },
+  "Metal_verifier": {
+    "cbmc": null,
+    "nagini": null,
+    "status": "MSL source proof unavailable; no translation or stubs",
+    "compile": "Xcode27.2 Metal actual shader compile passed, not proof"
+  },
+  "deployment": {
+    "minos": "26.2",
+    "sdk": "27.2",
+    "app_replaced": false
+  }
+}

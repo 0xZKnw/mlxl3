@@ -194,6 +194,10 @@ pub struct Metal {
     flash_static_qmv: [ComputePipelineState; 5],
     flash_static_supported: [bool; 5],
     flash_static_setting: Option<bool>,
+    flash_fixed_qmv: Option<[ComputePipelineState; 2]>,
+    flash_fixed_setting: Option<bool>,
+    #[cfg(test)]
+    flash_fixed_submissions: [std::cell::Cell<u64>; 2],
     #[cfg(test)]
     flash_static_submissions: [std::cell::Cell<u64>; 5],
     dense_qmv: [[ComputePipelineState; 3]; 2],
@@ -261,6 +265,15 @@ impl Metal {
                 } else {
                     Some(false)
                 };
+            let flash_fixed_setting = if qualified_m5 {
+                match std::env::var("MLXL3_NATIVE_FLASH_FIXED_DIMS") {
+                    Ok(value) => crate::flash_qmv::fixed_flag(Some(&value)),
+                    Err(std::env::VarError::NotPresent) => crate::flash_qmv::fixed_flag(None),
+                    Err(std::env::VarError::NotUnicode(_)) => None,
+                }
+            } else {
+                Some(false)
+            };
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
@@ -380,6 +393,23 @@ impl Metal {
             let flash_static_supported = flash_static_qmv.each_ref().map(|p| {
                 p.thread_execution_width() == 32 && p.max_total_threads_per_threadgroup() >= 128
             });
+            let flash_fixed_qmv = if flash_fixed_setting == Some(true) {
+                let fixed_pipeline = |shape: [u32; 2]| {
+                    pipeline(&format!("flash_fixed_k2_{}_{}", shape[0], shape[1]))
+                };
+                let states = [
+                    fixed_pipeline(crate::flash_qmv::FIXED_SHAPES[0])?,
+                    fixed_pipeline(crate::flash_qmv::FIXED_SHAPES[1])?,
+                ];
+                ensure!(
+                    states.iter().all(|p| p.thread_execution_width() == 32
+                        && p.max_total_threads_per_threadgroup() >= 128),
+                    "unsupported Flash fixed dimensions threadgroup"
+                );
+                Some(states)
+            } else {
+                None
+            };
             let dense_qmv = [
                 [
                     pipeline("dense_qmv_s4_n1")?,
@@ -450,6 +480,10 @@ impl Metal {
                 flash_static_qmv,
                 flash_static_supported,
                 flash_static_setting,
+                flash_fixed_qmv,
+                flash_fixed_setting,
+                #[cfg(test)]
+                flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 #[cfg(test)]
                 flash_static_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 dense_qmv,

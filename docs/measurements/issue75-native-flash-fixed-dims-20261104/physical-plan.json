@@ -1,0 +1,267 @@
+{
+  "status": "preregistered_not_run; replace binaries in root composed freeze before execution",
+  "baseline": "21cfc9ad",
+  "source_audit": "I75-FLASH-FIXED-DIMS-01",
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-cli": "4ae5605e267c0f740ae649e5443128f85d10e6ff886adff2a3a45945462482d1",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest": "5efca15dff0d88cd4e7724310234b03c4c7f2fbf86284589a9d90b63f96b13ab"
+  },
+  "stock": {
+    "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+    "sha256": "405b025f5c6ecb7c6ca08b18a25b75ff98e7260d3272cc283887ab9b9764284d"
+  },
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0"
+  },
+  "retained_corpus": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-1",
+  "staging": "Reuse byteexact48 retained native-cases/stock entries, append8 cases with seed75113 (gate/up/down expert0 +real indexer layer3, batch3, fp16/fp32). Run retained independent stock only for supplement8, then concatenate arrays. No old stock regeneration. fixed_key metadata null for48; added[0,0,0,0,1,1,0,0].",
+  "stock_supplement_command": [
+    "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+    "flash_projection_stock_oracle",
+    "--exact",
+    "--ignored",
+    "--test-threads=1"
+  ],
+  "stock_supplement_env": {
+    "MLXL3_PROJECTION_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/supplement"
+  },
+  "mutation": "Reuse actual physical OFF result and unchanged numerical output files; set only fixed_dims claim true, require fixed_counts(result,combined_cases,True) raises; zero wrappers cannot qualify ON. Unit already checks this category. Do not recompile kernel.",
+  "phases": [
+    {
+      "label": "component-fixed0-nt0",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed0-nt0",
+        "MLXL3_NATIVE_FLASH_NT2": "0"
+      },
+      "expected_fixed": [
+        0,
+        0
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "component-fixed0-nt1",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed0-nt1",
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      },
+      "expected_fixed": [
+        0,
+        0
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "component-fixed0-ntunset",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed0-ntunset",
+        "MLXL3_NATIVE_FLASH_NT2": null
+      },
+      "expected_fixed": [
+        0,
+        0
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "component-fixed1-nt0",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed1-nt0",
+        "MLXL3_NATIVE_FLASH_NT2": "0"
+      },
+      "expected_fixed": [
+        6,
+        2
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "component-fixed1-nt1",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed1-nt1",
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      },
+      "expected_fixed": [
+        6,
+        2
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "component-fixed1-ntunset",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-component-fixed1-ntunset",
+        "MLXL3_NATIVE_FLASH_NT2": null
+      },
+      "expected_fixed": [
+        6,
+        2
+      ],
+      "finite_words": 765184
+    },
+    {
+      "label": "fixed-malformed",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "timeout": 120,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "true",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/combined"
+      },
+      "required_json": {
+        "rejected": true,
+        "fc_hidden": true,
+        "fallback": true
+      }
+    },
+    {
+      "label": "independent64",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "fixed_counters": [
+        3840,
+        1920
+      ],
+      "static_counters": [
+        0,
+        0,
+        0,
+        480,
+        723
+      ],
+      "independent": "pre-existing initial.json hashes; no new golden"
+    },
+    {
+      "label": "context4096-off-on",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-libtest",
+        "gpu::flash::tests::fixed_dimensions_keep_context4096_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 240,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1"
+      },
+      "required_markers": [
+        {
+          "enabled": false,
+          "fixed_submissions": [
+            0,
+            0
+          ]
+        },
+        {
+          "enabled": true,
+          "fixed_submissions": [
+            4860,
+            2400
+          ]
+        }
+      ],
+      "finite_words_per_variant": 86409216,
+      "logits_per_variant": 744960,
+      "scope": "context capacity4096;3 trace tokens+2continuation row executions, no sparse>512 validation"
+    },
+    {
+      "label": "production-ar4096",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/build/fixed-dims/frozen/native-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-fixed-dims/mix-stq1_0/docs/measurements/issue75-native-flash-fixed-dims-20261104/quality-ar4096.json",
+        "--context-length",
+        "4096"
+      ],
+      "timeout": 240,
+      "env": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1"
+      },
+      "required": "4golden completions/reject/cancel2+recovery, joined, no MLX"
+    }
+  ],
+  "process_contract": "Root exclusive GPU grant; no builds/provers; one model/process at a time; each own PGID, timeout TERM5/KILL15/wait15; require1passed0failed with exact test, finite counts strict; abort first failure and all children joined before handback. No speed claim."
+}

@@ -29,6 +29,7 @@ pub struct FlashProjection<'a> {
     simdgroups: u32,
     nt: u32,
     static_key: Option<usize>,
+    fixed_key: Option<u8>,
     #[cfg(test)]
     nt2_submissions: std::cell::Cell<u64>,
 }
@@ -206,6 +207,13 @@ impl<'a> FlashProjection<'a> {
             );
         }
         let static_key = static_key(metal, k, cb, nt, !generic && !mtp_hidden)?;
+        let fixed_key = fixed_key(
+            metal,
+            [input, output],
+            splits,
+            [k, cb as u32, nt],
+            !generic && !mtp_hidden,
+        )?;
         if generic {
             let pipeline =
                 &metal.dense_qmv[usize::from(simdgroups == 8)][nt.trailing_zeros() as usize];
@@ -246,6 +254,7 @@ impl<'a> FlashProjection<'a> {
             simdgroups,
             nt,
             static_key,
+            fixed_key,
             #[cfg(test)]
             nt2_submissions: std::cell::Cell::new(0),
         })
@@ -382,6 +391,10 @@ impl<'a> FlashProjection<'a> {
                 } else if self.generic {
                     &gpu.dense_qmv[usize::from(self.simdgroups == 8)]
                         [self.nt.trailing_zeros() as usize]
+                } else if let Some(key) = self.fixed_key {
+                    &gpu.flash_fixed_qmv
+                        .as_ref()
+                        .context("missing Flash fixed dimensions PSO")?[usize::from(key)]
                 } else if let Some(key) = self.static_key {
                     &gpu.flash_static_qmv[key]
                 } else if self.nt == 2 {
@@ -444,7 +457,10 @@ impl<'a> FlashProjection<'a> {
             64,
         );
         #[cfg(test)]
-        if let Some(key) = self.static_key {
+        if let Some(key) = self.fixed_key {
+            let count = &gpu.flash_fixed_submissions[usize::from(key)];
+            count.set(count.get() + 1);
+        } else if let Some(key) = self.static_key {
             let count = &gpu.flash_static_submissions[key];
             count.set(count.get() + 1);
         }
@@ -454,6 +470,18 @@ impl<'a> FlashProjection<'a> {
         }
         Ok(dest)
     }
+}
+
+fn fixed_key(
+    metal: &Metal,
+    shape: [u32; 2],
+    splits: u32,
+    format: [u32; 3],
+    eligible: bool,
+) -> Result<Option<u8>> {
+    crate::flash_qmv::fixed_select(shape, splits, format, eligible, metal.flash_fixed_setting)
+        .map(|key| key.map(|key| key as u8))
+        .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_FLASH_FIXED_DIMS must be 0 or 1"))
 }
 
 fn static_key(
@@ -533,7 +561,11 @@ fn physical_flash_resident_nt2() -> Result<()> {
     let real = crate::checkpoint::inspect(&cases.last().context("missing real fixture")?.path)?;
     let hidden = FlashProjection::load(&gpu, &real, "mtp.fc_hidden")?;
     ensure!(
-        hidden.nt == 1 && hidden.mtp_hidden && hidden.splits == 2 && hidden.static_key.is_none()
+        hidden.nt == 1
+            && hidden.mtp_hidden
+            && hidden.splits == 2
+            && hidden.static_key.is_none()
+            && hidden.fixed_key.is_none()
     );
     ensure!(hidden.submit(&vec![0; 2560]).is_err() && hidden.nt2_submissions.get() == 0);
     let selected_case = cases
@@ -604,6 +636,28 @@ fn physical_flash_resident_nt2() -> Result<()> {
         )?;
         return Ok(());
     }
+    if gpu.flash_fixed_setting.is_none() {
+        let case = cases
+            .iter()
+            .find(|c| c.prefix.contains("index_qk_proj"))
+            .context("real indexer fixture required")?;
+        let checkpoint = crate::checkpoint::inspect(&case.path)?;
+        let error = FlashProjection::load(&gpu, &checkpoint, &case.prefix)
+            .err()
+            .context("invalid fixed flag accepted")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_NATIVE_FLASH_FIXED_DIMS must be 0 or 1")
+        );
+        let fallback = FlashProjection::load(&gpu, &selected_checkpoint, &selected_case.prefix)?;
+        ensure!(fallback.fixed_key.is_none() && hidden.fixed_key.is_none());
+        fs::write(
+            root.join("fixed-invalid-flag.json"),
+            b"{\"rejected\":true,\"fc_hidden\":true,\"fallback\":true}",
+        )?;
+        return Ok(());
+    }
     for invalid in 0..5 {
         let mut c = crate::checkpoint::inspect(&selected_case.path)?;
         let trellis = c
@@ -638,6 +692,10 @@ fn physical_flash_resident_nt2() -> Result<()> {
             FlashProjection::load
         };
         let layer = load(&gpu, &checkpoint, &case.prefix)?;
+        let before_fixed = gpu
+            .flash_fixed_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
         let before_static = gpu
             .flash_static_submissions
             .each_ref()
@@ -663,6 +721,13 @@ fn physical_flash_resident_nt2() -> Result<()> {
                 .map(std::cell::Cell::get)
                 == before_static
         );
+        ensure!(
+            gpu.flash_fixed_submissions
+                .each_ref()
+                .map(std::cell::Cell::get)
+                == before_fixed,
+            "invalid input encoded fixed QMV"
+        );
         let actual = if case.fp32 {
             let values: Vec<f32> = case
                 .x
@@ -687,6 +752,39 @@ fn physical_flash_resident_nt2() -> Result<()> {
             "case {i}: wrong encoded path count"
         );
         selected += submissions;
+        let expected_fixed = if gpu.flash_fixed_setting == Some(true)
+            && !case.generic
+            && layer.k == 2
+            && layer.cb == Codebook::Mul1
+            && nt == 1
+            && layer.splits == 1
+        {
+            match [layer.input, layer.output] {
+                [2560, 640] => Some(0),
+                [640, 2560] => Some(1),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        ensure!(
+            layer.fixed_key == expected_fixed,
+            "case {i}: wrong fixed PSO identity"
+        );
+        let fixed_submissions = gpu
+            .flash_fixed_submissions
+            .each_ref()
+            .map(std::cell::Cell::get)
+            .iter()
+            .zip(before_fixed)
+            .map(|(a, b)| a - b)
+            .collect::<Vec<_>>();
+        ensure!(
+            fixed_submissions
+                .iter()
+                .enumerate()
+                .all(|(key, &n)| n == u64::from(expected_fixed == Some(key as u8)))
+        );
         let expected_static = if gpu.flash_static_setting == Some(true)
             && !case.generic
             && layer.cb == Codebook::Mul1
@@ -718,7 +816,8 @@ fn physical_flash_resident_nt2() -> Result<()> {
             static_submissions
                 .iter()
                 .enumerate()
-                .all(|(key, &count)| count == u64::from(expected_static == Some(key)))
+                .all(|(key, &count)| count
+                    == u64::from(expected_fixed.is_none() && expected_static == Some(key)))
         );
         ensure!(
             actual.len() == expected.len() && !actual.is_empty(),
@@ -744,12 +843,12 @@ fn physical_flash_resident_nt2() -> Result<()> {
                 .flat_map(|w| w.to_le_bytes())
                 .collect::<Vec<_>>(),
         )?;
-        result.push(serde_json::json!({"case":i,"prefix":case.prefix,"fp32":case.fp32,"nt":nt,"nt2_submissions":submissions,"words":actual.len(),"unequal":differs,"static_key":expected_static,"static_submissions":static_submissions}));
+        result.push(serde_json::json!({"case":i,"prefix":case.prefix,"fp32":case.fp32,"nt":nt,"nt2_submissions":submissions,"words":actual.len(),"unequal":differs,"static_key":if expected_fixed.is_some() {None} else {expected_static},"static_submissions":static_submissions,"fixed_key":expected_fixed,"fixed_submissions":fixed_submissions}));
     }
     fs::write(
         root.join(format!("native-{}.json", u8::from(enabled))),
         serde_json::to_vec_pretty(
-            &serde_json::json!({"parity":unequal==0,"cases":result,"nt2_submissions":selected,"unequal":unequal,"static_k":gpu.flash_static_setting == Some(true),"static_submissions":gpu.flash_static_submissions.each_ref().map(std::cell::Cell::get)}),
+            &serde_json::json!({"parity":unequal==0,"cases":result,"nt2_submissions":selected,"unequal":unequal,"static_k":gpu.flash_static_setting == Some(true),"static_submissions":gpu.flash_static_submissions.each_ref().map(std::cell::Cell::get),"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":gpu.flash_fixed_submissions.each_ref().map(std::cell::Cell::get)}),
         )?,
     )?;
     ensure!(!enabled || selected > 0, "candidate never encoded NT2");
@@ -863,6 +962,7 @@ impl<'a> FlashExpert<'a> {
                 simdgroups: 4,
                 nt: 1,
                 static_key: static_key(gpu, 2, Codebook::Mul1, 1, true)?,
+                fixed_key: fixed_key(gpu, [input, output], splits, [2, 2, 1], true)?,
                 #[cfg(test)]
                 nt2_submissions: std::cell::Cell::new(0),
             })
