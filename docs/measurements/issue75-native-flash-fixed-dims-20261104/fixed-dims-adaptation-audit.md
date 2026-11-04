@@ -1,0 +1,23 @@
+# Fixed dimensions adaptation audit after the composed pilot
+
+Preregistered in `opti.md` as I75-FLASH-FIXED-DIMS-ADAPTATION-20261104 before source research. Source-only inspection of frozen round2 `789aa28d`/`d3f6018b`, main21cf reference `942d`, the two fixed wrappers, canonical body and relevant54Q history. No source/compiler/kernel/frozen artifact changed; no compilation, proof, test, disassembly generation or workload executed.
+
+**No wiring defect or missing dimension binding found.** The actual PSO selection precedes the five static-K fallbacks, both fixed PSOs are counted at encode, and the qualified context4096 run executed `[4860,2400]`. All five chosen dimension/split macros are literals. The source contract promised the unchanged canonical body with runtime matrix rows; it did not promise emitted loop unrolling.
+
+One concrete remaining specialization opportunity: `_qmv_tile_kernel.metal:18` still assigns `split=threadgroup_position_in_grid.z`. Even with literal `N_SPLITS=1`, `tile_begin=split*TILES_K` and `tile_end=min(tile_begin+TILES_K,TILES_K)` remain source expressions involving that runtime builtin. The valid dispatch has grid.z=1, hence split0 in execution, but the wrapper does not express that fact to the compiler. `simd` is also runtime. Each valid SIMD group processes40input tiles for2560→640 or10for640→2560. The source has no unroll pragma. Binding split0 and/or using an ordinal loop with those fixed iteration counts would be a **new variant**, requiring qualification and cost inspection; this audit does not implement or recommend forcing full unrolling blindly.
+
+Address math already receives literal input/output strides, tile counts and packed-K width; constants make folding possible. Lane/window arithmetic was already K-specialized in the baseline staticK2 PSO. Whether either path emits divisions, hoists address math, unrolls or changes register/occupancy cost is **not measured**. No runtime PSO ISA/disassembly was found in the inspected round2/fixed-dims build artifacts. The existing119KiB offline `build/fixed-dims/exl3.air` is a separate build, not a preserved runtime `789a` PSO or validated machine-code comparison.
+
+Existing isolation facilities, not run:
+
+- Current direct-Metal `gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible` (`native/src/gpu/moe.rs:590`) exposes per-command GPUStart/End times for one cold and one hot MoE; hot asserts10hits/zeroI/O. It can diagnose the relevant routed boundary, but one sample and error/cold setup make it **insufficient as a ready robust fixed0/fixed1 A/B microbenchmark**. No current direct-Metal timing harness directly isolates the two PSOs was found.
+- Archived54Q `docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/src/ssd_moe/qmv_micro.rs` has the closest reusable protocol: layers0/23/47, independent retained inputs/outputs, at least2s warmup, fixed routes/no timedI/O, four alternating pairs ×256forwards. It calls the retired MLX/SsdMoe path, so it cannot validate current fixed PSOs by rerunning unchanged. Preserve its inconclusive/rejected results; reuse its protocol only after explicit adaptation/preregistration.
+- `benchmarks/benchmark_decode_tiles.py` and `benchmark_smallm.py::qmv` already make dimensions literal on both MLX sides and compare tile widths/batching. They are unsuitable unchanged for the present dynamic-vs-fixed native PSO question. `tests/physical_flash_nt2.py` is a qualified component oracle, not a speed benchmark.
+
+Root's composed AR32 pilot is about−0.265%MAIN/−0.23%HOLD decode, with TTFT−7.36/−4.02% and total−5.37/−2.86%, constant Metal allocation. These are ensemble observations, not isolated fixed-dims attribution. Keep the correct bounded candidate for composition; no minimum-gain rejection. The next isolating study would hold scratch/HCgate and all dispatch/math options fixed, reuse qualified real gate/up/down/indexer data, measure repeated actual native fixed0/fixed1 PSOs or hot zeroI/O boundary with alternation and strict counters, and inspect already captured compiler output if available. Its outcome, instruction differences and startup/PSO memory costs remain **unmeasured**.
+
+Source identity snapshot:
+
+- `native/shaders/flash_static_qmv.metal`: `c4aafe7c2265292957d43ba75af523b519fd802c8b09572ff0db80a1ff51f22a`; same as a260 source: True; matches freeze: True.
+- `native/shaders/_qmv_tile_kernel.metal`: `27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88`; same as a260 source: True; matches freeze: not separately listed.
+- `native/src/flash_qmv.rs`: `54414481947bd9ae06817a7753c58dbf4763a9d65b7c5a1dfefc95b36d7cda66`; same as a260 source: True; matches freeze: True.
