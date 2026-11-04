@@ -1,0 +1,107 @@
+{
+  "status": "completed",
+  "parity": true,
+  "processes": [
+    {
+      "kind": "reference",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/performance/1-reference",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 57995,
+      "decode_tps": {
+        "MAIN": 6.252551392674227,
+        "HOLD": 6.37753002788009
+      }
+    },
+    {
+      "kind": "candidate",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen/cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/performance/2-candidate",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 58051,
+      "decode_tps": {
+        "MAIN": 6.536221260788588,
+        "HOLD": 6.504701466237305
+      }
+    },
+    {
+      "kind": "candidate",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen/cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/performance/3-candidate",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 58199,
+      "decode_tps": {
+        "MAIN": 6.617633147353165,
+        "HOLD": 6.633359652022275
+      }
+    },
+    {
+      "kind": "reference",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/performance/4-reference",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 58302,
+      "decode_tps": {
+        "MAIN": 6.168768143764932,
+        "HOLD": 6.383445487773033
+      }
+    }
+  ],
+  "all_children_joined": true
+}

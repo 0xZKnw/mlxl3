@@ -1879,7 +1879,8 @@
     "shader ../shaders/mapped_expert.metal": 1,
     "shader ../shaders/model_ops.metal": 1,
     "shader ../shaders/router_topk.h": 1,
-    "config MLXL3_NATIVE_HC_WORKSPACE": 1
+    "config MLXL3_NATIVE_HC_WORKSPACE": 1,
+    "config MLXL3_NATIVE_CROSS_LAYER": 1
   },
   "native/src/gpu/convert_matmul.rs": {
     ".shape": 3,
@@ -1906,17 +1907,18 @@
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
-    "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
+    "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1,
+    ".ready": 2
   },
   "native/src/gpu/gdn.rs": {
-    ".finish": 3,
+    ".finish": 5,
     ".shape": 2,
     ".transpose": 1,
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/hc.rs": {
     ".finish": 3,
-    ".shape": 5,
+    ".shape": 6,
     ".transpose": 5,
     "config MLXL3_FLASH_MODEL": 2,
     "config MLXL3_HC_FROZEN": 1,
@@ -3211,5 +3213,8 @@
   "native/src/gpu/hc_workspace_tests.rs": {
     ".take": 1,
     "config MLXL3_FLASH_MODEL": 2
+  },
+  "native/src/gpu/cross_layer_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 1
   }
 }

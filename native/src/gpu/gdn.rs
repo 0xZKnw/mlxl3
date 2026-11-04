@@ -52,6 +52,36 @@ struct PendingGdn {
 }
 
 pub type FlashGdnOutput = super::FlashAttentionOutput;
+
+pub(super) struct DeferredHcWrite {
+    streams: MatrixView,
+    branch: MatrixView,
+    gate: MatrixView,
+}
+pub(super) enum LayerOutput {
+    Ready(MatrixView),
+    Pending(DeferredHcWrite),
+}
+impl LayerOutput {
+    pub(super) fn complete(self, gpu: &Metal) -> Result<MatrixView> {
+        match self {
+            Self::Ready(streams) => Ok(streams),
+            Self::Pending(write) => gpu.command(|cmd| write.encode(gpu, cmd)),
+        }
+    }
+    pub(super) fn ready(&self) -> Result<&MatrixView> {
+        match self {
+            Self::Ready(streams) => Ok(streams),
+            Self::Pending(_) => anyhow::bail!("deferred HC output cannot escape the layer loop"),
+        }
+    }
+}
+impl DeferredHcWrite {
+    fn encode(&self, gpu: &Metal, cmd: &CommandBufferRef) -> Result<MatrixView> {
+        gpu.encode_hc_write(cmd, &self.streams, &self.branch, &self.gate)
+    }
+}
+
 pub struct FlashGdn<'a> {
     gpu: &'a Metal,
     qkv: FlashProjection<'a>,
@@ -386,11 +416,12 @@ impl<'a> LayerResidual<'a> {
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
-    ) -> Result<MatrixView> {
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let read = self.attn_hc.read(streams, false)?;
         ensure!(read.gate.is_some(), "missing attention injection gate");
         let attention = attend(&read.mixed)?;
-        self.forward_after_attention_read(streams, read, attention, next, depth)
+        self.forward_after_attention_read(streams, read, attention, next, depth, defer_write)
     }
     fn forward_after_attention_read(
         &mut self,
@@ -399,7 +430,8 @@ impl<'a> LayerResidual<'a> {
         attention: super::FlashAttentionOutput,
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
-    ) -> Result<MatrixView> {
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let gate = read
             .gate
             .as_ref()
@@ -413,19 +445,46 @@ impl<'a> LayerResidual<'a> {
                 &self.moe,
             )?;
             let experts = self.moe.with_completed_gate(&mlp_read.mixed, routing)?;
-            return self.mlp_hc.write(
+            return self.final_write(
                 &written,
                 experts.completed()?,
                 mlp_read.gate.as_ref().context("missing MLP injection")?,
+                defer_write,
             );
         }
         let (written, mlp_read) =
             self.mlp_hc
                 .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
-        Ok(self
-            .mlp_hc
-            .forward_moe_read(&written, &mut self.moe, mlp_read, next, depth)?
-            .0)
+        let experts = self.moe.lookahead(&mlp_read.mixed, next, depth)?;
+        self.final_write(
+            &written,
+            experts.completed()?,
+            mlp_read.gate.as_ref().context("missing MLP injection")?,
+            defer_write,
+        )
+    }
+    fn final_write(
+        &self,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
+        if defer_write {
+            Ok(LayerOutput::Pending(DeferredHcWrite {
+                streams: streams.clone(),
+                branch: branch.clone(),
+                gate: gate.clone(),
+            }))
+        } else {
+            let written = self.mlp_hc.write(streams, branch, gate)?;
+            #[cfg(test)]
+            self.mlp_hc
+                .gpu
+                .hc_final_writes
+                .set(self.mlp_hc.gpu.hc_final_writes.get() + 1);
+            Ok(LayerOutput::Ready(written))
+        }
     }
 }
 
@@ -485,18 +544,70 @@ impl<'a> FlashGdnLayer<'a> {
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
     ) -> Result<MatrixView> {
+        self.forward_deferred(streams, next, depth, false)?
+            .complete(self.attention.gpu)
+    }
+    pub(super) fn forward_deferred(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let before = self.snapshot();
         let residual = (|| {
             let (read, attention) =
                 self.attention
                     .forward_after_hc(&self.residual.attn_hc, streams, false)?;
-            self.residual
-                .forward_after_attention_read(streams, read, attention, next, depth)
+            self.residual.forward_after_attention_read(
+                streams,
+                read,
+                attention,
+                next,
+                depth,
+                defer_write,
+            )
         })();
         if residual.is_err() {
             self.restore(&before)?;
         }
         residual
+    }
+
+    pub(super) fn forward_pending(
+        &mut self,
+        write: DeferredHcWrite,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
+        let before = self.snapshot();
+        let result = (|| {
+            let gpu = self.attention.gpu;
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
+            let (streams, read, pending) = gpu.command(|cmd| {
+                let streams = write.encode(gpu, cmd)?;
+                let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
+                let pending = self.attention.encode(cmd, read.mixed(), false)?;
+                Ok((streams, read, pending))
+            })?;
+            let read = read.finish(false)?;
+            let attention = self.attention.finish(pending)?;
+            #[cfg(test)]
+            gpu.cross_layer_triples
+                .set(gpu.cross_layer_triples.get() + 1);
+            self.residual.forward_after_attention_read(
+                &streams,
+                read,
+                attention,
+                None,
+                0,
+                defer_write,
+            )
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
     }
 }
 
@@ -624,3 +735,7 @@ mod tests {
 #[cfg(test)]
 #[path = "hc_gdn_tests.rs"]
 mod hc_gdn_tests;
+
+#[cfg(test)]
+#[path = "cross_layer_tests.rs"]
+mod cross_layer_tests;

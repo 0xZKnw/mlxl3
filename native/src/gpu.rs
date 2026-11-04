@@ -218,6 +218,13 @@ pub struct Metal {
     hc_workspace_enabled: std::cell::Cell<bool>,
     #[cfg(test)]
     hc_workspace_uses: std::cell::Cell<usize>,
+    cross_layer: std::cell::Cell<bool>,
+    #[cfg(test)]
+    cross_layer_triples: std::cell::Cell<usize>,
+    #[cfg(test)]
+    cross_layer_fail_after: std::cell::Cell<Option<usize>>,
+    #[cfg(test)]
+    hc_final_writes: std::cell::Cell<usize>,
     #[cfg(test)]
     hc_gdn_pairs: std::cell::Cell<usize>,
     ssd_direct_enabled: bool,
@@ -349,6 +356,14 @@ impl Metal {
                 Err(error) => return Err(error.into()),
             }
             .context("MLXL3_NATIVE_HC_WORKSPACE must be 0 or 1")?;
+            let cross_layer = match std::env::var("MLXL3_NATIVE_CROSS_LAYER") {
+                Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_gdn_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_CROSS_LAYER must be 0 or 1")?;
             let hc_gdn_chain = match std::env::var("MLXL3_NATIVE_HC_GDN_CHAIN") {
                 Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -614,6 +629,13 @@ impl Metal {
                 hc_workspace_enabled: std::cell::Cell::new(hc_workspace_enabled),
                 #[cfg(test)]
                 hc_workspace_uses: std::cell::Cell::new(0),
+                cross_layer: std::cell::Cell::new(cross_layer),
+                #[cfg(test)]
+                cross_layer_triples: std::cell::Cell::new(0),
+                #[cfg(test)]
+                cross_layer_fail_after: std::cell::Cell::new(None),
+                #[cfg(test)]
+                hc_final_writes: std::cell::Cell::new(0),
                 #[cfg(test)]
                 hc_gdn_pairs: std::cell::Cell::new(0),
                 ssd_direct_enabled,
