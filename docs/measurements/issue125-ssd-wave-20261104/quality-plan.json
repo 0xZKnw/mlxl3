@@ -1,0 +1,117 @@
+{
+  "status": "PREREGISTERED_NOT_EXECUTED",
+  "parity": false,
+  "grant_required": true,
+  "artifacts_frozen": true,
+  "baseline": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1"
+  },
+  "checks": [
+    {
+      "label": "forced-component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::bounded_extra_wave_submits_two_records_before_the_held_tail",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "marker": "NATIVE_SSD_EXTRA_WAVE",
+      "expected": {
+        "cases": 4,
+        "finite_words": 10240,
+        "actual_extra_submissions": 2,
+        "max_commands": 4
+      },
+      "timeout_seconds": 120
+    },
+    {
+      "label": "model-off-on",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "marker": "NATIVE_SSD_EXTRA_WAVE_MODEL",
+      "expected": {
+        "compared_state_words": 115212288,
+        "compared_logits": 1986560,
+        "initial_archive_states": 84,
+        "context": 4096,
+        "cold_control_and_candidate": true,
+        "explicit_legacy_continuation": true,
+        "parity": true
+      },
+      "additional_requirements": [
+        "4steps with exact token order248044/1/42/7",
+        "actual_extra_submissions total>0; every step0..48; control counts0",
+        "nonempty complete finite states/logits/hidden checked inside actual fixture"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "label": "partial-record-recovery",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "label": "cli4096",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/quality/cli4096.json",
+        "--context-length",
+        "4096",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240
+    }
+  ],
+  "controls": [
+    "one model/process; explicit exact ignored tests must report1pass0fail",
+    "frozen source/binary SHAcheck before and after; no MLX dylibs in native path",
+    "timeout/firstfailure/finally processgroup TERM5s/KILL/reap, parityfalse until all gates complete",
+    "CPU/proofs/builds drained and exclusive root grant before execution",
+    "root may reuse current full CLI/error/cancel/recovery wrapper and compose unchanged independent oracle quality, no added speed from durations"
+  ],
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+      "sha256": "4c5f1f7d28e12e2727fceca5ddc032019a94d26c38426c4fadf05654fb29880a",
+      "bytes": 10123808,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+      "sha256": "4bb5b11fffb2503f91efd2019039458ee48c21cf22bdd02a95c08378081eccbf",
+      "bytes": 9438048,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  }
+}

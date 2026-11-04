@@ -1,0 +1,52 @@
+{
+  "status": "CPU_FROZEN_PHYSICAL_PENDING",
+  "source_commit": "b37903a2c64b626cc187dce5b65da634971715a2",
+  "base_commit": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "build_source": "byte-exact working files subsequently committed as source_commit",
+  "source_hashes": {
+    "native/src/ssd_reads.rs": "273ff4729284d8751a0bc65cebb048f0f53cea6e4860682778a7548a65c6d76a",
+    "native/src/ssd_reads/wave_tests.rs": "e8cf5ea8f9c342729aa980d23a59db8e0406b9b3af7de15ee4f4671e419145ca",
+    "native/src/gpu/moe.rs": "c113558ba8e72417c7f01fdd87d03e5862a9c8235dfbcf414bdb4948355f55df",
+    "native/src/gpu/flash.rs": "a40daf47c6a4f2b6c453f764e395dcc7297ea2db8cda595f574b2f1b4f7fb09d",
+    "native/src/gpu/ssd_wave_model_tests.rs": "10b89bb77c2034e36d84f0f91d071f693f77ef06ba28f2301eb3b1f584e3e296",
+    "scripts/kani_obligations.json": "4be4817a9ad62b580ba7bd25d8038761adf23f4f3526c86cdf880862917d40dd",
+    "tests/test_kani_ci.py": "80069edd2e5837fe3d63e4f5df156509454351db9e895ee9b3ae992492245941",
+    "docs/native-coverage/mlx-sites.json": "6db99d298a74c05a9dfbb17b77018634831fd325a49dcc329a44533a27302886",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9",
+    ".github/workflows/rust.yml": "bed72efd3e610c789ff4f1ae37dd6aab1ada410b79e7344c2111eadfae05d257"
+  },
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+      "sha256": "4c5f1f7d28e12e2727fceca5ddc032019a94d26c38426c4fadf05654fb29880a",
+      "bytes": 10123808,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+      "sha256": "4bb5b11fffb2503f91efd2019039458ee48c21cf22bdd02a95c08378081eccbf",
+      "bytes": 9438048,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "all_children_joined": true,
+  "gpu_executed": false,
+  "physical_parity": false,
+  "experimental_flag": "MLXL3_NATIVE_SSD_EXTRA_WAVE",
+  "default": "OFF; literal1 exactAppleM5; depth0/no-prefetch guard",
+  "environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/cargo-target"
+  },
+  "commands": {
+    "cli": "cargo build --locked --release --no-default-features --features direct-metal,chat --bin mlxl3-rs",
+    "libtest": "cargo test --locked --release --features chat --lib --no-run --message-format=json"
+  },
+  "physical_plan": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/quality-plan.json",
+  "created_utc": "2026-11-04T19:11:11.875946+00:00"
+}
