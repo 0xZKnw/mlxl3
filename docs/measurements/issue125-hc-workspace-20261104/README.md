@@ -1,6 +1,6 @@
 # Issue 125 L5: per-HC workspace
 
-Status: CPU checks and full suites pass; frozen artifacts, physical correctness and speed are pending. The strict `MLXL3_NATIVE_HC_WORKSPACE=0|1` setting is snapshotted once and defaults OFF; explicit1 is qualified only on exact Apple M5. This is an isolated prototype based on65b50fa5413747c709729707fde5cd033d8b022e; no PR, activation or app installation has occurred.
+Status: CPU checks, full suites and two private releases pass; physical correctness and speed are pending. The strict `MLXL3_NATIVE_HC_WORKSPACE=0|1` setting is snapshotted once and defaults OFF; explicit1 is qualified only on exact Apple M5. This is an isolated prototype based on65b50fa5413747c709729707fde5cd033d8b022e; no PR, activation or app installation has occurred.
 
 Each HC owns normalized10240, down320, active320 and up10240 temporaries. Its cache remains visible to the memory ledger even while leased. A lease retains the actual command buffer and permits reuse only after Completed. Dropping it in any other status, including NotEnqueued, invalidates the cached owners: an old caller can still commit its retained command safely, while subsequent calls allocate different buffers. Busy, dtype mismatch and trace use fresh buffers. Mixed and gate outputs remain independent and can be retained by callers.
 
@@ -30,3 +30,12 @@ MLXL3_NATIVE_HC_WORKSPACE=1 NATIVE_LIBTEST gpu::memory::tests::native_ledger_tra
 The first gate checks six varied F16/F32 reverse-strided cases against the unchanged OFF path, nonempty finite full mixed/gate words, actual7→3requests after warmup and selected-path counts. It retains old outputs, poisons the temporary buffers, rejects abandoned backing aliasing, exercises busy/dtype/trace fallback, drops encoded work before commit and later commits it after a fresh call, injects a post-acquisition precommit error, recovers, and clears/rewarms the cache. The existing ledger gate additionally checks complete84states, a retained snapshot, idle release, actual admission and request shrink. Full-model independent initial-state/logit archives and real CLI golden/cancel/prefix checks must run on the final composition before32-token timing. The L3 composition changes F32 warm requests6→3 and must adjust exact expectations without weakening path checks.
 
 Use the common32-token MAIN/HOLD A/B/B/A screen only after correctness: same3GiB/48×53, four readers, dynamic0, depth0, prefixoff, T0/K1/penalty1, one warm plus one measured response per prompt/process. No build/prover/other inference may overlap. Preserve drift, outputs and hashes; do not add standalone gains.
+
+## Frozen CPU-qualified artifacts
+
+Built from clean local source3d47c4f4d2e01b23182e13c439b7acd684c47fc5, with direct-metal/chat, minOS26.2 and SDK27.2 confirmed from both Mach-O headers. CLI and libtest builds passed in33.2s and42.3s. `freeze.json` records absolute private paths, sizes and SHA-256; binaries are readonly and were not run. No GPU process, speed result, PR or CI run exists for this isolated prototype. The later metadata-only receipt does not change its executable sources. All child processes were joined before handoff. Root will compose the L3 up-absent path and qualify the exact resulting binaries separately.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| direct-cli | 10141968 | df639d4280c500882351101cd3e74a93b958227b1bd8d2e1e9f099ebd2cd80ab |
+| native-libtest | 9378000 | 22bd250cc66b75b0a91ebe6a11f7e4afacf965683be68c56471a2e3f067177f2 |
