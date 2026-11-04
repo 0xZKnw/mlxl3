@@ -1852,6 +1852,7 @@
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
+    "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/dense_projection.metal": 1,
@@ -1985,6 +1986,9 @@
     ".to_f32": 2,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
+  },
+  "native/src/gpu/ssd_direct_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -2884,6 +2888,10 @@
     ".start": 8,
     ".take": 1,
     ".try_clone": 10
+  },
+  "native/src/ssd_reads/direct_tests.rs": {
+    ".ready": 7,
+    ".try_clone": 8
   },
   "native/src/streaming.rs": {
     ".finish": 5
