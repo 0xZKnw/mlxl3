@@ -1,0 +1,52 @@
+{
+  "status": "await_future_CPU_grant_then_fresh_freeze_and_GPU_grant",
+  "environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MLXL3_NATIVE_HC_UP_MIX": "1",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "1",
+    "MLXL3_NATIVE_HC_WORKSPACE": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "artifacts": null,
+  "tests_not_executed": [
+    {
+      "name": "gpu::hc::workspace_tests::physical_workspace_reuses_only_completed_private_temporaries",
+      "expected_fresh_f16_f32": [
+        7,
+        6
+      ],
+      "expected_reused": 3,
+      "expected_cases": 6
+    },
+    {
+      "name": "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_components_and_fallbacks",
+      "expected_cases": 48
+    },
+    {
+      "name": "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths",
+      "expected_cases": 16,
+      "workspace_enabled": true,
+      "workspace_uses_per_row": 97,
+      "up_uses_when_selected": 97,
+      "down_uses_when_selected": 96
+    },
+    {
+      "name": "gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay",
+      "expected_workspace_bytes_when_L3": 4221440,
+      "expected_workspace_bytes_without_L3": 8194560
+    }
+  ],
+  "test_arguments": [
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "process_ownership": "Reuse existing strict bounded owner; one process/model; exact1test; strict finite JSON and markers; TERM5/KILL15/join and PGID empty on every outcome; report false until all relevant gates pass",
+  "source_only": true
+}

@@ -187,7 +187,7 @@ fn physical_workspace_reuses_only_completed_private_temporaries() -> Result<()> 
     ensure!(cases == 6);
     eprintln!(
         "I125_HC_WORKSPACE_COMPONENT {}",
-        serde_json::json!({"parity":true,"cases":cases,"finite_words":cases*2564,"fresh_requests_by_dtype_f16_f32":fresh_counts,"warm_requests":fresh_counts,"reused_requests":3,"busy_fallback":true,"dtype_fallback":true,"trace_fallback":true,"uncommitted_drop_invalidates":true,"late_error_recovery":true,"old_outputs_retained":true,"poisoned_scratch":true,"abandoned_noalias":true,"postencode_error":true})
+        serde_json::json!({"parity":true,"cases":cases,"finite_words":cases*2564,"fresh_requests_by_dtype_f16_f32":fresh_counts,"reused_requests":3,"busy_fallback":true,"dtype_fallback":true,"trace_fallback":true,"uncommitted_drop_invalidates":true,"late_error_recovery":true,"old_outputs_retained":true,"poisoned_scratch":true,"abandoned_noalias":true,"postencode_error":true})
     );
     Ok(())
 }
