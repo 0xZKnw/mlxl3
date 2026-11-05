@@ -1227,6 +1227,21 @@ impl Qwen35Moe {
         self.run(token, true)
     }
 
+    /// Complete production cache export for independent backend migration checks.
+    pub fn state_trace(&self) -> Result<Vec<(String, Array)>> {
+        let mut out = Vec::with_capacity(self.layers.len() * 2);
+        for (i, layer) in self.layers.iter().enumerate() {
+            let (names, states) = match layer {
+                Layer::Linear(l) => (["conv", "recurrent"], l.states()?),
+                Layer::Attention(l) => (["keys", "values"], l.states()?),
+            };
+            for (name, value) in names.into_iter().zip([states.0, states.1]) {
+                out.push((format!("layer.{i}.{name}"), value.try_clone()?));
+            }
+        }
+        Ok(out)
+    }
+
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
         match self.run_tokens(tokens, false, true) {
             Ok((logits, _)) => Ok(logits),
@@ -2274,6 +2289,85 @@ impl GatedDelta {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Qwen checkpoint: capture independent MLX oracle for the direct Metal port"]
+    fn write_direct_metal_session_oracle() -> Result<()> {
+        use std::io::Write;
+        let root = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_NATIVE_ORACLE")?);
+        std::fs::create_dir(&root)?;
+        std::fs::write(
+            root.join("status.json"),
+            br#"{"status":"in_progress","parity":false}"#,
+        )?;
+        let result = (|| {
+            let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+            let mut steps = Vec::new();
+            let save = |name: &str, data: &[u8]| -> Result<()> {
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(root.join(name))?
+                    .write_all(data)?;
+                Ok(())
+            };
+            for (step, token) in [248044, 1, 42, 11].into_iter().enumerate() {
+                let (logits, layers) = model.trace(token)?;
+                let logits = logits.to_f16_bits()?;
+                ensure!(
+                    logits.len() == 248320
+                        && logits.iter().all(|&v| f16::from_bits(v).is_finite())
+                        && layers.len() == 42,
+                    "incomplete Qwen oracle"
+                );
+                save(
+                    &format!("{step}-logits.bin"),
+                    &logits
+                        .iter()
+                        .flat_map(|v| v.to_le_bytes())
+                        .collect::<Vec<_>>(),
+                )?;
+                for (i, layer) in layers.iter().enumerate() {
+                    ensure!(
+                        layer.len() == 2048 && layer.iter().all(|&v| f16::from_bits(v).is_finite()),
+                        "invalid Qwen layer oracle"
+                    );
+                    save(
+                        &format!("{step}-layer-{i}.bin"),
+                        &layer
+                            .iter()
+                            .flat_map(|v| v.to_le_bytes())
+                            .collect::<Vec<_>>(),
+                    )?;
+                }
+                let mut states = Vec::new();
+                for (i, (name, value)) in model.state_trace()?.into_iter().enumerate() {
+                    let values = value.to_f32()?;
+                    ensure!(
+                        !values.is_empty() && values.iter().all(|v| v.is_finite()),
+                        "invalid Qwen state oracle"
+                    );
+                    let file = format!("{step}-state-{i}.bin");
+                    save(&file, &value.to_bytes()?)?;
+                    states.push(serde_json::json!({"name":name,"shape":value.shape(),"file":file,"count":values.len()}));
+                }
+                ensure!(states.len() == 80, "missing Qwen state oracle");
+                steps.push(serde_json::json!({"token":token,"states":states}));
+            }
+            std::fs::write(
+                root.join("manifest.json"),
+                serde_json::to_vec_pretty(&steps)?,
+            )?;
+            Ok(())
+        })();
+        std::fs::write(
+            root.join("status.json"),
+            serde_json::to_vec_pretty(
+                &serde_json::json!({"status":if result.is_ok(){"captured"}else{"failed"},"parity":false,"error":result.as_ref().err().map(|e:&anyhow::Error|format!("{e:#}"))}),
+            )?,
+        )?;
+        result
+    }
     use std::time::Instant;
 
     fn empty_checkpoint(path: &Path) -> Checkpoint {

@@ -1,5 +1,42 @@
 //! CPU guards shared by Qwen loaders; rejected configurations allocate no weights.
 
+/// Validate before a token can change any layer state. No wrapping cursor arithmetic.
+pub(crate) fn native_step_end(token: u32, vocab: u32, offset: u32, limit: u32) -> Option<u32> {
+    if token >= vocab || offset >= limit {
+        return None;
+    }
+    offset.checked_add(1)
+}
+
+#[cfg(test)]
+#[test]
+fn native_cursor_checks_token_and_context_before_advancing() {
+    assert_eq!(native_step_end(248319, 248320, 4095, 4096), Some(4096));
+    assert_eq!(native_step_end(248320, 248320, 0, 4096), None);
+    assert_eq!(native_step_end(0, 0, 0, 1), None);
+    assert_eq!(native_step_end(0, 1, 4096, 4096), None);
+    assert_eq!(
+        native_step_end(0, 1, u32::MAX - 1, u32::MAX),
+        Some(u32::MAX)
+    );
+    assert_eq!(native_step_end(0, 1, u32::MAX, u32::MAX), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_qwen_step_validates_before_state_publication() {
+    let (token, vocab, offset, limit): (u32, u32, u32, u32) = kani::any();
+    let actual = native_step_end(token, vocab, offset, limit);
+    assert_eq!(actual.is_some(), token < vocab && offset < limit);
+    if let Some(end) = actual {
+        assert_eq!(u64::from(end), u64::from(offset) + 1);
+        assert!(end <= limit);
+    }
+    kani::cover!(actual.is_some() && offset + 1 == limit);
+    kani::cover!(token >= vocab && actual.is_none());
+    kani::cover!(offset >= limit && actual.is_none());
+}
+
 /// Q/gate, K/V and output projection widths, in the backend's signed shape domain.
 pub(crate) fn attention_widths(heads: i32, kv_heads: i32, head_dim: i32) -> Option<[i32; 3]> {
     if heads <= 0 || kv_heads <= 0 || heads % kv_heads != 0 || head_dim <= 0 {

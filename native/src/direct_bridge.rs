@@ -1,16 +1,17 @@
 //! Resident Flash bridge over the native Metal session.
 use super::*;
 use mlxl3_native::{
-    gpu::{FlashMtpHead, FlashNext, Metal},
+    gpu::{FlashMtpHead, Metal},
     tokenizer::ChatTokenizer,
 };
 use std::path::Path;
 
-pub(super) type NativeChatModel<'a> = FlashNext<'a>;
 pub(super) type ChatMtpHead<'a> = FlashMtpHead<'a>;
+#[path = "direct_model.rs"]
+mod model;
 #[path = "native_prompt_cache.rs"]
 mod prefix;
-pub(super) use prefix::{PromptCache, admit_request, prefill};
+pub(super) use model::{NativeChatModel, PromptCache, admit_request, prefill};
 
 pub(super) fn select(
     model: &NativeChatModel,
@@ -44,6 +45,7 @@ fn prepare_head<'a>(
     model: &NativeChatModel<'a>,
     head: &mut Option<(String, FlashMtpHead<'a>)>,
 ) -> Result<bool> {
+    let model = model.flash()?;
     anyhow::ensure!(
         mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
         "Flash request memory budget supports AR only"
@@ -68,6 +70,7 @@ fn prepare_draft(
     model: &NativeChatModel,
     slot: &mut Option<(String, usize, RoundDraft)>,
 ) -> Result<bool> {
+    let model = model.flash()?;
     anyhow::ensure!(
         mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
         "Flash request memory budget supports AR only"
@@ -100,10 +103,10 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let started = Instant::now();
     let tokenizer = ChatTokenizer::load(&path)?;
     let gpu = Metal::new()?;
-    let mut model = FlashNext::load(&gpu, &c, 0)?;
+    let mut model = NativeChatModel::load(&gpu, &c, 0)?;
     let limit = model.context_limit();
-    let speculative =
-        mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit());
+    let speculative = model.is_flash()
+        && mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit());
     anyhow::ensure!(
         requested >= 0 && requested as u32 <= limit,
         "invalid requested context length"
@@ -126,7 +129,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":speculative,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":1,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"flash":{"backend":"direct-metal","memory":model.memory_ledger(None)?}}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":speculative,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":if speculative {1} else {0},"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":if model.is_flash(){Value::Null}else{json!({"fixed_bytes":30u64*(32*128*128*4+3*8192*2),"layers":[{"bytes_per_token":20480,"step":1,"max_tokens":null}]})},"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -150,7 +153,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         let result = (|| -> Result<()> {
             match request.kind.as_str() {
                 "flash_memory" => emit_event(
-                    json!({"type":"flash_memory","request_id":id,"ledger":prefix::ledger(&model,head.as_ref().map(|(_,head)|head),draft.as_ref().map(|(_,_,draft)|draft),prompt_cache.as_ref())?}),
+                    json!({"type":"flash_memory","request_id":id,"ledger":model::ledger(&model,head.as_ref().map(|(_,head)|head),draft.as_ref().map(|(_,_,draft)|draft),prompt_cache.as_ref())?}),
                 ),
                 "ping" => emit_event(
                     json!({"type":"pong","request_id":id,"memory":model.memory_stats()?}),
@@ -193,6 +196,10 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                 "tune_mtp" => bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets"),
                 "generate" => {
                     cancelled.store(false, Ordering::Relaxed);
+                    anyhow::ensure!(
+                        model.is_flash() || !(request.mtp || request.dflash2),
+                        "native Qwen MTP/DFlash is not supported yet"
+                    );
                     anyhow::ensure!(
                         !(request.response_schema.is_some() && request.mcp_enabled),
                         "JSON output and MCP must be used separately"
