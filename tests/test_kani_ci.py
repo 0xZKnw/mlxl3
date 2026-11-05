@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
         "resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded",
         "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
         "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",

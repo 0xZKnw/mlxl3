@@ -1,0 +1,23 @@
+{
+  "status": "source_and_focused_cpu_checks_passed",
+  "tests": 9,
+  "synthetic_128_only": true,
+  "real_historical_32_report_validated": true,
+  "ruff": "PASS after initial B023 closure binding correction (3 diagnostics)",
+  "format": "PASS",
+  "crosshair": {
+    "command": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m crosshair check build.ar33.run.positive --analysis_kind=asserts --per_condition_timeout=2",
+    "status": "unavailable",
+    "diagnostic": "No module named crosshair"
+  },
+  "files": {
+    "build/ar33/run.py": "35cef8f0149b94e59a7a62e279da8f49c4f2d5c8b712a7ecdab77061d2c7f993",
+    "build/ar33/test_run.py": "1dd233a2744908c8510dc98c77669aa7e44d2b226b1ebf30aff8b0c72790cc65"
+  },
+  "limits": [
+    "No GPU/model/benchmark run",
+    "128-token contract tests use synthetic metadata, not a 128-token inference",
+    "T02 actual model-counter validation must be added after field names settle",
+    "Unknown nonempty PGID after reaping returns cleanup false; never signals an unowned recycled group"
+  ]
+}

@@ -1,0 +1,13 @@
+import hashlib,json,runpy,time
+from pathlib import Path
+root=Path.cwd();r=runpy.run_path(str(root/'build/ar33/run.py'));d=r['D'];d['OLD']['stop']=r['safe_stop']
+old=Path('/Users/justin/.codex/worktrees/flash-ar30-20261105/mix-stq1_0/build/ar30/frozen/direct-cli');sha='f24201e3e5ca145f94397a90cf9edaa746d81c86102c67d2d51350a7d3e734f0';assert d['sha'](old)==sha
+base=root/'docs/measurements/flash-ar33-trials-20261105/reference128';base.mkdir();sink=base/'receipt.json';folder=base/'benchmark'
+report={'status':'running','parity':False,'all_children_joined':False,'phases':[],'artifacts':{'old-qualified-cli':{'path':str(old),'sha256':sha}},'started_epoch':time.time(),'limits':'Independent qualified old OFF binary; not candidate speed before candidate quality. Brave and Deezer open.'};d['save'](report,sink)
+cmd=[d['PYTHON'],str(root/'scripts/benchmark-flash-bridge.py'),str(old),d['MODEL'],str(folder),'--prompt','MAIN','--tokens','128','--repeats','1','--cache-gib','3','--timeout','180']
+try:
+ stats=r['run'](report,sink,base,'old-off128',cmd,r['environment']((0,0)),lambda text:r['validate_benchmark'](d['read_json'](folder/'report.json'),sha,128))
+ report.update(status='validated_independent_reference',parity=True,stats=stats);print('OLD128',stats['decode_tps'],flush=True)
+except BaseException as error:report.update(status='failed',parity=False,error=repr(error));raise
+finally:
+ report['seconds']=time.time()-report['started_epoch'];d['save'](report,sink);r['journal']('REFERENCE128 CLOSED '+report['status']+' joined='+str(report['all_children_joined']))

@@ -1,0 +1,224 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--exact",
+    "--harness",
+    "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
+    "--harness",
+    "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+    "--jobs",
+    "1",
+    "--output-format",
+    "regular"
+  ],
+  "cwd": "/Users/justin/.codex/worktrees/flash-ar33-trials-20261105/mix-stq1_0/native",
+  "target_dir": "/Users/justin/.codex/worktrees/flash-ar33-trials-20261105/mix-stq1_0/build/ar33/kani-target",
+  "timeout_seconds": 120,
+  "versions": {
+    "kani": {
+      "returncode": 0,
+      "output": "Kani Rust Verifier 0.68.0 (cargo plugin)\nCBMC 6.11.0"
+    },
+    "rustc": {
+      "returncode": 0,
+      "output": "rustc 1.98.1 (48a229cea 2026-09-01)"
+    }
+  },
+  "status": "bounded_cpu_verified",
+  "parity": false,
+  "source_sha256": {
+    "native/src/pipeline_caps.rs": "f485bdb417f6b0c603ea03e716fe7a6fd3d36310bc5fd9e9289b93c3707d6e61",
+    "native/src/flash_support.rs": "97a1a374de693c20b3712c0e206f107997700bd023089f12beda09d55b546f55"
+  },
+  "pid": 52114,
+  "returncode": 0,
+  "elapsed_seconds": 20.256935459008673,
+  "timed_out": false,
+  "all_process_group_joined": true,
+  "log": "docs/measurements/flash-ar33-trials-20261105/cpu/kani-caps-flags.log",
+  "log_bytes": 274173,
+  "log_sha256": "8f0d8dded39416f0de402cd089b7114bb18bedb993df9ba8e0ed2c28220d84a9",
+  "proof_pass": true,
+  "results": [
+    {
+      "harness": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+      "statuses": {
+        "SUCCESS": 233,
+        "SATISFIED": 6,
+        "UNREACHABLE": 7
+      },
+      "obligations": 240,
+      "unreachable": [
+        {
+          "number": 46,
+          "id": "std::ptr::align_offset::mod_inv.assertion.1",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to subtract with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+        },
+        {
+          "number": 47,
+          "id": "std::ptr::align_offset::mod_inv.assertion.2",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to shift right with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+        },
+        {
+          "number": 48,
+          "id": "std::ptr::align_offset::mod_inv.assertion.3",
+          "status": "UNREACHABLE",
+          "description": "\"index out of bounds: the length is less than or equal to the given index\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+        },
+        {
+          "number": 52,
+          "id": "core::str::validations::run_utf8_validation.assertion.2",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to subtract with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation"
+        },
+        {
+          "number": 53,
+          "id": "core::str::validations::run_utf8_validation.assertion.3",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to add with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation"
+        },
+        {
+          "number": 68,
+          "id": "core::str::validations::run_utf8_validation.assertion.18",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to add with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:238:21 in function core::str::validations::run_utf8_validation"
+        },
+        {
+          "number": 74,
+          "id": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+          "status": "UNREACHABLE",
+          "description": "\"attempt to shift left with overflow\"",
+          "location": "../../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+        }
+      ],
+      "covers": [
+        {
+          "number": 29,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.1",
+          "status": "SATISFIED",
+          "description": "\"cover condition: value == \"1\" && m5 && result == Some(true)\"",
+          "location": "native/src/flash_support.rs:3728:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        },
+        {
+          "number": 30,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.2",
+          "status": "SATISFIED",
+          "description": "\"cover condition: value == \"1\" && !m5 && result == Some(false)\"",
+          "location": "native/src/flash_support.rs:3729:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        },
+        {
+          "number": 31,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.3",
+          "status": "SATISFIED",
+          "description": "\"cover condition: value == \"0\"\"",
+          "location": "native/src/flash_support.rs:3730:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        },
+        {
+          "number": 32,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.4",
+          "status": "SATISFIED",
+          "description": "\"cover condition: value == \"\u00e9\" && result.is_none()\"",
+          "location": "native/src/flash_support.rs:3731:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        },
+        {
+          "number": 34,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.5",
+          "status": "SATISFIED",
+          "description": "\"cover condition: m5\"",
+          "location": "native/src/flash_support.rs:3716:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        },
+        {
+          "number": 35,
+          "id": "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals.cover.6",
+          "status": "SATISFIED",
+          "description": "\"cover condition: !m5\"",
+          "location": "native/src/flash_support.rs:3717:9 in function flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals"
+        }
+      ],
+      "unsupported_checks": [
+        {
+          "number": 37,
+          "id": "kani::mem::cbmc::same_allocation.unsupported_construct.1",
+          "status": "SUCCESS",
+          "description": "\"Kani does not support reasoning about pointer to unallocated memory\"",
+          "location": "library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation"
+        }
+      ]
+    },
+    {
+      "harness": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
+      "statuses": {
+        "SUCCESS": 106,
+        "SATISFIED": 5
+      },
+      "obligations": 106,
+      "unreachable": [],
+      "covers": [
+        {
+          "number": 21,
+          "id": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards.cover.1",
+          "status": "SATISFIED",
+          "description": "\"cover condition: enabled && accepted && required_threads == 640\"",
+          "location": "native/src/pipeline_caps.rs:248:9 in function pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards"
+        },
+        {
+          "number": 22,
+          "id": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards.cover.2",
+          "status": "SATISFIED",
+          "description": "\"cover condition: !enabled && accepted && required_threads == 1024\"",
+          "location": "native/src/pipeline_caps.rs:249:9 in function pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards"
+        },
+        {
+          "number": 24,
+          "id": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards.cover.3",
+          "status": "SATISFIED",
+          "description": "\"cover condition: enabled && !accepted && values[1] == 639 && required_threads == 640\"",
+          "location": "native/src/pipeline_caps.rs:250:9 in function pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards"
+        },
+        {
+          "number": 27,
+          "id": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards.cover.4",
+          "status": "SATISFIED",
+          "description": "\"cover condition: enabled && values[0] == u64::MAX && values[1] == u64::MAX\"",
+          "location": "native/src/pipeline_caps.rs:251:9 in function pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards"
+        },
+        {
+          "number": 28,
+          "id": "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards.cover.5",
+          "status": "SATISFIED",
+          "description": "\"cover condition: !enabled && values == [0, 0] && !accepted\"",
+          "location": "native/src/pipeline_caps.rs:252:9 in function pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards"
+        }
+      ],
+      "unsupported_checks": []
+    }
+  ],
+  "source_hashes_still_match": true,
+  "unsupported_warnings": [
+    "Cratewide caller_location(1), foreign function(1); Kani reports verification fails if reached; neither selected harness reaches such a failing construct."
+  ],
+  "assumptions": "No kani::assume and no user stubs. Properties adapter models immutable retained PSO capability values; this is an external Metal contract, not a proved GPU/FFI property.",
+  "domains": {
+    "caps": "enable bool, full-u64 width/max/required width/required threads, real constructor/getters/clone; no loops",
+    "flags": "m5/present bools, symbolic four bytes and length0..4; valid UTF-8 paths, unwind10"
+  },
+  "limits": [
+    "No Metal/GPU/numerical/FFI/concurrent behavior proved.",
+    "Counter cfg(test) and actual module wiring are outside this no-default-features Kani execution.",
+    "Four deterministic unit tests prepared; execution delegated to root."
+  ],
+  "warning_note": "Existing macro future-incompatibility/dead-code and forced unstable-feature warnings retained in full log. Seven UNREACHABLE obligations are std align_offset/UTF-8/format internals, not business assertions or covers."
+}

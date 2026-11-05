@@ -11,6 +11,7 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+type CachedPipeline = crate::pipeline_caps::Pipeline<ComputePipelineState>;
 pub struct FlashAttentionOutput {
     pub values: MatrixView,
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
@@ -235,12 +236,17 @@ fn wait_command(command: &CommandBufferRef, enabled: bool) -> [u64; 4] {
 
 pub struct Metal {
     device: Device,
+    cached_caps_enabled: bool,
     #[cfg(test)]
     ar20_kernel_bits: u32,
     #[cfg(test)]
     ar30_cooperative: bool,
     #[cfg(test)]
     ar30_cooperative_uses: [std::cell::Cell<u64>; 2],
+    #[cfg(test)]
+    ar33_codeword_table: bool,
+    #[cfg(test)]
+    ar33_codeword_table_uses: [std::cell::Cell<u64>; 2],
     #[cfg(test)]
     ar20_library: metal::Library,
     queue: CommandQueue,
@@ -380,14 +386,14 @@ pub struct Metal {
     qsa: qsa::Pipelines,
     model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
-    logsumexp: ComputePipelineState,
+    logsumexp: CachedPipeline,
     device_greedy_pipeline: Option<ComputePipelineState>,
     device_greedy_calls: std::cell::Cell<u64>,
     device_greedy_heads: std::cell::Cell<u64>,
     #[cfg(test)]
     device_greedy_reject_result: std::cell::Cell<bool>,
     ple: ple::Pipelines,
-    moe_switch: [ComputePipelineState; 2],
+    moe_switch: [CachedPipeline; 2],
     moe_mix: [ComputePipelineState; 2],
     moe_finish_mix: std::cell::Cell<bool>,
     moe_finish_mix_pipeline: Option<ComputePipelineState>,
@@ -464,6 +470,8 @@ impl Metal {
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
             let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
+            let ar33_codeword_table = hc_kernel_setting("MLXL3_NATIVE_CODEWORD_TABLE")?;
+            let cached_caps_enabled = hc_kernel_setting("MLXL3_NATIVE_CACHED_CAPS")?;
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
@@ -701,9 +709,10 @@ impl Metal {
                 include_str!("../shaders/flash_logsumexp.metal"),
             );
             let source = format!(
-                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR20_TESTS {}\n{}",
+                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR33_CODEWORD_TABLE {}\n#define MLXL3_AR20_TESTS {}\n{}",
                 crate::ar20_kernel_policy::defines(ar20_kernel_bits),
                 u32::from(ar30_cooperative),
+                u32::from(ar33_codeword_table),
                 u32::from(cfg!(test)),
                 source
             )
@@ -719,6 +728,15 @@ impl Metal {
                 r#"#include "ar30_kernel_tests.metal""#,
                 include_str!("../shaders/ar30_kernel_tests.metal"),
             );
+            let source = source
+                .replace(
+                    r#"#include "ar33_codeword_table.metal""#,
+                    include_str!("../shaders/ar33_codeword_table.metal"),
+                )
+                .replace(
+                    r#"#include "ar33_kernel_tests.metal""#,
+                    include_str!("../shaders/ar33_kernel_tests.metal"),
+                );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -729,6 +747,9 @@ impl Metal {
                 device
                     .new_compute_pipeline_state_with_function(&function)
                     .map_err(anyhow::Error::msg)
+            };
+            let cached_pipeline = |name: &str| -> Result<_> {
+                pipeline(name).map(|raw| CachedPipeline::new(raw, cached_caps_enabled))
             };
             let pack_pipeline = pipeline("exl3_pack")?;
             let decode_pipeline = pipeline("exl3_decode")?;
@@ -841,7 +862,10 @@ impl Metal {
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,
             ];
-            let moe_switch = [pipeline("moe_switch_half")?, pipeline("moe_switch_float")?];
+            let moe_switch = [
+                cached_pipeline("moe_switch_half")?,
+                cached_pipeline("moe_switch_float")?,
+            ];
             let moe_mix = [pipeline("moe_mix_half")?, pipeline("moe_mix_float")?];
             let moe_finish_mix_pipeline = moe_finish_mix
                 .then(|| pipeline("moe_finish_mix_float"))
@@ -849,41 +873,52 @@ impl Metal {
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
-                hc::Pipelines::load(&pipeline, "half", false, false, false)?,
-                hc::Pipelines::load(&pipeline, "float", hc_up_mix, hc_down_inject, hc_write_norm)?,
+                hc::Pipelines::load(&cached_pipeline, "half", false, false, false)?,
+                hc::Pipelines::load(
+                    &cached_pipeline,
+                    "float",
+                    hc_up_mix,
+                    hc_down_inject,
+                    hc_write_norm,
+                )?,
             ];
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(
-                &pipeline,
+                &cached_pipeline,
                 qsa_prepare,
                 qsa_gate_fused,
                 qsa_chains,
                 qsa_prefetch,
             )?;
             let gdn = gdn::Pipelines::load(
-                &pipeline,
+                &cached_pipeline,
                 gdn_norm_gate,
                 gdn_joint_ab,
                 gdn_whole,
                 gdn_head_gates,
             )?;
-            let logsumexp = pipeline("flash_logsumexp")?;
+            let logsumexp = cached_pipeline("flash_logsumexp")?;
             let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
                 .then(|| pipeline("flash_normalized_greedy"))
                 .transpose()?;
-            let ple = ple::Pipelines::load(&pipeline)?;
+            let ple = ple::Pipelines::load(&cached_pipeline)?;
             let queue = device.new_command_queue();
-            let model_ops = model_ops::Pipelines::load(&pipeline)?;
+            let model_ops = model_ops::Pipelines::load(&cached_pipeline)?;
             Ok(Self {
                 device,
+                cached_caps_enabled,
                 #[cfg(test)]
                 ar20_kernel_bits,
                 #[cfg(test)]
                 ar30_cooperative,
                 #[cfg(test)]
                 ar30_cooperative_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
+                #[cfg(test)]
+                ar33_codeword_table,
+                #[cfg(test)]
+                ar33_codeword_table_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 #[cfg(test)]
                 ar20_library: library,
                 queue,
@@ -1369,6 +1404,9 @@ mod ar10_model_tests;
 #[cfg(test)]
 #[path = "gpu/ar20_kernel_tests.rs"]
 mod ar20_kernel_tests;
+#[cfg(test)]
+#[path = "gpu/ar33_kernel_tests.rs"]
+mod ar33_kernel_tests;
 
 #[cfg(test)]
 #[path = "gpu/ar30_kernel_tests.rs"]

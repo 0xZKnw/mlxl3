@@ -1,0 +1,28 @@
+import hashlib,json,runpy,shutil,subprocess
+from pathlib import Path
+r=Path.cwd();d=runpy.run_path(str(r/'build/ar33/basis.py'));c=runpy.run_path(str(r/'build/ar33/components-basis.py'));base=r/'docs/measurements/flash-ar33-trials-20261105';dest=r/'build/ar33/frozen';dest.mkdir();sha=d['sha']
+exe=[]
+for line in (base/'cpu/release-libtest.log').read_text().splitlines():
+ try:v=json.loads(line)
+ except json.JSONDecodeError:continue
+ if v.get('reason')=='compiler-artifact' and v.get('executable') and v['profile']['test'] and 'lib' in v['target']['kind']:exe.append(Path(v['executable']))
+assert len(exe)==1,exe
+artifacts={}
+for name,p in [('direct-cli',r/'build/ar33/cargo-target/release/mlxl3-rs'),('native-libtest',exe[0])]:
+ target=dest/name;shutil.copy2(p,target);artifacts[name]={'path':str(target),'sha256':sha(target),'bytes':target.stat().st_size}
+old=Path('/Users/justin/.codex/worktrees/flash-ar30-20261105/mix-stq1_0/build/ar30/frozen/direct-cli');assert sha(old)=='f24201e3e5ca145f94397a90cf9edaa746d81c86102c67d2d51350a7d3e734f0';artifacts['old-qualified-cli']={'path':str(old),'sha256':sha(old),'bytes':old.stat().st_size}
+files=set()
+for name in subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],text=True).splitlines():
+ if (name.startswith('native/') and Path(name).suffix in {'.rs','.metal','.h','.cpp','.toml'}) or name.startswith('.github/workflows/'):files.add(name)
+files.update(['Cargo.toml','Cargo.lock','build.rs','scripts/benchmark-flash-bridge.py','scripts/native_json_process.py','scripts/analyze_flash_cycle_cache.py','scripts/check_native_coverage.py','scripts/kani_ci.py','scripts/kani_obligations.json','tests/test_flash_cycle_cache.py','tests/test_kani_ci.py','tests/physical_flash_ar_bridge.py','docs/native-coverage/mlx-sites.json'])
+for p in [r/'build/ar33/run.py',r/'build/ar33/test_run.py',r/'build/ar33/basis.py',r/'build/ar33/components-basis.py',r/'build/ar33/reference128.py',d['HELPER'],d['SCREEN'],d['CLI_HELPER'],d['PLAN'],c['NT2']/'native-cases.json',c['NT2']/'stock.json',c['ROUTED']/'cases.json',c['ROUTED']/'stock.json',base/'reference128/controller-executed.py.txt']:files.add(str(p))
+oracle=r/'docs/measurements/flash-ar20-20261105/quiet-01/quality/oracle.json';assert sha(oracle)=='171bea949c7c16f20c1e1affa26b70602676c73620fcbb380d430a7587835351';files.add(str(oracle))
+goldens={}
+for tokens,p in [('32',r/'docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json'),('128',base/'reference128/benchmark/report.json')]:
+ files.add(str(p));goldens[tokens]={'path':str(p),'sha256':sha(p)}
+model=Path(d['MODEL']);prior=json.loads((r/'docs/measurements/flash-ar30-20261105/freeze.json').read_text())['source_files']
+for name in ['config.json','generation_config.json','model.safetensors.index.json','tokenizer.json','tokenizer_config.json']:
+ p=model/name;assert sha(p)==prior[str(p)];files.add(str(p))
+plan={'source_head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'source_status':subprocess.check_output(['git','status','--short'],text=True),'source_files':{p:sha(r/p) for p in sorted(files)},'artifacts':artifacts,'oracle':{'path':str(oracle),'sha256':sha(oracle)},'goldens':goldens,'model':{'path':str(model),'checkpoint':'65c895314393431c09050b2e04e250836b3a6eb4','quantization':'EXL3avg2.05/H4/MTP2'},'protocol':'AR33 issue138: quality before candidate speeds; MAIN32/31 and MAIN128/127 warm1+measure1 5arms OFF/table/caps/both/OFF; cache3GiB/4readers/depth0/prefix0/ctx4096/T0; Brave+Deezer open; no profiling/compile/prover/othermodel duringGPU.','toolchain':subprocess.check_output(['/Users/justin/.cargo/bin/rustc','-Vv'],text=True),'deployment':'26.2'}
+for p in [r/'build/ar33/plan.json',base/'freeze.json']:p.write_text(json.dumps(plan,indent=2)+'\n')
+print(json.dumps({'source_files':len(files),'artifacts':artifacts},indent=2))

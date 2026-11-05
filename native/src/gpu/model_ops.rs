@@ -1,7 +1,8 @@
 //! Strided operators shared by quantized LFM and standard Qwen blocks; outputs are F16.
+use super::CachedPipeline as ComputePipelineState;
 use super::{MatrixView, Metal, view::FloatType};
 use anyhow::{Result, ensure};
-use metal::{CommandBufferRef, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
+use metal::{CommandBufferRef, MTLResourceOptions as Storage, MTLSize};
 
 pub(super) struct Pipelines {
     norm: [ComputePipelineState; 2],

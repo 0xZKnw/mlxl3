@@ -1,9 +1,10 @@
+use super::CachedPipeline as ComputePipelineState;
 use super::{FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::checkpoint::Checkpoint;
 use anyhow::{Context, Result, ensure};
 use metal::{
-    Buffer, CommandBuffer, CommandBufferRef, ComputePipelineState, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize, NSRange,
+    Buffer, CommandBuffer, CommandBufferRef, MTLCommandBufferStatus, MTLResourceOptions as Storage,
+    MTLSize, NSRange,
 };
 use std::{collections::BTreeMap, rc::Rc};
 

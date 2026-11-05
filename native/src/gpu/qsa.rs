@@ -1,7 +1,8 @@
+use super::CachedPipeline as ComputePipelineState;
 use super::{FlashAttentionOutput, FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::{checkpoint::Checkpoint, flash_support::qsa_append};
 use anyhow::{Context, Result, ensure};
-use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
+use metal::{Buffer, MTLResourceOptions as Storage, MTLSize};
 use std::{cell::Cell, collections::BTreeMap, rc::Rc};
 
 pub(super) struct Pipelines {
@@ -324,6 +325,7 @@ impl Metal {
             .device
             .new_compute_pipeline_state_with_function(&f)
             .map_err(anyhow::Error::msg)?;
+        let p = ComputePipelineState::new(p, self.cached_caps_enabled);
         ensure!(
             p.thread_execution_width() == 32,
             "unsupported Flash NAX SIMD width"

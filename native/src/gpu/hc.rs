@@ -1,3 +1,4 @@
+use super::CachedPipeline as ComputePipelineState;
 use super::{MatrixView, Metal, view::FloatType};
 use crate::checkpoint::Checkpoint;
 #[cfg(test)]
@@ -7,7 +8,7 @@ use anyhow::{Context, Result, ensure};
 use half::bf16;
 #[cfg(test)]
 use half::f16;
-use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
+use metal::{Buffer, MTLResourceOptions as Storage, MTLSize};
 
 #[path = "hc_workspace.rs"]
 mod workspace;

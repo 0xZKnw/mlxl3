@@ -1,0 +1,165 @@
+"""Small CPU regressions for the actual AR33 controller; never launch a model."""
+
+import copy
+import json
+import runpy
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[2]
+R = runpy.run_path(str(ROOT / "build/ar33/run.py"))
+
+
+def log(name, evidence):
+    return (
+        "dyld[123]: /System/Library/Frameworks/Metal.framework/Metal\nrunning 1 test\n"
+        + name
+        + " "
+        + json.dumps(evidence)
+        + "\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n"
+    )
+
+
+class Controller(unittest.TestCase):
+    def setUp(self):
+        self.codeword = {
+            "parity": True,
+            "compiled_table": True,
+            "finite_state_words": 592137,
+            "table_entries": 1021,
+            "table_bytes": 2042,
+            "codebooks": 3,
+            "high_masks": 3,
+            "tail_guards": True,
+            "index_mutants_detected": 6,
+        }
+
+    def test_actual_codeword_marker(self):
+        self.assertEqual(
+            R["check_marker"](log("AR33_CODEWORD_TABLE", self.codeword), R["SPECS"][0], 5),
+            self.codeword,
+        )
+
+    def test_missing_or_zero_nonvacuous_counts(self):
+        for key in ("finite_state_words", "table_entries", "index_mutants_detected"):
+            for missing in (False, True):
+                value = self.codeword.copy()
+                if missing:
+                    del value[key]
+                else:
+                    value[key] = 0
+                with (
+                    self.subTest(key=key, missing=missing),
+                    self.assertRaises((AssertionError, KeyError)),
+                ):
+                    R["check_marker"](log("AR33_CODEWORD_TABLE", value), R["SPECS"][0], 5)
+
+    def test_divergence_and_disabled_shader(self):
+        for key in ("parity", "compiled_table", "tail_guards"):
+            value = {**self.codeword, key: False}
+            with self.subTest(key=key), self.assertRaises(AssertionError):
+                R["check_marker"](log("AR33_CODEWORD_TABLE", value), R["SPECS"][0], 5)
+
+    def test_duplicate_and_nonfinite_evidence(self):
+        text = log("AR33_CODEWORD_TABLE", self.codeword)
+        for bad in (
+            text + "AR33_CODEWORD_TABLE " + json.dumps(self.codeword),
+            log("AR33_CODEWORD_TABLE", {**self.codeword, "extra": float("nan")}),
+        ):
+            with self.subTest(bad=bad[-50:]), self.assertRaises((AssertionError, ValueError)):
+                R["check_marker"](bad, R["SPECS"][0], 5)
+
+    def test_routed_marker_requires_actual_path(self):
+        value = {
+            "parity": True,
+            "compiled_table": True,
+            "finite_half_words": 20480,
+            "routed_dispatches": 12,
+        }
+        R["check_marker"](log("AR33_CODEWORD_TABLE_ROUTED", value), R["SPECS"][2], 5)
+        for mutant in ({**value, "routed_dispatches": 0}, {**value, "finite_half_words": 0}):
+            with self.assertRaises(AssertionError):
+                R["check_marker"](log("AR33_CODEWORD_TABLE_ROUTED", mutant), R["SPECS"][2], 5)
+
+    def test_cached_capabilities_require_positive_hits_and_no_live_requery(self):
+        before = {"cached_caps": True, "caps_stats": [10, 20, 100, 100]}
+        after = {"cached_caps": True, "caps_stats": [30, 40, 100, 100]}
+        R["checked_caps_path"](before, after)
+        for mutant in (
+            {"cached_caps": False, "caps_stats": [30, 40, 100, 100]},
+            {"cached_caps": True, "caps_stats": [10, 40, 100, 100]},
+            {"cached_caps": True, "caps_stats": [30, 40, 101, 100]},
+            {"cached_caps": True, "caps_stats": [30, 40, 100]},
+            {"cached_caps": True, "caps_stats": [30, 40, -1, 100]},
+        ):
+            with self.subTest(mutant=mutant), self.assertRaises(AssertionError):
+                R["checked_caps_path"](before, mutant)
+
+    def test_flags_cover_only_requested_composition(self):
+        for values in ((0, 0), (1, 0), (0, 1), (1, 1)):
+            env = R["environment"](values)
+            self.assertEqual([env[k] for k in R["NEW"]], list(map(str, values)))
+            self.assertTrue(all(env[k] == "1" for k in R["D"]["FLAGS"]))
+            self.assertTrue(
+                all(env["MLXL3_NATIVE_" + k] == "0" for k in [*R["C"]["NEW"], *R["AR30"]])
+            )
+
+    def test_reaped_recycled_group_never_signalled(self):
+        child = SimpleNamespace(pid=123, poll=lambda: 0)
+        with (
+            patch.dict(R["D"]["OLD"], {"members": lambda _: [123]}),
+            patch.object(R["os"], "killpg") as kill,
+        ):
+            self.assertFalse(R["safe_stop"](child))
+            kill.assert_not_called()
+        with patch.dict(R["D"]["OLD"], {"members": lambda _: []}):
+            self.assertTrue(R["safe_stop"](child))
+
+    def test_real_historical_benchmark_and_failure_mutants(self):
+        raw = R["D"]["read_json"](R["GOLDEN"])
+        artifact, golden = {"sha256": raw["binary_sha256"]}, raw["runs"][0]
+        R["checked_benchmark"](R["GOLDEN"].parent, artifact, golden)
+        for kind in ("text", "count", "nonfinite"):
+            mutant = copy.deepcopy(raw)
+            row = mutant["runs"][0]
+            if kind == "text":
+                row["text"] += "diverged"
+            elif kind == "count":
+                row["stats"]["decode_tokens"] = 0
+            else:
+                row["stats"]["decode_tps"] = float("nan")
+            with tempfile.TemporaryDirectory(prefix="ar33-controller-") as folder:
+                Path(folder, "report.json").write_text(json.dumps(mutant))
+                with self.subTest(kind=kind), self.assertRaises((AssertionError, ValueError)):
+                    R["checked_benchmark"](Path(folder), artifact, golden)
+
+    def test_128_contract_does_not_call_32_only_validator(self):
+        raw = R["D"]["read_json"](R["GOLDEN"])
+        raw["tokens"] = 128
+        for row in raw["runs"] + raw["warmup"]:
+            row["stats"].update(generated_tokens=128, decode_tokens=127)
+            row["stats"]["decode_tps"] = 127 / row["stats"]["decode_seconds"]
+        with patch.dict(
+            R["D"], {"VALIDATE_BENCHMARK": lambda *_: self.fail("32-only validator called for128")}
+        ):
+            R["validate_benchmark"](raw, raw["binary_sha256"], 128)
+        for kind in ("count", "rate", "text", "nonfinite"):
+            mutant = copy.deepcopy(raw)
+            row = mutant["runs"][0]
+            if kind == "count":
+                row["stats"]["generated_tokens"] = 32
+            elif kind == "rate":
+                row["stats"]["decode_tps"] = 31 / row["stats"]["decode_seconds"]
+            elif kind == "text":
+                row["text"] += "diverged"
+            else:
+                row["stats"]["elapsed_seconds"] = float("inf")
+            with self.subTest(kind=kind), self.assertRaises(AssertionError):
+                R["validate_benchmark"](mutant, mutant["binary_sha256"], 128)
+
+
+if __name__ == "__main__":
+    unittest.main()

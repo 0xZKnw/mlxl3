@@ -26016,3 +26016,135 @@ AR32-RESEARCH-20261105 — recherche source close, 2026-11-05.
 - Vérifications documentaires : quatre rapports non vides, liens locaux présents et blobs GitHub épinglés ; git diff --check passe ; native/, Cargo.toml, Cargo.lock et build.rs identiques à82fff. Revue indépendante finale en cours avant commit/push. Publication autorisée en PR documentaire empilée sur136 ; pas de merge/app/release. Profilage abandonné reste arrêté, tous ses processus joints, Brave ouvert. Aucun essai d'optimisation laissé en cours.
 - Revue finale close : une incohérence documentaire de priorité PLE a été corrigée avant publication (réserve cold/new prompts seulement, pas warm MAIN32). Reset/cache vide initial et borne1888<16384 confirmés dans les appelants ; aucune nouvelle mesure/cache-counter inventée. Index final = cinq fichiers Markdown uniquement, liens locaux et diff --check conformes. Aucun essai AR32 en cours ; commit/push documentaire maintenant.
 - Publication effectuée : PR137 https://github.com/0xZKnw/mlxl3/pull/137, recherche commit2246be07d5132dcf4470cf048067596aefd37aeb, base82fff5a5/PR136. Les quatre rapports sont publiés, code moteur inchangé. Ce reçu est documentaire ; aucun nouveau protocole ou essai. CI du nouveau HEAD encore à inspecter, pas de déclaration « verte ».
+
+AR33-TRIALS-20261105 — préenregistrement avant prototype/essai, 2026-11-05.
+
+Nouvelle autorisation explicite : « test tout ça essaie de faire exploser les tok/s ». Issue138 créée AVANT les prototypes : https://github.com/0xZKnw/mlxl3/issues/138. Branche isolée codex/flash-ar33-trials-20261105 depuis01da8f01, moteur inchangé82fff, original dirty et profilage annulé préservés. Journal/AR32troisrapports/AR30matrix-K7-C05-R5/anciensSushi-POOL-SLRU relus. Aucun profilage Instruments repris ; Brave DOIT rester ouvert. AR seulement, treize mécanismes acceptés ON, douze AR20 et quatre AR30 OFF ; pas MTP/DFlash/P04/L3/L5/swapabort/pause de refroidissement/OS change.
+
+Matrice AVANT implémentations :
+- T01 : table Half exacte1021 valeurs après hash cb2 (ancienne K7 jamais testée). Nouveau motif : demande utilisateur + référence primaire lookup JANGH adjacente. Même hash/somme d'octets/FMA downstream ; oracle indépendant GPU canonical pour65536 états et tous codebooks, mutations/tails, vraies projections resident/routed puis états/logits/continuation/CLI avant vitesse. Opt-in OFF, compilation réelle/compteurs exigés ; table générée via sémantique Half canonique, pasapproxfloat. Risque traficcache>FMAéconomisée.
+- T02 : ancienne C05 validation immuable des capacités PSO hors boucle AR. Prototype borné aux requêtes réellement répétées des pipelines possédés (GDN/QSA/HC/MoE/PLE) ; conserver guards dynamiques forme/device/offsets et erreurs/fallback. Aucun changement à buffer bounds ou synchronisation. Tracer appels retirés, tests frontieres/syntheticcaps et Kani sur vrai helper Rust. Même calcul/commits/allocations, opt-in OFF si comparaison nécessaire.
+- T03 : ancienne R5 descriptions CPU dispatch stables. Gate structurel sur plus petit segment actif : valider coût/bindings possédés frais/état dynamique et invalidations ; pas nouveau shared encoder ni recommit. Décision explicite même si port rejeté avant modèle.
+- T04 : cycle-aware EMA64+d Jit, replay CPU offline budget identique2544slots/étatsinit/48couches, comparer per-layer baseline et global candidate avec protections. Vérifier provenance des routes existantes ; si absent ou incompatibles, ne pas prétendre valider performance. Différent des anciensPOOL/CLOCK/SLRU ; observer hit/miss/perlayerdistribution et limites, aucun gain tok/s dérivé du replay.
+- T05 : gate d'opportunité native slot-map/générations/repair/anticipation intra-token. Vérifier vrais backings/bindings PSO et fréquence hits/rollback sous3GiB ; plus petit plan conserve kernelsEXL3 et somme canonique complète. Ne pas copier Q4/somme séquentielle ni ignorer leasing/erreurs. Un gate négatif documenté interdit grandportaveugle ; aucun test de token futur.
+- T06-T08 : PLE known-token, pipeline AR asynchrone et préfixe durable : gates réels de scope/callers et opportunité, pasbenchmensonger. PLE MAIN32warm déjàhits (1888<16384/source), préfixesTTFT horsdecode ; todo ne signifie pas gain établi.
+
+Protocole commun future vitesse : code figé/SHA/helpers/modelmetadata avant lancement ; QA indépendante nonvide/finie et compteurs réels avant timing. MAIN32=32générés/31decode, warm1+mesure1, contexte4096/cache3GiB/4lecteurs/dynamic0/depth0/prefix0/T0/topk1/penalty1/modèle65c89531EXL3avg2.05/M5/24GiB. Groupe bref OFF/T01/T02/T01+T02/OFF si tous qualifiés, comparer aussi ancien binaire si baseline bouge ; pasgrilleexhaustive. Une seule inférenceGPU à la fois, agents CPU/compilers/provers arrêtés pourGPU, attente et enfants bornés/joints. Dérive/paritémanquante=>nonconcluant, paspourcentadditionné. Corriger défauts, checksfmt/Clippy/build/CPU+preuvesKani avantGPU. Publier incréments qualifiés en PR ; défauts activés seulement sur gain composition retenue validée. Tous résultats négatifs/interrompus à consigner immédiatement. Aucun prototype ou essai encore lancé dans cette entrée.
+
+AR33-T04-REPLAY-01 — protocole précis AVANT replay/prototype : réutiliser docs/measurements/issue58-20261029/current-capture.json (9,958,454B, SHA256fd8cee874b73379db02a6f2f7e22fe8426870331fba79ac167e166e36f4eb884), sidecar .sources.json et ses12captures/complete/golden Oct27. Historique qualifié issue58 replayLFU7.90s/SLRU1.13s ; nouvelle raison = politique cyclique EMA64+d distincte autorisée après auditJit, pas repriseSLRU. MAIN87/HOLD82, chacun3phases et48×127decode, après2générationsinitiales ; chaque scénario indépendant. D'abord vrai reconstruct/current.rs doit reproduire CHAQUEslot/hit et compteurs baseline48×53. Candidats globaux :2544slots total, LFU global contrôle et cyc EMA64+distance pour séparer partage/politique ; mêmepréfill/init/routes réelles, pasconnaissancefuture, toutesroutescurrentes protégées et tiesdéterministes. Préfill/decode/phase séparés etdistributionparcouche ; EMAJitactiveb1decode, préfillfallbackprécis à documenter. Scoring drained n'a pas de chronologie GPU/pending : tests synthétiques doivent refuser victims leased/pending, aucune validationconcurrenceprod parreplay. Conserver mismatch/timeout/absenceinputs explicitement, aucun tok/s déduit ni données présentées comme natifMAIN32actuel. CommandesCPU bornées et processusjoints, arrêterCPU avantgrantGPU. Aucun replay encore lancé ici.
+
+AR33-128 — révision du protocole AVANT vitesse, demande utilisateur : « sur128tokensmtn aussi ». Conserver le tri MAIN32 et ajouter MAIN128 pour les mêmes trois variantes T01/T02/composition et contrôles OFF, pas une grille de paramètres.128générés=127decode, mêmeMAIN/cache3GiB/4lecteurs/depth0/prefix0/contexte4096/T0/topk1/penalty1/warm1+mesure1. Créer d'abord une référence indépendante128 avec l'ancien CLI qualifié f24201e3 (T01/T02 OFF), sorties warm+mesure complètes/finies et cohérentes, budget et compteurs exacts ; cette sortie ne peut pas être validée par le seul golden32. Épingler sa source/commande/binaire/checkpoint/helpers et fulltexte/hash128 puis comparer chaque variante àcegolden. Les deux groupes ne partagent pas de taux pour calculer des gains ; dérive/échec => nonconcluant/failed. Le contrôleur doit vérifier les dénominateurs31/127 explicitement, refuser référence absente/incomplète, préserver les erreurs et joindre tous enfants. Source/CPU+QA num avant référence/timingGPU. Aucun benchmark vitesse encore lancé.
+
+AR33 CPU première compilation : checkdirect/chat PASS7.44s ; Clippyalltargets a reproduit E0433 dans le nouveau test routed (super=projection, ar33_kernel_tests appartient àgpu). Log initial conservé build/ar33/clippy-direct-before-module-fix.log ; chemin corrigé en crate::gpu::ar33_kernel_tests sans changer de calcul. Relance affectée prévue, aucune vitesse/QA GPU lancée. Nouvelle préférence utilisateur : DEEZER et BRAVE doivent tous deux rester ouverts ; aucune fermeture d'app autorisée pour cette campagne. Les gardes T01/T02 passent Kani2/2,346obligations/339SUCCESS/7stdUNREACHABLE/11covers20.26s, pas preuveMetal/concurrence ; reçu cpu/kani-caps-flags.json.
+
+AR33 GPU ordre figé : tous checksCPU/builds/replays terminés et agents inactifs. L'ancien CLI f242 est déjà qualifié indépendamment (AR30 états/logits/CLI), donc sa capture MAIN128 peut précéder la QA du candidat afin de créer le golden128 nécessaire au plan immuable commun ; ce n'est pas une vitesse du nouveau moteur avant sa correction. Ordre : référence128 OFF ancienne version, gel unique source+binaires+deuxgoldens, T01+T02 cinqgatesQA, speed32 puis speed128. Brave et Deezer ouverts ; pas d'autre inférenceGPU ni CPUchecks/compiler/prover/export durant chaque période exclusive. Table+caps prod OFF par défaut ; Kani2/2 et403testsCPU/93ignorés, troisClippy/buildsreleaseCLI+libtest PASS après correction E0433 etformat. Zérotestbinaries2noncomptés. Contrôlesphysiques explicitementsélectionnésàvenir.
+
+AR33 old-off128 STARTED
+
+AR33 old-off128 VALIDATED
+
+AR33 REFERENCE128 CLOSED validated_independent_reference joined=True
+
+AR33 T04 validation répétée préenregistrée : résultat original15.617s conserve sourceexacte cycle-replay-source.py.txt et échecsaucun. Après cette exécution, uniquement corrections RuffC408 et ajout d'un test deadline ; relancer les8tests ciblés puis UNE fois le même replay pour qualifier les octets finalement conservés, en sauvegardant cycle-replay-final.json sans effacer le premier. Aucun changement politique/capacité/matrice et aucune mesure vitesseGPU durantcecontrôleCPU. Référence128 ancienne f242CLOSvalidée9.207339702tok/s/alljoined/full128golden, sourcecontrôleur35cef conservée sousreference128/controller-executed.py.txt. T02validator de compteurs ajouté avantgel avec casmutation ; aucune nouvelle formule/état moteur.
+
+AR33 gel avant QA : sources/binaries/helpers/fixtures/2goldens/modelmetadata épinglés freeze.json (head01da8 +dirtyexplicit). FinauxCPU :403PASS93ignored, 3Clippy PASS, fmt PASS, Kani2/2/346obligations11covers ; 28testsPythonuniques validés (27pass+inventairemismatchinitial attendu, revue8deltas+correction puis6tests affectésPASS). Deux compilationsMetalOFF/ON passent avec40warningsanciens ; premierappelcheminmetalincorrect127 conservé, relancexcrunSDKcorrigée. Replayfinal16.745s identique au15.617s initial aprèslint, négatifs conservés. TousjobsCPUjoints, BraveDeezerouverts, passage àQA GPU exclusive. Aucun gain vitesse candidat encore mesuré.
+
+AR33 codeword STARTED
+
+AR33 codeword VALIDATED
+
+AR33 resident STARTED
+
+AR33 resident VALIDATED
+
+AR33 routed STARTED
+
+AR33 routed VALIDATED
+
+AR33 model STARTED
+
+AR33 model VALIDATED
+
+AR33 cli STARTED
+
+AR33 cli VALIDATED
+
+AR33 quality CLOSED ALL_JOINED
+
+AR33 control-start STARTED
+
+AR33 control-start VALIDATED
+
+AR33 control-start TPS 8.15100097414322
+
+AR33 table STARTED
+
+AR33 QA GPU CLOS VALIDÉ :5/5phases explicites codewords592137/3codebooks/highbits+tails/6mutations, resident48cas738304Halfstock/routed20480Halfstock, modèle57606144statewords993280logits81920hiddenbytes84étatsinit/continuation, vraiCLI2golden/noMLX/shutdown. CompteursT01resident+routedpositifs, T02deltaqueriescached/liveparrow=[[621, 549, 0, 0], [621, 549, 0, 0]]. Tousenfantsjoints ; 32puis128 vitesse en cours, pas encoregainannoncé. CLI d00476ff etlibtest cfc3e52c/source279fichiersfigés. Brave etDeezerouverts.
+
+AR33 table VALIDATED
+
+AR33 table TPS 8.274966458024066
+
+AR33 caps STARTED
+
+AR33 caps VALIDATED
+
+AR33 caps TPS 8.688591931346112
+
+AR33 both STARTED
+
+AR33 both VALIDATED
+
+AR33 both TPS 8.345306436455555
+
+AR33 control-end STARTED
+
+AR33 control-end VALIDATED
+
+AR33 control-end TPS 8.37011797681288
+
+AR33 speed CLOSED ALL_JOINED
+
+AR33 MAIN32 CLOS numericVALIDÉ5bras/10sortiesgolden32/31/alljoined : {'control-start': 8.15100097414322, 'table': 8.274966458024066, 'caps': 8.688591931346112, 'both': 8.345306436455555, 'control-end': 8.37011797681288}. T02caps8.6886au-dessusdescontrôles8.1510/8.3701maiséchantillonscourts ; T01table8.275etcomposition8.345àlintérieurdescontrôles. Pasdéfautpromu/gaindestinataireannoncéavantMAIN128. ConditionsAC/thermalwarnings(pastemp)/swapcontextconsignées, BraveDeezerrestentouverts ; MAIN128méthodeidentiquedémarremaintenant, CPU/prover/compiler/exportsinactifs.
+
+AR33 control-start STARTED
+
+AR33 control-start VALIDATED
+
+AR33 control-start TPS 8.6745937390613
+
+AR33 table STARTED
+
+AR33 table VALIDATED
+
+AR33 table TPS 8.553074817769417
+
+AR33 caps STARTED
+
+AR33 caps VALIDATED
+
+AR33 caps TPS 8.322254922871595
+
+AR33 both STARTED
+
+AR33 both VALIDATED
+
+AR33 both TPS 8.082438903941416
+
+AR33 control-end STARTED
+
+AR33 control-end VALIDATED
+
+AR33 control-end TPS 7.845044374651861
+
+AR33 speed CLOSED ALL_JOINED
+
+AR33 MAIN128 CLOS numericVALIDÉ5bras/10golden128/127/alljoined : OFF8.674593739/table8.553074818/caps8.322254923/both8.082438904/OFF7.845044375tok/s. Contrôlesdérivent−9.56%, touscandidatsentrecontrôles ; performanceNONCONCLUANTE pourT01/T02/composition. MAIN32signalT02nonconfirmé, aucunefusiondedéfaut/autour12annoncée. Aucunechaleur/appcauseprouvée. AvantT05, validationciblée AR33-OFF-OLD128 préenregistrée : UN contrôle ancienCLI f242128warm1+mesure1 immédiatementaprès ce derniernewOFF7.845, mêmesparams/golden128, sourcegel inchangé ; vérifier si baisse atteint aussi l'ancien moteur, pas refaireunegrille ni présenter gain. Ancien9.207référenceauparavantpascomparaisoncausaleactuelle. CPUs/provers/compilersinactifs, BraveDeezerouverts. AprèscecontrôlepublierT01/T02qualifiésOFF puisprototypeT05natifborné(preregplusprécisavantcode).
+
+AR33 old-off128 STARTED
+
+AR33 old-off128 VALIDATED
+
+AR33 CONFIRM_OLD128 CLOSED validated_independent_reference joined=True
+
+AR33 clôturepublication : référenceancienne128confirmée8.807120846 aprèsnewOFF7.845044375 ; séquencene séparepasoverheadOFFetconditions, aucuneabsence-régressionougainaffirmée. DeuxnouveauxoptinsT01/T02restentOFFexpérimentaux ; intégrationpardéfautNONqualifiée.279sources/helpers/meta et101logs/binsbruts archivéslossless+indicesSHA+roundtrip (10,355,976Barchives) ;原fichierslocauxconservés. 340testsprofilageCIpertinentsPASS2.73s, Ruff/fmt/diffcheckPASS ; documentrévisionT04final16.745s+mêmevariantsdonnéespréservées. TousessaisAR33closetGPU/CPUprocessusjoints ; T05réelcontinueenAR34depuis01da8/native82fff SANS T01/T02nouveaux pourpréserverbaselinequalifié. PublicationenPRexpérimentaleavecperformancesnonconcluantes, pasmerge/app/release. Lesancienséchecs E0433/inventaire/metalpath etlimitesKani restentvisibles.
