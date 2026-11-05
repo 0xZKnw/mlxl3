@@ -1,0 +1,46 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue140-flash-ar-20261105/mix-stq1_0)
+error: this `if` statement can be collapsed
+   --> native/src/gpu/ready_stages.rs:296:9
+    |
+296 | /         if gpu.ready_stages.capture.get() {
+297 | |             if stage < 2 {
+298 | |                 captures.push(snapshot(
+299 | |                     gpu,
+...   |
+305 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+296 ~         if gpu.ready_stages.capture.get()
+297 ~             && stage < 2 {
+298 |                 captures.push(snapshot(
+...
+303 |                 )?);
+304 ~             }
+    |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+  --> native/src/gpu/ar35_ready_stages_tests.rs:11:6
+   |
+11 | ) -> Result<(Vec<Vec<u16>>, Vec<Vec<u16>>)> {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#type_complexity
+   = note: `-D clippy::type-complexity` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/gpu/ar35_ready_stages_tests.rs:116:22
+    |
+116 |                     .chunks_exact(2)
+    |                      ^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<2>().0.iter()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+    = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 3 previous errors
