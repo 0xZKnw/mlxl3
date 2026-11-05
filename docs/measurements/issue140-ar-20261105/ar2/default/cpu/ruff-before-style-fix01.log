@@ -1,0 +1,25 @@
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> build/issue140/test_default.py:27:13
+   |
+25 |               {"qsa_append_default_environment_unset": 1},
+26 |           ):
+27 | /             with patch.dict(function.__globals__, BASE_CHECK=lambda *_: evidence):
+28 | |                 with self.assertRaises((AssertionError, KeyError)):
+   | |___________________________________________________________________^
+29 |                       function("unused", D["SPECS"][0])
+30 |           good = {"qsa_append_default_environment_unset": True}
+   |
+help: Combine `with` statements
+
+B023 Function definition does not bind loop variable `evidence`
+  --> build/issue140/test_default.py:27:73
+   |
+25 |             {"qsa_append_default_environment_unset": 1},
+26 |         ):
+27 |             with patch.dict(function.__globals__, BASE_CHECK=lambda *_: evidence):
+   |                                                                         ^^^^^^^^
+28 |                 with self.assertRaises((AssertionError, KeyError)):
+29 |                     function("unused", D["SPECS"][0])
+   |
+
+Found 2 errors.

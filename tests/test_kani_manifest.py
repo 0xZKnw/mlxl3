@@ -36,6 +36,17 @@ def test_slru_manifest_matches_its_literal_source_harnesses():
     }
 
 
+def test_qsa_chain_manifest_matches_actual_policy_declarations():
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "native/src/qsa_chain_policy.rs").read_text()
+    declared = re.findall(r"#\[kani::proof\](?:\s*#\[[^\n]*\])*\s*fn\s+(\w+)\s*\(", source)
+    assert declared, "QSA command-chain proofs must not disappear"
+    prefix = "qsa_chain_policy::"
+    assert {name for name in required_names() if name.startswith(prefix)} == {
+        prefix + name for name in declared
+    }
+
+
 def test_ar10_default_policy_names_match_real_proof_declarations():
     root = Path(__file__).resolve().parents[1]
     required = set(required_names())

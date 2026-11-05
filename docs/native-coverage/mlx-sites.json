@@ -1971,13 +1971,15 @@
   },
   "native/src/gpu/ar20_capture_tests.rs": {
     ".log_probs": 1,
+    "array::from_fn": 1,
     "config MLXL3_AR20_CAPTURE": 1,
     "config MLXL3_AR20_ORACLE": 1,
     "config MLXL3_FLASH_MODEL": 1,
     "config MLXL3_NATIVE_CACHED_CAPS": 1,
     "config MLXL3_NATIVE_CODEWORD_TABLE": 1,
     "config MLXL3_NATIVE_DEVICE_GREEDY": 1,
-    "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1
+    "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1,
+    "config MLXL3_NATIVE_QSA_APPEND_CHAIN": 1
   },
   "native/src/gpu/ar20_finish_mix_tests.rs": {
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
@@ -2140,9 +2142,15 @@
     "config MLXL3_QWEN_NATIVE_MODEL": 4
   },
   "native/src/gpu/qsa.rs": {
-    ".shape": 1,
-    ".transpose": 11,
-    "config MLXL3_QSA_MODEL": 2,
+    ".finish": 3,
+    ".shape": 2,
+    ".sum": 1,
+    ".take": 3,
+    ".transpose": 15,
+    "array::from_fn": 1,
+    "config MLXL3_FLASH_ATTENTION_REFERENCE": 1,
+    "config MLXL3_NATIVE_QSA_APPEND_CHAIN": 1,
+    "config MLXL3_QSA_MODEL": 3,
     "config MLXL3_QSA_ORACLE_DIR": 1,
     "config MLXL3_QSA_REPORT": 1,
     "config MLXL3_QSA_TEST_CLASS": 1,

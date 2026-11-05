@@ -1,5 +1,9 @@
 # MLXL3 — journal des optimisations
 
+## QWEN36-144-SYNC-20261105 — intégration de main après le premier push
+
+Préenregistrement avant résolution, également consigné à la racine du projet. Main a avancé de 6030540b à 61d7ec79 et la simulation de fusion de d86ce60b a relevé des conflits dans le manifeste et son test Kani. Réunir les preuves QSA et Qwen, recalculer l’inventaire et vérifier que les sources exécutables Qwen correspondent à 3b342607. Répéter les contrôles affectés sur le binaire assemblé et le registre de preuves. Référence de vitesse 3b342607 conservée, avec contrôle de correction du bridge sur le binaire assemblé et sans répéter l’ABBA lorsque le parcours Qwen est identique. État en cours.
+
 ## QWEN36-144-COMP-20261105 — référence globale pour la branche PR
 
 Préenregistrement avant mesure. Après les verdicts P10 et P11, confirmer la composition retenue face au chemin ordinaire du même CLI toutes optimisations Qwen désactivées. Le contrôle conserve les choix de main pour le reste du runtime. Nouveau point de comparaison sur main6030540b intégré, distinct de P00/P01. A avec tous les flags Qwen à 0. B avec le réglage le plus rapide et correct choisi par les ABBA P10/P11. Même modèle EXL3 2,49 bpw, même M5, deux prompts historiques FR/code, ABBA64/8, contexte4096, température0, pénalité1, cache et spéculation off. Contrôler hashes, texte, historique, options et budgets, noter les temps complets, TTFT, décode, allocation et dérive. La qualification physique préalable inclut le chemin stock, qui a le même ordre de calcul, et l’oracle bit à bit de la composition. Aucune somme des gains. Preuves dans docs/measurements/qwen36-144-p10-20261105/abba-composition. État EN COURS, aucun lancement.
@@ -26545,3 +26549,279 @@ AR34 DEFAULT speed CLOSED ALL_JOINED
 AR34 MAIN FINAL CLOS VALIDÉ : main f5118ad8 intégré, gel280pins depuis2108f5e7 ; QA modèle+CLI sansflag T05 puisUNE128 = 9.063046709783tok/s,127decode, textes/hashesgolden complets, tousenfantsjoints. CLI3126e70f536696ae60449afbc3fc0838627d705fcc19f08e1c1a2195bbff36a5/libtest2f9b632c92c5628c97a0e58f947e80291c10a62fcae30723ed6e386fcca481eb. Réserve et14edéfautM5/Tier2 effectifs ;13historiquesinchangés.402CPU/97ignorés,4Kani/460obligations19covers etchecksaffectésPASS ; autresmodèlesGPU nonréexécutés. Archivesfinales sources280/raw27roundtripvalide, delta16sources ; anciensgels/échecs conservés. Tousessais138AR34clos ; issue140lue/AR1froidprioritaire, aucunprototype140lancé. PublicationPRmaintenant, pasmerge/release/appinstallée.
 
 AR34 publication effective : https://github.com/0xZKnw/mlxl3/pull/141 ouverte READY contre main f5118ad8, branchecodex/flash-ar34-device-hot-20261105 poussée. Les280sourcesdegelfinal ont été revérifiées SHA256 identiques après les commits de rapports ; source testé2108f5e7, publicationcodeidentique1a94b887. ActivationpardéfautM5/Tier2livréedanslaPR, pasdansuneappinstallée. CI hébergée à relever sur le dernier commit documentaire, pasencoreannoncéeverte. 138évaluée,140lue(AR1froidpuisAR2), aucunessaiinachevéouGPUenfond.
+
+## AR35–AR38 / issue140 — préenregistrement de la campagne AR, 2026-11-05
+
+Demande explicite : faire toute l’issue140 après activation de T05. Périmètre retenu AR1→AR2→AR3→AR4 ; les volets S1/S2 MTP/DFlash restent séparés conformément aux consignes utilisateur et à l’issue. Branche isolée codex/issue140-flash-ar-20261105 depuis10397e9899eb5ec6a19e6b6f6af179500c6d3770 (PR141 encore ouverte, main f5118ad8). Préserver le checkout utilisateur et tous anciens résultats ; aucune fusion/publication d’app autorisée. Formal-proof-skill Rust/C et ponytail relus. Historique A06 (trois QMV déjà vectorisés), AR20 B02/B03/B09, L1/P13 et AR34 T05 relu ; ni encodeur P04 ni réassociation ni profilage AR31. T05 et13défauts ON, expériences AR20/30/33 OFF ; Brave/Deezer restent ouverts.
+
+AR35-AR1 : vectoriser uniquement les cinq préparations/finalisations restantes des cohortes Cold Ready déjà retournées N2..10, avec les mêmes corps canoniques/64threads, frontières waves/SSD et positions des dix routes. 5N+3→8 dispatches attendus ; N1 fallback inchangé, aucun wait pour grossir un lot. T05 traite déjà les hits ; ne pas le recompter. Garde stricte expérimentale OFF initialement, formats/offsets/dispositif/extents/propriétaires contrôlés avant encodage. Comparer chaque intermédiaire et sortie Half aux PSO indépendants d’origine +fixtures stock nonvides/finies : N1/2/10, distincts/permutés/dupliqués, F16/F32 stridés, slabs empoisonnés et erreurs tardives/abandon avantcommit. Compteurs réels par stage/cohorte, Kani helpers réels de bornes/offsets/éligibilité.
+
+AR36-AR2 : index QSA append + attention dans un CB seulement indexeur présent/nontrace/sans score CPU, longueur aprèsappend≤2051 ;2052 sparse conserve frontière. Séparer encode/finalize sans changer maths, tail0..3/blocs/KV/croissance/COW/highwater/snapshots. Publier après réussite de l’ensemble, garder les owners jusqu’à completion. Oracles indépendants sur longueurs3/4,1023/1024,2047..2052, indexeur absent/présent, trace, croissance/fork/continuation ; erreurs aprèsappend avantfinattention, restore/retry/annulation, compteurs réels et Kani gardes/transition.
+
+AR37-AR3 et AR38-AR4 : première passe source seulement pour figer les interfaces dépendantes d’AR2 avant code. AR3 HCread→QSA puis previousHCwrite→HCread→QSA, en extensions distinctes transactionnelles et fallbacks trace/capture/sparse ; AR4 dernierHCwrite→mixer→head sans perdre hidden ni248320logits. Un protocole plus précis de chaque extension sera ajouté AVANT son implémentation. Pas d’addition de gains recouvrants.
+
+Protocole commun : correction physique avant vitesse, oracle de modèle indépendant AR20 (57606144statewords/993280logits/81920hiddenB/84étatsinit), continuation/rollback et vraiCLI. Gel de source/binaire/helpers/checkpoint65c89531 EXL3avg2.05/H4/MTP2, OS27.2/M5/24GiB/deployment26.2. Builds/clippy/fmt/tests/Kani et inventaires CI avant GPU, un seul modèle ; aucun autre calcul/compiler/prover pendant GPU. Écrans courts128générés/127decode, MAIN87/context4096/cache3GiB/readers4/depth0/prefix0/T0/topk1/penalty1/warm1+mesure1, contrôles frais et ordre adapté sur composition conservée. Pas de grille de paramètres ni refroidissement/swapabort. Mesurer decode/TTFT/total/allocations/lectures/waves sans télémétrieNAND ni somme de spans. Tous échecs et dérives conservés. Publier chaque incrément qualifié en PR avant le suivant ; code OFF ou retrait si gain non établi, nouveau défaut seulement sur composition numériquement qualifiée. Aucun essai, build, proof ou GPU de cette campagne encore exécuté.
+
+AR36 organisation : source AR2 isolée dans codex/issue140-ar2-20261105 depuis10397e98 pour laisser root qualifier AR1 séparément. Aucun code ni essai AR2 n’a précédé ce préenregistrement. Les API seront composées après qualification du prédécesseur, sans réattribuer ses mesures.
+
+AR36-CONTROLLER — préenregistrement avant écriture du contrôleur, 2026-11-05. Pendant AR1 GPU, source seulement dans build/issue140 de ce worktree : copier le superviseur/strict JSON/safe_stop/gel/golden128 audités AR1/AR34 ; adaptation étroite AR2, pas de framework. QA trois phases exactes : composant gpu::qsa::ar36_tests::physical_ar36_qsa_append_chain_preserves_canonical_states_and_rollbacks (27cas/frontières,12800F32indépendants,étatsHalf>1000000,guards/abandon/rollback), modèle AR20 indépendant57606144/993280/81920/84 avec TLS[completed,published,abandoned] et12publications QSA par row normale, puis vraiCLI2tokens/noMLX/shutdown. QSA_APPEND_CHAIN=1 ; T05 et politique AR1 retenue par leurs défauts sans override ; expériences AR20/30/33 et QSA_HC_CHAIN/FINAL_HEAD_CHAIN OFF. Figer référence absolue /Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06/reference.json SHA40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec et ses5inputs/5outs a15, helpers/source/binaires/5metadata modèle. Aucun hash de fixture, import contrôleur, test, preuve, compilation ou GPU avant fin AR1 et grantroot. Après CPU+qualité, écran128/127 OFF/ON/OFF warm1+mesure1/cache3GiB/readers4/depth0/prefix0/context4096/T0, goldenhistorique identique ; processgroup240s/reaped/failurepersist/paretyfalse jusqu’à fin. Contrats CPU préparés sur environnements/marqueurs/deltas/mutations et erreurs héritées ; CrossHair ne sera tenté qu’au créneau CPU. Aucun essai GPU lancé par cette préparation.
+
+AR36 reprise root seul après interruption utilisateur : aucun processus GPU/compilateur/prover encore actif. Merge main6030540b interrompu avant checks ; conflits source résolus en union (CachedPipeline+NAX wrapper, modules, compteurs modèle QSA et AR33, registre Kani). Les corps de calcul QSA restent ceux préenregistrés, flags AR1 absents/AR33OFF/T05défaut. Aucun essai AR2 lancé pendant interruption. Qualification CPU puis GPU maintenant sous contrôle root unique, Brave/Deezer inchangés.
+
+AR36 CPUpremièrepasse interrompueClippystrict : un seul diagnostic dansfixture synthétique(offset%4>0→!offset.is_multiple_of(4)); état/log conservéscpu-before-style-fix01, aucunGPUdébuté. Correctionstyleéquivalente etrelancechecksaffectés maintenant, aucunemathsproductionmodifiées.
+
+AR36 CPU CLOS VALIDÉ :411testsCPU/100ignorés, Clippystrictdirect/chat+mlx/chat, buildsreleaseCLI/libtest, fmt/ruff/inventairePASS ;17testscontrôleur et11portables+2subtestsPASS. 2harnessesKani réelsgardes/transactionPASS 16obligations/8covers, domaineu32/boolcomplet sansassume/boucle, paspreuveMetal/concurrence. CrossHairabsentdiagnosticconservé. PremierClippyfixturestyleconservé. TousCPU/proversjoints ; sélectionexactecomposantAR36présente avantgel. Main6030540bintégrée, pasAR1runtime/AR33OFF/T05défaut. NouveaugelpuisQA3gates avantvitesse128.
+
+AR36 AR2 qsa STARTED
+
+AR36 AR2 qsa VALIDATED
+
+AR36 AR2 model STARTED
+
+AR36 AR2 model VALIDATED
+
+AR36 AR2 cli STARTED
+
+AR36 AR2 cli VALIDATED
+
+AR36 AR2 quality CLOSED ALL_JOINED
+
+AR36 QA CLOS VALIDÉ3/3/tousjoints : QSA27cas et12800F32indépendants/étatsHalf>1million, frontières3/4/1023/1024/2047..2052/trace/unindexed/sparse/COW/grow/staleprepared/retry/abandon ; modèlearchive57606144statewords/993280logits/81920hidden/84états, continuation/rollback et12publicationsQSAeffectivesparrow ; CLI2tokensgolden/noMLX/shutdownPASS. Gel300pins, CLI5e06c0d6/libtest95bf7c81. TousCPU/proversjoints, Brave/Deezerouverts, pasautremodèle. Unécran128OFF/ON/OFF préenregistré maintenant mêmesconditionswarm1+mesure1/cache3GiB4readers/depth0/context4096/T0 ; pasadditiongains etpasparitétexteprisepourpreuvenumérique.
+
+AR36 AR2 control-start STARTED
+
+AR36 AR2 control-start VALIDATED
+
+AR36 AR2 control-start TPS 8.846880962431834
+
+AR36 AR2 qsa-append STARTED
+
+AR36 AR2 qsa-append VALIDATED
+
+AR36 AR2 qsa-append TPS 9.379397977324716
+
+AR36 AR2 control-end STARTED
+
+AR36 AR2 control-end VALIDATED
+
+AR36 AR2 control-end TPS 9.187287097728767
+
+AR36 AR2 speed CLOSED ALL_JOINED
+
+AR36-A CLOS VALIDÉécrancourt :OFF8.846880962431834 / ON9.379397977324716 / OFF9.187287097728767tok/s128/127,6sortiesgoldencomplètes/tousjoints, candidat+2.09105..6.01925%vscontrôlesfrais (dérive+3.85%,écrannonstatistique). QA3/3etpreuvesCPUrestentvalides ;300sources/rawarchivésroundtripavantpromotion.
+
+AR36-D — préenregistrement avantactivationpardéfaut. ConserversettingstrictOFFutiliséparfutursAR3 ; ajouterappend_settingqui choisitSome1quandvariableabsente surM5qualifié, override0resteOFFetinvalidesrefusés. AucunPSO/encode/calcul/changementmémoire. Testsrègledefault/override/hardware, Kani actualparser UTF8symbolique0..4/unwind10 et gardesexistantes ; rebuild/checksaffectés. QAmodèle+CLI sansvariable confirme12publicationsnormalesréelles etoraclehistoriqueinchangé, puisUNE128pardéfautsurcodefinal/main6030540b ; pasnouvellecomparaisonniadditiondegains. BraveDeezerouverts ; pascompiler/proverdurantGPU. PubliercetAR2qualifiéavantAR3, sansapp/release/merge.
+
+AR36-D contrôles initiaux : deux lintPython du nouveau test(defaultlambda/with) corrigés, bruts conservés ; lancementKani via superviseur réutilisé refuse avant enfant pourchampartifactsmanquant, rapportfailed01sanspreuve/phaseconservé. AucunGPUlancé, codeproductioninchangé ; relanceproofaveccontratcomplet.
+
+AR36 DEFAULT KANI kani STARTED
+
+AR36 DEFAULT KANI kani VALIDATED
+
+AR36-D CPU CLOS :412PASS/100ignorés, strictClippy2variants/buildsrelease/fmt/ruff/inventairePASS ;19contrôleur/11portables+2subtestsPASS. Kani3/3PASS251obligations(244SUCCESS/7UTF8stdUNREACHABLE)/15covers ; gardesu32/boolcomplets, parseurUTF8longueur0..4unwind10sansassume, paspreuveGPU/concurrence. Ancienneserreurspréflight/lintpréservées. TousCPU/proversjoints ; geldefaultpuisQAmodèle+CLI sansQSA_APPEND_CHAIN avantunique128finale. L’utilisateurconfirmeexplicitementactivationpardéfaut.
+
+AR36 DEFAULT model STARTED
+
+AR36 DEFAULT model VALIDATED
+
+AR36 DEFAULT cli STARTED
+
+AR36 DEFAULT cli VALIDATED
+
+AR36 DEFAULT quality CLOSED ALL_JOINED
+
+AR36-D QA CLOS VALIDÉ2/2/tousjoints : modèlefulloracle/states/logits/hidden/continuation/rollback etvraiCLI sansvariableQSA_APPEND_CHAIN, compteursréels72completed/72published/0abandon et12parrownormale.303pins/CLI725fc7e1/libtest45f2c700figés ; mathsunchangées/composantA27casréutilisé. DernièreUNE128pardéfautwarm1+mesure1maintenant, pascomparaisonnouveaugain ; tousCPU/proversinactifs/unmodèle/BraveDeezerouverts.
+
+AR36 DEFAULT default STARTED
+
+AR36 DEFAULT default VALIDATED
+
+AR36 DEFAULT default TPS 8.845068680277391
+
+AR36 DEFAULT speed CLOSED ALL_JOINED
+
+AR36-D FINAL CLOS VALIDÉ : defaultvariableABSENTE, 128/127MAIN = 8.845068680277391tok/s/warm1+mesure1/goldencomplet/tousjoints. Valeurfinalenoncontrôlée, pasnouveaupourcentagedegain ; écranOFF8.84688/ON9.37940/OFF9.18729conservéséparément. QAmodèle+CLI sansvariable et12joinsnormauxeffectifsPASS ;303sources/32brutsarchivésroundtrip/rehashavantpublication. DefaultM5ON/override0OFF, expérimentalAR3/4OFF, pasAR1runtime ;412CPU/100ignorés+19contrôleur+11portables2subtests/Kani3PASS251obligations15covers. AucunessaiAR2encours/compilateur/prover/GPUenfond ; publicationPRmaintenant, aucunmerge/release/appinstallée.
+
+## AR38-A — protocole précis AR4 avant implémentation
+
+Implémentation source en parallèle autorisée, qualification après AR1/AR2/AR3 uniquement. Worktree indépendant codex/issue140-ar4-20261105 depuis10397e98 ; composition avec les prédécesseurs à qualifier ensuite, aucun gain attribué à ce prototype seul. Flag expérimental strict M5 OFF `MLXL3_NATIVE_FINAL_HEAD_CHAIN`. Réutiliser LayerOutput/DeferredHcWrite, extraire hidden_tail privé ; hidden reste wrapper synchrone pour tous les appels existants. Ne différer que le dernier write quand head demandé, sans trace/captures et avec gardes L1 applicables ; les préfixes/headless gardent leur chemin. Dans un seul CB : dernier write canonique (fusion write/norm conservée) → mixer.encode_read → head.encode_row Shared ; garder streams/branch/gate/ReadBuffers/MoeOutput/full248320logits jusqu’à réussite des deux producteurs, puis publier hidden et offset existants. Pas de nouvelle math, dtype, selection greedy ou budget caché. Aucun pending dans snapshot/prefix/last_hidden.
+
+Conserver les APIs device-greedy avec le fallback synchrone existant si la chaîne complète n’est pas qualifiée ; ne pas activer C03 ni toucher S1/S2. La qualification sera AR : les APIs communes peuvent aussi être appelées par MTP, sans prétendre à une exclusion runtime automatique non implémentée. N’ajouter aucun bit de session spéculative pour cette optimisation exacte du forward commun.
+
+Tests : logits248320Half et hidden10240F32 nonvides/finis vs oracle indépendant, préfill un/multitoken/dernier seulement, head absent, trace/captures fallback, ancien prefix/snapshot conservé, annulation/abandon avantcommit et aprèssoumission, erreur après avancement des couches avant publication head, erreur ancien producteur tardive, offset/84états restaurés et retry/continuation exacts. Compteurs réels final-head chain, commandes/mixer/head, aucune hausse de nombre de forwards/head calls ; Kani sur gardes réelles d’éligibilité/publication/portée. Même gel/CPU/QA modèle+CLI puis écran128 court sur la composition retenue, pas addition aux économies AR2/3. Pas de build/prover/GPU par l’agent avant grant root.
+
+AR35 préparation CPU : contrôleur réutilise le superviseur audité AR34, 15tests passent (11hérités+4gardes/env/contreexemples compteur). CrossHair absent dans la venv qualifiée, diagnostic conservé. Kani ciblé ready_policy::ready_stages_actual_cohort_prefixes_and_destinations_never_escape PASS,6covers, temps solveur2.36s ; le résultat couvre les vrais helpers de cohortes/prefixes/destinations/alias, pas Metal/SSD/concurrence. Sources shader/tests encore en finition, aucun build moteur livré, aucune compilation Metal ni inférence lancée. La QA modèle exige l’activité froide initiale ; une row ensuite entièrement hot peut légitimement avoir un delta AR1 nul, sans qualifier zérotravail comme réussite. Le composant garde son cardinalage indépendant nonvide.
+
+## AR37a — protocole précis avant implémentation HC-read→QSA
+
+Source isolée codex/issue140-ar3-20261105 depuis90e93221 (AR2 source non encore qualifiée, aucun push de ce WIP). Composition avec AR1 puis AR2 validés avant toute qualification finale. Implémenter seulement AR3a maintenant : flag strict M5 OFF `MLXL3_NATIVE_QSA_HC_CHAIN`, méthode typée FlashQsa::forward_after_hc utilisant exactement PreparedQsa/encode_for_consumer/finish de AR2, sans pendinggénérique. Dans un CB : HC.encode_read puis index/attention sans CPUscore. Gardes avant encode : profondeur0, shapeHC/F32 valide, propriétaireGPU identique, pastrace/pascaptures transmis DEPUIS le layerloop, indexabsent OU longueuraprèsappend≤2051. Fallbacks existants inchangés. Garder HC ReadBuffers et QSA payload jusqu’à completion, vérifier CB puis publier la QSA via finish ; la continuation LayerResidual.forward_after_attention_read conserve MLP/T05/SSD et write. Une seule transaction QSA par couche dans le caller mut exclusif, aucun pending qui s’échappe dans snapshot/prefix.
+
+Tester contre HCread+QSA synchrones indépendants : mixed/gate/attention/KV/tail/blocs complets et finis, bornes AR2 pertinentes sans refaire grille inchangée, aucunindex/trace/capture/sparsefallback, COW/growth/ancienprefix/continuation, erreur aprèsHC/indexencode et refus postterminal avantpublication, abandon et retry/rollback. Compteurs séparés HC-QSAjoined etcommandes/index/attention ; modèle normal attend12joinsQSA/row,34GDNtriplesinchangés. Réutiliser archive84états etlogits993280/hidden81920/state57606144 etvraiCLI. Kani sur vraishelpers d’éligibilité/contexte/export/propriété. AR3b(previousHCwrite→HCread→QSA) reste plan SOURCE SEULE jusqu’à qualification de AR3a et son préenregistrement suivant. Pas de bit sessionMTP nouveau, S1/S2 non concernés ; qualifier AR sans prétendre fallbackspéculatifautomatique. Aucun build/proof/GPU par l’agent avant grant root, paspublication des sources WIP.
+
+AR35 AR1 quality FAILED FileNotFoundError(2, 'No such file or directory')
+
+AR35 CPU CLOS :403testsPASS/98ignorés,Clippy2variants/buildCLI/libtest/fmt/MetalONPASS ;Kani116obligations/6coversPASS ;15testscontrôleurPASS etinventaire284/4deltasrevus. Premiergel a échoué AVANT GPU sur un littéral dossierbuild/ar34 nonadapté ; préflightQA a refusé le plan absent avecparityfalse/zérophase, rapportconservéquality-preflight-failed01 etdiagnosticCPU. Cheminfreezer corrigé enbuild/issue140, aucunecodecalcul/binairemodifié ; nouveaugelséquentielréussit avantQA. SourceAR2/AR4/AR3atoujoursséparée,aucuncompiler/prover/inférenceconcurrent. QA3phases maintenant :14cas7intermédiaires2119680B/189440Half,puismodèle+CLI.
+
+AR35 AR1 ready STARTED
+
+AR35 AR1 ready VALIDATED
+
+AR35 AR1 model STARTED
+
+AR35 AR1 model VALIDATED
+
+AR35 AR1 cli STARTED
+
+AR35 AR1 cli VALIDATED
+
+AR35 AR1 quality CLOSED ALL_JOINED
+
+AR35 AR1 QA CLOS VALIDÉ3/3/tousjoints : composant14cas,7intermédiaires2119680octets exacts/189440Half finites, valid_counts[12,12,12,12,12,12,72,96], N1fallback/stridesF16F32/permutations/duplicates/poisons/alias/mutations/latefail. Modèle archive84/logits993280/hidden81920/state57606144/continuation+rollback exacts, coldinitial48cohortes432experts384dispatches(8parcohorte), total176cohortes1092experts1408dispatches ; T05/H séparé toujours actif. VraiCLI2tokensgolden/noMLX/shutdown. Source282pins/CLIf7b2838c/libtest14d63c62 inchangés. Démarrage écran128/127 OFF/ON/OFF sur baselineT05défaut, warm1+mesure1/MAIN87/cache3GiB/readers4/depth0/prefix0/context4096/T0 ; pascompiler/prover/export/autremodèle pendantGPU, Brave/Deezerouverts. Aucun gain annoncé avantcontrôlesfrais.
+
+AR35 AR1 control-start STARTED
+
+AR35 AR1 control-start VALIDATED
+
+AR35 AR1 control-start TPS 9.232696241549288
+
+AR35 AR1 ready-stages STARTED
+
+AR35 AR1 ready-stages VALIDATED
+
+AR35 AR1 ready-stages TPS 9.213011778568672
+
+AR35 AR1 control-end STARTED
+
+AR35 AR1 control-end VALIDATED
+
+AR35 AR1 control-end TPS 9.1956779444778
+
+AR35 AR1 speed CLOSED ALL_JOINED
+
+AR35-A CLOS NON CONCLUANT :128/127 OFF9.232696241549288 / A9.213011778568672 / OFF9.1956779444778tok/s, sortiescomplètesexactes et tousjoints. Candidat entrecontrôles ; pasgaindémontré. Audit indépendant confirme flag/macro/PSO/caller réels,5stagesnumériquementexacts/ordreSSDwavesinchangé, pasdéfautcorrectnessconcret. Coût SOURCE :95liaisons/params fixes parcohorte pour5stages vs25N ancien, donc coût augmentéN2/3 ; distribution/timingbinding128 nonmesurés, aucunecauseprouvée. Archive source-a282pins/raw-a complète/roundtripSHA validé avanttouteédition. L’utilisateur demande de revoir l’adaptation ; retrait suspendu, pasactivationp/défaut.
+
+AR35-B — préenregistrement avant correction d’adaptation : hypothèse nouvelle = conserver exactement les kernels/ressources/slots mais remplacer les90 appels set_buffer individuels des5stages par5appels natifs set_buffers, tableauxpointeurs/offsets surpile≤22, params5inchangés. API Metal0.33 locale vérifiée encodeurcompute::set_buffers(start,&[&BufferRef],&[NSUInteger]) impose longueurségales etretained CB normal inchangé. NouvelleoptionCPU stricteM5 OFF MLXL3_NATIVE_READY_BATCH_BINDINGS, indépendante de READY_STAGES, Aresteexactementreproductible(Ready1/Batch0) ; baselineReady0/Batch0. Aucun changementshader/arithmétique/SSD/mémoirepools. Bornes réelles de tableau et countparam getharnessKani/tests, compteurs réels appelsbulk/ressources/params. QA7intermédiaires+modèle+CLI avant vitesse ; uniqueécran128à4bras OFF/A/B/OFF, warm1+mesure1/mêmesconditionsT05/MAIN87/cache3GiB/readers4/depth0/context4096/T0, pasautregrille/profilage. Mesurer différenceA/Bdansmêmecampagne ; aucun gainpromis/ajoutauxanciens. Pascompiler/prover/autreinférence durantGPU, BraveDeezerouverts.
+
+AR35-B précision API avant code effectif : la surcharge encoder.rs1924 lue initialement est celle d’ArgumentEncoder ; le compute encoder utilise set_buffers ligne1578 avec &[Option<&BufferRef>]. L’agent a vérifié le type avant implémentation et utilisera22Some(bufferValide) surpile, préfixeségaux validés par un ensure réel avant créationencodeur (pas le debug_assert de la bibliothèque). L’hypothèse et les5appelsnatifs restent inchangés ; aucuneéditionshader/arithmétique.
+
+AR35-B CPU CLOS : Clippy direct/chat etmlx/chat, testsCPU complets, releaseCLI/libtest/fmt/ruff PASS ;17testscontrôleurpassent, matriceexacteOFF/A/B/OFF etvraiscompteursbulk imposés,2Kani(bornes/prefixbinding)PASS. Aucunshader/QMV/calculmodifié depuisA,MetalON déjàcompiléexact. Inventaire3deltasjustifiés(GPUflag/testflag/compteurmodèle) corrigé puisPASS. NouveaugelBséparéaprèsarchivageA, avantQA3phases qui demandentmêmes7intermédiairesetvalid_bulk_counts[60,1080,60]. TousCPU/proversjoints, pasautremodèle ; Brave/Deezerouverts.
+
+AR35 AR1 ready STARTED
+
+AR35 AR1 ready VALIDATED
+
+AR35 AR1 model STARTED
+
+AR35 AR1 model VALIDATED
+
+AR35 AR1 cli STARTED
+
+AR35 AR1 cli VALIDATED
+
+AR35 AR1 quality CLOSED ALL_JOINED
+
+AR35-B QA CLOS VALIDÉ3/3/tousjoints : mêmes14cas/7intermédiaires2119680B/189440Half exacts, valid_bulk_counts[60,1080,60] confirme5appelsgroupés/cohorte et90buffers/5params, limitesinvalidesrefuséesavantencodeur. Modèle oracle84/fullstates/logits/hidden/continuation/rollback etvraiCLI exacts, activitébulk réelle vérifiéeavant/après chaque row avecdeltazéroautoriséseulementrowtouthot.404CPU/98ignorés,17testscontrôleur et2Kani158obligations/10covers PASS. BinaireBCLI f35cb745/libtest e137c00d,285pinsfreezeB. Écran128uniqueOFF/A/B/OFF maintenant, contrôlesfraisetmêmebinaire : AReady1/Batch0, BReady1/Batch1, OFF0/0. SourceoldAetpremièremesureconservées ; aucunemathsmodifiées/aucunboostannoncé. CPU/provers/exportinactifs, unmodèle, BraveDeezerouverts.
+
+AR35 AR1 control-start STARTED
+
+AR35 AR1 control-start VALIDATED
+
+AR35 AR1 control-start TPS 8.735346513742357
+
+AR35 AR1 original STARTED
+
+AR35 AR1 original VALIDATED
+
+AR35 AR1 original TPS 8.473950544635693
+
+AR35 AR1 batched STARTED
+
+AR35 AR1 batched VALIDATED
+
+AR35 AR1 batched TPS 8.667048589102773
+
+AR35 AR1 control-end STARTED
+
+AR35 AR1 control-end VALIDATED
+
+AR35 AR1 control-end TPS 8.492074079894635
+
+AR35 AR1 speed CLOSED ALL_JOINED
+
+AR35-B CLOS NON CONCLUANT : OFF8.735346513742357 / A8.473950544635693 / B8.667048589102773 / OFF8.492074079894635tok/s ; toutes8sortieswarm+mesure128complètesgolden et tousjoints. B>A observé mais B entrelescontrôles, dérivecontrôlesconservée ; pasgaindebaselineétabli/causedémontrée. Source285etrawBarchivésroundtripavanttouteédition. QA3/3validemêmesbitsetvraisbulk[5,90,5]parcohorte.
+
+AR35-C — préenregistrement avant nouvel essai ciblé demandé par la revue utilisateur. Audit source vérifie : finish640/2560 du stock ont DÉJÀ largeurparamdynamique (pas de spécialisationlargeurperdue), MAIS il sépare flash_finish128 et flash_up_finish_swiglu. Notre ready_finish mélangeait cesdeuxcorps via if(p.z). Hypothèse nouvelle : ce mélange peut modifier registres/code, nonmesuré ; restaurer uniquement la séparation avec/sansSwiGLU, largeur dynamique inchangée, pasinventeruneoptifixedwidth. NouveauflagstrictM5OFF MLXL3_NATIVE_READY_SPLIT_FINISH ; B(false)conserve PSOdynamique exact, C(true)charge deuxPSOplain/up auxmêmesbodies/barrières/Half/H128, mêmesbindingsbulk etQMV3, aucun nouveauwait/SSD/pool. Garder ABIbindslots/params/offsets identiques. QA14cas/7intermédiaires+modèle+CLI avantUNécran128OFF/B/C/OFF, contrôlesfraismêmesconditions etbinaire, pasadditiondegains/profilage/cooling/swapabort. Unemiseàjourde compteur/rôlevalideraemploi desPSOdistincts survraicaller ; sourceBconservée. Ce sera le dernier contrôle de cette adaptation avant verdict/AR2, sauf défaut concret découvert.
+
+AR35-C CPU CLOS : Clippy2variants/fulltestsCPU/buildCLI+libtest/MetalON+READY/fmt/ruff PASS ;19testscontrôleur,2Kani gardes réutilisées158obligations10coversPASS, inventaireCdelta revu/corrigé etregistresportablesPASS. Séparationplain/up réelle, largeur resteparamcommele stock, B(false)restedynamique ; mêmesbuffersbulk8dispatches. NouveaugelC285+3helpers avantQA, aucun autrecompilateur/prover/modèle. QA3phases impose split_finish_selected/distinct_split_psos/valid_finish_counts[0,24,12], bulk[60,1080,60], mêmes7intermédiaires/84stateoracle/logits/continuation/CLI. BraveDeezerouverts.
+
+AR35 AR1 ready STARTED
+
+AR35 AR1 ready VALIDATED
+
+AR35 AR1 model STARTED
+
+AR35 AR1 model VALIDATED
+
+AR35 AR1 cli STARTED
+
+AR35 AR1 cli VALIDATED
+
+AR35 AR1 quality CLOSED ALL_JOINED
+
+AR35-C QA CLOS VALIDÉ3/3/tousjoints :14cas,7intermédiaires2119680B+189440Half exacts, PSOplain/updistinctsvérifiés etvalid_finish_counts[0,24,12] sur12cohortesC ; mêmesbulk[60,1080,60]. Modèle archive84/logits993280/state57606144/hidden81920/continuation/rollback etCLI exacts ; nouveauxdeltasfinish[0,2N,N] imposésvraicaller. Banciennebranche dynamique conservée.288pins/CLId2d0774b/libtestebf8b6e5inchangés,404CPU/98ignorés+19contrôleur/Kani15810coversPASS. Dernierécranadaptation128OFF/B/C/OFF démarre :OFF0/0/0,B1/1/0,C1/1/1 ; aucune nouvelleautresérie sansdéfautconcret. Conditionscache3GiB4readers/depth0/MAIN87/context4096/T0warm1+mesure1,BraveDeezerouverts,unmodèleetCPU/proversinactifs.
+
+AR35 AR1 control-start STARTED
+
+AR35 AR1 control-start VALIDATED
+
+AR35 AR1 control-start TPS 9.111739285466331
+
+AR35 AR1 bulk STARTED
+
+AR35 AR1 bulk VALIDATED
+
+AR35 AR1 bulk TPS 8.19004122228186
+
+AR35 AR1 split STARTED
+
+AR35 AR1 split VALIDATED
+
+AR35 AR1 split TPS 7.821095418505616
+
+AR35 AR1 control-end STARTED
+
+AR35 AR1 control-end VALIDATED
+
+AR35 AR1 control-end TPS 8.226646085982807
+
+AR35 AR1 speed CLOSED ALL_JOINED
+
+AR35-C CLOS NON CONCLUANT :128/127 OFF9.111739285466331 / B8.19004122228186 / C7.821095418505616 / OFF8.226646085982807tok/s. QAexact3/3 et8sortiesgolden/tousjoints. C souslescontrôles maisdériveOFF−9.71%, pascauserégressionisolée. Auditindépendant PSO/offsets/QMV/fastpaths aucun défautconcret supplémentaire. Pasactivationdéfaut.
+
+AR35-C-R1 — répétition de validation explicitement demandée par utilisateur «wtf retest la». Avant lancement : mêmebinaireCgelé d2d0774b/libtestebf8b6e5/288pins, même128/127/warm1+mesure1/MAIN87/cache3GiB/readers4/depth0/context4096/T0. UniqueOFF(0,0,0)/C(1,1,1)/OFF(0,0,0), retraitbrasBdevenu inutile. Propriété : résultatbasCse reproduit-ilfaceàcontrôlesfrais ; dériveprécédenteconservée, aucunboostpromis. QA3/3C réutilisée sansmodificationdes288sourcesetartéfacts, rapportsréférencés ; aucunautrecompilateur/prover/export/modèleGPU, BraveDeezerlaissésouverts. Pasnouveauprototype.
+
+AR35 AR1 control-start STARTED
+
+AR35 AR1 control-start VALIDATED
+
+AR35 AR1 control-start TPS 8.155587612616042
+
+AR35 AR1 split STARTED
+
+AR35 AR1 split VALIDATED
+
+AR35 AR1 split TPS 8.75261214697099
+
+AR35 AR1 control-end STARTED
+
+AR35 AR1 control-end VALIDATED
+
+AR35 AR1 control-end TPS 8.886223876917963
+
+AR35 AR1 speed CLOSED ALL_JOINED
+
+AR35-C-R1 CLOS NON CONCLUANT : demandeutilisateurrépétéeexactement128/127OFF8.155587612616042 / C8.75261214697099 / OFF8.886223876917963tok/s, mêmes288sourceset2binairesrehashésavant/après,mêmes6warm+mesuregolden/tousjoints. C entrecontrôles, OFFdérive+8.96%; aucunboostnirégressioncausaleétablis. Csource288/raw48dontretstestbootstrap/QA-réutilisation archivésroundtripSHAavantretrait ; auditfinalPSOoffsetsQMV/waitsaucundéfautconcret. A/B/Ccorrectsnumériquement, verdictpublicationrésultatsseule/pasactivationdéfaut, moteurT05historiqueinchangé. AR2àcomposeravecmain6030540b avantnouveaugel/qualification, PR141+139mergéesparutilisateur.
+
+AR35 publication rapport : contrôle documentaire initial échoue sur convention index A/B (clés chemins originaux, member dans row.path) ; archives inchangées et reçus conservés publication-check-failed01.json. Checker corrigé lookup, six archives/roundtrips et liens/JSON PASS. Prototype AR1 retiré après archive, aucun diff exécutable conservé.
+
+AR35 publication finale surmain6030540b intégrée sansconflit :147fichiersdocs/opti seulement, aucun runtime/test/CIactif dansdiffPR. Vérifwhitespace initiale signale neuflogs natifsbruts avecblanklineEOF ; conservés exactspourSHA/archives, checkprose/JSONhors*.logPASS. Vérif49JSON/33liens/6archives+identitésPASS ; CIexactepublicationàobserver,pasannoncéeverte.
