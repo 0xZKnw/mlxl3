@@ -1,0 +1,45 @@
+{
+  "status": "validated",
+  "parity": true,
+  "conflicts_before": [],
+  "checks": [
+    {
+      "label": "model-native",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/native-qwen36-zero-mlx/build/artifacts/qwen36-pr-libtest",
+        "--ignored",
+        "--exact",
+        "gpu::qwen::tests::complete_session_matches_independent_mlx_and_restores_branches",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0
+    },
+    {
+      "label": "bridge",
+      "command": [
+        "/Users/henko/Documents/Codex/2026-10-05/chec/work/venv/bin/python",
+        "tests/physical_qwen_bridge.py",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v2.0.2/mlxl3",
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/native-qwen36-zero-mlx/build/artifacts/mlxl3-qwen36-pr-direct",
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/native-qwen36-zero-mlx/docs/measurements/qwen36-native-20261104/integration/bridge"
+      ],
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0
+    }
+  ],
+  "artifacts": {
+    "mlxl3-qwen36-pr-direct": {
+      "sha256": "0d98f895f583983d2b643ddb2a916648e0d3911aaf649ab4b79c8d0b8c146ab9",
+      "bytes": 10304048
+    },
+    "qwen36-pr-libtest": {
+      "sha256": "7425ba2f22e257f5df1a618cfb7c23f9c27cd181c6a5b4e109ca218f3d9c41dd",
+      "bytes": 9552640
+    }
+  }
+}

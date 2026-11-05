@@ -1,0 +1,50 @@
+"""Two existing native8 selections only; main is never called on import."""
+import gzip
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[3]
+OUT=ROOT/'docs/measurements/issue125-ssd-wave-20261104/diagnostic'
+PLAN=ROOT/'build/ssd-wave/diagnostic/plan.json'
+
+def main():
+    old=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+    plan=old['strict_json'](PLAN.read_text());OUT.mkdir(exist_ok=True)
+    sink=OUT/'report.json';assert not sink.exists()
+    report={'status':'preparing','parity':False,'all_children_joined':False,'phases':[]}
+    def save():sink.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+    def journal(text):
+        with (ROOT/'opti.md').open('a') as f:f.write('\nI125-L2 NATIVE8 '+text+'\n')
+    save()
+    try:
+        for item in plan['artifacts'].values():assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+        freeze=json.loads((ROOT/'build/ssd-wave/freeze.json').read_text())
+        for file,sha in freeze['source_hashes'].items():assert hashlib.sha256((ROOT/file).read_bytes()).hexdigest()==sha,file
+        for phase in plan['phases']:
+            label=phase['label'];folder=OUT/label;folder.mkdir(exist_ok=True)
+            record={'label':label,'command':phase['command'],'status':'running','parity':False,'joined':False};report['phases'].append(record);save();journal(label+' STARTED')
+            env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))};env.update(plan['environment']);env['MLXL3_NATIVE_SSD_EXTRA_WAVE']=phase['flag']
+            child=None;start=time.monotonic()
+            try:
+                with (folder/'native.log').open('xb') as log:
+                    child=subprocess.Popen(phase['command'],cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);record['pid']=child.pid;save();code=child.wait(timeout=phase['timeout_seconds'])
+                assert code==0 and not old['members'](child.pid)
+                text=(folder/'native.log').read_text();assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text;old['native_images'](text)
+                actual=old['marker'](text,'I120_NATIVE8_PROFILE')
+                old['exact_fields'](actual,plan['expected'])
+                summary=old['native8_summary'](actual)
+                payload=json.dumps(actual,allow_nan=False,separators=(',',':')).encode();(folder/'profile.json.gz').write_bytes(gzip.compress(payload,mtime=0))
+                (folder/'safe-summary.json').write_text(json.dumps(summary,indent=2,allow_nan=False)+'\n')
+                record.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=summary);save();journal(label+' VALIDATED');print(label+' validated',flush=True)
+            except BaseException as error:
+                record.update(status='failed',parity=False,joined=old['stop'](child),error=repr(error));save();raise
+        assert len(report['phases'])==2 and all(x['parity'] and x['joined'] for x in report['phases'])
+        report.update(status='validated_intrusive_diagnostic_only',parity=True,all_children_joined=True);journal('2/2 VALIDATED;analysis pending;not speed')
+    except BaseException as error:
+        report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(x['joined'] for x in report['phases']));journal('FAILED '+repr(error));raise
+    finally:save()
+if __name__=='__main__':main()

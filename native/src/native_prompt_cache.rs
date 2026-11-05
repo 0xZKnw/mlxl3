@@ -1,6 +1,7 @@
 //! One owned prompt checkpoint; speculative decode state is never cached.
-use super::{ChatMtpHead, NativeChatModel, RoundDraft, prompt_cache_budget};
+use super::{ChatMtpHead, RoundDraft, prompt_cache_budget};
 use anyhow::{Context, Result, bail, ensure};
+use mlxl3_native::gpu::FlashNext as NativeChatModel;
 use mlxl3_native::gpu::{FlashMtpSession, FlashQsaState, FlashSnapshot};
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicBool, Ordering};

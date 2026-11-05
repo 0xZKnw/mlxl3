@@ -1,0 +1,231 @@
+import hashlib
+import json
+import math
+import os
+import runpy
+import statistics
+import subprocess
+from pathlib import Path
+
+ROOT = Path.cwd()
+OUT = ROOT / "docs/measurements/issue125-ssd-wave-20261104/performance"
+helper = runpy.run_path(
+    str(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt")
+)
+freeze = json.loads((OUT.parent / "freeze.json").read_text())
+q = json.loads((OUT.parent / "quality/report.json").read_text())
+assert q["parity"] is True and q["all_children_joined"] is True
+reference = Path(
+    "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli"
+)
+ref_sha = "3dfea63ea3c2be58e3126f91686817d53d21fcf137c1eb62d8991e1d1647c4c4"
+candidate = Path(freeze["artifacts"]["direct-cli"]["path"])
+driver = ROOT / "scripts/benchmark-flash-bridge.py"
+py = "/Users/justin/Documents/mix-stq1_0/.venv/bin/python"
+model = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+assert (
+    hashlib.sha256(reference.read_bytes()).hexdigest() == ref_sha
+    and hashlib.sha256(candidate.read_bytes()).hexdigest() == freeze["artifacts"]["direct-cli"]["sha256"]
+)
+assert (
+    hashlib.sha256(driver.read_bytes()).hexdigest()
+    == "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8"
+)
+env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+env.update(
+    {
+        "PYTHONPATH": str(ROOT),
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_PROMPT_CACHE_MIB": "0",
+    }
+)
+protocol = {
+    "trial": "I125-L2-SSD-EXTRA-WAVE-20261104",
+    "reference": {"path": str(reference), "sha256": ref_sha},
+    "candidate": freeze["artifacts"]["direct-cli"],
+    "driver_sha256": hashlib.sha256(driver.read_bytes()).hexdigest(),
+    "order": ["reference", "candidate", "candidate", "reference"],
+    "prompts": ["MAIN", "HOLD"],
+    "tokens": 32,
+    "repeats": 1,
+    "warmups_per_prompt_per_process": 1,
+    "cache_gib": 3,
+    "readers": 4,
+    "dynamic": 0,
+    "lookahead": 0,
+    "prefix_reuse": False,
+    "context": 4096,
+    "sampling": "T0/topk1/penalty1",
+    "prior_eight_flags": "absent, actual qualified defaults",
+    "candidate_flag": "MLXL3_NATIVE_SSD_EXTRA_WAVE=1",
+    "conditions": "AC100%, no thermal or performance warning recorded; temperature unmeasured; all owned CPU/prover/inference joined",
+    "quality": "4essential gates:forced2extra/F16-F32;191actualextras4modelrows/finite logits-hidden-84states and independent archive;partialerror-recovery;actualCLI4096golden/noMLX;extendedcancel pending",
+}
+(OUT / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
+campaign = {"status": "running", "parity": False, "processes": []}
+sink = OUT / "campaign.json"
+assert not sink.exists()
+
+
+def save():
+    sink.write_text(json.dumps(campaign, indent=2, allow_nan=False) + "\n")
+
+
+def journal(text):
+    with (ROOT / "opti.md").open("a") as f:
+        f.write("\nI125-L2 AR32 " + text + "\n")
+
+
+save()
+journal("STARTED MAIN/HOLD ABBA, preregistered protocol.json, exclusive GPU/no compilation")
+reports = []
+try:
+    for i, kind in enumerate(protocol["order"], 1):
+        folder = OUT / (str(i) + "-" + kind)
+        child = None
+        item = {"kind": kind, "status": "running", "joined": False}
+        campaign["processes"].append(item)
+        save()
+        runenv = env.copy()
+        if kind == "candidate":
+            runenv["MLXL3_NATIVE_SSD_EXTRA_WAVE"] = "1"
+        cmd = [
+            py,
+            str(driver),
+            str(candidate if kind == "candidate" else reference),
+            model,
+            str(folder),
+            "--tokens",
+            "32",
+            "--repeats",
+            "1",
+            "--cache-gib",
+            "3",
+            "--timeout",
+            "300",
+        ]
+        item["command"] = cmd
+        try:
+            with (OUT / (str(i) + ".driver.log")).open("xb") as log:
+                child = subprocess.Popen(
+                    cmd,
+                    cwd=ROOT,
+                    env=runenv,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+                item["pid"] = child.pid
+                save()
+                code = child.wait(timeout=600)
+            assert code == 0 and not helper["members"](child.pid)
+            report = helper["strict_json"]((folder / "report.json").read_text())
+            assert (
+                report["status"] == "validated"
+                and report["reaped"] is True
+                and report["reader_joined"] is True
+                and report["tokens"] == 32
+                and report["repeats"] == 1
+            )
+            assert report["binary_sha256"] == (
+                freeze["artifacts"]["direct-cli"]["sha256"] if kind == "candidate" else ref_sha
+            )
+            assert (
+                set(report["prompts"]) == {"MAIN", "HOLD"}
+                and len(report["runs"]) == 2
+                and len(report["warmup"]) == 2
+            )
+            for row in report["runs"] + report["warmup"]:
+                s = row["stats"]
+                assert (
+                    s["generated_tokens"] == 32
+                    and s["decode_tokens"] == 31
+                    and s["cached_prompt_tokens"] == 0
+                    and s["context_limit"] == 4096
+                )
+                assert (
+                    row["text"]
+                    and row["token_hash"]
+                    and row["generation_mode"]["mtp_active"] is False
+                    and row["generation_mode"]["dflash_active"] is False
+                )
+                assert all(
+                    type(s[k]) in (int, float) and math.isfinite(s[k]) and s[k] > 0
+                    for k in ("decode_tps", "decode_seconds", "elapsed_seconds", "ttft_seconds")
+                )
+            reports.append(report)
+            item.update(status="validated", joined=True, decode_tps=report["median_decode_tps"])
+            save()
+            journal(str(i) + " " + kind + " VALIDATED " + json.dumps(item["decode_tps"]))
+            print(str(i) + " " + kind + " " + json.dumps(item["decode_tps"]), flush=True)
+        except BaseException as error:
+            item.update(status="failed", joined=helper["stop"](child), error=repr(error))
+            save()
+            raise
+    summary = {
+        "status": "measured_short_screen",
+        "parity": True,
+        "outputs_checked": 16,
+        "all_children_joined": True,
+        "prompts": {},
+    }
+    for prompt in ["MAIN", "HOLD"]:
+        rows = [
+            r
+            for report in reports
+            for r in report["warmup"] + report["runs"]
+            if r["prompt"] == prompt
+        ]
+        assert len(rows) == 8 and all(
+            (r["text"], r["token_hash"]) == (rows[0]["text"], rows[0]["token_hash"]) for r in rows
+        )
+        measured = [
+            next(r for r in report["runs"] if r["prompt"] == prompt)["stats"] for report in reports
+        ]
+        a = [measured[i]["decode_tps"] for i in (0, 3)]
+        b = [measured[i]["decode_tps"] for i in (1, 2)]
+        metrics = {
+            k: {
+                "reference": [measured[i][k] for i in (0, 3)],
+                "candidate": [measured[i][k] for i in (1, 2)],
+                "median_percent": 100
+                * (
+                    statistics.median([measured[i][k] for i in (1, 2)])
+                    / statistics.median([measured[i][k] for i in (0, 3)])
+                    - 1
+                ),
+            }
+            for k in ("elapsed_seconds", "ttft_seconds")
+        }
+        summary["prompts"][prompt] = {
+            "reference_tps": a,
+            "candidate_tps": b,
+            "reference_median": statistics.median(a),
+            "candidate_median": statistics.median(b),
+            "median_percent": 100 * (statistics.median(b) / statistics.median(a) - 1),
+            "reference_drift_percent": 100 * (a[1] / a[0] - 1),
+            "candidate_drift_percent": 100 * (b[1] / b[0] - 1),
+            "all_candidate_gt_all_reference": min(b) > max(a),
+            "metrics": metrics,
+            "metal_allocated_bytes": [
+                s["memory"]["native_metal_allocated_bytes"] for s in measured
+            ],
+        }
+    for file, sha in freeze["source_hashes"].items():
+        assert hashlib.sha256((ROOT / file).read_bytes()).hexdigest() == sha, file
+    assert hashlib.sha256(reference.read_bytes()).hexdigest() == ref_sha
+    assert hashlib.sha256(candidate.read_bytes()).hexdigest() == freeze["artifacts"]["direct-cli"]["sha256"]
+    (OUT / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
+    campaign.update(status="completed", parity=True, all_children_joined=True)
+    journal("CLOSED " + json.dumps(summary, sort_keys=True))
+    print(json.dumps(summary), flush=True)
+except BaseException as error:
+    campaign.update(status="failed", parity=False, error=repr(error))
+    journal("FAILED " + repr(error))
+    raise
+finally:
+    save()

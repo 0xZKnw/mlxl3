@@ -31,7 +31,10 @@ kernel void mapped_glu(const device float* gate_raw [[buffer(0)]],const device f
     mapped_float_h128(ua,ub,tid);
     float gate=float(half(ga[tid]*0.08838834764831845f*float(gate_scale[column])));
     float up=float(half(ua[tid]*0.08838834764831845f*float(up_scale[column])));
-    float activated=float(half((gate/(1.0f+exp(-gate)))*up));
+    // MLX 0.32.2 custom kernels use MathModeSafe with the default fast FP32 functions.
+    // fastMathEnabled(false) also switches the native library to precise functions;
+    // name this exponential explicitly to preserve the source checkpoint's rounding.
+    float activated=float(half((gate/(1.0f+fast::exp(-gate)))*up));
     da[tid]=float(half(activated*float(down_scale[column])));
     mapped_float_h128(da,db,tid);
     prepared[column]=half(da[tid]*0.08838834764831845f);

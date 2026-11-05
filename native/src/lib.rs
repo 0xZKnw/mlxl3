@@ -94,7 +94,12 @@ pub mod moe;
 pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
