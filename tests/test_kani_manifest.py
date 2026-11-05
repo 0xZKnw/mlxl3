@@ -1,8 +1,6 @@
 """Run platform-neutral proof inventory contracts even without Linux prlimit."""
 
 import json
-
-
 import re
 from pathlib import Path
 
