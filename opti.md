@@ -18,6 +18,8 @@ Intégration main6030540b. Le patch P09 s’applique en trois voies. Le seul con
 
 Première compilation des tests P10 arrêtée sur le chemin d’import FloatType du nouveau test. Le code moteur compile. Diagnostic host/check.log conservé, correction du chemin de test avant relance.
 
+Suites Rust CPU/direct/compat, Clippy strict et Python passent. Première tentative Kani interrompue avant les obligations. Le harnais P10 infère un type unique pour le compteur u32 et les tailles u64. Fixer les types dans le harnais, puis relancer les neuf contrôles et geler le binaire du commit corrigé. Preuve host/kani-p10-initial.log. Aucune inférence GPU lancée.
+
 
 ## Intégration PR74 / PR139 / PR141 — 2026-11-05
 

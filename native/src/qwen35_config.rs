@@ -352,10 +352,10 @@ fn native_qwen_stage_offsets_reject_jobs_past_the_batch() {
 #[kani::proof]
 fn native_qwen_stage_jobs_have_disjoint_in_bounds_slices() {
     let (job, other, down): (u32, u32, bool) = kani::any();
-    let [count, input, output] = if down {
-        [8, 1024, 8192]
+    let (count, input, output): (u32, u64, u64) = if down {
+        (8, 1024, 8192)
     } else {
-        [16, 4096, 2048]
+        (16, 4096, 2048)
     };
     let a = native_qwen_stage_offsets(job, down);
     let b = native_qwen_stage_offsets(other, down);
