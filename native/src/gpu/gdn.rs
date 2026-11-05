@@ -11,6 +11,7 @@ pub(super) struct Pipelines {
     from: [ComputePipelineState; 2],
     dense: ComputePipelineState,
     joint_ab: Option<ComputePipelineState>,
+    whole: Option<ComputePipelineState>,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
     norm: ComputePipelineState,
@@ -23,11 +24,13 @@ impl Pipelines {
         p: &impl Fn(&str) -> Result<ComputePipelineState>,
         norm_gate: bool,
         joint_ab: bool,
+        whole: bool,
     ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
             joint_ab: joint_ab.then(|| p("gdn_joint_ab")).transpose()?,
+            whole: whole.then(|| p("ar10_gdn_whole")).transpose()?,
             prepare: p("gdn_prepare_row")?,
             step: p("gdn_step_row")?,
             norm: p("gdn_norm_row")?,
@@ -53,6 +56,8 @@ pub struct FlashGdnState {
 // The standard command buffer retains encoded resources through completion.
 // Pending keeps the state/output owners and the publication-status guard.
 struct PendingGdn {
+    #[cfg(test)]
+    test_gated: MatrixView,
     command: CommandBuffer,
     next: Frame,
     values: MatrixView,
@@ -349,49 +354,96 @@ impl<'a> FlashGdn<'a> {
         } else {
             (dense(&self.a)?, dense(&self.b)?)
         };
-        let conv = half(10240)?;
-        let q = half(2048)?;
-        let k = half(2048)?;
-        let v = half(6144)?;
-        Metal::encode(
-            cmd,
-            &p.prepare,
-            &[
-                &qkv.buffer,
-                &prev.history.buffer,
-                &self.conv,
-                &conv.buffer,
-                &q.buffer,
-                &k.buffer,
-                &v.buffer,
-                &next.history.buffer,
-            ],
-            [10240u32],
-            g(1, 80, 1),
-            32,
-        );
-        let delta = half(6144)?;
-        Metal::encode(
-            cmd,
-            &p.step,
-            &[
-                &q.buffer,
-                &k.buffer,
-                &v.buffer,
-                &a.buffer,
-                &b.buffer,
-                &self.a_log,
-                &self.dt_bias,
-                &prev.recurrent.buffer,
-                &delta.buffer,
-                &next.recurrent.buffer,
-            ],
-            [128u32],
-            g(1, u64::from(value_groups), 48),
-            64,
-        );
-        let (normed, gated) =
-            self.encode_norm_gate(cmd, &delta, &z, trace, private_f32_consumer)?;
+        let whole_pipeline = p.whole.as_ref().filter(|p| {
+            crate::flash_support::ar10_whole_gdn_eligible(
+                gpu.gdn_whole.get(),
+                trace,
+                private_f32_consumer,
+                p.thread_execution_width() as u32,
+                p.max_total_threads_per_threadgroup() as u32,
+            )
+        });
+        let (conv, q, k, v, delta, normed, gated) = if let Some(pipeline) = whole_pipeline {
+            let gated = half(6144)?;
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[
+                    &qkv.buffer,
+                    &z.buffer,
+                    &a.buffer,
+                    &b.buffer,
+                    &prev.history.buffer,
+                    &self.conv,
+                    &self.a_log,
+                    &self.dt_bias,
+                    &prev.recurrent.buffer,
+                    &next.history.buffer,
+                    &next.recurrent.buffer,
+                    &self.gain,
+                    &gated.buffer,
+                ],
+                [self.eps.to_bits()],
+                g(48, 1, 1),
+                512,
+            );
+            #[cfg(test)]
+            gpu.gdn_whole_uses.set(gpu.gdn_whole_uses.get() + 1);
+            (None, None, None, None, None, None, gated)
+        } else {
+            let conv = half(10240)?;
+            let q = half(2048)?;
+            let k = half(2048)?;
+            let v = half(6144)?;
+            Metal::encode(
+                cmd,
+                &p.prepare,
+                &[
+                    &qkv.buffer,
+                    &prev.history.buffer,
+                    &self.conv,
+                    &conv.buffer,
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &next.history.buffer,
+                ],
+                [10240u32],
+                g(1, 80, 1),
+                32,
+            );
+            let delta = half(6144)?;
+            Metal::encode(
+                cmd,
+                &p.step,
+                &[
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &a.buffer,
+                    &b.buffer,
+                    &self.a_log,
+                    &self.dt_bias,
+                    &prev.recurrent.buffer,
+                    &delta.buffer,
+                    &next.recurrent.buffer,
+                ],
+                [128u32],
+                g(1, u64::from(value_groups), 48),
+                64,
+            );
+            let (normed, gated) =
+                self.encode_norm_gate(cmd, &delta, &z, trace, private_f32_consumer)?;
+            (
+                Some(conv),
+                Some(q),
+                Some(k),
+                Some(v),
+                Some(delta),
+                normed,
+                gated,
+            )
+        };
         let out_half = self.out.encode_row(cmd, &gated, storage)?;
         let values = if crate::flash_support::gdn_private_epilogue_eligible(
             gpu.gdn_half_elision.get(),
@@ -414,17 +466,19 @@ impl<'a> FlashGdn<'a> {
             );
             values
         };
+        #[cfg(test)]
+        let test_gated = gated.clone();
         let steps = if trace {
             Some([
                 ("qkv", qkv),
                 ("z", z),
                 ("a", a),
                 ("b", b),
-                ("conv", conv),
-                ("q", q),
-                ("k", k),
-                ("v", v),
-                ("delta", delta),
+                ("conv", conv.context("trace conv missing")?),
+                ("q", q.context("trace q missing")?),
+                ("k", k.context("trace k missing")?),
+                ("v", v.context("trace v missing")?),
+                ("delta", delta.context("trace delta missing")?),
                 (
                     "normed",
                     normed.context("trace requires materialized norm")?,
@@ -435,6 +489,8 @@ impl<'a> FlashGdn<'a> {
             None
         };
         Ok(PendingGdn {
+            #[cfg(test)]
+            test_gated,
             command: cmd.to_owned(),
             next,
             values,

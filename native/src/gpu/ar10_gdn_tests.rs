@@ -72,3 +72,75 @@ fn physical_ar10_joint_ab_matches_canonical_dense() -> Result<()> {
     eprintln!("AR10_JOINT_AB {{\"parity\":true,\"cases\":2,\"finite_half_words\":192}}");
     Ok(())
 }
+
+#[test]
+#[ignore = "physical AR10 whole GDN vs split canonical, every history/state/gated/output word; run alone"]
+fn physical_ar10_whole_gdn_matches_canonical_frames() -> Result<()> {
+    let gpu = Metal::new()?;
+    ensure!(gpu.gdn_whole.get());
+    gpu.gdn_joint_ab.set(false);
+    gpu.gdn_half_elision.set(false);
+    gpu.gdn_norm_gate.set(false);
+    let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let mut gdn = FlashGdn::load(&gpu, &c, "model.language_model.layers.0.linear_attn", 1e-6)?;
+    let read = |p: &PendingGdn| -> Result<[Vec<u8>; 4]> {
+        Ok([
+            p.next.history.export_bytes(&gpu)?,
+            p.next.recurrent.export_bytes(&gpu)?,
+            p.test_gated.export_bytes(&gpu)?,
+            p.values.export_bytes(&gpu)?,
+        ])
+    };
+    for phase in 0..2 {
+        let row = (0..2560)
+            .map(|i| (((i + phase * 13) % 113) as f32 - 56.) / 79.)
+            .collect::<Vec<_>>();
+        let x = gpu.f32_storage(&row)?.matrix(MatrixLayout {
+            shape: [1, 2560],
+            strides: [2560, 1],
+            offset: 0,
+        })?;
+        let before = gdn.snapshot();
+        gpu.gdn_whole.set(false);
+        let expected = gpu.command(|cmd| gdn.encode_for_consumer(cmd, &x, false, true))?;
+        let bytes = read(&expected)?;
+        ensure!(
+            bytes.iter().map(Vec::len).collect::<Vec<_>>()
+                == [30720 * 2, 786432 * 4, 6144 * 2, 2560 * 4]
+        );
+        for (i, raw) in bytes.iter().enumerate() {
+            ensure!(if i == 0 || i == 2 {
+                raw.as_chunks::<2>()
+                    .0
+                    .iter()
+                    .all(|b| f16::from_bits(u16::from_le_bytes(*b)).is_finite())
+            } else {
+                raw.as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|b| f32::from_le_bytes(*b).is_finite())
+            });
+        }
+        gdn.finish(expected)?;
+        let held = gdn.snapshot();
+        gdn.restore(&before)?;
+        gpu.gdn_whole.set(true);
+        let uses = gpu.gdn_whole_uses.get();
+        let actual = gpu.command(|cmd| gdn.encode_for_consumer(cmd, &x, false, true))?;
+        ensure!(
+            gpu.gdn_whole_uses.get() - uses == 1,
+            "whole GDN fallback cannot qualify"
+        );
+        ensure!(read(&actual)? == bytes, "whole GDN phase {phase}");
+        gdn.finish(actual)?;
+        let frame = held.frame.as_ref().context("missing retained frame")?;
+        ensure!(
+            frame.history.export_bytes(&gpu)? == bytes[0]
+                && frame.recurrent.export_bytes(&gpu)? == bytes[1]
+        );
+    }
+    eprintln!(
+        "AR10_GDN_WHOLE {{\"parity\":true,\"cases\":2,\"state_words\":1572864,\"history_half_words\":61440,\"gated_half_words\":12288,\"output_float_words\":5120,\"actual_whole_uses\":2,\"retained_frames\":true}}"
+    );
+    Ok(())
+}

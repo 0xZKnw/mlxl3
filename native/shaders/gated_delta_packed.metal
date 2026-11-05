@@ -18,12 +18,19 @@
         auto dv_idx = row_group * rows_per_simdgroup + row_in_simdgroup;
 
         // q, k: [B, T, Hk, Dk]
+#if MLXL3_GDN_LOCAL_QKV
+        auto q_ = q + lane_in_row * values_per_lane;
+        auto k_ = k + lane_in_row * values_per_lane;
+        auto v_ = v;
+#else
         auto q_ = q + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
         auto k_ = k + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
 
         // v, y: [B, T, Hv, Dv]
         auto v_ = v + (b_idx * T * Hv + hv_idx) * Dv;
         y += (b_idx * T * Hv + hv_idx) * Dv;
+
+#endif
 
         // state_in, state_out: [B, Hv, Dv, Dk]
         auto i_state = state_in + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
@@ -131,10 +138,12 @@
           }
 #endif
 
+#if !MLXL3_GDN_LOCAL_QKV
           q_ += Hk * Dk;
           k_ += Hk * Dk;
           v_ += Hv * Dv;
           y += Hv * Dv;
+#endif
 #if MLXL3_GDN_FUSED_GATES
           a_ += Hv;
           b_ += Hv;

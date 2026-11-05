@@ -3764,3 +3764,45 @@ fn ar10_qsa_gate_requires_every_actual_short_dense_guard() {
     kani::cover!(!actual && keys == 0);
     kani::cover!(!actual && sparse);
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar10_whole_gdn_eligible(
+    enabled: bool,
+    trace: bool,
+    private_fp32: bool,
+    simd: u32,
+    threads: u32,
+) -> bool {
+    gdn_private_epilogue_eligible(enabled, trace, private_fp32) && simd == 32 && threads >= 512
+}
+#[test]
+fn ar10_whole_gdn_preserves_capability_and_private_guards() {
+    assert!(ar10_whole_gdn_eligible(true, false, true, 32, 512));
+    for (e, t, f, s, n) in [
+        (false, false, true, 32, 512),
+        (true, true, true, 32, 512),
+        (true, false, false, 32, 512),
+        (true, false, true, 16, 512),
+        (true, false, true, 32, 511),
+    ] {
+        assert!(!ar10_whole_gdn_eligible(e, t, f, s, n));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar10_whole_gdn_requires_every_real_private_capability_guard() {
+    let (e, t, f): (bool, bool, bool) = kani::any();
+    let s: u32 = kani::any();
+    let n: u32 = kani::any();
+    let actual = ar10_whole_gdn_eligible(e, t, f, s, n);
+    if actual {
+        assert!(e && !t && f && s == 32 && n >= 512);
+    }
+    if e && !t && f && s == 32 && n >= 512 {
+        assert!(actual);
+    }
+    kani::cover!(actual && n == 512);
+    kani::cover!(!actual && n == 511);
+    kani::cover!(!actual && t);
+    kani::cover!(!actual && s != 32);
+}
