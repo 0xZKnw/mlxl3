@@ -1245,7 +1245,7 @@ fn physical_flash_resident_nt2() -> Result<()> {
 }
 
 impl Metal {
-    fn encode_swiglu(
+    pub(super) fn encode_swiglu(
         &self,
         cmd: &CommandBufferRef,
         gate: &Buffer,
@@ -2445,6 +2445,76 @@ impl FlashProjection<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Metal: independent real Qwen routed-GLU rounding counterexample"]
+    fn mapped_glu_matches_independent_qwen_rounding_counterexample() -> Result<()> {
+        #[derive(serde::Deserialize)]
+        struct Case {
+            gate: Vec<f32>,
+            up: Vec<f32>,
+            gate_scale: Vec<u16>,
+            up_scale: Vec<u16>,
+            down_scale: Vec<u16>,
+            expected: Vec<u16>,
+        }
+        let c: Case = serde_json::from_str(include_str!(
+            "../../tests/fixtures/qwen35-glu-counterexample.json"
+        ))?;
+        ensure!(
+            c.gate.len() == 512
+                && c.up.len() == 512
+                && c.gate_scale.len() == 512
+                && c.up_scale.len() == 512
+                && c.down_scale.len() == 512
+                && c.expected.len() == 512,
+            "incomplete Qwen GLU fixture"
+        );
+        ensure!(
+            c.gate.iter().chain(&c.up).all(|v| v.is_finite())
+                && c.expected.iter().all(|&b| f16::from_bits(b).is_finite()),
+            "nonfinite Qwen fixture"
+        );
+        let gpu = Metal::new()?;
+        let buffers = [
+            upload(&gpu.device, &c.gate)?,
+            upload(&gpu.device, &c.up)?,
+            upload(&gpu.device, &c.gate_scale)?,
+            upload(&gpu.device, &c.up_scale)?,
+            upload(&gpu.device, &c.down_scale)?,
+        ];
+        let output = buffer(&gpu.device, 1024, Storage::StorageModeShared)?;
+        gpu.command(|cmd| {
+            Metal::encode(
+                cmd,
+                &gpu.mapped_glu,
+                &[
+                    &buffers[0],
+                    &buffers[1],
+                    &buffers[2],
+                    &buffers[3],
+                    &buffers[4],
+                    &output,
+                ],
+                [512u32, 1],
+                MTLSize::new(4, 1, 1),
+                128,
+            );
+            Ok(())
+        })?;
+        let actual = Metal::read(&output, 512);
+        let bad = actual
+            .iter()
+            .zip(&c.expected)
+            .filter(|(a, b)| a != b)
+            .count();
+        eprintln!("mapped GLU real Qwen counterexample:512 finite half words,{bad} differences");
+        ensure!(
+            bad == 0,
+            "mapped GLU differs from independent MLX Qwen counterexample"
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Apple GPU; failure after encoding and before commit"]

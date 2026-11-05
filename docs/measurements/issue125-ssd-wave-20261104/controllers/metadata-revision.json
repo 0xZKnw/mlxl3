@@ -1,0 +1,32 @@
+{
+  "quality_executed_sha256": "0ca3f5ffe552d5109e7abe8cca907f9fa7b8a325bddf0ece62450a122d31f8d7",
+  "quality_archived_sha256": "948ae88b901678c2945f42feca411a6431bbc082acc13b56e310063bfcf6445d",
+  "only_change": "Serialize explicit declared environment whitelist instead of inherited environment; GPU/runtime/validation logic unchanged.",
+  "archived_metadata_fix_executed": false,
+  "ambient_values_discarded_before_first_publication": true,
+  "retained_ambient_values": false,
+  "environment_whitelist": [
+    "CARGO_TARGET_DIR",
+    "DYLD_PRINT_LIBRARIES",
+    "MACOSX_DEPLOYMENT_TARGET",
+    "MLXL3_BUILD_PROFILE",
+    "MLXL3_BUILD_REVISION",
+    "MLXL3_FLASH_MODEL",
+    "MLXL3_MLX_ROOT",
+    "MLXL3_MOE_CHECKPOINT",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE",
+    "MLXL3_PROMPT_CACHE_MIB",
+    "MLXL3_SSD_CACHE_GIB",
+    "MLXL3_SSD_CACHE_POLICY",
+    "MLXL3_SSD_DYNAMIC_READERS",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH",
+    "MLXL3_SSD_OVERLAP",
+    "MLXL3_SSD_PREDICTOR_DTYPE",
+    "MLXL3_SSD_READERS",
+    "PYTHONPATH"
+  ],
+  "JSON_environment_snapshots_reviewed": 7,
+  "removed_from_published_copy": 0,
+  "publication_scope": "passive controller text only; no executable project file added",
+  "build_script_environment_fields": "Only build.rs emitted revision/profile pairs are retained; not a snapshot of ambient environment."
+}

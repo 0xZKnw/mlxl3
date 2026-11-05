@@ -104,6 +104,51 @@ MODEL_GQA_INSTANTIATE(128)
 MODEL_GQA_INSTANTIATE(256)
 #undef MODEL_GQA_INSTANTIATE
 
+// Separate half sigmoid/product and residual boundaries from the maintained Qwen graph.
+kernel void model_binary(const device half* x [[buffer(0)]],const device half* y [[buffer(1)]],
+    device half* out [[buffer(2)]],constant long* p [[buffer(3)]],uint i [[thread_position_in_grid]]) {
+    if(ulong(i)>=ulong(p[0])*ulong(p[1]))return;
+    const uint row=i/uint(p[1]),col=i%uint(p[1]);
+    half a=x[p[2]+long(row)*p[3]+long(col)*p[4]];
+    half b=y[p[5]+long(row)*p[6]+long(col)*p[7]];
+    if(p[8]==0)out[i]=a+b;
+    else if(p[8]==1)out[i]=a*b;
+    else {
+        half tail=half(1)/(half(1)+exp(abs(b)));
+        half sigmoid=b<half(0)?tail:half(1)-tail;
+        out[i]=a*sigmoid;
+    }
+}
+
+// MLX 0.32.2 softmax_single_row<half,float,4>, Apple Inc. (MIT), exact reduction order.
+kernel void model_softmax(const device half* x [[buffer(0)]],device half* out [[buffer(1)]],
+    constant long* p [[buffer(2)]],uint row [[threadgroup_position_in_grid]],
+    uint tid [[thread_index_in_threadgroup]],uint lane [[thread_index_in_simdgroup]],
+    uint sg [[simdgroup_index_in_threadgroup]]) {
+    threadgroup float maxima[32],sums[32];
+    float v[4];
+    for(uint j=0;j<4;++j)v[j]=tid*4+j<uint(p[0])?float(x[p[1]+long(row)*p[2]+long(tid*4+j)*p[3]]):-INFINITY;
+    if(sg==0){maxima[lane]=-INFINITY;sums[lane]=0;}
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float m=-FLT_MAX;
+    for(uint j=0;j<4;++j)m=m<v[j]?v[j]:m;
+    m=simd_max(m);
+    if(lane==0)maxima[sg]=m;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if(sg==0){m=simd_max(maxima[lane]);if(lane==0)maxima[0]=m;}
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    m=maxima[0];
+    float total=0;
+    for(uint j=0;j<4;++j){v[j]=fast::exp(v[j]-m);total+=v[j];}
+    total=simd_sum(total);
+    if(lane==0)sums[sg]=total;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if(sg==0){total=simd_sum(sums[lane]);if(lane==0)sums[0]=total;}
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float inverse=1/sums[0];
+    for(uint j=0;j<4;++j)if(tid*4+j<uint(p[0]))out[row*uint(p[0])+tid*4+j]=half(v[j]*inverse);
+}
+
 kernel void model_rope(const device half* x [[buffer(0)]],device half* out [[buffer(1)]],
     constant long* p [[buffer(2)]],uint index [[thread_position_in_grid]]) {
     const uint width=uint(p[1]),rotary=uint(p[2]),slots=width-rotary/2;

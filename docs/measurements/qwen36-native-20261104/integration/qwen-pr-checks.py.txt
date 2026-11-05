@@ -1,0 +1,33 @@
+import hashlib, json, os, signal, shutil, subprocess
+from pathlib import Path
+root=Path.cwd(); out=root/'docs/measurements/qwen36-native-20261104/integration'
+env={**os.environ,'PATH':'/Users/henko/Documents/Codex/2026-10-05/chec/work/toolchain/rustup/toolchains/stable-aarch64-apple-darwin/bin:/usr/bin:/bin','CARGO_HOME':str(root/'build/cargo-home'),'MACOSX_DEPLOYMENT_TARGET':'26.2','MLXL3_MLX_ROOT':'/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx','DYLD_LIBRARY_PATH':'/Users/henko/Documents/Codex/2026-10-05/chec/work/toolchain/rustup/toolchains/stable-aarch64-apple-darwin/lib'}
+base=['cargo','clippy','--offline','--locked','--all-targets']
+jobs=[('fmt',['cargo','fmt','--check'],60),('clippy-cpu',base+['--no-default-features','--','-D','warnings'],180),('clippy-direct',base+['--features','chat','--','-D','warnings'],180),('clippy-compat',base+['--features','mlx,chat','--','-D','warnings'],180),('suite-cpu',['cargo','test','--offline','--locked','--no-default-features'],300),('suite-direct',['cargo','test','--offline','--locked','--features','chat'],300),('suite-compat',['cargo','test','--offline','--locked','--features','mlx,chat'],300),('release-direct',['cargo','build','--offline','--locked','--release','--features','chat','--bin','mlxl3-rs'],300),('release-libtest',['cargo','test','--offline','--locked','--release','--features','chat','--lib','--no-run'],300)]
+report={'status':'in_progress','base':'dd91e12d7baecd63bb008d8893026fd283c42a5b','source_commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'checks':[],'artifacts':{}}
+def save(): (out/'host.json').write_text(json.dumps(report,indent=2)+'\n')
+try:
+ for label,cmd,budget in jobs:
+  row={'label':label,'command':cmd,'status':'in_progress'};report['checks'].append(row);save()
+  with (out/(label+'.log')).open('w') as log:
+   p=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+   try: code=p.wait(timeout=budget)
+   except BaseException:
+    os.killpg(p.pid,signal.SIGTERM)
+    try:p.wait(timeout=5)
+    except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
+    raise
+  row.update(status='passed' if code==0 else 'failed',exit_code=code);save();print(label,row['status'],flush=True)
+  if code: raise RuntimeError(label)
+  if label=='release-direct':shutil.copy2(root/'target/release/mlxl3-rs',root/'build/artifacts/mlxl3-qwen36-pr-direct')
+  if label=='release-libtest':
+   candidates=[p for p in (root/'target/release/deps').glob('mlxl3_native-*') if p.is_file() and os.access(p,os.X_OK)]
+   src=max(candidates,key=lambda p:p.stat().st_mtime_ns);shutil.copy2(src,root/'build/artifacts/qwen36-pr-libtest')
+ for name in ['mlxl3-qwen36-pr-direct','qwen36-pr-libtest']:
+  p=root/'build/artifacts'/name;report['artifacts'][name]={'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'bytes':p.stat().st_size}
+ report['status']='passed'
+except BaseException as e:
+ report.update(status='failed',error=repr(e))
+ if report['checks'][-1]['status']=='in_progress':report['checks'][-1].update(status='failed',error=repr(e))
+ raise
+finally:save()

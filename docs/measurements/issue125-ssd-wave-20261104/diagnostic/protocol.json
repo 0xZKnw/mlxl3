@@ -1,0 +1,77 @@
+{
+  "status": "PREPARED_NOT_EXECUTED",
+  "parity": false,
+  "exclusive_root_grant_required": true,
+  "source_commit": "b37903a2c64b626cc187dce5b65da634971715a2",
+  "artifacts": {
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+      "sha256": "4bb5b11fffb2503f91efd2019039458ee48c21cf22bdd02a95c08378081eccbf",
+      "bytes": 9438048,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "environment": {
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "expected": {
+    "status": "diagnostic_complete",
+    "parity": true,
+    "prompt_tokens": 87,
+    "context": 4096,
+    "decode_rows": 7,
+    "independent_first_state": true,
+    "independent_first_logits": true,
+    "continuation_state_words": 28803072
+  },
+  "phases": [
+    {
+      "label": "off",
+      "flag": "0",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "label": "on",
+      "flag": "1",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180
+    }
+  ],
+  "analysis": {
+    "keys": "all336(row,layer) require1ssd_timeline/1moe_wait; labelsHot/W1/Extra/Final in same submission order as direct MoEGPUintervals",
+    "CPU": "extra_submit is tag BEFORE commit; compare with max read.end_ns in same MoE epoch, count after-all-complete vs before; remaining tracks unreceived, not activeworkers",
+    "cohorts": "derive initial misses and differences of remaining_read counters; bound1extra,min2,min3beforeextra; OFF0actualextras/ONnonzero",
+    "Metal": "pair consecutive labeled GPUintervals in SAME Metal clock only, signed gaps/overlaps W1\u2192extra\u2192final and Hot\u2192W1; no CPUalignment",
+    "limits": [
+      "after-all-read means no SSD read left at commit, but can still overlap CPU tail encoding",
+      "before-last-read tag does not prove GPUexec/SSD overlap",
+      "single2runs intrusive diagnosis;noAR32repeat/newprototype/gainestimate"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": "failed_offline_analysis_only",
+  "error": "AssertionError at cohort sum",
+  "cause": "For Hot+Final without W1, initial analysis counted the same final cold cohort twice as first and final.",
+  "correction": "Report only physically committed W1/Extra/Final cold cohorts; all-ready first cohort belongs to final.",
+  "profile_runs_repeated": false,
+  "GPU_affected": false
+}

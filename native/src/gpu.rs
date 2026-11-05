@@ -26,6 +26,8 @@ mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod qwen_gdn;
 pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
+mod qwen;
+pub use qwen::{Qwen35, QwenSnapshot};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
