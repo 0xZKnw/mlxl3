@@ -44,6 +44,16 @@ struct AppSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityLabel(L("Thème de l’interface", "Interface theme"))
+                    Picker(L("Largeur des réponses", "Response width"), selection: Binding(
+                        get: { studio.readingWidth }, set: { studio.setReadingWidth($0) }
+                    )) {
+                        ForEach(ConversationReadingWidth.allCases, id: \.self) { width in
+                            Text(width.title).tag(width)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Text(L("Même taille de texte : une colonne centrée pour lire, ou plus d’espace pour le code et les tableaux.", "Same text size: a centered reading column, or more room for code and tables."))
+                        .font(.caption).foregroundStyle(StudioTheme.secondary)
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle(L("Charger le modèle au démarrage", "Load model on startup"), isOn: Binding(

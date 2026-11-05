@@ -26,7 +26,7 @@ extension UpdateManager {
         try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
         func make(_ name: String, type: String = "audit", pathOverride: URL? = nil) async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            let path = pathOverride?.path ?? (type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path)
+            let path = pathOverride?.path ?? (type == "qwen4_exp" ? flashModel.path : root.appendingPathComponent(name).path)
             model.models = [LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
             for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
@@ -499,11 +499,11 @@ extension UpdateManager {
         precondition(!old.showInspector && !old.isTuningMTP, "An unsupported engine must leave the inspector closed")
         old.setMTPDepth(3); precondition(old.mtpDepth == 1)
         old.ejectModel()
-        prefs.set(true, forKey: "studio.mtpEnabled")
+        ModelMTPPreference.save(true, modelPath: root.appendingPathComponent("mtp-baseline").path, preferences: prefs)
         let baselineAgain = try await make("mtp-baseline")
         precondition(baselineAgain.mtpEnabled && baselineAgain.mtpTuneRows.count == 4
             && MTPTuning.winner(baselineAgain.mtpTuneRows) == 0,
-            "Saved baseline results must persist without overriding an explicit global ON")
+            "Saved baseline results must persist without overriding an explicit per-model ON")
         let measuredBaselineRows = baselineAgain.mtpTuneRows
         baselineAgain.ejectModel()
         // The real StudioModel/CLI pipe/bridge must select per-target heads,
@@ -519,7 +519,9 @@ extension UpdateManager {
             }
             precondition(automatic.engineState.isReady && !automatic.mtpDownloading, "Automatic head load timed out")
         }
-        prefs.set(true, forKey: "studio.mtpEnabled")
+        for name in ["auto-dense", "auto-moe", "auto-slow", "auto-fail"] {
+            ModelMTPPreference.save(true, modelPath: root.appendingPathComponent(name).path, preferences: prefs)
+        }
         // Migrate an old, foreign head: inspection must reject it and install
         // the managed head selected from the new target, never forward it.
         prefs.set("/tmp/mlxl3-fixture-mtp-moe", forKey: "studio.mtpHead.\(root.appendingPathComponent("auto-dense").path)")
@@ -534,12 +536,12 @@ extension UpdateManager {
             depth: 0, rows: measuredBaselineRows, tunedAt: Date()), preferences: prefs)
         automatic.selectModel("auto-dense"); try await waitAutomatic()
         precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-dense" && automatic.mtpActive == true,
-            "An explicit global ON must override an old measured baseline")
+            "An explicit per-model ON must override an old measured baseline")
         automatic.setMTPEnabled(false)
         for _ in 0..<200 where automatic.mtpActive != false { try await Task.sleep(for: .milliseconds(10)) }
         precondition(automatic.mtpActive == false && !prefs.bool(forKey: "studio.mtpEnabled"))
         automatic.selectModel("auto-moe"); try await waitAutomatic()
-        precondition(!automatic.mtpEnabled && automatic.mtpActive == nil, "MTP OFF must stay off on model switch")
+        precondition(automatic.mtpEnabled && automatic.mtpActive == true, "Turning dense OFF must not erase the MoE preference")
         automatic.setMTPEnabled(true); try await waitAutomatic()
         automatic.selectModel("auto-slow")
         for _ in 0..<200 where automatic.mtpDownloadCompleted == 0 { try await Task.sleep(for: .milliseconds(10)) }
@@ -558,7 +560,9 @@ extension UpdateManager {
         automatic.selectModel("plain"); try await waitAutomatic()
         precondition(!automatic.mtpAvailable && automatic.mtpHeadPath.isEmpty && !automatic.mtpDownloading)
         automatic.selectModel("auto-dense"); try await waitAutomatic()
-        precondition(automatic.mtpActive == true && automatic.mtpError == nil, "Failure must not disable the saved ON preference")
+        precondition(!automatic.mtpEnabled && !automatic.mtpRememberedEnabled, "Dense OFF preference was lost")
+        automatic.selectModel("auto-moe"); try await waitAutomatic()
+        precondition(automatic.mtpActive == true && automatic.mtpError == nil, "Failure must not disable another model’s saved ON preference")
         automatic.ejectModel()
         let operations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
             .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
@@ -577,9 +581,9 @@ extension UpdateManager {
             }
         }
         print("Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup")
-        let key = MTPConfigurationKey(modelPath: root.path, headPath: "/tmp/mlxl3-fixture-mtp", runtime: "fixture-runtime:mtp-good")
+        let key = MTPConfigurationKey(modelPath: root.appendingPathComponent("mtp-good").path, headPath: "/tmp/mlxl3-fixture-mtp", runtime: "fixture-runtime:mtp-good")
         precondition(MTPTuning.load(key: key, preferences: prefs)?.depth == 3)
-        precondition(MTPTuning.load(key: MTPConfigurationKey(modelPath: root.path, headPath: key.headPath, runtime: "new-engine"), preferences: prefs) == nil)
+        precondition(MTPTuning.load(key: MTPConfigurationKey(modelPath: key.modelPath, headPath: key.headPath, runtime: "new-engine"), preferences: prefs) == nil)
         let tuningHead = root.appendingPathComponent("head")
         try FileManager.default.createDirectory(at: tuningHead, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: tuningHead.appendingPathComponent("config.json"))

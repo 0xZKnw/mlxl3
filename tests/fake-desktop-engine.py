@@ -131,6 +131,9 @@ if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
     target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    if target.endswith('flash-native'):
+        print('fixture external installer does not support Flash Next', file=sys.stderr)
+        sys.exit(2)
     if '/auto-' in target:
         with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
             log.write(json.dumps({'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
@@ -157,13 +160,16 @@ def cancel(*_):
 signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
-mtp_capable = model in ('renamed', 'flash', 'flash-config') or model.startswith(('mtp-', 'auto-'))
+mtp_capable = model in ('renamed', 'flash', 'flash-config', 'flash-native') or model.startswith(('mtp-', 'auto-'))
 flash_dflash = model.startswith(('flash-dflash-', 'flash-download-'))
 dflash_capable = flash_dflash or model == 'renamed' or model.startswith('dflash-')
 tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
-if model.startswith('auto-') or model == 'flash-config':
+if model.startswith('auto-') or model in ('flash-config', 'flash-native'):
     capabilities['mtp_configure_supported'] = True
+if model == 'flash-native':
+    capabilities['mtp_max_depth'] = 1
+    capabilities['mtp_tune_supported'] = False
 if model == 'first-load-fails':
     marker = os.path.join(os.environ['MLXL3_HOME'], 'first-load-attempt')
     if not os.path.exists(marker):
@@ -259,6 +265,8 @@ for line in sys.stdin:
         expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
         if model == 'flash-config':
             expected = os.path.join(os.environ['MLXL3_HOME'], 'flash-model')
+        if model == 'flash-native':
+            expected = os.environ['MLXL3_FIXTURE_FLASH_PATH']
         if request['enabled'] and request['mtp_head_path'] != expected:
             emit('error', request_id=request['request_id'], message='foreign head reached bridge')
         else:

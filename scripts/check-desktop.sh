@@ -158,6 +158,27 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
 "${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
     "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/desktop-experience-check.swift > "${test_dir}/DesktopExperienceCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/DesktopExperienceCombined.swift" -o "${test_dir}/experience-check"
+run_fixture_check "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/response-text-size-check.swift > "${test_dir}/ResponseTextSizeCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/ResponseTextSizeCombined.swift" -o "${test_dir}/text-size-check"
+run_fixture_check "${test_dir}/text-size-check"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/mtp-panel-layout-check.swift > "${test_dir}/MTPPanelLayoutCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/MTPPanelLayoutCombined.swift" -o "${test_dir}/mtp-layout-check"
+run_fixture_check "${test_dir}/mtp-layout-check"
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \

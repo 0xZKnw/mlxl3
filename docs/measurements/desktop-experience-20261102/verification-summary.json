@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "desktop_suite": "passed; affected UI checks repeated after last list-only change",
+  "new_desktop_assertions": 35,
+  "python": {
+    "passed": 358,
+    "skipped": 4,
+    "failures": 0
+  },
+  "physical": {
+    "status": "passed",
+    "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+    "context": 4096,
+    "baseline_tokens": 8,
+    "mtp_tokens": [
+      8,
+      8
+    ],
+    "hash": "30716b66c3e75491",
+    "mtp_proposed_accepted": [
+      [
+        3,
+        3
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "processes_reaped": 2,
+    "bounded_scope": "one short prompt, OFF/ON/reload, no universal numerical parity proof"
+  },
+  "negative_controls": {
+    "legacy_flash_cli": "expected rejection exit 2",
+    "mutated_studio_model": "expected failure exit 133 at Flash head assertion",
+    "controller": "1 positive, 6 corruptions rejected, invalid subprocess failed/parity false and reaped"
+  },
+  "initial_failure": "Old global-MTP expectation in MCP smoke check; preserved, updated for deferred per-model contract, final suite passed",
+  "formal": {
+    "Swift": "not verified; no configured source verifier",
+    "Python": "CrossHair attempted; module absent",
+    "Rust": "no changes, no new Kani claim"
+  },
+  "performance": {
+    "speed": "not measured",
+    "RAM": "not measured"
+  },
+  "integration": {
+    "bundle": "local signed test app only",
+    "installed_app_replaced": false,
+    "release": false,
+    "remote_ci": {
+      "source_commit": "e30268b9ddd89a962ba2097ca769d49c61a49132",
+      "runs": [
+        41597360794,
+        41597360831
+      ],
+      "jobs_inspected": 4,
+      "status": "in_progress",
+      "conclusion": null
+    }
+  }
+}

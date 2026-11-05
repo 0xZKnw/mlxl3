@@ -1,0 +1,10 @@
+#!/bin/zsh
+set -euo pipefail
+out="$PWD/build/mtp-panel-layout-20261103"
+binary_dir="$PWD/apps/MLXL3Studio/.build/debug"
+sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
+sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
+sources=("${(@)sources:#*/StudioModel.swift}")
+cat apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift tests/mtp-panel-layout-check.swift > "${out}/MTPLayoutCombined.swift"
+swiftc -swift-version 6 -parse-as-library -warnings-as-errors -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -module-cache-path "${out}/modules" -I "${binary_dir}" "${sources[@]}" "${binary_dir}/SwiftMath.o" "${out}/MTPLayoutCombined.swift" -o "${out}/mtp-layout-check"
+MLXL3_MTP_LAYOUT_SNAPSHOTS="${out}" "${out}/mtp-layout-check" "$PWD/tests/fake-desktop-engine.py"

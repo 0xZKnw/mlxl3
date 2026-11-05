@@ -104,10 +104,16 @@ enum MCPPreferenceCheck {
         try check(instance().dflash2Enabled, "Configured DFlash2 must survive relaunch")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
+        let samplingBeforeMTP = instance()
         preferences.set(true, forKey: "studio.mtpEnabled")
         preferences.set("/local/mtp", forKey: "studio.mtpHeadPath")
-        try check(instance().mtpEnabled && instance().mtpHeadPath == "/local/mtp", "MTP preference was not restored")
         let mtpRelaunch = instance()
+        try check(!mtpRelaunch.mtpEnabled && !mtpRelaunch.mtpRememberedEnabled && mtpRelaunch.mtpHeadPath == "/local/mtp",
+                  "MTP must wait for a selected target before restoring activation")
+        try check(mtpRelaunch.temperature == samplingBeforeMTP.temperature
+                  && mtpRelaunch.topK == samplingBeforeMTP.topK
+                  && mtpRelaunch.repetitionPenalty == samplingBeforeMTP.repetitionPenalty,
+                  "Global legacy MTP changed sampling before selecting a target")
         try check(mtpRelaunch.temperature == 0.2 && mtpRelaunch.topK == 80 && mtpRelaunch.repetitionPenalty == 1.05
                     && !mtpRelaunch.samplingLocked,
                   "MTP preference on an unknown model must preserve ordinary sampling")
