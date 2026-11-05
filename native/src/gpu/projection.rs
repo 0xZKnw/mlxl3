@@ -555,45 +555,7 @@ impl<'a> FlashProjection<'a> {
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
                 .context("invalid projection kernel thread count")? as usize,
         );
-        let finish_bindings = [
-            (partial, 0),
-            (&self.svh, self.offsets.svh),
-            self.bias
-                .as_ref()
-                .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
-            (&dest, dest_offset),
-            stage
-                .gate
-                .map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
-        ];
-        if let Some(gate) = stage.gate {
-            ensure!(
-                !self.generic && gate.length() == u64::from(outputs) * 2,
-                "invalid up finish gate"
-            );
-        }
-        Metal::encode_bound(
-            cmd,
-            if stage.gate.is_some() {
-                &gpu.expert_up_finish
-            } else if self.generic {
-                &gpu.dense_finish
-            } else {
-                &gpu.finish128_pipeline
-            },
-            finish_bindings[..if stage.gate.is_some() { 5 } else { 4 }]
-                .iter()
-                .copied(),
-            [
-                self.splits,
-                0,
-                u32::from(self.bias.is_some()),
-                0,
-                self.output,
-            ],
-            MTLSize::new(u64::from(outputs / 128), 1, 1),
-            64,
-        );
+        self.encode_finish(cmd, partial, 0, &dest, dest_offset, outputs, stage.gate)?;
         #[cfg(test)]
         if let Some(key) = routed_nt2 {
             gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + 1);
@@ -609,6 +571,102 @@ impl<'a> FlashProjection<'a> {
             self.nt2_submissions.set(self.nt2_submissions.get() + 1);
         }
         Ok(dest)
+    }
+    fn encode_finish(
+        &self,
+        cmd: &CommandBufferRef,
+        partial: &Buffer,
+        partial_offset: u64,
+        dest: &Buffer,
+        dest_offset: u64,
+        outputs: u32,
+        gate: Option<&Buffer>,
+    ) -> Result<()> {
+        let gpu = self.metal;
+        ensure!(
+            partial_offset.is_multiple_of(4)
+                && partial_offset
+                    .checked_add(u64::from(outputs) * u64::from(self.splits) * 4)
+                    .is_some_and(|end| end <= partial.length())
+                && dest_offset.is_multiple_of(2)
+                && dest_offset
+                    .checked_add(u64::from(outputs) * 2)
+                    .is_some_and(|end| end <= dest.length()),
+            "invalid finish prefixes"
+        );
+        let finish_bindings = [
+            (partial, partial_offset),
+            (&self.svh, self.offsets.svh),
+            self.bias
+                .as_ref()
+                .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
+            (&dest, dest_offset),
+            stage
+                .gate
+                .map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
+        ];
+        if let Some(gate) = gate {
+            ensure!(
+                !self.generic && gate.length() == u64::from(outputs) * 2,
+                "invalid up finish gate"
+            );
+        }
+        Metal::encode_bound(
+            cmd,
+            if gate.is_some() {
+                &gpu.expert_up_finish
+            } else if self.generic {
+                &gpu.dense_finish
+            } else {
+                &gpu.finish128_pipeline
+            },
+            finish_bindings[..if gate.is_some() { 5 } else { 4 }]
+                .iter()
+                .copied(),
+            [
+                self.splits,
+                0,
+                u32::from(self.bias.is_some()),
+                0,
+                self.output,
+            ],
+            MTLSize::new(u64::from(outputs / 128), 1, 1),
+            64,
+        );
+        Ok(())
+    }
+
+    fn encode_input_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        output: &Buffer,
+        offset: u64,
+    ) -> Result<()> {
+        ensure!(
+            offset
+                .checked_add(u64::from(self.input) * 2)
+                .is_some_and(|end| end <= output.length()),
+            "invalid expert prepared prefix"
+        );
+        match x {
+            Activation::Contiguous(x) => Metal::encode_bound(
+                cmd,
+                &self.metal.prepare128_pipeline,
+                [(x, 0), (&self.suh, self.offsets.suh), (output, offset)].into_iter(),
+                [self.input, 0, 0, 0, 0],
+                MTLSize::new(u64::from(self.input / 128), 1, 1),
+                64,
+            ),
+            Activation::View(x) => self.metal.encode_prepare_view_into(
+                cmd,
+                x,
+                &MatrixView::column_scales(&self.suh, self.offsets.suh, 1, self.input)?,
+                output,
+                offset,
+            )?,
+        }
+        Ok(())
     }
 }
 
@@ -1144,6 +1202,242 @@ impl<'a> FlashExpert<'a> {
             "ineligible expert destination"
         );
         self.encode_into(cmd, Activation::View(x), extents, storage, destination)
+    }
+
+    /// Only experts already returned by the current ready cohort enter this grid.
+    pub(super) fn encode_ready_cohort(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+        storage: Storage,
+    ) -> Result<Vec<Buffer>> {
+        ensure!(
+            crate::expert_ar_policy::cohort(experts.len(), destinations.len()),
+            "invalid ready expert cohort"
+        );
+        let gpu = experts[0].gate.metal;
+        let eligible = experts.iter().all(|expert| {
+            std::ptr::eq(gpu, expert.gate.metal) && expert.routed && x.layout.shape == [1, 2560]
+        });
+        if !gpu.expert_ar_enabled[3].get() || !eligible {
+            return experts
+                .iter()
+                .zip(destinations)
+                .map(|(expert, &destination)| expert.encode_view_into(cmd, x, storage, destination))
+                .collect();
+        }
+        for expert in experts {
+            ensure!(
+                crate::expert_ar_policy::eligible(
+                    expert.routed,
+                    expert.expert_extents(expert.gate.view_extents(x)?)?
+                ),
+                "invalid expert-axis extents"
+            );
+        }
+        let n = experts.len();
+        let dual = gpu.expert_ar_enabled[1].get();
+        let fused = gpu.expert_ar_enabled[0].get();
+        let stride = if dual { 5120u32 } else { 2560u32 };
+        let prepared = buffer(
+            &gpu.device,
+            u64::from(stride) * 2 * n as u64,
+            Storage::StorageModePrivate,
+        )?;
+        let partial = buffer(&gpu.device, 10240 * n as u64, Storage::StorageModePrivate)?;
+        for (index, expert) in experts.iter().enumerate() {
+            let offset = u64::from(stride) * 2 * index as u64;
+            if dual {
+                Metal::encode_bound(
+                    cmd,
+                    &gpu.expert_gu_prepare,
+                    [
+                        (&x.buffer, 0),
+                        (&expert.gate.suh, expert.gate.offsets.suh),
+                        (&expert.up.suh, expert.up.offsets.suh),
+                        (&prepared, offset),
+                    ]
+                    .into_iter(),
+                    [
+                        x.layout.offset,
+                        x.layout.strides[1],
+                        i64::from(x.dtype == super::view::FloatType::F32),
+                        2560,
+                    ],
+                    MTLSize::new(20, 1, 1),
+                    64,
+                );
+                #[cfg(test)]
+                gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+            } else {
+                expert
+                    .gate
+                    .encode_input_into(cmd, Activation::View(x), &prepared, offset)?;
+            }
+        }
+        Self::encode_axis_qmv(cmd, experts, 0, &prepared, 0, stride, &partial)?;
+        let mut gates = Vec::with_capacity(n);
+        for (index, expert) in experts.iter().enumerate() {
+            let gate = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
+            expert
+                .gate
+                .encode_finish(cmd, &partial, index as u64 * 2560, &gate, 0, 640, None)?;
+            gates.push(gate);
+        }
+        if !dual {
+            for (index, expert) in experts.iter().enumerate() {
+                expert.up.encode_input_into(
+                    cmd,
+                    Activation::View(x),
+                    &prepared,
+                    index as u64 * 5120,
+                )?;
+            }
+        }
+        Self::encode_axis_qmv(
+            cmd,
+            experts,
+            1,
+            &prepared,
+            if dual { 5120 } else { 0 },
+            stride,
+            &partial,
+        )?;
+        let mut activations = Vec::with_capacity(n);
+        for (index, expert) in experts.iter().enumerate() {
+            let up = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
+            expert.up.encode_finish(
+                cmd,
+                &partial,
+                index as u64 * 2560,
+                &up,
+                0,
+                640,
+                fused.then_some(&gates[index]),
+            )?;
+            let activated = if fused {
+                #[cfg(test)]
+                gpu.expert_ar_uses[0].set(gpu.expert_ar_uses[0].get() + 1);
+                up
+            } else {
+                gpu.encode_swiglu(cmd, &gates[index], &up, Storage::StorageModePrivate)?
+            };
+            activations.push(activated);
+        }
+        for (index, (expert, activation)) in experts.iter().zip(&activations).enumerate() {
+            expert.down.encode_input_into(
+                cmd,
+                Activation::Contiguous(activation),
+                &prepared,
+                index as u64 * 1280,
+            )?;
+        }
+        Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, 640, &partial)?;
+        let mut outputs = Vec::with_capacity(n);
+        for (index, (expert, &destination)) in experts.iter().zip(destinations).enumerate() {
+            let (output, offset) = if let Some((output, offset)) = destination {
+                ensure!(
+                    output.device().registry_id() == gpu.device.registry_id(),
+                    "foreign expert-axis destination"
+                );
+                (output.clone(), offset)
+            } else {
+                (buffer(&gpu.device, 5120, storage)?, 0)
+            };
+            expert.down.encode_finish(
+                cmd,
+                &partial,
+                index as u64 * 10240,
+                &output,
+                offset,
+                2560,
+                None,
+            )?;
+            outputs.push(output);
+        }
+        #[cfg(test)]
+        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n as u64);
+        Ok(outputs)
+    }
+
+    fn axis_projection(&self, stage: usize) -> &FlashProjection<'a> {
+        match stage {
+            0 => &self.gate,
+            1 => &self.up,
+            _ => &self.down,
+        }
+    }
+
+    fn axis_nt(projection: &FlashProjection<'_>) -> u32 {
+        projection.nt
+    }
+
+    fn encode_axis_qmv(
+        cmd: &CommandBufferRef,
+        experts: &[&Self],
+        stage: usize,
+        prepared: &Buffer,
+        offset: u64,
+        stride: u32,
+        partial: &Buffer,
+    ) -> Result<()> {
+        let first = experts[0].axis_projection(stage);
+        let gpu = first.metal;
+        let nt = Self::axis_nt(first);
+        ensure!(matches!(nt, 1 | 2), "invalid expert-axis NT");
+        ensure!(
+            experts.iter().all(|expert| {
+                let p = expert.axis_projection(stage);
+                p.k == 2
+                    && p.cb == Codebook::Mul1
+                    && p.splits == 1
+                    && p.input == first.input
+                    && p.output == first.output
+                    && (p.offsets.trellis, p.offsets.suh, p.offsets.svh)
+                        == (first.offsets.trellis, first.offsets.suh, first.offsets.svh)
+                    && Self::axis_nt(p) == nt
+            }),
+            "incompatible expert-axis record geometry"
+        );
+        let bindings: [(&Buffer, u64); 12] = std::array::from_fn(|index| match index {
+            0 => (prepared, offset),
+            11 => (partial, 0),
+            _ => (
+                &experts[(index - 1).min(experts.len() - 1)]
+                    .axis_projection(stage)
+                    .packed,
+                0,
+            ),
+        });
+        Metal::encode_bound(
+            cmd,
+            &gpu.expert_axis_qmv[usize::from(stage == 2)][usize::from(nt == 2)],
+            bindings.into_iter(),
+            [
+                1,
+                2,
+                2,
+                first.input,
+                first.output,
+                u32::try_from(first.offsets.trellis)?,
+                u32::try_from(first.offsets.svh)?,
+                stride,
+            ],
+            MTLSize::new(
+                u64::from(
+                    contracts::flash_reference_groups(first.output, nt)
+                        .context("invalid axis grid")?,
+                ),
+                1,
+                experts.len() as u64,
+            ),
+            128,
+        );
+        #[cfg(test)]
+        gpu.expert_axis_dispatches
+            .set(gpu.expert_axis_dispatches.get() + 1);
+        Ok(())
     }
 
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {

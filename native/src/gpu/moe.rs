@@ -347,20 +347,49 @@ impl<'a> FlashMoeRow<'a> {
                 MTLSize::new(1, 1, 1),
                 512,
             );
-            for &(slot, hit) in &plan.routes {
-                if hit && !outputs.contains_key(&slot) {
-                    outputs.insert(
-                        slot,
-                        self.slots.borrow()[slot]
-                            .as_ref()
-                            .context("missing resident expert")?
-                            .encode_view_into(
-                                &command,
-                                x,
-                                Storage::StorageModePrivate,
-                                destination(slot)?,
-                            )?,
-                    );
+            let axis = gpu.expert_ar_enabled[3].get() && !trace && x.layout.shape == [1, 2560];
+            if axis {
+                let mut hot = Vec::new();
+                for &(slot, hit) in &plan.routes {
+                    if hit && !hot.contains(&slot) {
+                        hot.push(slot);
+                    }
+                }
+                if !hot.is_empty() {
+                    let slots = self.slots.borrow();
+                    let experts = hot
+                        .iter()
+                        .map(|&slot| slots[slot].as_ref().context("missing resident expert"))
+                        .collect::<Result<Vec<_>>>()?;
+                    let targets = hot
+                        .iter()
+                        .map(|&slot| destination(slot))
+                        .collect::<Result<Vec<_>>>()?;
+                    let contributions = FlashExpert::encode_ready_cohort(
+                        &command,
+                        x,
+                        &experts,
+                        &targets,
+                        Storage::StorageModePrivate,
+                    )?;
+                    outputs.extend(hot.into_iter().zip(contributions));
+                }
+            } else {
+                for &(slot, hit) in &plan.routes {
+                    if hit && !outputs.contains_key(&slot) {
+                        outputs.insert(
+                            slot,
+                            self.slots.borrow()[slot]
+                                .as_ref()
+                                .context("missing resident expert")?
+                                .encode_view_into(
+                                    &command,
+                                    x,
+                                    Storage::StorageModePrivate,
+                                    destination(slot)?,
+                                )?,
+                        );
+                    }
                 }
             }
             // Every cold wave binds only CPU-complete, generation-checked immutable buffers.
@@ -372,23 +401,47 @@ impl<'a> FlashMoeRow<'a> {
                 let mut wave = reads.ready(false)?;
                 let mut extra_used = false;
                 loop {
+                    let mut ready = Vec::new();
                     for (lease, payload) in wave {
                         let backing = gpu.completed_record(payload)?;
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
                         ensure!(plan.publish(lease), "stale native SSD demand completion");
                         self.slots.borrow_mut()[lease.slot] = Some(expert);
-                        outputs.insert(
-                            lease.slot,
-                            self.slots.borrow()[lease.slot]
-                                .as_ref()
-                                .context("missing cold expert")?
-                                .encode_view_into(
-                                    &command,
-                                    x,
-                                    Storage::StorageModePrivate,
-                                    destination(lease.slot)?,
-                                )?,
-                        );
+                        if axis {
+                            ready.push(lease.slot);
+                        } else {
+                            outputs.insert(
+                                lease.slot,
+                                self.slots.borrow()[lease.slot]
+                                    .as_ref()
+                                    .context("missing cold expert")?
+                                    .encode_view_into(
+                                        &command,
+                                        x,
+                                        Storage::StorageModePrivate,
+                                        destination(lease.slot)?,
+                                    )?,
+                            );
+                        }
+                    }
+                    if axis && !ready.is_empty() {
+                        let slots = self.slots.borrow();
+                        let experts = ready
+                            .iter()
+                            .map(|&slot| slots[slot].as_ref().context("missing cold expert"))
+                            .collect::<Result<Vec<_>>>()?;
+                        let targets = ready
+                            .iter()
+                            .map(|&slot| destination(slot))
+                            .collect::<Result<Vec<_>>>()?;
+                        let contributions = FlashExpert::encode_ready_cohort(
+                            &command,
+                            x,
+                            &experts,
+                            &targets,
+                            Storage::StorageModePrivate,
+                        )?;
+                        outputs.extend(ready.into_iter().zip(contributions));
                     }
                     if reads.remaining() == 0 {
                         break;

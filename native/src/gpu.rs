@@ -301,6 +301,9 @@ pub struct Metal {
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: ComputePipelineState,
     expert_gu_prepare: ComputePipelineState,
+    expert_axis_qmv: [[ComputePipelineState; 2]; 2],
+    #[cfg(test)]
+    expert_axis_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
     flash_scratch_bindings: std::cell::Cell<[[usize; 2]; 3]>,
     #[cfg(test)]
@@ -528,6 +531,10 @@ impl Metal {
                     include_str!("../shaders/flash_static_qmv.metal"),
                 )
                 .replace(
+                    "#include \"flash_expert_axis.metal\"",
+                    include_str!("../shaders/flash_expert_axis.metal"),
+                )
+                .replace(
                     "#include \"_qmv_tile_kernel.metal\"",
                     include_str!("../shaders/_qmv_tile_kernel.metal"),
                 )
@@ -679,6 +686,16 @@ impl Metal {
             let finish128_pipeline = pipeline("flash_finish128")?;
             let expert_up_finish = pipeline("flash_up_finish_swiglu")?;
             let expert_gu_prepare = pipeline("flash_dual_gu_prepare")?;
+            let expert_axis_qmv = [
+                [
+                    pipeline("flash_axis_k2_2560_640_nt1")?,
+                    pipeline("flash_axis_k2_2560_640_nt2")?,
+                ],
+                [
+                    pipeline("flash_axis_k2_640_2560_nt1")?,
+                    pipeline("flash_axis_k2_640_2560_nt2")?,
+                ],
+            ];
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -809,6 +826,9 @@ impl Metal {
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
                 expert_gu_prepare,
+                expert_axis_qmv,
+                #[cfg(test)]
+                expert_axis_dispatches: std::cell::Cell::new(0),
                 #[cfg(test)]
                 flash_scratch_bindings: std::cell::Cell::new([[0; 2]; 3]),
                 #[cfg(test)]

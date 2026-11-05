@@ -437,3 +437,173 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "physical Apple GPU; independent real routed record fixtures required"]
+fn physical_expert_axis_matches_independent_stock_and_ready_cohorts() -> Result<()> {
+    let root = PathBuf::from(
+        std::env::var_os("MLXL3_ROUTED_SCRATCH_FIXTURES").context("fixtures required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("cases.json"))?)?;
+    let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
+    ensure!(cases.len() >= 5 && cases.len() == refs.len() && cases[0].prefix != cases[1].prefix);
+    let gpu = Metal::new()?;
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let mut words = 0usize;
+    let mut cohorts = 0usize;
+    for composed in [false, true] {
+        gpu.expert_ar_enabled[0].set(composed);
+        gpu.expert_ar_enabled[1].set(composed);
+        gpu.expert_ar_enabled[3].set(true);
+        for (case, expected) in cases[..4].iter().zip(&refs) {
+            for fp32 in [false, true] {
+                for n in [1, 2, 10] {
+                    let backing = record(&gpu, case)?;
+                    let experts = (0..n)
+                        .map(|_| FlashExpert::from_backing(&gpu, &backing))
+                        .collect::<Result<Vec<_>>>()?;
+                    let x = input(&gpu, case, fp32)?;
+                    let expert_refs = experts.iter().collect::<Vec<_>>();
+                    let before = gpu.expert_axis_dispatches.get();
+                    let uses = gpu.expert_ar_uses[3].get();
+                    let finish_uses = gpu.expert_ar_uses[0].get();
+                    let prepare_uses = gpu.expert_ar_uses[1].get();
+                    let outputs = gpu.command(|cmd| {
+                        let out = FlashExpert::encode_ready_cohort(
+                            cmd,
+                            &x,
+                            &expert_refs,
+                            &vec![None; n],
+                            Storage::StorageModeShared,
+                        )?;
+                        drop(expert_refs);
+                        drop(experts);
+                        drop(backing);
+                        drop(x);
+                        Ok(out)
+                    })?;
+                    ensure!(
+                        gpu.expert_axis_dispatches.get() - before == 3
+                            && gpu.expert_ar_uses[3].get() - uses == n as u64
+                    );
+                    ensure!(
+                        gpu.expert_ar_uses[0].get() - finish_uses
+                            == if composed { n as u64 } else { 0 }
+                    );
+                    ensure!(
+                        gpu.expert_ar_uses[1].get() - prepare_uses
+                            == if composed { n as u64 } else { 0 }
+                    );
+                    ensure!(
+                        outputs
+                            .iter()
+                            .map(|b| b.as_ptr() as usize)
+                            .collect::<BTreeSet<_>>()
+                            .len()
+                            == n
+                    );
+                    for output in outputs {
+                        check_words(&Metal::read(&output, 2560), expected)?;
+                        words += 2560;
+                    }
+                    cohorts += 1;
+                }
+            }
+        }
+    }
+    // Distinct record identities share one input; capture the canonical branch
+    // before running the candidate, then compare each permuted slab prefix.
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let backings = cases[..2]
+        .iter()
+        .map(|case| record(&gpu, case))
+        .collect::<Result<Vec<_>>>()?;
+    let experts = backings
+        .iter()
+        .map(|backing| FlashExpert::from_backing(&gpu, backing))
+        .collect::<Result<Vec<_>>>()?;
+    let x = input(&gpu, &cases[0], true)?;
+    let expected = experts
+        .iter()
+        .map(|expert| expert.submit_fp16_view(&x)?.read())
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(expected[0] == refs[0] && expected[0] != expected[1]);
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(true);
+    }
+    let slab = upload(&gpu.device, &vec![0x7e00u16; 25600])?;
+    let order = [1, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    let expert_refs = order.iter().map(|&i| &experts[i]).collect::<Vec<_>>();
+    let destinations = (0..10).map(|i| Some((&slab, i * 5120))).collect::<Vec<_>>();
+    let before = gpu.expert_axis_dispatches.get();
+    gpu.command(|cmd| {
+        FlashExpert::encode_ready_cohort(
+            cmd,
+            &x,
+            &expert_refs,
+            &destinations,
+            Storage::StorageModeShared,
+        )?;
+        Ok(())
+    })?;
+    ensure!(gpu.expert_axis_dispatches.get() - before == 3);
+    let actual = Metal::read(&slab, 25600);
+    for (i, &record) in order.iter().enumerate() {
+        check_words(&actual[i * 2560..(i + 1) * 2560], &expected[record])?;
+    }
+    let before = gpu.expert_axis_dispatches.get();
+    let command = gpu.queue.new_command_buffer().to_owned();
+    ensure!(
+        FlashExpert::encode_ready_cohort(&command, &x, &[], &[], Storage::StorageModeShared)
+            .is_err()
+    );
+    ensure!(
+        FlashExpert::encode_ready_cohort(
+            &command,
+            &x,
+            &expert_refs,
+            &[],
+            Storage::StorageModeShared
+        )
+        .is_err()
+    );
+    ensure!(
+        gpu.expert_axis_dispatches.get() == before
+            && command.status() == MTLCommandBufferStatus::NotEnqueued
+    );
+    // An undersized final destination errors after real QMV encodes, without
+    // committing the command. A fresh command on the same owners must recover.
+    let bad = [Some((&slab, slab.length() - 2))];
+    ensure!(
+        FlashExpert::encode_ready_cohort(
+            &command,
+            &x,
+            &expert_refs[..1],
+            &bad,
+            Storage::StorageModeShared
+        )
+        .is_err()
+    );
+    ensure!(command.status() == MTLCommandBufferStatus::NotEnqueued);
+    drop(command);
+    let output = gpu.command(|cmd| {
+        FlashExpert::encode_ready_cohort(
+            cmd,
+            &x,
+            &expert_refs[..1],
+            &[None],
+            Storage::StorageModeShared,
+        )
+    })?;
+    check_words(&Metal::read(&output[0], 2560), &expected[1])?;
+    ensure!(cohorts == 48 && words == 532480);
+    eprintln!(
+        "NATIVE_EXPERT_AXIS_COMPONENT {}",
+        serde_json::json!({"parity":true,"cohorts":cohorts,"stock_words":words,"mixed_slab_words":25600,"dispatches_per_cohort":3,"empty_rejected":true,"uncommitted_error_recovered":true})
+    );
+    Ok(())
+}
