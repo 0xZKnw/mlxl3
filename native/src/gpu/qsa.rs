@@ -3,8 +3,8 @@ use super::{FlashAttentionOutput, FlashProjection, MatrixView, Metal, view::Floa
 use crate::{checkpoint::Checkpoint, flash_support::qsa_append, qsa_chain_policy};
 use anyhow::{Context, Result, ensure};
 use metal::{
-    Buffer, CommandBuffer, CommandBufferRef, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize,
+    Buffer, CommandBuffer, CommandBufferRef, MTLCommandBufferStatus, MTLResourceOptions as Storage,
+    MTLSize,
 };
 use std::{cell::Cell, collections::BTreeMap, rc::Rc};
 
@@ -511,9 +511,11 @@ impl<'a> FlashQsa<'a> {
             None
         };
         let append_chain_enabled = match std::env::var("MLXL3_NATIVE_QSA_APPEND_CHAIN") {
-            Ok(value) => qsa_chain_policy::setting(Some(&value), gpu.device.name() == "Apple M5"),
+            Ok(value) => {
+                qsa_chain_policy::append_setting(Some(&value), gpu.device.name() == "Apple M5")
+            }
             Err(std::env::VarError::NotPresent) => {
-                qsa_chain_policy::setting(None, gpu.device.name() == "Apple M5")
+                qsa_chain_policy::append_setting(None, gpu.device.name() == "Apple M5")
             }
             Err(error) => return Err(error.into()),
         }
@@ -1571,7 +1573,7 @@ mod ar36_tests {
                 Ok(())
             })?;
         }
-        layer.state.tail = (offset % 4 > 0 && layer.index.is_some())
+        layer.state.tail = (!offset.is_multiple_of(4) && layer.index.is_some())
             .then(|| super::super::upload(&gpu.device, &words((offset % 4) as usize * 128, 29)))
             .transpose()?;
         slab.published.set(offset);

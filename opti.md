@@ -26519,3 +26519,77 @@ AR36 organisation : source AR2 isolée dans codex/issue140-ar2-20261105 depuis10
 AR36-CONTROLLER — préenregistrement avant écriture du contrôleur, 2026-11-05. Pendant AR1 GPU, source seulement dans build/issue140 de ce worktree : copier le superviseur/strict JSON/safe_stop/gel/golden128 audités AR1/AR34 ; adaptation étroite AR2, pas de framework. QA trois phases exactes : composant gpu::qsa::ar36_tests::physical_ar36_qsa_append_chain_preserves_canonical_states_and_rollbacks (27cas/frontières,12800F32indépendants,étatsHalf>1000000,guards/abandon/rollback), modèle AR20 indépendant57606144/993280/81920/84 avec TLS[completed,published,abandoned] et12publications QSA par row normale, puis vraiCLI2tokens/noMLX/shutdown. QSA_APPEND_CHAIN=1 ; T05 et politique AR1 retenue par leurs défauts sans override ; expériences AR20/30/33 et QSA_HC_CHAIN/FINAL_HEAD_CHAIN OFF. Figer référence absolue /Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06/reference.json SHA40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec et ses5inputs/5outs a15, helpers/source/binaires/5metadata modèle. Aucun hash de fixture, import contrôleur, test, preuve, compilation ou GPU avant fin AR1 et grantroot. Après CPU+qualité, écran128/127 OFF/ON/OFF warm1+mesure1/cache3GiB/readers4/depth0/prefix0/context4096/T0, goldenhistorique identique ; processgroup240s/reaped/failurepersist/paretyfalse jusqu’à fin. Contrats CPU préparés sur environnements/marqueurs/deltas/mutations et erreurs héritées ; CrossHair ne sera tenté qu’au créneau CPU. Aucun essai GPU lancé par cette préparation.
 
 AR36 reprise root seul après interruption utilisateur : aucun processus GPU/compilateur/prover encore actif. Merge main6030540b interrompu avant checks ; conflits source résolus en union (CachedPipeline+NAX wrapper, modules, compteurs modèle QSA et AR33, registre Kani). Les corps de calcul QSA restent ceux préenregistrés, flags AR1 absents/AR33OFF/T05défaut. Aucun essai AR2 lancé pendant interruption. Qualification CPU puis GPU maintenant sous contrôle root unique, Brave/Deezer inchangés.
+
+AR36 CPUpremièrepasse interrompueClippystrict : un seul diagnostic dansfixture synthétique(offset%4>0→!offset.is_multiple_of(4)); état/log conservéscpu-before-style-fix01, aucunGPUdébuté. Correctionstyleéquivalente etrelancechecksaffectés maintenant, aucunemathsproductionmodifiées.
+
+AR36 CPU CLOS VALIDÉ :411testsCPU/100ignorés, Clippystrictdirect/chat+mlx/chat, buildsreleaseCLI/libtest, fmt/ruff/inventairePASS ;17testscontrôleur et11portables+2subtestsPASS. 2harnessesKani réelsgardes/transactionPASS 16obligations/8covers, domaineu32/boolcomplet sansassume/boucle, paspreuveMetal/concurrence. CrossHairabsentdiagnosticconservé. PremierClippyfixturestyleconservé. TousCPU/proversjoints ; sélectionexactecomposantAR36présente avantgel. Main6030540bintégrée, pasAR1runtime/AR33OFF/T05défaut. NouveaugelpuisQA3gates avantvitesse128.
+
+AR36 AR2 qsa STARTED
+
+AR36 AR2 qsa VALIDATED
+
+AR36 AR2 model STARTED
+
+AR36 AR2 model VALIDATED
+
+AR36 AR2 cli STARTED
+
+AR36 AR2 cli VALIDATED
+
+AR36 AR2 quality CLOSED ALL_JOINED
+
+AR36 QA CLOS VALIDÉ3/3/tousjoints : QSA27cas et12800F32indépendants/étatsHalf>1million, frontières3/4/1023/1024/2047..2052/trace/unindexed/sparse/COW/grow/staleprepared/retry/abandon ; modèlearchive57606144statewords/993280logits/81920hidden/84états, continuation/rollback et12publicationsQSAeffectivesparrow ; CLI2tokensgolden/noMLX/shutdownPASS. Gel300pins, CLI5e06c0d6/libtest95bf7c81. TousCPU/proversjoints, Brave/Deezerouverts, pasautremodèle. Unécran128OFF/ON/OFF préenregistré maintenant mêmesconditionswarm1+mesure1/cache3GiB4readers/depth0/context4096/T0 ; pasadditiongains etpasparitétexteprisepourpreuvenumérique.
+
+AR36 AR2 control-start STARTED
+
+AR36 AR2 control-start VALIDATED
+
+AR36 AR2 control-start TPS 8.846880962431834
+
+AR36 AR2 qsa-append STARTED
+
+AR36 AR2 qsa-append VALIDATED
+
+AR36 AR2 qsa-append TPS 9.379397977324716
+
+AR36 AR2 control-end STARTED
+
+AR36 AR2 control-end VALIDATED
+
+AR36 AR2 control-end TPS 9.187287097728767
+
+AR36 AR2 speed CLOSED ALL_JOINED
+
+AR36-A CLOS VALIDÉécrancourt :OFF8.846880962431834 / ON9.379397977324716 / OFF9.187287097728767tok/s128/127,6sortiesgoldencomplètes/tousjoints, candidat+2.09105..6.01925%vscontrôlesfrais (dérive+3.85%,écrannonstatistique). QA3/3etpreuvesCPUrestentvalides ;300sources/rawarchivésroundtripavantpromotion.
+
+AR36-D — préenregistrement avantactivationpardéfaut. ConserversettingstrictOFFutiliséparfutursAR3 ; ajouterappend_settingqui choisitSome1quandvariableabsente surM5qualifié, override0resteOFFetinvalidesrefusés. AucunPSO/encode/calcul/changementmémoire. Testsrègledefault/override/hardware, Kani actualparser UTF8symbolique0..4/unwind10 et gardesexistantes ; rebuild/checksaffectés. QAmodèle+CLI sansvariable confirme12publicationsnormalesréelles etoraclehistoriqueinchangé, puisUNE128pardéfautsurcodefinal/main6030540b ; pasnouvellecomparaisonniadditiondegains. BraveDeezerouverts ; pascompiler/proverdurantGPU. PubliercetAR2qualifiéavantAR3, sansapp/release/merge.
+
+AR36-D contrôles initiaux : deux lintPython du nouveau test(defaultlambda/with) corrigés, bruts conservés ; lancementKani via superviseur réutilisé refuse avant enfant pourchampartifactsmanquant, rapportfailed01sanspreuve/phaseconservé. AucunGPUlancé, codeproductioninchangé ; relanceproofaveccontratcomplet.
+
+AR36 DEFAULT KANI kani STARTED
+
+AR36 DEFAULT KANI kani VALIDATED
+
+AR36-D CPU CLOS :412PASS/100ignorés, strictClippy2variants/buildsrelease/fmt/ruff/inventairePASS ;19contrôleur/11portables+2subtestsPASS. Kani3/3PASS251obligations(244SUCCESS/7UTF8stdUNREACHABLE)/15covers ; gardesu32/boolcomplets, parseurUTF8longueur0..4unwind10sansassume, paspreuveGPU/concurrence. Ancienneserreurspréflight/lintpréservées. TousCPU/proversjoints ; geldefaultpuisQAmodèle+CLI sansQSA_APPEND_CHAIN avantunique128finale. L’utilisateurconfirmeexplicitementactivationpardéfaut.
+
+AR36 DEFAULT model STARTED
+
+AR36 DEFAULT model VALIDATED
+
+AR36 DEFAULT cli STARTED
+
+AR36 DEFAULT cli VALIDATED
+
+AR36 DEFAULT quality CLOSED ALL_JOINED
+
+AR36-D QA CLOS VALIDÉ2/2/tousjoints : modèlefulloracle/states/logits/hidden/continuation/rollback etvraiCLI sansvariableQSA_APPEND_CHAIN, compteursréels72completed/72published/0abandon et12parrownormale.303pins/CLI725fc7e1/libtest45f2c700figés ; mathsunchangées/composantA27casréutilisé. DernièreUNE128pardéfautwarm1+mesure1maintenant, pascomparaisonnouveaugain ; tousCPU/proversinactifs/unmodèle/BraveDeezerouverts.
+
+AR36 DEFAULT default STARTED
+
+AR36 DEFAULT default VALIDATED
+
+AR36 DEFAULT default TPS 8.845068680277391
+
+AR36 DEFAULT speed CLOSED ALL_JOINED
+
+AR36-D FINAL CLOS VALIDÉ : defaultvariableABSENTE, 128/127MAIN = 8.845068680277391tok/s/warm1+mesure1/goldencomplet/tousjoints. Valeurfinalenoncontrôlée, pasnouveaupourcentagedegain ; écranOFF8.84688/ON9.37940/OFF9.18729conservéséparément. QAmodèle+CLI sansvariable et12joinsnormauxeffectifsPASS ;303sources/32brutsarchivésroundtrip/rehashavantpublication. DefaultM5ON/override0OFF, expérimentalAR3/4OFF, pasAR1runtime ;412CPU/100ignorés+19contrôleur+11portables2subtests/Kani3PASS251obligations15covers. AucunessaiAR2encours/compilateur/prover/GPUenfond ; publicationPRmaintenant, aucunmerge/release/appinstallée.

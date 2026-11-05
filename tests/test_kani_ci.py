@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "qsa_chain_policy::qsa_append_default_actual_parser_is_strict_and_hardware_qualified",
         "qsa_chain_policy::qsa_append_chain_actual_guard_preserves_dense_cpu_free_boundary",
         "qsa_chain_policy::qsa_actual_publication_and_abandon_are_fail_closed",
         "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",

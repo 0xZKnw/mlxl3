@@ -8,6 +8,10 @@ pub(crate) fn setting(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
     }
 }
 
+pub(crate) fn append_setting(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    setting(value.or(Some("1")), qualified_m5)
+}
+
 pub(crate) fn inline_eligible(indexed: bool, trace: bool, offset: u32) -> bool {
     !trace
         && offset
@@ -40,6 +44,19 @@ pub(crate) fn submitted_needs_wait(committed: bool, terminal: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn qualified_append_default_keeps_explicit_disable_and_strict_literals() {
+        for qualified in [false, true] {
+            assert_eq!(append_setting(None, qualified), Some(qualified));
+            assert_eq!(append_setting(Some("1"), qualified), Some(qualified));
+            assert_eq!(append_setting(Some("0"), qualified), Some(false));
+            for invalid in ["", "true", " 1", "2", "01", "é"] {
+                assert_eq!(append_setting(Some(invalid), qualified), None);
+            }
+            assert_eq!(setting(None, qualified), Some(false));
+        }
+    }
 
     #[test]
     fn qsa_chain_boundaries_keep_sparse_trace_and_unindexed_paths_explicit() {
@@ -76,6 +93,38 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn qsa_append_default_actual_parser_is_strict_and_hardware_qualified() {
+    let qualified: bool = kani::any();
+    let present: bool = kani::any();
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    if !present {
+        let result = append_setting(None, qualified);
+        assert_eq!(result, Some(qualified));
+        assert_eq!(setting(None, qualified), Some(false));
+        kani::cover!(qualified && result == Some(true));
+        kani::cover!(!qualified && result == Some(false));
+    } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+        let result = append_setting(Some(value), qualified);
+        assert_eq!(
+            result,
+            match value {
+                "0" => Some(false),
+                "1" => Some(qualified),
+                _ => None,
+            }
+        );
+        kani::cover!(value == "1" && qualified && result == Some(true));
+        kani::cover!(value == "0" && qualified && result == Some(false));
+        kani::cover!(value == "1" && !qualified && result == Some(false));
+        kani::cover!(value.is_empty() && result.is_none());
+        kani::cover!(value == "é" && result.is_none());
     }
 }
 
