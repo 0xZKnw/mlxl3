@@ -25559,3 +25559,41 @@ AR20 phase1RESEARCHCLOS : sixprojetsprimaireHEADsrevérifiés,TurboEXL3identifi�
 
 AR20-B10 sourceprototype : 50µs/4096pollsdoublebound helper réel, strictOFFexactM5flagGPU_SPIN_WAIT, centraldispatch+submit/MoEcompleted/drainactualcallersreliés, terminalErrorretourversstatuscheckexistantetdrainallinchangé. Compteurscfgtestterminal/spinsuccess/blockfallback/polls ; aucuneaffectationGPUFailedinventée. Unitfrontières+Kani4coverssymboliquespréparés ; sourceuniquementaucunbuild/test/mesure.
 AR20 B01 SOURCE READY (pending common build/GPU): strict M5/OFF MLXL3_NATIVE_GDN_HEAD_GATES, independent original+shared-head PSOs so OFF/ON component oracle is real. Whole body moved byte-identically into shared include except explicit gate adapter; original path keeps its literal per-lane formula, candidate computes native Half beta/softplus/float precise decay once at SG3lane0 and uses existing uniform prework barrier. Actual runtimecounter gdn_head_gate_uses, whole/public/trace/capability guards preserved through new real CPUhelper; Kani6symbolic inputs/noassumes/3covers registered. Physicalgate source covers3boundarycorpora2359296F32state+92160Halfhistory+18432Halfgated then2realcheckpointrecurrentrows withretainedframesandactualuses2. CanonicalHalf/softplus/log1p/preciseexp/T17typedepilogue unchanged. fmt/diffcheckPASSonly; no build/test/prover/GPU launched in agent worktree. Source-only commit is not numeric/performance validation.
+
+AR20-B01-FAST preregAVANTbuild/GPU : premierécranisoléduhoisting pourretourrapidependantsourceB02–B12. BaseALL12exacte, B10présentmaisOFF etautresnouveauxabsents ; compilationcommuneprovisoireformat/clippy/suite+2KaniB01/B10puisB01composant+AR10commongate+CLIavantMAIN32. AnciencommongateindépendantpourB01carset_newOFFdésactivewholeGDNdonclehoistingestabsentdelaréférence, ONactive36selected ; archive84fullinitialconservée. ContrôlefrozenCLIa99cALL12fresh puiscandidatHEAD_GATES=1 puiscontrôleendpoint : 3brasonewarm+oneMAIN32, conditionsmatrice/tokens32etpasSwarautresmacros. Résultatsqualifientpremiersourceprovisoireseulement ; contrôlesaffectésaprèsintégrationB02–12serontrefaits. AgentsresteSOURCEONLY, aucunautrebuild/GPU/proof. PremièrepréparationpreregjournalrefuséeSyntaxErrorquoteavanttoutecompilation, aucuneinférence/mesure ; corrigéavantlancement.
+
+AR20-B01build01ÉCHECAVANTGPU : 10accèsTensorStorage.bufferprivésdansnouveaucomposant. QAconvertitstockagesenMatrixViewparAPImatrixexistante, checkedu32/i64len, pasouverturevisibiliténiarithmeticchange. Reprendmêmeprotocolebuild02 ; aucunrésultatnumérique/vitesseencore.
+
+AR20-B09 source amendment BEFORE prototype: avoid a new raw slab/copy. Reuse the existing per-ready-cohort Float32 down partial backing and return checked PendingExpertFinish views {partial Buffer clone, i*10240offset, record/SVH clone+offset}. The tracked CB already retains these allocations through completion, so no new raw GPU buffer is needed. Keep canonical slot→pending-view map and current hot/cold cohort/command submission order; final encoder binds ten Float32 partial views+ten SVH views+shared/scores/multiplier/output (25buffers≤31). One20CTA×640threads kernel, route=tid/64/localLane=tid%64, each64threads performs exact partialHalf/H128/Halfnorm×SVHHalf in its TGfloat[10][128]; storeTGhalfcontrib10×128 then uniform640barrier. Route0/local64threads calculate exact native8stripes+2F32contractoff mix and shared branch. No early return before uniform barriers. Preserve unsupportedPSO/trace/F16 fallback and producer/error/rollback ownership; selectedrequiresA06axis. A05Halfslab not allocated when replaced, so oldA05usecounter0 is intentional while A06count480/48mixuses required. Turbo reviewer confirms partial layout/SVHalignment/25bindings and H128SIMD64wrapper compatible with localLane perroute; physical mixed-route tests must exercise640CTA +B08 composition. Source only not yet applied; matrix raw-slab estimate superseded by retained existing-cohort views, old estimate retained.
+
+AR20-B01-FAST component STARTED
+
+AR20-B01-FAST component VALIDATED
+
+AR20-B01-FAST model STARTED
+
+AR20-B01-FAST model VALIDATED
+
+AR20-B01-FAST cli STARTED
+
+AR20-B01-FAST cli VALIDATED
+
+AR20-B01-FAST control-start STARTED
+
+AR20-B01-FAST control-start VALIDATED
+
+AR20-B01-FAST head-gates STARTED
+
+AR20-B01-FAST head-gates VALIDATED
+
+AR20-B01-FAST control-end STARTED
+
+AR20-B01-FAST control-end VALIDATED
+
+AR20-B01-FAST CLOSED all phases PASS, short screen only
+
+AR20-B01-FAST CLOS : qualitécomposant3corpus2359296statewords+2runtime/retainedframes, modèlefull/CLI3/3PASS. MAIN32frozenALL12start9.172587372/candidatHEAD_GATES=1 5.273850874/end9.108995075tok/s,6sorties32tokenstext/hashidentiques, tousjoints. Régressionobservéeprototypesansattributionencore ; contretempsfortenviron−42%, referencefraisepas8.35historique. AuditadaptationdemandéAVANTtoutrejet ; possiblecompileruniformité/registres/TGavecgatebroadcast, not512instructionséconomiséesaffirmées. PreregISOLATE-01 : UNbrasMAIN32samebinary05b082HEAD_GATES=0/ALL12ON/spinOFF, mêmeprotocole/cache/tokens, pourdiscriminerhoistingvsbaselineheaderextraction/B10OFF. Pasautrevariant/boucle ; qualitéOFFhéritéecommongatemodèleetcomposants, outputgolden/joinrequired. Aprèsisolationconsigneretsourceauditavantdécision, garderanciensrésultats.
+
+AR20-B01-ISOLATE validated_short_screen joined=True tps=8.41958837453211
+
+AR20-B01 adaptationauditCLOSavantdécision : nofaultconcretmath/guards/barrières/scoping, bodyoriginalsansadapterbyteidentique etSHARED_GATESundefpropre. Ancienneexpressionidentiqueparlane ne prouvepas512instructionscoûteuses, compilerSIMD/uniformitéamortitpossible ; sharedproducerajouteloadsTG/dépendance, ressourcesàlireauprochainbuildpasnouveaubuildpourdiagnosticseul. ISOLATEOFFsamebinary8.419588375tok/s vsON5.273850874, frozencontrols9.172587372/9.108995075 ; toutes8sortiescomplètesexactesetprocessusjoints. B01correctionVALIDÉE/performanceREJETÉEpourcompositioncouranteaprèsaudit ; prototypeconservéOFF, nidéfautactivéniseuilminappliqué. SamesourceOFFvsONindiqueforteralentissementécrancourt, nondébitsoutenu ; écartfrozen/OFF−7.6%nonattribué(conditions/compilationdiff). Aucuneautrevariantehoistinglancée. Sourcetest.MatrixViewQAconservéecommitpourliergelprovisoire, metricsoldtests381PASS74ignored/KaniB01+B10PASS3checks7covers(CPUbornés, paspreuveMetal).

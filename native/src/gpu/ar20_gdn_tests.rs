@@ -30,7 +30,20 @@ fn physical_ar20_head_gates_preserve_boundary_corpus_and_retained_frames() -> Re
         .whole_head_gates
         .as_ref()
         .context("enable GDN_HEAD_GATES=1")?;
-    let half = |v: Vec<u16>| gpu.f16_storage(&v);
+    let half = |v: Vec<u16>| -> Result<MatrixView> {
+        gpu.f16_storage(&v)?.matrix(MatrixLayout {
+            shape: [1, u32::try_from(v.len())?],
+            strides: [i64::try_from(v.len())?, 1],
+            offset: 0,
+        })
+    };
+    let float = |v: &[f32]| -> Result<MatrixView> {
+        gpu.f32_storage(v)?.matrix(MatrixLayout {
+            shape: [1, u32::try_from(v.len())?],
+            strides: [i64::try_from(v.len())?, 1],
+            offset: 0,
+        })
+    };
     let values = |n: usize, salt: usize| {
         (0..n)
             .map(|i| f16::from_f32((((i + salt) % 67) as f32 - 33.) / 97.).to_bits())
@@ -50,15 +63,15 @@ fn physical_ar20_head_gates_preserve_boundary_corpus_and_retained_frames() -> Re
     )?;
     let history = half(values(30720, 3))?;
     let weight = half(values(40960, 7))?;
-    let state = gpu.f32_storage(
+    let state = float(
         &(0..786432)
             .map(|i| ((i % 71) as f32 - 35.) / 111.)
             .collect::<Vec<_>>(),
     )?;
     let mut gain_values = vec![1.; 128];
     gain_values[0] = f32::from_bits(0x3f801001);
-    let gain = gpu.f32_storage(&gain_values)?;
-    let a_log = gpu.f32_storage(
+    let gain = float(&gain_values)?;
+    let a_log = float(
         &(0..48)
             .map(|i| [-20., -1., 0., 1.][i % 4])
             .collect::<Vec<_>>(),
