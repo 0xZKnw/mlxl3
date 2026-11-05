@@ -12,6 +12,51 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts/check_native_coverage.py
 
 
 class NativeCoverageTest(unittest.TestCase):
+    def test_repository_inventory_matches_reviewed_reference(self):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT)], capture_output=True, text=True, check=False, timeout=20
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("MLX source inventory matches", result.stdout)
+
+    def test_missing_config_and_misplaced_source_inventory_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q", tmp], check=True, timeout=20)
+            (root / "native/src").mkdir(parents=True)
+            (root / "native/src/array.rs").write_text("pub fn eval(&self) {}")
+            (root / "native/src/gpu.rs").write_text(
+                'let option = "MLXL3_NATIVE_QSA_PREPARE";\n'
+                'include_str!("../shaders/flash_expert_axis.metal");\n'
+            )
+            baseline = root / BASELINE
+            baseline.parent.mkdir(parents=True)
+            cmd = [sys.executable, str(SCRIPT), "--root", tmp]
+            reviewed = json.loads(subprocess.check_output([*cmd, "--inventory"], timeout=20))
+            self.assertEqual(
+                reviewed["native/src/gpu.rs"]["shader ../shaders/flash_expert_axis.metal"], 1
+            )
+            missing = json.loads(json.dumps(reviewed))
+            del missing["native/src/gpu.rs"]["config MLXL3_NATIVE_QSA_PREPARE"]
+            misplaced = dict(reviewed)
+            misplaced["native/src/other.rs"] = misplaced.pop("native/src/gpu.rs")
+            for mutation, message in [
+                (missing, "config MLXL3_NATIVE_QSA_PREPARE 0 -> 1"),
+                (
+                    misplaced,
+                    "native/src/other.rs: shader ../shaders/flash_expert_axis.metal 1 -> 0",
+                ),
+            ]:
+                with self.subTest(message=message):
+                    baseline.write_text(json.dumps(mutation))
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, check=False, timeout=20
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(message, result.stderr)
+            baseline.write_text(json.dumps(reviewed))
+            subprocess.run(cmd, capture_output=True, check=True, timeout=20)
+
     def test_guard_rejects_growth_and_removal_until_reviewed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
