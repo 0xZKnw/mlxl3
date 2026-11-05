@@ -25761,3 +25761,40 @@ AR20 CONFIRM-01 compatible-A STARTED
 AR20 CONFIRM-01 compatible-A VALIDATED 5.209880344804168
 
 AR20 CONFIRM-01 compatible-B STARTED
+
+AR20 CONFIRM-01 compatible-B VALIDATED 5.0764818730560615
+
+AR20 CONFIRM-01 off-end STARTED
+
+AR20 CONFIRM-01 off-end VALIDATED 9.564412488177737
+
+AR20 CONFIRM-01 CLOSED 4 MAIN32 groups, no sustained throughput claim
+
+AR20 CONFIRM-01 CLOS all4processes/all8goldenoutputs/joinPASS, speedNONCONCLUANT: samebinaryOFF6.082638878/end9.564412488tok/s (+57.24%drift), compatibleON5.209880345/5.076481873, firstscreen8.9225 not replicated. No reliable gain orregressionattribution/10tokclaim; no sourcechanges/newcompilation. Auditsbeforedecision preserved; runtime10 composition notpromoted, optionskeptOFF. Strongdesktop/systemvariation doesnotjustify closinguserapps/reinstatingswapstop.
+AR20 KERNELS-CONFIRM-01 prereg before trial/controller edit: finalbounded confirmation only B05-B08kernel4, which showed8.1499 firstscreen vsnewOFF6.5368; sharedruntimecomposition variable rejected asunprovenbenefit, notremovingcorrectcandidates. SamefrozencommonCLI/lib/no newcode or parameterprototype. Reuse immutableALL12reference and rerun only fullmodelcomparison withfourmacrosON/runtimenewOFF (actualkernelbits15, allnewruntimecounters0), then samebinaryOFF/4kernelsON/4kernelsON/OFF MAIN32onewarm+onemeasured each, identicalcache/model/flags/context/goldentext/hash, processlimits/join. This is new kernel-only composition qualification (affectedpaths), not repeatunchangedinitial84oraclecapture/CLI2token. Evidence docs/.../kernels-confirmation. Preservebothcontrolleroriginalandconfirmationrevision; lints/selfchecksbefore. Strong endpointdrift marks speednonconcluant, no endlesssweep/retry/claim, target10onlyifactualmeasuredandqualified. No GPU compile/prover/otherinference alongside.
+
+AR20 KERNELS-CONFIRM-01 selected-quality STARTED
+
+AR20 KERNELS-CONFIRM-01 selected-quality VALIDATED numerical-gate
+
+AR20 KERNELS-CONFIRM-01 off-start STARTED
+
+AR20 KERNELS-CONFIRM-01 off-start VALIDATED 6.096655541916403
+
+AR20 KERNELS-CONFIRM-01 kernels-A STARTED
+
+AR20 KERNELS-CONFIRM-01 kernels-A VALIDATED 5.151793653048387
+
+AR20 KERNELS-CONFIRM-01 kernels-B STARTED
+
+AR20 KERNELS-CONFIRM-01 kernels-B VALIDATED 5.269744404222035
+
+AR20 KERNELS-CONFIRM-01 off-end STARTED
+
+AR20 KERNELS-CONFIRM-01 off-end VALIDATED 8.94999705129355
+
+AR20 KERNELS-CONFIRM-01 CLOSED 4 MAIN32 groups, no sustained throughput claim
+
+AR20 proof-count correction after original log inspection: root B01/B10 guards.log contains two SUCCESSFUL harnesses, each0of1failed, total2reported assertions/7covers (prior3checks was a counting error, retained above). Therefore newtargeted total7harnessPASS932reportedobligations/26covers plus1SLRUtimeout, not933. Logsunchanged, boundsandlimitationsunchanged; receipts preserve argv notserialized asunknown ratherthaninvented.
+
+AR20 KERNELS-CONFIRM-01 CLOS: fullmodel kernels-only fourmacros actualbits15/newruntime0 exactstate/logit/archive/continuation PASS; fourMAIN32process/all8warm+measuredgoldenoutputs PASS/alljoined. OFF6.096655542/8.949997051tok/s, ON5.151793653/5.269744404tok/s; endpointdrift+46.801750%. SpeedNONCONCLUANT underlargevariation, earlier8.1499 notreplicated; no boost/defaultpromotion and10tok/s notachieved. All12research/prototypes/componentgates and chosenmodelcompositions tested; commonMAIN32matrix+twoessentialconfirmationcampaigns32/32completegoldenoutputs, allprocessesjoined, noGPUtrialpending. Weak/negativeadaptationaudits done beforedecision; keepcorrectboundedoptinexperiments withlimits, notproductionboostclaim. No furtherbenchmark retry inthisbatch. Nextonly integrateCI cfg (test-only; sameactiveASTforDIRECTlibtest andabsentinreleaseCLI), lexicalinventory andPythoncleanup, runaffectednoDirectCPU/CIchecks, documentation/PRpublication. MeasuredGPU/Rustfunctions/mathremainfrozencommon; cfgpatch doesnotinvalidate samefeaturegeneratedcode.
