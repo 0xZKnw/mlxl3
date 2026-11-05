@@ -1,0 +1,890 @@
+{
+  "base": "6030540b5573185a4bf8b13207011872d94d0045",
+  "code_commit": "3b3426074b8b938ab727c2f13edb3e1d7ce7c68e",
+  "model": "Qwen3.6-35B-A3B EXL3 2.49 bpw",
+  "device": "Apple M5 24 GiB",
+  "os": "macOS 27.2",
+  "artifacts": {
+    "mlxl3-qwen36-p10-direct": {
+      "sha256": "5e1384c721ca04adefda44c36957a5050ead9da306c77e506b8cd6c1fec9627e",
+      "bytes": 10857688
+    },
+    "qwen36-p10-libtest": {
+      "sha256": "3002fcbc52eac7b31ca9897fa69c4fdd7eeaf5056c5667849b48eab0522db554",
+      "bytes": 10936144
+    }
+  },
+  "qualification": {
+    "rust_suites": {
+      "cpu": {
+        "passed": 396,
+        "failed": 0,
+        "ignored": 9
+      },
+      "direct": {
+        "passed": 415,
+        "failed": 0,
+        "ignored": 107
+      },
+      "compat": {
+        "passed": 451,
+        "failed": 0,
+        "ignored": 326
+      }
+    },
+    "python": {
+      "passed": 106,
+      "subtests_passed": 2
+    },
+    "kani": {
+      "harnesses": 9,
+      "obligations": 676,
+      "unreachable": 1,
+      "covers": 32
+    },
+    "physical": [
+      {
+        "test": "grouped-stages",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "qwen-greedy",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "flash-greedy",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "grouped-experts",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "routed-glu",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "prefill-head",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "model-native",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "verify-block",
+        "passed": true,
+        "reaped": true
+      },
+      {
+        "test": "bridge",
+        "passed": true,
+        "reaped": true
+      }
+    ],
+    "verification": {
+      "finite_logit_words": 10181120,
+      "finite_state_words": 362762240
+    },
+    "stock_oracle": {
+      "finite_logit_words": 993280,
+      "finite_state_words": 65966080,
+      "passed": true
+    },
+    "stage_component": {
+      "exact_half_words": 8192,
+      "routed_stage_dispatches": 6
+    },
+    "greedy_component": {
+      "one_fewer_command": true,
+      "strict_nonfinite_rejection": true,
+      "rollback": true
+    }
+  },
+  "campaigns": {
+    "stages": {
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 64,
+        "warmup_tokens": 8,
+        "context": 4096,
+        "cache": false,
+        "prompt_sha256": "4f326ea4be23469fe7fe1c9cadbfc25caf611d155a671eccaefc5345074e2851"
+      },
+      "flags": {
+        "A": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "1",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "1",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "1",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "0",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "0"
+        },
+        "B": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "1",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "1",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "1",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "1",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "0"
+        }
+      },
+      "parity": true,
+      "samples": [
+        {
+          "arm": "A",
+          "battery_percent": 34,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 13.05020589328481,
+              "prefill_tps": 13.6003561782168,
+              "ttft_seconds": 1.986142875,
+              "elapsed_seconds": 6.813672833,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11777581960,
+              "process_lifetime_peak_bytes": 11987035016,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 13.89580487937985,
+              "prefill_tps": 16.3069309173761,
+              "ttft_seconds": 2.1471675820000002,
+              "elapsed_seconds": 6.680926125,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11777663880,
+              "process_lifetime_peak_bytes": 11989934984,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 34,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.97130151612513,
+              "prefill_tps": 19.961982906301184,
+              "ttft_seconds": 1.353354666,
+              "elapsed_seconds": 5.297944333,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11774518176,
+              "process_lifetime_peak_bytes": 12009612192,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.645295327765368,
+              "prefill_tps": 19.93748553560346,
+              "ttft_seconds": 1.756240917,
+              "elapsed_seconds": 5.783024458,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11773436832,
+              "process_lifetime_peak_bytes": 12009612192,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 35,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.143816680493412,
+              "prefill_tps": 17.790419957688453,
+              "ttft_seconds": 1.518474916,
+              "elapsed_seconds": 5.678609083,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11755414408,
+              "process_lifetime_peak_bytes": 11983168392,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 16.11034203406877,
+              "prefill_tps": 19.80323645707935,
+              "ttft_seconds": 1.7682075000000002,
+              "elapsed_seconds": 5.678754125,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11772715936,
+              "process_lifetime_peak_bytes": 11998487432,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "A",
+          "battery_percent": 36,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 14.459888727713409,
+              "prefill_tps": 17.998680096792903,
+              "ttft_seconds": 1.500892375,
+              "elapsed_seconds": 5.857787042,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11773895560,
+              "process_lifetime_peak_bytes": 11985118088,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 14.712316415687395,
+              "prefill_tps": 17.756619022118347,
+              "ttft_seconds": 1.971843959,
+              "elapsed_seconds": 6.253983584,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11789919112,
+              "process_lifetime_peak_bytes": 11985806216,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        }
+      ],
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 13.755047310499108,
+            "B": 15.557559098309271,
+            "change_percent": 13.104366325474736
+          },
+          "prefill_tps": {
+            "A": 15.799518137504851,
+            "B": 18.87620143199482,
+            "change_percent": 19.473272967651756
+          },
+          "ttft_seconds": {
+            "A": 1.743517625,
+            "B": 1.435914791,
+            "change_percent": -17.64265698203079
+          },
+          "elapsed_seconds": {
+            "A": 6.3357299375,
+            "B": 5.488276708,
+            "change_percent": -13.375778921448067
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 14.304060647533623,
+            "B": 15.877818680917068,
+            "change_percent": 11.002176739615543
+          },
+          "prefill_tps": {
+            "A": 17.031774969747225,
+            "B": 19.870360996341404,
+            "change_percent": 16.66641340457018
+          },
+          "ttft_seconds": {
+            "A": 2.0595057705000004,
+            "B": 1.7622242085000002,
+            "change_percent": -14.434606897354174
+          },
+          "elapsed_seconds": {
+            "A": 6.4674548545,
+            "B": 5.7308892915000005,
+            "change_percent": -11.38880099777586
+          }
+        }
+      },
+      "drift_check": {
+        "short": {
+          "drift_percent": [
+            10.801996887681087,
+            5.464176258139686
+          ],
+          "separated": true,
+          "gain_qualified": false
+        },
+        "document": {
+          "drift_percent": [
+            5.875957120837061,
+            2.972438017696555
+          ],
+          "separated": true,
+          "gain_qualified": false
+        }
+      }
+    },
+    "greedy": {
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 64,
+        "warmup_tokens": 8,
+        "context": 4096,
+        "cache": false,
+        "prompt_sha256": "4f326ea4be23469fe7fe1c9cadbfc25caf611d155a671eccaefc5345074e2851"
+      },
+      "flags": {
+        "A": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "1",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "1",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "1",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "1",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "0"
+        },
+        "B": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "1",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "1",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "1",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "1",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "1"
+        }
+      },
+      "parity": true,
+      "samples": [
+        {
+          "arm": "A",
+          "battery_percent": 37,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 13.837844421303629,
+              "prefill_tps": 21.45791071067552,
+              "ttft_seconds": 1.258964333,
+              "elapsed_seconds": 5.811712542,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11778843528,
+              "process_lifetime_peak_bytes": 11989279624,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 16.623737952366458,
+              "prefill_tps": 19.261651372915477,
+              "ttft_seconds": 1.817731707,
+              "elapsed_seconds": 5.607509166,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11780072328,
+              "process_lifetime_peak_bytes": 12007875464,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 37,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.657861638091282,
+              "prefill_tps": 19.667391628574755,
+              "ttft_seconds": 1.373697291,
+              "elapsed_seconds": 5.397254375,
+              "native_gpu_greedy_heads": 63,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11786314632,
+              "process_lifetime_peak_bytes": 11987559304,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.76977792718872,
+              "prefill_tps": 19.571091149840747,
+              "ttft_seconds": 1.7891274160000001,
+              "elapsed_seconds": 5.784124583,
+              "native_gpu_greedy_heads": 63,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11788624776,
+              "process_lifetime_peak_bytes": 12007547784,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 38,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.324687716159053,
+              "prefill_tps": 20.050844977250748,
+              "ttft_seconds": 1.347725959,
+              "elapsed_seconds": 5.458755667,
+              "native_gpu_greedy_heads": 63,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11789869936,
+              "process_lifetime_peak_bytes": 11989214064,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.689275803320381,
+              "prefill_tps": 19.661096533462864,
+              "ttft_seconds": 1.780705542,
+              "elapsed_seconds": 5.796201125,
+              "native_gpu_greedy_heads": 63,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11789968240,
+              "process_lifetime_peak_bytes": 12008956784,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "A",
+          "battery_percent": 38,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.863957748992528,
+              "prefill_tps": 20.015120059211366,
+              "ttft_seconds": 1.349814042,
+              "elapsed_seconds": 5.321097625,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11774911368,
+              "process_lifetime_peak_bytes": 11984200584,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 16.11190304879723,
+              "prefill_tps": 19.705913640467372,
+              "ttft_seconds": 1.776908666,
+              "elapsed_seconds": 5.687074583,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11777139592,
+              "process_lifetime_peak_bytes": 11987198856,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        }
+      ],
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 14.850901085148077,
+            "B": 15.491274677125167,
+            "change_percent": 4.312018431107245
+          },
+          "prefill_tps": {
+            "A": 20.736515384943445,
+            "B": 19.85911830291275,
+            "change_percent": -4.231169344236896
+          },
+          "ttft_seconds": {
+            "A": 1.3043891875,
+            "B": 1.360711625,
+            "change_percent": 4.317916618731554
+          },
+          "elapsed_seconds": {
+            "A": 5.5664050835,
+            "B": 5.428005021000001,
+            "change_percent": -2.4863455034964455
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 16.367820500581843,
+            "B": 15.72952686525455,
+            "change_percent": -3.899686187935658
+          },
+          "prefill_tps": {
+            "A": 19.483782506691426,
+            "B": 19.616093841651804,
+            "change_percent": 0.67908443812148
+          },
+          "ttft_seconds": {
+            "A": 1.7973201865,
+            "B": 1.784916479,
+            "change_percent": -0.6901223050387095
+          },
+          "elapsed_seconds": {
+            "A": 5.6472918745000005,
+            "B": 5.790162854,
+            "change_percent": 2.5299025209786885
+          }
+        }
+      },
+      "drift_check": {
+        "short": {
+          "drift_percent": [
+            14.641827628656223,
+            2.1740992580286944
+          ],
+          "separated": false,
+          "gain_qualified": false
+        },
+        "document": {
+          "drift_percent": [
+            3.1767501456473557,
+            0.5131028664261406
+          ],
+          "separated": false,
+          "gain_qualified": false
+        }
+      }
+    },
+    "composition": {
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 64,
+        "warmup_tokens": 8,
+        "context": 4096,
+        "cache": false,
+        "prompt_sha256": "4f326ea4be23469fe7fe1c9cadbfc25caf611d155a671eccaefc5345074e2851"
+      },
+      "flags": {
+        "A": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "0",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "0",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "0",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "0",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "0",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "0",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "0"
+        },
+        "B": {
+          "MLXL3_NATIVE_QWEN_MOE_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_JOIN": "1",
+          "MLXL3_NATIVE_QWEN_LAYER_CHAIN": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_KV": "1",
+          "MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": "1",
+          "MLXL3_NATIVE_QWEN_MTP": "0",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": "1",
+          "MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": "1",
+          "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+          "MLXL3_NATIVE_QWEN_DEVICE_GREEDY": "0"
+        }
+      },
+      "parity": true,
+      "samples": [
+        {
+          "arm": "A",
+          "battery_percent": 43,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 5.220936514810444,
+              "prefill_tps": 5.36040891281408,
+              "ttft_seconds": 5.037668583,
+              "elapsed_seconds": 17.104486916,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11264491520,
+              "process_footprint_bytes": 11789099936,
+              "process_lifetime_peak_bytes": 11804205984,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 5.360889268566544,
+              "prefill_tps": 5.393314766484613,
+              "ttft_seconds": 6.490157499,
+              "elapsed_seconds": 18.241954667,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11264491520,
+              "process_footprint_bytes": 11779843000,
+              "process_lifetime_peak_bytes": 11807007648,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 44,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.517809441977414,
+              "prefill_tps": 20.41145203930224,
+              "ttft_seconds": 1.323726751,
+              "elapsed_seconds": 5.383600375,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11764130744,
+              "process_lifetime_peak_bytes": 11983201208,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 15.57635640265832,
+              "prefill_tps": 19.720450411278527,
+              "ttft_seconds": 1.775523833,
+              "elapsed_seconds": 5.820132083,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11763196856,
+              "process_lifetime_peak_bytes": 11983299512,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "battery_percent": 45,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 13.783357023022418,
+              "prefill_tps": 18.420690187443316,
+              "ttft_seconds": 1.466559417,
+              "elapsed_seconds": 6.037304375,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11765703560,
+              "process_lifetime_peak_bytes": 11988902792,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 14.137217669395847,
+              "prefill_tps": 17.700909750900156,
+              "ttft_seconds": 1.9780576250000002,
+              "elapsed_seconds": 6.434394167,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11267112960,
+              "process_footprint_bytes": 11767849864,
+              "process_lifetime_peak_bytes": 11988919176,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        },
+        {
+          "arm": "A",
+          "battery_percent": 45,
+          "thermal_probe": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "prompts": {
+            "short": {
+              "prompt_tokens": 27,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 5.019123441494722,
+              "prefill_tps": 5.053019233817464,
+              "ttft_seconds": 5.344059417,
+              "elapsed_seconds": 17.896068167,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11264491520,
+              "process_footprint_bytes": 11775173536,
+              "process_lifetime_peak_bytes": 11802682272,
+              "token_hash": "48d72f408c7764b1",
+              "text_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b",
+              "history_sha256": "e23bc7219bfc0e482dcd184e32edd624276dddfef87d5912b5685291f6ac9c1b"
+            },
+            "document": {
+              "prompt_tokens": 35,
+              "generated_tokens": 64,
+              "decode_tokens": 63,
+              "decode_tps": 4.979117689083204,
+              "prefill_tps": 5.045995571686765,
+              "ttft_seconds": 6.936895208,
+              "elapsed_seconds": 19.589758708,
+              "native_gpu_greedy_heads": null,
+              "native_metal_allocated_bytes": 11264491520,
+              "process_footprint_bytes": 11779384224,
+              "process_lifetime_peak_bytes": 11806630816,
+              "token_hash": "52a9b1a2e9c07598",
+              "text_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58",
+              "history_sha256": "e84964095e7b2c54e994131926458ef7fd52a0a139451102dad7b76397c81c58"
+            }
+          }
+        }
+      ],
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 5.1200299781525835,
+            "B": 14.650583232499915,
+            "change_percent": 186.14252836437805
+          },
+          "prefill_tps": {
+            "A": 5.206714073315772,
+            "B": 19.41607111337278,
+            "change_percent": 272.9045006116135
+          },
+          "ttft_seconds": {
+            "A": 5.190864,
+            "B": 1.3951430839999999,
+            "change_percent": -73.12310467005108
+          },
+          "elapsed_seconds": {
+            "A": 17.500277541499997,
+            "B": 5.710452375,
+            "change_percent": -67.3693610775127
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 5.170003478824874,
+            "B": 14.856787036027082,
+            "change_percent": 187.36512648157802
+          },
+          "prefill_tps": {
+            "A": 5.219655169085689,
+            "B": 18.710680081089343,
+            "change_percent": 258.4658272428912
+          },
+          "ttft_seconds": {
+            "A": 6.713526353500001,
+            "B": 1.876790729,
+            "change_percent": -72.04463600531541
+          },
+          "elapsed_seconds": {
+            "A": 18.915856687500003,
+            "B": 6.127263125,
+            "change_percent": -67.60779473948423
+          }
+        }
+      },
+      "drift_check": {
+        "short": {
+          "drift_percent": [
+            4.020882842754325,
+            12.583671859169954
+          ],
+          "separated": true,
+          "gain_qualified": false
+        },
+        "document": {
+          "drift_percent": [
+            7.667454423107545,
+            10.179787613922864
+          ],
+          "separated": true,
+          "gain_qualified": false
+        }
+      }
+    }
+  }
+}
