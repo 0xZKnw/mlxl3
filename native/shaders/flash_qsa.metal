@@ -226,5 +226,8 @@ kernel void ar10_qsa_attention_gate(const device half* queries [[buffer(0)]], co
         o[j]=simd_sum(outputs[stripe*32+lane]*factor)/denominator;
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
-    if(lane==0) for(uint j=0;j<8;++j) out[head*256+stripe*8+j]=half(o[j])*hc_sigmoid(qg[(head*2+1)*256+stripe*8+j]);
+    if(lane==0) for(uint j=0;j<8;++j) {
+        volatile half attention=half(o[j]);
+        out[head*256+stripe*8+j]=attention*hc_sigmoid(qg[(head*2+1)*256+stripe*8+j]);
+    }
 }
