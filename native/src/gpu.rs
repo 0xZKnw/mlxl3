@@ -437,7 +437,7 @@ impl Metal {
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
-                false,
+                hc_kernel_setting("MLXL3_NATIVE_QMV_K_PRELOAD")?,
                 false,
             ]);
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;

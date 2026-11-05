@@ -123,3 +123,86 @@ fn physical_ar20_reader8_preserves_every_packed_state() -> Result<()> {
     );
     Ok(())
 }
+
+fn float_bits(buffer: &Buffer, count: usize) -> Vec<u32> {
+    Metal::read(buffer, count * 2)
+        .chunks_exact(2)
+        .map(|v| u32::from(v[0]) | (u32::from(v[1]) << 16))
+        .collect()
+}
+
+#[test]
+#[ignore = "physical AR20 B07 actual QMV vs CPU FMA tree, odd and empty split tails; run alone"]
+fn physical_ar20_qmv_preload_preserves_tail_accumulators() -> Result<()> {
+    let gpu = Metal::new()?;
+    let bits = compiled_bits(&gpu)?;
+    ensure!(bits & 4 != 0, "enable QMV_K_PRELOAD");
+    let mut words = 0;
+    let mut cases = 0;
+    for k in [2usize, 3, 4] {
+        for rows in [128usize, 256, 384] {
+            let cols = 32;
+            let packed = (0..rows / 16 * (cols / 16) * 16 * k)
+                .map(|i| (i as u16).wrapping_mul(701).wrapping_add(33))
+                .collect::<Vec<_>>();
+            let weight = codec::reconstruct_inner(&packed, k, Codebook::Mul1, rows, cols)?;
+            let x = (0..rows)
+                .map(|i| f16::from_f32((i as f32 % 17. - 8.) / 23.).to_bits())
+                .collect::<Vec<_>>();
+            let input = upload(&gpu.device, &x)?;
+            let trellis = upload(&gpu.device, &packed)?;
+            let svh = upload(&gpu.device, &vec![f16::ONE.to_bits(); cols])?;
+            for splits in [1usize, 2, 3] {
+                let output = buffer(
+                    &gpu.device,
+                    (splits * cols * 4) as u64,
+                    Storage::StorageModeShared,
+                )?;
+                gpu.command(|cmd| {
+                    Metal::encode(
+                        cmd,
+                        &gpu.flash_qmv_pipeline,
+                        &[&input, &trellis, &svh, &output],
+                        [1, k as u32, 2, rows as u32, cols as u32],
+                        MTLSize::new((cols / 16) as u64, 1, splits as u64),
+                        128,
+                    );
+                    Ok(())
+                })?;
+                let got = float_bits(&output, splits * cols);
+                let tiles = rows / 16;
+                let per = tiles.div_ceil(splits);
+                for split in 0..splits {
+                    let begin = split * per;
+                    let end = (begin + per).min(tiles);
+                    for col in 0..cols {
+                        let mut sum = 0f32;
+                        for row in 0..16 {
+                            for sg in 0..4 {
+                                let mut part = 0f32;
+                                for tile in ((begin + sg)..end).step_by(4) {
+                                    let ix = tile * 16 + row;
+                                    part = f16::from_bits(x[ix])
+                                        .to_f32()
+                                        .mul_add(weight[ix * cols + col].to_f32(), part);
+                                }
+                                sum += part;
+                            }
+                        }
+                        ensure!(
+                            sum.is_finite() && got[split * cols + col] == sum.to_bits(),
+                            "QMV CPU oracle differs K{k} rows{rows} split{split}/{splits} col{col}"
+                        );
+                        words += 1;
+                    }
+                }
+                cases += 1;
+            }
+        }
+    }
+    ensure!(cases == 27 && words == 1728);
+    eprintln!(
+        "AR20_QMV_PRELOAD {{\"parity\":true,\"cases\":{cases},\"finite_float_words\":{words},\"compiled_bits\":{bits},\"odd_and_empty_tails\":true}}"
+    );
+    Ok(())
+}

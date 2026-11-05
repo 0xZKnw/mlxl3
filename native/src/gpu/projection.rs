@@ -2262,3 +2262,7 @@ mod routed_scratch_tests;
 #[cfg(test)]
 #[path = "routed_nt2_tests.rs"]
 mod routed_nt2_tests;
+
+#[cfg(test)]
+#[path = "ar20_projection_tests.rs"]
+mod ar20_projection_tests;
