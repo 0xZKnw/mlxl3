@@ -129,7 +129,7 @@ kernel void flash_k7_qmv(const device half* x [[buffer(0)]],
 
 // One thread owns both elements of its butterfly. Each stage completes before
 // the next can read it. The two FP16 boundaries reproduce radix-16 then radix-8.
-inline void hadamard128(threadgroup float* values, uint lane) {
+inline void hadamard128_canonical(threadgroup float* values, uint lane) {
     threadgroup_barrier(mem_flags::mem_threadgroup);
     for (uint stride = 1; stride <= 64; stride <<= 1) {
         uint low = 2 * (lane & ~(stride - 1)) + (lane & (stride - 1));
@@ -143,6 +143,38 @@ inline void hadamard128(threadgroup float* values, uint lane) {
         values[low + stride] = minus;
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
+}
+
+// Lane names are local to each 64-thread H128 even inside a multi-route CTA.
+inline void ar20_h128_register(thread float (&v)[4], uint lane, bool round_middle) {
+    for (uint step = 0u; step < 5u; ++step) {
+        uint bit = 1u << step;
+        for (uint j = 0u; j < 4u; ++j) {
+            float peer = simd_shuffle_xor(v[j], ushort(bit));
+            float value = (lane & bit) ? peer - v[j] : v[j] + peer;
+            v[j] = (step == 3u && round_middle) ? float(half(value)) : value;
+        }
+    }
+    float a0 = v[0] + v[1], a1 = v[0] - v[1];
+    float a2 = v[2] + v[3], a3 = v[2] - v[3];
+    v[0] = float(half(a0 + a2));
+    v[1] = float(half(a1 + a3));
+    v[2] = float(half(a0 - a2));
+    v[3] = float(half(a1 - a3));
+}
+inline void hadamard128(threadgroup float* values, uint lane) {
+#if MLXL3_AR20_H128
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (lane < 32u) {
+        float v[4];
+        for (uint j = 0u; j < 4u; ++j) v[j] = values[lane + 32u * j];
+        ar20_h128_register(v, lane, true);
+        for (uint j = 0u; j < 4u; ++j) values[lane + 32u * j] = v[j];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+#else
+    hadamard128_canonical(values, lane);
+#endif
 }
 
 kernel void exl3_prepare128(const device half* x [[buffer(0)]],

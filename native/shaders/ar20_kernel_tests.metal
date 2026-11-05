@@ -31,3 +31,30 @@ kernel void ar20_reader8_omit_high_word(const device ushort* packed [[buffer(0)]
     for(uint j=0u;j<8u;++j) out[tile*256u+lane*8u+j]=ushort(cw[j]);
 }
 #endif
+
+#if MLXL3_AR20_TESTS
+kernel void ar20_h128_compare(const device float* input [[buffer(0)]], device float* original [[buffer(1)]],
+    device float* actual [[buffer(2)]], device float* mutant [[buffer(3)]],
+    uint lane [[thread_index_in_threadgroup]], uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float old[128], now[128];
+    for(uint i=lane;i<128u;i+=64u) { old[i]=input[block*128u+i]; now[i]=old[i]; }
+    hadamard128_canonical(old,lane);
+    hadamard128(now,lane);
+    for(uint i=lane;i<128u;i+=64u) { original[block*128u+i]=old[i]; actual[block*128u+i]=now[i]; }
+    if(lane<32u) {
+        float v[4];for(uint j=0u;j<4u;++j)v[j]=input[block*128u+lane+32u*j];
+        ar20_h128_register(v,lane,false);
+        for(uint j=0u;j<4u;++j)mutant[block*128u+lane+32u*j]=v[j];
+    }
+}
+kernel void ar20_h128_routes(const device float* input [[buffer(0)]], device float* original [[buffer(1)]],
+    device float* actual [[buffer(2)]],uint tid [[thread_index_in_threadgroup]],uint block [[threadgroup_position_in_grid]]) {
+    uint route=tid/64u, lane=tid%64u;
+    threadgroup float old[10][128],now[10][128];
+    uint base=block*1280u+route*128u;
+    for(uint i=lane;i<128u;i+=64u){old[route][i]=input[base+i];now[route][i]=old[route][i];}
+    hadamard128_canonical(old[route],lane);
+    hadamard128(now[route],lane);
+    for(uint i=lane;i<128u;i+=64u){original[base+i]=old[route][i];actual[base+i]=now[route][i];}
+}
+#endif

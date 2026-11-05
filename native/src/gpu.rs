@@ -438,7 +438,7 @@ impl Metal {
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
                 hc_kernel_setting("MLXL3_NATIVE_QMV_K_PRELOAD")?,
-                false,
+                hc_kernel_setting("MLXL3_NATIVE_H128_SIMD")?,
             ]);
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;

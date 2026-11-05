@@ -206,3 +206,76 @@ fn physical_ar20_qmv_preload_preserves_tail_accumulators() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "physical AR20 B08 exact H128 Half boundaries and multi-route CTA; run alone"]
+fn physical_ar20_h128_preserves_radix_rounding_and_route_groups() -> Result<()> {
+    let gpu = Metal::new()?;
+    let bits = compiled_bits(&gpu)?;
+    ensure!(bits & 8 != 0, "enable H128_SIMD");
+    let compare = pipeline(&gpu, "ar20_h128_compare")?;
+    let routes = pipeline(&gpu, "ar20_h128_routes")?;
+    ensure!(
+        routes.thread_execution_width() == 32 && routes.max_total_threads_per_threadgroup() >= 640
+    );
+    let corpus = (0..8192)
+        .map(|i| {
+            let block = i / 128;
+            match block % 4 {
+                0 => f16::from_f32(((i * 13 + block * 7) % 257) as f32 / 91. - 128. / 91.).to_f32(),
+                1 => f16::from_bits(
+                    (((i * 37 + 1) % 1024) as u16) | if i % 2 == 0 { 0 } else { 0x8000 },
+                )
+                .to_f32(),
+                2 => f32::from_bits(if i % 2 == 0 { 0 } else { 0x80000000 }),
+                _ => f16::from_bits(
+                    (i as u16).wrapping_mul(701).wrapping_add(block as u16 * 31) & 0xbfff,
+                )
+                .to_f32(),
+            }
+        })
+        .collect::<Vec<_>>();
+    ensure!(corpus.len() == 8192 && corpus.iter().all(|x| x.is_finite()));
+    let input = upload(&gpu.device, &corpus)?;
+    let output = || buffer(&gpu.device, 32768, Storage::StorageModeShared);
+    let old = output()?;
+    let actual = output()?;
+    let bad = output()?;
+    gpu.command(|cmd| {
+        Metal::encode(
+            cmd,
+            &compare,
+            &[&input, &old, &actual, &bad],
+            [0u32],
+            MTLSize::new(64, 1, 1),
+            64,
+        );
+        Ok(())
+    })?;
+    let expected = float_bits(&old, 8192);
+    ensure!(expected.iter().all(|&v| f32::from_bits(v).is_finite()));
+    ensure!(
+        float_bits(&actual, 8192) == expected && float_bits(&bad, 8192) != expected,
+        "H128 or stage8 mutation oracle failed"
+    );
+    gpu.command(|cmd| {
+        Metal::encode(
+            cmd,
+            &routes,
+            &[&input, &old, &actual],
+            [0u32],
+            MTLSize::new(4, 1, 1),
+            640,
+        );
+        Ok(())
+    })?;
+    let expected = float_bits(&old, 5120);
+    ensure!(
+        expected.iter().all(|&v| f32::from_bits(v).is_finite())
+            && float_bits(&actual, 5120) == expected
+    );
+    eprintln!(
+        "AR20_H128_SIMD {{\"parity\":true,\"finite_float_words\":8192,\"multi_route_float_words\":5120,\"compiled_bits\":{bits},\"middle_rounding_mutant_detected\":true,\"signed_zero_subnormal\":true}}"
+    );
+    Ok(())
+}
