@@ -296,6 +296,10 @@ pub struct Metal {
     #[cfg(test)]
     flash_fixed_submissions: [std::cell::Cell<u64>; 2],
     flash_expert_scratch_setting: Option<bool>,
+    expert_ar_enabled: [std::cell::Cell<bool>; 4],
+    #[cfg(test)]
+    expert_ar_uses: [std::cell::Cell<u64>; 4],
+    expert_up_finish: ComputePipelineState,
     #[cfg(test)]
     flash_scratch_bindings: std::cell::Cell<[[usize; 2]; 3]>,
     #[cfg(test)]
@@ -485,6 +489,24 @@ impl Metal {
                 }
                 Err(std::env::VarError::NotUnicode(_)) => None,
             };
+            let expert_ar_names = [
+                "MLXL3_NATIVE_EXPERT_UP_FINISH",
+                "MLXL3_NATIVE_EXPERT_GU_PREPARE",
+                "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB",
+                "MLXL3_NATIVE_EXPERT_AXIS_QMV",
+            ];
+            let mut expert_ar_enabled = [false; 4];
+            for (index, name) in expert_ar_names.into_iter().enumerate() {
+                let value = std::env::var(name);
+                expert_ar_enabled[index] = match value {
+                    Ok(value) => crate::expert_ar_policy::flag(Some(&value), qualified_m5),
+                    Err(std::env::VarError::NotPresent) => {
+                        crate::expert_ar_policy::flag(None, qualified_m5)
+                    }
+                    Err(error) => return Err(error.into()),
+                }
+                .with_context(|| format!("{name} must be 0 or 1"))?;
+            }
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
@@ -654,6 +676,7 @@ impl Metal {
             let swiglu_pipeline = pipeline("flash_swiglu")?;
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
             let finish128_pipeline = pipeline("flash_finish128")?;
+            let expert_up_finish = pipeline("flash_up_finish_swiglu")?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -779,6 +802,10 @@ impl Metal {
                 #[cfg(test)]
                 flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 flash_expert_scratch_setting,
+                expert_ar_enabled: expert_ar_enabled.map(std::cell::Cell::new),
+                #[cfg(test)]
+                expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
+                expert_up_finish,
                 #[cfg(test)]
                 flash_scratch_bindings: std::cell::Cell::new([[0; 2]; 3]),
                 #[cfg(test)]

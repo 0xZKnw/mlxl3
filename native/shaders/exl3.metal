@@ -154,6 +154,31 @@ kernel void flash_finish128(const device float* partials [[buffer(0)]],
 
 #include "flash_projection.metal"
 
+// The up projection's half result remains an explicit rounding boundary.
+kernel void flash_up_finish_swiglu(const device float* partials [[buffer(0)]],
+    const device half* svh [[buffer(1)]], const device half* bias [[buffer(2)]],
+    device half* output [[buffer(3)]], const device half* gate [[buffer(4)]],
+    constant Params& p [[buffer(5)]],
+    uint lane [[thread_index_in_threadgroup]], uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    uint base = block * 128, col = base % p.cols;
+    uint first = (base / p.cols * p.count) * p.cols + col;
+    for (uint i = lane; i < 128; i += 64) {
+        float sum = partials[first+i];
+        if (p.count == 2u) sum = (partials[first+p.cols+i] + 0.0f) + (sum + 0.0f);
+        values[i] = float(half(sum));
+    }
+    hadamard128(values, lane);
+    for (uint i = lane; i < 128; i += 64) {
+        half y = half(values[i] * as_type<float>(0x3db504f3u)) * svh[col+i];
+        half up = p.cb ? half(y + bias[col+i]) : y;
+        half g = gate[base+i];
+        half tail = half(1) / (half(1) + metal::exp(metal::abs(g)));
+        half sigmoid = g < half(0) ? tail : half(1) - tail;
+        output[base+i] = (g * sigmoid) * up;
+    }
+}
+
 kernel void flash_swiglu(const device half* gate [[buffer(0)]],
     const device half* up [[buffer(1)]], device half* dest [[buffer(2)]],
     constant uint& count [[buffer(3)]], uint i [[thread_position_in_grid]]) {

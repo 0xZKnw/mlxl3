@@ -41,6 +41,13 @@ enum Activation<'a> {
     View(&'a MatrixView),
 }
 
+#[derive(Default)]
+struct ExpertStage<'a> {
+    prepared: Option<(&'a Buffer, u64)>,
+    gate: Option<&'a Buffer>,
+    destination: Option<(&'a Buffer, u64)>,
+}
+
 pub struct ProjectionOutput {
     command: CommandBuffer,
     buffer: Buffer,
@@ -376,6 +383,25 @@ impl<'a> FlashProjection<'a> {
         storage: Storage,
         scratch: Option<(&Buffer, &Buffer)>,
     ) -> Result<Buffer> {
+        self.encode_expert_stage(
+            cmd,
+            x,
+            [inputs, partials, outputs],
+            storage,
+            scratch,
+            ExpertStage::default(),
+        )
+    }
+
+    fn encode_expert_stage(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [inputs, partials, outputs]: [u32; 3],
+        storage: Storage,
+        scratch: Option<(&Buffer, &Buffer)>,
+        stage: ExpertStage<'_>,
+    ) -> Result<Buffer> {
         let gpu = self.metal;
         if let Some((prepared, partial)) = scratch {
             ensure!(
@@ -394,7 +420,9 @@ impl<'a> FlashProjection<'a> {
             "MTP hidden projection requires four streams"
         );
         let owned_prepared;
-        let prepared = if let Some((prepared, _)) = scratch {
+        let prepared = if let Some((prepared, _)) = stage.prepared {
+            prepared
+        } else if let Some((prepared, _)) = scratch {
             prepared
         } else {
             owned_prepared = buffer(
@@ -404,19 +432,29 @@ impl<'a> FlashProjection<'a> {
             )?;
             &owned_prepared
         };
-        match x {
-            Activation::Contiguous(x) => Metal::encode_bound(
-                cmd,
-                &gpu.prepare128_pipeline,
-                [(x, 0), (&self.suh, self.offsets.suh), (prepared, 0)].into_iter(),
-                [self.input, 0, 0, 0, 0],
-                MTLSize::new(u64::from(inputs / 128), 1, 1),
-                64,
-            ),
-            Activation::View(x) => {
-                let scales =
-                    MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
-                gpu.encode_prepare_view(cmd, x, &scales, prepared)?;
+        let prepared_offset = stage.prepared.map_or(0, |(_, offset)| offset);
+        ensure!(
+            prepared_offset.is_multiple_of(2)
+                && prepared_offset
+                    .checked_add(u64::from(inputs) * 2)
+                    .is_some_and(|end| end <= prepared.length()),
+            "invalid prepared prefix"
+        );
+        if stage.prepared.is_none() {
+            match x {
+                Activation::Contiguous(x) => Metal::encode_bound(
+                    cmd,
+                    &gpu.prepare128_pipeline,
+                    [(x, 0), (&self.suh, self.offsets.suh), (prepared, 0)].into_iter(),
+                    [self.input, 0, 0, 0, 0],
+                    MTLSize::new(u64::from(inputs / 128), 1, 1),
+                    64,
+                ),
+                Activation::View(x) => {
+                    let scales =
+                        MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
+                    gpu.encode_prepare_view(cmd, x, &scales, prepared)?;
+                }
             }
         }
         let owned_partial;
@@ -438,7 +476,20 @@ impl<'a> FlashProjection<'a> {
             gpu.flash_scratch_bindings.set(bindings);
             gpu.flash_scratch_uses.set(count + 1);
         }
-        let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
+        let dest = if let Some((dest, offset)) = stage.destination {
+            ensure!(
+                offset.is_multiple_of(2)
+                    && offset
+                        .checked_add(u64::from(outputs) * 2)
+                        .is_some_and(|end| end <= dest.length())
+                    && dest.device().registry_id() == gpu.device.registry_id(),
+                "invalid expert destination prefix"
+            );
+            dest.clone()
+        } else {
+            buffer(&gpu.device, u64::from(outputs) * 2, storage)?
+        };
+        let dest_offset = stage.destination.map_or(0, |(_, offset)| offset);
         let routed_nt2 = crate::flash_qmv::routed_nt2_key(
             [self.input, self.output],
             self.splits,
@@ -489,7 +540,7 @@ impl<'a> FlashProjection<'a> {
             cmd,
             pipeline,
             [
-                (prepared, 0),
+                (prepared, prepared_offset),
                 (&self.packed, self.offsets.trellis),
                 third,
                 (partial, 0),
@@ -504,22 +555,35 @@ impl<'a> FlashProjection<'a> {
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
                 .context("invalid projection kernel thread count")? as usize,
         );
+        let finish_bindings = [
+            (partial, 0),
+            (&self.svh, self.offsets.svh),
+            self.bias
+                .as_ref()
+                .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
+            (&dest, dest_offset),
+            stage
+                .gate
+                .map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
+        ];
+        if let Some(gate) = stage.gate {
+            ensure!(
+                !self.generic && gate.length() == u64::from(outputs) * 2,
+                "invalid up finish gate"
+            );
+        }
         Metal::encode_bound(
             cmd,
-            if self.generic {
+            if stage.gate.is_some() {
+                &gpu.expert_up_finish
+            } else if self.generic {
                 &gpu.dense_finish
             } else {
                 &gpu.finish128_pipeline
             },
-            [
-                (partial, 0),
-                (&self.svh, self.offsets.svh),
-                self.bias
-                    .as_ref()
-                    .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
-                (&dest, 0),
-            ]
-            .into_iter(),
+            finish_bindings[..if stage.gate.is_some() { 5 } else { 4 }]
+                .iter()
+                .copied(),
             [
                 self.splits,
                 0,
@@ -1130,17 +1194,43 @@ impl<'a> FlashExpert<'a> {
             Storage::StorageModePrivate,
             scratch,
         )?;
-        let up = self.up.encode_with_scratch(
-            cmd,
-            x,
-            up_extents,
-            Storage::StorageModePrivate,
-            scratch,
-        )?;
-        let activated =
+        let fused_up = crate::expert_ar_policy::eligible(
+            self.routed,
+            [gate_extents, up_extents, down_extents],
+        ) && gpu.expert_ar_enabled[0].get();
+        #[cfg(test)]
+        let mut up_id = 0;
+        let activated = if fused_up {
+            let activated = self.up.encode_expert_stage(
+                cmd,
+                x,
+                up_extents,
+                Storage::StorageModePrivate,
+                scratch,
+                ExpertStage {
+                    gate: Some(&gate),
+                    ..Default::default()
+                },
+            )?;
+            #[cfg(test)]
+            gpu.expert_ar_uses[0].set(gpu.expert_ar_uses[0].get() + 1);
+            activated
+        } else {
+            let up = self.up.encode_with_scratch(
+                cmd,
+                x,
+                up_extents,
+                Storage::StorageModePrivate,
+                scratch,
+            )?;
+            #[cfg(test)]
+            {
+                up_id = up.as_ptr() as usize;
+            }
             self.gate
                 .metal
-                .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
+                .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?
+        };
         let output = self.down.encode_with_scratch(
             cmd,
             Activation::Contiguous(&activated),
@@ -1151,7 +1241,7 @@ impl<'a> FlashExpert<'a> {
         #[cfg(test)]
         gpu.flash_expert_outputs.set([
             gate.as_ptr() as usize,
-            up.as_ptr() as usize,
+            up_id,
             activated.as_ptr() as usize,
             output.as_ptr() as usize,
         ]);

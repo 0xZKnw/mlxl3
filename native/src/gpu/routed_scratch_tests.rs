@@ -319,3 +319,46 @@ fn physical_routed_expert_scratch() -> Result<()> {
     )?;
     Ok(())
 }
+
+#[test]
+#[ignore = "physical Apple GPU; independent real routed record fixtures required"]
+fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
+    let root = PathBuf::from(
+        std::env::var_os("MLXL3_ROUTED_SCRATCH_FIXTURES").context("fixtures required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("cases.json"))?)?;
+    let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
+    ensure!(cases.len() >= 5 && cases.len() == refs.len() && cases[0].prefix != cases[1].prefix);
+    let gpu = Metal::new()?;
+    let initial = gpu.expert_ar_enabled.each_ref().map(std::cell::Cell::get);
+    let mut compared = 0usize;
+    for enabled in [false, true] {
+        gpu.expert_ar_enabled[0].set(enabled);
+        for (case, expected) in cases[..4].iter().zip(&refs) {
+            for fp32 in [false, true] {
+                let backing = record(&gpu, case)?;
+                let expert = FlashExpert::from_backing(&gpu, &backing)?;
+                let x = input(&gpu, case, fp32)?;
+                let uses = gpu.expert_ar_uses[0].get();
+                let allocations = requests();
+                let output = gpu.command(|cmd| {
+                    let out = expert.encode_view(cmd, &x, Storage::StorageModeShared)?;
+                    drop(x);
+                    drop(expert);
+                    drop(backing);
+                    Ok(out)
+                })?;
+                ensure!(gpu.expert_ar_uses[0].get() - uses == u64::from(enabled));
+                ensure!(requests() - allocations == if enabled { 5 } else { 6 });
+                check_words(&Metal::read(&output, 2560), expected)?;
+                compared += 2560;
+            }
+        }
+    }
+    ensure!(compared == 40960);
+    eprintln!(
+        "NATIVE_EXPERT_AR_COMPONENT {}",
+        serde_json::json!({"parity":true,"words":compared,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
+    );
+    Ok(())
+}

@@ -23,6 +23,8 @@ pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod expert_ar_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod fixed_residency_policy;
 #[cfg(any(test, kani))]
 mod flash_cache_profile;
