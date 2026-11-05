@@ -1,0 +1,10 @@
+#!/bin/zsh
+set -euo pipefail
+out="$PWD/build/desktop-text-size-20261103"
+binary_dir="$PWD/apps/MLXL3Studio/.build/debug"
+sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
+sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
+sources=("${(@)sources:#*/StudioModel.swift}")
+cat apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift tests/response-text-size-check.swift > "${out}/ResponseTextSizeCombined.swift"
+swiftc -swift-version 6 -parse-as-library -warnings-as-errors -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -module-cache-path "${out}/modules" -I "${binary_dir}" "${sources[@]}" "${binary_dir}/SwiftMath.o" "${out}/ResponseTextSizeCombined.swift" -o "${out}/text-size-check"
+MLXL3_TEXT_SIZE_SNAPSHOTS="${out}" "${out}/text-size-check" "$PWD/tests/fake-desktop-engine.py"

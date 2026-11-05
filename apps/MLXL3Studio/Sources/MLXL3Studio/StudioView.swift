@@ -47,6 +47,8 @@ struct StudioView: View {
                 }
             }
         }
+        .environment(\.conversationReadingWidth, studio.readingWidth)
+        .environment(\.conversationTextScale, CGFloat(studio.responseTextSize / ResponseTextSize.defaultValue))
         .id(studio.language)
         .disabled(studio.studioDocument != nil)
         .accessibilityHidden(studio.studioDocument != nil)
@@ -89,11 +91,7 @@ private struct SidebarView: View {
     @State private var search = ""
 
     private var filteredConversations: [Conversation] {
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return studio.conversations.filter {
-            $0.agent == (studio.selectedMode == .agent) && $0.projectID == studio.selectedProjectID && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
-                || $0.messages.contains { $0.content.localizedCaseInsensitiveContains(query) })
-        }
+        studio.sidebarConversations(matching: search)
     }
 
     var body: some View {
@@ -174,23 +172,24 @@ private struct SidebarView: View {
             .padding(.bottom, 11)
 
             ScrollView {
+                let conversations = filteredConversations
+                let pinnedID = conversations.first(where: \.isPinned)?.id
+                let recentID = pinnedID == nil ? nil : conversations.first(where: { !$0.isPinned })?.id
                 LazyVStack(spacing: 2) {
-                    ForEach(filteredConversations) { conversation in
-                        Button { studio.selectConversation(conversation.id) } label: {
-                            ConversationRow(
-                                conversation: conversation,
-                                selected: conversation.id == studio.selectedConversationID
-                            )
+                    ForEach(conversations) { conversation in
+                        if conversation.id == pinnedID {
+                            Text(L("ÉPINGLÉES", "PINNED"))
+                                .font(.system(size: 9, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 10).padding(.vertical, 8)
                         }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(L("Exporter en Markdown", "Export Markdown")) { studio.selectConversation(conversation.id); studio.exportMarkdown() }
-                            Button(L("Supprimer", "Delete"), role: .destructive) {
-                                studio.deleteConversation(conversation.id)
-                            }
+                        if conversation.id == recentID {
+                            Text(L("RÉCENTES", "RECENT"))
+                                .font(.system(size: 9, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 10).padding(.vertical, 8)
                         }
+                        SidebarConversationItem(conversation: conversation)
                     }
-                    if filteredConversations.isEmpty {
+                    if conversations.isEmpty {
                         Text(search.isEmpty ? L("Vos conversations apparaîtront ici.", "Your conversations will appear here.") : L("Aucune conversation trouvée.", "No conversations found."))
                             .font(.system(size: 12))
                             .foregroundStyle(StudioTheme.quiet)
@@ -228,6 +227,38 @@ private struct SidebarView: View {
                 .frame(height: 35)
         }
         .buttonStyle(StudioControlStyle())
+    }
+}
+
+private struct SidebarConversationItem: View {
+    @EnvironmentObject private var studio: StudioModel
+    let conversation: Conversation
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button { studio.selectConversation(conversation.id) } label: {
+                ConversationRow(conversation: conversation, selected: conversation.id == studio.selectedConversationID)
+            }
+            .buttonStyle(.plain)
+            Button { studio.setConversationPinned(conversation.id, !conversation.isPinned) } label: {
+                Image(systemName: conversation.isPinned ? "pin.fill" : "pin")
+                    .font(.system(size: 11)).frame(width: 26, height: 32)
+                    .foregroundStyle(conversation.isPinned ? StudioTheme.ink : StudioTheme.quiet)
+            }
+            .buttonStyle(.plain)
+            .opacity(conversation.isPinned || hovered ? 1 : 0.45)
+            .help(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"))
+            .accessibilityLabel((conversation.isPinned ? L("Désépingler ", "Unpin ") : L("Épingler ", "Pin ")) + conversation.title)
+        }
+        .onHover { hovered = $0 }
+        .contextMenu {
+            Button(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"),
+                   systemImage: conversation.isPinned ? "pin.slash" : "pin") {
+                studio.setConversationPinned(conversation.id, !conversation.isPinned)
+            }
+            Button(L("Supprimer", "Delete"), role: .destructive) { studio.deleteConversation(conversation.id) }
+        }
     }
 }
 
@@ -366,7 +397,9 @@ private struct WorkspaceHeader: View {
             .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
             .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
-            MTPTuningToolbarControl()
+            ConversationDisplayControl()
+
+            MTPToolbarControl()
             if studio.dflash2Available {
                 MTPTuningToolbarControl(dflash: true)
             }

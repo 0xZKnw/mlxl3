@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
         "device_hot_policy::device_hot_defaults_preserve_strict_literals_and_both_hardware_guards",
         "device_hot_policy::device_hot_actual_admission_offsets_and_peak_are_bounded",
         "device_hot_policy::device_hot_actual_identity_readers_and_pending_lifecycle_are_fail_closed",

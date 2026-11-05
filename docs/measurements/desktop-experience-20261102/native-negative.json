@@ -1,0 +1,39 @@
+{
+  "status": "failed",
+  "parity": false,
+  "reaped": true,
+  "engine_sha256": "67f8c6818aa903d9b60a0d4817c6c84d3928d923032fa69de2abca1330ce836c",
+  "events": [
+    {
+      "run": 0,
+      "type": "ready",
+      "model": "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-mtp-check-_h7hzy3z/models.json",
+      "modules": 1,
+      "resident_gb": 0.01,
+      "context_limit": 2048,
+      "model_context_limit": 2048,
+      "dflash_supported": false,
+      "mtp_supported": false,
+      "mtp_auto_download_supported": false,
+      "mtp_max_depth": 3,
+      "mtp_tune_supported": false,
+      "mtp_tuning_key": "fixture-runtime:/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-mtp-check-_h7hzy3z/models.json",
+      "memory_saver_supported": false,
+      "bridge_protocol": 1,
+      "runtime_commit": "fixture",
+      "runtime_profile": "release",
+      "mlx_version": "0.32.2"
+    }
+  ],
+  "target": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-Flash-Next-exl3-84147e95",
+  "command": [
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/tests/fake-desktop-engine.py",
+    "--registry",
+    "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-mtp-check-_h7hzy3z/models.json",
+    "bridge",
+    "Qwen3.8-Flash-Next-exl3-84147e95",
+    "--context-length",
+    "4096"
+  ],
+  "error": "ValueError('unexpected runtime capabilities')"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "engine_commit": "9df28b6d2a10",
+    "path": "native/src/main.rs",
+    "url": "https://github.com/0xZKnw/mlxl3/blob/9df28b6d2a10/native/src/main.rs",
+    "download_sha256": "6cd517ba84b57a4690bca1e9df95112e7c01eaaead4c2f10d12e267d0b36e9b1",
+    "lines": [
+      3158,
+      3188
+    ],
+    "excerpt": "            \"set_mtp\" => {\n                prompt_cache = None;\n                model.reset();\n                let result = (|| -> Result<()> {\n                    if request.enabled {\n                        anyhow::ensure!(\n                            matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),\n                            \"MTP requires a supported Qwen target\"\n                        );\n                        load_mtp_head(\n                            &mut mtp_head,\n                            &mut mtp_head_revision,\n                            &mut prompt_cache,\n                            &request.mtp_head_path,\n                            &mut model,\n                            &mut dflash_weights,\n                        )?;\n                    } else {\n                        mtp_head = None;\n                        mtp_head_revision = None;\n                    }\n                    mlxl3_native::array::synchronize()?;\n                    mlxl3_native::array::clear_cache()?;\n                    emit_event(json!({\"type\":\"mtp_status\", \"request_id\":request.request_id,\n                        \"mtp_active\":mtp_head.is_some(),\n                        \"mtp_head_path\":mtp_head.as_ref().map(|(path, _)| path),\n                        \"memory\":mlxl3_native::array::memory_stats(false)?}))\n                })();\n                if let Err(error) = result {\n                    mtp_head = None;\n                    mtp_head_revision = None;",
+    "integration": "read-only source inspection of installed engine; no Rust modifications"
+  },
+  {
+    "engine_commit": "9df28b6d2a10",
+    "path": "native/src/qwen4.rs",
+    "url": "https://github.com/0xZKnw/mlxl3/blob/9df28b6d2a10/native/src/qwen4.rs",
+    "download_sha256": "63a00baebec1510a83a177b002e50530d7725defed8a35fc8205056e96f1bd75",
+    "lines": [
+      1837,
+      1865
+    ],
+    "excerpt": "impl FlashMtpHead {\n    pub fn load(c: &Checkpoint, target: &FlashNext) -> Result<Self> {\n        ensure!(\n            c.path == target.path && c.model_type == \"qwen4_exp\",\n            \"Flash MTP requires the target checkpoint\"\n        );\n        let config: Value = serde_json::from_reader(File::open(c.path.join(\"config.json\"))?)?;\n        ensure!(\n            config[\"text_config\"][\"mtp_num_hidden_layers\"] == 1,\n            \"Flash MTP requires one native draft layer\"\n        );\n        let eps = target.mixer.norm.eps;\n        let rope = config[\"text_config\"][\"rope_parameters\"][\"rope_theta\"]\n            .as_f64()\n            .context(\"missing MTP RoPE\")? as f32;\n        let mut layer = Layer::load(c, \"mtp.layers.0\", false, false, eps, rope, 512, true)?;\n        layer.moe.warm_all()?;\n        Ok(Self {\n            #[cfg(test)]\n            stages: Vec::new(),\n            embedding_norm: Norm::load(c, \"mtp.pre_fc_norm_embedding.weight\", H, 1, eps, true)?,\n            hidden_norm: Norm::load(c, \"mtp.pre_fc_norm_hidden.weight\", WIDTH, 1, eps, true)?,\n            embedding_fc: Projection::load(c, \"mtp.fc_embedding\", H, H, false)?,\n            hidden_fc: Projection::load(c, \"mtp.fc_hidden\", H, H, false)?,\n            layer,\n            mixer: Hc::load(c, \"mtp.hyper_connection_mixer\", eps, false)?,\n        })\n    }\n    fn mixed(&self, target: &FlashNext, hidden: &Array, token: u32) -> Result<Array> {",
+    "integration": "read-only source inspection of installed engine; no Rust modifications"
+  }
+]

@@ -31,7 +31,21 @@ inline half codeword_canonical(uint x, uint cb) {
 #ifndef MLXL3_AR20_H128
 #define MLXL3_AR20_H128 0
 #endif
+#ifndef MLXL3_AR33_CODEWORD_TABLE
+#define MLXL3_AR33_CODEWORD_TABLE 0
+#endif
+#if MLXL3_AR33_CODEWORD_TABLE
+#include "ar33_codeword_table.metal"
+#endif
 inline half codeword(uint x, uint cb) {
+#if MLXL3_AR33_CODEWORD_TABLE
+    if (cb == 2u) {
+        x = (x & 0xffffu) * 0x83DCD12Du;
+        uint sum = (x & 255u) + ((x >> 8u) & 255u)
+            + ((x >> 16u) & 255u) + ((x >> 24u) & 255u);
+        return as_type<half>(ar33_mul1_table[sum]);
+    }
+#endif
 #if MLXL3_AR20_SWAR
     if (cb == 2u) {
         x = (x & 0xffffu) * 0x83DCD12Du;
@@ -341,3 +355,4 @@ ROUTE_KERNEL(float, "route_float")
 
 #include "ar20_kernel_tests.metal"
 #include "ar30_kernel_tests.metal"
+#include "ar33_kernel_tests.metal"

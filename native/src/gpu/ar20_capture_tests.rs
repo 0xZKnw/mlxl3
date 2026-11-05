@@ -2,6 +2,7 @@
 use super::{
     ar20_kernel_tests::compiled_bits,
     ar30_kernel_tests::compiled_cooperative,
+    ar33_kernel_tests::compiled_codeword_table,
     ssd_direct_tests::{check_initial, check_tensors, digest},
     *,
 };
@@ -109,9 +110,21 @@ fn actual_paths(gpu: &Metal, model: &FlashNext) -> Result<serde_json::Value> {
     let readers = gpu.readers()?;
     let slru = model.slru_counts()?;
     let readahead = readers.readahead_counts();
-    Ok(
-        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight(),"device_hot_enabled":gpu.device_resident_route_enabled(),"device_hot_available":gpu.device_resident_route_available(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get)}),
-    )
+    let mut paths = serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight()});
+    paths["codeword_table"] = serde_json::json!(gpu.ar33_codeword_table);
+    paths["cached_caps"] = serde_json::json!(gpu.cached_caps_enabled);
+    paths["caps_stats"] = serde_json::json!(crate::pipeline_caps::stats());
+    paths["codeword_table_dispatches"] = serde_json::json!(
+        gpu.ar33_codeword_table_uses
+            .each_ref()
+            .map(std::cell::Cell::get)
+    );
+    paths["device_hot_enabled"] = serde_json::json!(gpu.device_resident_route_enabled());
+    paths["device_hot_available"] = serde_json::json!(gpu.device_resident_route_available());
+    paths["device_hot_submissions"] = serde_json::json!(gpu.device_hot_submissions());
+    paths["device_hot_counts"] =
+        serde_json::json!(super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get));
+    Ok(paths)
 }
 
 fn run_capture() -> Result<()> {
@@ -155,9 +168,20 @@ fn run_capture() -> Result<()> {
     );
     let bits = compiled_bits(&gpu)?;
     let cooperative = compiled_cooperative(&gpu)?;
+    let codeword_table = compiled_codeword_table(&gpu)?;
+    ensure!(
+        std::env::var("MLXL3_NATIVE_CACHED_CAPS").as_deref() != Ok("1") || gpu.cached_caps_enabled,
+        "requested T02 path is unavailable"
+    );
+    ensure!(
+        std::env::var("MLXL3_NATIVE_CODEWORD_TABLE").as_deref() != Ok("1") || codeword_table,
+        "requested T01 path is unavailable"
+    );
     if capture {
         ensure!(
             bits == 0
+                && !codeword_table
+                && !gpu.cached_caps_enabled
                 && !cooperative
                 && !gpu.device_greedy_available()
                 && !gpu.device_resident_route_enabled()
@@ -223,6 +247,11 @@ fn run_capture() -> Result<()> {
     let mut paths = Vec::new();
     for token in [248044, 1] {
         let before = actual_paths(&gpu, &model)?;
+        let caps_before = crate::pipeline_caps::stats();
+        let table_before = gpu
+            .ar33_codeword_table_uses
+            .each_ref()
+            .map(std::cell::Cell::get);
         let hot_before = gpu.device_hot_submissions();
         let router_before = gpu.router_pair.uses.get();
         let scratch_before = gpu.resident_scratch.reuses.get();
@@ -259,6 +288,26 @@ fn run_capture() -> Result<()> {
         let control = model.snapshot();
         let offset = model.offset();
         let after = actual_paths(&gpu, &model)?;
+        let caps_after = crate::pipeline_caps::stats();
+        if gpu.cached_caps_enabled {
+            ensure!(
+                caps_after[0] > caps_before[0]
+                    && caps_after[1] > caps_before[1]
+                    && caps_after[2..] == caps_before[2..],
+                "T02 must use cached capabilities without re-querying owned PSOs during the row"
+            );
+        }
+        if codeword_table {
+            ensure!(
+                gpu.ar33_codeword_table_uses
+                    .each_ref()
+                    .map(std::cell::Cell::get)
+                    .into_iter()
+                    .zip(table_before)
+                    .all(|(after, before)| after > before),
+                "table resident/routed paths were not both executed"
+            );
+        }
         ensure!(
             !gpu.router_pair.enabled.get() || gpu.router_pair.uses.get() > router_before,
             "paired router was not encoded on the real model path"
@@ -402,7 +451,7 @@ fn run_capture() -> Result<()> {
         );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
-            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"device_hot_rollback":gpu.device_resident_route_enabled(),"device_hot_default_environment_unset":hot_setting.is_err(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
+            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"compiled_codeword_table":codeword_table,"codeword_table_dispatches":gpu.ar33_codeword_table_uses.each_ref().map(std::cell::Cell::get),"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"device_hot_rollback":gpu.device_resident_route_enabled(),"device_hot_default_environment_unset":hot_setting.is_err(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
         );
     } else {
         let oracle = Oracle {

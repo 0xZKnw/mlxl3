@@ -86,14 +86,25 @@ struct MTPTuningControls: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if enabled {
-                Picker(L("Profondeur", "Depth"), selection: Binding(
-                    get: { depth }, set: { setMode($0) }
-                )) {
-                    ForEach(1...(dflash ? 3 : studio.mtpMaxDepth), id: \.self) { depth in
-                        Text(label(depth)).tag(depth)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L("Profondeur", "Depth"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(StudioTheme.secondary)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Picker(L("Profondeur", "Depth"), selection: Binding(
+                        get: { depth }, set: { setMode($0) }
+                    )) {
+                        ForEach(1...(dflash ? 3 : studio.mtpMaxDepth), id: \.self) { depth in
+                            Text(dflash ? label(depth) : depth == 1 ? L("1 token", "1 token") : L("\(depth) tokens", "\(depth) tokens")).tag(depth)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityLabel(L("Profondeur", "Depth"))
+                    .disabled(studio.isGenerating)
                 }
-                .pickerStyle(.segmented).disabled(studio.isGenerating)
             }
             if tuning {
                 HStack {

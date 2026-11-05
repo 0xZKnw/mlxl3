@@ -505,6 +505,7 @@ struct Conversation: Identifiable {
     var title: String
     var messages: [ChatMessage]
     let createdAt: Date
+    var isPinned: Bool
     var contextUsage: ContextUsage?
     var projectID: UUID?
     var parentConversationID: UUID?
@@ -515,13 +516,15 @@ struct Conversation: Identifiable {
         title: String = L("Nouvelle conversation", "New conversation"),
         messages: [ChatMessage] = [],
         createdAt: Date = Date(),
-        contextUsage: ContextUsage? = nil
+        contextUsage: ContextUsage? = nil,
+        isPinned: Bool = false
     ) {
         self.id = id
         self.title = title
         self.messages = messages
         self.createdAt = createdAt
         self.contextUsage = contextUsage
+        self.isPinned = isPinned
     }
 
     var snapshot: ConversationSnapshot {
@@ -531,6 +534,7 @@ struct Conversation: Identifiable {
             messages: messages.map(\.snapshot),
             createdAt: createdAt,
             contextUsage: contextUsage,
+            isPinned: isPinned,
             projectID: projectID,
             parentConversationID: parentConversationID,
             agent: agent ? true : nil
@@ -543,7 +547,8 @@ struct Conversation: Identifiable {
             title: snapshot.title,
             messages: snapshot.messages.compactMap(ChatMessage.init(snapshot:)),
             createdAt: snapshot.createdAt,
-            contextUsage: snapshot.contextUsage
+            contextUsage: snapshot.contextUsage,
+            isPinned: snapshot.isPinned ?? false
         )
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID

@@ -140,54 +140,9 @@ struct GenerationInspector: View {
                         }
                         .disabled(studio.samplingLocked)
 
-                        if studio.mtpAvailable || studio.mtpEnabled || studio.mtpDownloading {
-                            SettingCard(title: "MTP · Qwen", icon: "bolt") {
-                                Toggle(studio.mtpAvailable
-                                       ? L("Prédiction native de tokens", "Native token prediction")
-                                       : L("Préférence MTP (inactive pour ce modèle)", "MTP preference (inactive for this model)"), isOn: Binding(
-                                    get: { studio.mtpEnabled || studio.mtpDownloading },
-                                    set: { studio.setMTPEnabled($0) }
-                                ))
-                                .font(.system(size: 11))
-                                .disabled(studio.isGenerating || (!(studio.mtpEnabled || studio.mtpDownloading)
-                                    && (!studio.mtpAvailable || !studio.engineState.isReady)))
-                                if !studio.mtpAvailable {
-                                    Text(L("Préférence MTP conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
-                                           "MTP preference saved; unavailable for this model. You can turn it off here."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
-                                }
-                                MTPTuningControls().id("mtp-tuning").disabled(!studio.mtpAvailable)
-                                if studio.isGenerating && !studio.isTuningMTP {
-                                    Text(studio.mtpActive == true
-                                         ? L("MTP actif et vérifié par le moteur", "MTP active and target verified")
-                                         : L("Décodage normal", "Ordinary decoding"))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
-                                }
-                                if studio.mtpDownloading {
-                                    if studio.mtpDownloadTotal > 0 {
-                                        ProgressView(value: studio.mtpDownloadCompleted, total: studio.mtpDownloadTotal)
-                                        Text("\(Int(studio.mtpDownloadCompleted / 1_000_000)) / \(Int(studio.mtpDownloadTotal / 1_000_000)) MB")
-                                            .font(.caption).monospacedDigit()
-                                    } else { ProgressView(L("Préparation…", "Preparing…")) }
-                                }
-                                if let error = studio.mtpError {
-                                    Text(error).font(.caption).foregroundStyle(.red)
-                                }
-                                if studio.mtpBuiltIn {
-                                    Text(L("Tête MTP intégrée au modèle, profondeur 1.", "Built-in MTP head, depth 1."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
-                                } else {
-                                    Button(L("Choisir la tête MTP…", "Choose MTP head…")) { studio.chooseMTPHead() }
-                                        .buttonStyle(GlassPillButtonStyle())
-                                        .disabled(!studio.mtpAvailable || studio.mtpDownloading || studio.isGenerating)
-                                    Text(studio.mtpHeadPath.isEmpty
-                                         ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
-                                         : studio.mtpHeadPath)
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet).lineLimit(2).textSelection(.enabled)
-                                }
-                                Text(L("Cette version utilise le mode greedy. Chaque proposition est vérifiée par le modèle cible. Pour les autres Qwen3.5/3.6, choisis une tête MTP MLX 4 bits adaptée.",
-                                       "This version uses greedy sampling. The target model verifies every proposal. For other Qwen3.5/3.6 models, choose a matching MLX 4-bit MTP head."))
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                        if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {
+                            SettingCard(title: L("Accélération MTP", "MTP acceleration"), icon: "bolt.fill") {
+                                MTPSettingsContent().id("mtp-tuning")
                             }
                         }
 

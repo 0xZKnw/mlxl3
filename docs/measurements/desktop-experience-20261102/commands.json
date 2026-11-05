@@ -1,0 +1,10 @@
+{
+  "desktop": "MLXL3_SKIP_METAL_CHECK=1 MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/usr/bin/python3 scripts/check-desktop.sh",
+  "experience": "zsh build/desktop-experience-20261102/check-experience.zsh",
+  "mutation": "zsh build/desktop-experience-20261102/check-mutant.zsh (combined source deliberately replaces if mtpUsesModelCheckpoint with if false)",
+  "python": "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python -m pytest",
+  "physical": "python3 build/desktop-experience-20261102/check_native_mtp.py (only after all compilers and other models stopped)",
+  "bundle": "./scripts/build-desktop-test.sh; codesign --verify --deep --strict dist/MLXL3\\ Desktop\\ Test.app",
+  "lint": "ruff check --select F,E9 tests/fake-desktop-engine.py; zsh -n scripts/check-desktop.sh; git diff --check",
+  "formal_attempt": "python -m crosshair check tests/fake-desktop-engine.py (module absent)"
+}
