@@ -16,7 +16,9 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod device_hot_cache;
 mod greedy;
+mod indirect_hot;
 mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
@@ -235,6 +237,7 @@ fn wait_command(command: &CommandBufferRef, enabled: bool) -> [u64; 4] {
 
 pub struct Metal {
     device: Device,
+    indirect_hot: Option<indirect_hot::Pipelines>,
     #[cfg(test)]
     ar20_kernel_bits: u32,
     #[cfg(test)]
@@ -464,6 +467,19 @@ impl Metal {
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
             let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
+            let device_resident_route_value =
+                match std::env::var("MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE") {
+                    Ok(value) => Some(value),
+                    Err(std::env::VarError::NotPresent) => None,
+                    Err(error) => return Err(error.into()),
+                };
+            let device_resident_route = crate::device_hot_policy::flag(
+                device_resident_route_value.as_deref(),
+                qualified_m5,
+                qualified_m5
+                    && device.argument_buffers_support() == metal::MTLArgumentBuffersTier::Tier2,
+            )
+            .context("MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE must be 0 or 1")?;
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
@@ -596,6 +612,10 @@ impl Metal {
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
                 .replace(
+                    "#include \"indirect_hot.metal\"",
+                    include_str!("../shaders/indirect_hot.metal"),
+                )
+                .replace(
                     "#include \"mapped_expert.metal\"",
                     include_str!("../shaders/mapped_expert.metal"),
                 )
@@ -701,9 +721,10 @@ impl Metal {
                 include_str!("../shaders/flash_logsumexp.metal"),
             );
             let source = format!(
-                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR20_TESTS {}\n{}",
+                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_DEVICE_RESIDENT_ROUTE {}\n#define MLXL3_AR20_TESTS {}\n{}",
                 crate::ar20_kernel_policy::defines(ar20_kernel_bits),
                 u32::from(ar30_cooperative),
+                u32::from(device_resident_route),
                 u32::from(cfg!(test)),
                 source
             )
@@ -874,10 +895,13 @@ impl Metal {
                 .then(|| pipeline("flash_normalized_greedy"))
                 .transpose()?;
             let ple = ple::Pipelines::load(&pipeline)?;
+            let indirect_hot =
+                indirect_hot::Pipelines::load(&device, &library, &pipeline, device_resident_route)?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
+                indirect_hot,
                 #[cfg(test)]
                 ar20_kernel_bits,
                 #[cfg(test)]

@@ -25,6 +25,8 @@ mod ar30_router_policy;
 pub(crate) mod dec_one;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dense_epilogue;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod device_hot_policy;
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
