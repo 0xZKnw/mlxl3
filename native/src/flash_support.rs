@@ -1287,6 +1287,9 @@ pub(crate) struct SlotLease {
     generation: u64,
 }
 
+#[path = "flash_support/slru.rs"]
+mod slru;
+
 /// Reservation is atomic: every routed expert gets a distinct protected slot.
 /// A failed read must invalidate its reservation before it can become a hit.
 pub struct ExpertCache {
@@ -1296,6 +1299,7 @@ pub struct ExpertCache {
     prefetched: Vec<bool>,
     predicted: [bool; 512],
     predictive_lru: bool,
+    slru: Option<slru::Slru>,
     counts: [u32; 512],
     ages: Vec<u64>,
     clock: u64,
@@ -1358,6 +1362,7 @@ impl ExpertCache {
             prefetched: vec![false; slots],
             predicted: [false; 512],
             predictive_lru: false,
+            slru: None,
             counts: [0; 512],
             ages: vec![0; slots],
             clock: 0,
@@ -1388,6 +1393,20 @@ impl ExpertCache {
                 *count /= 2;
             }
         }
+        if let Some(slru) = &mut self.slru {
+            slru.record_reservation();
+            let mut seen = [0u64; 8];
+            for &id in ids {
+                let word = id as usize / 64;
+                let bit = 1u64 << (id % 64);
+                if seen[word] & bit == 0 {
+                    seen[word] |= bit;
+                    if let Some(slot) = self.keys.iter().position(|&key| key == Some(id)) {
+                        assert!(slru.touch(slot, true));
+                    }
+                }
+            }
+        }
         let mut reserved = Vec::with_capacity(unique.len());
         for &id in &unique {
             let present = self.keys.iter().position(|&key| key == Some(id));
@@ -1400,6 +1419,11 @@ impl ExpertCache {
             }
             self.prefetched[slot] = false;
             self.keys[slot] = Some(id);
+            if present.is_none()
+                && let Some(slru) = &mut self.slru
+            {
+                assert!(slru.touch(slot, false));
+            }
             self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
             self.ages[slot] = self.clock;
             reserved.push((id, slot, present.is_some()));
@@ -1438,6 +1462,15 @@ impl ExpertCache {
     }
 
     fn victim(&self, routed: &[u32]) -> Option<usize> {
+        if let Some(slru) = &self.slru {
+            let eligible = |i: usize| {
+                self.pending[i].is_none() && self.keys[i].is_none_or(|key| !routed.contains(&key))
+            };
+            return slru
+                .ordered()
+                .find(|&i| eligible(i) && self.keys[i].is_none())
+                .or_else(|| slru.ordered().find(|&i| eligible(i)));
+        }
         (0..self.keys.len())
             .filter(|&i| {
                 self.pending[i].is_none() && self.keys[i].is_none_or(|key| !routed.contains(&key))
@@ -1462,7 +1495,21 @@ impl ExpertCache {
         self.predictive_lru
     }
 
+    pub(crate) fn enable_slru(&mut self) {
+        if !self.predictive_lru {
+            self.slru = Some(slru::Slru::new(self.capacity()));
+        }
+    }
+    pub(crate) fn slru_enabled(&self) -> bool {
+        self.slru.is_some()
+    }
+    #[cfg(test)]
+    pub(crate) fn slru_reservations(&self) -> usize {
+        self.slru.as_ref().map_or(0, |s| s.reservations())
+    }
+
     pub(crate) fn enable_predictive_lru(&mut self) {
+        self.slru = None;
         // Unused prefetches need a lifetime without inventing demand frequency.
         self.predictive_lru = true;
     }
@@ -1496,6 +1543,9 @@ impl ExpertCache {
         self.keys[slot] = None;
         self.prefetched[slot] = false;
         self.pending[slot] = Some(id);
+        if let Some(slru) = &mut self.slru {
+            assert!(slru.touch(slot, false));
+        }
         Ok(Some(slot))
     }
 
@@ -1578,6 +1628,9 @@ impl ExpertCache {
     }
 
     pub fn invalidate(&mut self) {
+        if let Some(slru) = &mut self.slru {
+            slru.clear();
+        }
         self.keys.fill(None);
         self.prefetched.fill(false);
     }
