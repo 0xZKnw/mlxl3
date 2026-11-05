@@ -5,16 +5,22 @@ use std::{fs, path::PathBuf};
 #[test]
 #[ignore = "physical AR20 compiled kernels, independent frozen routed records; run alone"]
 fn physical_ar20_qmv_kernels_preserve_frozen_routed_stock() -> Result<()> {
-    frozen_routed_stock(false)
+    frozen_routed_stock(false, false)
 }
 
 #[test]
 #[ignore = "physical AR30 cooperative QMV, independent frozen routed records; run alone"]
 fn physical_ar30_cooperative_preserves_frozen_routed_stock() -> Result<()> {
-    frozen_routed_stock(true)
+    frozen_routed_stock(true, false)
 }
 
-fn frozen_routed_stock(cooperative: bool) -> Result<()> {
+#[test]
+#[ignore = "physical AR33 exact codeword table, independent frozen routed records; run alone"]
+fn physical_ar33_codeword_table_preserves_frozen_routed_stock() -> Result<()> {
+    frozen_routed_stock(false, true)
+}
+
+fn frozen_routed_stock(cooperative: bool, table: bool) -> Result<()> {
     let root = PathBuf::from(
         std::env::var_os("MLXL3_ROUTED_SCRATCH_FIXTURES").context("frozen fixtures required")?,
     );
@@ -22,7 +28,11 @@ fn frozen_routed_stock(cooperative: bool) -> Result<()> {
     let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
     ensure!(cases.len() >= 5 && cases.len() == refs.len());
     let gpu = Metal::new()?;
-    if cooperative {
+    if table {
+        ensure!(crate::gpu::ar33_kernel_tests::compiled_codeword_table(
+            &gpu
+        )?);
+    } else if cooperative {
         ensure!(super::super::ar30_kernel_tests::compiled_cooperative(&gpu)?);
     } else {
         ensure!(gpu.ar20_kernel_bits != 0);
@@ -40,6 +50,18 @@ fn frozen_routed_stock(cooperative: bool) -> Result<()> {
         }
     }
     ensure!(words > 0);
+    if table {
+        let dispatches = gpu.ar33_codeword_table_uses[1].get();
+        ensure!(dispatches > 0, "table routed path was not executed");
+        eprintln!(
+            "AR33_CODEWORD_TABLE_ROUTED {}",
+            serde_json::json!({
+                "parity":true,"compiled_table":true,"finite_half_words":words,
+                "routed_dispatches":dispatches
+            })
+        );
+        return Ok(());
+    }
     if cooperative {
         let dispatches = gpu.ar30_cooperative_uses[1].get();
         ensure!(dispatches > 0, "cooperative routed path was not executed");

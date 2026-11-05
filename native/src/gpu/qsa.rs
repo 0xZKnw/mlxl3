@@ -1,8 +1,9 @@
+use super::CachedPipeline as ComputePipelineState;
 use super::{FlashAttentionOutput, FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::{checkpoint::Checkpoint, flash_support::qsa_append, qsa_chain_policy};
 use anyhow::{Context, Result, ensure};
 use metal::{
-    Buffer, CommandBuffer, CommandBufferRef, ComputePipelineState, MTLCommandBufferStatus,
+    Buffer, CommandBuffer, CommandBufferRef, MTLCommandBufferStatus,
     MTLResourceOptions as Storage, MTLSize,
 };
 use std::{cell::Cell, collections::BTreeMap, rc::Rc};
@@ -410,6 +411,7 @@ impl Metal {
             .device
             .new_compute_pipeline_state_with_function(&f)
             .map_err(anyhow::Error::msg)?;
+        let p = ComputePipelineState::new(p, self.cached_caps_enabled);
         ensure!(
             p.thread_execution_width() == 32,
             "unsupported Flash NAX SIMD width"

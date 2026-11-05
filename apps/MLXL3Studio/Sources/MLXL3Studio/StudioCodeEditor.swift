@@ -7,6 +7,7 @@ struct StudioCodeEditor: NSViewRepresentable {
   var editable: Bool
   var documentID: String
   var diff = false
+  var fontSize: CGFloat = 12.5
 
   func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -58,6 +59,7 @@ struct StudioCodeEditor: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let editor = scroll.documentView as? NSTextView else { return }
     let changedDocument = context.coordinator.parent.documentID != documentID
+    let changedFont = context.coordinator.parent.fontSize != fontSize
     context.coordinator.parent = self
     editor.isEditable = editable
     editor.isSelectable = true
@@ -67,7 +69,7 @@ struct StudioCodeEditor: NSViewRepresentable {
       editor.undoManager?.removeAllActions()
       if changedDocument { editor.scrollRangeToVisible(NSRange(location: 0, length: 0)) }
       context.coordinator.style(editor)
-    } else if editor.textStorage?.length == 0 {
+    } else if changedFont || editor.textStorage?.length == 0 {
       context.coordinator.style(editor)
     }
   }
@@ -89,7 +91,7 @@ struct StudioCodeEditor: NSViewRepresentable {
     func style(_ editor: NSTextView) {
       let source = editor.string
       let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.monospacedSystemFont(ofSize: 12.5, weight: .regular),
+        .font: NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular),
         .foregroundColor: NSColor(StudioTheme.ink),
       ]
       let result = NSMutableAttributedString(string: source, attributes: attributes)

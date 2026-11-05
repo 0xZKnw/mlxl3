@@ -1,0 +1,7 @@
+{
+  "targeted": "zsh build/desktop-text-size-20261103/check-text-size.zsh",
+  "desktop": "MLXL3_SKIP_METAL_CHECK=1 MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/usr/bin/python3 scripts/check-desktop.sh",
+  "bundle": "./scripts/build-desktop-test.sh; codesign --verify --deep --strict dist/MLXL3\\ Desktop\\ Test.app",
+  "mutation": "copy MarkdownResponseView.swift to MutantMarkdown.swift, replace self.textScale = textScale with self.textScale = 1, run check-mutant.zsh; production unchanged",
+  "syntax_and_whitespace": "zsh -n scripts/check-desktop.sh; git diff --check"
+}

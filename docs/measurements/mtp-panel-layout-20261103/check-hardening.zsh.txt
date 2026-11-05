@@ -1,0 +1,41 @@
+#!/bin/zsh
+set -euo pipefail
+cd "/Users/henko/Documents/Code/mlxl3-post-smallm"
+test_python="${MLXL3_TEST_PYTHON:-}"
+if [[ -z "${test_python}" ]]; then
+    test_python="$(command -v python3)"
+fi
+test_dir="$PWD/build/mtp-panel-layout-20261103/hardening"
+mkdir -p "${test_dir}"
+
+
+# CI normally selects the active Xcode toolchain. A local Command Line Tools
+# install can opt into an installed SDK explicitly (for example 26.5).
+swift_args=(--package-path apps/MLXL3Studio)
+swiftc_args=(-swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
+if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
+    swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
+    swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
+fi
+swift build "${swift_args[@]}"
+binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
+sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
+sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
+swiftc_args+=(-I "${binary_dir}")
+[[ -d "${binary_dir}/Modules" ]] && swiftc_args+=(-I "${binary_dir}/Modules")
+if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
+    math_objects=("${binary_dir}/SwiftMath.o")
+else
+    math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
+fi
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/studio-hardening-check.swift > "${test_dir}/StudioHardeningCombined.swift"
+hardening_sources=("${(@)sources:#*/UpdateManager.swift}")
+swiftc "${swiftc_args[@]}" \
+    "${hardening_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioHardeningCombined.swift" -o "${test_dir}/check"
+"${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
+
+
+print "Affected Desktop hardening/MTP checks complete"

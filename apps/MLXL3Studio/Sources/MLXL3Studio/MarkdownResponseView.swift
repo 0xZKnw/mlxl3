@@ -520,29 +520,32 @@ private actor MarkdownPreparation {
 struct MarkdownResponseView: View, Equatable {
     private let source: String
     private let streaming: Bool
+    private let textScale: CGFloat
     private let htmlPreviewEnabled: Bool
     @StateObject private var renderer = MarkdownRenderModel()
 
-    init(_ source: String, streaming: Bool = false, htmlPreviewEnabled: Bool = true) {
+    init(_ source: String, streaming: Bool = false, textScale: CGFloat = 1, htmlPreviewEnabled: Bool = true) {
         self.source = source
         self.streaming = streaming
+        self.textScale = textScale
         self.htmlPreviewEnabled = htmlPreviewEnabled && !streaming
     }
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if HTMLPreview.isDocument(source) {
                 CodeBlockView(language: "html", source: source, streaming: streaming,
-                              htmlPreviewEnabled: htmlPreviewEnabled).equatable()
+                              textScale: textScale, htmlPreviewEnabled: htmlPreviewEnabled).equatable()
             } else {
             ForEach(renderer.chunks) { chunk in
                 MarkdownChunkView(
                     prepared: chunk,
                     streaming: streaming && chunk.id == renderer.chunks.last?.id,
+                    textScale: textScale,
                     htmlPreviewEnabled: htmlPreviewEnabled
                 )
                 .equatable()
@@ -560,10 +563,11 @@ struct MarkdownResponseView: View, Equatable {
 private struct MarkdownChunkView: View, Equatable {
     let prepared: PreparedMarkdownChunk
     let streaming: Bool
+    let textScale: CGFloat
     let htmlPreviewEnabled: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
+        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     var body: some View {
@@ -580,7 +584,7 @@ private struct MarkdownChunkView: View, Equatable {
         switch block {
         case let .paragraph(text):
             animatedText(text, size: 15, weight: .regular)
-                .lineSpacing(5)
+                .lineSpacing(5 * textScale)
         case let .heading(level, text):
             animatedText(
                 text,
@@ -595,17 +599,17 @@ private struct MarkdownChunkView: View, Equatable {
                     .fill(StudioTheme.contrast.opacity(indent == 0 ? 0.72 : 0.42))
                     .frame(width: indent == 0 ? 4.5 : 3.5, height: indent == 0 ? 4.5 : 3.5)
                 animatedText(text, size: 15, weight: .regular)
-                    .lineSpacing(4)
+                    .lineSpacing(4 * textScale)
             }
             .padding(.leading, CGFloat(indent) * 18 + 3)
         case let .ordered(indent, number, text):
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text(number + ".")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12 * textScale, weight: .bold, design: .rounded))
                     .foregroundStyle(StudioTheme.contrast.opacity(0.48))
                     .frame(minWidth: 18, alignment: .trailing)
                 animatedText(text, size: 15, weight: .regular)
-                    .lineSpacing(4)
+                    .lineSpacing(4 * textScale)
             }
             .padding(.leading, CGFloat(indent) * 18)
         case let .quote(text):
@@ -619,16 +623,17 @@ private struct MarkdownChunkView: View, Equatable {
             }
             .padding(.vertical, 2)
         case let .code(language, text):
-            CodeBlockView(language: language, source: text, streaming: streaming, htmlPreviewEnabled: htmlPreviewEnabled)
+            CodeBlockView(language: language, source: text, streaming: streaming, textScale: textScale, htmlPreviewEnabled: htmlPreviewEnabled)
                 .equatable()
         case let .math(latex):
-            LatexBlockView(latex: latex, streaming: streaming)
+            LatexBlockView(latex: latex, streaming: streaming, textScale: textScale)
         case let .table(header, alignments, rows):
             MarkdownTableView(
                 header: header,
                 alignments: alignments,
                 rows: rows,
-                streaming: streaming
+                streaming: streaming,
+                textScale: textScale
             )
         case .rule:
             Rectangle()
@@ -650,11 +655,11 @@ private struct MarkdownChunkView: View, Equatable {
         weight: Font.Weight
     ) -> some View {
         SmoothTokenText(
-            content: InlineLatexText.render(source, mathSize: size),
+            content: InlineLatexText.render(source, mathSize: size * textScale),
             source: source,
             streaming: streaming
         )
-        .font(.system(size: size, weight: weight))
+        .font(.system(size: size * textScale, weight: weight))
         .foregroundStyle(StudioTheme.contrast.opacity(0.92))
     }
 
@@ -1032,6 +1037,7 @@ struct CodeBlockView: View, Equatable {
     let language: String?
     let source: String
     let streaming: Bool
+    var textScale: CGFloat = 1
     var htmlPreviewEnabled = false
     @EnvironmentObject private var studio: StudioModel
     @State private var showingPreview = false
@@ -1041,7 +1047,7 @@ struct CodeBlockView: View, Equatable {
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
-            && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
+            && lhs.textScale == rhs.textScale && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     private var canPreview: Bool {
@@ -1087,8 +1093,8 @@ struct CodeBlockView: View, Equatable {
                     .frame(height: 440)
             } else if !streaming {
                 StudioCodeEditor(text: .constant(source), language: language ?? "text", editable: false,
-                                 documentID: "inline-code")
-                    .frame(height: min(440, max(76, CGFloat(lineCount) * 19 + 34)))
+                                  documentID: "inline-code", fontSize: 12.5 * textScale)
+                     .frame(height: min(440, max(76, CGFloat(lineCount) * 19 * textScale + 34)))
             } else {
                 streamingCode.padding(16)
             }
@@ -1126,7 +1132,7 @@ struct CodeBlockView: View, Equatable {
                         CodeTextChunkView(
                             source: chunk.source, language: language,
                             prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                            streaming: chunk.id == chunks.last?.id
+                            streaming: chunk.id == chunks.last?.id, textScale: textScale
                         ).equatable()
                     }
                 }
@@ -1146,7 +1152,7 @@ struct CodeBlockView: View, Equatable {
                     CodeTextChunkView(
                         source: chunk.source, language: language,
                         prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                        streaming: chunk.id == chunks.last?.id
+                        streaming: chunk.id == chunks.last?.id, textScale: textScale
                     ).equatable()
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -1170,14 +1176,15 @@ private struct CodeTextChunkView: View, Equatable {
     let prefix: String
     let suffix: String
     let streaming: Bool
+    let textScale: CGFloat
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
         SmoothTokenText(content: Text(SyntaxHighlighter.highlight(source, language: language, prefix: prefix, suffix: suffix)), source: source, streaming: streaming)
-            .font(.system(size: 12, weight: .regular, design: .monospaced))
+            .font(.system(size: 12 * textScale, weight: .regular, design: .monospaced))
             .opacity(streaming ? 0.94 : 1)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1189,6 +1196,7 @@ private struct MarkdownTableView: View {
     let alignments: [MarkdownTableAlignment]
     let rows: [[String]]
     let streaming: Bool
+    let textScale: CGFloat
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -1218,13 +1226,13 @@ private struct MarkdownTableView: View {
 
     private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
         SmoothTokenText(
-            content: InlineLatexText.render(source, mathSize: 12.5),
+            content: InlineLatexText.render(source, mathSize: 12.5 * textScale),
             source: source,
             streaming: streaming
         )
-        .font(.system(size: 12.5, weight: isHeader ? .semibold : .regular, design: .rounded))
+        .font(.system(size: 12.5 * textScale, weight: isHeader ? .semibold : .regular, design: .rounded))
         .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
-        .frame(minWidth: 112, maxWidth: 260, alignment: frameAlignment(column))
+        .frame(minWidth: 112 * textScale, maxWidth: 260 * textScale, alignment: frameAlignment(column))
         .padding(.horizontal, 12)
         .padding(.vertical, isHeader ? 10 : 9)
         .background(isHeader ? StudioTheme.contrast.opacity(0.055) : Color.clear)
@@ -1487,13 +1495,14 @@ private enum LatexImageCache {
 private struct LatexBlockView: View {
     let latex: String
     let streaming: Bool
+    let textScale: CGFloat
     @State private var visible = false
 
     var body: some View {
         Group {
             if let image = LatexImageCache.image(
                 latex: latex,
-                fontSize: 18,
+                fontSize: 18 * textScale,
                 mode: .display
             ) {
                 ScrollView(.horizontal) {
@@ -1507,7 +1516,7 @@ private struct LatexBlockView: View {
                 .scrollIndicators(.never)
             } else {
                 Text("$$\n\(latex)\n$$")
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: 12 * textScale, design: .monospaced))
                     .foregroundStyle(StudioTheme.contrast.opacity(0.68))
             }
         }

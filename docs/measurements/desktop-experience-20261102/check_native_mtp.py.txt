@@ -1,0 +1,111 @@
+"""Explicit physical Flash MTP check; no timing or memory claim."""
+import hashlib
+import json
+import math
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from native_json_process import JsonProcess
+
+OUT = Path("build/desktop-experience-20261102")
+ENGINE = Path("/Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v2.0.2/mlxl3")
+REGISTRY = Path("/Users/henko/.config/mlxl3/models.json")
+NAME = "Qwen3.8-Flash-Next-exl3-84147e95"
+
+
+def validate_complete(event):
+    stats = event.get("stats", {})
+    count = stats.get("generated_tokens")
+    if type(count) is not int or not 0 < count <= 8:
+        raise ValueError("invalid generated token count")
+    if not isinstance(event.get("token_hash"), str) or not event["token_hash"]:
+        raise ValueError("missing token hash")
+    text = event.get("text") or event.get("assistant_context") or event.get("cache_context")
+    if not isinstance(text, str) or not text:
+        raise ValueError("empty completion")
+    for value in stats.values():
+        if isinstance(value, (int, float)) and not math.isfinite(value):
+            raise ValueError("non-finite stats")
+    return (event["token_hash"], text, count)
+
+
+def main():
+    report = {"status": "in_progress", "parity": False, "reaped": False,
+              "engine_sha256": hashlib.sha256(ENGINE.read_bytes()).hexdigest(), "events": []}
+    child = None
+    global_deadline = time.monotonic() + 480
+    def save():
+        (OUT / "native-mtp.json").write_text(json.dumps(report, indent=2) + "\n")
+    save()
+    try:
+        with tempfile.TemporaryDirectory(prefix="mlxl3-mtp-check-") as tmp:
+            registry = Path(tmp) / "models.json"
+            registry.write_bytes(REGISTRY.read_bytes())
+            target = json.loads(registry.read_text())["models"][NAME]["path"]
+            report["target"] = target
+            command = [str(ENGINE), "--registry", str(registry), "bridge", NAME,
+                       "--context-length", "4096"]
+            report["command"] = command
+            for run in range(2):
+                with (OUT / f"native-mtp-{run}.stderr").open("w") as stderr:
+                    with JsonProcess(command, stderr=stderr) as child:
+                        def receive(kind, request_id=None):
+                            deadline = min(time.monotonic() + 180, global_deadline)
+                            while True:
+                                event = child.receive(deadline)
+                                report["events"].append({"run": run, **event})
+                                save()
+                                if event.get("type") in ("error", "cancelled"):
+                                    raise RuntimeError(event)
+                                if event.get("type") == kind:
+                                    if request_id is not None and event.get("request_id") != request_id:
+                                        raise ValueError("mismatched request ID")
+                                    return event
+                        def configure(enabled, label):
+                            child.send({"type": "set_mtp", "request_id": label,
+                                        "enabled": enabled, "mtp_head_path": target if enabled else ""},
+                                       time.monotonic() + 10)
+                            event = receive("mtp_status", label)
+                            if event.get("mtp_active") is not enabled:
+                                raise ValueError("wrong MTP activation acknowledgement")
+                            if enabled and event.get("mtp_head_path") != target:
+                                raise ValueError("wrong head checkpoint")
+                        def generate(enabled):
+                            label = f"run{run}-mtp{enabled}"
+                            child.send({"type": "generate", "request_id": label, "conversation_id": label,
+                                        "messages": [{"role": "user", "content": "Réponds simplement bonjour."}],
+                                        "max_tokens": 8, "temperature": 0, "top_k": 1,
+                                        "repetition_penalty": 1, "memory_saver": False,
+                                        "mtp": enabled, "mtp_head_path": target if enabled else "", "mtp_depth": 1},
+                                       time.monotonic() + 10)
+                            event = receive("complete", label)
+                            if enabled and event.get("stats", {}).get("mtp_proposed_tokens", 0) <= 0:
+                                raise ValueError("MTP generation did not propose tokens")
+                            return validate_complete(event)
+                        ready = receive("ready")
+                        if not ready.get("mtp_configure_supported") or ready.get("mtp_max_depth") != 1:
+                            raise ValueError("unexpected runtime capabilities")
+                        if run == 0:
+                            baseline = generate(False)
+                        configure(True, f"enable-{run}")
+                        if generate(True) != baseline:
+                            raise ValueError("MTP differs from baseline")
+                        configure(False, f"disable-{run}")
+                        configure(True, f"reenable-{run}")
+                    if child.process.poll() is None:
+                        raise RuntimeError("child not reaped")
+            report.update(status="passed", parity=True, reaped=True)
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error),
+                      reaped=child is None or child.process.poll() is not None)
+    finally:
+        save()
+    print(json.dumps({key: report.get(key) for key in ("status", "parity", "reaped", "error")}), flush=True)
+    return 0 if report["status"] == "passed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

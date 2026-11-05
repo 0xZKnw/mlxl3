@@ -51,6 +51,7 @@ struct ConversationSnapshot: Codable, Sendable {
     let messages: [ChatMessageSnapshot]
     let createdAt: Date
     var contextUsage: ContextUsage? = nil
+    var isPinned: Bool? = nil
     var projectID: UUID? = nil
     var parentConversationID: UUID? = nil
     var agent: Bool? = nil

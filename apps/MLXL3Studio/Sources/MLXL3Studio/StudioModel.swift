@@ -122,6 +122,10 @@ final class StudioModel: ObservableObject {
     @Published private(set) var modelContextLimit: Int?
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
+    @Published private(set) var readingWidth: ConversationReadingWidth = .centered
+    @Published private(set) var responseTextSize = ResponseTextSize.defaultValue
+    @Published private(set) var mtpRememberedEnabled = false
+    private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
     @Published private(set) var loadModelOnStartup = true
     @Published private(set) var startupModelPath = ""
@@ -199,6 +203,8 @@ final class StudioModel: ObservableObject {
         self.applicationIsActive = applicationIsActive
         self.startupModelPath = preferences.string(forKey: "studio.startupModelPath") ?? ""
         self.completionNotificationsEnabled = preferences.bool(forKey: "studio.completionNotificationsEnabled")
+        self.readingWidth = ConversationReadingWidth.load(from: preferences)
+        self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
@@ -208,7 +214,7 @@ final class StudioModel: ObservableObject {
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
-        self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+        self.mtpEnabled = false // Restored for the selected target when its metadata is available.
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
         quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
@@ -313,6 +319,57 @@ final class StudioModel: ObservableObject {
     var savedContextLength: Int {
         guard let name = selectedModelName else { return 0 }
         return (preferences.dictionary(forKey: "studio.contextLengths")?[name] as? Int) ?? 0
+    }
+
+    func setReadingWidth(_ value: ConversationReadingWidth) {
+        readingWidth = value
+        preferences.set(value.rawValue, forKey: ConversationReadingWidth.preferenceKey)
+    }
+
+    func setResponseTextSize(_ value: Double) {
+        responseTextSize = ResponseTextSize.normalized(value)
+        preferences.set(responseTextSize, forKey: ResponseTextSize.preferenceKey)
+    }
+
+    func setConversationPinned(_ id: UUID, _ pinned: Bool) {
+        guard let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[index].isPinned = pinned
+        schedulePersistence()
+    }
+
+    func sidebarConversations(matching query: String) -> [Conversation] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return conversations.enumerated().filter {
+            $0.element.agent == (selectedMode == .agent) && $0.element.projectID == selectedProjectID
+                && (query.isEmpty || $0.element.title.localizedCaseInsensitiveContains(query)
+                    || $0.element.messages.contains { $0.content.localizedCaseInsensitiveContains(query) })
+        }.sorted {
+            if $0.element.isPinned != $1.element.isPinned { return $0.element.isPinned }
+            return $0.offset < $1.offset
+        }.map(\.element)
+    }
+
+    var mtpUsesModelCheckpoint: Bool { selectedModel?.modelType == "qwen4_exp" && mtpConfigureSupported }
+
+    private func rememberMTP(_ enabled: Bool) {
+        mtpRememberedEnabled = enabled
+        preferences.set(enabled, forKey: "studio.mtpEnabled") // legacy compatibility only
+        if let model = selectedModel {
+            ModelMTPPreference.save(enabled, modelPath: model.path, preferences: preferences)
+        }
+    }
+
+    private func restoreMTPPreference() {
+        guard let model = selectedModel else { mtpEnabled = false; mtpRememberedEnabled = false; return }
+        let saved = ModelMTPPreference.load(modelPath: model.path, preferences: preferences)
+        let legacy = preferences.object(forKey: ModelMTPPreference.key) == nil
+            && !mtpLegacyPreferenceClaimed
+            && (mtpLegacyModelName == nil || mtpLegacyModelName == selectedModelName)
+            && preferences.bool(forKey: "studio.mtpEnabled")
+        mtpLegacyPreferenceClaimed = true
+        mtpRememberedEnabled = saved ?? legacy
+        mtpEnabled = mtpRememberedEnabled
+        ModelMTPPreference.save(mtpRememberedEnabled, modelPath: model.path, preferences: preferences)
     }
 
     func setTheme(_ value: AppTheme) {
@@ -1076,7 +1133,7 @@ final class StudioModel: ObservableObject {
                 }
                 if !downloadCompatible { commitDFlashDraft(path, modelPath: model.path) }
                 cancelMTPPreparation(); mtpEnabled = false
-                preferences.set(false, forKey: "studio.mtpEnabled")
+                rememberMTP(false)
                 if dflashConfigureSupported {
                     dflashConfigurationPending = true
                     try bridge.setDFlash(requestID: operation.uuidString, enabled: true, draftPath: path)
@@ -1173,7 +1230,7 @@ final class StudioModel: ObservableObject {
         if !enabled {
             cancelMTPPreparation()
             mtpEnabled = false
-            preferences.set(false, forKey: "studio.mtpEnabled")
+            rememberMTP(false)
             saveMTPSelection()
             if mtpConfigureSupported && bridge.isRunning {
                 do { try configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
@@ -1186,10 +1243,13 @@ final class StudioModel: ObservableObject {
         dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
         cancelMTPPreparation()
         let operation = mtpOperationID
-        preferences.set(true, forKey: "studio.mtpEnabled")
+        rememberMTP(true)
         if mtpBuiltIn {
             mtpError = nil
             mtpDepth = 1
+            mtpHeadPath = model.path
+            preferences.set(model.path, forKey: "studio.mtpHeadPath")
+            preferences.set(model.path, forKey: "studio.mtpHead.\(model.path)")
             activateMTP()
             if !mtpConfigureSupported { return }
         }
@@ -1258,7 +1318,7 @@ final class StudioModel: ObservableObject {
         dflash2Enabled = false
         mtpEnabled = true
         // Greedy request values are derived without changing saved ordinary sampling.
-        preferences.set(true, forKey: "studio.mtpEnabled")
+        rememberMTP(true)
         saveMTPSelection()
         schedulePersistence()
     }
@@ -1269,7 +1329,7 @@ final class StudioModel: ObservableObject {
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
         guard picker.runModal() == .OK, let path = picker.url?.path else { return }
-        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+        mtpEnabled = false
         mtpHeadPath = path; preferences.set(path, forKey: "studio.mtpHeadPath")
         mtpDepth = 1; mtpTuneRows = []; mtpTunedAt = nil
         setMTPEnabled(true)
@@ -1354,7 +1414,7 @@ final class StudioModel: ObservableObject {
             if tuneIsDFlash {
                 dflashMode = max(1, best); dflash2Enabled = best > 0
                 dflashTuneRows = rows.sorted { $0.depth < $1.depth }; dflashTunedAt = Date()
-                mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+                mtpEnabled = false; rememberMTP(false)
                 preferences.set(dflash2Enabled, forKey: "studio.dflash2Enabled")
                 saveDFlashSelection()
                 if best == 0 { try? bridge.setDFlash(requestID: UUID().uuidString, enabled: false, draftPath: "") }
@@ -1362,7 +1422,7 @@ final class StudioModel: ObservableObject {
                 mtpDepth = max(1, best); mtpEnabled = best > 0; mtpTuneRows = rows.sorted { $0.depth < $1.depth }
                 mtpTunedAt = Date()
                 dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
-                preferences.set(mtpEnabled, forKey: "studio.mtpEnabled"); saveMTPSelection()
+                rememberMTP(mtpEnabled); saveMTPSelection()
             }
             mtpTuneProgress = 1
             // Tuning uses greedy internally; retain the user's ordinary sampling settings.
@@ -1401,7 +1461,7 @@ final class StudioModel: ObservableObject {
     }
 
     func enableDFlashGreedy() {
-        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+        mtpEnabled = false; rememberMTP(false)
         dflash2Enabled = true
         preferences.set(true, forKey: "studio.dflash2Enabled")
         settingsDidChange()
@@ -1539,7 +1599,7 @@ final class StudioModel: ObservableObject {
         mtpAutoDownloadSupported = nil
         cancelMTPPreparation()
         mtpConfigureSupported = false
-        mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+        restoreMTPPreference()
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -1690,7 +1750,8 @@ final class StudioModel: ObservableObject {
             )
             if mcpEnabled || bridgeUsesAgentRegistry { updateMCPConnection() }
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
-            else if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
+            else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
+            else if !mtpAvailable { mtpEnabled = false }
         case "mcp_status":
             if let tools = event.mcpToolCatalog { mcpTools = tools }
             mcpUpdating = false

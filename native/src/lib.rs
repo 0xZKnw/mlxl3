@@ -3,6 +3,8 @@
 pub mod affine;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar10_defaults;
+#[cfg(test)]
+mod ar33_codeword_table_tests;
 #[cfg(feature = "mlx")]
 pub mod array;
 pub mod checkpoint;
@@ -94,6 +96,8 @@ pub mod moe;
 pub mod mtp;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod qsa_chain_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod pipeline_caps;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
 #[cfg(any(
