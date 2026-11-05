@@ -886,5 +886,62 @@
         }
       }
     }
+  },
+  "main_sync": {
+    "base": "61d7ec798812eac869c95daf0e62092847b51408",
+    "code_commit": "635c4bcf1c883f8917060af22ebdb394b66c01e4",
+    "runtime": {
+      "architecture": "aarch64",
+      "backend": "metal",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "635c4bcf1c88",
+      "mlx_enabled": false,
+      "profile": "release",
+      "version": "2.0.2"
+    },
+    "artifacts": {
+      "mlxl3-qwen36-sync-direct": {
+        "sha256": "8d66f158a971031d3867633067719149cc481d21f00000a4b0a895b6b9edcb73",
+        "bytes": 10733568
+      },
+      "qwen36-sync-libtest": {
+        "sha256": "5e2e13d1378750dd54810005db0e206ce903eaf9fc96cdeb5aac1bf06ac4b33f",
+        "bytes": 10846544
+      }
+    },
+    "rust_suites": {
+      "cpu": {
+        "passed": 399,
+        "failed": 0,
+        "ignored": 9
+      },
+      "direct": {
+        "passed": 418,
+        "failed": 0,
+        "ignored": 108
+      },
+      "compat": {
+        "passed": 454,
+        "failed": 0,
+        "ignored": 327
+      }
+    },
+    "python": {
+      "passed": 65,
+      "skipped_linux_only": 44
+    },
+    "kani": {
+      "harnesses": 12,
+      "obligations": 927,
+      "covers": 47,
+      "unreachable": 8
+    },
+    "physical": {
+      "qwen_oracle": true,
+      "bridge": true,
+      "processes_reaped": true
+    },
+    "timing_repeated": false
   }
 }

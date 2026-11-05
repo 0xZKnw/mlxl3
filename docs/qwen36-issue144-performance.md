@@ -73,3 +73,9 @@ L’allocation Metal passe de 11,264 à 11,267 Go et les pics d’empreinte du p
 Pour P10, les quatre mesures optimisées dépassent leurs témoins et les médianes atteignent 15,56 et 15,88 tok/s. La dispersion du témoin atteint 10,80 % en français et 5,88 % sur le code. Pour P11, le bridge compte 63 têtes GPU sur 64 tokens, ce qui confirme le parcours mesuré. Le logsumexp et le départage parcourent toujours le vocabulaire complet. Les mesures en français se chevauchent et les deux mesures code se dégradent. Le bénéfice de P11 reste à établir.
 
 L’objectif de 100 tok/s reste ouvert. Les pistes 4 et 6 concernent encore deux frontières du chemin retenu, le retour CPU des huit IDs de routage et la relecture des poids lors de la vérification de plusieurs lignes. [Mesures, options et contrôles](measurements/qwen36-144-p10-20261105/summary.json) · [Issue #144](https://github.com/0xZKnw/mlxl3/issues/144)
+
+## Synchronisation avec main
+
+`main` a avancé à `61d7ec798812eac869c95daf0e62092847b51408` pendant la qualification. Le commit exécutable assemblé `635c4bcf1c883f8917060af22ebdb394b66c01e4` réunit les registres de preuves QSA et Qwen. Les sources du chemin Qwen mesuré correspondent toujours au commit du benchmark. Les suites CPU, Metal et MLX passent (399/418/454 réussis et 9/108/327 ignorés), ainsi que 65 tests Python. Les 44 tests Python du lanceur Linux ont été sautés sur le Mac. Les 12 harnais Kani ciblés passent avec 927 obligations, 8 inatteignables et 47 couvertures.
+
+Le nouveau binaire Metal sans MLX (SHA-256 `8d66f158a971031d3867633067719149cc481d21f00000a4b0a895b6b9edcb73`) reproduit l’oracle Qwen indépendant et passe le bridge réel. Les chiffres de débit restent ceux du binaire `3b342607`. La synchronisation a répété les contrôles de correction. [Empreintes et contrôles](measurements/qwen36-144-p10-20261105/summary.json)
