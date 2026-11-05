@@ -299,14 +299,20 @@ impl<'a> FlashMoeRow<'a> {
         let guard = ExpertFill::new(&self.cache);
         let plan = DemandPlan::reserve(&self.cache, &ids)?;
         let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
-        let mut owners = Vec::with_capacity(plan.reads.len());
+        let mut owners = if reuse {
+            Vec::with_capacity(plan.reads.len())
+        } else {
+            Vec::new()
+        };
         for lease in &plan.reads {
             let old_views = self.slots.borrow_mut()[lease.slot].take();
             let owner = self.record_backings[lease.slot].take();
             // Snapshots contain recurrent state, never expert weights. With no
             // prefetch, these private slots were the last future-access views.
             drop(old_views);
-            owners.push(if reuse { owner } else { None });
+            if reuse {
+                owners.push(owner);
+            }
         }
         let records = || {
             plan.reads
@@ -318,12 +324,16 @@ impl<'a> FlashMoeRow<'a> {
             depth,
             self.prefetcher.is_some(),
         ) {
-            gpu.readers()?.submit_shared_reusing(
-                records()
-                    .zip(owners)
-                    .map(|((lease, record), owner)| (lease, record, owner)),
-                &gpu.device,
-            )?
+            if reuse {
+                gpu.readers()?.submit_shared_reusing(
+                    records()
+                        .zip(owners)
+                        .map(|((lease, record), owner)| (lease, record, owner)),
+                    &gpu.device,
+                )?
+            } else {
+                gpu.readers()?.submit_shared(records(), &gpu.device)?
+            }
         } else {
             gpu.readers()?.submit(records())?
         };
