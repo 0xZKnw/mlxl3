@@ -125,11 +125,15 @@ fn run_capture() -> Result<()> {
         ensure!(!path.exists(), "refusing to overwrite an oracle");
         None
     } else {
+        ensure!(
+            fs::metadata(&path)?.len() <= 1_048_576,
+            "oracle JSON exceeds its bound"
+        );
         let bytes = fs::read(&path)?;
         let oracle: Oracle = serde_json::from_slice(&bytes)?;
         validate(&oracle)?;
         ensure!(oracle.model_path == model_path);
-        Some(oracle)
+        Some((oracle, digest(&bytes)?))
     };
     let checkpoint = crate::checkpoint::inspect(&model_path)?;
     let gpu = Metal::new()?;
@@ -209,12 +213,15 @@ fn run_capture() -> Result<()> {
         model.restore(&control)?;
     }
     ensure!(state_words == 57_606_144 && model.offset() == 2 && gpu.readers()?.in_flight() == 0);
-    if let Some(reference) = reference {
+    if let Some((reference, oracle_sha)) = reference {
         ensure!(
             cases == reference.cases,
             "cross-process full-model fingerprint differs"
         );
-        let oracle_sha = digest(&fs::read(&path)?)?;
+        ensure!(
+            digest(&fs::read(&path)?)? == oracle_sha,
+            "oracle changed during comparison"
+        );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
             serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
