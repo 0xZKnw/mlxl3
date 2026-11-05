@@ -213,6 +213,9 @@ pub struct Metal {
     hc_up_mix: std::cell::Cell<bool>,
     gdn_half_elision: std::cell::Cell<bool>,
     gdn_norm_gate: std::cell::Cell<bool>,
+    gdn_joint_ab: std::cell::Cell<bool>,
+    #[cfg(test)]
+    gdn_joint_ab_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     gdn_norm_gate_uses: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -381,6 +384,7 @@ impl Metal {
             let routed_nt2_down = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_DOWN")?;
             let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
+            let gdn_joint_ab = hc_kernel_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             // Only qualified L1 consumers defer completion, so use L1's hardware default.
             let moe_deferred = match std::env::var("MLXL3_NATIVE_MOE_DEFERRED") {
@@ -666,7 +670,7 @@ impl Metal {
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(&pipeline)?;
-            let gdn = gdn::Pipelines::load(&pipeline, gdn_norm_gate)?;
+            let gdn = gdn::Pipelines::load(&pipeline, gdn_norm_gate, gdn_joint_ab)?;
             let logsumexp = pipeline("flash_logsumexp")?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
@@ -680,6 +684,9 @@ impl Metal {
                 hc_up_mix: std::cell::Cell::new(hc_up_mix),
                 gdn_half_elision: std::cell::Cell::new(gdn_half_elision),
                 gdn_norm_gate: std::cell::Cell::new(gdn_norm_gate),
+                gdn_joint_ab: std::cell::Cell::new(gdn_joint_ab),
+                #[cfg(test)]
+                gdn_joint_ab_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 gdn_norm_gate_uses: std::cell::Cell::new(0),
                 #[cfg(test)]

@@ -94,3 +94,20 @@ kernel void gdn_gate_row(const device float* normed0 [[buffer(0)]], const device
 }
 kernel void gdn_to_float(const device half* in [[buffer(0)]],device float* out [[buffer(1)]],
     constant uint* extent [[buffer(2)]],uint col [[thread_position_in_grid]]) {out[col]=float(in[col]);}
+
+kernel void gdn_joint_ab(const device half* x [[buffer(0)]],const device half* a [[buffer(1)]],
+    const device half* b [[buffer(2)]],device half* out_a [[buffer(3)]],device half* out_b [[buffer(4)]],
+    constant uint* extent [[buffer(5)]],uint thread_index_in_simdgroup [[thread_index_in_simdgroup]],
+    uint simdgroup_index_in_threadgroup [[simdgroup_index_in_threadgroup]],
+    uint3 position [[threadgroup_position_in_grid]]) {
+    const device half* weight=position.x<12?a:b;
+    device half* out=position.x<12?out_a:out_b;
+    uint3 threadgroup_position_in_grid=uint3(position.x%12,0,0);
+#define K 2560
+#define BM 1
+#define BN 8
+#include "flash_hc_gemv.metal"
+#undef K
+#undef BM
+#undef BN
+}

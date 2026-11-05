@@ -10,6 +10,7 @@ use std::{collections::BTreeMap, rc::Rc};
 pub(super) struct Pipelines {
     from: [ComputePipelineState; 2],
     dense: ComputePipelineState,
+    joint_ab: Option<ComputePipelineState>,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
     norm: ComputePipelineState,
@@ -21,10 +22,12 @@ impl Pipelines {
     pub(super) fn load(
         p: &impl Fn(&str) -> Result<ComputePipelineState>,
         norm_gate: bool,
+        joint_ab: bool,
     ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
+            joint_ab: joint_ab.then(|| p("gdn_joint_ab")).transpose()?,
             prepare: p("gdn_prepare_row")?,
             step: p("gdn_step_row")?,
             norm: p("gdn_norm_row")?,
@@ -323,8 +326,29 @@ impl<'a> FlashGdn<'a> {
             );
             Ok(gate)
         };
-        let a = dense(&self.a)?;
-        let b = dense(&self.b)?;
+        let (a, b) = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_joint_ab.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            let a = half(48)?;
+            let b = half(48)?;
+            Metal::encode(
+                cmd,
+                p.joint_ab
+                    .as_ref()
+                    .context("joint a/b pipeline not initialized")?,
+                &[&input.buffer, &self.a, &self.b, &a.buffer, &b.buffer],
+                [48u32],
+                g(24, 1, 1),
+                256,
+            );
+            #[cfg(test)]
+            gpu.gdn_joint_ab_uses.set(gpu.gdn_joint_ab_uses.get() + 1);
+            (a, b)
+        } else {
+            (dense(&self.a)?, dense(&self.b)?)
+        };
         let conv = half(10240)?;
         let q = half(2048)?;
         let k = half(2048)?;
@@ -871,3 +895,7 @@ mod cross_layer_tests;
 #[cfg(test)]
 #[path = "gdn_uar_tests.rs"]
 mod gdn_uar_tests;
+
+#[cfg(test)]
+#[path = "ar10_gdn_tests.rs"]
+mod ar10_gdn_tests;
