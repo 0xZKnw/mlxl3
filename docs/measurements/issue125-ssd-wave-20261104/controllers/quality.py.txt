@@ -1,0 +1,105 @@
+"""L2 four essential gates; reuses the executed P13 process/JSON helpers."""
+import copy
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+ROOT = Path.cwd()
+HERE = ROOT / 'docs/measurements/issue125-ssd-wave-20261104/quality'
+old = runpy.run_path(str(ROOT / 'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+
+def component(a):
+    old['exact_fields'](a, {'cases':4,'finite_words':10240,'actual_extra_submissions':2,'max_commands':4})
+    return a
+
+def model(a):
+    old['exact_fields'](a, {'parity':True,'compared_state_words':115212288,'compared_logits':1986560,'initial_archive_states':84,'context':4096,'cold_control_and_candidate':True,'explicit_legacy_continuation':True})
+    assert type(a['steps']) is list and len(a['steps']) == 4
+    total = a['actual_extra_submissions']
+    assert type(total) is int and total > 0
+    counted = 0
+    for i, (token, step) in enumerate(zip([248044,1,42,7],a['steps'],strict=True),1):
+        old['exact_fields'](step, {'token':token,'control_extra_submissions':0,'snapshot_position':i})
+        extra = step['actual_extra_submissions']
+        assert type(extra) is int and 0 <= extra <= 48
+        counted += extra
+    assert counted == total
+    return a
+
+def selfchecks():
+    good = {'parity':True,'compared_state_words':115212288,'compared_logits':1986560,'initial_archive_states':84,'context':4096,'cold_control_and_candidate':True,'explicit_legacy_continuation':True,'actual_extra_submissions':4,'steps':[{'token':t,'control_extra_submissions':0,'snapshot_position':i,'actual_extra_submissions':1} for i,t in enumerate([248044,1,42,7],1)]}
+    comp={'cases':4,'finite_words':10240,'actual_extra_submissions':2,'max_commands':4}
+    model(good); component(comp)
+    rejected=0
+    bads=[]
+    for value, check in [(good,model),(comp,component)]:
+        for key in value:
+            bad=copy.deepcopy(value);bad.pop(key);bads.append((check,bad))
+    for key,value in [('actual_extra_submissions',0),('actual_extra_submissions',True),('steps',[]),('steps',good['steps'][:3]),('steps',good['steps']*2),('parity',False),('compared_state_words',0)]:
+        bad=copy.deepcopy(good);bad[key]=value;bads.append((model,bad))
+    for key,value in [('token',True),('actual_extra_submissions',-1),('actual_extra_submissions',49),('actual_extra_submissions',True),('control_extra_submissions',1),('snapshot_position',0)]:
+        bad=copy.deepcopy(good);bad['steps'][0][key]=value;bads.append((model,bad))
+    for key,value in [('cases',True),('finite_words',0),('actual_extra_submissions',0),('max_commands',3)]:
+        bad=copy.deepcopy(comp);bad[key]=value;bads.append((component,bad))
+    for check,bad in bads:
+        try: check(bad)
+        except (AssertionError,KeyError,TypeError): rejected+=1
+        else: raise AssertionError('invalid evidence accepted')
+    assert rejected == len(bads)
+    return {'valid':2,'invalid_rejected':rejected,'unchanged_helpers':'P13 final executed helpers; archived39+15 selfchecks'}
+
+def main():
+    HERE.mkdir(exist_ok=True)
+    sink=HERE/'report.json';assert not sink.exists()
+    report={'status':'preparing','parity':False,'all_children_joined':False,'phases':[]}
+    def save(): sink.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+    def journal(s):
+        with (ROOT/'opti.md').open('a') as f:f.write('\nI125-L2 QUALITY '+s+'\n')
+    save();child=None
+    try:
+        (HERE/'validator-selfchecks.json').write_text(json.dumps(selfchecks(),indent=2)+'\n')
+        freeze=json.loads((ROOT/'build/ssd-wave/freeze.json').read_text())
+        for item in freeze['artifacts'].values():assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+        for file,sha in freeze['source_hashes'].items():assert hashlib.sha256((ROOT/file).read_bytes()).hexdigest()==sha,file
+        env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))}
+        env.update(json.loads((HERE.parent/'quality-plan.json').read_text())['environment'])
+        env['PYTHONPATH']=str(ROOT)
+        lib=freeze['artifacts']['native-libtest']['path'];cli=freeze['artifacts']['direct-cli']['path']
+        suffix=['--exact','--ignored','--nocapture','--test-threads=1']
+        phases=[('component',[lib,'gpu::moe::tests::bounded_extra_wave_submits_two_records_before_the_held_tail',*suffix],'NATIVE_SSD_EXTRA_WAVE',120),('model',[lib,'gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation',*suffix],'NATIVE_SSD_EXTRA_WAVE_MODEL',180),('partial',[lib,'gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible',*suffix],None,120),('cli',['/Users/justin/Documents/mix-stq1_0/.venv/bin/python','/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',cli,str(HERE)],'NATIVE_SSD_DIRECT_CLI',180)]
+        (HERE/'actual-plan.json').write_text(json.dumps({'phases':phases,'environment':{k:env[k] for k in ('CARGO_TARGET_DIR', 'DYLD_PRINT_LIBRARIES', 'MACOSX_DEPLOYMENT_TARGET', 'MLXL3_FLASH_MODEL', 'MLXL3_MLX_ROOT', 'MLXL3_MOE_CHECKPOINT', 'MLXL3_NATIVE_SSD_EXTRA_WAVE', 'MLXL3_PROMPT_CACHE_MIB', 'MLXL3_SSD_CACHE_GIB', 'MLXL3_SSD_CACHE_POLICY', 'MLXL3_SSD_DYNAMIC_READERS', 'MLXL3_SSD_LOOKAHEAD_DEPTH', 'MLXL3_SSD_OVERLAP', 'MLXL3_SSD_PREDICTOR_DTYPE', 'MLXL3_SSD_READERS', 'PYTHONPATH') if k in env},'source_commit':freeze['source_commit'],'parity':False},indent=2)+'\n')
+        for name,cmd,marker,limit in phases:
+            record={'name':name,'command':cmd,'status':'running','parity':False,'joined':False};report['phases'].append(record);save();journal(name+' STARTED exclusive root grant');child=None;start=time.monotonic()
+            try:
+                with (HERE/(name+'.log')).open('xb') as log:
+                    child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);record['pid']=child.pid;save();code=child.wait(timeout=limit)
+                assert code==0 and not old['members'](child.pid)
+                text=(HERE/(name+'.log')).read_text()
+                if name!='cli':
+                    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+                    old['native_images'](text)
+                if name=='partial':
+                    actual={}
+                    for label in ['cold','hot']:
+                        key='native SSD '+label+': '
+                        lines=[line.split(key,1)[1] for line in text.splitlines() if key in line];assert len(lines)==1
+                        actual[label]=old['strict_json'](lines[0]);assert type(actual[label]['cpu']) is list and actual[label]['cpu'] and type(actual[label]['gpu']) is list and actual[label]['gpu']
+                    extras=sum(v.get('event')=='extra_submit' for v in actual['cold']['cpu']);assert extras<=1 and len(actual['cold']['gpu'])==3+extras and len(actual['hot']['gpu'])==1
+                else:
+                    actual=old['marker'](text,marker)
+                    if name=='component':component(actual)
+                    elif name=='model':model(actual)
+                    else:old['exact_fields'](actual,{'status':'verified','parity':True,'completed':1,'context_length':4096,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True})
+                record.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=actual);save();journal(name+' VALIDATED '+json.dumps(actual,sort_keys=True));print(name+' validated',flush=True)
+            except BaseException as error:
+                record.update(status='failed',parity=False,joined=old['stop'](child),error=repr(error));save();raise
+        assert len(report['phases'])==4 and all(x['parity'] and x['joined'] for x in report['phases'])
+        for file,sha in freeze['source_hashes'].items():assert hashlib.sha256((ROOT/file).read_bytes()).hexdigest()==sha,file
+        report.update(status='validated',parity=True,all_children_joined=True);journal('4/4 VALIDATED no speed measurement')
+    except BaseException as error:
+        report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(x['joined'] for x in report['phases']));journal('FAILED '+repr(error));raise
+    finally:save()
+if __name__=='__main__':main()

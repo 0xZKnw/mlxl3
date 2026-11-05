@@ -1,0 +1,250 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "component",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::bounded_extra_wave_submits_two_records_before_the_held_tail",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 65300,
+      "seconds": 1.2274805000051856,
+      "evidence": {
+        "actual_extra_submissions": 2,
+        "cases": 4,
+        "finite_words": 10240,
+        "max_commands": 4,
+        "oracle": "unchanged OFF schedule; independent full-model oracle separate"
+      }
+    },
+    {
+      "name": "model",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 65303,
+      "seconds": 6.721648665989051,
+      "evidence": {
+        "actual_extra_submissions": 191,
+        "cold_control_and_candidate": true,
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "initial_archive_states": 84,
+        "parity": true,
+        "steps": [
+          {
+            "actual_extra_submissions": 47,
+            "control_extra_submissions": 0,
+            "snapshot_position": 1,
+            "token": 248044
+          },
+          {
+            "actual_extra_submissions": 48,
+            "control_extra_submissions": 0,
+            "snapshot_position": 2,
+            "token": 1
+          },
+          {
+            "actual_extra_submissions": 48,
+            "control_extra_submissions": 0,
+            "snapshot_position": 3,
+            "token": 42
+          },
+          {
+            "actual_extra_submissions": 48,
+            "control_extra_submissions": 0,
+            "snapshot_position": 4,
+            "token": 7
+          }
+        ]
+      }
+    },
+    {
+      "name": "partial",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 65394,
+      "seconds": 0.8546582090202719,
+      "evidence": {
+        "cold": {
+          "cpu": [
+            {
+              "event": "hot_submit",
+              "remaining_reads": 10,
+              "time_ns": 613083
+            },
+            {
+              "event": "w1_submit",
+              "remaining_reads": 9,
+              "time_ns": 761208
+            },
+            {
+              "event": "extra_submit",
+              "remaining_reads": 3,
+              "time_ns": 1869750
+            },
+            {
+              "event": "final_submit",
+              "remaining_reads": 0,
+              "time_ns": 2315500
+            },
+            {
+              "end_ns": 702666,
+              "event": "read",
+              "expert": 4,
+              "slot": 0,
+              "start_ns": 570083
+            },
+            {
+              "end_ns": 1127250,
+              "event": "read",
+              "expert": 371,
+              "slot": 8,
+              "start_ns": 573250
+            },
+            {
+              "end_ns": 1244083,
+              "event": "read",
+              "expert": 27,
+              "slot": 1,
+              "start_ns": 573791
+            },
+            {
+              "end_ns": 1381708,
+              "event": "read",
+              "expert": 126,
+              "slot": 3,
+              "start_ns": 1245166
+            },
+            {
+              "end_ns": 1387458,
+              "event": "read",
+              "expert": 367,
+              "slot": 7,
+              "start_ns": 576416
+            },
+            {
+              "end_ns": 1603250,
+              "event": "read",
+              "expert": 168,
+              "slot": 4,
+              "start_ns": 707625
+            },
+            {
+              "end_ns": 1739291,
+              "event": "read",
+              "expert": 192,
+              "slot": 5,
+              "start_ns": 1127833
+            },
+            {
+              "end_ns": 1972625,
+              "event": "read",
+              "expert": 319,
+              "slot": 6,
+              "start_ns": 1388208
+            },
+            {
+              "end_ns": 2177833,
+              "event": "read",
+              "expert": 60,
+              "slot": 2,
+              "start_ns": 1603958
+            },
+            {
+              "end_ns": 2268000,
+              "event": "read",
+              "expert": 481,
+              "slot": 9,
+              "start_ns": 1739833
+            }
+          ],
+          "gpu": [
+            {
+              "end": 217734.04909887502,
+              "start": 217734.04881875002
+            },
+            {
+              "end": 217734.049211375,
+              "start": 217734.0489487917
+            },
+            {
+              "end": 217734.05170291668,
+              "start": 217734.050209125
+            },
+            {
+              "end": 217734.053415625,
+              "start": 217734.051704125
+            }
+          ]
+        },
+        "hot": {
+          "cpu": [
+            {
+              "event": "final_submit",
+              "remaining_reads": 0,
+              "time_ns": 3310208
+            }
+          ],
+          "gpu": [
+            {
+              "end": 217734.05651287502,
+              "start": 217734.05385350002
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cli",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/quality"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 65396,
+      "seconds": 12.560449958982645,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}
