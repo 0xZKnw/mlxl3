@@ -1,0 +1,30 @@
+{
+  "status": "failed",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "direct-metal,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "failed",
+      "joined": true,
+      "pid": 67156,
+      "exit_code": 101,
+      "error": "AssertionError(('clippy-direct-final', 101))",
+      "seconds": 8.636990834027529
+    }
+  ],
+  "started_epoch": 1793906674.01591,
+  "source_head": "10397e9899eb5ec6a19e6b6f6af179500c6d3770",
+  "error": "AssertionError(('clippy-direct-final', 101))"
+}

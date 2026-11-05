@@ -1,0 +1,104 @@
+{
+  "status": "processes_passed_pending_result_review",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "direct-metal,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "process_pass_pending_result_review",
+      "joined": true,
+      "pid": 67479,
+      "exit_code": 0,
+      "seconds": 4.796931958000641
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_result_review",
+      "joined": true,
+      "pid": 67592,
+      "exit_code": 0,
+      "seconds": 9.661257083993405
+    },
+    {
+      "name": "full-direct-tests",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_result_review",
+      "joined": true,
+      "pid": 67654,
+      "exit_code": 0,
+      "seconds": 35.46634233399527
+    },
+    {
+      "name": "release-cli",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--bin",
+        "mlxl3-rs"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_result_review",
+      "joined": true,
+      "pid": 68398,
+      "exit_code": 0,
+      "seconds": 35.41984791698633
+    },
+    {
+      "name": "release-libtest",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format",
+        "json"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_result_review",
+      "joined": true,
+      "pid": 68516,
+      "exit_code": 0,
+      "seconds": 49.17182808299549
+    }
+  ],
+  "started_epoch": 1793906874.2553248,
+  "source_head": "10397e9899eb5ec6a19e6b6f6af179500c6d3770"
+}
