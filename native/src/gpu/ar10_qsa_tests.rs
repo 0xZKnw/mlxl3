@@ -103,3 +103,86 @@ fn physical_ar10_qsa_prepare_matches_canonical() -> Result<()> {
     eprintln!("AR10_QSA_PREPARE {{\"parity\":true,\"cases\":4,\"finite_half_words\":26624}}");
     Ok(())
 }
+
+#[test]
+#[ignore = "physical AR10 one-pass attention half store then gate vs canonical two kernels; run alone"]
+fn physical_ar10_qsa_gated_store_matches_canonical() -> Result<()> {
+    let gpu = Metal::new()?;
+    let fused = gpu
+        .qsa
+        .gated_attention
+        .as_ref()
+        .context("initialize QSA_GATE=1")?;
+    let input = |n: usize, seed: usize| -> Result<MatrixView> {
+        let bits = (0..n)
+            .map(|i| f16::from_f32((((i * seed) % 131) as f32 - 65.) / 97.).to_bits())
+            .collect::<Vec<_>>();
+        gpu.f16_storage(&bits)?.matrix(MatrixLayout {
+            shape: [1, n as u32],
+            strides: [n as i64, 1],
+            offset: 0,
+        })
+    };
+    let q = input(6144, 7)?;
+    let qg = input(12288, 11)?;
+    for keys in [1u32, 87, 119] {
+        let k = input(keys as usize * 512, 13)?;
+        let v = input(keys as usize * 512, 17)?;
+        let output =
+            || MatrixView::output(&gpu, FloatType::F16, 1, 6144, Storage::StorageModeShared);
+        let attention = output()?;
+        let expected = output()?;
+        let actual = output()?;
+        gpu.command(|cmd| {
+            Metal::encode(
+                cmd,
+                &gpu.qsa.attention,
+                &[
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &attention.buffer,
+                    &q.buffer,
+                ],
+                [keys, 0],
+                MTLSize::new(24, 1, 1),
+                1024,
+            );
+            Metal::encode(
+                cmd,
+                &gpu.qsa.gate,
+                &[&attention.buffer, &qg.buffer, &expected.buffer],
+                [256u32],
+                MTLSize::new(192, 1, 1),
+                32,
+            );
+            Metal::encode(
+                cmd,
+                fused,
+                &[
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &actual.buffer,
+                    &q.buffer,
+                    &qg.buffer,
+                ],
+                [keys, 0],
+                MTLSize::new(24, 1, 1),
+                1024,
+            );
+            Ok(())
+        })?;
+        let words = expected.read_output()?;
+        ensure!(
+            words.len() == 6144
+                && words.iter().any(|&x| x & 0x7fff != 0)
+                && words
+                    .iter()
+                    .all(|&x| u16::try_from(x).is_ok_and(|x| f16::from_bits(x).is_finite()))
+        );
+        ensure!(actual.read_output()? == words, "QSA gate keys {keys}");
+    }
+    eprintln!("AR10_QSA_GATE {{\"parity\":true,\"cases\":3,\"finite_half_words\":18432}}");
+    Ok(())
+}

@@ -14,6 +14,7 @@ pub(super) struct Pipelines {
     freq: ComputePipelineState,
     rope: ComputePipelineState,
     attention: ComputePipelineState,
+    gated_attention: Option<ComputePipelineState>,
     partials: ComputePipelineState,
     finish: ComputePipelineState,
     gate: ComputePipelineState,
@@ -22,6 +23,7 @@ impl Pipelines {
     pub(super) fn load(
         p: &impl Fn(&str) -> Result<ComputePipelineState>,
         prepare: bool,
+        gate: bool,
     ) -> Result<Self> {
         Ok(Self {
             index_rope: p("qsa_index_rope")?,
@@ -33,6 +35,7 @@ impl Pipelines {
             freq: p("qsa_freq")?,
             rope: p("qsa_rope")?,
             attention: p("qsa_attention")?,
+            gated_attention: gate.then(|| p("ar10_qsa_attention_gate")).transpose()?,
             partials: p("qsa_attention_partials")?,
             finish: p("qsa_attention_finish")?,
             gate: p("qsa_gate")?,
@@ -564,6 +567,13 @@ impl<'a> FlashQsa<'a> {
             let attention = half(6144)?;
             let ids = positions.as_ref().unwrap_or(&qr.buffer);
             let sparse = u32::from(positions.is_some());
+            let fused_gate = crate::flash_support::ar10_qsa_gate_eligible(
+                gpu.qsa_gate_fused.get(),
+                trace,
+                x.dtype == FloatType::F32,
+                selected,
+                positions.is_some(),
+            );
             if let Some(blocks) =
                 crate::flash_support::qsa_attention_blocks(self.arch_class, selected)
             {
@@ -601,6 +611,28 @@ impl<'a> FlashQsa<'a> {
                     groups(24),
                     1024,
                 );
+            } else if fused_gate {
+                Metal::encode(
+                    cmd,
+                    gpu.qsa
+                        .gated_attention
+                        .as_ref()
+                        .context("QSA gated pipeline not initialized")?,
+                    &[
+                        &qr.buffer,
+                        &slab.keys,
+                        &slab.values,
+                        &attention.buffer,
+                        ids,
+                        &qg.buffer,
+                    ],
+                    [selected, sparse],
+                    groups(24),
+                    1024,
+                );
+                #[cfg(test)]
+                gpu.qsa_gate_fused_uses
+                    .set(gpu.qsa_gate_fused_uses.get() + 1);
             } else {
                 Metal::encode(
                     cmd,
@@ -611,15 +643,20 @@ impl<'a> FlashQsa<'a> {
                     1024,
                 );
             }
-            let gated = half(6144)?;
-            Metal::encode(
-                cmd,
-                &gpu.qsa.gate,
-                &[&attention.buffer, &qg.buffer, &gated.buffer],
-                [256u32],
-                groups(192),
-                32,
-            );
+            let gated = if fused_gate {
+                attention.clone()
+            } else {
+                let gated = half(6144)?;
+                Metal::encode(
+                    cmd,
+                    &gpu.qsa.gate,
+                    &[&attention.buffer, &qg.buffer, &gated.buffer],
+                    [256u32],
+                    groups(192),
+                    32,
+                );
+                gated
+            };
             let out = self
                 .out
                 .encode_row(cmd, &gated, Storage::StorageModeShared)?;

@@ -196,3 +196,35 @@ kernel void ar10_qsa_prepare(const device half* qg [[buffer(0)]],const device ha
         out[slot+32]=half(xp*c+xv*s);
     }
 }
+
+kernel void ar10_qsa_attention_gate(const device half* queries [[buffer(0)]], const device half* keys [[buffer(1)]],
+    const device half* values [[buffer(2)]], device half* out [[buffer(3)]],
+    const device uint* positions [[buffer(4)]], constant uint* params [[buffer(6)]],const device half* qg [[buffer(5)]], uint head [[threadgroup_position_in_grid]],
+    uint stripe [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float outputs[1024], maxima[32], sums[32];
+    float q[8], o[8]={};
+    for(uint j=0;j<8;++j) q[j]=float(queries[head*256+lane*8+j])/16.0f;
+    float top=-FLT_MAX, sum=0;
+    for(uint t=stripe;t<params[0];t+=32) {
+        uint base=(params[1]?positions[t]:t)*512+(head/12)*256+lane*8;
+        float score=0;
+        for(uint j=0;j<8;++j) score+=q[j]*float(keys[base+j]);
+        score=simd_sum(score);
+        float next=max(top,score), factor=fast::exp(top-next), weight=fast::exp(score-next);
+        top=next;
+        sum=sum*factor+weight;
+        for(uint j=0;j<8;++j) o[j]=o[j]*factor+weight*float(values[base+j]);
+    }
+    if(lane==0) { maxima[stripe]=top; sums[stripe]=sum; }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    float m=maxima[lane];
+    float factor=fast::exp(m-simd_max(m));
+    float denominator=simd_sum(sums[lane]*factor);
+    for(uint j=0;j<8;++j) {
+        outputs[lane*32+stripe]=o[j];
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        o[j]=simd_sum(outputs[stripe*32+lane]*factor)/denominator;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if(lane==0) for(uint j=0;j<8;++j) out[head*256+stripe*8+j]=half(o[j])*hc_sigmoid(qg[(head*2+1)*256+stripe*8+j]);
+}

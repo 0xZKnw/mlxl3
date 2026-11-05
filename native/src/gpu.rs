@@ -215,6 +215,9 @@ pub struct Metal {
     gdn_norm_gate: std::cell::Cell<bool>,
     gdn_joint_ab: std::cell::Cell<bool>,
     qsa_prepare: std::cell::Cell<bool>,
+    qsa_gate_fused: std::cell::Cell<bool>,
+    #[cfg(test)]
+    qsa_gate_fused_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     qsa_prepare_uses: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -389,6 +392,7 @@ impl Metal {
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
             let gdn_joint_ab = hc_kernel_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
             let qsa_prepare = hc_kernel_setting("MLXL3_NATIVE_QSA_PREPARE")?;
+            let qsa_gate_fused = hc_kernel_setting("MLXL3_NATIVE_QSA_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             // Only qualified L1 consumers defer completion, so use L1's hardware default.
             let moe_deferred = match std::env::var("MLXL3_NATIVE_MOE_DEFERRED") {
@@ -673,7 +677,7 @@ impl Metal {
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
-            let qsa = qsa::Pipelines::load(&pipeline, qsa_prepare)?;
+            let qsa = qsa::Pipelines::load(&pipeline, qsa_prepare, qsa_gate_fused)?;
             let gdn = gdn::Pipelines::load(&pipeline, gdn_norm_gate, gdn_joint_ab)?;
             let logsumexp = pipeline("flash_logsumexp")?;
             let ple = ple::Pipelines::load(&pipeline)?;
@@ -690,6 +694,9 @@ impl Metal {
                 gdn_norm_gate: std::cell::Cell::new(gdn_norm_gate),
                 gdn_joint_ab: std::cell::Cell::new(gdn_joint_ab),
                 qsa_prepare: std::cell::Cell::new(qsa_prepare),
+                qsa_gate_fused: std::cell::Cell::new(qsa_gate_fused),
+                #[cfg(test)]
+                qsa_gate_fused_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 qsa_prepare_uses: std::cell::Cell::new(0),
                 #[cfg(test)]

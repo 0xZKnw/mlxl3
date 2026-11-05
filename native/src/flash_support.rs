@@ -3719,3 +3719,48 @@ fn gdn_private_epilogue_requires_every_actual_consumer_guard() {
     kani::cover!(trace && !actual);
     kani::cover!(!private_f32_consumer && !actual);
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar10_qsa_gate_eligible(
+    enabled: bool,
+    trace: bool,
+    fp32: bool,
+    keys: u32,
+    sparse: bool,
+) -> bool {
+    enabled && !trace && fp32 && !sparse && (1..1024).contains(&keys)
+}
+#[test]
+fn ar10_qsa_gate_keeps_short_dense_private_domain() {
+    for keys in [0, 1, 87, 1023, 1024, u32::MAX] {
+        assert_eq!(
+            ar10_qsa_gate_eligible(true, false, true, keys, false),
+            (1..1024).contains(&keys)
+        );
+        for (enabled, trace, fp32, sparse) in [
+            (false, false, true, false),
+            (true, true, true, false),
+            (true, false, false, false),
+            (true, false, true, true),
+        ] {
+            assert!(!ar10_qsa_gate_eligible(enabled, trace, fp32, keys, sparse));
+        }
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar10_qsa_gate_requires_every_actual_short_dense_guard() {
+    let (enabled, trace, fp32, sparse): (bool, bool, bool, bool) = kani::any();
+    let keys: u32 = kani::any();
+    let actual = ar10_qsa_gate_eligible(enabled, trace, fp32, keys, sparse);
+    if actual {
+        assert!(enabled && !trace && fp32 && !sparse && keys > 0 && keys < 1024);
+    }
+    if enabled && !trace && fp32 && !sparse && keys > 0 && keys < 1024 {
+        assert!(actual);
+    }
+    kani::cover!(actual && keys == 1);
+    kani::cover!(actual && keys == 1023);
+    kani::cover!(!actual && keys == 0);
+    kani::cover!(!actual && sparse);
+}

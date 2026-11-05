@@ -81,6 +81,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
         "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
         "flash_support::deferred_moe_cannot_escape_the_existing_cross_layer_guard",
+        "flash_support::ar10_qsa_gate_requires_every_actual_short_dense_guard",
         "flash_support::gdn_private_epilogue_requires_every_actual_consumer_guard",
         "ssd_reads::common_queue_tests::native_common_queue_flag_is_strict_and_off_without_override",
         "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
