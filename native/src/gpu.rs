@@ -379,6 +379,10 @@ pub struct Metal {
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
+    moe_finish_mix: std::cell::Cell<bool>,
+    moe_finish_mix_pipeline: Option<ComputePipelineState>,
+    #[cfg(test)]
+    moe_finish_mix_uses: std::cell::Cell<usize>,
     gate_dot: [ComputePipelineState; 2],
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
@@ -450,6 +454,7 @@ impl Metal {
                 hc_kernel_setting("MLXL3_NATIVE_QMV_K_PRELOAD")?,
                 hc_kernel_setting("MLXL3_NATIVE_H128_SIMD")?,
             ]);
+            let moe_finish_mix = hc_kernel_setting("MLXL3_NATIVE_MOE_FINISH_MIX")?;
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
             let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
@@ -814,6 +819,9 @@ impl Metal {
             ];
             let moe_switch = [pipeline("moe_switch_half")?, pipeline("moe_switch_float")?];
             let moe_mix = [pipeline("moe_mix_half")?, pipeline("moe_mix_float")?];
+            let moe_finish_mix_pipeline = moe_finish_mix
+                .then(|| pipeline("moe_finish_mix_float"))
+                .transpose()?;
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
@@ -988,6 +996,10 @@ impl Metal {
                 ple,
                 moe_switch,
                 moe_mix,
+                moe_finish_mix: std::cell::Cell::new(moe_finish_mix),
+                moe_finish_mix_pipeline,
+                #[cfg(test)]
+                moe_finish_mix_uses: std::cell::Cell::new(0),
                 gate_dot,
                 gate_softmax,
                 route_half,

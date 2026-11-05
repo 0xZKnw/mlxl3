@@ -1,4 +1,7 @@
-use super::{FlashExpert, FlashGate, MatrixView, Metal, buffer, read_weight, view::FloatType};
+use super::{
+    FlashExpert, FlashGate, MatrixView, Metal, buffer, projection::PendingExpertFinish,
+    read_weight, view::FloatType,
+};
 use crate::{
     checkpoint::{self, Checkpoint, TensorInfo},
     flash_support::{DemandPlan, EXPERT_BYTES, ExpertCache, ExpertFill},
@@ -373,6 +376,18 @@ impl<'a> FlashMoeRow<'a> {
             #[cfg(test)]
             let mut extra_wave_submissions = 0;
             let mut outputs = BTreeMap::new();
+            let mut pending_finishes = BTreeMap::new();
+            let axis = gpu.expert_ar_enabled[3].get() && !trace && x.layout.shape == [1, 2560];
+            let finish_mix = gpu.moe_finish_mix_pipeline.as_ref().is_some_and(|p| {
+                crate::expert_ar_policy::finish_mix_eligible(
+                    gpu.moe_finish_mix.get(),
+                    x.dtype == FloatType::F32,
+                    trace,
+                    axis,
+                    p.thread_execution_width() as usize,
+                    p.max_total_threads_per_threadgroup() as usize,
+                )
+            });
             let multiplier = MatrixView::output(
                 gpu,
                 x.dtype,
@@ -385,7 +400,11 @@ impl<'a> FlashMoeRow<'a> {
                 },
             )?;
             let values = MatrixView::output(gpu, x.dtype, 1, 2560, Storage::StorageModeShared)?;
-            let slab = if gpu.expert_ar_enabled[2].get() && !trace && x.layout.shape == [1, 2560] {
+            let slab = if gpu.expert_ar_enabled[2].get()
+                && !finish_mix
+                && !trace
+                && x.layout.shape == [1, 2560]
+            {
                 let backing = buffer(&gpu.device, 51200, Storage::StorageModePrivate)?;
                 #[cfg(test)]
                 gpu.expert_ar_uses[2].set(gpu.expert_ar_uses[2].get() + 1);
@@ -425,7 +444,6 @@ impl<'a> FlashMoeRow<'a> {
                 MTLSize::new(1, 1, 1),
                 512,
             );
-            let axis = gpu.expert_ar_enabled[3].get() && !trace && x.layout.shape == [1, 2560];
             if axis {
                 let mut hot = Vec::new();
                 for &(slot, hit) in &plan.routes {
@@ -443,14 +461,21 @@ impl<'a> FlashMoeRow<'a> {
                         .iter()
                         .map(|&slot| destination(slot))
                         .collect::<Result<Vec<_>>>()?;
-                    let contributions = FlashExpert::encode_ready_cohort(
-                        &command,
-                        x,
-                        &experts,
-                        &targets,
-                        Storage::StorageModePrivate,
-                    )?;
-                    outputs.extend(hot.into_iter().zip(contributions));
+                    if finish_mix {
+                        let pending = FlashExpert::encode_ready_cohort_pending(
+                            &command, x, &experts, &targets,
+                        )?;
+                        pending_finishes.extend(hot.into_iter().zip(pending));
+                    } else {
+                        let contributions = FlashExpert::encode_ready_cohort(
+                            &command,
+                            x,
+                            &experts,
+                            &targets,
+                            Storage::StorageModePrivate,
+                        )?;
+                        outputs.extend(hot.into_iter().zip(contributions));
+                    }
                 }
             } else {
                 for &(slot, hit) in &plan.routes {
@@ -516,14 +541,21 @@ impl<'a> FlashMoeRow<'a> {
                             .iter()
                             .map(|&slot| destination(slot))
                             .collect::<Result<Vec<_>>>()?;
-                        let contributions = FlashExpert::encode_ready_cohort(
-                            &command,
-                            x,
-                            &experts,
-                            &targets,
-                            Storage::StorageModePrivate,
-                        )?;
-                        outputs.extend(ready.into_iter().zip(contributions));
+                        if finish_mix {
+                            let pending = FlashExpert::encode_ready_cohort_pending(
+                                &command, x, &experts, &targets,
+                            )?;
+                            pending_finishes.extend(ready.into_iter().zip(pending));
+                        } else {
+                            let contributions = FlashExpert::encode_ready_cohort(
+                                &command,
+                                x,
+                                &experts,
+                                &targets,
+                                Storage::StorageModePrivate,
+                            )?;
+                            outputs.extend(ready.into_iter().zip(contributions));
+                        }
                     }
                     if reads.remaining() == 0 {
                         break;
@@ -559,30 +591,49 @@ impl<'a> FlashMoeRow<'a> {
                     };
                 }
             }
-            let mut bindings = plan
-                .routes
-                .iter()
-                .map(|(slot, _)| {
-                    let output = outputs
-                        .get(slot)
-                        .context("missing ordered expert contribution")?;
-                    Ok((output, destination(*slot)?.map_or(0, |(_, offset)| offset)))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            bindings.extend([
-                (&shared, 0),
-                (&weights.buffer, 0),
-                (&multiplier.buffer, 0),
-                (&values.buffer, 0),
-            ]);
-            Metal::encode_bound(
-                &command,
-                &gpu.moe_mix[dtype],
-                bindings.into_iter(),
-                [2560u32],
-                MTLSize::new(80, 1, 1),
-                32,
-            );
+            if finish_mix {
+                let terms = plan
+                    .routes
+                    .iter()
+                    .map(|(slot, _)| {
+                        pending_finishes
+                            .get(slot)
+                            .context("missing ordered pending expert finish")
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                PendingExpertFinish::encode_mix(
+                    gpu,
+                    &command,
+                    &terms,
+                    &shared,
+                    [&weights, &multiplier, &values],
+                )?;
+            } else {
+                let mut bindings = plan
+                    .routes
+                    .iter()
+                    .map(|(slot, _)| {
+                        let output = outputs
+                            .get(slot)
+                            .context("missing ordered expert contribution")?;
+                        Ok((output, destination(*slot)?.map_or(0, |(_, offset)| offset)))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                bindings.extend([
+                    (&shared, 0),
+                    (&weights.buffer, 0),
+                    (&multiplier.buffer, 0),
+                    (&values.buffer, 0),
+                ]);
+                Metal::encode_bound(
+                    &command,
+                    &gpu.moe_mix[dtype],
+                    bindings.into_iter(),
+                    [2560u32],
+                    MTLSize::new(80, 1, 1),
+                    32,
+                );
+            }
             #[cfg(test)]
             {
                 timeline.push(serde_json::json!({"event":"final_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));

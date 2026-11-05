@@ -1184,6 +1184,97 @@ pub struct FlashExpert<'a> {
     routed: bool,
 }
 
+pub(super) struct PendingExpertFinish {
+    pub(super) partial: Buffer,
+    pub(super) partial_offset: u64,
+    pub(super) svh: Buffer,
+    pub(super) svh_offset: u64,
+}
+enum ReadyCohort {
+    Finished(Vec<Buffer>),
+    Pending(Vec<PendingExpertFinish>),
+}
+
+impl PendingExpertFinish {
+    pub(super) fn encode_mix(
+        gpu: &Metal,
+        cmd: &CommandBufferRef,
+        terms: &[&Self],
+        shared: &Buffer,
+        views: [&MatrixView; 3],
+    ) -> Result<()> {
+        let [scores, multiplier, out] = views;
+        ensure!(
+            terms.len() == 10 && gpu.owns_command_queue(cmd),
+            "invalid finish/mix route count or command owner"
+        );
+        let pipeline = gpu
+            .moe_finish_mix_pipeline
+            .as_ref()
+            .context("finish/mix pipeline was not loaded")?;
+        ensure!(
+            crate::expert_ar_policy::finish_mix_eligible(
+                gpu.moe_finish_mix.get(),
+                out.dtype == super::view::FloatType::F32,
+                false,
+                gpu.expert_ar_enabled[3].get(),
+                pipeline.thread_execution_width() as usize,
+                pipeline.max_total_threads_per_threadgroup() as usize
+            ),
+            "ineligible finish/mix pipeline"
+        );
+        for (view, width) in views.into_iter().zip([10, 1, 2560]) {
+            ensure!(
+                view.dtype == super::view::FloatType::F32
+                    && view.shape() == [1, width]
+                    && view.layout.offset == 0
+                    && view.layout.strides[1] == 1
+                    && view.buffer.device().registry_id() == gpu.device.registry_id(),
+                "invalid finish/mix scalar/output view"
+            );
+        }
+        ensure!(
+            shared.length() >= 5120 && shared.device().registry_id() == gpu.device.registry_id(),
+            "invalid shared contribution"
+        );
+        for term in terms {
+            ensure!(
+                crate::expert_ar_policy::finish_view_valid(
+                    term.partial_offset,
+                    term.partial.length(),
+                    term.svh_offset,
+                    term.svh.length()
+                ) && term.partial.device().registry_id() == gpu.device.registry_id()
+                    && term.svh.device().registry_id() == gpu.device.registry_id(),
+                "invalid pending expert finish view"
+            );
+        }
+        let mut bindings = terms
+            .iter()
+            .map(|term| (&term.partial, term.partial_offset))
+            .collect::<Vec<_>>();
+        bindings.extend(terms.iter().map(|term| (&term.svh, term.svh_offset)));
+        bindings.extend([
+            (shared, 0),
+            (&scores.buffer, 0),
+            (&multiplier.buffer, 0),
+            (&out.buffer, 0),
+        ]);
+        Metal::encode_bound(
+            cmd,
+            pipeline,
+            bindings.into_iter(),
+            [2560u32],
+            MTLSize::new(20, 1, 1),
+            640,
+        );
+        #[cfg(test)]
+        gpu.moe_finish_mix_uses
+            .set(gpu.moe_finish_mix_uses.get() + 1);
+        Ok(())
+    }
+}
+
 impl<'a> FlashExpert<'a> {
     pub fn load(gpu: &'a Metal, checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
         let layer = |name| FlashProjection::load(gpu, checkpoint, &format!("{prefix}.{name}_proj"));
@@ -1296,6 +1387,37 @@ impl<'a> FlashExpert<'a> {
         destinations: &[Option<(&Buffer, u64)>],
         storage: Storage,
     ) -> Result<Vec<Buffer>> {
+        match Self::encode_ready_cohort_impl(cmd, x, experts, destinations, storage, false)? {
+            ReadyCohort::Finished(values) => Ok(values),
+            ReadyCohort::Pending(_) => anyhow::bail!("unexpected pending expert finish"),
+        }
+    }
+    pub(super) fn encode_ready_cohort_pending(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+    ) -> Result<Vec<PendingExpertFinish>> {
+        match Self::encode_ready_cohort_impl(
+            cmd,
+            x,
+            experts,
+            destinations,
+            Storage::StorageModePrivate,
+            true,
+        )? {
+            ReadyCohort::Pending(values) => Ok(values),
+            ReadyCohort::Finished(_) => anyhow::bail!("missing pending expert finish"),
+        }
+    }
+    fn encode_ready_cohort_impl(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+        storage: Storage,
+        pending_finish: bool,
+    ) -> Result<ReadyCohort> {
         ensure!(
             crate::expert_ar_policy::cohort(experts.len(), destinations.len()),
             "invalid ready expert cohort"
@@ -1305,11 +1427,16 @@ impl<'a> FlashExpert<'a> {
             std::ptr::eq(gpu, expert.gate.metal) && expert.routed && x.layout.shape == [1, 2560]
         });
         if !gpu.expert_ar_enabled[3].get() || !eligible {
+            ensure!(
+                !pending_finish,
+                "pending finishes require the actual ready expert axis"
+            );
             return experts
                 .iter()
                 .zip(destinations)
                 .map(|(expert, &destination)| expert.encode_view_into(cmd, x, storage, destination))
-                .collect();
+                .collect::<Result<Vec<_>>>()
+                .map(ReadyCohort::Finished);
         }
         for expert in experts {
             ensure!(
@@ -1420,6 +1547,25 @@ impl<'a> FlashExpert<'a> {
             )?;
         }
         Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, 640, &partial)?;
+        #[cfg(test)]
+        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n as u64);
+        if pending_finish {
+            ensure!(
+                destinations.iter().all(Option::is_none),
+                "pending finishes cannot materialize destinations"
+            );
+            let values = experts
+                .iter()
+                .enumerate()
+                .map(|(index, expert)| PendingExpertFinish {
+                    partial: partial.clone(),
+                    partial_offset: index as u64 * 10240,
+                    svh: expert.down.svh.clone(),
+                    svh_offset: expert.down.offsets.svh,
+                })
+                .collect();
+            return Ok(ReadyCohort::Pending(values));
+        }
         let mut outputs = Vec::with_capacity(n);
         for (index, (expert, &destination)) in experts.iter().zip(destinations).enumerate() {
             let (output, offset) = if let Some((output, offset)) = destination {
@@ -1442,9 +1588,7 @@ impl<'a> FlashExpert<'a> {
             )?;
             outputs.push(output);
         }
-        #[cfg(test)]
-        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n as u64);
-        Ok(outputs)
+        Ok(ReadyCohort::Finished(outputs))
     }
 
     fn axis_projection(&self, stage: usize) -> &FlashProjection<'a> {
@@ -2353,3 +2497,7 @@ mod ar20_projection_tests;
 #[cfg(test)]
 #[path = "resident_bundle_tests.rs"]
 mod resident_bundle_tests;
+
+#[cfg(test)]
+#[path = "ar20_finish_mix_tests.rs"]
+mod ar20_finish_mix_tests;

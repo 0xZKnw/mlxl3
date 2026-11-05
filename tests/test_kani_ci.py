@@ -84,6 +84,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::ar20_head_gates_require_all_actual_runtime_and_capability_guards",
         "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
         "flash_support::slru::slru_four_actual_promotions_preserve_every_slot_and_protected_capacity",
+        "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds",
         "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
         "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
         "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
