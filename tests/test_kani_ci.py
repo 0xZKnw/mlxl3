@@ -84,6 +84,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "expert_ar_policy::expert_ar_flags_are_strict_off_and_require_qualified_hardware",
         "expert_ar_policy::expert_ar_prefixes_are_bounded_disjoint_and_never_overflow",
         "expert_ar_policy::expert_ar_selection_requires_exact_actual_record_extents",
+        "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",
+        "ssd_reads::split_record_tests::native_split_record_claims_never_overlap_or_repeat",
         "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots",
         "flash_support::deferred_moe_cannot_escape_the_existing_cross_layer_guard",
         "flash_support::ar10_whole_gdn_requires_every_real_private_capability_guard",
