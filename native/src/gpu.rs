@@ -388,6 +388,7 @@ pub struct Metal {
     #[cfg(test)]
     moe_finish_mix_uses: std::cell::Cell<usize>,
     gate_dot: [ComputePipelineState; 2],
+    router_pair: gate::PairedDot,
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
@@ -827,6 +828,10 @@ impl Metal {
                 .collect();
             let inverse = upload(&device, &perm)?;
             let gate_dot = [pipeline("gate_dot_half")?, pipeline("gate_dot_float")?];
+            let router_pair = gate::PairedDot::load(
+                &pipeline,
+                hc_kernel_setting("MLXL3_NATIVE_ROUTER_PAIR")?,
+            )?;
             let gate_softmax = [
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,
@@ -1019,6 +1024,7 @@ impl Metal {
                 #[cfg(test)]
                 moe_finish_mix_uses: std::cell::Cell::new(0),
                 gate_dot,
+                router_pair,
                 gate_softmax,
                 route_half,
                 route_float,

@@ -19,6 +19,8 @@ pub use contracts::{
 };
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar20_kernel_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod ar30_router_policy;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dec_one;
 #[cfg(any(feature = "mlx", test, kani))]
