@@ -509,12 +509,12 @@ fn physical_expert_axis_matches_independent_stock_and_ready_cohorts() -> Result<
                         .map(|_| FlashExpert::from_backing(&gpu, &backing))
                         .collect::<Result<Vec<_>>>()?;
                     let x = input(&gpu, case, fp32)?;
-                    let expert_refs = experts.iter().collect::<Vec<_>>();
                     let before = gpu.expert_axis_dispatches.get();
                     let uses = gpu.expert_ar_uses[3].get();
                     let finish_uses = gpu.expert_ar_uses[0].get();
                     let prepare_uses = gpu.expert_ar_uses[1].get();
                     let outputs = gpu.command(|cmd| {
+                        let expert_refs = experts.iter().collect::<Vec<_>>();
                         let out = FlashExpert::encode_ready_cohort(
                             cmd,
                             &x,

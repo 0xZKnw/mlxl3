@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+use metal::foreign_types::ForeignType;
 
 #[test]
 fn record_reuse_requires_quiescence_and_foreground_ownership() {

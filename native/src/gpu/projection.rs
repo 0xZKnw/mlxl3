@@ -572,6 +572,7 @@ impl<'a> FlashProjection<'a> {
         }
         Ok(dest)
     }
+    #[allow(clippy::too_many_arguments)] // Explicit buffer offsets mirror the Metal bindings.
     fn encode_finish(
         &self,
         cmd: &CommandBufferRef,
@@ -1368,7 +1369,21 @@ impl<'a> FlashExpert<'a> {
     }
 
     fn axis_nt(projection: &FlashProjection<'_>) -> u32 {
-        projection.nt
+        let gpu = projection.metal;
+        if crate::flash_qmv::routed_nt2_key(
+            [projection.input, projection.output],
+            projection.splits,
+            [projection.k, projection.cb as u32, projection.nt],
+            projection.routed_record,
+            gpu.routed_nt2_gu.get(),
+            gpu.routed_nt2_down.get(),
+        )
+        .is_some()
+        {
+            2
+        } else {
+            projection.nt
+        }
     }
 
     fn encode_axis_qmv(
@@ -1432,6 +1447,11 @@ impl<'a> FlashExpert<'a> {
             ),
             128,
         );
+        #[cfg(test)]
+        if nt == 2 {
+            let key = usize::from(stage == 2);
+            gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + experts.len() as u64);
+        }
         #[cfg(test)]
         gpu.expert_axis_dispatches
             .set(gpu.expert_axis_dispatches.get() + 1);
