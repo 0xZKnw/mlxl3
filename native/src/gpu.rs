@@ -204,6 +204,34 @@ fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
     Ok(dest)
 }
 
+// Terminal errors still reach the caller's existing status checks and drain.
+fn wait_command(command: &CommandBufferRef, enabled: bool) -> [u64; 4] {
+    let terminal = || {
+        matches!(
+            command.status(),
+            MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error
+        )
+    };
+    if enabled {
+        if terminal() {
+            return [1, 0, 0, 0];
+        }
+        let start = std::time::Instant::now();
+        let mut polls = 0;
+        while crate::gpu_wait_policy::may_spin(enabled, start.elapsed().as_nanos(), polls) {
+            std::hint::spin_loop();
+            polls += 1;
+            if terminal() {
+                return [0, 1, 0, u64::from(polls)];
+            }
+        }
+        command.wait_until_completed();
+        return [0, 0, 1, u64::from(polls)];
+    }
+    command.wait_until_completed();
+    [0, 0, 1, 0]
+}
+
 pub struct Metal {
     device: Device,
     queue: CommandQueue,
@@ -297,6 +325,9 @@ pub struct Metal {
     flash_fixed_submissions: [std::cell::Cell<u64>; 2],
     flash_expert_scratch_setting: Option<bool>,
     expert_ar_enabled: [std::cell::Cell<bool>; 4],
+    spin_wait_enabled: bool,
+    #[cfg(test)]
+    spin_wait_stats: std::rc::Rc<[std::cell::Cell<u64>; 4]>,
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: Option<ComputePipelineState>,
@@ -395,6 +426,7 @@ impl Metal {
                 crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
+            let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
             let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
@@ -830,6 +862,9 @@ impl Metal {
                 flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 flash_expert_scratch_setting,
                 expert_ar_enabled: expert_ar_enabled.map(std::cell::Cell::new),
+                spin_wait_enabled,
+                #[cfg(test)]
+                spin_wait_stats: std::rc::Rc::new(std::array::from_fn(|_| std::cell::Cell::new(0))),
                 #[cfg(test)]
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
@@ -874,6 +909,16 @@ impl Metal {
         })
     }
 
+    fn wait_command(&self, command: &CommandBufferRef) {
+        let stats = wait_command(command, self.spin_wait_enabled);
+        #[cfg(test)]
+        for (counter, value) in self.spin_wait_stats.iter().zip(stats) {
+            counter.set(counter.get() + value);
+        }
+        #[cfg(not(test))]
+        let _ = stats;
+    }
+
     fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
         objc::rc::autoreleasepool(|| {
             let cmd = self.queue.new_command_buffer();
@@ -892,7 +937,7 @@ impl Metal {
             }
             #[cfg(test)]
             let _wait = crate::flash_profile::span("native.central_wait");
-            cmd.wait_until_completed();
+            self.wait_command(cmd);
             ensure!(
                 cmd.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",
@@ -944,7 +989,7 @@ impl Metal {
                 threads,
             );
             command.commit();
-            command.wait_until_completed();
+            self.wait_command(command);
             ensure!(
                 command.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",

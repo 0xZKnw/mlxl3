@@ -38,6 +38,9 @@ pub struct FlashMoeRow<'a> {
 }
 
 pub struct MoeOutput {
+    spin_wait_enabled: bool,
+    #[cfg(test)]
+    spin_wait_stats: Rc<[std::cell::Cell<u64>; 4]>,
     commands: Vec<CommandBuffer>,
     values: MatrixView,
     pub indices: Vec<u32>,
@@ -58,7 +61,13 @@ impl MoeOutput {
         let _wait = crate::flash_profile::span("native.moe_wait");
         let mut failure = None;
         for command in &self.commands {
-            command.wait_until_completed();
+            let stats = super::wait_command(command, self.spin_wait_enabled);
+            #[cfg(test)]
+            for (counter, value) in self.spin_wait_stats.iter().zip(stats) {
+                counter.set(counter.get() + value);
+            }
+            #[cfg(not(test))]
+            let _ = stats;
             if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
                 failure = Some(anyhow::anyhow!(
                     "Flash MoE command failed ({:?})",
@@ -572,6 +581,9 @@ impl<'a> FlashMoeRow<'a> {
             self.last.push(command);
             guard.commit();
             Ok(MoeOutput {
+                spin_wait_enabled: gpu.spin_wait_enabled,
+                #[cfg(test)]
+                spin_wait_stats: gpu.spin_wait_stats.clone(),
                 commands: self.last.clone(),
                 #[cfg(test)]
                 timeline,
@@ -659,7 +671,7 @@ impl FlashMoeRow<'_> {
     fn drain_commands(&mut self) -> Result<()> {
         let mut failure = None;
         for command in &self.last {
-            command.wait_until_completed();
+            self.gpu.wait_command(command);
             if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
                 failure = Some(anyhow::anyhow!("Flash MoE command failed during drain"));
             }

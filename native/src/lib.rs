@@ -62,6 +62,8 @@ pub(crate) mod gdn_epilogue;
 pub mod gemma4;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub mod gpu;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod gpu_wait_policy;
 #[cfg(any(test, kani))]
 mod hc_gdn_policy_tests;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
