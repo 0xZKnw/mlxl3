@@ -1273,3 +1273,7 @@ mod ar10_model_tests;
 #[cfg(test)]
 #[path = "gpu/ar20_kernel_tests.rs"]
 mod ar20_kernel_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar20_capture_tests.rs"]
+mod ar20_capture_tests;

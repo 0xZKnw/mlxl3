@@ -11,7 +11,7 @@ fn pipeline(gpu: &Metal, name: &str) -> Result<ComputePipelineState> {
         .map_err(anyhow::Error::msg)
 }
 
-fn compiled_bits(gpu: &Metal) -> Result<u32> {
+pub(super) fn compiled_bits(gpu: &Metal) -> Result<u32> {
     let p = pipeline(gpu, "ar20_compiled_bits")?;
     let out = buffer(&gpu.device, 4, Storage::StorageModeShared)?;
     gpu.command(|cmd| {
