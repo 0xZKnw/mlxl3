@@ -78,6 +78,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "qsa_chain_policy::qsa_append_chain_actual_guard_preserves_dense_cpu_free_boundary",
+        "qsa_chain_policy::qsa_actual_publication_and_abandon_are_fail_closed",
         "device_hot_policy::device_hot_defaults_preserve_strict_literals_and_both_hardware_guards",
         "device_hot_policy::device_hot_actual_admission_offsets_and_peak_are_bounded",
         "device_hot_policy::device_hot_actual_identity_readers_and_pending_lifecycle_are_fail_closed",
