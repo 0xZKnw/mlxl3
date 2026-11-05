@@ -1,0 +1,90 @@
+{
+  "status": "passed",
+  "base_sha": "d872a2f081c5ce07bbf6e8df9a4cb708fb176554",
+  "target_dir": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10-defaults/cargo-target",
+  "gpu_executed": false,
+  "commands": [
+    {
+      "name": "no-direct-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "budget_seconds": 180,
+      "pid": 71842,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 10.893954917
+    },
+    {
+      "name": "direct-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "budget_seconds": 180,
+      "pid": 72286,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 2.670304875000001
+    },
+    {
+      "name": "direct-unit-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "chat"
+      ],
+      "status": "completed",
+      "budget_seconds": 180,
+      "pid": 72332,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 29.699312916000004
+    },
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "status": "completed",
+      "budget_seconds": 30,
+      "pid": 72425,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 0.6184940409999982
+    }
+  ],
+  "sources": {
+    "native/src/ar10_defaults.rs": "25690bc7696c5da34da85c49a11e185946c9b9b9436eb98171372d7ff84c7cab",
+    "native/src/expert_ar_policy.rs": "c985e2f231075c8ff93b9fea243af18a22f7fcbb01b4dd72c7574058eb703bfd",
+    "native/src/gpu.rs": "4f8ba95b1738c0be1ad14879852ddbded26fec7ba2be1fec64f8f90b27d07fad",
+    "native/src/gpu/moe.rs": "5d38922268902cf310ab7eb9efc8f60cefd75b991cc44e569b9f1b29d741eedf",
+    "native/src/gpu/flash.rs": "fd36cb025b4f79c801277164402b81ab5a102d35b0e20f5ae6251229b2613ec9",
+    "native/src/gpu/ar10_model_tests.rs": "7c567add83240adbd3bca423836e4828034f7924e4c4809582d7fa0b36d740ed",
+    "native/src/ssd_reads.rs": "3729bfa36e6967dc4be7fea6f0b17a658934e1bc7deaa2aa0e24dedc03594b40",
+    "native/src/lib.rs": "ecb9c818f3f1ee115e91d86dacfd7f8ac9b7a6af42cf547f705fd8b52177c639"
+  }
+}

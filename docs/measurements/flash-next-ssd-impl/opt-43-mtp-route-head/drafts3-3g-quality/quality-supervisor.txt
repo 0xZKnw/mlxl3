@@ -128,6 +128,23 @@ def check_head(log):
     return {"head_components": profile}
 
 
+def reap_child(child):
+    if child is None:
+        return True
+    for sig in [signal.SIGTERM, signal.SIGKILL]:
+        if child.poll() is None:
+            try:
+                os.killpg(child.pid, sig)
+            except ProcessLookupError:
+                pass
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            continue
+        return child.poll() is not None
+    raise TimeoutError("supervised child did not exit after TERM and KILL")
+
+
 def snapshot():
     return {
         key: subprocess.check_output(cmd, text=True, timeout=5)
@@ -154,6 +171,7 @@ try:
             "timeout_seconds": limit,
             "expected_tests": prev["expected_tests"],
             "status": "running",
+            "reaped": False,
             "before": snapshot(),
         }
         records.append(r)
@@ -173,6 +191,7 @@ try:
                     start_new_session=True,
                 )
                 r["pid"] = child.pid
+                (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
                 deadline = time.monotonic() + limit
                 while True:
                     remaining = deadline - time.monotonic()
@@ -350,29 +369,27 @@ try:
             )
             raise
         finally:
-            if child is not None and child.poll() is None:
-                os.killpg(child.pid, signal.SIGTERM)
-                try:
-                    child.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(child.pid, signal.SIGKILL)
-                    child.wait()
-            r["reaped"] = child is None or child.poll() is not None
-            r["seconds"] = time.monotonic() - t
-            (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
-            with (w / "opti.md").open("a") as f:
-                f.write(
-                    "\n- 43-P profil "
-                    + name
-                    + " : **"
-                    + r["status"]
-                    + "**, swapouts+"
-                    + str(r.get("swapout_bytes", "non mesuré"))
-                    + "octets ; quality.json/log.\n"
+            try:
+                r["reaped"] = reap_child(child)
+            except BaseException as cleanup_error:
+                r.update(status="failed", cleanup_error=repr(cleanup_error))
+                raise
+            finally:
+                r["seconds"] = time.monotonic() - t
+                (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+                with (w / "opti.md").open("a") as f:
+                    f.write(
+                        "\n- 43-P profil "
+                        + name
+                        + " : **"
+                        + r["status"]
+                        + "**, swapouts+"
+                        + str(r.get("swapout_bytes", "non mesuré"))
+                        + "octets ; quality.json/log.\n"
+                    )
+                print(
+                    {k: r[k] for k in ["name", "status", "seconds", "swapout_bytes"] if k in r},
+                    flush=True,
                 )
-            print(
-                {k: r[k] for k in ["name", "status", "seconds", "swapout_bytes"] if k in r},
-                flush=True,
-            )
 finally:
     (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")

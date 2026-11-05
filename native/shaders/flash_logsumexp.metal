@@ -58,3 +58,31 @@ kernel void flash_logsumexp(device const half* in [[buffer(0)]],device half* out
     out[0] = isinf(maxval) ? half(maxval) : half(log(normalizer) + maxval);
   }
 }
+
+// A raw-logits maximum is not equivalent: Half subtraction can introduce ties.
+kernel void flash_normalized_greedy(const device half* logits [[buffer(0)]],
+    const device half* lse [[buffer(1)]],device uint* out [[buffer(2)]],
+    constant uint& count [[buffer(3)]],uint tid [[thread_index_in_threadgroup]],
+    uint lane [[thread_index_in_simdgroup]],uint sg [[simdgroup_index_in_threadgroup]]) {
+  if(count!=248320u) {if(tid==0) out[0]=0xffffffffu;return;}
+  threadgroup float values[32];
+  threadgroup uint indices[32], errors[32];
+  float best=-INFINITY;uint index=0xffffffffu;
+  uint invalid=uint(!isfinite(float(lse[0])));
+  for(uint i=tid;i<count;i+=1024u) {
+    float value=float(half(float(logits[i])-float(lse[0])));
+    invalid|=uint(isnan(value)||value==INFINITY);
+    if(isfinite(value)&&(value>best||(value==best&&i<index))) {best=value;index=i;}
+  }
+  float maximum=simd_max(best);
+  uint winner=simd_min(best==maximum?index:0xffffffffu);
+  uint bad=simd_or(invalid);
+  if(lane==0) {values[sg]=maximum;indices[sg]=winner;errors[sg]=bad;}
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  if(sg==0) {
+    maximum=simd_max(values[lane]);
+    winner=simd_min(values[lane]==maximum?indices[lane]:0xffffffffu);
+    bad=simd_or(errors[lane]);
+    if(lane==0) out[0]=bad?0xffffffffu:winner;
+  }
+}

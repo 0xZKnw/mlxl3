@@ -94,3 +94,40 @@ kernel void gdn_gate_row(const device float* normed0 [[buffer(0)]], const device
 }
 kernel void gdn_to_float(const device half* in [[buffer(0)]],device float* out [[buffer(1)]],
     constant uint* extent [[buffer(2)]],uint col [[thread_position_in_grid]]) {out[col]=float(in[col]);}
+
+kernel void gdn_joint_ab(const device half* x [[buffer(0)]],const device half* a [[buffer(1)]],
+    const device half* b [[buffer(2)]],device half* out_a [[buffer(3)]],device half* out_b [[buffer(4)]],
+    constant uint* extent [[buffer(5)]],uint thread_index_in_simdgroup [[thread_index_in_simdgroup]],
+    uint simdgroup_index_in_threadgroup [[simdgroup_index_in_threadgroup]],
+    uint3 position [[threadgroup_position_in_grid]]) {
+    const device half* weight=position.x<12?a:b;
+    device half* out=position.x<12?out_a:out_b;
+    uint3 threadgroup_position_in_grid=uint3(position.x%12,0,0);
+#define K 2560
+#define BM 1
+#define BN 8
+#include "flash_hc_gemv.metal"
+#undef K
+#undef BM
+#undef BN
+}
+
+#define AR20_WHOLE_GDN_ARGS const device half* qkv [[buffer(0)]],const device half* z [[buffer(1)]], \
+    const device half* a [[buffer(2)]],const device half* b [[buffer(3)]],const device half* history [[buffer(4)]], \
+    const device half* weight [[buffer(5)]],const device float* a_log [[buffer(6)]],const device half* dt_bias [[buffer(7)]], \
+    const device float* state_in [[buffer(8)]],device half* history_out [[buffer(9)]],device float* state_out [[buffer(10)]], \
+    const device float* gain [[buffer(11)]],device half* gated [[buffer(12)]],constant uint* params [[buffer(13)]], \
+    uint lid [[thread_index_in_threadgroup]],uint h [[threadgroup_position_in_grid]]
+
+kernel void ar10_gdn_whole(AR20_WHOLE_GDN_ARGS) {
+#define MLXL3_GDN_HEAD_GATES 0
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HEAD_GATES
+}
+
+kernel void ar20_gdn_whole_head_gates(AR20_WHOLE_GDN_ARGS) {
+#define MLXL3_GDN_HEAD_GATES 1
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HEAD_GATES
+}
+#undef AR20_WHOLE_GDN_ARGS

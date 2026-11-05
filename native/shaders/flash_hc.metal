@@ -1,5 +1,37 @@
 // Each of the four streams is normalized independently. Accumulate the same four
 // squares per lane as MLX's contiguous last-axis reduction.
+kernel void hc_write_norm_float(
+    const device float* streams [[buffer(0)]], const device void* branch [[buffer(1)]],
+    const device float* gate [[buffer(2)]], const device float* gain [[buffer(3)]],
+    device float* written [[buffer(4)]], device float* normalized [[buffer(5)]],
+    constant long* layout [[buffer(6)]], uint tid [[thread_index_in_threadgroup]],
+    uint lane [[thread_index_in_simdgroup]], uint sg [[simdgroup_index_in_threadgroup]],
+    uint group [[threadgroup_position_in_grid]]) {
+    #pragma clang fp contract(off)
+    threadgroup float partial[20];
+    float values[4], sum=0;
+    uint base=group*2560+tid*4;
+    for(uint j=0;j<4;++j) {
+        long b=layout[2]+long((base+j)%2560)*layout[3];
+        long g=layout[4]+long(group)*layout[5];
+        float delta=layout[6] ? ((const device float*)branch)[b] : float(((const device half*)branch)[b]);
+        volatile float product=delta*gate[g];
+        volatile float value=streams[layout[0]+long(base+j)*layout[1]]+product;
+        values[j]=value;
+        written[base+j]=value;
+        sum+=values[j]*values[j];
+    }
+    sum=simd_sum(sum);
+    if(lane==0) partial[sg]=sum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if(sg==0) {
+        float total=simd_sum(lane<20?partial[lane]:0.0f);
+        if(lane==0) partial[0]=rsqrt(total*(1.0f/2560.0f)+as_type<float>(uint(layout[7])));
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for(uint j=0;j<4;++j) normalized[base+j]=(values[j]*partial[0])*(1.0f+gain[base+j]);
+}
+
 template <typename T>
 kernel void hc_norm(const device T* x [[buffer(0)]], const device float* gain [[buffer(1)]],
     device T* out [[buffer(2)]], constant long* layout [[buffer(3)]],

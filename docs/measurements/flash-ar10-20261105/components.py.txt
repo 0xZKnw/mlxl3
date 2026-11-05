@@ -1,0 +1,134 @@
+"""AR10 exact components; source-only until an exclusive root GPU grant."""
+import argparse
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OLD = ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"
+MODEL = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+FIXTURES = Path("/Users/justin/.codex/worktrees/issue75-native-flash-ar-boost/mix-stq1_0/docs/measurements/issue75-native-expert-encoder-20261104/quality-01/routed-scratch")
+EXPERT = ["EXPERT_UP_FINISH", "EXPERT_GU_PREPARE", "EXPERT_OUTPUT_SLAB", "EXPERT_AXIS_QMV"]
+NEW = ["HC_WRITE_NORM", "ROUTED_NT2_GU", "ROUTED_NT2_DOWN", *EXPERT, "GDN_WHOLE", "QSA_PREPARE", "QSA_GATE", "GDN_JOINT_AB", "RECORD_REUSE", "READ_SPLIT"]
+# label, exact test, marker, only enabled new flags, required nonvacuous evidence
+PHASES = [
+    ("A01", "gpu::hc::hc_write_norm_tests::physical_hc_write_norm_preserves_written_normalized_and_mixed", "AR10_HC_WRITE_NORM", ["HC_WRITE_NORM"], {"cases": 4, "actual_fused_cases": 2, "half_stream_fallback": True}),
+    ("A02", "gpu::projection::routed_nt2_tests::physical_routed_nt2_preserves_stock_and_screens_stage_shapes", "AR10_ROUTED_NT2", ["ROUTED_NT2_GU", "ROUTED_NT2_DOWN"], {"modes": ["off", "GU", "down", "both"], "samples_per_mode": 6, "experts_per_sample": 16}),
+    ("A03-05", "gpu::projection::routed_scratch_tests::physical_expert_ar_epilogues_match_independent_stock", "NATIVE_EXPERT_AR_COMPONENT", EXPERT, {"words": 81920, "slab_words": 25600, "slab_reordered_routes": 10, "suh_swap_detected_and_restored": True, "initial": [True, True, True, True]}),
+    ("A06", "gpu::projection::routed_scratch_tests::physical_expert_axis_matches_independent_stock_and_ready_cohorts", "NATIVE_EXPERT_AXIS_COMPONENT", EXPERT, {"cohorts": 48, "stock_words": 532480, "mixed_slab_words": 25600, "dispatches_per_cohort": 3, "empty_rejected": True, "uncommitted_error_recovered": True}),
+    ("A07", "gpu::gdn::ar10_gdn_tests::physical_ar10_whole_gdn_matches_canonical_frames", "AR10_GDN_WHOLE", ["GDN_WHOLE"], {"cases": 2, "state_words": 1572864, "history_half_words": 61440, "gated_half_words": 12288, "output_float_words": 5120, "actual_whole_uses": 2, "retained_frames": True}),
+    ("A08", "gpu::qsa::ar10_qsa_tests::physical_ar10_qsa_prepare_matches_canonical", "AR10_QSA_PREPARE", ["QSA_PREPARE"], {"cases": 4, "finite_half_words": 26624}),
+    ("A09", "gpu::qsa::ar10_qsa_tests::physical_ar10_qsa_gated_store_matches_canonical", "AR10_QSA_GATE", ["QSA_GATE"], {"cases": 3, "finite_half_words": 18432}),
+    ("A10", "gpu::gdn::ar10_gdn_tests::physical_ar10_joint_ab_matches_canonical_dense", "AR10_JOINT_AB", ["GDN_JOINT_AB"], {"cases": 2, "finite_half_words": 192}),
+    ("A11", "ssd_reads::record_reuse_tests::physical_record_reuse_preserves_bytes_and_rejects_invalid_owners", "AR10_RECORD_REUSE", ["RECORD_REUSE"], {"reused": 2, "fresh": 2, "bytes": 17, "eof_recovery": True}),
+    ("A12", "ssd_reads::split_record_tests::physical_isolated_shared_record_uses_two_pieces_and_preserves_every_byte", "AR10_READ_SPLIT", ["READ_SPLIT"], {"logical_records": 1, "pieces": 2, "bytes": 1248012}),
+]
+
+def validate(helpers, text, phase, fixture_count):
+    assert "running 1 test" in text
+    assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+    helpers["native_images"](text)
+    evidence = helpers["marker"](text, phase[2])
+    helpers["exact_fields"](evidence, {"parity": True, **phase[4]})
+    if phase[0] == "A01":
+        assert type(evidence["compared_bytes"]) is int and evidence["compared_bytes"] > 0
+    if phase[0] == "A02":
+        helpers["exact_fields"](evidence, {"finite_stock_half_words": (fixture_count - 1) * 4 * 2 * 2560})
+        values = evidence["samples_seconds_per_expert"]
+        assert len(values) == 4 and all(len(row) == 6 for row in values)
+        assert all(type(v) in (int, float) and v > 0 for row in values for v in row)
+        medians = evidence["seconds_per_expert_medians"]
+        assert len(medians) == 4 and all(type(v) in (int, float) and v > 0 for v in medians)
+    if phase[0] == "A03-05":
+        assert type(evidence["up_finish_uses"]) is int and evidence["up_finish_uses"] > 0
+    return evidence
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--freeze", type=Path, default=ROOT / "build/ar10/freeze.json")
+    parser.add_argument("--out", type=Path, default=ROOT / "docs/measurements/flash-ar10-20261105/components-01")
+    args = parser.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    sink = args.out / "report.json"
+    assert not sink.exists(), "refusing to overwrite prior evidence"
+    report = {"status": "preflight", "parity": False, "all_children_joined": True, "phases": []}
+    def save():
+        temporary = sink.with_suffix(".tmp")
+        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+        temporary.replace(sink)
+    def journal(message):
+        with (ROOT / "opti.md").open("a") as stream:
+            stream.write("\nAR10 COMPONENTS " + message + "\n")
+    save()
+    try:
+        helpers = runpy.run_path(str(OLD))
+        freeze = helpers["strict_json"](args.freeze.read_text())
+        lib = ROOT / "build/ar10/frozen/native-libtest"
+        artifact = freeze["artifacts"]["native-libtest"]
+        assert Path(artifact["path"]).resolve() == lib.resolve()
+        assert hashlib.sha256(lib.read_bytes()).hexdigest() == artifact["sha256"]
+        for name, expected in freeze["source_files"].items():
+            assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == expected, name
+        cases = helpers["strict_json"]((FIXTURES / "cases.json").read_text())
+        assert type(cases) is list and len(cases) >= 5
+        report.update(helper_sha256=hashlib.sha256(OLD.read_bytes()).hexdigest(), artifact=artifact, fixture_count=len(cases), status="running")
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"DYLD_PRINT_LIBRARIES": "1", "PYTHONPATH": str(ROOT), "MLXL3_FLASH_MODEL": MODEL, "MLXL3_ROUTED_SCRATCH_FIXTURES": str(FIXTURES), "MLXL3_SSD_CACHE_GIB": "3", "MLXL3_SSD_READERS": "4", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_SSD_OVERLAP": "1", "MLXL3_SSD_CACHE_POLICY": "auto", "MLXL3_PROMPT_CACHE_MIB": "0", "MLXL3_SSD_DYNAMIC_READERS": "0"})
+        for key in ["HC_WORKSPACE", "HC_UP_MIX", "HC_DOWN_INJECT", "SSD_EXTRA_WAVE", "GDN_HALF_ELISION", "GDN_NORM_GATE", "FIXED_RESIDENCY", *NEW]:
+            env["MLXL3_NATIVE_" + key] = "0"
+        for phase in PHASES:
+            runenv = dict(env)
+            for key in phase[3]:
+                runenv["MLXL3_NATIVE_" + key] = "1"
+            command = [str(lib), phase[1], "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+            item = {"label": phase[0], "status": "running", "parity": False, "joined": False, "command": command, "flags": {k: v for k, v in runenv.items() if k.startswith("MLXL3_NATIVE_")}}
+            report["phases"].append(item)
+            report["all_children_joined"] = False
+            save()
+            journal(phase[0] + " STARTED")
+            child, failure = None, None
+            started = time.monotonic()
+            try:
+                path = args.out / (phase[0] + ".log")
+                with path.open("x") as log:
+                    child = subprocess.Popen(command, cwd=ROOT, env=runenv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=180)
+                assert code == 0 and not helpers["members"](child.pid), code
+                item["evidence"] = validate(helpers, path.read_text(), phase, len(cases))
+            except Exception as error:
+                failure = repr(error)
+            finally:
+                item["joined"] = helpers["stop"](child)
+                item["seconds"] = time.monotonic() - started
+                report["all_children_joined"] = all(p["joined"] for p in report["phases"])
+                save()
+            assert item["joined"], "child cleanup failed; refusing later phases"
+            if failure is not None:
+                item.update(status="failed", parity=False, error=failure)
+                save()
+                journal(phase[0] + " FAILED " + failure)
+                continue
+            item.update(status="validated", parity=True)
+            save()
+            journal(phase[0] + " VALIDATED")
+        assert len(report["phases"]) == len(PHASES) and report["all_children_joined"]
+        passed = sum(p["status"] == "validated" for p in report["phases"])
+        report.update(status="validated" if passed == len(PHASES) else "completed_with_failures", parity=passed == len(PHASES))
+        journal(f"{passed}/10 VALIDATED components only; no model-speed claim")
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        if report["phases"] and report["phases"][-1]["status"] == "running":
+            report["phases"][-1]["status"] = "failed"
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+if __name__ == "__main__":
+    main()

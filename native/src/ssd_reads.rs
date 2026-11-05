@@ -67,6 +67,43 @@ pub(crate) fn common_queue_flag(value: Option<&str>) -> Option<bool> {
     crate::flash_support::hc_chain_flag(value, false)
 }
 
+pub(crate) fn record_reuse_eligible(
+    enabled: bool,
+    depth: usize,
+    prefetcher: bool,
+    completed: bool,
+) -> bool {
+    enabled && depth == 0 && !prefetcher && completed
+}
+
+pub(crate) fn isolated_record_ranges(
+    enabled: bool,
+    records: usize,
+    workers: usize,
+    bytes: usize,
+    offset: u64,
+) -> Option<[[usize; 2]; 2]> {
+    if !enabled
+        || records != 1
+        || !(2..=4).contains(&workers)
+        || bytes < 8192
+        || bytes > EXPERT_BYTES as usize
+        || offset.checked_add(bytes as u64).is_none()
+    {
+        return None;
+    }
+    let middle = bytes / 2 / 4096 * 4096;
+    Some([[0, middle], [middle, bytes - middle]])
+}
+
+pub(crate) fn claim_record_part(claimed: u8, index: usize) -> Option<u8> {
+    if claimed > 3 || index >= 2 || claimed & (1 << index) != 0 {
+        None
+    } else {
+        Some(claimed | (1 << index))
+    }
+}
+
 #[cfg(test)]
 #[derive(Default)]
 pub(crate) struct TestReadGate(std::sync::Mutex<bool>, std::sync::Condvar);
@@ -166,8 +203,9 @@ impl Read {
                         "invalid owned SSD destination"
                     );
                     ensure!(!destination.contents().is_null(), "null SSD destination");
-                    // Only this job owns this fresh allocation. No views or buffer
-                    // clones exist until the completed payload is received.
+                    // This job has exclusive CPU-write/future-GPU access: fresh,
+                    // or retired after Completed with all old slot views dropped.
+                    // Old Completed command buffers cannot execute again.
                     let target = unsafe {
                         std::slice::from_raw_parts_mut(destination.contents().cast::<u8>(), bytes)
                     };
@@ -187,14 +225,264 @@ impl Read {
     }
 }
 
+enum ReadWork {
+    Whole(Read),
+    Part {
+        record: Arc<SplitRecord>,
+        index: usize,
+        file: File,
+    },
+}
+impl ReadWork {
+    fn run(self) {
+        match self {
+            Self::Whole(read) => read.run(),
+            Self::Part {
+                record,
+                index,
+                file,
+            } => record.run_part(index, file),
+        }
+    }
+}
+
+struct SplitState {
+    read: Option<Read>,
+    remaining: usize,
+    claimed: u8,
+    errors: [Option<anyhow::Error>; 2],
+    #[cfg(test)]
+    started: Option<Instant>,
+}
+struct SplitRecord {
+    state: Mutex<SplitState>,
+    // The state owns the allocation until both jobs finish; no unsafe Send impl.
+    address: usize,
+    ranges: [[usize; 2]; 2],
+    #[cfg(test)]
+    gates: Option<[Arc<TestReadGate>; 2]>,
+    #[cfg(test)]
+    finished: Arc<AtomicUsize>,
+    #[cfg(test)]
+    started_parts: Arc<AtomicUsize>,
+}
+impl SplitRecord {
+    fn new(
+        mut read: Read,
+        ranges: [[usize; 2]; 2],
+        #[cfg(test)] gates: Option<[Arc<TestReadGate>; 2]>,
+        #[cfg(test)] finished: Arc<AtomicUsize>,
+        #[cfg(test)] started_parts: Arc<AtomicUsize>,
+    ) -> Result<Arc<Self>> {
+        ensure!(
+            ranges[0] == [0, ranges[1][0]]
+                && ranges[0][1] > 0
+                && ranges[1][1] > 0
+                && ranges[1][0].checked_add(ranges[1][1]) == Some(read.bytes),
+            "invalid isolated record ranges"
+        );
+        let address = match &mut read.payload {
+            ReadPayload::Bytes(bytes) => {
+                bytes.try_reserve_exact(read.bytes)?;
+                bytes.resize(read.bytes, 0);
+                bytes.as_mut_ptr() as usize
+            }
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            ReadPayload::Shared(buffer) => {
+                ensure!(
+                    direct_destination_valid(
+                        read.bytes,
+                        buffer.length(),
+                        buffer.storage_mode() == metal::MTLStorageMode::Shared
+                    ),
+                    "invalid split Shared destination"
+                );
+                buffer.contents() as usize
+            }
+        };
+        ensure!(address != 0, "null split destination");
+        Ok(Arc::new(Self {
+            state: Mutex::new(SplitState {
+                read: Some(read),
+                remaining: 2,
+                claimed: 0,
+                errors: [None, None],
+                #[cfg(test)]
+                started: None,
+            }),
+            address,
+            ranges,
+            #[cfg(test)]
+            gates,
+            #[cfg(test)]
+            finished,
+            #[cfg(test)]
+            started_parts,
+        }))
+    }
+    fn run_part(&self, index: usize, file: File) {
+        {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(claimed) = claim_record_part(state.claimed, index) else {
+                return;
+            };
+            state.claimed = claimed;
+        }
+        #[cfg(test)]
+        {
+            let (gate, wave) = {
+                let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                state.started.get_or_insert_with(Instant::now);
+                let read = state.read.as_ref().unwrap();
+                (read.gate.clone(), read.wave_gate.clone())
+            };
+            if index == 0 {
+                if let Some(gate) = gate {
+                    gate.wait();
+                }
+                if let Some(gate) = wave {
+                    gate.wait();
+                }
+            }
+        }
+        let [begin, length] = self.ranges[index];
+        let offset = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.read.as_ref().unwrap().offset
+        };
+        let result = (|| -> Result<()> {
+            let at = offset
+                .checked_add(begin as u64)
+                .context("split offset overflow")?;
+            #[cfg(test)]
+            {
+                // The observer/gate is in the IO region after all mutex guards
+                // were released: holding one part must not block the other.
+                self.started_parts.fetch_add(1, Ordering::Release);
+                if let Some(gates) = &self.gates {
+                    gates[index].wait();
+                }
+            }
+            // The only two jobs own disjoint, nonempty ranges covering the owned
+            // allocation exactly. The Arc retains it until both writes return.
+            let target = unsafe {
+                std::slice::from_raw_parts_mut((self.address as *mut u8).add(begin), length)
+            };
+            file.read_exact_at(target, at)?;
+            Ok(())
+        })();
+        let completed = {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.errors[index] = result.err();
+            state.remaining -= 1;
+            if state.remaining == 0 {
+                let read = state.read.take().unwrap();
+                let error = state.errors.iter_mut().find_map(Option::take);
+                Some((read, error))
+            } else {
+                None
+            }
+        };
+        if let Some((read, error)) = completed {
+            #[cfg(test)]
+            let started = self
+                .state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .started
+                .unwrap();
+            let Read {
+                lease,
+                payload,
+                result: sender,
+                ticket,
+                ..
+            } = read;
+            let result = match error {
+                Some(error) => Err(error),
+                None => Ok(payload),
+            };
+            drop(ticket);
+            let _ = sender.send(Completed {
+                lease,
+                result,
+                #[cfg(test)]
+                timing: (started, Instant::now()),
+            });
+        }
+        #[cfg(test)]
+        self.finished.fetch_add(1, Ordering::Release);
+    }
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_eligible(enabled: bool, qualified_m5: bool) -> bool {
+    enabled && qualified_m5
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_identity_matches(inspected: [u64; 2], opened: [u64; 2]) -> bool {
+    inspected == opened
+}
+
+#[test]
+fn dedicated_readahead_requires_qualified_source_and_exact_inode() {
+    for e in [false, true] {
+        for q in [false, true] {
+            assert_eq!(readahead_eligible(e, q), e && q);
+        }
+    }
+    assert!(readahead_identity_matches([1, 2], [1, 2]));
+    assert!(!readahead_identity_matches([1, 2], [2, 1]));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
+    let e: bool = kani::any();
+    let q: bool = kani::any();
+    let a: [u64; 2] = kani::any();
+    let b: [u64; 2] = kani::any();
+    assert_eq!(readahead_eligible(e, q), e && q);
+    assert_eq!(
+        readahead_identity_matches(a, b),
+        a[0] == b[0] && a[1] == b[1]
+    );
+    kani::cover!(readahead_eligible(e, q) && readahead_identity_matches(a, b));
+    kani::cover!(e && !q);
+    kani::cover!(a[0] != b[0] && a[1] == b[1]);
+    kani::cover!(a[0] == b[0] && a[1] != b[1]);
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[path = "ssd_reads/readahead.rs"]
+mod readahead;
+
 pub(crate) struct ReadService {
     next: Cell<usize>,
-    senders: Vec<SyncSender<Read>>,
+    senders: Vec<SyncSender<ReadWork>>,
     workers: Vec<JoinHandle<()>>,
     dynamic: bool,
+    split_enabled: bool,
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    readahead_files: Option<readahead::ExpertFiles>,
     active: Arc<AtomicUsize>,
     #[cfg(test)]
     pub(crate) dynamic_submissions: Cell<usize>,
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) reused_destinations: Cell<usize>,
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fresh_destinations: Cell<usize>,
+    #[cfg(test)]
+    pub(crate) split_records: Cell<usize>,
+    #[cfg(test)]
+    pub(crate) split_pieces: Cell<usize>,
+    #[cfg(test)]
+    split_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
+    #[cfg(test)]
+    pub(crate) split_finished: Arc<AtomicUsize>,
+    #[cfg(test)]
+    pub(crate) split_started: Arc<AtomicUsize>,
     #[cfg(test)]
     held_first: std::cell::RefCell<Option<Arc<TestReadGate>>>,
     #[cfg(test)]
@@ -204,24 +492,68 @@ pub(crate) struct ReadService {
 }
 impl ReadService {
     pub(crate) fn new(readers: usize) -> Result<Self> {
+        Self::new_with_split_default(readers, false)
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn new_qualified(readers: usize, qualified_m5: bool) -> Result<Self> {
+        if qualified_m5 {
+            Self::new_with_split_default(readers, true)
+        } else {
+            Self::new(readers)
+        }
+    }
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn split_requested(&self) -> bool {
+        self.split_enabled
+    }
+    fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
         let dynamic = match std::env::var("MLXL3_SSD_DYNAMIC_READERS") {
             Ok(value) => common_queue_flag(Some(&value)),
             Err(std::env::VarError::NotPresent) => common_queue_flag(None),
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
-        Self::new_with_schedule(readers, dynamic)
+        let split_enabled = match std::env::var("MLXL3_NATIVE_READ_SPLIT") {
+            Ok(value) => crate::ar10_defaults::split_flag(Some(&value), qualified_default),
+            Err(std::env::VarError::NotPresent) => {
+                crate::ar10_defaults::split_flag(None, qualified_default)
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_READ_SPLIT must be 0 or 1")?;
+        Self::new_with_options(readers, dynamic, split_enabled)
     }
+    #[cfg(test)]
     fn new_with_schedule(readers: usize, dynamic: bool) -> Result<Self> {
+        Self::new_with_options(readers, dynamic, false)
+    }
+    fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
             next: Cell::new(0),
             senders: Vec::new(),
             workers: Vec::new(),
             dynamic,
+            split_enabled,
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            readahead_files: readahead::ExpertFiles::from_env()?,
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             dynamic_submissions: Cell::new(0),
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            reused_destinations: Cell::new(0),
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            fresh_destinations: Cell::new(0),
+            #[cfg(test)]
+            split_records: Cell::new(0),
+            #[cfg(test)]
+            split_pieces: Cell::new(0),
+            #[cfg(test)]
+            split_gates: std::cell::RefCell::new(None),
+            #[cfg(test)]
+            split_finished: Arc::new(AtomicUsize::new(0)),
+            #[cfg(test)]
+            split_started: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             held_first: std::cell::RefCell::new(None),
             #[cfg(test)]
@@ -230,7 +562,7 @@ impl ReadService {
             wave_gates: std::cell::RefCell::new(None),
         };
         if dynamic {
-            let (sender, receiver) = mpsc::sync_channel::<Read>(10);
+            let (sender, receiver) = mpsc::sync_channel::<ReadWork>(10);
             service.senders.push(sender);
             let receiver = Arc::new(Mutex::new(receiver));
             for index in 0..readers {
@@ -253,7 +585,7 @@ impl ReadService {
             }
         } else {
             for index in 0..readers {
-                let (sender, receiver) = mpsc::sync_channel::<Read>(10);
+                let (sender, receiver) = mpsc::sync_channel::<ReadWork>(10);
                 service.senders.push(sender);
                 service.workers.push(
                     std::thread::Builder::new()
@@ -300,6 +632,12 @@ impl ReadService {
             *gates = None;
         }
     }
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn readahead_counts(&self) -> [usize; 2] {
+        self.readahead_files
+            .as_ref()
+            .map_or([0; 2], |files| files.counts())
+    }
     pub(crate) fn in_flight(&self) -> usize {
         self.active.load(Ordering::Acquire)
     }
@@ -307,7 +645,7 @@ impl ReadService {
         &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
     ) -> Result<ReadBatch> {
-        self.start(Self::sources(records)?, Duration::from_secs(30))
+        self.start(self.sources(records, false)?, Duration::from_secs(30))
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_shared(
@@ -315,7 +653,11 @@ impl ReadService {
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
-        self.start_shared(Self::sources(records)?, Duration::from_secs(30), device)
+        self.start_shared(
+            self.sources(records, device.name() == "Apple M5")?,
+            Duration::from_secs(30),
+            device,
+        )
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     fn start_shared(
@@ -324,23 +666,80 @@ impl ReadService {
         limit: Duration,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
+        let count = reads.len();
+        self.start_shared_reusing(reads, (0..count).map(|_| None), limit, device)
+    }
+    /// Owners come only from private, retired cache slots after all old GPU uses
+    /// completed and every old projection view was dropped by FlashMoeRow.
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn submit_shared_reusing(
+        &self,
+        records: impl IntoIterator<Item = (SlotLease, TensorInfo, Option<metal::Buffer>)>,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
+        let (records, owners): (Vec<_>, Vec<_>) = records
+            .into_iter()
+            .map(|(lease, record, owner)| ((lease, record), owner))
+            .unzip();
+        self.start_shared_reusing(
+            self.sources(records, device.name() == "Apple M5")?,
+            owners,
+            Duration::from_secs(30),
+            device,
+        )
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    fn start_shared_reusing(
+        &self,
+        reads: Vec<(SlotLease, File, u64, usize)>,
+        owners: impl IntoIterator<Item = Option<metal::Buffer>, IntoIter: ExactSizeIterator>,
+        limit: Duration,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), false)?;
+        let owners = owners.into_iter();
+        ensure!(reads.len() == owners.len(), "record owner count mismatch");
         let reads = reads
             .into_iter()
-            .map(|(lease, file, offset, bytes)| {
+            .zip(owners)
+            .map(|((lease, file, offset, bytes), owner)| {
                 ensure!(
                     direct_destination_valid(bytes, bytes as u64, true),
                     "invalid owned SSD destination extent"
                 );
-                let destination = crate::gpu::buffer(
-                    device,
-                    bytes as u64,
-                    metal::MTLResourceOptions::StorageModeShared,
-                )?;
+                let reusable = owner.filter(|buffer| {
+                    buffer.device().registry_id() == device.registry_id()
+                        && direct_destination_valid(
+                            bytes,
+                            buffer.length(),
+                            buffer.storage_mode() == metal::MTLStorageMode::Shared,
+                        )
+                });
+                let destination = if let Some(buffer) = reusable {
+                    #[cfg(test)]
+                    self.reused_destinations
+                        .set(self.reused_destinations.get() + 1);
+                    buffer
+                } else {
+                    let buffer = crate::gpu::buffer(
+                        device,
+                        bytes as u64,
+                        metal::MTLResourceOptions::StorageModeShared,
+                    )?;
+                    #[cfg(test)]
+                    self.fresh_destinations
+                        .set(self.fresh_destinations.get() + 1);
+                    buffer
+                };
                 Ok((lease, file, offset, bytes, ReadPayload::Shared(destination)))
             })
             .collect::<Result<Vec<_>>>()?;
-        self.start_payloads(reads.into_iter(), limit, false)
+        self.start_payloads(
+            reads.into_iter(),
+            limit,
+            false,
+            self.split_enabled && device.name() == "Apple M5",
+        )
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_background(
@@ -349,13 +748,15 @@ impl ReadService {
         record: TensorInfo,
     ) -> Result<ReadBatch> {
         self.start_mode(
-            Self::sources([(lease, record)])?,
+            self.sources([(lease, record)], false)?,
             Duration::from_secs(30),
             true,
         )
     }
     fn sources(
+        &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+        qualified_m5: bool,
     ) -> Result<Vec<(SlotLease, File, u64, usize)>> {
         let mut reads = Vec::new();
         for (lease, record) in records {
@@ -368,7 +769,22 @@ impl ReadService {
                 end <= file.metadata()?.len(),
                 "checkpoint record was truncated after inspection"
             );
-            reads.push((lease, file.try_clone()?, offset, EXPERT_BYTES as usize));
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            let handle = if let Some(files) = self
+                .readahead_files
+                .as_ref()
+                .filter(|_| readahead_eligible(true, qualified_m5))
+            {
+                files.source(&record.file, file)?
+            } else {
+                file.try_clone()?
+            };
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            let handle = {
+                let _ = qualified_m5;
+                file.try_clone()?
+            };
+            reads.push((lease, handle, offset, EXPERT_BYTES as usize));
         }
         Ok(reads)
     }
@@ -388,7 +804,7 @@ impl ReadService {
         let reads = reads.into_iter().map(|(lease, file, offset, bytes)| {
             (lease, file, offset, bytes, ReadPayload::Bytes(Vec::new()))
         });
-        self.start_payloads(reads, limit, background)
+        self.start_payloads(reads, limit, background, false)
     }
     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
         ensure!(count <= 10, "native SSD demand exceeds one AR cohort");
@@ -407,6 +823,7 @@ impl ReadService {
         reads: impl ExactSizeIterator<Item = (SlotLease, File, u64, usize, ReadPayload)>,
         limit: Duration,
         background: bool,
+        allow_split: bool,
     ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), background)?;
         let (result, receiver) = mpsc::channel();
@@ -417,7 +834,6 @@ impl ReadService {
             #[cfg(test)]
             trace: Vec::new(),
         };
-        #[cfg(test)]
         let count = reads.len();
         for (lease, file, offset, bytes, payload) in reads {
             self.active.fetch_add(1, Ordering::Relaxed);
@@ -450,19 +866,56 @@ impl ReadService {
                             })
                     }),
             };
-            let worker = self.next.get();
-            self.next.set((worker + 1) % self.workers.len());
-            self.senders[if self.dynamic { 0 } else { worker }]
-                .try_send(read)
-                .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
-            #[cfg(test)]
-            if self.dynamic {
-                self.dynamic_submissions
-                    .set(self.dynamic_submissions.get() + 1);
+            if let Some(ranges) = isolated_record_ranges(
+                allow_split && self.split_enabled && !background,
+                count,
+                self.workers.len(),
+                bytes,
+                offset,
+            ) {
+                let files = [read.file.try_clone()?, read.file.try_clone()?];
+                let record = SplitRecord::new(
+                    read,
+                    ranges,
+                    #[cfg(test)]
+                    self.split_gates.borrow().clone(),
+                    #[cfg(test)]
+                    Arc::clone(&self.split_finished),
+                    #[cfg(test)]
+                    Arc::clone(&self.split_started),
+                )?;
+                // One logical record, including partially enqueued failure paths.
+                batch.remaining += 1;
+                for (index, file) in files.into_iter().enumerate() {
+                    self.enqueue(ReadWork::Part {
+                        record: Arc::clone(&record),
+                        index,
+                        file,
+                    })?;
+                    #[cfg(test)]
+                    self.split_pieces.set(self.split_pieces.get() + 1);
+                }
+                #[cfg(test)]
+                self.split_records.set(self.split_records.get() + 1);
+            } else {
+                self.enqueue(ReadWork::Whole(read))?;
+                batch.remaining += 1;
             }
-            batch.remaining += 1;
         }
         Ok(batch)
+    }
+    fn enqueue(&self, work: ReadWork) -> Result<()> {
+        let worker = self.next.get();
+        self.next.set((worker + 1) % self.workers.len());
+        self.senders[if self.dynamic { 0 } else { worker }]
+            .try_send(work)
+            .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
+        #[cfg(test)]
+        if self.dynamic {
+            self.dynamic_submissions
+                .set(self.dynamic_submissions.get() + 1);
+        }
+        Ok(())
     }
 }
 impl Drop for ReadService {
@@ -775,3 +1228,11 @@ mod wave_tests;
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/common_queue_tests.rs"]
 mod common_queue_tests;
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/record_reuse_tests.rs"]
+mod record_reuse_tests;
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/split_record_tests.rs"]
+mod split_record_tests;

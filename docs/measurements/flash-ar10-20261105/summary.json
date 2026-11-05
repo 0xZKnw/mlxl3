@@ -1,0 +1,59 @@
+{
+  "status": "complete",
+  "research_candidates": 12,
+  "physical_component_gates": 10,
+  "component_parity": true,
+  "initial_model_cli_gates": 2,
+  "final_idle_model_cli_gates": 3,
+  "all_children_joined": true,
+  "integration": "published PR132, stacked on PR130; twelve new options OFF by default",
+  "source_commit": "35c7c976743b4840b0213059d2142dbf46ff4ae5",
+  "compiled_runtime_commit": "83e118ccf74a-dirty",
+  "final_source_hashes": 531,
+  "initial_screens": {
+    "published": 7.401531353772969,
+    "off-start": 7.589933365901215,
+    "nt2": 7.413658086632902,
+    "experts": 7.492045215861746,
+    "gdn": 7.481795855459187,
+    "hc-qsa": 7.57056183367799,
+    "io": 7.915627833607247,
+    "compatible-all": 8.399582593418618,
+    "off-end": 7.684633704585731
+  },
+  "final_screens": {
+    "off-start": 7.685042815382792,
+    "all": 8.349829388703746,
+    "off-end": 7.591637957724497
+  },
+  "final_composition_gain_percent": {
+    "off-start": 8.65039518049635,
+    "off-end": 9.987191633760538
+  },
+  "cpu_tests": {
+    "passed": 379,
+    "ignored": 73
+  },
+  "kani": {
+    "targeted_harnesses": 11,
+    "properties": 734,
+    "covers": 44,
+    "scope": "bounded CPU guards; not GPU/IO/concurrency proof",
+    "global_inventory": "compiler ICE, unverified"
+  },
+  "limits": [
+    "Individual gains not established by group screens",
+    "MAIN32 only; no sustained/HOLD/long context",
+    "IO enabled model integration not an instrumented IO OFF/ON comparison",
+    "Python source verifier absent",
+    "Hosted CI not yet inspected for publication head"
+  ],
+  "publication": {
+    "url": "https://github.com/0xZKnw/mlxl3/pull/132",
+    "first_head": "6d6efd551297294d577dbc8d2867b6738f96e808",
+    "base_sha": "8c13e9229b6cc6400dc93e2c1e1c0062c4770f6d",
+    "ci": "five workflows and jobs inspected, queued/running; no global green claim"
+  },
+  "python_manifest_tests_passed": 2,
+  "python_ruff": "test_kani_ci check/format PASS"
+}

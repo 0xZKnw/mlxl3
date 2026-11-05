@@ -1,0 +1,162 @@
+"""Short, sequential MAIN32 screens; execution requires the root GPU grant."""
+
+import argparse
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/flash-ar10-20261105"
+OLD = runpy.run_path(str(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"))
+VALIDATE = runpy.run_path("/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py")["validate"]
+FLAGS = [
+    "MLXL3_NATIVE_HC_WRITE_NORM", "MLXL3_NATIVE_ROUTED_NT2_GU", "MLXL3_NATIVE_ROUTED_NT2_DOWN",
+    "MLXL3_NATIVE_EXPERT_UP_FINISH", "MLXL3_NATIVE_EXPERT_GU_PREPARE", "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB",
+    "MLXL3_NATIVE_EXPERT_AXIS_QMV", "MLXL3_NATIVE_GDN_WHOLE", "MLXL3_NATIVE_GDN_JOINT_AB",
+    "MLXL3_NATIVE_QSA_PREPARE", "MLXL3_NATIVE_QSA_GATE", "MLXL3_NATIVE_RECORD_REUSE", "MLXL3_NATIVE_READ_SPLIT",
+]
+OLD_OFF = [
+    "MLXL3_NATIVE_HC_UP_MIX", "MLXL3_NATIVE_HC_DOWN_INJECT", "MLXL3_NATIVE_HC_WORKSPACE", "MLXL3_NATIVE_SSD_EXTRA_WAVE",
+    "MLXL3_NATIVE_GDN_HALF_ELISION", "MLXL3_NATIVE_GDN_NORM_GATE", "MLXL3_SSD_DYNAMIC_READERS", "MLXL3_NATIVE_FIXED_RESIDENCY",
+]
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def check_plan(plan):
+    arms = plan["arms"]
+    assert type(arms) is list and 3 <= len(arms) <= 9
+    assert [x["kind"] for x in plan["quality_reports"]] == ["components", "model", "cli"]
+    names = []
+    for arm in arms:
+        name, flags = arm["name"], arm["flags"]
+        assert type(name) is str and name and all(c.isascii() and (c.isalnum() or c in "-_") for c in name)
+        assert type(flags) is list and all(type(f) is str and f in FLAGS for f in flags)
+        assert len(set(flags)) == len(flags) and type(arm.get("baseline", False)) is bool
+        names.append(name)
+    assert len(set(names)) == len(names)
+    assert arms[0] == {"name": "published", "flags": [], "baseline": True}
+    assert arms[1] == {"name": "off-start", "flags": []}
+    assert arms[-1] == {"name": "off-end", "flags": []}
+    assert not any(a.get("baseline", False) for a in arms[1:])
+    return arms
+
+
+def selfcheck():
+    """Pure plan-boundary regression; this never launches a child or reads a model."""
+    gates = [{"kind": kind} for kind in ("components", "model", "cli")]
+    arms = [{"name": "published", "flags": [], "baseline": True}, {"name": "off-start", "flags": []}, {"name": "off-end", "flags": []}]
+    assert check_plan({"quality_reports": gates, "arms": arms}) == arms
+    for candidate in [
+        {"name": "../escape", "flags": []}, {"name": "candidate", "flags": ["UNKNOWN"]},
+        {"name": "candidate", "flags": [FLAGS[0], FLAGS[0]]}, {"name": "candidate", "flags": [], "baseline": True},
+        {"name": "candidate", "flags": [], "baseline": 1}, {"name": "off-start", "flags": []},
+    ]:
+        try:
+            check_plan({"quality_reports": gates, "arms": arms[:-1] + [candidate, arms[-1]]})
+        except AssertionError:
+            continue
+        raise AssertionError("invalid plan accepted")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-after-root-grant", action="store_true")
+    parser.add_argument("--freeze", type=Path, default=ROOT / "build/ar10/freeze.json")
+    parser.add_argument("--plan", type=Path, default=ROOT / "build/ar10/plan.json")
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error("exclusive root GPU grant required")
+    out = HERE / "speed"
+    out.mkdir(parents=True, exist_ok=True)
+    sink = out / "report.json"
+    assert not sink.exists(), "preserve the prior report; preregister a new output for any rerun"
+    report = {"status": "preflight", "parity": False, "all_children_joined": False, "processes": []}
+
+    def save():
+        sink.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    def journal(value):
+        with (ROOT / "opti.md").open("a") as log:
+            log.write("\nAR10 MAIN32 " + value + "\n")
+
+    save()
+    try:
+        freeze = OLD["strict_json"](args.freeze.read_text())
+        plan = OLD["strict_json"](args.plan.read_text())
+        arms = check_plan(plan)
+        report.update(plan=plan, plan_sha256=sha(args.plan), freeze_sha256=sha(args.freeze), controller_sha256=sha(__file__), helpers={"process_helpers_sha256": sha(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"), "validator_sha256": sha("/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py")}, quality=[])
+        for gate in plan["quality_reports"]:
+            path = ROOT / gate["path"]
+            quality = OLD["strict_json"](path.read_text())
+            assert quality["status"] == "validated" and quality["parity"] is True and quality["all_children_joined"] is True
+            phases = quality["phases"]
+            selected = phases if gate["kind"] == "components" else [p for p in phases if p["name"] == gate["kind"]]
+            assert len(selected) == (10 if gate["kind"] == "components" else 1)
+            assert all(p["status"] == "validated" and p["parity"] is True and p["joined"] is True for p in selected)
+            report["quality"].append({"kind": gate["kind"], "path": str(path), "sha256": sha(path)})
+        for artifact in [*freeze["artifacts"].values(), freeze["baseline"]]:
+            assert sha(artifact["path"]) == artifact["sha256"]
+        for path, digest in freeze["source_files"].items():
+            assert sha(ROOT / path) == digest, path
+        historical = ROOT / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+        golden = OLD["strict_json"](historical.read_text())["runs"][0]
+        expected = (golden["text"], golden["token_hash"])
+        assert all(type(x) is str and x for x in expected)
+        report["golden"] = {"path": str(historical), "sha256": sha(historical), "token_hash": expected[1]}
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"PYTHONPATH": str(ROOT), "MLXL3_SSD_READERS": "4", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_SSD_OVERLAP": "1", "MLXL3_SSD_CACHE_POLICY": "auto", "MLXL3_SSD_PREDICTOR_DTYPE": "f32", "MLXL3_PROMPT_CACHE_MIB": "0"})
+        env.update({flag: "0" for flag in OLD_OFF})
+        report["status"] = "running"
+        save()
+        for number, arm in enumerate(arms):
+            name = arm["name"]
+            artifact = freeze["baseline"] if arm.get("baseline", False) else freeze["artifacts"]["direct-cli"]
+            runenv = {**env, **{f: str(int(f in arm["flags"])) for f in FLAGS}}
+            folder = out / f"{number}-{name}"
+            cmd = ["/Users/justin/Documents/mix-stq1_0/.venv/bin/python", str(ROOT / "scripts/benchmark-flash-bridge.py"), artifact["path"], "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531", str(folder), "--prompt", "MAIN", "--tokens", "32", "--repeats", "1", "--cache-gib", "3", "--timeout", "180"]
+            item = {"name": name, "status": "running", "parity": False, "joined": False, "command": cmd, "flags": {f: runenv[f] for f in FLAGS}}
+            report["processes"].append(item)
+            save()
+            journal(name + " STARTED")
+            child = None
+            start = time.monotonic()
+            try:
+                assert sha(artifact["path"]) == artifact["sha256"]
+                for path, digest in freeze["source_files"].items():
+                    assert sha(ROOT / path) == digest, path
+                with (out / f"{number}-{name}.driver.log").open("x") as log:
+                    child = subprocess.Popen(cmd, cwd=ROOT, env=runenv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=240)
+                assert code == 0 and not OLD["members"](child.pid)
+                result = VALIDATE(OLD["strict_json"]((folder / "report.json").read_text()), artifact["sha256"])
+                assert all((row["text"], row["token_hash"]) == expected for row in result["warmup"] + result["runs"])
+                item.update(status="validated", parity=True, joined=True, seconds=time.monotonic() - start, stats=result["runs"][0]["stats"])
+                save()
+                journal(name + " VALIDATED " + str(item["stats"]["decode_tps"]))
+                print(name, item["stats"]["decode_tps"], flush=True)
+            except BaseException as error:
+                item.update(status="failed", parity=False, joined=OLD["stop"](child), error=repr(error))
+                save()
+                raise
+        controls = {p["name"]: p["stats"]["decode_tps"] for p in report["processes"] if p["name"] in ("published", "off-start", "off-end")}
+        report.update(status="short_screens_complete", parity=True, all_children_joined=True, controls=controls, endpoint_drift_percent=100 * (controls["off-end"] / controls["off-start"] - 1), limits=["One warmup + one MAIN32 measurement per arm; no HOLD or sustained validation", "Group results do not establish individual contributions; no addition of gains", "Endpoint drift is recorded without an automatic rejection or minimum gain threshold"])
+        journal("CLOSED " + json.dumps(controls, allow_nan=False))
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error), all_children_joined=all(p["joined"] for p in report["processes"]))
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

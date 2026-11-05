@@ -1,0 +1,362 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "reference",
+      "status": "reference_captured",
+      "parity": false,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar20-20261105/mix-stq1_0/build/ar20/frozen-quiet/native-libtest",
+        "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_GDN_HEAD_GATES": "0",
+        "MLXL3_NATIVE_QSA_CHAINS": "0",
+        "MLXL3_NATIVE_QSA_PREFETCH": "0",
+        "MLXL3_NATIVE_GDN_RESIDENT_BUNDLE": "0",
+        "MLXL3_NATIVE_MUL1_SWAR": "0",
+        "MLXL3_NATIVE_TRELLIS_READER8": "0",
+        "MLXL3_NATIVE_QMV_K_PRELOAD": "0",
+        "MLXL3_NATIVE_H128_SIMD": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_NATIVE_GPU_SPIN_WAIT": "0",
+        "MLXL3_NATIVE_EXPERT_READAHEAD_OFF": "0",
+        "MLXL3_NATIVE_CACHE_SLRU": "0"
+      },
+      "pid": 89475,
+      "evidence": {
+        "actual_paths": [
+          {
+            "after": {
+              "cross_layer_triples": 34,
+              "expert_axis_qmv_dispatches": 432,
+              "finish_mix": 0,
+              "head_gates": 0,
+              "kernel_bits": 0,
+              "moe_deferred": 34,
+              "qsa_chains": 0,
+              "qsa_prefetch": 0,
+              "readahead_fds": 0,
+              "readahead_records": 0,
+              "readers_in_flight": 0,
+              "resident_bundle": 0,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                0,
+                0,
+                703,
+                0
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "before": {
+              "cross_layer_triples": 0,
+              "expert_axis_qmv_dispatches": 288,
+              "finish_mix": 0,
+              "head_gates": 0,
+              "kernel_bits": 0,
+              "moe_deferred": 0,
+              "qsa_chains": 0,
+              "qsa_prefetch": 0,
+              "readahead_fds": 0,
+              "readahead_records": 0,
+              "readers_in_flight": 0,
+              "resident_bundle": 0,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                0,
+                0,
+                375,
+                0
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "token": 248044
+          },
+          {
+            "after": {
+              "cross_layer_triples": 68,
+              "expert_axis_qmv_dispatches": 1272,
+              "finish_mix": 0,
+              "head_gates": 0,
+              "kernel_bits": 0,
+              "moe_deferred": 68,
+              "qsa_chains": 0,
+              "qsa_prefetch": 0,
+              "readahead_fds": 0,
+              "readahead_records": 0,
+              "readers_in_flight": 0,
+              "resident_bundle": 0,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                0,
+                0,
+                1535,
+                0
+              ],
+              "split_pieces": 2,
+              "split_records": 1
+            },
+            "before": {
+              "cross_layer_triples": 34,
+              "expert_axis_qmv_dispatches": 846,
+              "finish_mix": 0,
+              "head_gates": 0,
+              "kernel_bits": 0,
+              "moe_deferred": 34,
+              "qsa_chains": 0,
+              "qsa_prefetch": 0,
+              "readahead_fds": 0,
+              "readahead_records": 0,
+              "readers_in_flight": 0,
+              "resident_bundle": 0,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                0,
+                0,
+                1101,
+                0
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "token": 1
+          }
+        ],
+        "all_readers_joined": true,
+        "case_count": 2,
+        "compared_hidden_bytes": 81920,
+        "compared_logits": 993280,
+        "compared_state_words": 57606144,
+        "initial_archive_states": 84,
+        "kernel_bits": 0,
+        "oracle_sha256": "171bea949c7c16f20c1e1affa26b70602676c73620fcbb380d430a7587835351",
+        "parity": false,
+        "status": "reference_captured"
+      },
+      "seconds": 8.101784458005568
+    },
+    {
+      "name": "model",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar20-20261105/mix-stq1_0/build/ar20/frozen-quiet/native-libtest",
+        "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_GDN_HEAD_GATES": "0",
+        "MLXL3_NATIVE_QSA_CHAINS": "1",
+        "MLXL3_NATIVE_QSA_PREFETCH": "1",
+        "MLXL3_NATIVE_GDN_RESIDENT_BUNDLE": "1",
+        "MLXL3_NATIVE_MUL1_SWAR": "1",
+        "MLXL3_NATIVE_TRELLIS_READER8": "1",
+        "MLXL3_NATIVE_QMV_K_PRELOAD": "1",
+        "MLXL3_NATIVE_H128_SIMD": "1",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "1",
+        "MLXL3_NATIVE_GPU_SPIN_WAIT": "1",
+        "MLXL3_NATIVE_EXPERT_READAHEAD_OFF": "1",
+        "MLXL3_NATIVE_CACHE_SLRU": "0"
+      },
+      "pid": 50725,
+      "evidence": {
+        "actual_paths": [
+          {
+            "after": {
+              "cross_layer_triples": 34,
+              "expert_axis_qmv_dispatches": 423,
+              "finish_mix": 96,
+              "head_gates": 0,
+              "kernel_bits": 15,
+              "moe_deferred": 34,
+              "qsa_chains": 24,
+              "qsa_prefetch": 24,
+              "readahead_fds": 5,
+              "readahead_records": 480,
+              "readers_in_flight": 0,
+              "resident_bundle": 72,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                192,
+                7,
+                498,
+                614822
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "before": {
+              "cross_layer_triples": 0,
+              "expert_axis_qmv_dispatches": 279,
+              "finish_mix": 48,
+              "head_gates": 0,
+              "kernel_bits": 15,
+              "moe_deferred": 0,
+              "qsa_chains": 12,
+              "qsa_prefetch": 12,
+              "readahead_fds": 5,
+              "readahead_records": 480,
+              "readers_in_flight": 0,
+              "resident_bundle": 36,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                17,
+                7,
+                348,
+                438494
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "token": 248044
+          },
+          {
+            "after": {
+              "cross_layer_triples": 68,
+              "expert_axis_qmv_dispatches": 1248,
+              "finish_mix": 192,
+              "head_gates": 0,
+              "kernel_bits": 15,
+              "moe_deferred": 68,
+              "qsa_chains": 48,
+              "qsa_prefetch": 48,
+              "readahead_fds": 5,
+              "readahead_records": 1097,
+              "readers_in_flight": 0,
+              "resident_bundle": 144,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                517,
+                24,
+                981,
+                1200997
+              ],
+              "split_pieces": 2,
+              "split_records": 1
+            },
+            "before": {
+              "cross_layer_triples": 34,
+              "expert_axis_qmv_dispatches": 831,
+              "finish_mix": 144,
+              "head_gates": 0,
+              "kernel_bits": 15,
+              "moe_deferred": 34,
+              "qsa_chains": 36,
+              "qsa_prefetch": 36,
+              "readahead_fds": 5,
+              "readahead_records": 869,
+              "readers_in_flight": 0,
+              "resident_bundle": 108,
+              "reused_destinations": 0,
+              "slru_layers": 0,
+              "slru_reservations": 0,
+              "spin_wait": [
+                275,
+                18,
+                800,
+                975126
+              ],
+              "split_pieces": 0,
+              "split_records": 0
+            },
+            "token": 1
+          }
+        ],
+        "all_readers_joined": true,
+        "case_count": 2,
+        "compared_hidden_bytes": 81920,
+        "compared_logits": 993280,
+        "compared_state_words": 57606144,
+        "initial_archive_states": 84,
+        "kernel_bits": 15,
+        "oracle_sha256": "171bea949c7c16f20c1e1affa26b70602676c73620fcbb380d430a7587835351",
+        "parity": true,
+        "status": "validated"
+      },
+      "seconds": 7.114275958010694
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/flash-ar20-20261105/mix-stq1_0/build/ar20/frozen-quiet/direct-cli",
+        "docs/measurements/flash-ar20-20261105/quiet-01/quality"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_GDN_HEAD_GATES": "0",
+        "MLXL3_NATIVE_QSA_CHAINS": "1",
+        "MLXL3_NATIVE_QSA_PREFETCH": "1",
+        "MLXL3_NATIVE_GDN_RESIDENT_BUNDLE": "1",
+        "MLXL3_NATIVE_MUL1_SWAR": "1",
+        "MLXL3_NATIVE_TRELLIS_READER8": "1",
+        "MLXL3_NATIVE_QMV_K_PRELOAD": "1",
+        "MLXL3_NATIVE_H128_SIMD": "1",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "1",
+        "MLXL3_NATIVE_GPU_SPIN_WAIT": "1",
+        "MLXL3_NATIVE_EXPERT_READAHEAD_OFF": "1",
+        "MLXL3_NATIVE_CACHE_SLRU": "0"
+      },
+      "pid": 4034,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "seconds": 10.469947667006636
+    }
+  ],
+  "selected": [
+    "MLXL3_NATIVE_QSA_CHAINS",
+    "MLXL3_NATIVE_QSA_PREFETCH",
+    "MLXL3_NATIVE_GDN_RESIDENT_BUNDLE",
+    "MLXL3_NATIVE_MUL1_SWAR",
+    "MLXL3_NATIVE_TRELLIS_READER8",
+    "MLXL3_NATIVE_QMV_K_PRELOAD",
+    "MLXL3_NATIVE_H128_SIMD",
+    "MLXL3_NATIVE_MOE_FINISH_MIX",
+    "MLXL3_NATIVE_GPU_SPIN_WAIT",
+    "MLXL3_NATIVE_EXPERT_READAHEAD_OFF"
+  ],
+  "freeze": "build/ar20/freeze-quiet.json",
+  "freeze_sha256": "946522aef293578c8620fe812b79eea559728ceab981845382dcab493614beef",
+  "controller_sha256": "488ad1754cf2ce92d0b3c633ab960866cb61fb38bc3f2510d33f375a89892ec6",
+  "helper_sha256": "984aaecdd5691b72169b71298dac6e6146608c8b357bea983bd36b03d415ae85",
+  "components_sha256": "b00177b745151a1b5cf29b6b52b5e46a0ec3c0332ba692591e98fd833adb42df",
+  "oracle_sha256": "171bea949c7c16f20c1e1affa26b70602676c73620fcbb380d430a7587835351"
+}
