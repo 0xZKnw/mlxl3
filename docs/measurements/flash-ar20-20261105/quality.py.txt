@@ -1,0 +1,181 @@
+"""Independent-process ALL12 reference, selected AR20 model comparison, then CLI."""
+import argparse
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/flash-ar20-20261105"
+HELPER = ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"
+OLD = runpy.run_path(str(HELPER))
+COMPONENTS = runpy.run_path(str(ROOT / "build/ar20/components.py"))
+NEW = ["MLXL3_NATIVE_" + name for name in COMPONENTS["NEW"]]
+MACROS = ["MLXL3_NATIVE_" + name for name in COMPONENTS["MACROS"]]
+HEAD = "MLXL3_NATIVE_GDN_HEAD_GATES"
+MODEL = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+COUNTS = {"case_count": 2, "compared_state_words": 57606144, "compared_logits": 993280, "compared_hidden_bytes": 81920, "initial_archive_states": 84, "all_readers_joined": True}
+PATH_FLAGS = {"head_gates": HEAD, "qsa_chains": "MLXL3_NATIVE_QSA_CHAINS", "qsa_prefetch": "MLXL3_NATIVE_QSA_PREFETCH", "resident_bundle": "MLXL3_NATIVE_GDN_RESIDENT_BUNDLE", "finish_mix": "MLXL3_NATIVE_MOE_FINISH_MIX"}
+PATH_USES = {"head_gates": 36, "qsa_chains": 12, "qsa_prefetch": 12, "resident_bundle": 36, "finish_mix": 48}
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def read_json(path):
+    return COMPONENTS["strict"](OLD, Path(path).read_text())
+
+
+def marker(text, name):
+    OLD["marker"](text, name)
+    return COMPONENTS["strict"](OLD, next(line.split(name + " ", 1)[1] for line in text.splitlines() if name + " " in line))
+
+
+def check_selected(selected):
+    assert type(selected) is list and all(type(flag) is str and flag in NEW for flag in selected)
+    assert len(selected) == len(set(selected))
+    return selected
+
+
+def paths(evidence, selected):
+    rows = evidence["actual_paths"]
+    bits = sum(1 << i for i, flag in enumerate(MACROS) if flag in selected)
+    OLD["exact_fields"](evidence, {"kernel_bits": bits})
+    assert type(rows) is list and len(rows) == 2
+    for row, token in zip(rows, [248044, 1], strict=True):
+        OLD["exact_fields"](row, {"token": token})
+        before, after = row["before"], row["after"]
+        for record in (before, after):
+            OLD["exact_fields"](record, {"kernel_bits": bits, "readers_in_flight": 0})
+        def delta(name, before=before, after=after):
+            assert type(before[name]) is int and type(after[name]) is int and 0 <= before[name] <= after[name]
+            return after[name] - before[name]
+        for name, flag in PATH_FLAGS.items():
+            assert delta(name) == (PATH_USES[name] if flag in selected else 0), name
+        assert delta("cross_layer_triples") == 34 and delta("moe_deferred") == 34
+        assert delta("expert_axis_qmv_dispatches") >= 144 and delta("expert_axis_qmv_dispatches") % 3 == 0
+        a, b = before["spin_wait"], after["spin_wait"]
+        assert len(a) == len(b) == 4 and all(type(x) is int and type(y) is int and 0 <= x <= y for x, y in zip(a, b, strict=True))
+        spin = [y - x for x, y in zip(a, b, strict=True)]
+        if "MLXL3_NATIVE_GPU_SPIN_WAIT" in selected:
+            assert spin[3] > 0 and sum(spin[:3]) > 0
+        else:
+            assert spin[0] == spin[1] == spin[3] == 0
+        for name in ["readahead_fds", "readahead_records", "slru_reservations", "reused_destinations", "split_records", "split_pieces"]:
+            delta(name)
+        readahead = "MLXL3_NATIVE_EXPERT_READAHEAD_OFF" in selected
+        assert (after["readahead_fds"] > 0 and after["readahead_records"] > 0) if readahead else (after["readahead_fds"] == after["readahead_records"] == 0)
+        slru = "MLXL3_NATIVE_CACHE_SLRU" in selected
+        OLD["exact_fields"](after, {"slru_layers": 48 if slru else 0})
+        assert delta("slru_reservations") > 0 if slru else delta("slru_reservations") == 0
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--freeze", type=Path, default=ROOT / "build/ar20/freeze-common.json")
+    parser.add_argument("--selected", type=Path, help="JSON list of full AR20 environment flag names; default excludes B01")
+    parser.add_argument("--out", type=Path, default=HERE / "quality")
+    args = parser.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    sink, oracle = args.out / "report.json", args.out / "oracle.json"
+    assert not sink.exists() and not oracle.exists(), "refusing to overwrite prior evidence"
+    report = {"status": "preflight", "parity": False, "all_children_joined": True, "phases": []}
+    def save():
+        temporary = sink.with_suffix(".tmp")
+        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+        temporary.replace(sink)
+    def journal(message):
+        with (ROOT / "opti.md").open("a") as log:
+            log.write("\nAR20 QUALITY " + message + "\n")
+    save()
+    try:
+        selected = check_selected(read_json(args.selected) if args.selected else [flag for flag in NEW if flag != HEAD])
+        components = read_json(HERE / "components-01/report.json")
+        assert components["status"] == "validated" and components["parity"] is True and components["all_children_joined"] is True
+        assert len(components["phases"]) == 12 and all(p["status"] == "validated" and p["parity"] is True and p["joined"] is True for p in components["phases"])
+        freeze = read_json(args.freeze)
+        for artifact in freeze["artifacts"].values():
+            assert sha(artifact["path"]) == artifact["sha256"]
+        for name, digest in freeze["source_files"].items():
+            assert sha(ROOT / name) == digest, name
+        baseline = read_json(ROOT / "docs/measurements/flash-ar10-20261105/plan-final.json")["arms"][1]["flags"]
+        assert len(baseline) == 13 and len(NEW) == 12 and len(MACROS) == 4
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"DYLD_PRINT_LIBRARIES": "1", "PYTHONPATH": str(ROOT), "MLXL3_FLASH_MODEL": MODEL, "MLXL3_SSD_CACHE_GIB": "3", "MLXL3_SSD_READERS": "4", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_SSD_OVERLAP": "1", "MLXL3_SSD_CACHE_POLICY": "auto", "MLXL3_SSD_PREDICTOR_DTYPE": "f32", "MLXL3_PROMPT_CACHE_MIB": "0", "MLXL3_SSD_DYNAMIC_READERS": "0"})
+        env.update({"MLXL3_NATIVE_" + name: "0" for name in ["HC_WORKSPACE", "HC_UP_MIX", "HC_DOWN_INJECT", "SSD_EXTRA_WAVE", "GDN_HALF_ELISION", "GDN_NORM_GATE", "FIXED_RESIDENCY"]})
+        env.update({flag: "1" for flag in baseline})
+        report.update(status="running", selected=selected, freeze=str(args.freeze), freeze_sha256=sha(args.freeze), controller_sha256=sha(__file__), helper_sha256=sha(HELPER), components_sha256=sha(HERE / "components-01/report.json"))
+        lib, cli = (freeze["artifacts"][key] for key in ["native-libtest", "direct-cli"])
+        test = [lib["path"], "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle", "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+        plans = [("reference", test, "AR20_MODEL_CAPTURE"), ("model", test, "AR20_MODEL_COMPARE"), ("cli", ["/Users/justin/Documents/mix-stq1_0/.venv/bin/python", "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py", cli["path"], str(args.out)], "NATIVE_SSD_DIRECT_CLI")]
+        save()
+        for name, command, marker_name in plans:
+            flags = [] if name == "reference" else selected
+            runenv = {**env, **{flag: str(int(flag in flags)) for flag in NEW}}
+            if name != "cli":
+                runenv.update(MLXL3_AR20_CAPTURE=str(int(name == "reference")), MLXL3_AR20_ORACLE=str(oracle.resolve()))
+            artifact = cli if name == "cli" else lib
+            assert sha(artifact["path"]) == artifact["sha256"]
+            if name != "reference":
+                assert sha(oracle) == report["oracle_sha256"], "oracle changed before comparison"
+            item = {"name": name, "status": "running", "parity": False, "joined": False, "command": command, "flags": {flag: runenv[flag] for flag in NEW}}
+            report["phases"].append(item)
+            report["all_children_joined"] = False
+            save()
+            journal(name + " STARTED")
+            child, start = None, time.monotonic()
+            try:
+                path = args.out / (name + ".log")
+                with path.open("x") as log:
+                    child = subprocess.Popen(command, cwd=ROOT, env=runenv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=240)
+                assert code == 0 and not OLD["members"](child.pid)
+                text = path.read_text()
+                OLD["native_images"](text)
+                evidence = marker(text, marker_name)
+                if name == "cli":
+                    OLD["exact_fields"](evidence, {"parity": True, "status": "verified", "completed": 1, "context_length": 4096, "token_hash": "9f850af1cbba074b", "mlx_loaded": False, "child_joined": True})
+                else:
+                    assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+                    OLD["exact_fields"](evidence, {**COUNTS, "parity": name == "model", "status": "validated" if name == "model" else "reference_captured"})
+                    paths(evidence, flags)
+                    assert 0 < oracle.stat().st_size <= 1048576
+                    captured = read_json(oracle)
+                    OLD["exact_fields"](captured, {"schema": 1, "status": "reference_captured", "parity": False, "reference_kernel_bits": 0, "state_words": 57606144, "logit_words": 993280, "hidden_bytes": 81920, "model_path": MODEL})
+                    assert len(captured["cases"]) == 2 and all(len(row["states"]) == 84 and row["logits_words"] == row["next_logits_words"] == 248320 and row["hidden_bytes"] == 40960 for row in captured["cases"])
+                    assert evidence["oracle_sha256"] == sha(oracle)
+                    if name == "reference":
+                        report["oracle_sha256"] = sha(oracle)
+                    else:
+                        assert sha(oracle) == report["oracle_sha256"]
+                assert sha(oracle) == report["oracle_sha256"], "oracle changed during the phase"
+                item.update(status="reference_captured" if name == "reference" else "validated", parity=name != "reference", evidence=evidence)
+            except BaseException as error:
+                item.update(status="failed", parity=False, error=repr(error))
+                raise
+            finally:
+                item.update(joined=OLD["stop"](child), seconds=time.monotonic() - start)
+                report["all_children_joined"] = all(p["joined"] for p in report["phases"])
+                save()
+            assert item["joined"]
+            journal(name + " " + item["status"].upper())
+        assert len(report["phases"]) == 3 and report["all_children_joined"]
+        assert report["phases"][0]["status"] == "reference_captured" and report["phases"][0]["parity"] is False
+        report.update(status="validated", parity=True)
+        journal("3/3 QUALIFIED (reference capture parityfalse, candidate and CLI paritytrue)")
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error), all_children_joined=all(p["joined"] for p in report["phases"]))
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

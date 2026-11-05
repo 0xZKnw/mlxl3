@@ -1,5 +1,6 @@
 """Run platform-neutral proof inventory contracts even without Linux prlimit."""
 
+import json
 import re
 from pathlib import Path
 
@@ -19,6 +20,20 @@ def test_baseline_inventory_partitions_are_portable():
 
 def test_required_proof_names_are_portable():
     _required()
+
+
+def test_slru_manifest_matches_its_literal_source_harnesses():
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "native/src/flash_support/slru.rs").read_text()
+    declared = re.findall(r"#\[kani::proof\](?:\s*#\[[^\n]*\])*\s*fn\s+(\w+)\s*\(", source)
+    assert declared, "SLRU proof inventory must not be empty"
+    prefix = "flash_support::slru::"
+    required = json.loads((root / "scripts/kani_obligations.json").read_text())[
+        "required_harnesses"
+    ]
+    assert {name for name in required if name.startswith(prefix)} == {
+        prefix + name for name in declared
+    }
 
 
 def test_ar10_default_policy_names_match_real_proof_declarations():

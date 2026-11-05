@@ -1287,6 +1287,9 @@ pub(crate) struct SlotLease {
     generation: u64,
 }
 
+#[path = "flash_support/slru.rs"]
+mod slru;
+
 /// Reservation is atomic: every routed expert gets a distinct protected slot.
 /// A failed read must invalidate its reservation before it can become a hit.
 pub struct ExpertCache {
@@ -1296,6 +1299,7 @@ pub struct ExpertCache {
     prefetched: Vec<bool>,
     predicted: [bool; 512],
     predictive_lru: bool,
+    slru: Option<slru::Slru>,
     counts: [u32; 512],
     ages: Vec<u64>,
     clock: u64,
@@ -1358,6 +1362,7 @@ impl ExpertCache {
             prefetched: vec![false; slots],
             predicted: [false; 512],
             predictive_lru: false,
+            slru: None,
             counts: [0; 512],
             ages: vec![0; slots],
             clock: 0,
@@ -1388,6 +1393,20 @@ impl ExpertCache {
                 *count /= 2;
             }
         }
+        if let Some(slru) = &mut self.slru {
+            slru.record_reservation();
+            let mut seen = [0u64; 8];
+            for &id in ids {
+                let word = id as usize / 64;
+                let bit = 1u64 << (id % 64);
+                if seen[word] & bit == 0 {
+                    seen[word] |= bit;
+                    if let Some(slot) = self.keys.iter().position(|&key| key == Some(id)) {
+                        assert!(slru.touch(slot, true));
+                    }
+                }
+            }
+        }
         let mut reserved = Vec::with_capacity(unique.len());
         for &id in &unique {
             let present = self.keys.iter().position(|&key| key == Some(id));
@@ -1400,6 +1419,11 @@ impl ExpertCache {
             }
             self.prefetched[slot] = false;
             self.keys[slot] = Some(id);
+            if present.is_none()
+                && let Some(slru) = &mut self.slru
+            {
+                assert!(slru.touch(slot, false));
+            }
             self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
             self.ages[slot] = self.clock;
             reserved.push((id, slot, present.is_some()));
@@ -1438,6 +1462,15 @@ impl ExpertCache {
     }
 
     fn victim(&self, routed: &[u32]) -> Option<usize> {
+        if let Some(slru) = &self.slru {
+            let eligible = |i: usize| {
+                self.pending[i].is_none() && self.keys[i].is_none_or(|key| !routed.contains(&key))
+            };
+            return slru
+                .ordered()
+                .find(|&i| eligible(i) && self.keys[i].is_none())
+                .or_else(|| slru.ordered().find(|&i| eligible(i)));
+        }
         (0..self.keys.len())
             .filter(|&i| {
                 self.pending[i].is_none() && self.keys[i].is_none_or(|key| !routed.contains(&key))
@@ -1462,7 +1495,23 @@ impl ExpertCache {
         self.predictive_lru
     }
 
+    #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+    pub(crate) fn enable_slru(&mut self) {
+        if !self.predictive_lru {
+            self.slru = Some(slru::Slru::new(self.capacity()));
+        }
+    }
+    #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+    pub(crate) fn slru_enabled(&self) -> bool {
+        self.slru.is_some()
+    }
+    #[cfg(test)]
+    pub(crate) fn slru_reservations(&self) -> usize {
+        self.slru.as_ref().map_or(0, |s| s.reservations())
+    }
+
     pub(crate) fn enable_predictive_lru(&mut self) {
+        self.slru = None;
         // Unused prefetches need a lifetime without inventing demand frequency.
         self.predictive_lru = true;
     }
@@ -1496,6 +1545,9 @@ impl ExpertCache {
         self.keys[slot] = None;
         self.prefetched[slot] = false;
         self.pending[slot] = Some(id);
+        if let Some(slru) = &mut self.slru {
+            assert!(slru.touch(slot, false));
+        }
         Ok(Some(slot))
     }
 
@@ -1578,6 +1630,9 @@ impl ExpertCache {
     }
 
     pub fn invalidate(&mut self) {
+        if let Some(slru) = &mut self.slru {
+            slru.clear();
+        }
         self.keys.fill(None);
         self.prefetched.fill(false);
     }
@@ -3805,4 +3860,199 @@ fn ar10_whole_gdn_requires_every_real_private_capability_guard() {
     kani::cover!(!actual && n == 511);
     kani::cover!(!actual && t);
     kani::cover!(!actual && s != 32);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar20_head_gates_eligible(
+    enabled: bool,
+    whole: bool,
+    trace: bool,
+    private_f32: bool,
+    simd: u32,
+    threads: u32,
+) -> bool {
+    enabled && whole && ar10_whole_gdn_eligible(true, trace, private_f32, simd, threads)
+}
+#[test]
+fn ar20_head_gates_require_the_actual_whole_private_capability() {
+    assert!(ar20_head_gates_eligible(true, true, false, true, 32, 512));
+    for values in [
+        (false, true, false, true, 32, 512),
+        (true, false, false, true, 32, 512),
+        (true, true, true, true, 32, 512),
+        (true, true, false, false, 32, 512),
+        (true, true, false, true, 64, 512),
+        (true, true, false, true, 32, 511),
+    ] {
+        assert!(!ar20_head_gates_eligible(
+            values.0, values.1, values.2, values.3, values.4, values.5
+        ));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar20_head_gates_require_all_actual_runtime_and_capability_guards() {
+    let e: bool = kani::any();
+    let w: bool = kani::any();
+    let t: bool = kani::any();
+    let f: bool = kani::any();
+    let s: u32 = kani::any();
+    let n: u32 = kani::any();
+    let actual = ar20_head_gates_eligible(e, w, t, f, s, n);
+    assert_eq!(actual, e && w && !t && f && s == 32 && n >= 512);
+    kani::cover!(actual);
+    kani::cover!(!actual && e && !w);
+    kani::cover!(!actual && e && w && t);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar20_qsa_chains_eligible(
+    enabled: bool,
+    trace: bool,
+    fp32: bool,
+    keys: u32,
+    sparse: bool,
+    capability: [u32; 4],
+) -> bool {
+    ar10_qsa_gate_eligible(enabled, trace, fp32, keys, sparse)
+        && capability[0] == 32
+        && capability[1] >= 128
+        && capability[2] == 32
+        && capability[3] >= 1024
+}
+#[test]
+fn ar20_qsa_chains_guard_keeps_short_dense_private_capable_domain() {
+    assert!(ar20_qsa_chains_eligible(
+        true,
+        false,
+        true,
+        1,
+        false,
+        [32, 128, 32, 1024]
+    ));
+    for keys in [0, 1024, u32::MAX] {
+        assert!(!ar20_qsa_chains_eligible(
+            true,
+            false,
+            true,
+            keys,
+            false,
+            [32, 128, 32, 1024]
+        ));
+    }
+    for caps in [
+        [64, 128, 32, 1024],
+        [32, 127, 32, 1024],
+        [32, 128, 64, 1024],
+        [32, 128, 32, 1023],
+    ] {
+        assert!(!ar20_qsa_chains_eligible(
+            true, false, true, 87, false, caps
+        ));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities() {
+    let (e, t, f, s): (bool, bool, bool, bool) = kani::any();
+    let k: u32 = kani::any();
+    let c: [u32; 4] = kani::any();
+    let a = ar20_qsa_chains_eligible(e, t, f, k, s, c);
+    assert_eq!(
+        a,
+        e && !t
+            && f
+            && !s
+            && k > 0
+            && k < 1024
+            && c[0] == 32
+            && c[1] >= 128
+            && c[2] == 32
+            && c[3] >= 1024
+    );
+    kani::cover!(a && k == 1);
+    kani::cover!(a && k == 1023);
+    kani::cover!(!a && s);
+    kani::cover!(!a && c[3] < 1024);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar20_resident_pair_eligible(
+    enabled: bool,
+    shape: [[u32; 2]; 2],
+    format: [[u32; 3]; 2],
+    splits: [u32; 2],
+    resident: [bool; 2],
+    bias: [bool; 2],
+    capability: [u32; 2],
+) -> bool {
+    enabled
+        && shape == [[2560, 10240], [2560, 6144]]
+        && format == [[4, 2, 2]; 2]
+        && splits == [1; 2]
+        && resident == [true; 2]
+        && bias == [false; 2]
+        && capability[0] == 32
+        && capability[1] >= 128
+}
+#[test]
+fn ar20_resident_bundle_requires_exact_live_canonical_pair() {
+    assert!(ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 2]; 2],
+        [1; 2],
+        [true; 2],
+        [false; 2],
+        [32, 128]
+    ));
+    assert!(!ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 1]; 2],
+        [1; 2],
+        [true; 2],
+        [false; 2],
+        [32, 128]
+    ));
+    assert!(!ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 2]; 2],
+        [1; 2],
+        [true; 2],
+        [false, true],
+        [32, 128]
+    ));
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(40)]
+fn ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids() {
+    let e: bool = kani::any();
+    let shape: [[u32; 2]; 2] = kani::any();
+    let f: [[u32; 3]; 2] = kani::any();
+    let splits: [u32; 2] = kani::any();
+    let resident: [bool; 2] = kani::any();
+    let bias: [bool; 2] = kani::any();
+    let c: [u32; 2] = kani::any();
+    let a = ar20_resident_pair_eligible(e, shape, f, splits, resident, bias, c);
+    assert_eq!(
+        a,
+        e && shape == [[2560, 10240], [2560, 6144]]
+            && f == [[4, 2, 2]; 2]
+            && splits == [1; 2]
+            && resident == [true; 2]
+            && bias == [false; 2]
+            && c[0] == 32
+            && c[1] >= 128
+    );
+    if a {
+        assert_eq!(320u32 * 32, shape[0][1]);
+        assert_eq!(192u32 * 32, shape[1][1]);
+        assert_eq!(320 + 192, 512);
+    }
+    kani::cover!(a);
+    kani::cover!(!a && f[0][2] == 1);
+    kani::cover!(!a && bias[1]);
 }

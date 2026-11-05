@@ -12,6 +12,7 @@ pub(super) struct Pipelines {
     dense: ComputePipelineState,
     joint_ab: Option<ComputePipelineState>,
     whole: Option<ComputePipelineState>,
+    whole_head_gates: Option<ComputePipelineState>,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
     norm: ComputePipelineState,
@@ -25,12 +26,16 @@ impl Pipelines {
         norm_gate: bool,
         joint_ab: bool,
         whole: bool,
+        head_gates: bool,
     ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
             joint_ab: joint_ab.then(|| p("gdn_joint_ab")).transpose()?,
             whole: whole.then(|| p("ar10_gdn_whole")).transpose()?,
+            whole_head_gates: (whole && head_gates)
+                .then(|| p("ar20_gdn_whole_head_gates"))
+                .transpose()?,
             prepare: p("gdn_prepare_row")?,
             step: p("gdn_step_row")?,
             norm: p("gdn_norm_row")?,
@@ -317,8 +322,23 @@ impl<'a> FlashGdn<'a> {
             g(80, 1, 1),
             32,
         );
-        let qkv = self.qkv.encode_row(cmd, &input, storage)?;
-        let z = self.z.encode_row(cmd, &input, storage)?;
+        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_resident_bundle.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            self.qkv
+                .encode_resident_pair(&self.z, cmd, &input, storage)?
+        } else {
+            None
+        };
+        let [qkv, z] = match pair {
+            Some(pair) => pair,
+            None => [
+                self.qkv.encode_row(cmd, &input, storage)?,
+                self.z.encode_row(cmd, &input, storage)?,
+            ],
+        };
         let dense = |w: &Buffer| -> Result<MatrixView> {
             let gate = half(48)?;
             Metal::encode(
@@ -354,14 +374,26 @@ impl<'a> FlashGdn<'a> {
         } else {
             (dense(&self.a)?, dense(&self.b)?)
         };
-        let whole_pipeline = p.whole.as_ref().filter(|p| {
-            crate::flash_support::ar10_whole_gdn_eligible(
+        let head_gate_pipeline = p.whole_head_gates.as_ref().filter(|p| {
+            crate::flash_support::ar20_head_gates_eligible(
+                gpu.gdn_head_gates.get(),
                 gpu.gdn_whole.get(),
                 trace,
                 private_f32_consumer,
                 p.thread_execution_width() as u32,
                 p.max_total_threads_per_threadgroup() as u32,
             )
+        });
+        let whole_pipeline = head_gate_pipeline.or_else(|| {
+            p.whole.as_ref().filter(|p| {
+                crate::flash_support::ar10_whole_gdn_eligible(
+                    gpu.gdn_whole.get(),
+                    trace,
+                    private_f32_consumer,
+                    p.thread_execution_width() as u32,
+                    p.max_total_threads_per_threadgroup() as u32,
+                )
+            })
         });
         let (conv, q, k, v, delta, normed, gated) = if let Some(pipeline) = whole_pipeline {
             let gated = half(6144)?;
@@ -388,7 +420,12 @@ impl<'a> FlashGdn<'a> {
                 512,
             );
             #[cfg(test)]
-            gpu.gdn_whole_uses.set(gpu.gdn_whole_uses.get() + 1);
+            {
+                gpu.gdn_whole_uses.set(gpu.gdn_whole_uses.get() + 1);
+                if head_gate_pipeline.is_some() {
+                    gpu.gdn_head_gate_uses.set(gpu.gdn_head_gate_uses.get() + 1);
+                }
+            }
             (None, None, None, None, None, None, gated)
         } else {
             let conv = half(10240)?;
@@ -876,6 +913,9 @@ impl FlashGdnLayer<'_> {
     }
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
         self.reset();
+        for projection in [&self.attention.qkv, &self.attention.z, &self.attention.out] {
+            projection.release_idle_scratch()?;
+        }
         self.residual.release_idle_state()
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
@@ -955,3 +995,7 @@ mod gdn_uar_tests;
 #[cfg(test)]
 #[path = "ar10_gdn_tests.rs"]
 mod ar10_gdn_tests;
+
+#[cfg(test)]
+#[path = "ar20_gdn_tests.rs"]
+mod ar20_gdn_tests;

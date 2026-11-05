@@ -1,0 +1,44 @@
+{
+  "status": "passed_source_controller_checks_only",
+  "python": "3.12.14",
+  "checks": [
+    "quiet8_same_binary_arms",
+    "quiet10_unique_target",
+    "quiet_paths_and_false_reuse",
+    "actual_main_preflight_same-composition",
+    "actual_main_preflight_superset-quality",
+    "actual_main_preflight_bad-freeze",
+    "actual_main_preflight_bad-oracle",
+    "actual_main_preflight_bad-quality",
+    "actual_main_preflight_missing-selection",
+    "actual_main_preflight_duplicate-arm",
+    "unchanged_strict_numerical_callback_valid_fixture",
+    "strict_marker_rejects_compared_state_words",
+    "strict_marker_rejects_parity",
+    "strict_marker_rejects_actual_paths",
+    "strict_marker_rejects_kernel_bits",
+    "strict_marker_rejects_oracle_sha256",
+    "strict_marker_rejects_duplicate",
+    "run_cleanup_timeout_markers_flags_AST_unchanged"
+  ],
+  "check_count": 18,
+  "gpu_executed": false,
+  "production_child_spawned": false,
+  "reference_snapshot": "docs/measurements/flash-ar20-20261105/speed-kernels-confirm.py.txt",
+  "numerical_fixture": "existing old MAIN32 metadata only; no numerical rerun or fresh-artifact claim",
+  "prior_failures": [
+    {
+      "interpreter": "system Python3.9",
+      "error": "existing zip(strict=True) helper needs qualified venv; checks rerun with venv"
+    },
+    {
+      "reference": "original speed.py.txt predates target argument",
+      "error": "AST numerical comparison failed on SELECTED versus target; corrected to the actual previous speed-kernels-confirm snapshot. All 17 preceding venv checks completed before this audit-setup failure; only affected AST check rerun."
+    }
+  ],
+  "formal_verification": "not performed; CrossHair unavailable in this environment",
+  "source_sha256": {
+    "build/ar20/speed.py": "e5d15b5332f48f512c15ed38b1f978eada2ae8ad276e64d4228c4f0ace33bf97",
+    "build/ar20/quiet-run.py": "95a2315ded59c280f0ea6a05389335a6e3e1bcb7fa893078be0e2a5eae2a5cb8"
+  }
+}

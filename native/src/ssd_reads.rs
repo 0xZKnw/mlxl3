@@ -415,12 +415,57 @@ impl SplitRecord {
     }
 }
 
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_eligible(enabled: bool, qualified_m5: bool) -> bool {
+    enabled && qualified_m5
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_identity_matches(inspected: [u64; 2], opened: [u64; 2]) -> bool {
+    inspected == opened
+}
+
+#[test]
+fn dedicated_readahead_requires_qualified_source_and_exact_inode() {
+    for e in [false, true] {
+        for q in [false, true] {
+            assert_eq!(readahead_eligible(e, q), e && q);
+        }
+    }
+    assert!(readahead_identity_matches([1, 2], [1, 2]));
+    assert!(!readahead_identity_matches([1, 2], [2, 1]));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
+    let e: bool = kani::any();
+    let q: bool = kani::any();
+    let a: [u64; 2] = kani::any();
+    let b: [u64; 2] = kani::any();
+    assert_eq!(readahead_eligible(e, q), e && q);
+    assert_eq!(
+        readahead_identity_matches(a, b),
+        a[0] == b[0] && a[1] == b[1]
+    );
+    kani::cover!(readahead_eligible(e, q) && readahead_identity_matches(a, b));
+    kani::cover!(e && !q);
+    kani::cover!(a[0] != b[0] && a[1] == b[1]);
+    kani::cover!(a[0] == b[0] && a[1] != b[1]);
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[path = "ssd_reads/readahead.rs"]
+mod readahead;
+
 pub(crate) struct ReadService {
     next: Cell<usize>,
     senders: Vec<SyncSender<ReadWork>>,
     workers: Vec<JoinHandle<()>>,
     dynamic: bool,
     split_enabled: bool,
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    readahead_files: Option<readahead::ExpertFiles>,
     active: Arc<AtomicUsize>,
     #[cfg(test)]
     pub(crate) dynamic_submissions: Cell<usize>,
@@ -490,6 +535,8 @@ impl ReadService {
             workers: Vec::new(),
             dynamic,
             split_enabled,
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            readahead_files: readahead::ExpertFiles::from_env()?,
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             dynamic_submissions: Cell::new(0),
@@ -585,6 +632,12 @@ impl ReadService {
             *gates = None;
         }
     }
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn readahead_counts(&self) -> [usize; 2] {
+        self.readahead_files
+            .as_ref()
+            .map_or([0; 2], |files| files.counts())
+    }
     pub(crate) fn in_flight(&self) -> usize {
         self.active.load(Ordering::Acquire)
     }
@@ -592,7 +645,7 @@ impl ReadService {
         &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
     ) -> Result<ReadBatch> {
-        self.start(Self::sources(records)?, Duration::from_secs(30))
+        self.start(self.sources(records, false)?, Duration::from_secs(30))
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_shared(
@@ -600,7 +653,11 @@ impl ReadService {
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
-        self.start_shared(Self::sources(records)?, Duration::from_secs(30), device)
+        self.start_shared(
+            self.sources(records, device.name() == "Apple M5")?,
+            Duration::from_secs(30),
+            device,
+        )
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     fn start_shared(
@@ -625,7 +682,7 @@ impl ReadService {
             .map(|(lease, record, owner)| ((lease, record), owner))
             .unzip();
         self.start_shared_reusing(
-            Self::sources(records)?,
+            self.sources(records, device.name() == "Apple M5")?,
             owners,
             Duration::from_secs(30),
             device,
@@ -691,13 +748,15 @@ impl ReadService {
         record: TensorInfo,
     ) -> Result<ReadBatch> {
         self.start_mode(
-            Self::sources([(lease, record)])?,
+            self.sources([(lease, record)], false)?,
             Duration::from_secs(30),
             true,
         )
     }
     fn sources(
+        &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+        qualified_m5: bool,
     ) -> Result<Vec<(SlotLease, File, u64, usize)>> {
         let mut reads = Vec::new();
         for (lease, record) in records {
@@ -710,7 +769,22 @@ impl ReadService {
                 end <= file.metadata()?.len(),
                 "checkpoint record was truncated after inspection"
             );
-            reads.push((lease, file.try_clone()?, offset, EXPERT_BYTES as usize));
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            let handle = if let Some(files) = self
+                .readahead_files
+                .as_ref()
+                .filter(|_| readahead_eligible(true, qualified_m5))
+            {
+                files.source(&record.file, file)?
+            } else {
+                file.try_clone()?
+            };
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            let handle = {
+                let _ = qualified_m5;
+                file.try_clone()?
+            };
+            reads.push((lease, handle, offset, EXPERT_BYTES as usize));
         }
         Ok(reads)
     }

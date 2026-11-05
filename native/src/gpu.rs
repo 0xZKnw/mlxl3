@@ -16,6 +16,7 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod greedy;
 mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
@@ -204,8 +205,44 @@ fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
     Ok(dest)
 }
 
+// Terminal errors still reach the caller's existing status checks and drain.
+fn wait_command(command: &CommandBufferRef, enabled: bool) -> [u64; 4] {
+    let terminal = || {
+        matches!(
+            command.status(),
+            MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error
+        )
+    };
+    if enabled {
+        if terminal() {
+            return [1, 0, 0, 0];
+        }
+        let start = std::time::Instant::now();
+        let mut polls = 0;
+        while crate::gpu_wait_policy::may_spin(enabled, start.elapsed().as_nanos(), polls) {
+            std::hint::spin_loop();
+            polls += 1;
+            if terminal() {
+                return [0, 1, 0, u64::from(polls)];
+            }
+        }
+        command.wait_until_completed();
+        return [0, 0, 1, u64::from(polls)];
+    }
+    command.wait_until_completed();
+    [0, 0, 1, 0]
+}
+
 pub struct Metal {
     device: Device,
+    #[cfg(test)]
+    ar20_kernel_bits: u32,
+    #[cfg(test)]
+    ar30_cooperative: bool,
+    #[cfg(test)]
+    ar30_cooperative_uses: [std::cell::Cell<u64>; 2],
+    #[cfg(test)]
+    ar20_library: metal::Library,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
     hc_gate_chain: std::cell::Cell<bool>,
@@ -215,9 +252,22 @@ pub struct Metal {
     gdn_norm_gate: std::cell::Cell<bool>,
     gdn_joint_ab: std::cell::Cell<bool>,
     gdn_whole: std::cell::Cell<bool>,
+    gdn_head_gates: std::cell::Cell<bool>,
+    gdn_resident_bundle: std::cell::Cell<bool>,
+    gdn_resident_qmv: Option<ComputePipelineState>,
+    #[cfg(test)]
+    gdn_resident_bundle_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    gdn_head_gate_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     gdn_whole_uses: std::cell::Cell<usize>,
     qsa_prepare: std::cell::Cell<bool>,
+    qsa_chains: std::cell::Cell<bool>,
+    qsa_prefetch: std::cell::Cell<bool>,
+    #[cfg(test)]
+    qsa_chain_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    qsa_prefetch_uses: std::cell::Cell<usize>,
     qsa_gate_fused: std::cell::Cell<bool>,
     #[cfg(test)]
     qsa_gate_fused_uses: std::cell::Cell<usize>,
@@ -297,6 +347,9 @@ pub struct Metal {
     flash_fixed_submissions: [std::cell::Cell<u64>; 2],
     flash_expert_scratch_setting: Option<bool>,
     expert_ar_enabled: [std::cell::Cell<bool>; 4],
+    spin_wait_enabled: bool,
+    #[cfg(test)]
+    spin_wait_stats: std::rc::Rc<[std::cell::Cell<u64>; 4]>,
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: Option<ComputePipelineState>,
@@ -328,10 +381,21 @@ pub struct Metal {
     model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
     logsumexp: ComputePipelineState,
+    device_greedy_pipeline: Option<ComputePipelineState>,
+    device_greedy_calls: std::cell::Cell<u64>,
+    device_greedy_heads: std::cell::Cell<u64>,
+    #[cfg(test)]
+    device_greedy_reject_result: std::cell::Cell<bool>,
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
+    moe_finish_mix: std::cell::Cell<bool>,
+    moe_finish_mix_pipeline: Option<ComputePipelineState>,
+    #[cfg(test)]
+    moe_finish_mix_uses: std::cell::Cell<usize>,
     gate_dot: [ComputePipelineState; 2],
+    router_pair: gate::PairedDot,
+    resident_scratch: crate::resident_scratch_policy::Budget,
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
@@ -398,6 +462,15 @@ impl Metal {
                 crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
+            let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
+            let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
+            let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
+                hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
+                hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
+                hc_kernel_setting("MLXL3_NATIVE_QMV_K_PRELOAD")?,
+                hc_kernel_setting("MLXL3_NATIVE_H128_SIMD")?,
+            ]);
+            let moe_finish_mix = hc_kernel_setting("MLXL3_NATIVE_MOE_FINISH_MIX")?;
             let ar10_setting = |name| crate::ar10_defaults::setting(name, qualified_m5);
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_write_norm = ar10_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
@@ -407,7 +480,11 @@ impl Metal {
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
             let gdn_joint_ab = ar10_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
             let gdn_whole = ar10_setting("MLXL3_NATIVE_GDN_WHOLE")?;
+            let gdn_head_gates = hc_kernel_setting("MLXL3_NATIVE_GDN_HEAD_GATES")?;
+            let gdn_resident_bundle = hc_kernel_setting("MLXL3_NATIVE_GDN_RESIDENT_BUNDLE")?;
             let qsa_prepare = ar10_setting("MLXL3_NATIVE_QSA_PREPARE")?;
+            let qsa_chains = hc_kernel_setting("MLXL3_NATIVE_QSA_CHAINS")?;
+            let qsa_prefetch = hc_kernel_setting("MLXL3_NATIVE_QSA_PREFETCH")?;
             let qsa_gate_fused = ar10_setting("MLXL3_NATIVE_QSA_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             // Only qualified L1 consumers defer completion, so use L1's hardware default.
@@ -539,6 +616,10 @@ impl Metal {
                     include_str!("../shaders/flash_expert_axis.metal"),
                 )
                 .replace(
+                    "#include \"flash_gdn_resident.metal\"",
+                    include_str!("../shaders/flash_gdn_resident.metal"),
+                )
+                .replace(
                     "#include \"_qmv_tile_kernel.metal\"",
                     include_str!("../shaders/_qmv_tile_kernel.metal"),
                 )
@@ -576,6 +657,10 @@ impl Metal {
                     include_str!("../shaders/flash_gdn.metal"),
                 )
                 .replace(
+                    "#include \"flash_gdn_whole.metal\"",
+                    include_str!("../shaders/flash_gdn_whole.metal"),
+                )
+                .replace(
                     "#include \"flash_gdn_prepare.metal\"",
                     include_str!("../shaders/flash_gdn_prepare.metal"),
                 )
@@ -592,6 +677,14 @@ impl Metal {
                     include_str!("../shaders/flash_qsa.metal"),
                 )
                 .replace(
+                    "#include \"flash_qsa_ar20.metal\"",
+                    include_str!("../shaders/flash_qsa_ar20.metal"),
+                )
+                .replace(
+                    "#include \"flash_qsa_chain.metal\"",
+                    include_str!("../shaders/flash_qsa_chain.metal"),
+                )
+                .replace(
                     "#include \"flash_rope.metal\"",
                     include_str!("../shaders/flash_rope.metal"),
                 )
@@ -606,6 +699,25 @@ impl Metal {
             let source = source.replace(
                 "#include \"flash_logsumexp.metal\"",
                 include_str!("../shaders/flash_logsumexp.metal"),
+            );
+            let source = format!(
+                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR20_TESTS {}\n{}",
+                crate::ar20_kernel_policy::defines(ar20_kernel_bits),
+                u32::from(ar30_cooperative),
+                u32::from(cfg!(test)),
+                source
+            )
+            .replace(
+                r#"#include "ar20_kernel_tests.metal""#,
+                include_str!("../shaders/ar20_kernel_tests.metal"),
+            );
+            let source = source.replace(
+                r#"#include "ar20_trellis.metal""#,
+                include_str!("../shaders/ar20_trellis.metal"),
+            );
+            let source = source.replace(
+                r#"#include "ar30_kernel_tests.metal""#,
+                include_str!("../shaders/ar30_kernel_tests.metal"),
             );
             let library = device
                 .new_library_with_source(&source, &options)
@@ -708,6 +820,9 @@ impl Metal {
                     ])
                 })
                 .transpose()?;
+            let gdn_resident_qmv = gdn_resident_bundle
+                .then(|| pipeline("ar20_gdn_resident_qkv_z_nt2"))
+                .transpose()?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -720,12 +835,17 @@ impl Metal {
                 .collect();
             let inverse = upload(&device, &perm)?;
             let gate_dot = [pipeline("gate_dot_half")?, pipeline("gate_dot_float")?];
+            let router_pair =
+                gate::PairedDot::load(&pipeline, hc_kernel_setting("MLXL3_NATIVE_ROUTER_PAIR")?)?;
             let gate_softmax = [
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,
             ];
             let moe_switch = [pipeline("moe_switch_half")?, pipeline("moe_switch_float")?];
             let moe_mix = [pipeline("moe_mix_half")?, pipeline("moe_mix_float")?];
+            let moe_finish_mix_pipeline = moe_finish_mix
+                .then(|| pipeline("moe_finish_mix_float"))
+                .transpose()?;
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
@@ -735,14 +855,37 @@ impl Metal {
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
-            let qsa = qsa::Pipelines::load(&pipeline, qsa_prepare, qsa_gate_fused)?;
-            let gdn = gdn::Pipelines::load(&pipeline, gdn_norm_gate, gdn_joint_ab, gdn_whole)?;
+            let qsa = qsa::Pipelines::load(
+                &pipeline,
+                qsa_prepare,
+                qsa_gate_fused,
+                qsa_chains,
+                qsa_prefetch,
+            )?;
+            let gdn = gdn::Pipelines::load(
+                &pipeline,
+                gdn_norm_gate,
+                gdn_joint_ab,
+                gdn_whole,
+                gdn_head_gates,
+            )?;
             let logsumexp = pipeline("flash_logsumexp")?;
+            let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
+                .then(|| pipeline("flash_normalized_greedy"))
+                .transpose()?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
+                #[cfg(test)]
+                ar20_kernel_bits,
+                #[cfg(test)]
+                ar30_cooperative,
+                #[cfg(test)]
+                ar30_cooperative_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
+                #[cfg(test)]
+                ar20_library: library,
                 queue,
                 hc_chain: std::cell::Cell::new(hc_chain),
                 hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
@@ -752,9 +895,22 @@ impl Metal {
                 gdn_norm_gate: std::cell::Cell::new(gdn_norm_gate),
                 gdn_joint_ab: std::cell::Cell::new(gdn_joint_ab),
                 gdn_whole: std::cell::Cell::new(gdn_whole),
+                gdn_head_gates: std::cell::Cell::new(gdn_head_gates),
+                gdn_resident_bundle: std::cell::Cell::new(gdn_resident_bundle),
+                gdn_resident_qmv,
+                #[cfg(test)]
+                gdn_resident_bundle_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                gdn_head_gate_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 gdn_whole_uses: std::cell::Cell::new(0),
                 qsa_prepare: std::cell::Cell::new(qsa_prepare),
+                qsa_chains: std::cell::Cell::new(qsa_chains),
+                qsa_prefetch: std::cell::Cell::new(qsa_prefetch),
+                #[cfg(test)]
+                qsa_chain_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                qsa_prefetch_uses: std::cell::Cell::new(0),
                 qsa_gate_fused: std::cell::Cell::new(qsa_gate_fused),
                 #[cfg(test)]
                 qsa_gate_fused_uses: std::cell::Cell::new(0),
@@ -834,6 +990,9 @@ impl Metal {
                 flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 flash_expert_scratch_setting,
                 expert_ar_enabled: expert_ar_enabled.map(std::cell::Cell::new),
+                spin_wait_enabled,
+                #[cfg(test)]
+                spin_wait_stats: std::rc::Rc::new(std::array::from_fn(|_| std::cell::Cell::new(0))),
                 #[cfg(test)]
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
@@ -865,10 +1024,23 @@ impl Metal {
                 model_ops,
                 gdn,
                 logsumexp,
+                device_greedy_pipeline,
+                device_greedy_calls: std::cell::Cell::new(0),
+                device_greedy_heads: std::cell::Cell::new(0),
+                #[cfg(test)]
+                device_greedy_reject_result: std::cell::Cell::new(false),
                 ple,
                 moe_switch,
                 moe_mix,
+                moe_finish_mix: std::cell::Cell::new(moe_finish_mix),
+                moe_finish_mix_pipeline,
+                #[cfg(test)]
+                moe_finish_mix_uses: std::cell::Cell::new(0),
                 gate_dot,
+                router_pair,
+                resident_scratch: crate::resident_scratch_policy::Budget::new(hc_kernel_setting(
+                    "MLXL3_NATIVE_RESIDENT_SCRATCH",
+                )?),
                 gate_softmax,
                 route_half,
                 route_float,
@@ -876,6 +1048,16 @@ impl Metal {
                 readers: std::cell::OnceCell::new(),
             })
         })
+    }
+
+    fn wait_command(&self, command: &CommandBufferRef) {
+        let stats = wait_command(command, self.spin_wait_enabled);
+        #[cfg(test)]
+        for (counter, value) in self.spin_wait_stats.iter().zip(stats) {
+            counter.set(counter.get() + value);
+        }
+        #[cfg(not(test))]
+        let _ = stats;
     }
 
     fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
@@ -896,7 +1078,7 @@ impl Metal {
             }
             #[cfg(test)]
             let _wait = crate::flash_profile::span("native.central_wait");
-            cmd.wait_until_completed();
+            self.wait_command(cmd);
             ensure!(
                 cmd.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",
@@ -948,7 +1130,7 @@ impl Metal {
                 threads,
             );
             command.commit();
-            command.wait_until_completed();
+            self.wait_command(command);
             ensure!(
                 command.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",
@@ -1183,3 +1365,19 @@ mod ssd_direct_tests;
 #[cfg(test)]
 #[path = "gpu/ar10_model_tests.rs"]
 mod ar10_model_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar20_kernel_tests.rs"]
+mod ar20_kernel_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar30_kernel_tests.rs"]
+mod ar30_kernel_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar20_capture_tests.rs"]
+mod ar20_capture_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar30_greedy_tests.rs"]
+mod ar30_greedy_tests;

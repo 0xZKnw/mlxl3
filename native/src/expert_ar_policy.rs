@@ -138,3 +138,82 @@ fn expert_ar_flags_preserve_qualified_defaults_and_overrides() {
     }
     kani::cover!(!present);
 }
+
+pub(crate) fn finish_mix_eligible(
+    enabled: bool,
+    fp32: bool,
+    trace: bool,
+    axis: bool,
+    simd: usize,
+    threads: usize,
+) -> bool {
+    enabled && fp32 && !trace && axis && simd == 32 && threads >= 640
+}
+pub(crate) fn finish_view_valid(
+    partial_offset: u64,
+    partial_length: u64,
+    svh_offset: u64,
+    svh_length: u64,
+) -> bool {
+    partial_offset.is_multiple_of(4)
+        && svh_offset.is_multiple_of(2)
+        && partial_offset
+            .checked_add(10240)
+            .is_some_and(|end| end <= partial_length)
+        && svh_offset
+            .checked_add(5120)
+            .is_some_and(|end| end <= svh_length)
+}
+#[test]
+fn finish_mix_requires_private_fp32_axis_and_complete_partial_scale_views() {
+    assert!(finish_mix_eligible(true, true, false, true, 32, 640));
+    for (e, f, t, a, s, n) in [
+        (false, true, false, true, 32, 640),
+        (true, false, false, true, 32, 640),
+        (true, true, true, true, 32, 640),
+        (true, true, false, false, 32, 640),
+        (true, true, false, true, 16, 640),
+        (true, true, false, true, 32, 639),
+    ] {
+        assert!(!finish_mix_eligible(e, f, t, a, s, n));
+    }
+    assert!(finish_view_valid(10240, 20480, 2, 5122));
+    for (p, n, s, m) in [
+        (1, 10241, 0, 5120),
+        (0, 10239, 0, 5120),
+        (0, 10240, 1, 5121),
+        (0, 10240, 0, 5119),
+        (u64::MAX - 3, u64::MAX, 0, 5120),
+    ] {
+        assert!(!finish_view_valid(p, n, s, m));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn finish_mix_preserves_actual_capability_and_record_view_bounds() {
+    let e: bool = kani::any();
+    let f: bool = kani::any();
+    let t: bool = kani::any();
+    let a: bool = kani::any();
+    let s: usize = kani::any();
+    let n: usize = kani::any();
+    assert_eq!(
+        finish_mix_eligible(e, f, t, a, s, n),
+        e && f && !t && a && s == 32 && n >= 640
+    );
+    let p: u64 = kani::any();
+    let l: u64 = kani::any();
+    let v: u64 = kani::any();
+    let m: u64 = kani::any();
+    assert_eq!(
+        finish_view_valid(p, l, v, m),
+        p % 4 == 0
+            && v % 2 == 0
+            && u128::from(p) + 10240 <= u128::from(l)
+            && u128::from(v) + 5120 <= u128::from(m)
+    );
+    kani::cover!(finish_mix_eligible(e, f, t, a, s, n) && n == 640);
+    kani::cover!(!finish_mix_eligible(e, f, t, a, s, n) && n == 639);
+    kani::cover!(finish_view_valid(p, l, v, m) && p > 0 && v > 0);
+    kani::cover!(!finish_view_valid(p, l, v, m) && p == u64::MAX - 3);
+}

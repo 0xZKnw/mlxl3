@@ -5,7 +5,7 @@ using namespace metal;
 
 struct Params { uint count; uint k; uint cb; uint rows; uint cols; };
 
-inline half codeword(uint x, uint cb) {
+inline half codeword_canonical(uint x, uint cb) {
     x &= 0xffffu;
     if (cb < 2) {
         x = cb == 0 ? x * 89226354u + 64248484u : x * 0xCBAC1FEDu;
@@ -17,6 +17,42 @@ inline half codeword(uint x, uint cb) {
         + ((x >> 16) & 255u) + ((x >> 24) & 255u);
     return fma(as_type<half>(ushort(sum)), as_type<half>(ushort(0x1eee)),
         as_type<half>(ushort(0xc931)));
+}
+
+#ifndef MLXL3_AR20_SWAR
+#define MLXL3_AR20_SWAR 0
+#endif
+#ifndef MLXL3_AR20_READER8
+#define MLXL3_AR20_READER8 0
+#endif
+#ifndef MLXL3_AR20_PRELOAD
+#define MLXL3_AR20_PRELOAD 0
+#endif
+#ifndef MLXL3_AR20_H128
+#define MLXL3_AR20_H128 0
+#endif
+inline half codeword(uint x, uint cb) {
+#if MLXL3_AR20_SWAR
+    if (cb == 2u) {
+        x = (x & 0xffffu) * 0x83DCD12Du;
+        uint pairs = (x & 0x00ff00ffu) + ((x >> 8u) & 0x00ff00ffu);
+        uint sum = 0x6400u + (pairs & 0xffffu) + (pairs >> 16u);
+        return fma(as_type<half>(ushort(sum)), as_type<half>(ushort(0x1eee)), as_type<half>(ushort(0xc931)));
+    }
+#endif
+    return codeword_canonical(x, cb);
+}
+
+#include "ar20_trellis.metal"
+
+// One SIMD owns all 16/24/32 packed words for K2/3/4. Every lane participates
+// in each shuffle, including lanes that do not own a word for K2/3.
+inline uint ar30_cooperative_load(const device uint* words, uint lane, uint k) {
+    return lane < 8u * k ? words[lane] : 0u;
+}
+inline ulong ar30_cooperative_pair(uint owned, uint high, uint low) {
+    return (ulong(simd_shuffle(owned, ushort(high))) << 32u)
+        | ulong(simd_shuffle(owned, ushort(low)));
 }
 
 inline ushort state(const device ushort* packed, uint tile, uint t, uint k) {
@@ -103,7 +139,7 @@ kernel void flash_k7_qmv(const device half* x [[buffer(0)]],
 
 // One thread owns both elements of its butterfly. Each stage completes before
 // the next can read it. The two FP16 boundaries reproduce radix-16 then radix-8.
-inline void hadamard128(threadgroup float* values, uint lane) {
+inline void hadamard128_canonical(threadgroup float* values, uint lane) {
     threadgroup_barrier(mem_flags::mem_threadgroup);
     for (uint stride = 1; stride <= 64; stride <<= 1) {
         uint low = 2 * (lane & ~(stride - 1)) + (lane & (stride - 1));
@@ -117,6 +153,38 @@ inline void hadamard128(threadgroup float* values, uint lane) {
         values[low + stride] = minus;
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
+}
+
+// Lane names are local to each 64-thread H128 even inside a multi-route CTA.
+inline void ar20_h128_register(thread float (&v)[4], uint lane, bool round_middle) {
+    for (uint step = 0u; step < 5u; ++step) {
+        uint bit = 1u << step;
+        for (uint j = 0u; j < 4u; ++j) {
+            float peer = simd_shuffle_xor(v[j], ushort(bit));
+            float value = (lane & bit) ? peer - v[j] : v[j] + peer;
+            v[j] = (step == 3u && round_middle) ? float(half(value)) : value;
+        }
+    }
+    float a0 = v[0] + v[1], a1 = v[0] - v[1];
+    float a2 = v[2] + v[3], a3 = v[2] - v[3];
+    v[0] = float(half(a0 + a2));
+    v[1] = float(half(a1 + a3));
+    v[2] = float(half(a0 - a2));
+    v[3] = float(half(a1 - a3));
+}
+inline void hadamard128(threadgroup float* values, uint lane) {
+#if MLXL3_AR20_H128
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (lane < 32u) {
+        float v[4];
+        for (uint j = 0u; j < 4u; ++j) v[j] = values[lane + 32u * j];
+        ar20_h128_register(v, lane, true);
+        for (uint j = 0u; j < 4u; ++j) values[lane + 32u * j] = v[j];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+#else
+    hadamard128_canonical(values, lane);
+#endif
 }
 
 kernel void exl3_prepare128(const device half* x [[buffer(0)]],
@@ -268,3 +336,6 @@ ROUTE_KERNEL(float, "route_float")
 
 #include "mapped_expert.metal"
 #include "model_ops.metal"
+
+#include "ar20_kernel_tests.metal"
+#include "ar30_kernel_tests.metal"

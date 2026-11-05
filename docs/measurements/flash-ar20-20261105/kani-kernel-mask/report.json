@@ -1,0 +1,106 @@
+{
+  "status": "validated_cpu_mask_only",
+  "verification": "bounded_model_check",
+  "source_head": "df245b8f3b894bfc93942d9a39cb73243fecf263",
+  "harness": "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
+  "budget_seconds": 90,
+  "assumptions": [],
+  "domain": "four symbolic booleans; all 16 masks; loop-free production mask",
+  "properties": [
+    "mask <= 15",
+    "each of four bits equals its corresponding input flag"
+  ],
+  "expected_covers": [
+    0,
+    15,
+    5,
+    10
+  ],
+  "target_dir": "/Users/justin/.codex/worktrees/flash-ar20-kernels/mix-stq1_0/build/ar20-kernel-mask-kani-target",
+  "gpu_executed": false,
+  "files": {
+    "native/src/ar20_kernel_policy.rs": "5f16b87d8de7349167b0bc46f338080a039ddd39fa04d54a6221db2704a0f22d",
+    "native/src/lib.rs": "24f82b042cb4ea01d8a8738e8156d0be8d93a4045d90a95a2e19c572b071e63f",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "scripts/kani_obligations.json": "5af80227cc58cf92ddf717e798c4308ac591815fcef4dcd16ef08327929071e8"
+  },
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "kani",
+        "--version"
+      ],
+      "status": "completed",
+      "pid": 19415,
+      "exit_code": 0,
+      "joined": true,
+      "elapsed_seconds": 0.048031667,
+      "log": "docs/measurements/flash-ar20-20261105/kani-kernel-mask/kani-version.log"
+    },
+    {
+      "command": [
+        "rustc",
+        "-Vv"
+      ],
+      "status": "completed",
+      "pid": 19421,
+      "exit_code": 0,
+      "joined": true,
+      "elapsed_seconds": 0.047719792,
+      "log": "docs/measurements/flash-ar20-20261105/kani-kernel-mask/rustc-version.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--exact",
+        "--harness",
+        "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
+        "--jobs",
+        "1",
+        "--output-format",
+        "regular"
+      ],
+      "status": "completed",
+      "pid": 19422,
+      "exit_code": 0,
+      "joined": true,
+      "elapsed_seconds": 26.669344374999998,
+      "log": "docs/measurements/flash-ar20-20261105/kani-kernel-mask/proof.log"
+    }
+  ],
+  "elapsed_seconds": 26.76695725,
+  "all_processes_joined": true,
+  "tool_versions": {
+    "kani": "0.68.0",
+    "cbmc": "6.11.0",
+    "host_rustc": "1.98.1 (48a229cea 2026-09-01)",
+    "host": "aarch64-apple-darwin"
+  },
+  "obligation_statuses": {
+    "SUCCESS": 216,
+    "SATISFIED": 4,
+    "UNREACHABLE": 6
+  },
+  "failed_obligations": 0,
+  "summary_assertion_obligations": 222,
+  "covers_satisfied": 4,
+  "harnesses_passed": 1,
+  "harnesses_failed": 0,
+  "solver_seconds": 0.43865305,
+  "process_group_absent_after_join": true,
+  "source_hashes_unchanged": true,
+  "limitations": [
+    "No Metal arithmetic, shader compiler, environment parser, allocator, concurrency or model proof.",
+    "Source warning caller_location/foreign function constructs are unreachable in this selected harness.",
+    "Six UNREACHABLE obligations are Kani ZST offset models and std formatting internals; all mask requirements are SUCCESS.",
+    "No production GPU or other test was executed by this run."
+  ],
+  "log_sha256": "4d192b4eec98e16d94d0e00981f825c5f214b31444a8a000963612851a9ca5ae"
+}

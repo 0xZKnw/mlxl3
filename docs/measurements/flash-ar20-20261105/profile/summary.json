@@ -1,0 +1,115 @@
+{
+  "scope": "intrusive ALL12 composition diagnostic, overlapping composites, no predicted savings",
+  "host": {
+    "native.row": {
+      "events": 7,
+      "inclusive_ms_per_row": 190.76092857142856
+    },
+    "native.central_wait": {
+      "events": 959,
+      "inclusive_ms_per_row": 101.15281571428571
+    },
+    "native.moe_wait": {
+      "events": 336,
+      "inclusive_ms_per_row": 11.407412
+    },
+    "native.central_encode": {
+      "events": 959,
+      "inclusive_ms_per_row": 16.227649
+    },
+    "native.hc.encode_read": {
+      "events": 679,
+      "inclusive_ms_per_row": 4.598142714285714
+    },
+    "native.hc.encode_write": {
+      "events": 672,
+      "inclusive_ms_per_row": 4.306513142857143
+    }
+  },
+  "cold_batch_counts": {
+    "9": 3,
+    "7": 25,
+    "1": 51,
+    "3": 48,
+    "5": 32,
+    "4": 47,
+    "2": 59,
+    "0": 35,
+    "6": 28,
+    "8": 7,
+    "10": 1
+  },
+  "metal_requests_per_row": [
+    3660,
+    3620,
+    3646,
+    3656,
+    3666,
+    3598,
+    3638
+  ],
+  "metal_requested_bytes_per_row": [
+    155626722,
+    155620578,
+    155623650,
+    155626722,
+    155626722,
+    155620578,
+    155623650
+  ],
+  "metal_allocation_host_ms_per_row": [
+    20.310929,
+    22.179388,
+    14.041342,
+    21.131102,
+    21.702261,
+    21.684955,
+    20.037555
+  ],
+  "gpu_composite_ms_per_row_nearest_parent_incorrect": {
+    "native.central_wait": 51.836500081532975,
+    "moe": 41.04061312890342,
+    "projection": 6.336982137457069
+  },
+  "gpu_composites_by_enclosing_call": {
+    "native.hc_gdn.joined": {
+      "events": 14,
+      "composite_ms_per_row": 1.8613035624314633
+    },
+    "native.hc.chain_write_read_gate": {
+      "events": 336,
+      "composite_ms_per_row": 11.4869404683954
+    },
+    "moe": {
+      "events": 875,
+      "composite_ms_per_row": 41.04061312890342
+    },
+    "native.hc.write_separate": {
+      "events": 98,
+      "composite_ms_per_row": 0.08978573272803002
+    },
+    "central": {
+      "events": 182,
+      "composite_ms_per_row": 8.812244054362443
+    },
+    "native.hc_gdn.cross_layer": {
+      "events": 238,
+      "composite_ms_per_row": 27.28080364093851
+    },
+    "native.hc.read_separate": {
+      "events": 91,
+      "composite_ms_per_row": 2.3054226226772045
+    },
+    "projection": {
+      "events": 7,
+      "composite_ms_per_row": 6.336982137457069
+    }
+  },
+  "aggregation_revision": "First immediate-parent rollup mistakenly labels every central interval central_wait; corrected by walking verified ancestry without new GPU run. Nearest-parent numbers retained as misgrouped evidence.",
+  "conditions": {
+    "captured_after": "2026-11-05T11:14:30+0100",
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+    "background": "unisolated desktop; Equibop helpers ~23%+22%CPU; Codex66%; OSmetadata daemonsactive; no external compiler/prover/inference",
+    "not_speed_comparison_to_old_profile": true
+  }
+}

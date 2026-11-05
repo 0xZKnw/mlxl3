@@ -1,0 +1,79 @@
+{
+  "status": "source_review_complete_speed_recommendation_pending_root_results",
+  "preregistration": "AR20-RUNTIME-COST-REVIEW-01",
+  "source_commit": "41988dca2142b2e9082430517a376e93e5abbd23",
+  "source_files_sha256": {
+    "native/src/gpu.rs": "3b2915d33c82ee0e11873a0c20a8ae95c100e644a24d0ae55bc4988a90d008ac",
+    "native/src/gpu/moe.rs": "3e210765a598e7e73339669f1b04f2d4f458492b23bb90bf0314133c42a9be2a",
+    "native/src/gpu/projection.rs": "7846cde51d423e11de9a900b06ad171151f10749cfddb0a888bdf72929b38ee9",
+    "native/shaders/flash_moe.metal": "57bb14458503775393754d637663111952c10d3c2b58a1f253c9fd486cb191a8",
+    "native/src/ssd_reads.rs": "88f99ddc2fb9de3a241a3e39fe7db8178731c0d63c97e0311f63d8b806977847",
+    "native/src/ssd_reads/readahead.rs": "7ffcccb1c671d4d3ecf1df45e9921ed816da5b5d88dbaa42e133bb2d6f58909a",
+    "native/src/gpu_wait_policy.rs": "56063eb768591ee6047dfb6f7419abd0d184e7244e81e06c13f6d941a0c1ee74"
+  },
+  "matches_freeze": {
+    "native/src/gpu.rs": true,
+    "native/src/gpu/moe.rs": true,
+    "native/src/gpu/projection.rs": true,
+    "native/shaders/flash_moe.metal": true,
+    "native/src/ssd_reads.rs": true,
+    "native/src/ssd_reads/readahead.rs": true,
+    "native/src/gpu_wait_policy.rs": true
+  },
+  "frozen_cli_sha256": "8d74a852d2bbdbfb08a6754c8e33585afa6b6e1fb54ed461c66c5aff26634875",
+  "no_executable_changes_or_new_execution": true,
+  "quality_counters_only": [
+    {
+      "phase": "reference",
+      "spin_enabled": "0",
+      "token": 248044,
+      "spin_wait_delta": [
+        0,
+        0,
+        328,
+        0
+      ]
+    },
+    {
+      "phase": "reference",
+      "spin_enabled": "0",
+      "token": 1,
+      "spin_wait_delta": [
+        0,
+        0,
+        428,
+        0
+      ]
+    },
+    {
+      "phase": "model",
+      "spin_enabled": "1",
+      "token": 248044,
+      "spin_wait_delta": [
+        173,
+        0,
+        150,
+        175664
+      ]
+    },
+    {
+      "phase": "model",
+      "spin_enabled": "1",
+      "token": 1,
+      "spin_wait_delta": [
+        239,
+        8,
+        178,
+        215379
+      ]
+    }
+  ],
+  "counter_order": [
+    "already_terminal",
+    "finished_during_spin",
+    "fallback_wait",
+    "polls"
+  ],
+  "new_model_performance_claim": false,
+  "quality_report_sha256": "dd641c1c833ff89db1a3afb7f3427c90a9ceb87e545153f6ad33a419a75d1284"
+}

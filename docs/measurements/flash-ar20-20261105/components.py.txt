@@ -1,0 +1,197 @@
+"""AR20 exact component gates; never starts without an exclusive root grant."""
+import argparse
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OLD = ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"
+PLAN = ROOT / "docs/measurements/flash-ar10-20261105/plan-final.json"
+MODEL = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+ROUTED = Path("/Users/justin/.codex/worktrees/issue75-native-flash-ar-boost/mix-stq1_0/docs/measurements/issue75-native-expert-encoder-20261104/quality-01/routed-scratch")
+NT2 = Path("/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/physical-02")
+MACROS = ["MUL1_SWAR", "TRELLIS_READER8", "QMV_K_PRELOAD", "H128_SIMD"]
+NEW = ["GDN_HEAD_GATES", "QSA_CHAINS", "QSA_PREFETCH", "GDN_RESIDENT_BUNDLE", *MACROS, "MOE_FINISH_MIX", "GPU_SPIN_WAIT", "EXPERT_READAHEAD_OFF", "CACHE_SLRU"]
+# label, exact test, marker, enabled AR20 flags, required nonvacuous evidence
+PHASES = [
+    ("B01", "gpu::gdn::ar20_gdn_tests::physical_ar20_head_gates_preserve_boundary_corpus_and_retained_frames", "AR20_GDN_HEAD_GATES", ["GDN_HEAD_GATES"], {"boundary_cases": 3, "boundary_state_words": 2359296, "boundary_history_half_words": 92160, "boundary_gated_half_words": 18432, "actual_runtime_uses": 2, "retained_frames": True, "canonical_psos_separate": True}),
+    ("B05", "gpu::ar20_kernel_tests::physical_ar20_codebook_preserves_all_half_states", "AR20_MUL1_SWAR", [MACROS[0]], {"finite_half_words": 65536, "compiled_bits": 1, "mutant_detected": True}),
+    ("B06", "gpu::ar20_kernel_tests::physical_ar20_reader8_preserves_every_packed_state", "AR20_READER8", [MACROS[1]], {"state_words": 28672, "compiled_bits": 2, "high_word_mutant_detected": True, "k7_k8_fallback": True}),
+    ("B07", "gpu::ar20_kernel_tests::physical_ar20_qmv_preload_preserves_tail_accumulators", "AR20_QMV_PRELOAD", [MACROS[2]], {"cases": 27, "finite_float_words": 1728, "compiled_bits": 4, "odd_and_empty_tails": True}),
+    ("B08", "gpu::ar20_kernel_tests::physical_ar20_h128_preserves_radix_rounding_and_route_groups", "AR20_H128_SIMD", [MACROS[3]], {"finite_float_words": 8192, "multi_route_float_words": 5120, "compiled_bits": 8, "middle_rounding_mutant_detected": True, "signed_zero_subnormal": True}),
+    ("B05-08-routed", "gpu::projection::ar20_projection_tests::physical_ar20_qmv_kernels_preserve_frozen_routed_stock", "AR20_QMV_FROZEN", MACROS, {"compiled_bits": 15}),
+    ("B05-08-resident", "gpu::projection::physical_flash_resident_nt2", "AR20_RESIDENT_FROZEN", MACROS, {"cases": 48, "controller_full_binary_stock_comparison": True}),
+    ("B02-03", "gpu::qsa::ar20_qsa_tests::physical_ar20_qsa_chains_and_prefetch_preserve_canonical_words", "AR20_QSA_CHAINS_PREFETCH", ["QSA_CHAINS", "QSA_PREFETCH"], {"cases": 60, "finite_half_words": 368640, "contexts": 10, "independent_canonical_psos": True, "guard_fallback_cases": 5, "poisoned_destinations": True}),
+    ("B04", "gpu::projection::resident_bundle_tests::physical_ar20_resident_bundle_preserves_distinct_transforms_and_outputs", "AR20_GDN_RESIDENT_BUNDLE", ["GDN_RESIDENT_BUNDLE"], {"cases": 4, "finite_half_words": 65536, "actual_bundle_uses": 4, "distinct_synthetic_transforms": True, "negative_strides": True, "fallback_cases": 3}),
+    ("B09-B08", "gpu::projection::ar20_finish_mix_tests::physical_ar20_pending_finish_mix_preserves_canonical_routes_and_owners", "AR20_MOE_FINISH_MIX", ["MOE_FINISH_MIX", "H128_SIMD"], {"cases": 4, "finite_float_words": 10240, "actual_mix_uses": 4, "actual_axis_experts": 40, "frozen_stock_route_words": 76800, "distinct_records": 2, "reordered_duplicate_routes": True, "retained_owners_dropped_before_commit": True, "invalid_views_rejected": True}),
+    ("B10", "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries", "NATIVE_CROSS_LAYER_MODEL", ["GPU_SPIN_WAIT"], {"compared_state_words": 115212288, "compared_logits": 1986560, "initial_archive_states": 84, "encode_failure_no_commit": True, "late_failure_layer": 20, "retained_prefix": True, "recovery": True, "export_fallback": True, "moe_deferred": True, "deferred_producer_failure_recovery": True}),
+    ("B11", "ssd_reads::readahead::tests::physical_ar20_dedicated_readahead_preserves_inode_bytes_and_original_description", "AR20_EXPERT_READAHEAD", ["EXPERT_READAHEAD_OFF"], {"bytes": 1248012, "configured_fds": 1, "selected_records": 2, "independent_description": True, "path_replacement_rejected": True, "eof_and_badfd_rejected": True}),
+]
+
+
+def strict(helpers, text):
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            assert key not in value, "duplicate JSON field: " + key
+            value[key] = item
+        return value
+    json.loads(text, object_pairs_hook=unique)
+    return helpers["strict_json"](text)
+
+
+def resident(helpers, folder, cases, stock):
+    result = strict(helpers, (folder / "native-1.json").read_text())
+    helpers["exact_fields"](result, {"parity": True, "unequal": 0})
+    assert len(result["cases"]) == len(cases) == len(stock) == 48
+    words = submissions = 0
+    for i, (case, expected, row) in enumerate(zip(cases, stock, result["cases"], strict=True)):
+        count = int(not case["generic"] and case["candidate_nt"] == 2)
+        helpers["exact_fields"](row, {"case": i, "nt": case["candidate_nt"], "nt2_submissions": count, "words": len(expected), "unequal": 0})
+        assert type(expected) is list and expected and any(w & 0x7fff for w in expected)
+        assert all(type(w) is int and 0 <= w <= 65535 and w & 0x7c00 != 0x7c00 for w in expected)
+        actual = (folder / f"native-1-{i}.bin").read_bytes()
+        assert actual == b"".join(w.to_bytes(2, "little") for w in expected)
+        words += len(expected)
+        submissions += count
+    assert words > 0 and submissions > 0 and result["nt2_submissions"] == submissions
+    return {"parity": True, "cases": 48, "finite_half_words": words, "nt2_submissions": submissions, "controller_full_binary_stock_comparison": True}
+
+
+def validate(helpers, text, phase, fixture_count):
+    assert text.count("running 1 test") == 1 and text.count("test result:") == 1
+    assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+    helpers["native_images"](text)
+    evidence = helpers["marker"](text, phase[2])
+    evidence = strict(helpers, next(line.split(phase[2] + " ", 1)[1] for line in text.splitlines() if phase[2] + " " in line))
+    helpers["exact_fields"](evidence, {"parity": True, **phase[4]})
+    if phase[0] == "B01":
+        resources = evidence["pipeline_resources"]
+        assert type(resources) is list and len(resources) == 2
+        for item in resources:
+            assert all(type(item[k]) is int for k in ("thread_execution_width", "max_threads_per_group", "static_threadgroup_bytes"))
+            assert item["thread_execution_width"] == 32 and item["max_threads_per_group"] >= 512 and item["static_threadgroup_bytes"] > 0
+    if phase[0] == "B05-08-routed":
+        helpers["exact_fields"](evidence, {"finite_half_words": (fixture_count - 1) * 2 * 2560})
+    if phase[0] == "B10":
+        assert len(evidence["steps"]) == 4
+        for token, step in zip([248044, 1, 42, 7], evidence["steps"], strict=True):
+            helpers["exact_fields"](step, {"token": token, "triples": 34, "doubles": 2, "final_writes": 14})
+            assert type(step["candidate_commands"]) is int and step["candidate_commands"] > 0
+            assert step["control_commands"] == step["candidate_commands"] + 34
+    return evidence
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--freeze", type=Path, default=ROOT / "build/ar20/freeze-common.json")
+    parser.add_argument("--out", type=Path, default=ROOT / "docs/measurements/flash-ar20-20261105/components-01")
+    args = parser.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    sink = args.out / "report.json"
+    assert not sink.exists(), "refusing to overwrite prior evidence"
+    report = {"status": "preflight", "parity": False, "all_children_joined": True, "phases": []}
+    def save():
+        temporary = sink.with_suffix(".tmp")
+        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+        temporary.replace(sink)
+    def journal(message):
+        with (ROOT / "opti.md").open("a") as stream:
+            stream.write("\nAR20 COMPONENTS-01 " + message + "\n")
+    save()
+    try:
+        helpers = runpy.run_path(str(OLD))
+        freeze = strict(helpers, args.freeze.read_text())
+        artifact = freeze["artifacts"]["native-libtest"]
+        lib = Path(artifact["path"])
+        lib = lib if lib.is_absolute() else ROOT / lib
+        assert lib.is_file() and hashlib.sha256(lib.read_bytes()).hexdigest() == artifact["sha256"]
+        assert freeze["source_files"], "empty frozen source inventory"
+        for name, expected in freeze["source_files"].items():
+            assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == expected, name
+        arms = strict(helpers, PLAN.read_text())["arms"]
+        baseline = [a["flags"] for a in arms if a["name"] == "all"]
+        assert len(baseline) == 1 and len(baseline[0]) == len(set(baseline[0])) == 13
+        routed = Path(os.environ.get("MLXL3_ROUTED_SCRATCH_FIXTURES", ROUTED))
+        nt2 = Path(os.environ.get("MLXL3_NT2_FIXTURES", NT2))
+        cases = strict(helpers, (routed / "cases.json").read_text())
+        refs = strict(helpers, (routed / "stock.json").read_text())
+        assert type(cases) is list and len(cases) >= 5 and len(cases) == len(refs)
+        resident_cases = strict(helpers, (nt2 / "native-cases.json").read_text())
+        stock = strict(helpers, (nt2 / "stock.json").read_text())
+        assert type(resident_cases) is list and type(stock) is list and len(resident_cases) == len(stock) == 48
+        assert all(Path(c["path"]).is_absolute() and Path(c["path"]).is_dir() for c in resident_cases)
+        report.update(status="running", artifact=artifact, helper_sha256=hashlib.sha256(OLD.read_bytes()).hexdigest(), controller_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), freeze_sha256=hashlib.sha256(args.freeze.read_bytes()).hexdigest(), baseline_flags=baseline[0], fixture_count=len(cases), routed_fixtures=str(routed), resident_fixtures=str(nt2))
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"DYLD_PRINT_LIBRARIES": "1", "PYTHONPATH": str(ROOT), "MLXL3_FLASH_MODEL": MODEL, "MLXL3_ROUTED_SCRATCH_FIXTURES": str(routed), "MLXL3_SSD_CACHE_GIB": "3", "MLXL3_SSD_READERS": "4", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_SSD_OVERLAP": "1", "MLXL3_SSD_CACHE_POLICY": "auto", "MLXL3_PROMPT_CACHE_MIB": "0", "MLXL3_SSD_DYNAMIC_READERS": "0"})
+        env.update({key: "1" for key in baseline[0]})
+        env.update({"MLXL3_NATIVE_" + key: "0" for key in ["HC_WORKSPACE", "HC_UP_MIX", "HC_DOWN_INJECT", "SSD_EXTRA_WAVE", "GDN_HALF_ELISION", "GDN_NORM_GATE", "FIXED_RESIDENCY", *NEW]})
+        for phase in PHASES:
+            runenv = {**env, **{"MLXL3_NATIVE_" + key: "1" for key in phase[3]}}
+            command = [str(lib), phase[1], "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+            item = {"label": phase[0], "status": "running", "parity": False, "joined": False, "command": command, "flags": {k: v for k, v in runenv.items() if k.startswith("MLXL3_NATIVE_")}}
+            report["phases"].append(item)
+            report["all_children_joined"] = False
+            save()
+            journal(phase[0] + " STARTED")
+            child, failure = None, None
+            started = time.monotonic()
+            try:
+                if phase[0] == "B05-08-resident":
+                    private = args.out / "resident-fixtures"
+                    private.mkdir()
+                    (private / "native-cases.json").write_text(json.dumps(resident_cases, allow_nan=False))
+                    (private / "stock.json").write_text(json.dumps(stock, allow_nan=False))
+                    runenv.update(MLXL3_NT2_FIXTURES=str(private.resolve()), MLXL3_NATIVE_FLASH_NT2="1")
+                    item["flags"]["MLXL3_NATIVE_FLASH_NT2"] = "1"
+                path = args.out / (phase[0] + ".log")
+                with path.open("x") as log:
+                    child = subprocess.Popen(command, cwd=ROOT, env=runenv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=180)
+                assert code == 0 and not helpers["members"](child.pid), code
+                text = path.read_text()
+                if phase[0] == "B05-08-resident":
+                    assert text.count("running 1 test") == 1 and text.count("test result:") == 1 and "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+                    helpers["native_images"](text)
+                    evidence = resident(helpers, private, resident_cases, stock)
+                    marker = phase[2] + " " + json.dumps(evidence, allow_nan=False) + "\n"
+                    with path.open("a") as log:
+                        log.write(marker)
+                    text += marker
+                item["evidence"] = validate(helpers, text, phase, len(cases))
+            except Exception as error:  # noqa: BLE001 -- Persist each failed phase before continuing.
+                failure = repr(error)
+            finally:
+                item["joined"] = helpers["stop"](child)
+                item["seconds"] = time.monotonic() - started
+                report["all_children_joined"] = all(p["joined"] for p in report["phases"])
+                save()
+            if not item["joined"]:
+                raise RuntimeError("child cleanup failed; refusing later phases")
+            item.update(status="failed" if failure else "validated", parity=failure is None)
+            if failure:
+                item["error"] = failure
+            save()
+            journal(phase[0] + (" FAILED " + failure if failure else " VALIDATED"))
+        assert len(report["phases"]) == len(PHASES) == 12 and report["all_children_joined"]
+        passed = sum(p["status"] == "validated" for p in report["phases"])
+        report.update(status="validated" if passed == 12 else "completed_with_failures", parity=passed == 12)
+        journal(f"CLOSED {passed}/12 validated; components only, no model-speed claim")
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        if report["phases"] and report["phases"][-1]["status"] == "running":
+            report["phases"][-1].update(status="failed", parity=False)
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

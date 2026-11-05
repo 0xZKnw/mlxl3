@@ -1,0 +1,15 @@
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+root=Path.cwd();old=runpy.run_path(str(root/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'));out=root/'docs/measurements/flash-ar30-20261105/cpu'
+names=['flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals','ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound','gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds']
+cmd=['/Users/justin/.cargo/bin/cargo','kani','--lib','--no-default-features','-Z','stubbing','--exact']
+for n in names:cmd+=['--harness',n]
+cmd+=['--jobs','1','--output-format','regular']
+r={'status':'running','verification':'bounded_model_check','command':cmd,'harnesses':names,'budget_seconds':120,'joined':False,'source_sha256':{p:hashlib.sha256((root/p).read_bytes()).hexdigest()for p in ['native/src/flash_support.rs','native/src/ar30_router_policy.rs','native/src/gpu_greedy_policy.rs','native/src/lib.rs']},'limits':'Actual CPU admission/index guards only; parser UTF8 <=4/unwind10; no assumptions on full symbolics in new guards; no Metal, GPU, allocator, concurrency or whole-model proof.'}
+p=out/'kani-first.json';save=lambda:p.write_text(json.dumps(r,indent=2)+'\n');save();child=None;t=time.monotonic()
+try:
+ with (out/'kani-first.log').open('x') as log:
+  child=subprocess.Popen(cmd,stdout=log,stderr=subprocess.STDOUT,start_new_session=True,env={**os.environ,'PATH':'/Users/justin/.cargo/bin:'+os.environ['PATH'],'CARGO_TARGET_DIR':str(root/'build/ar30/kani-target')});r['pid']=child.pid;save();code=child.wait(timeout=120)
+ r.update(exit_code=code,status='process_success_pending_obligation_review' if code==0 else 'failed');assert code==0
+except BaseException as error:r.update(status='unverified',error=repr(error));raise
+finally:r.update(joined=old['stop'](child),seconds=time.monotonic()-t);save()

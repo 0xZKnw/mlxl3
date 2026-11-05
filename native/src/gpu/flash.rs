@@ -18,9 +18,9 @@ mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
 pub(super) enum Layer<'a> {
-    Gdn(FlashGdnLayer<'a>),
+    Gdn(Box<FlashGdnLayer<'a>>),
     Ple(Box<FlashPleLayer<'a>>),
-    Qsa(FlashQsaLayer<'a>),
+    Qsa(Box<FlashQsaLayer<'a>>),
 }
 #[derive(Clone)]
 enum State {
@@ -164,6 +164,27 @@ pub struct FlashNext<'a> {
 }
 impl<'a> FlashNext<'a> {
     #[cfg(test)]
+    pub(super) fn slru_counts(&self) -> Result<(usize, usize)> {
+        self.layers
+            .iter()
+            .try_fold((0usize, 0usize), |(enabled, reservations), layer| {
+                let (on, count) = match layer {
+                    Layer::Gdn(a) => a.residual.moe.slru_counts(),
+                    Layer::Ple(a) => a.body.residual.moe.slru_counts(),
+                    Layer::Qsa(a) => a.residual.moe.slru_counts(),
+                };
+                Ok((
+                    enabled
+                        .checked_add(usize::from(on))
+                        .context("SLRU layer count overflow")?,
+                    reservations
+                        .checked_add(count)
+                        .context("SLRU reservation count overflow")?,
+                ))
+            })
+    }
+
+    #[cfg(test)]
     pub(super) fn ar10_record_reuse_layers(&mut self) -> usize {
         self.layers
             .iter_mut()
@@ -225,7 +246,7 @@ impl<'a> FlashNext<'a> {
                         gpu, c, &prefix, config.eps, slots,
                     )?))
                 } else if i % 4 == 3 {
-                    Layer::Qsa(FlashQsaLayer::load(
+                    Layer::Qsa(Box::new(FlashQsaLayer::load(
                         gpu,
                         c,
                         &prefix,
@@ -233,9 +254,11 @@ impl<'a> FlashNext<'a> {
                         config.rope,
                         context,
                         slots,
-                    )?)
+                    )?))
                 } else {
-                    Layer::Gdn(FlashGdnLayer::load(gpu, c, &prefix, config.eps, slots)?)
+                    Layer::Gdn(Box::new(FlashGdnLayer::load(
+                        gpu, c, &prefix, config.eps, slots,
+                    )?))
                 })
             })
             .collect::<Result<_>>()?;
@@ -368,6 +391,77 @@ impl<'a> FlashNext<'a> {
 
     pub fn forward(&mut self, token: u32) -> Result<Vec<u16>> {
         self.prefill(&[token])
+    }
+
+    /// Request admission is evaluated before any prefix or decode state advances.
+    pub fn device_greedy_eligible(
+        &self,
+        temperature: f32,
+        top_k: usize,
+        penalty: f32,
+        speculative: bool,
+    ) -> bool {
+        crate::gpu_greedy_policy::eligible(
+            self.gpu.device_greedy_available(),
+            temperature,
+            top_k,
+            penalty,
+            speculative,
+        )
+    }
+    pub fn device_greedy_counts(&self) -> [u64; 2] {
+        [
+            self.gpu.device_greedy_calls.get(),
+            self.gpu.device_greedy_heads.get(),
+        ]
+    }
+    pub fn greedy_from_logits(&self, logits: &[u16]) -> Result<u32> {
+        self.gpu.device_greedy_from_logits(logits)
+    }
+    /// A scalar head result belongs to the same rollback boundary as recurrent state.
+    pub fn forward_greedy(&mut self, token: u32) -> Result<u32> {
+        self.forward_greedy_inner(token, false)
+            .map(|(index, _)| index)
+    }
+    #[cfg(test)]
+    pub(super) fn forward_greedy_captured(&mut self, token: u32) -> Result<(u32, Vec<u16>)> {
+        let (index, logits) = self.forward_greedy_inner(token, true)?;
+        Ok((
+            index,
+            logits.context("missing test-only device head capture")?,
+        ))
+    }
+    fn forward_greedy_inner(
+        &mut self,
+        token: u32,
+        capture: bool,
+    ) -> Result<(u32, Option<Vec<u16>>)> {
+        ensure!(
+            self.gpu.device_greedy_available(),
+            "device greedy is disabled or unsupported"
+        );
+        let end = crate::flash_support::flash_prompt_end(self.offset, 1, self.context)
+            .context("Flash context exhausted")?;
+        ensure!(token < 248_320, "token outside Flash vocabulary");
+        self.ensure_fixed_residency()?;
+        let before = self.snapshot();
+        let result = (|| {
+            let streams = self.hidden(token, None, None)?;
+            let mixed = self.mixer.read(&streams, false)?.mixed;
+            #[cfg(test)]
+            {
+                self.target_head_calls += 1;
+            }
+            let selected = self.gpu.device_greedy_head(&self.head, &mixed, capture)?;
+            self.hidden = Some(streams);
+            Ok(selected)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        } else {
+            self.offset = end;
+        }
+        result
     }
 
     fn hidden(

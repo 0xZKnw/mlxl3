@@ -51,7 +51,10 @@
 #endif
 
         for (int t = 0; t < T; ++t) {
-#if MLXL3_GDN_FUSED_GATES
+#if MLXL3_GDN_SHARED_GATES
+          float gt = shared_decay;
+          half beta_t = shared_beta;
+#elif MLXL3_GDN_FUSED_GATES
           half bh = b_[hv_idx];
           half sigmoid_tail = half(1.0h) /
               (half(1.0h) + metal::exp(metal::abs(bh)));

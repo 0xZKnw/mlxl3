@@ -1,0 +1,78 @@
+{
+  "status": "source_review_complete_no_new_execution",
+  "preregistration": "AR20-B12-REVIEW-01",
+  "reviewed_source_commit": "6e18b89a (B12 relevant sections unchanged in root common source)",
+  "implementation_commits": [
+    "0f54c5d7",
+    "fdf6fcc7"
+  ],
+  "no_new_tests_replay_build_or_gpu": true,
+  "primary": "https://github.com/ggml-org/llama.cpp/blob/2bc46baa9207d098d03741ac394e7faaf1a955b6/src/llama-moe-cache.cpp",
+  "root_source_sha256": {
+    "native/src/flash_support/slru.rs": "64c308053746eb77c6fbf80377681339316a06201336d62c57db6a7f1ddeb223",
+    "native/src/flash_cache_profile/shared/current.rs": "fafb354e6af218fde0c48d4c5189c3dced0ec92f68c2ab45b6abe510e797c44c",
+    "native/src/flash_support.rs": "97a1a374de693c20b3712c0e206f107997700bd023089f12beda09d55b546f55"
+  },
+  "evidence_sha256": {
+    "docs/measurements/flash-ar20-20261105/slru-replay/replay.json": "cb5287cd667821285a0bf412e33040d51e3fe74055962bb437604e7bf5b3a342",
+    "docs/measurements/flash-ar20-20261105/slru-replay/run.json": "28287d648a870217937c15fc6fc1215d75e36524d19afa70750fb5eaabb7d388",
+    "docs/measurements/issue58-20261029/current-capture.json": "fd8cee874b73379db02a6f2f7e22fe8426870331fba79ac167e166e36f4eb884"
+  },
+  "metadata_observation": "MAIN/HOLD expert ID vectors are identical across all three captured phases; physical slot/hit observations are not identical (LFU evolves)",
+  "aggregate_miss_comparison": [
+    {
+      "case": "MAIN",
+      "part": "prefill",
+      "baseline_misses": 40828,
+      "slru_misses": 40077,
+      "difference": -751,
+      "difference_percent": -1.8394239247575193,
+      "phase_differences": [
+        -139,
+        -205,
+        -407
+      ]
+    },
+    {
+      "case": "MAIN",
+      "part": "decode",
+      "baseline_misses": 54884,
+      "slru_misses": 55854,
+      "difference": 970,
+      "difference_percent": 1.7673638947598571,
+      "phase_differences": [
+        406,
+        358,
+        206
+      ]
+    },
+    {
+      "case": "HOLD",
+      "part": "prefill",
+      "baseline_misses": 38522,
+      "slru_misses": 37545,
+      "difference": -977,
+      "difference_percent": -2.5362130730491668,
+      "phase_differences": [
+        -240,
+        -319,
+        -418
+      ]
+    },
+    {
+      "case": "HOLD",
+      "part": "decode",
+      "baseline_misses": 59005,
+      "slru_misses": 59859,
+      "difference": 854,
+      "difference_percent": 1.4473349716125752,
+      "phase_differences": [
+        259,
+        327,
+        268
+      ]
+    }
+  ],
+  "recommendation": "B12 OFF for current AR decode speed composition; retain correct opt-in SLRU candidate, prefill miss reduction is simulation only",
+  "proof_status": "B12 actual queue Kani remains timeout_unverified, unchanged domain; no proof of Metal/IO/concurrency or measured throughput"
+}

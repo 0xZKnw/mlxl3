@@ -1,0 +1,58 @@
+{
+  "status": "passed_targeted_cpu_model_check",
+  "verification": "bounded_model_check",
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--exact",
+    "--harness",
+    "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+    "--harness",
+    "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
+    "--harness",
+    "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",
+    "--jobs",
+    "1",
+    "--output-format",
+    "regular"
+  ],
+  "harnesses": [
+    "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+    "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
+    "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds"
+  ],
+  "budget_seconds": 120,
+  "joined": true,
+  "source_sha256": {
+    "native/src/flash_support.rs": "97a1a374de693c20b3712c0e206f107997700bd023089f12beda09d55b546f55",
+    "native/src/ar30_router_policy.rs": "822ea83c15b6c7c69c5afa1ffc64e1beb13a3d4448a8476930508b907bb35d75",
+    "native/src/gpu_greedy_policy.rs": "1ffc2c129da2943b0e280065a0b171e0917c8e3a44c1777f321504ba746177ad",
+    "native/src/lib.rs": "d5ffbaf5cfbee85896d8c184e046b804ce7db9f69f232fc6f0c25ba714785611"
+  },
+  "limits": "Actual CPU admission/index guards only; parser UTF8 <=4/unwind10; no assumptions on full symbolics in new guards; no Metal, GPU, allocator, concurrency or whole-model proof.",
+  "pid": 56424,
+  "exit_code": 0,
+  "seconds": 26.674562875006814,
+  "obligations": {
+    "SUCCESS": 387,
+    "SATISFIED": 15,
+    "UNREACHABLE": 7
+  },
+  "summary": [
+    "Checking harness ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound...",
+    "** 0 of 152 failed",
+    "** 4 of 4 cover properties satisfied",
+    "Checking harness flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals...",
+    "** 0 of 240 failed (7 unreachable)",
+    "** 6 of 6 cover properties satisfied",
+    "Checking harness gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds...",
+    "** 0 of 2 failed",
+    "** 5 of 5 cover properties satisfied",
+    "Complete - 3 successfully verified harnesses, 0 failures, 3 total."
+  ],
+  "log_sha256": "a2f6311ec4d3e7b09995a3151225d97bbca02fa0b9dacd50e87f9704b6d1dff5"
+}

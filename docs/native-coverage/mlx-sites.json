@@ -1229,6 +1229,9 @@
     "config MLXL3_NATIVE_ROUTED_NT2_GU": 1,
     "config MLXL3_NATIVE_SSD_EXTRA_WAVE": 1
   },
+  "native/src/ar20_kernel_policy.rs": {
+    "array::from_fn": 1
+  },
   "native/src/array.rs": {
     ".add": 8,
     ".add_rms_norm": 3,
@@ -1593,10 +1596,10 @@
     "config MLXL3_POOL_TRACE": 1
   },
   "native/src/flash_cache_profile/shared/current.rs": {
-    ".sum": 2,
-    "array::from_fn": 10,
-    "config MLXL3_CURRENT_POOL_CAPTURE": 2,
-    "config MLXL3_CURRENT_POOL_REPORT": 2
+    ".sum": 4,
+    "array::from_fn": 11,
+    "config MLXL3_CURRENT_POOL_CAPTURE": 3,
+    "config MLXL3_CURRENT_POOL_REPORT": 3
   },
   "native/src/flash_config.rs": {
     "config MLXL3_SSD_CACHE_GIB": 1,
@@ -1864,11 +1867,12 @@
   },
   "native/src/gpu.rs": {
     ".to_f32": 2,
-    ".transpose": 3,
-    "array::from_fn": 4,
+    ".transpose": 6,
+    "array::from_fn": 6,
     "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
     "config MLXL3_NATIVE_CROSS_LAYER": 1,
+    "config MLXL3_NATIVE_DEVICE_GREEDY": 1,
     "config MLXL3_NATIVE_EXPERT_AXIS_QMV": 1,
     "config MLXL3_NATIVE_EXPERT_GU_PREPARE": 1,
     "config MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": 1,
@@ -1877,23 +1881,39 @@
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
     "config MLXL3_NATIVE_GDN_HALF_ELISION": 1,
+    "config MLXL3_NATIVE_GDN_HEAD_GATES": 1,
     "config MLXL3_NATIVE_GDN_JOINT_AB": 1,
     "config MLXL3_NATIVE_GDN_NORM_GATE": 1,
+    "config MLXL3_NATIVE_GDN_RESIDENT_BUNDLE": 1,
     "config MLXL3_NATIVE_GDN_WHOLE": 1,
+    "config MLXL3_NATIVE_GPU_SPIN_WAIT": 1,
+    "config MLXL3_NATIVE_H128_SIMD": 1,
     "config MLXL3_NATIVE_HC_DOWN_INJECT": 1,
     "config MLXL3_NATIVE_HC_GDN_CHAIN": 1,
     "config MLXL3_NATIVE_HC_UP_MIX": 1,
     "config MLXL3_NATIVE_HC_WORKSPACE": 1,
     "config MLXL3_NATIVE_HC_WRITE_NORM": 1,
     "config MLXL3_NATIVE_MOE_DEFERRED": 1,
+    "config MLXL3_NATIVE_MOE_FINISH_MIX": 1,
+    "config MLXL3_NATIVE_MUL1_SWAR": 1,
+    "config MLXL3_NATIVE_QMV_COOPERATIVE": 1,
+    "config MLXL3_NATIVE_QMV_K_PRELOAD": 1,
+    "config MLXL3_NATIVE_QSA_CHAINS": 1,
     "config MLXL3_NATIVE_QSA_GATE": 1,
+    "config MLXL3_NATIVE_QSA_PREFETCH": 1,
     "config MLXL3_NATIVE_QSA_PREPARE": 1,
+    "config MLXL3_NATIVE_RESIDENT_SCRATCH": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_DOWN": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_GU": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
+    "config MLXL3_NATIVE_ROUTER_PAIR": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
+    "config MLXL3_NATIVE_TRELLIS_READER8": 1,
     "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
+    "shader ../shaders/ar20_kernel_tests.metal": 1,
+    "shader ../shaders/ar20_trellis.metal": 1,
+    "shader ../shaders/ar30_kernel_tests.metal": 1,
     "shader ../shaders/dense_projection.metal": 1,
     "shader ../shaders/exl3.metal": 1,
     "shader ../shaders/flash_expert_axis.metal": 1,
@@ -1901,6 +1921,8 @@
     "shader ../shaders/flash_gdn.metal": 1,
     "shader ../shaders/flash_gdn_epilogue.metal": 1,
     "shader ../shaders/flash_gdn_prepare.metal": 1,
+    "shader ../shaders/flash_gdn_resident.metal": 1,
+    "shader ../shaders/flash_gdn_whole.metal": 1,
     "shader ../shaders/flash_hc.metal": 1,
     "shader ../shaders/flash_hc_gemv.metal": 1,
     "shader ../shaders/flash_logsumexp.metal": 1,
@@ -1909,6 +1931,8 @@
     "shader ../shaders/flash_ple.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
     "shader ../shaders/flash_qsa.metal": 1,
+    "shader ../shaders/flash_qsa_ar20.metal": 1,
+    "shader ../shaders/flash_qsa_chain.metal": 1,
     "shader ../shaders/flash_reference_reduction.h": 1,
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/flash_static_qmv.metal": 1,
@@ -1924,6 +1948,30 @@
   "native/src/gpu/ar10_model_tests.rs": {
     "array::from_fn": 1,
     "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/ar20_capture_tests.rs": {
+    ".log_probs": 1,
+    "config MLXL3_AR20_CAPTURE": 1,
+    "config MLXL3_AR20_ORACLE": 1,
+    "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_NATIVE_DEVICE_GREEDY": 1
+  },
+  "native/src/gpu/ar20_finish_mix_tests.rs": {
+    "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
+  },
+  "native/src/gpu/ar20_gdn_tests.rs": {
+    ".finish": 2,
+    "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/ar20_kernel_tests.rs": {
+    ".to_f32": 5
+  },
+  "native/src/gpu/ar20_projection_tests.rs": {
+    "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
+  },
+  "native/src/gpu/ar30_greedy_tests.rs": {
+    ".exp": 1,
+    ".to_f32": 3
   },
   "native/src/gpu/convert_matmul.rs": {
     ".shape": 3,
@@ -1962,11 +2010,14 @@
     "config MLXL3_NATIVE_SSD_EXTRA_WAVE": 1,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
+  "native/src/gpu/gate.rs": {
+    ".transpose": 1
+  },
   "native/src/gpu/gdn.rs": {
     ".finish": 5,
     ".shape": 2,
     ".take": 1,
-    ".transpose": 4,
+    ".transpose": 5,
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/gdn_uar_tests.rs": {
@@ -2019,6 +2070,7 @@
     ".transpose": 3,
     "array::from_fn": 1,
     "config MLXL3_MOE_CHECKPOINT": 3,
+    "config MLXL3_NATIVE_CACHE_SLRU": 1,
     "config MLXL3_NATIVE_RECORD_REUSE": 1,
     "config MLXL3_NATIVE_SSD_EXTRA_WAVE": 2,
     "config MLXL3_SSD_CACHE_POLICY": 1,
@@ -2041,7 +2093,7 @@
     ".ready": 1
   },
   "native/src/gpu/projection.rs": {
-    ".shape": 5,
+    ".shape": 7,
     ".swiglu": 2,
     ".to_f32": 2,
     ".transpose": 1,
@@ -2054,7 +2106,7 @@
   },
   "native/src/gpu/qsa.rs": {
     ".shape": 1,
-    ".transpose": 7,
+    ".transpose": 11,
     "config MLXL3_QSA_MODEL": 2,
     "config MLXL3_QSA_ORACLE_DIR": 1,
     "config MLXL3_QSA_REPORT": 1,
@@ -2074,6 +2126,13 @@
     "shader ../../shaders/gated_delta_packed.metal": 1,
     "shader ../../shaders/gated_delta_prepare.metal": 1,
     "shader ../../shaders/qwen_gdn.metal": 1
+  },
+  "native/src/gpu/resident_bundle_tests.rs": {
+    ".to_f32": 1,
+    "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/resident_scratch_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/gpu/routed_nt2_tests.rs": {
     "array::from_fn": 2,
@@ -2325,7 +2384,7 @@
     ".shape": 8,
     ".slice": 2,
     ".swiglu": 1,
-    ".take": 7,
+    ".take": 9,
     ".to_bytes": 5,
     ".to_f16_bits": 32,
     ".to_f32": 12,
@@ -2359,7 +2418,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 185,
+    "mlx": 195,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2988,7 +3047,7 @@
     ".run": 3,
     ".start": 8,
     ".take": 2,
-    ".try_clone": 12,
+    ".try_clone": 13,
     "config MLXL3_NATIVE_READ_SPLIT": 1,
     "config MLXL3_SSD_DYNAMIC_READERS": 1
   },
@@ -3000,6 +3059,10 @@
   "native/src/ssd_reads/direct_tests.rs": {
     ".ready": 7,
     ".try_clone": 8
+  },
+  "native/src/ssd_reads/readahead.rs": {
+    ".try_clone": 1,
+    "config MLXL3_NATIVE_EXPERT_READAHEAD_OFF": 1
   },
   "native/src/ssd_reads/record_reuse_tests.rs": {
     ".ready": 2,

@@ -78,6 +78,17 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded",
+        "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
+        "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",
+        "gpu_wait_policy::gpu_spin_budget_never_exceeds_either_production_limit",
+        "flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids",
+        "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
+        "flash_support::ar20_head_gates_require_all_actual_runtime_and_capability_guards",
+        "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
+        "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds",
+        "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
+        "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
         "ar10_defaults::qualified_defaults_preserve_strict_overrides_and_legacy_io",
         "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
         "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",

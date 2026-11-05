@@ -18,12 +18,18 @@ pub(super) struct Pipelines {
     partials: ComputePipelineState,
     finish: ComputePipelineState,
     gate: ComputePipelineState,
+    chains: Option<ComputePipelineState>,
+    chains_prefetch: Option<ComputePipelineState>,
+    chain_combine: Option<ComputePipelineState>,
+    prefetch: Option<ComputePipelineState>,
 }
 impl Pipelines {
     pub(super) fn load(
         p: &impl Fn(&str) -> Result<ComputePipelineState>,
         prepare: bool,
         gate: bool,
+        chains: bool,
+        prefetch: bool,
     ) -> Result<Self> {
         Ok(Self {
             index_rope: p("qsa_index_rope")?,
@@ -39,6 +45,12 @@ impl Pipelines {
             partials: p("qsa_attention_partials")?,
             finish: p("qsa_attention_finish")?,
             gate: p("qsa_gate")?,
+            chains: chains.then(|| p("ar20_qsa_chains")).transpose()?,
+            chains_prefetch: (chains && prefetch)
+                .then(|| p("ar20_qsa_chains_prefetch"))
+                .transpose()?,
+            chain_combine: chains.then(|| p("ar20_qsa_chain_combine")).transpose()?,
+            prefetch: prefetch.then(|| p("ar20_qsa_prefetch")).transpose()?,
         })
     }
 }
@@ -574,7 +586,20 @@ impl<'a> FlashQsa<'a> {
                 selected,
                 positions.is_some(),
             );
-            if let Some(blocks) =
+            if gpu.encode_ar20_qsa(
+                cmd,
+                [
+                    &qr.buffer,
+                    &slab.keys,
+                    &slab.values,
+                    &attention.buffer,
+                    &qg.buffer,
+                ],
+                selected,
+                [trace, x.dtype == FloatType::F32, positions.is_some()],
+                fused_gate,
+            )? {
+            } else if let Some(blocks) =
                 crate::flash_support::qsa_attention_blocks(self.arch_class, selected)
             {
                 let partial = half(24 * blocks * 256)?;
@@ -890,6 +915,12 @@ impl FlashQsaLayer<'_> {
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
         self.residual.release_idle_state()?;
         let attention = &mut self.attention;
+        for projection in [&attention.q, &attention.k, &attention.v, &attention.out] {
+            projection.release_idle_scratch()?;
+        }
+        if let Some(index) = &attention.index {
+            index.qk.release_idle_scratch()?;
+        }
         let slab = Slab::new(
             attention.gpu,
             attention.capacity.min(32),
@@ -1152,3 +1183,103 @@ fn long_qsa_replays_oracle_and_checks_cache() -> Result<()> {
 #[cfg(test)]
 #[path = "ar10_qsa_tests.rs"]
 mod ar10_qsa_tests;
+
+impl Metal {
+    pub(super) fn encode_ar20_qsa(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        b: [&Buffer; 5],
+        keys: u32,
+        domain: [bool; 3],
+        fused_gate: bool,
+    ) -> Result<bool> {
+        let [trace, fp32, sparse] = domain;
+        if !crate::flash_support::ar10_qsa_gate_eligible(true, trace, fp32, keys, sparse) {
+            return Ok(false);
+        }
+        let p = &self.qsa;
+        let prefetch = self.qsa_prefetch.get();
+        if self.qsa_chains.get() {
+            let producer = if prefetch {
+                p.chains_prefetch.as_ref()
+            } else {
+                p.chains.as_ref()
+            };
+            if let (Some(producer), Some(combine)) = (producer, p.chain_combine.as_ref())
+                && crate::flash_support::ar20_qsa_chains_eligible(
+                    true,
+                    trace,
+                    fp32,
+                    keys,
+                    sparse,
+                    [
+                        producer.thread_execution_width() as u32,
+                        producer.max_total_threads_per_threadgroup() as u32,
+                        combine.thread_execution_width() as u32,
+                        combine.max_total_threads_per_threadgroup() as u32,
+                    ],
+                )
+            {
+                let scratch = |n| super::buffer(&self.device, n, Storage::StorageModePrivate);
+                let maxima = scratch(3072)?;
+                let sums = scratch(3072)?;
+                let outputs = scratch(786432)?;
+                Metal::encode(
+                    cmd,
+                    producer,
+                    &[b[0], b[1], b[2], &maxima, &sums, &outputs],
+                    [keys],
+                    MTLSize::new(48, 2, 1),
+                    128,
+                );
+                Metal::encode(
+                    cmd,
+                    combine,
+                    &[&maxima, &sums, &outputs, b[3], b[4]],
+                    [u32::from(fused_gate)],
+                    MTLSize::new(24, 1, 1),
+                    1024,
+                );
+                #[cfg(test)]
+                {
+                    self.qsa_chain_uses.set(self.qsa_chain_uses.get() + 1);
+                    if prefetch {
+                        self.qsa_prefetch_uses.set(self.qsa_prefetch_uses.get() + 1);
+                    }
+                    if fused_gate {
+                        self.qsa_gate_fused_uses
+                            .set(self.qsa_gate_fused_uses.get() + 1);
+                    }
+                }
+                return Ok(true);
+            }
+        }
+        if prefetch
+            && let Some(pipeline) = p.prefetch.as_ref()
+            && pipeline.thread_execution_width() == 32
+            && pipeline.max_total_threads_per_threadgroup() >= 1024
+        {
+            Metal::encode(
+                cmd,
+                pipeline,
+                &b,
+                [keys, 0, u32::from(fused_gate)],
+                MTLSize::new(24, 1, 1),
+                1024,
+            );
+            #[cfg(test)]
+            {
+                self.qsa_prefetch_uses.set(self.qsa_prefetch_uses.get() + 1);
+                if fused_gate {
+                    self.qsa_gate_fused_uses
+                        .set(self.qsa_gate_fused_uses.get() + 1);
+                }
+            }
+            return Ok(true);
+        }
+        Ok(false)
+    }
+}
+#[cfg(test)]
+#[path = "ar20_qsa_tests.rs"]
+mod ar20_qsa_tests;
