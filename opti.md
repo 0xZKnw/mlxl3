@@ -25917,3 +25917,87 @@ AR30-C03 SOURCE READY before CPU execution: isolated574e4a8c afterissue135/prere
 AR30 CPU first gates CLOS: real parser/C02router/C03admission Kani0.68/CBMC6.11 PASS3/3 in26.675s,0/394reportedfailed,387SUCCESS/7UNREACHABLEstdalignment/UTF8/fmt,15/15covers; newguardsfullsymbolics/noassume, parserUTF8len<=4/unwind10. Exactcommands/sourcehashes/covers/limits/rawindividualobligations docs/measurements/flash-ar30-20261105/cpu/kani-first.{json,log}; alljoined, notMetal/concurrency/wholeengineproof. Firstsummaryparser usedwrongbracketregex; correctedtoactual '- Status:' and reviewedall7unreachableindividualsourcechecks before reporting counts;rawlogunchanged. RootcapturemergeunionkeepsC01compiled+realresident/routeddeltas,C02actualroutercounter,andC03capturedlogits/scalarcount/latefailurestaterecovery. C03flagname DEVICE_GREEDY alignedcontroller BEFOREexecution; qualitymustcontainallsixnumeric/modelphases, noemptyplanvalidation.10parser/nonemptyplanchecksPASS; independent borrowedprocesssupervisor4syntheticfail/successcasesPASSalljoined (twoinitialsyntheticharnesssetupmistakes fixed, notenginefailures). CrossHairunavailableasrecorded.
 
 AR30 CIinventory intended regression reproduced on first3sourceunion: portable+coverage9PASS/1FAIL+2subtests because newconfig/shader/callsnotyetreviewedreference; actual13marker-countdeltas reviewed, allprevioussitespreserved, updatedreference273→275files then reran affected10testsPASS/2subtests (actualrunoutputauthoritative). No productionMLXdependencyadded; newnativegate .transpose andnativegreedytest .exp/.to_f32 areinventorymatches, notMLXruntimecalls. C04sourceinprogressnotyetintegrated, sofinalinventory/checksremainpendingafteritsunion; allnewoptionsOFF/unqualified, no speedmeasurement launchedyet.
+
+AR30 commonCPU first attempt interrupted after fmtPASS/C04KaniPASS(387reported/6covers reviewpending)/strictnoDirectClippyPASS: directClippyFAIL large_enum_variant because C04scratchmetadata grew QSA vsGDN variant difference280B. No GPU/testspeed launched. Before correction traced everyLayer::Gdn/Qsa constructor/match (two loaders, methods auto-deref, no serializedState/API change); box both large layer variants like existingPLE, onlymodel-load allocations, no arithmetic/layoutcontract change. This addresses the introduced size imbalance without lint suppression or perprojection defaultOFF heap allocations. Rerun only affected direct/MLXClippy then pendingfullsuite/releases; unchangedCPUleafproofs reused by exactsourcehash, no redundantoldproofrun. Failure/rawlogs preserved cpu/cpu-all.json+clippy-direct.log. Finalcommonphysicaloracles remainprerequisites; no numericqualification claim yet.
+
+AR30 commonCPU CLOS afterbox: fmt/strictnoDirect+Direct+MLXchatClippyPASS; fullDirect396PASS91ignored (actuallib306/87,bin36/1,contracts17/0+35/3+1/0+1/0,2emptytargets explicitnotcoverage). Portable10PASS+2subtests/inventory276filesPASS. RealC04Budget/eligibility/reserve/ResourcePlan Kani1PASS0/387reportedfailed/6covers; individualstdunreachable reviewedinfinal-review.json, noGPUcompletionproof. Existing3CPUleafsourcehashes unchanged, rootfirstproof3/394reported/15covers retained; global420+Kani suite not rerun locally because unrelated historical costly harnesses/known toolchain limits, exact-headCIwillreportseparately. New finalreleaseCLI/libtest38.46s/56.11s, frozenbuild/ar30/frozen and docs/.../freeze.json identify sourceafb9+recordeddirty/allnewfiles/helpers/modelmetadata hashes. Testcontroller final7nonemptyqualityphases+CLI and5MAIN32arms controls/kernels/host/combined/control; first readbackgroupsrequire32selections31heads. C04actualreuse andC02counterplusC01compiled+bothdispatches requiredbycommonmodel. Savedoldindependentoracle fromAR20quiet identicalcanonicalbaseline reusedbySHA, nocapture/duplicatebaselineGPUloadneeded. NoCPUcompiler/prover/otherinference remains beforeexclusiveGPU. Allnew4OFF inengine untilqualification, accepted13defaultsunchanged. AR30 QUALITY+MAIN32 nowENCOURS; stoponanyqualityfailure, no swapabort/coolingwait/appinstallation.
+
+AR30 QUALITY windows VALIDATED
+
+AR30 QUALITY resident VALIDATED
+
+AR30 QUALITY routed VALIDATED
+
+AR30 QUALITY router VALIDATED
+
+AR30 QUALITY greedy VALIDATED
+
+AR30 QUALITY scratch VALIDATED
+
+AR30 QUALITY model VALIDATED
+
+AR30 QUALITY CLOSED validated_quality joined=True
+
+AR30 MAIN32 control-start VALIDATED 7.582778717401473
+
+AR30 QUALITY CLOS VALIDÉ8/8explicitphysical/bridgephases/alljoined (~48s phase totals), beforefirstspeed: C01 2,300,928statewindows/8960bitbasis+3mutants/K5–8fallback;48residentfixtures fullbinaryindependentstock equality andpositivecompiled/dispatch counters; routedallselectedstockfiniteoutputs. C02all11,264logits+11,264probs/220routeIDs+scores/10cases inclnegative/broadcaststrides+wrongrowmutant,10actualpaireduses. C03 eleven248320-wide distributions/8valid3invalid independentCPUf64+stocknormalizedHalf ties/subnormal/signed0/maskedlastindex/NaN/±Inf/wrongextent,rawargmaxmutationcaught. C04 eightcompleteoutputs81,920Half/poison/retaineddistinctdestinations/pending+sameCBfresh/failedowner+abandon/idle-refund,2completedreuses46080Bpair. Commonmodel independentoldoracle171bea94… matches57,606,144statewords/993,280logits/81,920hiddenbytes/84initialstates, lateinvalidscalarrollback+continuation, C01bothactualdispatches/C02realrouter/C03[2,2]deviceheads/C04real936reuses/charge5,821,440B/allreadersjoined. SourceC04estimate5,216,256B/168slots wasapproximate anddiffersfromobservedallocation; keepoldestimateasestimate, measuredchargeauthoritative/bounded32MiB, sourceauditpendingwithoutnewtest. ActualnoMLXCLI2tokenGolden/shutdownPASS. No additionalnumericfailures. FrozenCLI f24201e3…/lib b2848886…/577source+helper+modelmetadatahashes. MAIN32fivearms nowrunningonlyafterallqualityPASS; no productiondefaultactivation/performanceclaimyet, noGPUconcurrency/compilation/prover.
+
+AR30 MAIN32 kernels VALIDATED 8.854881067521605
+
+AR30 MAIN32 host VALIDATED 7.243154034714211
+
+AR30 MAIN32 combined VALIDATED 5.543504394255463
+
+AR30 MAIN32 control-end VALIDATED 8.361276460784955
+
+AR30 SPEED CLOSED validated_speed joined=True
+
+AR30 MAIN32 firstscreen CLOS numericVALIDÉ/performanceNONCONCLUANT:5arms/alljoined10/10completegoldenwarm+measuredoutputs/32generated31decode. Measuredcontrol-start7.582778717/kernels8.854881068/host7.243154035/combined5.543504394/control-end8.361276461tok/s; controlspread10.267% andwarmvalues9.112/5.719/5.497/6.077/9.269 stronglyvariable, no individualorcomposedboost/defaultpromotion claim. Host/combinedrealGPUgreedy32selections31heads eachwarm+measuredverified; extraMetalallocated~6.9MBvscontrol, no runawaymemoryobserved. MidconditionsAC100%, pmsetnotthermal/performancewarningrecorded (NOT measuredtemperature), Codex41%CPU/OSservicesactive, anunidentifiedPythonPID36915~9% disappearedbeforeinspection: no establishedinterferencecause. No compiler/prover/secondknownmodel duringGPU; allprocessgroupsjoined. Rawsource/hash/metadata/docs/.../speed/report.json individualreports keptunchanged. Current8.85 not11/12 andnot comparablecausallytohistorical10.3.
+
+AR30 CONFIRM-01 prereg BEFORE repeat: justifiedvalidation of firstscreen kernels8.85 vsnewOFFcontrols7.58/8.36 with10.27%drift, and newOFF code vsretainedoldbaseline (C04addedmetadata/boxedLayer/C03bridgeintegration couldotherwisehideOFFregression). No numericalsourcechange. Exactly5freshMAIN32processes: oldqualifiedCLI3a8547c9 OFF/newCLIf24201e3 OFF/newkernels(C01+C02only)A/newkernelsB/oldOFFend. Keepaccepted13defaultsON/AR20OFF/hostC03+C04OFF, same1warm+1measure32/31/context4096/cache3GiB/readers4/depth0/prefixOFF/T0/noMTP/DFlash. Reuseall8physicalnumericqualificationsbecausecandidatepathsidentical; newcontrolleronlyusesauditedboundedprocesshelpers/strictbenchmark+golden+binaryhash+complete/reaped checks, current577source/hashfrozenplanunchanged. Logpowerswap/topCPUasconditions, no wait/coolingtimer/swapabort/extraGPU. Stopaftermatrix; ifdriftremainsnonconclusive doNOTinventboostorautomaticallyextendtests. Reportdocs/.../confirm-01. No newupstream/sourceexperiment/repetitionofrejectedoldkernel.
+
+AR30 CONFIRM-01 old-start VALIDATED 9.83960908081233
+
+AR30 CONFIRM-01 new-off VALIDATED 9.672806402524163
+
+AR30 CONFIRM-01 kernels-A VALIDATED 8.940462217570618
+
+AR30 CONFIRM-01 kernels-B VALIDATED 8.741836576557851
+
+AR30 CONFIRM-01 old-end VALIDATED 9.628187108869787
+
+AR30 CONFIRM-01 CLOSED completed_short_samples_only joined=True
+
+AR30 CONFIRM-01 CLOS numericVALIDÉ/performanceKERNEL-BUNDLE REJETÉ:5freshMAIN32arms/alljoined10/10goldenoutputs. Oldqualifiedstart9.839609081/end9.628187109tok/s (-2.149% drift); newOFF9.672806403 insideoldcontrolrange, no materialOFFpathregressionestablished. NewC01+C02kernels8.940462218/8.741836577, bothbelowbotholdcontrols(~7.14–11.16%dependingendpoint), sofirst8.85signalnotacceptedgain. This rejectscomposition only, notlogicalproof eachmembernegative. Sourceadaptationauditbeforedecision: samephysicalindependentwindow+stockfixtures+allmodelstates/heads verified, actualbothrouted/resident/correctsupportedK, allcanonicalFMA/reductionunchanged; no missedguard/silentfallback/arithmeticfaultfound. Cooperativewordloads tradeexistingcoalesced/cacheable loadsfor4shuffles/retainedregisters; no DRAMtransaction/instructioncounter measured, so that explanationremainshypothesis. C02aloneunattributed; cannotdiscardpotentialsmallcompatiblegainbecausebundleloses. Old10.3historical notcurrentcontrol. No defaultchange.
+
+AR30 SPLIT-01 prereg BEFORE finalattribution: priorstableCONFIRMcontrols2.15% andtwoC01+C02losses requireseparating4alreadycorrectcomponentssothebundlecannotmaskausefulsmallgain. Exactly6MAIN32processes newOFFstart/C02routeronly/C04scratchonly/C03greedyonly/C01cooperativeonly/newOFFend, samefrozenCLIf242/577sourceplan/noenginechange, 1warm+1measure32/31/cache3GiB/readers4/depth0/prefixOFF/T0/noMTP/DFlash. Nofactorial/grid/prolongedcontext orper-parametersearch; reusecompleteall4numeric/component+fullmodelgatesbecauseallmodifiedstagefunctions bitexactagainstindependentstock, actualCLItrajectorygoldenandC03countscheckedinthissplit. Newruntimecompositions only, no newprototype. Rootsource/freecontrollerusesauditedstrictreap/timeout/helpers; no app/coolingsleep/swapabort/GPUconcurrency. Reportdocs/.../split-01; stop aftermatrix fordecision unlessanactualbugorfreshwinningcompositionrequiresaffectedvalidation. Defaultactivationrequiresmeasuredretainedcomposition, no promise11/12.
+
+AR30 SPLIT-01 control-start VALIDATED 10.40929895017919
+
+AR30 SPLIT-01 router VALIDATED 10.323522401348606
+
+AR30 SPLIT-01 scratch VALIDATED 10.35591094517898
+
+AR30 SPLIT-01 greedy VALIDATED 10.24736787728449
+
+AR30 SPLIT-01 cooperative VALIDATED 9.38432626358283
+
+AR30 SPLIT-01 control-end VALIDATED 10.253031450885238
+
+AR30 SPLIT-01 CLOSED completed_short_samples_only joined=True
+
+AR30 SPLIT-01 CLOS numericVALIDÉ6arms/12goldenoutputs/alljoined, performanceC01 REJETÉ/C02C03C04NONCONCLUANT individually: control10.409298950→10.253031451tok/s (-1.501%);router10.323522401/scratch10.355910945/greedy10.247367877 allwithinnearcontrolnoise, cooperative9.384326264 belowbothcontrols~8.47–9.85%. C03actual32selections31heads perwarm+measured verifiedbyfollowupreceipt; old/newOFFvalidationremainsstable. No missedadaptationfault identified in final independentcombinedsourceaudit; inventoryfalsealarmfromtruncateddiffwasretractedafterexplicitrootverification. Read-onlymidPython9%couldbeobserveritself (snapshotcollectedfromPython); no evidenceofexternalworkload/heatcause. SourceC04revision fullyexplains5,821,440B=108GDNslots3,907,584+48QSAq/k/v/index915,456+head998,400;12QSAoutSharedexcluded;157slots314buffers; headalreadyadmittedbylateinvalidtransaction, no extrapolatedextraheadcharge. Oldestimatesretained+datedcorrectionC04-design.md. CurrentqualifiednewOFF10.25–10.41 short samples, target11–12NOTachieved. Accepted13defaultsstillON, allnew4OFF.
+
+AR30 COMPOSE-01 prereg BEFORE finalcomposition: perrepo small-compatible-gain rule, neutralstandaloneC02/C03/C04cannotberejectedonlybecauseeachbelowindividualsignalthreshold. RemoveconfirmedregressorC01, exactly2freshMAIN32processes combined C02+C03+C04 ON thennewOFFclosingcontrol; immediatepriorSPLITclosing10.253031 retainedasprecedingcontrol (notinterpolated). FrozenCLIf242/577sourceunchanged, same32generated31decode/1warm+1measure/context4096/cache3GiB/4readers/depth0/prefixOFF/plainT0AR/noMTP/DFlash. Priorall4component+fullstate/CLIqualifications remainvalidbitexact; actual32/31GPUgreedy statsandgoldenfulltext/hash checkedagain. NoGPUconcurrency/compile/prover/swapabort/coolingtimer. Final2processesonly, no broadgrid; reportcompose-01. Userstatusansweredhonestlynotfinished/11–12notreached; thenpublishqualifiedevidencePR(allnewdefaultsOFFunlessretainedcompositiongainconfirmed).
+
+AR30 COMPOSE-01 compatible VALIDATED 9.911237539908683
+
+AR30 COMPOSE-01 control-end VALIDATED 9.345470622821193
+
+AR30 COMPOSE-01 CLOSED completed_short_samples_only joined=True
+
+AR30 COMPOSE-01 CLOS numericVALIDÉ2arms/alljoined4goldenoutputs,actualC03GPU32selections31heads verified, performanceNONCONCLUANT: compatibleC02+C03+C04=9.911237540tok/s; priorSPLITcontrol10.253031451, closing9.345470623 (8.851%controlspread), candidatebetweencontrols, noacceptedgain/defaultpromotion. All4newoptionsremainOFF; C01rejectedstable8–10%loss, othersneutralindividually/compositioninconclusive. AllAR30trialsCLOS; qualifiedresearch/code/evidencepublicationpendingfinalarchive/diff/PR, noextra32tokenscreenplanned. Usernewsteeringexplicitlyrequestsdetailedprofilingfromretained10.4baseline thenresearchguidedbyit, notnewblindkernelprototypes.
+
+AR31-DEEP-PROFILE prereg BEFORE further profiling research/toolruns/code: user2026-11-05 requests millisecond-level nativeARcriticalpath profiling basedonqualified10.4tok/s, thenfocusedupstreamresearch. Readupdatedopti/AR30allclosed and oldnative8/profileanalyzer/source beforework. Baselineaccepted13ON/newAR20twelve+AR30fourOFF, frozenCLIf242/native b284 exact577source/metadata hashes, lateststableMAIN32newOFF10.409/10.253tok/s, oldOFF9.840/9.628 separateconditions. Existingnative8intrusive191.8ms/row is NOT release96msbudget; need diagnose observercost/anytest-onlypathdifference first. First SOURCE/capability phase: inspect actualproductionCPUencode/allocator/routing/head/selection, SSDworkers/queues/readiness, everyGPUCB/dispatch and existingtraces; queryInstruments/xctrace availability/templates/support andprimaryAppleclock/counterdocs withoutlaunchingmodel. Thenregisterpreciseboundedcapturematrix BEFORE recording: actualproductionpath/unchangednumericflow, lowoverheadtyped/preallocatedevents ifneeded, separateCPUmainscopes/workerI/O/GPUcommands+kernelcounters, commonverifiedclockmapping/uniqueIDs/exclusiveCPUandGPUunioncriticalpath/nondoublecount, completeness+unaccountedgaps instead ofclaimingperfectattribution. CompareobserverOFF/ON overheadfreshsameprotocol32tokens withnumeric/goldenactualpathgates andoneGPUmodel; nocompilers/proversduringGPU, noCPUstagefences/extraCBsintheproductionqualificationpath. Deepcounter/capturemodeifintrusiveclearlyseparated; noclaimedCPU/GPUutilization fromcompositeCBintervals. Boundedwaits/join/failurepersist, finite/nonemptydata/errors/overflowstatus, actualRustguardKani andregressions if executablechangesneeded. No privilegedapproval/silentOSchange/coolingtimer/swapabort; toolpermissionlimitsreportedifencountered. Reportsplanned docs/measurements/flash-ar31-profile-20261105, followupwithinissue135beforetrials, newisolatedbranchafterAR30qualifiedpublication. Researchnewoptimisationsonlyafternewprofilefindings. No newprofile/capture/prototype launched yet.
+
+AR30 publication-ready checkpoint: all4prototypes numericqualified/OFF; C01measuredregressionrejected, C02/C03/C04 standalone+compatiblecomposition notacceptedasspeedgain. All18MAIN32processes/36warm+measuredcompletegoldenoutputs32/31/alljoined; actualC03counts32/31 recheckedinallapplicablereports. Raw111files5,898,489B archivedlosslessly1,887,815Bgzip+SHAroundtripindex, raworiginalsremainlocal/notstaged. FailureinitialClippy/fixedrun/ignored+zerotests/CPUprooflimits retained. Finalindependentsourcereview noremainingconcretefault,13accepteddefaults unchanged, 276inventory+3newrealKaninamesunionsvalid. No GPU/CPU/prover processesremain. README/matrix/evaluation/freeze/commandssnapshots reflectretainedcode, notupstreamheadlines;11–12NOTachieved. NewAR31source/capabilityaudits arecompletewithoutcapture/code: native8 observerJSONbeforecommitscanchangeSSDreadiness/cohorts; allocationmeterincludesguards+TLSnotpureAPI; uncalibratedclocks/repeatedwaits/missingI/Oqueue/publication/PLe+embedding boundaries found. Xcode27.2availableviaDEVELOPER_DIRdespiteCLTxcode-select, noOSchange; InstrumentsMetalSystemTracefeasiblehelp-only/permissionuntested; avoidmetal0.33resolve_counter_rangeunsafezero-bytecopy wrapper. Issue135updatedbeforeAR31recording. PublicationthenisolatedAR31capturematrix, no newoptimisationprototypeuntildeepfindings.

@@ -152,7 +152,8 @@ fn run_capture() -> Result<()> {
             bits == 0
                 && !cooperative
                 && !gpu.device_greedy_available()
-                && !gpu.router_pair.enabled.get(),
+                && !gpu.router_pair.enabled.get()
+                && !gpu.resident_scratch.enabled.get(),
             "reference compiler options must be OFF"
         );
         ensure!(
@@ -198,6 +199,7 @@ fn run_capture() -> Result<()> {
     for token in [248044, 1] {
         let before = actual_paths(&gpu, &model)?;
         let router_before = gpu.router_pair.uses.get();
+        let scratch_before = gpu.resident_scratch.reuses.get();
         let cooperative_before = gpu
             .ar30_cooperative_uses
             .each_ref()
@@ -234,6 +236,11 @@ fn run_capture() -> Result<()> {
         ensure!(
             !gpu.router_pair.enabled.get() || gpu.router_pair.uses.get() > router_before,
             "paired router was not encoded on the real model path"
+        );
+        ensure!(
+            !gpu.resident_scratch.enabled.get()
+                || gpu.resident_scratch.reuses.get() > scratch_before,
+            "resident scratch did not reuse buffers on the model path"
         );
         if cooperative {
             ensure!(
@@ -316,7 +323,7 @@ fn run_capture() -> Result<()> {
         );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
-            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
+            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
         );
     } else {
         let oracle = Oracle {

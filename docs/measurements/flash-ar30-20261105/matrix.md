@@ -18,3 +18,19 @@ Issue [135](https://github.com/0xZKnw/mlxl3/issues/135) was created before any n
 Other attested reserves and rejected/inapplicable mechanisms stay in the research reports: bounded tracked MTLHeap only after allocation evidence, validated CPU encode replay for stable segments (no CB recommit), scoped QoS, uniform metadata; A08 producer KV append is an explicit historical extension. BaseRT publishes no engine kernels, wrappers are not independent mechanisms, GPU-only graph loops cannot cross SSD CPU routing readbacks. No inflated count of ten proven local boosts.
 
 Protocol: correctness before timing; one GPU process/model at a time, no compilers/provers/other inference during GPU, no swap abort or artificial cooling wait. Retain all accepted defaults. Few coherent groups, actual CLI MAIN32 with one warm and one measured request (32 generated /31 decode), context4096, cache3GiB, readers4, dynamic readers0, lookahead0, prefix cache0, unpenalized greedy, AR only. Fresh controls and alternation if needed; strong drift makes speed nonconclusive. No sum of incompatible gains; compatible small gains may be composed. Record source/binary/controller/checkpoint hashes, environment and process cleanup. CPU proofs do not prove Metal or whole inference. Qualified increments are authorized for PR publication; no merge/app replacement/release.
+
+## Dated outcome — 2026-11-05
+
+All four implemented prototypes passed independent component/model/CLI numeric
+qualification; all remain OFF. C01 standalone9.384326tok/s versus10.409299/10.253031
+controls is rejected for performance. C02router10.323522, C03greedy10.247368 and
+C04scratch10.355911 establish no gain outside control variation. Their compatible
+composition9.911238 lies between10.253031/9.345471 controls and is nonconclusive.
+All36 warm/measured outputs match the complete golden text/hash. No new default
+or11–12tok/s claim. Source audits found no missing adaptation or arithmetic fault;
+extra shuffle/hazard/host costs remain hypotheses rather than measured causes.
+C05–C09 remain conditional/source-only, with no execution or speed claimed. The
+new user request prioritizes detailed production profiling before further work.
+See [evaluation](evaluation.json), [qualification](quality/report.json),
+[report](README.md) and [C09 design](c09-design.md). Earlier hypotheses and failures
+are intentionally retained above.

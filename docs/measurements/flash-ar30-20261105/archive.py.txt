@@ -1,0 +1,15 @@
+import gzip,hashlib,json
+from pathlib import Path
+root=Path.cwd();base=root/'docs/measurements/flash-ar30-20261105';archive=base/'archive';archive.mkdir();rows=[]
+for p in sorted(base.rglob('*')):
+ if not p.is_file() or archive in p.parents or p.suffix not in {'.log','.jsonl','.bin'}:continue
+ raw=p.read_bytes();near=p.with_name(p.name+'.gz')
+ dest=near if near.exists() else archive/(str(p.relative_to(base))+'.gz')
+ dest.parent.mkdir(parents=True,exist_ok=True)
+ if dest.exists():compressed=dest.read_bytes();assert gzip.decompress(compressed)==raw
+ else:compressed=gzip.compress(raw,mtime=0);dest.write_bytes(compressed)
+ assert gzip.decompress(compressed)==raw
+ rows.append({'raw':str(p.relative_to(root)),'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest(),'gzip':str(dest.relative_to(root)),'gzip_bytes':len(compressed),'gzip_sha256':hashlib.sha256(compressed).hexdigest(),'roundtrip':True,'raw_retained_local':True})
+(archive/'index.json').write_text(json.dumps({'status':'lossless_roundtrip_checked','files':rows},indent=2)+'\n')
+(archive/'README.md').write_text('# AR30 lossless raw evidence\n\n[index.json](index.json) records raw and gzip sizes/SHA256 for every archived log, event stream and output binary. Every stream passed gzip roundtrip equality; original files remain local and are not staged. The initial Clippy large-enum failure is preserved alongside the corrected run. JSON receipts and frozen stock metadata remain directly readable in the report directories.\n\nRestore any entry by decompressing its `gzip` path to the corresponding `raw` path, then verify the raw SHA256. Historical input/checkpoint directories named by the freeze remain separate prerequisites; no model weights or installed app are included.\n')
+print(json.dumps({'files':len(rows),'raw_bytes':sum(r['bytes']for r in rows),'gzip_bytes':sum(r['gzip_bytes']for r in rows)}))

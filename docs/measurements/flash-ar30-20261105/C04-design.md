@@ -226,3 +226,59 @@ No build, clippy, unit test, Kani, physical test or benchmark was run here. Root
 must register this real harness and inspect all common results before enabling
 or measuring C04. Parent opti.md is owned/updated by root; no index/root edits
 or push were made here.
+
+## 2026-11-05 post-qualification source correction — no new execution
+
+The original estimates above are preserved as estimates. The common physical
+gate reports **5,821,440 charged bytes and936 completed reuses**, with336 router
+uses (`quality/model.log`, marker AR20_MODEL_COMPARE; repeated in
+`quality/report.json`). These are real counter observations, not a new
+allocation or throughput measurement by this audit.
+
+The estimate mistakenly admitted the QSA output projection. Its caller always
+requests Shared storage, including ordinary non-traced inference:
+`native/src/gpu/qsa.rs:685–687`. The C04 Private-only guard therefore excludes
+all12 QSA output slots, subtracting393216bytes from the earlier estimate that
+included the private head. Index_qk is included at this context: it is loaded
+when capacity>=2052 (`qsa.rs:400–417`) and its ordinary append uses Private
+storage (`qsa.rs:124–132`). PLE does not introduce another FlashProjection;
+its underlying GDN body is already counted in the36 GDN layers.
+
+| Reached family, context4096 | Slots | Prepared+partial bytes |
+|---|---:|---:|
+| GDN qkv/z/out,36×3 |108|3907584|
+| QSA q/k/v/index_qk,12×4 |48|915456|
+| Layer subtotal |156|4823040|
+| C03 private vocabulary head |1|998400|
+| **Total** |**157**|**5821440**|
+
+The totals use the existing extents/byte formula in
+`projection.rs:492`, fixed dimensions in `gdn.rs:162–164` and
+`qsa.rs:417–431`, and reference split selection. This exactly reconciles the
+reported charge:6214656−12×32768=5821440. The scope contains314 cached buffers,
+rather than the earlier338 estimate; arithmetic is logical payload size, not
+Metal allocator backing granularity or process RAM.
+
+The private head is **already included** in the common gate's final charge.
+The two forward_greedy_captured calls deliberately request Shared head logits;
+`greedy.rs:89–95` selects Private when capture=false. The gate then calls
+ordinary `model.forward_greedy(11)` for its late-invalid scalar rollback check
+(`ar20_capture_tests.rs:285–294`). That operation completes the head command
+before the scalar rejection, admitting the head slot once. It does not yet reuse
+it. There is no additional998400bytes to add to the observed5821440 for normal
+C03 private-head inference.
+
+The gate executes seven complete layer passes: initial trace, two captured
+candidate passes plus their two continuation traces, then the rejected scalar
+pass and its recovery trace. All48 routers run each time, hence336=48×7.
+These high-level state traces retain ordinary layer forwards; they do not set
+the lower-level attention trace-storage argument. Each of the156 admitted layer
+slots has one initial fill and six later completed reuses, exactly
+936=156×6. The head's single initial fill adds no reuse count. Actual aggregate
+counter equality supports this accounting; no per-slot instrumentation or new
+test was added. With C03 OFF and public Shared head, the same reached layer
+domain totals4823040bytes; other contexts may omit index_qk. The32MiB cap and
+all lifetime guards remain unchanged.
+
+This correction only reads existing source/receipts and appends this note.
+No code, journal, index, compiler, prover, weights, model or GPU was touched.

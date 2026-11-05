@@ -1902,6 +1902,7 @@
     "config MLXL3_NATIVE_QSA_GATE": 1,
     "config MLXL3_NATIVE_QSA_PREFETCH": 1,
     "config MLXL3_NATIVE_QSA_PREPARE": 1,
+    "config MLXL3_NATIVE_RESIDENT_SCRATCH": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_DOWN": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_GU": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
@@ -2128,6 +2129,9 @@
   },
   "native/src/gpu/resident_bundle_tests.rs": {
     ".to_f32": 1,
+    "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/resident_scratch_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/gpu/routed_nt2_tests.rs": {

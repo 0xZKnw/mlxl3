@@ -11,8 +11,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 D = runpy.run_path(str(ROOT / "build/ar30/basis.py"))
 C = runpy.run_path(str(ROOT / "build/ar30/components-basis.py"))
-NEW = ("MLXL3_NATIVE_QMV_COOPERATIVE", "MLXL3_NATIVE_ROUTER_PAIR", "MLXL3_NATIVE_DEVICE_GREEDY")
-QUALITY_NAMES = ("windows", "resident", "routed", "router", "greedy", "model")
+NEW = (
+    "MLXL3_NATIVE_QMV_COOPERATIVE",
+    "MLXL3_NATIVE_ROUTER_PAIR",
+    "MLXL3_NATIVE_DEVICE_GREEDY",
+    "MLXL3_NATIVE_RESIDENT_SCRATCH",
+)
+QUALITY_NAMES = ("windows", "resident", "routed", "router", "greedy", "scratch", "model")
 
 
 def quality_specs(plan):
@@ -43,6 +48,9 @@ def check_marker(text, spec):
                 "all_readers_joined": True,
             },
         )
+    if spec["name"] == "model":
+        assert evidence["router_pair_uses"] > 0 and evidence["resident_scratch_reuses"] > 0
+        assert 0 < evidence["resident_scratch_charge"] <= 32 << 20
     return evidence
 
 
@@ -87,6 +95,7 @@ def main():
         env.update({flag: "1" for flag in NEW})
         if args.kind == "quality":
             lib = plan["artifacts"]["native-libtest"]
+            private = out / "resident-fixtures"
             for spec in specs:
                 runenv = {**env, "DYLD_PRINT_LIBRARIES": "1", **spec.get("environment", {})}
                 report["current_environment"] = {
@@ -95,7 +104,6 @@ def main():
                 D["save"](report, sink)
                 if spec["name"] == "resident":
                     source = Path(C["NT2"])
-                    private = out / "resident-fixtures"
                     private.mkdir()
                     for name in ("native-cases.json", "stock.json"):
                         (private / name).write_bytes((source / name).read_bytes())
@@ -115,7 +123,21 @@ def main():
                     spec["name"],
                     command,
                     runenv,
-                    lambda text, spec=spec: check_marker(text, spec),
+                    lambda text, spec=spec: {
+                        **check_marker(text, spec),
+                        **(
+                            {
+                                "full_binary_oracle": C["resident"](
+                                    D["OLD"],
+                                    private,
+                                    D["read_json"](private / "native-cases.json"),
+                                    D["read_json"](private / "stock.json"),
+                                )
+                            }
+                            if spec["name"] == "resident"
+                            else {}
+                        ),
+                    },
                 )
                 report["phases"][-1]["environment"] = report["current_environment"].copy()
                 with (ROOT / "opti.md").open("a") as journal:
@@ -145,11 +167,11 @@ def main():
             )["runs"][0]
             executable = plan["artifacts"]["direct-cli"]
             for name, values in [
-                ("control-start", (0, 0, 0)),
-                ("kernels", (1, 1, 0)),
-                ("greedy", (0, 0, 1)),
-                ("combined", (1, 1, 1)),
-                ("control-end", (0, 0, 0)),
+                ("control-start", (0, 0, 0, 0)),
+                ("kernels", (1, 1, 0, 0)),
+                ("host", (0, 0, 1, 1)),
+                ("combined", (1, 1, 1, 1)),
+                ("control-end", (0, 0, 0, 0)),
             ]:
                 runenv = {**env, **dict(zip(NEW, map(str, values), strict=True))}
                 report["current_environment"] = {

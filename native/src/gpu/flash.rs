@@ -18,9 +18,9 @@ mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
 pub(super) enum Layer<'a> {
-    Gdn(FlashGdnLayer<'a>),
+    Gdn(Box<FlashGdnLayer<'a>>),
     Ple(Box<FlashPleLayer<'a>>),
-    Qsa(FlashQsaLayer<'a>),
+    Qsa(Box<FlashQsaLayer<'a>>),
 }
 #[derive(Clone)]
 enum State {
@@ -246,7 +246,7 @@ impl<'a> FlashNext<'a> {
                         gpu, c, &prefix, config.eps, slots,
                     )?))
                 } else if i % 4 == 3 {
-                    Layer::Qsa(FlashQsaLayer::load(
+                    Layer::Qsa(Box::new(FlashQsaLayer::load(
                         gpu,
                         c,
                         &prefix,
@@ -254,9 +254,11 @@ impl<'a> FlashNext<'a> {
                         config.rope,
                         context,
                         slots,
-                    )?)
+                    )?))
                 } else {
-                    Layer::Gdn(FlashGdnLayer::load(gpu, c, &prefix, config.eps, slots)?)
+                    Layer::Gdn(Box::new(FlashGdnLayer::load(
+                        gpu, c, &prefix, config.eps, slots,
+                    )?))
                 })
             })
             .collect::<Result<_>>()?;

@@ -1,0 +1,91 @@
+{
+  "status": "failed",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--check"
+      ],
+      "budget_seconds": 60,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 14569,
+      "exit_code": 0,
+      "seconds": 0.6306174999917857
+    },
+    {
+      "name": "kani-scratch",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--exact",
+        "--harness",
+        "resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded",
+        "--jobs",
+        "1",
+        "--output-format",
+        "regular"
+      ],
+      "budget_seconds": 120,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 14573,
+      "exit_code": 0,
+      "seconds": 4.791373666987056
+    },
+    {
+      "name": "clippy-no-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 14646,
+      "exit_code": 0,
+      "seconds": 5.635304042021744
+    },
+    {
+      "name": "clippy-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "failed",
+      "joined": true,
+      "pid": 14810,
+      "exit_code": 101,
+      "error": "AssertionError(('clippy-direct', 101))",
+      "seconds": 5.571621500013862
+    }
+  ],
+  "source_head": "afb9fde3137a5c968ad54d0a4feeb7bcff414cee",
+  "source_status": " M docs/native-coverage/mlx-sites.json\n M native/src/gpu/ar20_capture_tests.rs\n M scripts/kani_obligations.json\n M tests/test_kani_ci.py\n?? docs/measurements/flash-ar30-20261105/cpu/kani-first.log\n?? docs/measurements/flash-ar30-20261105/profile/native8.log\n",
+  "deployment_target": "26.2",
+  "mlx_root": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+  "error": "AssertionError(('clippy-direct', 101))"
+}
