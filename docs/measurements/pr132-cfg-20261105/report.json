@@ -1,0 +1,94 @@
+{
+  "status": "passed_local_cfg_fix_remote_ci_not_run",
+  "base": "92feadef",
+  "changes": "four cfg attributes only: two test counters and their two initializers require test + macos + direct-metal, matching all increment and physical-test callers",
+  "platform": "aarch64-apple-darwin; no-default-features selects the non-Metal path as in the Linux CI failure, but this was not a Linux cross-build",
+  "private_target": "build/pr132-cfg/cargo-target",
+  "dependency_source": "APFS private clone of root build/ar20/cargo-target, original never written",
+  "reproduction": {
+    "command": "cargo clippy --locked --no-default-features --all-targets --features chat -- -D warnings",
+    "exit_code": 101,
+    "failure": "only reused_destinations and fresh_destinations are dead in libtest without direct-metal"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --locked --no-default-features --all-targets --features chat -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test --locked --no-default-features --lib --features chat ssd_reads:: -- --test-threads=1",
+      "exit_code": 0,
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 271
+    }
+  ],
+  "kani": {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "-Z",
+      "stubbing",
+      "--jobs",
+      "1",
+      "--output-format",
+      "terse",
+      "--harness",
+      "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots"
+    ],
+    "status": "completed",
+    "exit_code": 0,
+    "seconds": 5.237429791,
+    "pgid": 26353,
+    "all_children_joined": true,
+    "checks": 1,
+    "failed": 0,
+    "covers_satisfied": 5,
+    "covers_total": 5,
+    "solver_seconds": 0.031161208,
+    "domain": "symbolic bool enabled/prefetcher/completed and full usize depth; no assumptions or stubs, actual record_reuse_eligible predicate"
+  },
+  "logs": {
+    "before-clippy": {
+      "path": "before-clippy.log.gz",
+      "raw_sha256": "6a9d22132f780d06b1620e1b502d4c6144a2ba2c8f65465eaf2919c20083b98c",
+      "compressed_sha256": "9b20b7d45d8a7a048e83738e9d37081e3517339259a7fb25c3d64b3a1ccded7a",
+      "raw_bytes": 924
+    },
+    "after-clippy": {
+      "path": "after-clippy.log.gz",
+      "raw_sha256": "24697ec54461d87f34ecc3c6a2df4d7c64ccacb442327d2ee3182e679bf9a7f8",
+      "compressed_sha256": "474330191051f928777f04230a386b6a75fb477ce0b5636a062be7f517d75d62",
+      "raw_bytes": 163
+    },
+    "ssd-tests": {
+      "path": "ssd-tests.log.gz",
+      "raw_sha256": "e0d059d0a4de9105191f6aa128b9a64290bfe66325723af35571cd6881b3d88d",
+      "compressed_sha256": "553cce30e1853ba1f619a9392b2ec585050b07405654727f9bebea1ddd919887",
+      "raw_bytes": 2413
+    },
+    "kani": {
+      "path": "kani.log.gz",
+      "raw_sha256": "ed389c18d36426e308f98ad505f1ff2e66b24f8c9089325d9883a1bf6470ba2a",
+      "compressed_sha256": "0aff00c1368bd6beb66e36673925ba8a30455367ecd5c946be7d3152bbd6eb6e",
+      "raw_bytes": 11516
+    }
+  },
+  "source_sha256": {
+    "native/src/ssd_reads.rs": "382dcaa5314d76319fec4aca7abc344080eb8a32b21d20b337f92cb4a1b83c75",
+    "native/src/ssd_reads/record_reuse_tests.rs": "20d0dda267056e124bcd9fb7fbbec467186d2ae7886f542ad2d227f22f1c3465"
+  },
+  "scope_limits": [
+    "No GPU/model/physical test or speed measurement",
+    "No executable predicate changed; Kani rechecks existing symbolic record-reuse eligibility only, not cfg, OS I/O or concurrency",
+    "Linux and GitHub runs not executed by this agent; existing Native Rust CI ubuntu/macos matrix already runs strict default/chat clippy",
+    "Initial shell lookup of cargo failed before compilation because cargo was absent from PATH; rerun used absolute /Users/justin/.cargo/bin/cargo"
+  ]
+}

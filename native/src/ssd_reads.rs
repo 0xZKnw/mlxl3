@@ -424,9 +424,9 @@ pub(crate) struct ReadService {
     active: Arc<AtomicUsize>,
     #[cfg(test)]
     pub(crate) dynamic_submissions: Cell<usize>,
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
     pub(crate) reused_destinations: Cell<usize>,
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
     pub(crate) fresh_destinations: Cell<usize>,
     #[cfg(test)]
     pub(crate) split_records: Cell<usize>,
@@ -476,9 +476,9 @@ impl ReadService {
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             dynamic_submissions: Cell::new(0),
-            #[cfg(test)]
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
             reused_destinations: Cell::new(0),
-            #[cfg(test)]
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
             fresh_destinations: Cell::new(0),
             #[cfg(test)]
             split_records: Cell::new(0),
