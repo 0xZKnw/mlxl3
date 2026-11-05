@@ -272,6 +272,11 @@ pub struct Metal {
     flash_static_supported: [bool; 5],
     flash_static_setting: Option<bool>,
     flash_fixed_qmv: Option<[ComputePipelineState; 2]>,
+    routed_nt2_pipelines: Option<[ComputePipelineState; 2]>,
+    routed_nt2_gu: std::cell::Cell<bool>,
+    routed_nt2_down: std::cell::Cell<bool>,
+    #[cfg(test)]
+    routed_nt2_uses: [std::cell::Cell<u64>; 2],
     flash_fixed_setting: Option<bool>,
     #[cfg(test)]
     flash_fixed_submissions: [std::cell::Cell<u64>; 2],
@@ -368,6 +373,8 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
+            let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
+            let routed_nt2_down = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_DOWN")?;
             let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
@@ -567,6 +574,20 @@ impl Metal {
                 let spec = &crate::flash_qmv::SPECS[key];
                 pipeline(&format!("flash_static_k{}_nt{}", spec.k, spec.nt))
             };
+            let routed_nt2_pipelines = if routed_nt2_gu || routed_nt2_down {
+                let states = [
+                    pipeline("flash_fixed_k2_nt2_2560_640")?,
+                    pipeline("flash_fixed_k2_nt2_640_2560")?,
+                ];
+                ensure!(
+                    states.iter().all(|p| p.thread_execution_width() == 32
+                        && p.max_total_threads_per_threadgroup() >= 128),
+                    "unsupported routed NT2 geometry"
+                );
+                Some(states)
+            } else {
+                None
+            };
             let flash_static_qmv = [
                 static_pipeline(0)?,
                 static_pipeline(1)?,
@@ -714,6 +735,11 @@ impl Metal {
                 flash_static_supported,
                 flash_static_setting,
                 flash_fixed_qmv,
+                routed_nt2_pipelines,
+                routed_nt2_gu: std::cell::Cell::new(routed_nt2_gu),
+                routed_nt2_down: std::cell::Cell::new(routed_nt2_down),
+                #[cfg(test)]
+                routed_nt2_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 flash_fixed_setting,
                 #[cfg(test)]
                 flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),

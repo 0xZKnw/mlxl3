@@ -6,13 +6,13 @@ use serde::Deserialize;
 use std::{collections::BTreeSet, fs, os::unix::fs::FileExt, path::PathBuf};
 
 #[derive(Deserialize)]
-struct Case {
+pub(super) struct Case {
     path: PathBuf,
     prefix: String,
     x: Vec<u16>,
 }
 
-fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
+pub(super) fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
     let c = crate::checkpoint::inspect(&case.path)?;
     let (prefix, index) = case
         .prefix
@@ -28,7 +28,7 @@ fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
     upload(&gpu.device, &bytes)
 }
 
-fn input(gpu: &Metal, case: &Case, fp32: bool) -> Result<MatrixView> {
+pub(super) fn input(gpu: &Metal, case: &Case, fp32: bool) -> Result<MatrixView> {
     ensure!(case.x.len() == 2560);
     let mut values = vec![f16::from_f32(7.).to_bits(); 2564];
     for (index, &value) in case.x.iter().enumerate() {
@@ -80,7 +80,7 @@ fn check_bindings(gpu: &Metal, before: usize, reuse: bool) -> Result<[usize; 2]>
     Ok(pairs[0])
 }
 
-fn check_words(actual: &[u16], expected: &[u16]) -> Result<()> {
+pub(super) fn check_words(actual: &[u16], expected: &[u16]) -> Result<()> {
     ensure!(
         actual.len() == 2560
             && actual == expected

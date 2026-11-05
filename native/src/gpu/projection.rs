@@ -26,6 +26,7 @@ pub struct FlashProjection<'a> {
     splits: u32,
     mtp_hidden: bool,
     generic: bool,
+    routed_record: bool,
     simdgroups: u32,
     nt: u32,
     static_key: Option<usize>,
@@ -264,6 +265,7 @@ impl<'a> FlashProjection<'a> {
             splits,
             mtp_hidden,
             generic,
+            routed_record: false,
             simdgroups,
             nt,
             static_key,
@@ -437,7 +439,24 @@ impl<'a> FlashProjection<'a> {
             gpu.flash_scratch_uses.set(count + 1);
         }
         let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
-        let (pipeline, third, groups) = if self.k == 7 {
+        let routed_nt2 = crate::flash_qmv::routed_nt2_key(
+            [self.input, self.output],
+            self.splits,
+            [self.k, self.cb as u32, self.nt],
+            self.routed_record && batch == 1,
+            gpu.routed_nt2_gu.get(),
+            gpu.routed_nt2_down.get(),
+        );
+        let (pipeline, third, groups) = if let Some(key) = routed_nt2 {
+            (
+                &gpu.routed_nt2_pipelines
+                    .as_ref()
+                    .context("routed NT2 pipelines were not loaded")?[key],
+                (&self.svh, self.offsets.svh),
+                contracts::flash_reference_groups(self.output, 2)
+                    .context("invalid routed NT2 grid")?,
+            )
+        } else if self.k == 7 {
             (&gpu.k7_pipeline, (&gpu.inverse, 0), self.output)
         } else {
             (
@@ -512,7 +531,9 @@ impl<'a> FlashProjection<'a> {
             64,
         );
         #[cfg(test)]
-        if let Some(key) = self.fixed_key {
+        if let Some(key) = routed_nt2 {
+            gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + 1);
+        } else if let Some(key) = self.fixed_key {
             let count = &gpu.flash_fixed_submissions[usize::from(key)];
             count.set(count.get() + 1);
         } else if let Some(key) = self.static_key {
@@ -1020,6 +1041,7 @@ impl<'a> FlashExpert<'a> {
                 splits,
                 mtp_hidden: false,
                 generic: false,
+                routed_record: true,
                 simdgroups: 4,
                 nt: 1,
                 static_key: static_key(gpu, 2, Codebook::Mul1, 1, true)?,
@@ -1730,3 +1752,7 @@ fn ordinary_projection_group_preserves_owners_and_rejects_wrong_inputs() -> Resu
 #[cfg(test)]
 #[path = "routed_scratch_tests.rs"]
 mod routed_scratch_tests;
+
+#[cfg(test)]
+#[path = "routed_nt2_tests.rs"]
+mod routed_nt2_tests;
