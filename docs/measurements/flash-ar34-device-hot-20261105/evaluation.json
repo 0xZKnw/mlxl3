@@ -32,7 +32,7 @@
     "repeats": 1
   },
   "status": "complete_short_screen_positive_observation_not_statistical_proof",
-  "integration": "T05 default ON exact Apple M5/Tier2 in retained native code; strict 0 override and all original guards; publication pending",
+  "integration": "Default ON Apple M5/Tier2, main f5118ad8 integrated; publication pending",
   "limits": [
     "One warm and one measured sample per arm; no confidence interval or independent workload validation.",
     "Synthetic publication failures after Metal Completed, not induced driver errors.",
@@ -49,5 +49,16 @@
     "parity": true,
     "all_children_joined": true,
     "gain_claim": "Final retained-binary validation only; do not count its difference from the previous screen as another gain."
+  },
+  "main_validation": {
+    "source_head": "2108f5e799ae8de60b79bf753b28f3098d2ff92f",
+    "merged_main": "f5118ad897071bbdb858d1e609dd3719addca60a",
+    "cli_sha256": "3126e70f536696ae60449afbc3fc0838627d705fcc19f08e1c1a2195bbff36a5",
+    "tps128": 9.063046709783102,
+    "source_files": 280,
+    "flag_absent": true,
+    "parity": true,
+    "all_children_joined": true,
+    "gain_claim": "Retained composition validation; not a new controlled comparison or additional speedup."
   }
 }

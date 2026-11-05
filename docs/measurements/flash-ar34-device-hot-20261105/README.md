@@ -17,7 +17,7 @@ Apple M5/24 GiB, macOS27.2, deployment26.2; checkpoint `65c895314393431c09050b2e
 
 Controls drift +0.43% and −0.54%. Every warm/measured output matches the full independent golden text/hash. These are small positive observations, not confidence intervals or proof of a universal speedup. The default-only retained binary subsequently measured **9.2732 tok/s** on128, with the same full golden. Its difference from the screen is not an additional optimization gain. Historical10.3–10.4 figures belong to other measurements.
 
-`freeze.json` pins274 inputs and experimental CLI `83ee43130fe02bcc5af00c76c700fe749081f8116ce16856f6b9f5a39bfef34b`; `default/freeze.json` pins277 inputs and default CLI `b9e7adb899aaa5339d9570d44987571d174c0567cd181ebab1a355d79d09d9cc`. These builds originate from `01da8f01` plus the explicitly recorded dirty implementation, native baseline `82fff5a5`. Integration with the newer main is qualified separately before publication.
+`freeze.json` pins274 inputs and experimental CLI `83ee43130fe02bcc5af00c76c700fe749081f8116ce16856f6b9f5a39bfef34b`; `default/freeze.json` pins277 inputs and default CLI `b9e7adb899aaa5339d9570d44987571d174c0567cd181ebab1a355d79d09d9cc`. These builds originate from `01da8f01` plus the explicitly recorded dirty implementation, native baseline `82fff5a5`. The final retained composition merges main `f5118ad897071bbdb858d1e609dd3719addca60a`; see below.
 
 ## Correction and ownership
 
@@ -37,7 +37,7 @@ Review found and fixed missing autorelease pools and abandonment ownership. A di
 - Fifteen default controller tests pass, including the eleven inherited checks. Native inventory is updated to280 interesting files. Linux orchestration/process tests were skipped on this Mac; two portable inventory assertions were invoked directly. CrossHair is unavailable in the qualified Python3.12 environment; its diagnostic is retained. MLX numerical inference and unrelated physical model tests were not rerun.
 - Hosted CI is checked on the final published commit; local results do not imply hosted success. No installed application, merge or release is part of this work.
 
-Commands are retained verbatim in CPU JSON receipts and raw logs. Principal commands: `cargo clippy --locked --all-targets --features direct-metal,chat -- -D warnings`, the same with `mlx,chat`, `cargo test --locked --features chat`, `cargo test --locked --features chat --lib device_hot -- --test-threads=1`, and `cargo kani --lib --no-default-features --jobs1` with the four fully named harnesses in the receipt. Release builds use `MACOSX_DEPLOYMENT_TARGET=26.2`; Metal OFF and ON/test helpers were compiled with per-command Xcode DEVELOPER_DIR.
+Commands are retained verbatim in CPU JSON receipts and raw logs. Principal commands: `cargo clippy --locked --all-targets --features direct-metal,chat -- -D warnings`, the same with `mlx,chat`, `cargo test --locked --features chat`, `cargo test --locked --features chat --lib device_hot -- --test-threads=1`, and `cargo kani --lib --no-default-features --jobs 1` with the four fully named harnesses in the receipt. Release builds use `MACOSX_DEPLOYMENT_TARGET=26.2`; Metal OFF and ON/test helpers were compiled with per-command Xcode DEVELOPER_DIR.
 
 ## Evidence
 
@@ -46,3 +46,11 @@ Commands are retained verbatim in CPU JSON receipts and raw logs. Principal comm
 - [Default archive receipt](default/archive-receipt.json):277 source pins reconstructed from the prototype archive plus eight changed files, and26 raw files, all roundtrip checked. No full-weight archive or new full-weight rehash was performed; five model metadata pins and the checkpoint identity are retained.
 
 The new [issue #140](https://github.com/0xZKnw/mlxl3/issues/140) prioritizes vectorizing the remaining five stages of **cold Ready cohorts** (AR1), then QSA append/attention boundaries (AR2). T05 already batches the hot path; it must not be sold again as AR1. No #140 prototype or benchmark was started here.
+
+## Retained composition with current main
+
+Main `f5118ad8` was merged without replacing its Qwen additions. Only the journal conflicted; both histories were preserved. Executable changes merged automatically; shared-file additions affect Qwen module wiring, method visibility and a Qwen test, while the T05 arithmetic and ownership code remain unchanged.
+
+The final composition at merge `2108f5e7` passed **402 CPU tests /97 ignored**, strict direct/chat and mlx/chat Clippy, formatting, four Kani harnesses (460 reported obligations/453SUCCESS/seven internal UTF8 UNREACHABLE/19 covers), Metal ON/test compilation and native inventory282. The independent model and real CLI were rerun without the T05 variable, followed by one128-token warm+measured qualification: **9.0630 tok/s**, full golden parity and all children joined. This final run is not a fresh OFF/ON/OFF comparison. Other model GPU tests remain unexecuted by this campaign.
+
+[`main/freeze.json`](main/freeze.json) pins280 sources and final CLI `3126e70f536696ae60449afbc3fc0838627d705fcc19f08e1c1a2195bbff36a5`; libtest `2f9b632c92c5628c97a0e58f947e80291c10a62fcae30723ed6e386fcca481eb`. [`main/archive-receipt.json`](main/archive-receipt.json) verifies the final source delta and raw evidence against the previous two immutable archives. No older measurement is relabeled as this binary.

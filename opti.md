@@ -26419,3 +26419,25 @@ Décision root après diagnostic2runs : publier versMAIN le rapport L2 NONCONCLU
 I125-L2 publication RÉSULTATS SEULE réalisée : PR127 https://github.com/0xZKnw/mlxl3/pull/127 vers main, première tête1d084d507dfe8b6ab1510ca76fa0d33a60971432 surdd91,85fichiersdocs/opti, aucunruntime/test/manifest/workflow actif modifié. Prototypeb379 absentdel’ascendancedePR ; patchgz passif etbinaireslocauxpréservés. Vérificationdocumentaire244JSON/lignes,25liensrelatifs,82payloadhashes etdiffcheckPASS,envuniquementwhitelist18nomsdéclarés. CI exacte1d084 : Apple41899741162/EXL341899741036/Native41899741078/Regression41899740439 queued,Flashprofile41899741195 in_progress,aucunstatuslegacy ; pasCIglobaleverte. Ce paragraphe estune révisionmetadata, nouvelle têtefinale/CI àrecontrôler séparément. Rapport NONCONCLUANT, diagnostic6/141nuancé, pasgainL2livré,125resteouverte ; aucunmerge/app/release paragent.
 
 AR34 intégration main : merge automatique de tous les fichiers exécutables, seul conflit dans le journal. Les deux ensembles d’entrées ont été conservés en union, sans supprimer les travaux Qwen ni les expériences AR33/34. Les changements entrants sur les fichiers T05 partagés ajoutent le module Qwen, élargissent la visibilité de encode_swiglu et ajoutent un test Qwen ; aucun calcul Flash T05 n’a été modifié par la résolution. Compilation/qualification finale à suivre avant publication.
+
+AR34 main intégrée : checks CPU CLOS,402PASS/97ignorés (312lib+36bin+17contrats+35runtime+1+1,2groupeszéroexclus), strictClippy direct/chat etmlx/chat PASS3.94/7.01s, buildsreleaseCLI33.33s/libtest48.99s. Kani4/4PASS460obligations/453SUCCESS/7stdUTF8UNREACHABLE/19covers, durée totale nonmesurée pourcetterelance ; guards/mathunchangés. Metal ON+helpers compilePASS ; inventaire282fichiersPASS et10testsPython+2subtests/2portablesregistryPASS, fmt/rufPASS. Nouveaugelmain/freeze.json depuismerge2108f5e7 avant modèle+CLI sansflag puisUNE128. Anciennesmesures ne sont pas réattribuées à ce nouveau binaire. TouschecksCPUjoints, plusaucuncompiler/prover, mêmeBrave/Deezerouverts.
+
+AR34 DEFAULT model STARTED
+
+AR34 DEFAULT model VALIDATED
+
+AR34 DEFAULT cli STARTED
+
+AR34 DEFAULT cli VALIDATED
+
+AR34 DEFAULT quality CLOSED ALL_JOINED
+
+AR34 DEFAULT default STARTED
+
+AR34 DEFAULT default VALIDATED
+
+AR34 DEFAULT default TPS 9.063046709783102
+
+AR34 DEFAULT speed CLOSED ALL_JOINED
+
+AR34 MAIN FINAL CLOS VALIDÉ : main f5118ad8 intégré, gel280pins depuis2108f5e7 ; QA modèle+CLI sansflag T05 puisUNE128 = 9.063046709783tok/s,127decode, textes/hashesgolden complets, tousenfantsjoints. CLI3126e70f536696ae60449afbc3fc0838627d705fcc19f08e1c1a2195bbff36a5/libtest2f9b632c92c5628c97a0e58f947e80291c10a62fcae30723ed6e386fcca481eb. Réserve et14edéfautM5/Tier2 effectifs ;13historiquesinchangés.402CPU/97ignorés,4Kani/460obligations19covers etchecksaffectésPASS ; autresmodèlesGPU nonréexécutés. Archivesfinales sources280/raw27roundtripvalide, delta16sources ; anciensgels/échecs conservés. Tousessais138AR34clos ; issue140lue/AR1froidprioritaire, aucunprototype140lancé. PublicationPRmaintenant, pasmerge/release/appinstallée.
