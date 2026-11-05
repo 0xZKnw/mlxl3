@@ -201,3 +201,7 @@ experiments, exact protocols, source identities and actual integration status.
 For release validation use the matching `docs/release-*.md` and linked manifests,
 not the historical counts in the archived README. This documentation update does
 not publish a release or replace the installed application.
+
+## Flash Next AR defaults on Apple M5
+
+The qualified PR132 AR10 composition is enabled by default on exactly Apple M5. The thirteen individual switches are listed in `docs/measurements/flash-ar10-20261105/plan-final.json` arm `all`; set a switch to `0` to disable that path for diagnostics. Invalid values remain errors. Existing shape, dtype, buffer, capability and SSD scheduling guards still select fallbacks. CPU/non-M5 reader defaults, L1/MoE and other experimental paths retain their prior defaults. This activation does not include AR20, HC L3/L5, MTP or DFlash. See the dated default-selection revision in the AR10 measurement report for validation status and the historical composition measurement.

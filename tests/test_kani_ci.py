@@ -78,10 +78,11 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "ar10_defaults::qualified_defaults_preserve_strict_overrides_and_legacy_io",
         "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
         "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
         "expert_ar_policy::expert_axis_admits_only_nonempty_bounded_ready_tables",
-        "expert_ar_policy::expert_ar_flags_are_strict_off_and_require_qualified_hardware",
+        "expert_ar_policy::expert_ar_flags_preserve_qualified_defaults_and_overrides",
         "expert_ar_policy::expert_ar_prefixes_are_bounded_disjoint_and_never_overflow",
         "expert_ar_policy::expert_ar_selection_requires_exact_actual_record_extents",
         "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",

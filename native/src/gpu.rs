@@ -368,7 +368,10 @@ impl Metal {
                 .parse::<usize>()
                 .context("invalid SSD reader count")?;
             self.readers
-                .set(crate::ssd_reads::ReadService::new(count)?)
+                .set(crate::ssd_reads::ReadService::new_qualified(
+                    count,
+                    self.device.name() == "Apple M5",
+                )?)
                 .map_err(|_| anyhow::anyhow!("native SSD readers already initialized"))?;
         }
         self.readers.get().context("missing native SSD readers")
@@ -395,16 +398,17 @@ impl Metal {
                 crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
+            let ar10_setting = |name| crate::ar10_defaults::setting(name, qualified_m5);
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
-            let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
-            let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
-            let routed_nt2_down = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_DOWN")?;
+            let hc_write_norm = ar10_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
+            let routed_nt2_gu = ar10_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
+            let routed_nt2_down = ar10_setting("MLXL3_NATIVE_ROUTED_NT2_DOWN")?;
             let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
-            let gdn_joint_ab = hc_kernel_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
-            let gdn_whole = hc_kernel_setting("MLXL3_NATIVE_GDN_WHOLE")?;
-            let qsa_prepare = hc_kernel_setting("MLXL3_NATIVE_QSA_PREPARE")?;
-            let qsa_gate_fused = hc_kernel_setting("MLXL3_NATIVE_QSA_GATE")?;
+            let gdn_joint_ab = ar10_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
+            let gdn_whole = ar10_setting("MLXL3_NATIVE_GDN_WHOLE")?;
+            let qsa_prepare = ar10_setting("MLXL3_NATIVE_QSA_PREPARE")?;
+            let qsa_gate_fused = ar10_setting("MLXL3_NATIVE_QSA_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             // Only qualified L1 consumers defer completion, so use L1's hardware default.
             let moe_deferred = match std::env::var("MLXL3_NATIVE_MOE_DEFERRED") {

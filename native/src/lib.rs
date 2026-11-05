@@ -1,6 +1,8 @@
 //! Native migration. This crate does not call Python or embed an interpreter.
 #[cfg(feature = "mlx")]
 pub mod affine;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod ar10_defaults;
 #[cfg(feature = "mlx")]
 pub mod array;
 pub mod checkpoint;

@@ -447,6 +447,21 @@ pub(crate) struct ReadService {
 }
 impl ReadService {
     pub(crate) fn new(readers: usize) -> Result<Self> {
+        Self::new_with_split_default(readers, false)
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn new_qualified(readers: usize, qualified_m5: bool) -> Result<Self> {
+        if qualified_m5 {
+            Self::new_with_split_default(readers, true)
+        } else {
+            Self::new(readers)
+        }
+    }
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn split_requested(&self) -> bool {
+        self.split_enabled
+    }
+    fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
         let dynamic = match std::env::var("MLXL3_SSD_DYNAMIC_READERS") {
             Ok(value) => common_queue_flag(Some(&value)),
             Err(std::env::VarError::NotPresent) => common_queue_flag(None),
@@ -454,8 +469,10 @@ impl ReadService {
         }
         .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let split_enabled = match std::env::var("MLXL3_NATIVE_READ_SPLIT") {
-            Ok(value) => common_queue_flag(Some(&value)),
-            Err(std::env::VarError::NotPresent) => common_queue_flag(None),
+            Ok(value) => crate::ar10_defaults::split_flag(Some(&value), qualified_default),
+            Err(std::env::VarError::NotPresent) => {
+                crate::ar10_defaults::split_flag(None, qualified_default)
+            }
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_READ_SPLIT must be 0 or 1")?;
