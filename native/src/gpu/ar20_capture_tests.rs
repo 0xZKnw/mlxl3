@@ -149,7 +149,10 @@ fn run_capture() -> Result<()> {
     let cooperative = compiled_cooperative(&gpu)?;
     if capture {
         ensure!(
-            bits == 0 && !cooperative && !gpu.device_greedy_available() && !gpu.router_pair.enabled.get(),
+            bits == 0
+                && !cooperative
+                && !gpu.device_greedy_available()
+                && !gpu.router_pair.enabled.get(),
             "reference compiler options must be OFF"
         );
         ensure!(
@@ -228,7 +231,10 @@ fn run_capture() -> Result<()> {
         let control = model.snapshot();
         let offset = model.offset();
         let after = actual_paths(&gpu, &model)?;
-        ensure!(!gpu.router_pair.enabled.get() || gpu.router_pair.uses.get() > router_before, "paired router was not encoded on the real model path");
+        ensure!(
+            !gpu.router_pair.enabled.get() || gpu.router_pair.uses.get() > router_before,
+            "paired router was not encoded on the real model path"
+        );
         if cooperative {
             ensure!(
                 gpu.ar30_cooperative_uses

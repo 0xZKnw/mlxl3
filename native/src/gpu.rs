@@ -834,10 +834,8 @@ impl Metal {
                 .collect();
             let inverse = upload(&device, &perm)?;
             let gate_dot = [pipeline("gate_dot_half")?, pipeline("gate_dot_float")?];
-            let router_pair = gate::PairedDot::load(
-                &pipeline,
-                hc_kernel_setting("MLXL3_NATIVE_ROUTER_PAIR")?,
-            )?;
+            let router_pair =
+                gate::PairedDot::load(&pipeline, hc_kernel_setting("MLXL3_NATIVE_ROUTER_PAIR")?)?;
             let gate_softmax = [
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,

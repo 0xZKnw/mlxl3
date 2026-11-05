@@ -29,12 +29,20 @@ def check_marker(text, spec):
     for key in spec.get("positive", []):
         assert type(evidence[key]) is int and evidence[key] > 0, key
     if spec["name"] == "model":
-        D["OLD"]["exact_fields"](evidence, {
-            "case_count": 2, "compared_state_words": 57606144, "compared_logits": 993280,
-            "compared_hidden_bytes": 81920, "initial_archive_states": 84,
-            "compiled_cooperative": True, "device_greedy_counts": [2, 2],
-            "device_greedy_rollback": True, "all_readers_joined": True,
-        })
+        D["OLD"]["exact_fields"](
+            evidence,
+            {
+                "case_count": 2,
+                "compared_state_words": 57606144,
+                "compared_logits": 993280,
+                "compared_hidden_bytes": 81920,
+                "initial_archive_states": 84,
+                "compiled_cooperative": True,
+                "device_greedy_counts": [2, 2],
+                "device_greedy_rollback": True,
+                "all_readers_joined": True,
+            },
+        )
     return evidence
 
 
@@ -59,9 +67,18 @@ def main():
     try:
         assert plan["source_files"] and plan["artifacts"]
         specs = quality_specs(plan)
-        helpers = [ROOT / "build/ar30/basis.py", ROOT / "build/ar30/components-basis.py",
-                   ROOT / "build/ar30/run.py", D["HELPER"], D["SCREEN"], D["CLI_HELPER"]]
-        assert all(str(path) in plan["source_files"] or str(path.relative_to(ROOT)) in plan["source_files"] for path in helpers)
+        helpers = [
+            ROOT / "build/ar30/basis.py",
+            ROOT / "build/ar30/components-basis.py",
+            ROOT / "build/ar30/run.py",
+            D["HELPER"],
+            D["SCREEN"],
+            D["CLI_HELPER"],
+        ]
+        assert all(
+            str(path) in plan["source_files"] or str(path.relative_to(ROOT)) in plan["source_files"]
+            for path in helpers
+        )
         for name, digest in plan["source_files"].items():
             assert D["sha"](ROOT / name) == digest, name
         for artifact in plan["artifacts"].values():
@@ -72,7 +89,9 @@ def main():
             lib = plan["artifacts"]["native-libtest"]
             for spec in specs:
                 runenv = {**env, "DYLD_PRINT_LIBRARIES": "1", **spec.get("environment", {})}
-                report["current_environment"] = {k: v for k, v in runenv.items() if k.startswith(("MLXL3_", "DYLD_"))}
+                report["current_environment"] = {
+                    k: v for k, v in runenv.items() if k.startswith(("MLXL3_", "DYLD_"))
+                }
                 D["save"](report, sink)
                 if spec["name"] == "resident":
                     source = Path(C["NT2"])
@@ -133,7 +152,9 @@ def main():
                 ("control-end", (0, 0, 0)),
             ]:
                 runenv = {**env, **dict(zip(NEW, map(str, values), strict=True))}
-                report["current_environment"] = {k: v for k, v in runenv.items() if k.startswith("MLXL3_")}
+                report["current_environment"] = {
+                    k: v for k, v in runenv.items() if k.startswith("MLXL3_")
+                }
                 D["save"](report, sink)
                 folder = out / name
                 command = [
