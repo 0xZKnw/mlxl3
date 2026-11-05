@@ -1,0 +1,70 @@
+{
+  "phases": [
+    [
+      "component",
+      [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::bounded_extra_wave_submits_two_records_before_the_held_tail",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "NATIVE_SSD_EXTRA_WAVE",
+      120
+    ],
+    [
+      "model",
+      [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "NATIVE_SSD_EXTRA_WAVE_MODEL",
+      180
+    ],
+    [
+      "partial",
+      [
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/native-libtest",
+        "gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      null,
+      120
+    ],
+    [
+      "cli",
+      [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/quality"
+      ],
+      "NATIVE_SSD_DIRECT_CLI",
+      180
+    ]
+  ],
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0"
+  },
+  "source_commit": "b37903a2c64b626cc187dce5b65da634971715a2",
+  "parity": false,
+  "ambient_environment_not_archived": true
+}

@@ -9,6 +9,8 @@ pub(super) struct Pipelines {
     dense: [ComputePipelineState; 2],
     gqa: [ComputePipelineState; 3],
     rope: ComputePipelineState,
+    binary: ComputePipelineState,
+    softmax: ComputePipelineState,
 }
 
 impl Pipelines {
@@ -18,11 +20,90 @@ impl Pipelines {
             dense: [p("model_dense_half")?, p("model_dense_float")?],
             gqa: [p("model_gqa_64")?, p("model_gqa_128")?, p("model_gqa_256")?],
             rope: p("model_rope")?,
+            binary: p("model_binary")?,
+            softmax: p("model_softmax")?,
         })
     }
 }
 
 impl Metal {
+    pub(super) fn model_binary(
+        &self,
+        x: &MatrixView,
+        y: &MatrixView,
+        op: u32,
+    ) -> Result<MatrixView> {
+        let [rows, cols] = x.shape();
+        let [yr, yc] = y.shape();
+        ensure!(
+            rows > 0
+                && cols > 0
+                && (yr == rows || yr == 1)
+                && (yc == cols || yc == 1)
+                && op <= 2
+                && x.dtype == FloatType::F16
+                && y.dtype == FloatType::F16,
+            "invalid native binary operation"
+        );
+        ensure!(
+            x.buffer.device().registry_id() == self.device.registry_id()
+                && y.buffer.device().registry_id() == self.device.registry_id(),
+            "foreign binary storage"
+        );
+        self.command(|cmd| {
+            let out =
+                MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
+            Self::encode(
+                cmd,
+                &self.model_ops.binary,
+                &[&x.buffer, &y.buffer, &out.buffer],
+                [
+                    i64::from(rows),
+                    i64::from(cols),
+                    x.layout.offset,
+                    x.layout.strides[0],
+                    x.layout.strides[1],
+                    y.layout.offset,
+                    if yr == 1 { 0 } else { y.layout.strides[0] },
+                    if yc == 1 { 0 } else { y.layout.strides[1] },
+                    i64::from(op),
+                ],
+                MTLSize::new(u64::from(rows) * u64::from(cols).div_ceil(32), 1, 1),
+                32,
+            );
+            Ok(out)
+        })
+    }
+
+    pub(super) fn model_softmax(&self, x: &MatrixView) -> Result<MatrixView> {
+        let [rows, cols] = x.shape();
+        ensure!(
+            rows > 0
+                && (1..=1024).contains(&cols)
+                && x.dtype == FloatType::F16
+                && x.buffer.device().registry_id() == self.device.registry_id(),
+            "invalid native softmax input"
+        );
+        self.command(|cmd| {
+            let out =
+                MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
+            Self::encode(
+                cmd,
+                &self.model_ops.softmax,
+                &[&x.buffer, &out.buffer],
+                [
+                    i64::from(cols),
+                    x.layout.offset,
+                    x.layout.strides[0],
+                    x.layout.strides[1],
+                ],
+                MTLSize::new(u64::from(rows), 1, 1),
+                cols.div_ceil(4).div_ceil(32) as usize * 32,
+            );
+            Ok(out)
+        })
+    }
+
     pub fn encode_model_rms(
         &self,
         cmd: &CommandBufferRef,
@@ -324,6 +405,16 @@ mod tests {
             let keys = case.keys.as_ref().map(|v| v.view(&gpu)).transpose()?;
             let values = case.values.as_ref().map(|v| v.view(&gpu)).transpose()?;
             let operation = gpu.command(|cmd| match case.op.as_str() {
+                "softmax" => gpu.model_softmax(&x),
+                "add" | "mul" | "gate" => gpu.model_binary(
+                    &x,
+                    weight.as_ref().context("missing binary operand")?,
+                    match case.op.as_str() {
+                        "add" => 0,
+                        "mul" => 1,
+                        _ => 2,
+                    },
+                ),
                 "rms" => gpu.encode_model_rms(
                     cmd,
                     &x,

@@ -1,0 +1,54 @@
+import gzip,json,math,statistics
+from collections import Counter,defaultdict
+from pathlib import Path
+base=Path('docs/measurements/issue125-ssd-wave-20261104/diagnostic');allrows={};summaries={}
+def stats(values):
+    v=sorted(values)
+    return {'count':len(v),'p50':statistics.median(v) if v else None,'p95_nearest_rank':v[max(0,math.ceil(len(v)*.95)-1)] if v else None,'min':min(v) if v else None,'max':max(v) if v else None,'sum':sum(v)}
+for mode in ['off','on']:
+    obj=json.loads(gzip.decompress((base/mode/'profile.json.gz').read_bytes()));ctx=[];timelines={};waits={};gpus=defaultdict(list)
+    for i,e in enumerate(obj['events']):
+        parent=e['parent'];assert parent is None or 0<=parent<i;c={} if parent is None else dict(ctx[parent])
+        if e['name']=='native.row':c['row']=e['data']['row']
+        if e['name']=='native.layer':c['layer']=e['data']['layer']
+        ctx.append(c)
+        if not {'row','layer'}<=c.keys():continue
+        key=(c['row'],c['layer'])
+        if e['name']=='native.ssd_timeline':assert key not in timelines;timelines[key]=e['data']
+        if e['name']=='native.moe_wait':assert key not in waits;waits[key]=i
+        if e['name']=='native.gpu_interval' and e['data']['owner']=='moe':assert e['parent']==waits[key];gpus[key].append(e['data'])
+    assert len(timelines)==len(waits)==len(gpus)==336
+    rows=[];gaps=defaultdict(list);byrow=defaultdict(lambda:defaultdict(float));hist={k:Counter() for k in ['misses','w1','extra','final']};lag_values=[]
+    for key in sorted(timelines):
+        t=timelines[key];reads=[e for e in t['events'] if e['event']=='read'];labels=[e for e in t['events'] if e['event'].endswith('_submit')];r=len(reads);ids=t['indices']
+        assert len(ids)==len(set(ids))==10 and r==10-t['hits'] and t['read_bytes']==r*1248012
+        assert labels[-1]['event']=='final_submit' and labels[-1]['remaining_reads']==0 and len(labels)==len(gpus[key])
+        names=[e['event'] for e in labels];assert names in [['final_submit'],['hot_submit','final_submit'],['hot_submit','w1_submit','final_submit'],['hot_submit','w1_submit','extra_submit','final_submit']]
+        assert (r==0)==(names==['final_submit'])
+        indexed={e['event']:e for e in labels};w1=indexed.get('w1_submit');extra=indexed.get('extra_submit');hot=indexed.get('hot_submit')
+        if hot:assert hot['remaining_reads']==r
+        first=r-w1['remaining_reads'] if w1 else 0
+        tail=(extra or w1 or hot)['remaining_reads'] if r else 0
+        middle=w1['remaining_reads']-extra['remaining_reads'] if extra else 0
+        if w1:assert 0<w1['remaining_reads']<r
+        if extra:assert w1['remaining_reads']>=3 and middle>=2 and extra['remaining_reads']>=1
+        if mode=='off':assert extra is None
+        assert first+middle+tail==r
+        for name,value in [('misses',r),('w1',first),('extra',middle),('final',tail)]:hist[name][value]+=1
+        for read in reads:assert 0<=read['start_ns']<=read['end_ns']
+        item={'row':key[0],'layer':key[1],'ids':ids,'hits':t['hits'],'misses':r,'read_bytes':t['read_bytes'],'labels':names,'cohorts':{'w1':first,'extra':middle,'final':tail},'commands':len(labels)}
+        if extra:
+            last=max(e['end_ns'] for e in reads);lag=(extra['time_ns']-last)/1e6;lag_values.append(lag)
+            item.update(extra_submit_minus_lastread_ms=lag,extra_tag_after_all_read_ends=lag>=0,extra_remaining_unreceived=extra['remaining_reads'],last_read_end_ns=last,extra_submit_ns=extra['time_ns'])
+        for left,right,ga,gb in zip(labels,labels[1:],gpus[key],gpus[key][1:]):
+            for g in [ga,gb]:assert g['valid'] is True and math.isfinite(g['gpu_start_seconds']) and math.isfinite(g['gpu_end_seconds']) and 0<g['gpu_start_seconds']<=g['gpu_end_seconds']
+            pair=left['event']+'→'+right['event'];gap=(gb['gpu_start_seconds']-ga['gpu_end_seconds'])*1000;gaps[pair].append(gap);byrow[pair][key[0]]+=gap
+        rows.append(item)
+    after=sum(v>=0 for v in lag_values);before=sum(v<0 for v in lag_values)
+    assert mode=='off' or len(lag_values)>0
+    summaries[mode]={'layers':336,'read_records':sum(x['misses'] for x in rows),'read_bytes':sum(x['read_bytes'] for x in rows),'CB_count':sum(x['commands'] for x in rows),'extra_submissions':len(lag_values),'extra_after_all_read_end':after,'extra_before_last_read_end':before,'fraction_extra_after_all_read_end':after/len(lag_values) if lag_values else None,'CPU_extra_tag_minus_lastread_ms':stats(lag_values),'CPU_possible_read_tail_window_ms':stats([-v for v in lag_values if v<0]),'cohort_histograms':{k:dict(sorted(v.items())) for k,v in hist.items()},'Metal_gaps_ms':{k:{'signed':stats(v),'overlap_count':sum(x<0 for x in v),'positive_gap_count':sum(x>0 for x in v),'positive_parts_sum_mean_per_row':sum(max(0,x) for x in v)/7,'signed_sum_mean_per_row':sum(v)/7,'signed_sum_by_row':dict(byrow[k])} for k,v in gaps.items()},'tokens':obj['tokens']};allrows[mode]=rows
+assert summaries['off']['tokens']==summaries['on']['tokens']
+for left,right in zip(allrows['off'],allrows['on'],strict=True):assert all(left[k]==right[k] for k in ['row','layer','ids','hits','misses','read_bytes'])
+result={'status':'validated_intrusive_diagnostic_only','paired_rows_layers':336,'same_tokens_routes_hits_misses_readbytes':True,'modes':summaries,'records':allrows,'cohort_definition':'w1/extra/final count records encoded in those committed CBs; when all ready in first cold cohort, all count under final, not again under w1.','limits':['CPU extra tag is sampled BEFORE commit, same MoE epoch as read ends; never aligned to Metal.','After-all-read excludes outstanding SSD workers at commit only; CPU tail encoding can still overlap.','Before-last-read tag does not establish GPUexec during SSD IO.','Metal gaps pair consecutive commands in same clock only; not devicewide idle or recoverable durations.','Two intrusive native8 runs, not a speed campaign.']}
+(base/'analysis.json').write_text(json.dumps(result,indent=2,allow_nan=False)+'\n')
+for mode,s in summaries.items():print(json.dumps({'mode':mode,**s},ensure_ascii=False))

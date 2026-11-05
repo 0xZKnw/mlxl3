@@ -1,6 +1,10 @@
 use super::{
-    FlashExpert, FlashGate, MatrixView, Metal, buffer, projection::PendingExpertFinish,
-    read_weight, view::FloatType,
+    FlashExpert, FlashGate, MatrixView, Metal, buffer,
+    device_hot_cache::{RecordBacking, ResidentSnapshot},
+    indirect_hot::HotOutput,
+    projection::PendingExpertFinish,
+    read_weight,
+    view::FloatType,
 };
 use crate::{
     checkpoint::{self, Checkpoint, TensorInfo},
@@ -20,6 +24,7 @@ pub(crate) use prefetch::PrefetchStats;
 #[cfg(test)]
 thread_local! {
     pub(super) static EXTRA_WAVE_SUBMISSIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    pub(super) static DEVICE_HOT_COUNTS: std::cell::Cell<[u64; 4]> = const { std::cell::Cell::new([0; 4]) };
 }
 
 /// One AR row, with immutable per-slot compressed records.
@@ -32,7 +37,7 @@ pub struct FlashMoeRow<'a> {
     cache: Rc<RefCell<ExpertCache>>,
     slots: prefetch::Slots<'a>,
     // Only direct records received by this instance have recyclable provenance.
-    record_backings: Vec<Option<Buffer>>,
+    record_backings: Vec<Option<RecordBacking>>,
     pub(super) prefetcher: Option<Rc<RefCell<PrefetchPool<'a>>>>,
     predictor_half: bool,
     pub(super) extra_wave_enabled: bool,
@@ -45,6 +50,8 @@ pub struct MoeOutput {
     #[cfg(test)]
     spin_wait_stats: Rc<[std::cell::Cell<u64>; 4]>,
     commands: Vec<CommandBuffer>,
+    hot: RefCell<Option<HotOutput>>,
+    hot_error: RefCell<Option<String>>,
     values: MatrixView,
     pub indices: Vec<u32>,
     pub hits: usize,
@@ -80,8 +87,26 @@ impl MoeOutput {
             #[cfg(test)]
             crate::flash_profile::native_gpu_interval(command, "moe");
         }
-        if let Some(error) = failure {
-            return Err(error);
+        // F follows H on the same queue; success of F does not erase an H error.
+        if let Some(hot) = self.hot.borrow_mut().take() {
+            if let Err(error) = hot.completed() {
+                *self.hot_error.borrow_mut() = Some(format!("{error:#}"));
+            }
+            drop(hot);
+        }
+        if !crate::device_hot_policy::hot_publishable(
+            failure.is_none(),
+            self.hot_error.borrow().is_none(),
+        ) {
+            return Err(failure.unwrap_or_else(|| {
+                anyhow::anyhow!(
+                    "device Hot producer failed: {}",
+                    self.hot_error
+                        .borrow()
+                        .as_deref()
+                        .unwrap_or("unknown error")
+                )
+            }));
         }
         #[cfg(test)]
         ensure!(
@@ -105,6 +130,12 @@ impl MoeOutput {
     pub fn read(&self) -> Result<Vec<u32>> {
         self.completed()?.read_output()
     }
+}
+
+struct SettledHot {
+    output: HotOutput,
+    ids: Vec<u32>,
+    slots: Vec<Option<usize>>,
 }
 
 impl<'a> FlashMoeRow<'a> {
@@ -226,6 +257,65 @@ impl<'a> FlashMoeRow<'a> {
             self.prefetcher.is_some(),
         )
     }
+    pub(super) fn device_hot_gate_eligible(&self, depth: usize) -> bool {
+        if !crate::device_hot_policy::admitted(
+            self.gpu.device_resident_route_available(),
+            self.record_backings.len(),
+            self.gpu.ssd_direct_enabled,
+            depth,
+            self.prefetcher.is_some(),
+            self.record_reuse_enabled,
+        ) || self.gpu.moe_finish_mix.get()
+            || !self.gpu.expert_ar_enabled[3].get()
+        {
+            return false;
+        }
+        let identities = self.cache.borrow().ready_slot_snapshot();
+        let slots = self.slots.borrow();
+        identities.iter().enumerate().all(|(slot, identity)| {
+            identity.is_none()
+                || match (&self.record_backings[slot], &slots[slot]) {
+                    (Some(owner @ RecordBacking::Tracked(_)), Some(expert)) => expert
+                        .record_backing()
+                        .is_ok_and(|record| owner.matches(&record)),
+                    _ => false,
+                }
+        })
+    }
+    pub(super) fn with_pending_gate(
+        &mut self,
+        pending: super::hc::PendingHcRoute<'a>,
+    ) -> Result<(MatrixView, super::FlashHcRead, MoeOutput)> {
+        ensure!(
+            self.device_hot_gate_eligible(0),
+            "device Hot transaction outside qualified scope"
+        );
+        let identities = self.cache.borrow().ready_slot_snapshot();
+        let snapshot = ResidentSnapshot::from_cache(identities, &self.record_backings)?;
+        let hot = self.gpu.submit_resident_hot(
+            pending.mixed(),
+            pending.routes().device_indices(),
+            snapshot,
+        )?;
+        // H has been submitted before this first CPU wait/readback of P's exact route IDs.
+        let ids = pending.routes().indices()?;
+        let (written, read, routing) = pending.complete()?;
+        let current = self.cache.borrow().ready_slot_snapshot();
+        let slots = hot.snapshot().validate_routes(&current, &ids)?;
+        let output = self.forward_routed(
+            &read.mixed,
+            false,
+            None,
+            0,
+            Some(routing),
+            Some(SettledHot {
+                output: hot,
+                ids,
+                slots,
+            }),
+        )?;
+        Ok((written, read, output))
+    }
     pub(super) fn encode_gate(
         &self,
         owner: &Metal,
@@ -244,7 +334,7 @@ impl<'a> FlashMoeRow<'a> {
         routing: super::RouteOutput,
     ) -> Result<MoeOutput> {
         ensure!(self.joint_gate_eligible(0), "ineligible joint HC gate");
-        self.forward_routed(x, false, None, 0, Some(routing))
+        self.forward_routed(x, false, None, 0, Some(routing), None)
     }
     fn forward(
         &mut self,
@@ -253,7 +343,7 @@ impl<'a> FlashMoeRow<'a> {
         next: Option<&mut FlashMoeRow<'a>>,
         depth: usize,
     ) -> Result<MoeOutput> {
-        self.forward_routed(x, trace, next, depth, None)
+        self.forward_routed(x, trace, next, depth, None, None)
     }
     fn forward_routed(
         &mut self,
@@ -262,6 +352,7 @@ impl<'a> FlashMoeRow<'a> {
         mut next: Option<&mut FlashMoeRow<'a>>,
         depth: usize,
         routing: Option<super::RouteOutput>,
+        mut device_hot: Option<SettledHot>,
     ) -> Result<MoeOutput> {
         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         if let Some(pool) = &self.prefetcher {
@@ -286,7 +377,10 @@ impl<'a> FlashMoeRow<'a> {
             None => self.gate.submit(x)?,
         };
         // SSD demand starts as soon as the route is known. This queue has also passed its previous row.
-        let ids = routing.indices()?;
+        let ids = match &device_hot {
+            Some(hot) => hot.ids.clone(),
+            None => routing.indices()?,
+        };
         let weights = routing.completed_scores()?;
         if let Some(pool) = &self.prefetcher {
             pool.borrow_mut().poll(Some(&self.cache), &ids, false)?;
@@ -295,7 +389,7 @@ impl<'a> FlashMoeRow<'a> {
             self.record_reuse_enabled && gpu.ssd_direct_enabled,
             depth,
             self.prefetcher.is_some(),
-        );
+        ) && device_hot.is_none();
         let quiescent = if reuse_requested {
             self.drain_commands()?;
             true
@@ -318,6 +412,22 @@ impl<'a> FlashMoeRow<'a> {
         let guard = ExpertFill::new(&self.cache);
         let plan = DemandPlan::reserve(&self.cache, &ids)?;
         let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
+        let retired_bytes = if let Some(hot) = &device_hot {
+            ensure!(
+                hot.slots
+                    .iter()
+                    .zip(&plan.routes)
+                    .all(|(captured, &(slot, hit))| {
+                        captured.map_or(!hit, |expected| hit && slot == expected)
+                    }),
+                "device Hot route identity changed during demand reservation"
+            );
+            hot.output
+                .snapshot()
+                .retired_bytes(plan.reads.iter().map(|lease| lease.slot))?
+        } else {
+            0
+        };
         let mut owners = if reuse {
             Vec::with_capacity(plan.reads.len())
         } else {
@@ -330,7 +440,7 @@ impl<'a> FlashMoeRow<'a> {
             // prefetch, these private slots were the last future-access views.
             drop(old_views);
             if reuse {
-                owners.push(owner);
+                owners.push(owner.and_then(RecordBacking::into_reusable));
             }
         }
         let records = || {
@@ -338,7 +448,9 @@ impl<'a> FlashMoeRow<'a> {
                 .iter()
                 .map(|&lease| (lease, self.records[lease.expert as usize].clone()))
         };
-        let mut reads = if crate::ssd_reads::direct_read_eligible(
+        let mut reads = if device_hot.is_some() {
+            gpu.readers()?.submit_shared_fresh(records(), &gpu.device)?
+        } else if crate::ssd_reads::direct_read_eligible(
             gpu.ssd_direct_enabled,
             depth,
             self.prefetcher.is_some(),
@@ -438,54 +550,56 @@ impl<'a> FlashMoeRow<'a> {
                 MTLSize::new(1, 1, 1),
                 512,
             );
-            if axis {
-                let mut hot = Vec::new();
-                for &(slot, hit) in &plan.routes {
-                    if hit && !hot.contains(&slot) {
-                        hot.push(slot);
+            if device_hot.is_none() {
+                if axis {
+                    let mut hot = Vec::new();
+                    for &(slot, hit) in &plan.routes {
+                        if hit && !hot.contains(&slot) {
+                            hot.push(slot);
+                        }
                     }
-                }
-                if !hot.is_empty() {
-                    let slots = self.slots.borrow();
-                    let experts = hot
-                        .iter()
-                        .map(|&slot| slots[slot].as_ref().context("missing resident expert"))
-                        .collect::<Result<Vec<_>>>()?;
-                    let targets = hot
-                        .iter()
-                        .map(|&slot| destination(slot))
-                        .collect::<Result<Vec<_>>>()?;
-                    if finish_mix {
-                        let pending = FlashExpert::encode_ready_cohort_pending(
-                            &command, x, &experts, &targets,
-                        )?;
-                        pending_finishes.extend(hot.into_iter().zip(pending));
-                    } else {
-                        let contributions = FlashExpert::encode_ready_cohort(
-                            &command,
-                            x,
-                            &experts,
-                            &targets,
-                            Storage::StorageModePrivate,
-                        )?;
-                        outputs.extend(hot.into_iter().zip(contributions));
+                    if !hot.is_empty() {
+                        let slots = self.slots.borrow();
+                        let experts = hot
+                            .iter()
+                            .map(|&slot| slots[slot].as_ref().context("missing resident expert"))
+                            .collect::<Result<Vec<_>>>()?;
+                        let targets = hot
+                            .iter()
+                            .map(|&slot| destination(slot))
+                            .collect::<Result<Vec<_>>>()?;
+                        if finish_mix {
+                            let pending = FlashExpert::encode_ready_cohort_pending(
+                                &command, x, &experts, &targets,
+                            )?;
+                            pending_finishes.extend(hot.into_iter().zip(pending));
+                        } else {
+                            let contributions = FlashExpert::encode_ready_cohort(
+                                &command,
+                                x,
+                                &experts,
+                                &targets,
+                                Storage::StorageModePrivate,
+                            )?;
+                            outputs.extend(hot.into_iter().zip(contributions));
+                        }
                     }
-                }
-            } else {
-                for &(slot, hit) in &plan.routes {
-                    if hit && !outputs.contains_key(&slot) {
-                        outputs.insert(
-                            slot,
-                            self.slots.borrow()[slot]
-                                .as_ref()
-                                .context("missing resident expert")?
-                                .encode_view_into(
-                                    &command,
-                                    x,
-                                    Storage::StorageModePrivate,
-                                    destination(slot)?,
-                                )?,
-                        );
+                } else {
+                    for &(slot, hit) in &plan.routes {
+                        if hit && !outputs.contains_key(&slot) {
+                            outputs.insert(
+                                slot,
+                                self.slots.borrow()[slot]
+                                    .as_ref()
+                                    .context("missing resident expert")?
+                                    .encode_view_into(
+                                        &command,
+                                        x,
+                                        Storage::StorageModePrivate,
+                                        destination(slot)?,
+                                    )?,
+                            );
+                        }
                     }
                 }
             }
@@ -505,8 +619,11 @@ impl<'a> FlashMoeRow<'a> {
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
                         ensure!(plan.publish(lease), "stale native SSD demand completion");
                         self.slots.borrow_mut()[lease.slot] = Some(expert);
-                        if reuse && direct {
-                            self.record_backings[lease.slot] = Some(backing);
+                        if (reuse || device_hot.is_some()) && direct {
+                            self.record_backings[lease.slot] = Some(RecordBacking::new(
+                                backing,
+                                gpu.device_resident_route_enabled(),
+                            ));
                         }
                         if axis {
                             ready.push(lease.slot);
@@ -606,7 +723,11 @@ impl<'a> FlashMoeRow<'a> {
                 let mut bindings = plan
                     .routes
                     .iter()
-                    .map(|(slot, _)| {
+                    .enumerate()
+                    .map(|(route, (slot, hit))| {
+                        if *hit && let Some(hot) = &device_hot {
+                            return hot.output.contribution(route);
+                        }
                         let output = outputs
                             .get(slot)
                             .context("missing ordered expert contribution")?;
@@ -635,14 +756,34 @@ impl<'a> FlashMoeRow<'a> {
                     timeline.push(serde_json::json!({"event":"read","expert":lease.expert,"slot":lease.slot,"start_ns":started.duration_since(epoch).as_nanos(),"end_ns":ended.duration_since(epoch).as_nanos()}));
                 }
             }
+            if let Some(hot) = device_hot.as_mut() {
+                // Retain F before submission so abandoning MoeOutput cannot
+                // release the transaction's read leases/budget ahead of F.
+                hot.output.retain_consumer(&command)?;
+            }
             command.commit();
             self.last.push(command);
             guard.commit();
+            #[cfg(test)]
+            if device_hot.is_some() {
+                DEVICE_HOT_COUNTS.with(|counter| {
+                    let mut counts = counter.get();
+                    counts[0] += 1;
+                    counts[1] += hits as u64;
+                    counts[2] += plan.reads.len() as u64;
+                    counts[3] = counts[3].max(retired_bytes);
+                    counter.set(counts);
+                });
+            }
+            #[cfg(not(test))]
+            let _ = retired_bytes;
             Ok(MoeOutput {
                 spin_wait_enabled: gpu.spin_wait_enabled,
                 #[cfg(test)]
                 spin_wait_stats: gpu.spin_wait_stats.clone(),
                 commands: self.last.clone(),
+                hot: RefCell::new(device_hot.map(|hot| hot.output)),
+                hot_error: RefCell::new(None),
                 #[cfg(test)]
                 timeline,
                 #[cfg(test)]
@@ -785,6 +926,94 @@ impl FlashMoeRow<'_> {
 mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
+
+    #[test]
+    #[ignore = "physical AR34 H/F ownership, repeated publication failure and abandoned final consumer; exclusive GPU"]
+    fn physical_ar34_device_hot_error_stays_latched_after_final_completion() -> Result<()> {
+        let gpu = Metal::new()?;
+        ensure!(
+            gpu.device_resident_route_available(),
+            "enable DEVICE_RESIDENT_ROUTE on qualified M5/Tier2"
+        );
+        let input = gpu.f32_storage(&vec![0.; 2560])?.matrix(MatrixLayout {
+            shape: [1, 2560],
+            strides: [2560, 1],
+            offset: 0,
+        })?;
+        let ids = super::super::upload(&gpu.device, &(0..10u32).collect::<Vec<_>>())?;
+        let make = |inject_failure: bool| -> Result<(MoeOutput, CommandBuffer)> {
+            let snapshot =
+                ResidentSnapshot::for_test([u32::MAX; 512], (0..53).map(|_| None).collect())?;
+            let mut hot = gpu.submit_resident_hot_for_test(&input, &ids, snapshot)?;
+            ensure!(
+                !gpu.device_resident_route_available(),
+                "active transaction was not charged"
+            );
+            if inject_failure {
+                hot.inject_terminal_failure();
+            }
+            let values =
+                MatrixView::output(&gpu, FloatType::F16, 1, 2560, Storage::StorageModeShared)?;
+            // A real nonempty final consumer follows H on the same queue. Its
+            // retained slab reference alone must not release the active lease.
+            let command = objc::rc::autoreleasepool(|| -> Result<CommandBuffer> {
+                let command = gpu.queue.new_command_buffer();
+                let blit = command.new_blit_command_encoder();
+                let (slab, offset) = hot.contribution(0)?;
+                blit.copy_from_buffer(slab, offset, &values.buffer, 0, 5120);
+                blit.end_encoding();
+                hot.retain_consumer(command)?;
+                command.commit();
+                Ok(command.to_owned())
+            })?;
+            let output = MoeOutput {
+                spin_wait_enabled: gpu.spin_wait_enabled,
+                spin_wait_stats: gpu.spin_wait_stats.clone(),
+                commands: vec![command.clone()],
+                hot: RefCell::new(Some(hot)),
+                hot_error: RefCell::new(None),
+                values,
+                indices: (0..10).collect(),
+                hits: 0,
+                read_bytes: 0,
+                multiplier_trace: None,
+                timeline: Vec::new(),
+                extra_wave_submissions: 0,
+                injected_failure: false,
+            };
+            Ok((output, command))
+        };
+        let (output, final_command) = make(true)?;
+        let first = output
+            .completed()
+            .err()
+            .context("injected H failure was published")?
+            .to_string();
+        let second = output
+            .completed()
+            .err()
+            .context("H failure disappeared after release")?
+            .to_string();
+        ensure!(first == second && first.contains("injected resident publication failure"));
+        ensure!(output.hot.borrow().is_none() && output.hot_error.borrow().is_some());
+        ensure!(
+            final_command.status() == MTLCommandBufferStatus::Completed
+                && gpu.device_resident_route_available()
+        );
+        drop(output);
+        let (abandoned, final_command) = make(false)?;
+        ensure!(!gpu.device_resident_route_available());
+        drop(abandoned);
+        ensure!(
+            final_command.status() == MTLCommandBufferStatus::Completed,
+            "abandon released the transaction before F"
+        );
+        ensure!(gpu.device_resident_route_available());
+        eprintln!(
+            "AR34_DEVICE_HOT_MOE {{\"final_bytes\":5120,\"repeated_h_error\":true,\"final_drained\":true,\"abandon_drained\":true,\"active_released\":true,\"injected_after_terminal\":true,\"parity\":true}}"
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Flash checkpoint: bounded extra cold wave versus old schedule"]

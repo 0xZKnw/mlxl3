@@ -1,0 +1,64 @@
+{
+  "32": {
+    "tps": {
+      "control-start": 8.711772824451225,
+      "device-hot": 9.038257485277041,
+      "control-end": 8.749574957643942
+    },
+    "observed_gain_vs_controls_percent": [
+      3.747625970106516,
+      3.299389159251631
+    ],
+    "control_drift_percent": 0.4339200981758662,
+    "generated_tokens": 32,
+    "decode_tokens": 31,
+    "parity": "full warm+measured text/hash against frozen qualified CLI",
+    "repeats": 1
+  },
+  "128": {
+    "tps": {
+      "control-start": 8.88934097759495,
+      "device-hot": 9.00126417241141,
+      "control-end": 8.841412078453008
+    },
+    "observed_gain_vs_controls_percent": [
+      1.2590719053139798,
+      1.8079928018282398
+    ],
+    "control_drift_percent": -0.5391726930347729,
+    "generated_tokens": 128,
+    "decode_tokens": 127,
+    "parity": "full warm+measured text/hash against frozen qualified CLI",
+    "repeats": 1
+  },
+  "status": "complete_short_screen_positive_observation_not_statistical_proof",
+  "integration": "T05 default ON Apple M5/Tier2, main f5118ad8 integrated, published in https://github.com/0xZKnw/mlxl3/pull/141; no merge or installed-app update",
+  "limits": [
+    "One warm and one measured sample per arm; no confidence interval or independent workload validation.",
+    "Synthetic publication failures after Metal Completed, not induced driver errors.",
+    "Three Kani CPU harnesses do not prove Metal kernels or concurrency.",
+    "Hosted CI for final commit not yet run."
+  ],
+  "default_validation": {
+    "tps128": 9.27321889295128,
+    "cli_sha256": "b9e7adb899aaa5339d9570d44987571d174c0567cd181ebab1a355d79d09d9cc",
+    "source_files": 277,
+    "flag_absent": true,
+    "quality_phases": 2,
+    "speed_phases": 1,
+    "parity": true,
+    "all_children_joined": true,
+    "gain_claim": "Final retained-binary validation only; do not count its difference from the previous screen as another gain."
+  },
+  "main_validation": {
+    "source_head": "2108f5e799ae8de60b79bf753b28f3098d2ff92f",
+    "merged_main": "f5118ad897071bbdb858d1e609dd3719addca60a",
+    "cli_sha256": "3126e70f536696ae60449afbc3fc0838627d705fcc19f08e1c1a2195bbff36a5",
+    "tps128": 9.063046709783102,
+    "source_files": 280,
+    "flag_absent": true,
+    "parity": true,
+    "all_children_joined": true,
+    "gain_claim": "Retained composition validation; not a new controlled comparison or additional speedup."
+  }
+}

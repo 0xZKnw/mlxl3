@@ -117,6 +117,11 @@ impl Metal {
                     .checked_add(crate::resident_scratch_policy::CAP)
                     .context("resident scratch admission overflow")?;
             }
+            if self.device_resident_route_enabled() {
+                reserved = reserved
+                    .checked_add(crate::device_hot_policy::RESERVE_BYTES)
+                    .context("resident route admission overflow")?;
+            }
             ensure!(
                 fits(self.observed_memory()?, reserved, limit),
                 "Flash memory budget too small for expert banks"
@@ -240,6 +245,11 @@ impl FlashNext<'_> {
             plan = plan
                 .with_resident_scratch()
                 .context("resident scratch reserve overflow")?;
+        }
+        if self.gpu.device_resident_route_enabled() {
+            plan = plan
+                .with_device_hot()
+                .context("resident route reserve overflow")?;
         }
         if self.gpu.hc_workspace_enabled.get() {
             plan = plan
@@ -406,6 +416,13 @@ mod tests {
         target.release_idle_state()?;
         let before = target.memory_ledger(None)?;
         let mut plan = ResourcePlan::native_ar(64, target.context).unwrap();
+        if gpu.device_resident_route_enabled() {
+            plan = plan.with_device_hot().unwrap();
+            ensure!(
+                serde_json::to_value(plan)?["device_hot_reserve_bytes"]
+                    == crate::device_hot_policy::RESERVE_BYTES
+            );
+        }
         if gpu.hc_workspace_enabled.get() {
             let with_up = !gpu.hc_up_mix.get();
             plan = plan.with_hc_workspace(97, with_up).unwrap();

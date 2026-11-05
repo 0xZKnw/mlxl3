@@ -79,6 +79,10 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     )
     added = {
         "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
+        "device_hot_policy::device_hot_defaults_preserve_strict_literals_and_both_hardware_guards",
+        "device_hot_policy::device_hot_actual_admission_offsets_and_peak_are_bounded",
+        "device_hot_policy::device_hot_actual_identity_readers_and_pending_lifecycle_are_fail_closed",
+        "flash_memory::device_hot_native_plan_charges_one_transaction_before_admission",
         "resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded",
         "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
         "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",

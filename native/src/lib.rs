@@ -27,6 +27,8 @@ mod ar30_router_policy;
 pub(crate) mod dec_one;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dense_epilogue;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod device_hot_policy;
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
@@ -96,7 +98,12 @@ pub mod mtp;
 mod pipeline_caps;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;

@@ -659,6 +659,21 @@ impl<'a> LayerResidual<'a> {
             .gate
             .as_ref()
             .context("missing attention injection gate")?;
+        if self.moe.device_hot_gate_eligible(depth)
+            && !self.mlp_hc.gpu.hc_workspace_enabled.get()
+            && streams.dtype == FloatType::F32
+        {
+            let pending = self.mlp_hc.submit_after_write_with_gate(
+                &self.attn_hc,
+                streams,
+                &attention.values,
+                gate,
+                &self.moe,
+            )?;
+            let (written, mlp_read, experts) = self.moe.with_pending_gate(pending)?;
+            let gate = mlp_read.gate.as_ref().context("missing MLP injection")?;
+            return self.final_write(&written, experts, gate, defer_write);
+        }
         if self.moe.joint_gate_eligible(depth) {
             let (written, mlp_read, routing) = self.mlp_hc.read_after_write_with_gate(
                 &self.attn_hc,

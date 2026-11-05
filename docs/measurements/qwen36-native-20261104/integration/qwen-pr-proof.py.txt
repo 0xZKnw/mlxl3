@@ -1,0 +1,19 @@
+import os,subprocess,signal,json
+from pathlib import Path
+root=Path.cwd();out=root/'docs/measurements/qwen36-native-20261104/integration'
+env={**os.environ,'PATH':'/Users/henko/Documents/Codex/2026-10-05/chec/work/toolchain/cargo/bin:/usr/bin:/bin','RUSTUP_HOME':'/Users/henko/Documents/Codex/2026-10-05/chec/work/toolchain/rustup','RUSTUP_TOOLCHAIN':'stable','CARGO_HOME':str(root/'build/cargo-home'),'KANI_HOME':'/Users/henko/Documents/Codex/2026-10-05/chec/work/kani'}
+cmd=['cargo','kani','--lib','--no-default-features','--harness','native_qwen_step_validates_before_state_publication','--output-format','regular']
+r={'status':'in_progress','command':cmd,'bound_seconds':120}
+try:
+ with (out/'kani-cursor.log').open('w') as log:
+  p=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+  try:code=p.wait(timeout=120)
+  except BaseException:
+   os.killpg(p.pid,signal.SIGTERM)
+   try:p.wait(timeout=5)
+   except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
+   raise
+ r.update(status='passed' if code==0 else 'failed',exit_code=code)
+ print(r,flush=True)
+except BaseException as e:r.update(status='unverified',error=repr(e));raise
+finally:(out/'kani.json').write_text(json.dumps(r,indent=2)+'\n')

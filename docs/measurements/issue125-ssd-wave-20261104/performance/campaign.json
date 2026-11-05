@@ -1,0 +1,107 @@
+{
+  "status": "completed",
+  "parity": true,
+  "processes": [
+    {
+      "kind": "reference",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/performance/1-reference",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 65493,
+      "decode_tps": {
+        "MAIN": 6.164171676754617,
+        "HOLD": 6.254705582726789
+      }
+    },
+    {
+      "kind": "candidate",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/performance/2-candidate",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 65619,
+      "decode_tps": {
+        "MAIN": 6.179640556223466,
+        "HOLD": 6.0882139983653145
+      }
+    },
+    {
+      "kind": "candidate",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/build/ssd-wave/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/performance/3-candidate",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 66212,
+      "decode_tps": {
+        "MAIN": 6.2044721835499015,
+        "HOLD": 6.554852282305977
+      }
+    },
+    {
+      "kind": "reference",
+      "status": "validated",
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-ssd-wave/mix-stq1_0/docs/measurements/issue125-ssd-wave-20261104/performance/4-reference",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 66503,
+      "decode_tps": {
+        "MAIN": 6.615252404296095,
+        "HOLD": 5.99892125849821
+      }
+    }
+  ],
+  "all_children_joined": true
+}

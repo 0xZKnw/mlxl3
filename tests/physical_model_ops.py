@@ -151,6 +151,16 @@ def oracle(output):
                 weight=weight,
                 expected_error="FP32-weight GEMM batches" if rows > 1 else None,
             )
+    for width in (1, 31, 32, 33, 128, 256, 1024):
+        x = random((3, width))
+        x[0] = np.resize(np.array([-20, -0.0, 0, 1, 1, 20], np.float16), width)
+        add(f"softmax-{width}", "softmax", x, mx.softmax(mx.array(x), axis=-1, precise=True))
+        for broadcast in (False, True):
+            y = random((1, 1) if broadcast else x.shape)
+            for op in ("add", "mul", "gate"):
+                a, b = mx.array(x), mx.array(y)
+                result = a + b if op == "add" else a * b if op == "mul" else a * mx.sigmoid(b)
+                add(f"binary-{op}-{width}-{broadcast}", op, x, result, weight=y)
     output.write_text(json.dumps(cases, allow_nan=False))
 
 

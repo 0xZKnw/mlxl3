@@ -8,11 +8,18 @@ use anyhow::{Context, Result, ensure};
 use half::bf16;
 #[cfg(test)]
 use half::f16;
-use metal::{Buffer, MTLResourceOptions as Storage, MTLSize};
+use metal::{
+    Buffer, CommandBuffer, MTLCommandBufferStatus, MTLResourceOptions as Storage, MTLSize,
+};
 
 #[path = "hc_workspace.rs"]
 mod workspace;
 use std::{cell::RefCell, rc::Rc};
+
+#[cfg(test)]
+thread_local! {
+    pub(super) static FAIL_NEXT_PENDING_HC_ROUTE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 pub(super) struct Pipelines {
     norm: ComputePipelineState,
@@ -112,6 +119,71 @@ impl ReadBuffers {
                 })
                 .transpose()?,
         })
+    }
+}
+
+/// GPU-only borrowing is valid on the producer queue; host publication waits for P.
+pub(super) struct PendingHcRoute<'a> {
+    gpu: &'a Metal,
+    command: CommandBuffer,
+    submitted: bool,
+    buffers: Option<(MatrixView, ReadBuffers, super::gate::GateBuffers)>,
+    #[cfg(test)]
+    injected_failure: bool,
+}
+
+impl PendingHcRoute<'_> {
+    pub(super) fn mixed(&self) -> &MatrixView {
+        &self
+            .buffers
+            .as_ref()
+            .expect("owned pending HC route")
+            .1
+            .mixed
+    }
+
+    pub(super) fn routes(&self) -> &super::RouteOutput {
+        &self
+            .buffers
+            .as_ref()
+            .expect("owned pending HC route")
+            .2
+            .routes
+    }
+
+    fn drain(&self) {
+        let terminal = matches!(
+            self.command.status(),
+            MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error
+        );
+        if crate::device_hot_policy::pending_route_needs_wait(self.submitted, terminal) {
+            #[cfg(test)]
+            self.gpu.helper_waits.set(self.gpu.helper_waits.get() + 1);
+            self.gpu.wait_command(&self.command);
+        }
+    }
+
+    pub(super) fn complete(mut self) -> Result<(MatrixView, FlashHcRead, super::RouteOutput)> {
+        self.drain();
+        ensure!(
+            crate::device_hot_policy::pending_route_publishable(
+                self.submitted,
+                self.command.status() == MTLCommandBufferStatus::Completed,
+            ),
+            "pending HC route command failed ({:?})",
+            self.command.status()
+        );
+        #[cfg(test)]
+        ensure!(!self.injected_failure, "injected pending HC route failure");
+        let (written, read, gate) = self.buffers.take().context("missing pending HC route")?;
+        Ok((written, read.finish(false)?, gate.routes))
+    }
+}
+
+impl Drop for PendingHcRoute<'_> {
+    fn drop(&mut self) {
+        // Drain before the owned views/workspace are released, including error exits.
+        self.drain();
     }
 }
 
@@ -604,6 +676,57 @@ impl<'a> FlashHc<'a> {
         Ok((written, read.finish(false)?, gate.routes))
     }
 
+    pub(super) fn submit_after_write_with_gate(
+        &self,
+        writer: &FlashHc,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+        moe: &super::FlashMoeRow,
+    ) -> Result<PendingHcRoute<'a>> {
+        objc::rc::autoreleasepool(|| {
+            ensure!(
+                self.inject.is_some()
+                    && !self.gpu.hc_workspace_enabled.get()
+                    && streams.dtype == FloatType::F32
+                    && moe.device_hot_gate_eligible(0),
+                "ineligible pending HC route"
+            );
+            ensure!(
+                std::ptr::eq(self.gpu, writer.gpu),
+                "HC chain requires the same Metal instance"
+            );
+            let command = self.gpu.queue.new_command_buffer().to_owned();
+            #[cfg(test)]
+            self.gpu
+                .helper_commands
+                .set(self.gpu.helper_commands.get() + 1);
+            let mut pending = PendingHcRoute {
+                gpu: self.gpu,
+                command,
+                submitted: false,
+                buffers: None,
+                #[cfg(test)]
+                injected_failure: FAIL_NEXT_PENDING_HC_ROUTE.with(|failure| failure.replace(false)),
+            };
+            let (written, read) =
+                self.encode_after_write(&pending.command, streams, branch, gate)?;
+            let routes = moe.encode_gate(self.gpu, &pending.command, &read.mixed)?;
+            pending.buffers = Some((written, read, routes));
+            pending.command.commit();
+            pending.submitted = true;
+            #[cfg(test)]
+            {
+                let gpu = self.gpu;
+                gpu.helper_commits.set(gpu.helper_commits.get() + 1);
+                gpu.hc_chain_pairs.set(gpu.hc_chain_pairs.get() + 1);
+                gpu.hc_gate_chain_pairs
+                    .set(gpu.hc_gate_chain_pairs.get() + 1);
+            }
+            Ok(pending)
+        })
+    }
+
     /// Read the four streams, run the ordinary demand-loaded MLP and inject its residual.
     pub fn forward_moe(
         &self,
@@ -748,6 +871,123 @@ mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
     use serde_json::Value;
+
+    #[test]
+    #[ignore = "physical AR34 pending producer ownership, abandonment and exact canonical HC/router; exclusive GPU"]
+    fn physical_ar34_pending_hc_route_drains_before_release_and_rejects_publication_failure()
+    -> Result<()> {
+        let gpu = Metal::new()?;
+        let waits = gpu.helper_waits.get();
+        let command = gpu.queue.new_command_buffer().to_owned();
+        let unsubmitted = || PendingHcRoute {
+            gpu: &gpu,
+            command: command.clone(),
+            submitted: false,
+            buffers: None,
+            injected_failure: false,
+        };
+        drop(unsubmitted());
+        ensure!(command.status() == MTLCommandBufferStatus::NotEnqueued);
+        ensure!(unsubmitted().complete().is_err());
+        ensure!(gpu.helper_waits.get() == waits);
+
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let writer = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.attn_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let reader = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.mlp_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let moe =
+            super::super::FlashMoeRow::load(&gpu, &c, "model.language_model.layers.0.mlp", 53)?;
+        ensure!(moe.device_hot_gate_eligible(0));
+        let row = |n| {
+            gpu.f32_storage(
+                &(0..n)
+                    .map(|i| ((i * 17 % 97) as f32 - 48.) / 128.)
+                    .collect::<Vec<_>>(),
+            )?
+            .matrix(MatrixLayout {
+                shape: [1, n as u32],
+                strides: [n as i64, 1],
+                offset: 0,
+            })
+        };
+        let streams = row(10240)?;
+        let branch = row(2560)?;
+        let gate = row(4)?;
+        let (written, read, routes) =
+            reader.read_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)?;
+        let expected = [
+            written.read_output()?,
+            read.mixed.read_output()?,
+            read.gate
+                .context("canonical injection gate")?
+                .read_output()?,
+            routes.completed_scores()?.read_output()?,
+        ];
+        let expected_ids = routes.indices()?;
+        ensure!(
+            expected.iter().map(Vec::len).eq([10240, 2560, 4, 10])
+                && expected
+                    .iter()
+                    .flatten()
+                    .all(|v| f32::from_bits(*v).is_finite())
+                && expected_ids.len() == 10
+        );
+
+        let commits = gpu.helper_commits.get();
+        gpu.hc_workspace_enabled.set(true);
+        ensure!(
+            reader
+                .submit_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)
+                .is_err()
+        );
+        ensure!(gpu.helper_commits.get() == commits);
+        gpu.hc_workspace_enabled.set(false);
+
+        let before_waits = gpu.helper_waits.get();
+        let pending =
+            reader.submit_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)?;
+        ensure!(gpu.helper_waits.get() == before_waits);
+        ensure!(pending.routes().device_indices().length() == 40);
+        let retained = pending.mixed().clone();
+        let producer = pending.command.clone();
+        drop(pending);
+        ensure!(producer.status() == MTLCommandBufferStatus::Completed);
+        ensure!(retained.read_output()? == expected[1]);
+
+        FAIL_NEXT_PENDING_HC_ROUTE.with(|failure| failure.set(true));
+        let failed =
+            reader.submit_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)?;
+        let failed_command = failed.command.clone();
+        ensure!(failed.complete().is_err());
+        ensure!(failed_command.status() == MTLCommandBufferStatus::Completed);
+
+        let pending =
+            reader.submit_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)?;
+        let (written, read, routes) = pending.complete()?;
+        let actual = [
+            written.read_output()?,
+            read.mixed.read_output()?,
+            read.gate.context("pending injection gate")?.read_output()?,
+            routes.completed_scores()?.read_output()?,
+        ];
+        ensure!(actual == expected && routes.indices()? == expected_ids);
+        eprintln!(
+            "AR34_PENDING_HC_ROUTE {{\"parity\":true,\"finite_f32_words\":12814,\"route_ids\":10,\"unsubmitted\":true,\"workspace_rejected_before_commit\":true,\"abandoned\":true,\"retained\":true,\"publication_failure\":true,\"recovery\":true,\"all_producers_joined\":true}}"
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical HC write/read chain, exact values and actual command count"]
