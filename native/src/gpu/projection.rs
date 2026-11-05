@@ -600,10 +600,8 @@ impl<'a> FlashProjection<'a> {
             self.bias
                 .as_ref()
                 .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
-            (&dest, dest_offset),
-            stage
-                .gate
-                .map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
+            (dest, dest_offset),
+            gate.map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
         ];
         if let Some(gate) = gate {
             ensure!(
