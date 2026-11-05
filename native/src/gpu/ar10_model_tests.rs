@@ -116,7 +116,7 @@ fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<(
             "missing actual composed path: {used:?}"
         );
         ensure!(
-            axis_dispatches >= 144 && axis_dispatches < 1440 && axis_dispatches.is_multiple_of(3),
+            (144..1440).contains(&axis_dispatches) && axis_dispatches.is_multiple_of(3),
             "no actual expert grouping"
         );
         ensure!(
