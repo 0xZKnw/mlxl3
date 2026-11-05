@@ -415,12 +415,18 @@ impl SplitRecord {
     }
 }
 
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[path = "ssd_reads/readahead.rs"]
+mod readahead;
+
 pub(crate) struct ReadService {
     next: Cell<usize>,
     senders: Vec<SyncSender<ReadWork>>,
     workers: Vec<JoinHandle<()>>,
     dynamic: bool,
     split_enabled: bool,
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    readahead_files: Option<readahead::ExpertFiles>,
     active: Arc<AtomicUsize>,
     #[cfg(test)]
     pub(crate) dynamic_submissions: Cell<usize>,
@@ -473,6 +479,8 @@ impl ReadService {
             workers: Vec::new(),
             dynamic,
             split_enabled,
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            readahead_files: readahead::ExpertFiles::from_env()?,
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             dynamic_submissions: Cell::new(0),
@@ -568,6 +576,12 @@ impl ReadService {
             *gates = None;
         }
     }
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn readahead_counts(&self) -> [usize; 2] {
+        self.readahead_files
+            .as_ref()
+            .map_or([0; 2], |files| files.counts())
+    }
     pub(crate) fn in_flight(&self) -> usize {
         self.active.load(Ordering::Acquire)
     }
@@ -575,7 +589,7 @@ impl ReadService {
         &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
     ) -> Result<ReadBatch> {
-        self.start(Self::sources(records)?, Duration::from_secs(30))
+        self.start(self.sources(records, false)?, Duration::from_secs(30))
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_shared(
@@ -583,7 +597,11 @@ impl ReadService {
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
-        self.start_shared(Self::sources(records)?, Duration::from_secs(30), device)
+        self.start_shared(
+            self.sources(records, device.name() == "Apple M5")?,
+            Duration::from_secs(30),
+            device,
+        )
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     fn start_shared(
@@ -608,7 +626,7 @@ impl ReadService {
             .map(|(lease, record, owner)| ((lease, record), owner))
             .unzip();
         self.start_shared_reusing(
-            Self::sources(records)?,
+            self.sources(records, device.name() == "Apple M5")?,
             owners,
             Duration::from_secs(30),
             device,
@@ -674,13 +692,15 @@ impl ReadService {
         record: TensorInfo,
     ) -> Result<ReadBatch> {
         self.start_mode(
-            Self::sources([(lease, record)])?,
+            self.sources([(lease, record)], false)?,
             Duration::from_secs(30),
             true,
         )
     }
     fn sources(
+        &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+        qualified_m5: bool,
     ) -> Result<Vec<(SlotLease, File, u64, usize)>> {
         let mut reads = Vec::new();
         for (lease, record) in records {
@@ -693,7 +713,19 @@ impl ReadService {
                 end <= file.metadata()?.len(),
                 "checkpoint record was truncated after inspection"
             );
-            reads.push((lease, file.try_clone()?, offset, EXPERT_BYTES as usize));
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            let handle = if let Some(files) = self.readahead_files.as_ref().filter(|_| qualified_m5)
+            {
+                files.source(&record.file, file)?
+            } else {
+                file.try_clone()?
+            };
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            let handle = {
+                let _ = qualified_m5;
+                file.try_clone()?
+            };
+            reads.push((lease, handle, offset, EXPERT_BYTES as usize));
         }
         Ok(reads)
     }
