@@ -1,0 +1,60 @@
+{
+  "status": "focused_cpu_tests_passed",
+  "tests": 11,
+  "tests_seconds": 0.005,
+  "ruff": "PASS after retained initial SIM117/B023 diagnostics",
+  "format": "PASS",
+  "source_files": {
+    "build/ar34/basis.py": "7405384a65476150e6d3163e3b22b33bb54368df57a60a5b737e86e227a8110a",
+    "build/ar34/components-basis.py": "de424bda4520713a707d08aa815e4c86e8b3edb2f128bc3aa578540f88428b59",
+    "build/ar34/freeze.py": "d51dbab01b26fe0f3f4be993369f160aff50f2ce161ab8a35fb73ddbb9ac1ecd",
+    "build/ar34/run.py": "8e935b0f8953abd59e038fb3ee37df9b7de68db444f5e14ca6d90b26f75081d8",
+    "build/ar34/test_run.py": "623ee1eff900cd3faf2f3fb72f5f566785a7e69ecac9a6061e366befe1252280"
+  },
+  "initial_failures": [
+    "cpu/controller-tests.log:11tests/1error in mock missing subprocess.STDOUT",
+    "cpu/controller-ruff.log:SIM117/B023"
+  ],
+  "fixed_logs": {
+    "cpu/controller-tests-fixed.log": "1607edbfae007ff56d6138df5d24d28abfe4b1ef27902563e1bb9ad258e5c4ec",
+    "cpu/controller-ruff-fixed.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "cpu/controller-format-fixed.log": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd"
+  },
+  "crosshair": {
+    "status": "unavailable",
+    "diagnostic": "No module named crosshair",
+    "log": "cpu/controller-crosshair.log"
+  },
+  "quality_phases": [
+    "pending",
+    "hot",
+    "cache",
+    "moe",
+    "model",
+    "cli"
+  ],
+  "speed_arms": [
+    [
+      "control-start",
+      0
+    ],
+    [
+      "device-hot",
+      1
+    ],
+    [
+      "control-end",
+      0
+    ]
+  ],
+  "tokens": [
+    32,
+    128
+  ],
+  "limits": [
+    "No model/GPU/benchmark executed by the controller author.",
+    "Real historical32 report checked;128 validator mutants use synthetic metadata, not an inference.",
+    "No formal Python proof: CrossHair unavailable; deterministic tests are not a proof.",
+    "Ownership source review fixed local autorelease boundaries and attached F lifetime; physical validation belongs to root."
+  ]
+}

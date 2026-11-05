@@ -1,0 +1,295 @@
+"""Small CPU regressions for the actual AR34 controller; never launch a model."""
+
+import copy
+import json
+import runpy
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[2]
+R = runpy.run_path(str(ROOT / "build/ar34/run.py"))
+
+
+def log(name, evidence):
+    return (
+        "dyld[123]: /System/Library/Frameworks/Metal.framework/Metal\nrunning 1 test\n"
+        + name
+        + " "
+        + json.dumps(evidence)
+        + "\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n"
+    )
+
+
+class Controller(unittest.TestCase):
+    def setUp(self):
+        self.pending = {
+            "parity": True,
+            "finite_f32_words": 12814,
+            "route_ids": 10,
+            "unsubmitted": True,
+            "workspace_rejected_before_commit": True,
+            "abandoned": True,
+            "retained": True,
+            "publication_failure": True,
+            "recovery": True,
+            "all_producers_joined": True,
+        }
+
+    def test_pending_actual_marker(self):
+        self.assertEqual(
+            R["check_marker"](log("AR34_PENDING_HC_ROUTE", self.pending), R["SPECS"][0]),
+            self.pending,
+        )
+
+    def test_missing_wrong_or_vacuous_counts(self):
+        for key in ("finite_f32_words", "route_ids"):
+            for mutant in (0, True, -1, 12813):
+                value = {**self.pending, key: mutant}
+                with self.subTest(key=key, mutant=mutant), self.assertRaises(AssertionError):
+                    R["check_marker"](log("AR34_PENDING_HC_ROUTE", value), R["SPECS"][0])
+            value = self.pending.copy()
+            del value[key]
+            with self.assertRaises((AssertionError, KeyError)):
+                R["check_marker"](log("AR34_PENDING_HC_ROUTE", value), R["SPECS"][0])
+
+    def test_every_ownership_failure_is_rejected(self):
+        for key in (
+            "parity",
+            "unsubmitted",
+            "workspace_rejected_before_commit",
+            "abandoned",
+            "retained",
+            "publication_failure",
+            "recovery",
+            "all_producers_joined",
+        ):
+            with self.subTest(key=key), self.assertRaises(AssertionError):
+                R["check_marker"](
+                    log("AR34_PENDING_HC_ROUTE", {**self.pending, key: False}), R["SPECS"][0]
+                )
+
+    def test_duplicate_nonfinite_and_duplicate_false_true_markers(self):
+        text = log("AR34_PENDING_HC_ROUTE", self.pending)
+        for bad in (
+            text + "AR34_PENDING_HC_ROUTE " + json.dumps(self.pending),
+            log("AR34_PENDING_HC_ROUTE", {**self.pending, "extra": float("nan")}),
+            text.replace('"parity": true', '"parity": false, "parity": true'),
+        ):
+            with self.subTest(bad=bad[-80:]), self.assertRaises((AssertionError, ValueError)):
+                R["check_marker"](bad, R["SPECS"][0])
+
+    def test_hot_counts_and_actual_path_must_be_complete(self):
+        R["hot_counts"]([3, 18, 12, 12480120])
+        for mutant in (
+            [0, 0, 0, 0],
+            [3, 0, 30, 0],
+            [3, 18, 11, 0],
+            [3, 18, 12, 12480121],
+            [True, 5, 5, 0],
+            [3, 18, 12],
+            [-1, 18, 12, 0],
+        ):
+            with self.subTest(mutant=mutant), self.assertRaises(AssertionError):
+                R["hot_counts"](mutant)
+        before = {
+            "device_hot_enabled": True,
+            "device_hot_available": True,
+            "device_hot_submissions": 1,
+            "device_hot_counts": [1, 0, 10, 0],
+        }
+        after = {
+            "device_hot_enabled": True,
+            "device_hot_available": True,
+            "device_hot_submissions": 4,
+            "device_hot_counts": [4, 18, 22, 12480120],
+        }
+        R["checked_hot_path"](before, after)
+        for key, value in (
+            ("device_hot_available", False),
+            ("device_hot_enabled", False),
+            ("device_hot_submissions", 1),
+            ("device_hot_counts", [4, 18, 21, 0]),
+            ("device_hot_counts", [4, 0, 40, 0]),
+        ):
+            with self.subTest(key=key, value=value), self.assertRaises(AssertionError):
+                R["checked_hot_path"](before, {**after, key: value})
+
+    def test_flags_and_arms_are_t05_only_with_previous_trials_off(self):
+        self.assertEqual(R["ARMS"], (("control-start", 0), ("device-hot", 1), ("control-end", 0)))
+        for _, enabled in R["ARMS"]:
+            env = R["environment"](enabled)
+            self.assertEqual([env[k] for k in R["NEW"]], [str(enabled)])
+            self.assertTrue(all(env[k] == "1" for k in R["D"]["FLAGS"]))
+            self.assertTrue(
+                all(
+                    env["MLXL3_NATIVE_" + k] == "0"
+                    for k in [*R["C"]["NEW"], *R["AR30"], *R["AR33"]]
+                )
+            )
+        for enabled in (-1, 2, True, "1"):
+            with self.assertRaises(AssertionError):
+                R["environment"](enabled)
+
+    def test_hot_and_cache_moe_markers_require_every_boundary(self):
+        samples = [
+            (
+                "hot",
+                "AR34_INDIRECT_HOT",
+                {
+                    "parity": True,
+                    "compiled_device_lookup": True,
+                    "slots": 53,
+                    "canonical_half_words": 135680,
+                    "compared_half_words": 256000,
+                    "cases": 10,
+                    "hit_counts": [0, 1, 9, 10],
+                    "invalid_ids_zeroed_then_rejected": True,
+                    "duplicate_ids_rejected": True,
+                    "stale_generation_rejected": True,
+                    "retained_snapshot": True,
+                    "wrong_pointer_mutant_detected": True,
+                    "publication_failure_rejected": True,
+                    "unsubmitted_consumer_abandon": True,
+                    "active_released": True,
+                    "actual_hot_submissions": 15,
+                },
+            ),
+            (
+                "cache",
+                "AR34_DEVICE_HOT_CACHE",
+                {
+                    "parity": True,
+                    "bytes": 1248012,
+                    "retained_owner": True,
+                    "fresh_destination": True,
+                    "stale_generation_rejected": True,
+                    "remap_rejected": True,
+                    "released_reusable": True,
+                },
+            ),
+            (
+                "moe",
+                "AR34_DEVICE_HOT_MOE",
+                {
+                    "parity": True,
+                    "final_bytes": 5120,
+                    "repeated_h_error": True,
+                    "final_drained": True,
+                    "abandon_drained": True,
+                    "active_released": True,
+                    "injected_after_terminal": True,
+                },
+            ),
+        ]
+        for name, marker, evidence in samples:
+            spec = next(spec for spec in R["SPECS"] if spec[0] == name)
+            R["check_marker"](log(marker, evidence), spec)
+            for key in evidence:
+                mutant = evidence.copy()
+                del mutant[key]
+                with (
+                    self.subTest(name=name, missing=key),
+                    self.assertRaises((AssertionError, KeyError)),
+                ):
+                    R["check_marker"](log(marker, mutant), spec)
+
+    def test_phase_failure_stays_failed_and_cleanup_is_recorded(self):
+        class FailedChild:
+            pid = 123
+
+            def wait(self, timeout):
+                return 1
+
+        for joined in (False, True):
+            with tempfile.TemporaryDirectory(prefix="ar34-failed-phase-") as folder:
+                out = Path(folder)
+                sink = out / "report.json"
+                report = {"phases": [], "parity": False, "all_children_joined": True}
+                phase = R["D"]["run_phase"]
+                with (
+                    patch.dict(
+                        phase.__globals__,
+                        {
+                            "subprocess": SimpleNamespace(
+                                Popen=lambda *a, **kw: FailedChild(), STDOUT=-2
+                            )
+                        },
+                    ),
+                    patch.dict(R["D"]["OLD"], {"stop": lambda child, joined=joined: joined}),
+                    self.assertRaises(AssertionError),
+                ):
+                    phase(
+                        report,
+                        sink,
+                        out,
+                        "bad",
+                        ["never-a-model"],
+                        {},
+                        lambda text: self.fail("validation called after child failure"),
+                    )
+                saved = json.loads(sink.read_text())
+                self.assertFalse(saved["parity"])
+                self.assertEqual(saved["all_children_joined"], joined)
+                self.assertEqual(saved["phases"][0]["status"], "failed")
+                self.assertFalse(saved["phases"][0]["parity"])
+                self.assertEqual(saved["phases"][0]["joined"], joined)
+
+    def test_reaped_recycled_group_never_signalled(self):
+        child = SimpleNamespace(pid=123, poll=lambda: 0)
+        with (
+            patch.dict(R["D"]["OLD"], {"members": lambda _: [123]}),
+            patch.object(R["os"], "killpg") as kill,
+        ):
+            self.assertFalse(R["safe_stop"](child))
+            kill.assert_not_called()
+        with patch.dict(R["D"]["OLD"], {"members": lambda _: []}):
+            self.assertTrue(R["safe_stop"](child))
+
+    def test_real_historical_benchmark_and_failure_mutants(self):
+        raw = R["D"]["read_json"](R["GOLDEN"])
+        artifact, golden = {"sha256": raw["binary_sha256"]}, raw["runs"][0]
+        R["checked_benchmark"](R["GOLDEN"].parent, artifact, golden)
+        for kind in ("text", "count", "nonfinite"):
+            mutant = copy.deepcopy(raw)
+            row = mutant["runs"][0]
+            if kind == "text":
+                row["text"] += "diverged"
+            elif kind == "count":
+                row["stats"]["decode_tokens"] = 0
+            else:
+                row["stats"]["decode_tps"] = float("nan")
+            with tempfile.TemporaryDirectory(prefix="ar34-controller-") as folder:
+                Path(folder, "report.json").write_text(json.dumps(mutant))
+                with self.subTest(kind=kind), self.assertRaises((AssertionError, ValueError)):
+                    R["checked_benchmark"](Path(folder), artifact, golden)
+
+    def test_128_contract_does_not_call_32_only_validator(self):
+        raw = R["D"]["read_json"](R["GOLDEN"])
+        raw["tokens"] = 128
+        for row in raw["runs"] + raw["warmup"]:
+            row["stats"].update(generated_tokens=128, decode_tokens=127)
+            row["stats"]["decode_tps"] = 127 / row["stats"]["decode_seconds"]
+        with patch.dict(
+            R["D"], {"VALIDATE_BENCHMARK": lambda *_: self.fail("32-only validator called for128")}
+        ):
+            R["validate_benchmark"](raw, raw["binary_sha256"], 128)
+        for kind in ("count", "rate", "text", "nonfinite"):
+            mutant = copy.deepcopy(raw)
+            row = mutant["runs"][0]
+            if kind == "count":
+                row["stats"]["generated_tokens"] = 32
+            elif kind == "rate":
+                row["stats"]["decode_tps"] = 31 / row["stats"]["decode_seconds"]
+            elif kind == "text":
+                row["text"] += "diverged"
+            else:
+                row["stats"]["elapsed_seconds"] = float("inf")
+            with self.subTest(kind=kind), self.assertRaises(AssertionError):
+                R["validate_benchmark"](mutant, mutant["binary_sha256"], 128)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,136 @@
+"""Freeze completed AR34 builds; never compile or run a model."""
+
+import argparse
+import json
+import runpy
+import shutil
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/flash-ar34-device-hot-20261105"
+PRIOR = Path("/Users/justin/.codex/worktrees/flash-ar33-trials-20261105/mix-stq1_0")
+D = runpy.run_path(str(ROOT / "build/ar34/basis.py"))
+C = runpy.run_path(str(ROOT / "build/ar34/components-basis.py"))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--libtest", type=Path, required=True)
+    parser.add_argument(
+        "--cli", type=Path, default=ROOT / "build/ar34/cargo-target/release/mlxl3-rs"
+    )
+    args = parser.parse_args()
+    plan_path = ROOT / "build/ar34/plan.json"
+    dest = ROOT / "build/ar34/frozen"
+    assert not plan_path.exists() and not dest.exists(), "refusing to replace an earlier freeze"
+    for path in (args.libtest, args.cli):
+        assert path.is_file() and path.stat().st_size > 0, path
+    sha = D["sha"]
+    oracle = ROOT / "docs/measurements/flash-ar20-20261105/quiet-01/quality/oracle.json"
+    assert sha(oracle) == "171bea949c7c16f20c1e1affa26b70602676c73620fcbb380d430a7587835351"
+    prior_plan = D["read_json"](PRIOR / "docs/measurements/flash-ar33-trials-20261105/freeze.json")
+    goldens = {}
+    files = set()
+    for tokens in ("32", "128"):
+        old = prior_plan["goldens"][tokens]
+        path = Path(old["path"])
+        if not path.is_absolute():
+            path = PRIOR / path
+        assert sha(path) == old["sha256"], path
+        golden = D["read_json"](path)
+        assert golden["status"] == "validated" and golden["tokens"] == int(tokens)
+        if tokens == "128":
+            assert (
+                golden["binary_sha256"]
+                == "f24201e3e5ca145f94397a90cf9edaa746d81c86102c67d2d51350a7d3e734f0"
+            )
+        goldens[tokens] = {"path": str(path), "sha256": sha(path)}
+        files.add(str(path))
+    native = subprocess.check_output(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True
+    ).splitlines()
+    files.update(
+        name
+        for name in native
+        if name.startswith(".github/workflows/")
+        or name.startswith("native/")
+        and Path(name).suffix in {".rs", ".metal", ".h", ".cpp", ".toml"}
+    )
+    files.update(
+        [
+            "Cargo.toml",
+            "Cargo.lock",
+            "build.rs",
+            "scripts/benchmark-flash-bridge.py",
+            "scripts/native_json_process.py",
+            "tests/physical_flash_ar_bridge.py",
+            "scripts/kani_ci.py",
+            "scripts/kani_obligations.json",
+            "scripts/check_native_coverage.py",
+            "docs/native-coverage/mlx-sites.json",
+        ]
+    )
+    files.update(
+        str(ROOT / "build/ar34" / name)
+        for name in ("run.py", "test_run.py", "freeze.py", "basis.py", "components-basis.py")
+    )
+    files.update(map(str, [D["HELPER"], D["SCREEN"], D["CLI_HELPER"], D["PLAN"], oracle]))
+    files.update(str(C["ROUTED"] / name) for name in ("cases.json", "stock.json"))
+    files.add(str(PRIOR / "docs/measurements/flash-ar33-trials-20261105/freeze.json"))
+    model = Path(D["MODEL"])
+    metadata = D["read_json"](ROOT / "docs/measurements/flash-ar30-20261105/freeze.json")[
+        "source_files"
+    ]
+    for name in (
+        "config.json",
+        "generation_config.json",
+        "model.safetensors.index.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+    ):
+        path = model / name
+        assert sha(path) == metadata[str(path)], path
+        files.add(str(path))
+    source_files = {name: sha(ROOT / name) for name in sorted(files)}
+    dest.mkdir()
+    artifacts = {}
+    for name, original in (("direct-cli", args.cli), ("native-libtest", args.libtest)):
+        target = dest / name
+        shutil.copy2(original, target)
+        assert sha(target) == sha(original)
+        artifacts[name] = {
+            "path": str(target),
+            "sha256": sha(target),
+            "bytes": target.stat().st_size,
+        }
+    HERE.mkdir(parents=True, exist_ok=True)
+    plan = {
+        "source_head": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        "source_status": subprocess.check_output(["git", "status", "--short"], cwd=ROOT, text=True),
+        "source_files": source_files,
+        "artifacts": artifacts,
+        "oracle": {"path": str(oracle), "sha256": sha(oracle)},
+        "goldens": goldens,
+        "model": {
+            "path": str(model),
+            "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+            "quantization": "EXL3avg2.05/H4/MTP2 weights; plainAR",
+        },
+        "protocol": "AR34-T05-A issue138: quality P/H/cache/Moe/model/CLI before MAIN32/31 and MAIN128/127 OFF/ON/OFF; warm1+measure1/cache3GiB/readers4/depth0/prefix0/context4096/T0;13acceptedON/AR20+30+33OFF;Brave+Deezer open;noMTP/DFlash/profile/othermodel/compile/prover duringGPU",
+        "toolchain": subprocess.check_output(["/Users/justin/.cargo/bin/rustc", "-Vv"], text=True),
+        "deployment": "26.2",
+        "limits": "Reuses historical independent oracle/goldens and five model metadata pins; no new full-weight rehash and no model run by this freezer.",
+    }
+    for path in (plan_path, HERE / "freeze.json"):
+        assert not path.exists(), path
+        with path.open("x") as stream:
+            json.dump(plan, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+    print(json.dumps({"source_files": len(source_files), "artifacts": artifacts}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

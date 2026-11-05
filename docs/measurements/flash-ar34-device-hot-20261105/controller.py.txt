@@ -1,0 +1,501 @@
+"""AR34 T05 quality and MAIN32/128 OFF/ON/OFF; requires the root GPU grant."""
+
+import argparse
+import math
+import os
+import runpy
+import signal
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/flash-ar34-device-hot-20261105"
+D = runpy.run_path(str(ROOT / "build/ar34/basis.py"))
+C = runpy.run_path(str(ROOT / "build/ar34/components-basis.py"))
+NEW = ("MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE",)
+AR33 = ("CODEWORD_TABLE", "CACHED_CAPS")
+AR30 = ("QMV_COOPERATIVE", "ROUTER_PAIR", "DEVICE_GREEDY", "RESIDENT_SCRATCH")
+ARMS = (("control-start", 0), ("device-hot", 1), ("control-end", 0))
+SPECS = (
+    (
+        "pending",
+        "gpu::hc::tests::physical_ar34_pending_hc_route_drains_before_release_and_rejects_publication_failure",
+        "AR34_PENDING_HC_ROUTE",
+    ),
+    (
+        "hot",
+        "gpu::indirect_hot::tests::physical_ar34_indirect_hot_preserves_all_slots_and_canonical_contributions",
+        "AR34_INDIRECT_HOT",
+    ),
+    (
+        "cache",
+        "gpu::device_hot_cache::tests::physical_ar34_ready_snapshot_preserves_owners_and_rejects_stale_generation",
+        "AR34_DEVICE_HOT_CACHE",
+    ),
+    (
+        "moe",
+        "gpu::moe::tests::physical_ar34_device_hot_error_stays_latched_after_final_completion",
+        "AR34_DEVICE_HOT_MOE",
+    ),
+    (
+        "model",
+        "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle",
+        "AR20_MODEL_COMPARE",
+    ),
+)
+GOLDEN = (
+    ROOT
+    / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+)
+
+
+def positive(values, size):
+    assert type(values) is list and len(values) == size
+    assert all(type(value) is int and value > 0 for value in values)
+
+
+def hot_counts(values):
+    assert type(values) is list and len(values) == 4
+    assert all(type(value) is int and value >= 0 for value in values)
+    transactions, hits, misses, peak = values
+    assert transactions > 0 and hits > 0 and hits + misses == transactions * 10
+    assert peak <= 12480120
+
+
+def checked_hot_path(before, after):
+    exact = D["OLD"]["exact_fields"]
+    for side in (before, after):
+        exact(side, {"device_hot_enabled": True, "device_hot_available": True})
+        count = side["device_hot_submissions"]
+        assert type(count) is int and count >= 0
+        values = side["device_hot_counts"]
+        assert type(values) is list and len(values) == 4
+        assert all(type(value) is int and value >= 0 for value in values)
+        assert values[3] <= 12480120
+    assert after["device_hot_submissions"] > before["device_hot_submissions"]
+    a, b = before["device_hot_counts"], after["device_hot_counts"]
+    assert b[0] > a[0] and b[1] > a[1] and b[2] >= a[2] and b[3] >= a[3]
+    assert b[1] - a[1] + b[2] - a[2] == 10 * (b[0] - a[0])
+
+
+def check_marker(text, spec):
+    D["test_log"](text)
+    name, _, marker = spec
+    evidence = D["marker"](text, marker)
+    exact = D["OLD"]["exact_fields"]
+    exact(evidence, {"parity": True})
+    if name == "pending":
+        exact(
+            evidence,
+            {
+                "finite_f32_words": 12814,
+                "route_ids": 10,
+                "unsubmitted": True,
+                "workspace_rejected_before_commit": True,
+                "abandoned": True,
+                "retained": True,
+                "publication_failure": True,
+                "recovery": True,
+                "all_producers_joined": True,
+            },
+        )
+    elif name == "hot":
+        exact(
+            evidence,
+            {
+                "compiled_device_lookup": True,
+                "slots": 53,
+                "canonical_half_words": 135680,
+                "compared_half_words": 256000,
+                "cases": 10,
+                "hit_counts": [0, 1, 9, 10],
+                "invalid_ids_zeroed_then_rejected": True,
+                "duplicate_ids_rejected": True,
+                "stale_generation_rejected": True,
+                "retained_snapshot": True,
+                "wrong_pointer_mutant_detected": True,
+                "publication_failure_rejected": True,
+                "unsubmitted_consumer_abandon": True,
+                "active_released": True,
+                "actual_hot_submissions": 15,
+            },
+        )
+    elif name == "cache":
+        exact(
+            evidence,
+            {
+                "bytes": 1248012,
+                "retained_owner": True,
+                "fresh_destination": True,
+                "stale_generation_rejected": True,
+                "remap_rejected": True,
+                "released_reusable": True,
+            },
+        )
+    elif name == "moe":
+        exact(
+            evidence,
+            {
+                "final_bytes": 5120,
+                "repeated_h_error": True,
+                "final_drained": True,
+                "abandon_drained": True,
+                "active_released": True,
+                "injected_after_terminal": True,
+            },
+        )
+    elif name == "model":
+        exact(
+            evidence,
+            {
+                "status": "validated",
+                "case_count": 2,
+                "compared_state_words": 57606144,
+                "compared_logits": 993280,
+                "compared_hidden_bytes": 81920,
+                "initial_archive_states": 84,
+                "kernel_bits": 0,
+                "compiled_cooperative": False,
+                "device_greedy_counts": [0, 0],
+                "device_greedy_rollback": False,
+                "router_pair_uses": 0,
+                "resident_scratch_reuses": 0,
+                "all_readers_joined": True,
+                "device_hot_rollback": True,
+            },
+        )
+        positive([evidence["device_hot_submissions"]], 1)
+        hot_counts(evidence["device_hot_counts"])
+        paths = evidence["actual_paths"]
+        assert type(paths) is list and len(paths) == 2
+        for row, token in zip(paths, [248044, 1], strict=True):
+            exact(row, {"token": token})
+            checked_hot_path(row["before"], row["after"])
+            for side in ("before", "after"):
+                exact(
+                    row[side],
+                    {
+                        "ar30_cooperative": False,
+                        "device_greedy": [0, 0],
+                        "router_pair_uses": 0,
+                        "readers_in_flight": 0,
+                    },
+                )
+    else:
+        raise AssertionError("Unknown component spec")
+    return evidence
+
+
+def environment(enabled=1):
+    assert type(enabled) is int and enabled in (0, 1)
+    env = D["environment"]("forced")
+    env.update({"MLXL3_NATIVE_" + name: "0" for name in [*C["NEW"], *AR30, *AR33]})
+    env[NEW[0]] = str(enabled)
+    return env
+
+
+def safe_stop(child):
+    if child is None:
+        return True
+    for sig, seconds in [(signal.SIGTERM, 5), (signal.SIGKILL, 15)]:
+        if child.poll() is not None:
+            return not D["OLD"]["members"](child.pid)
+        try:
+            os.killpg(child.pid, sig)
+        except ProcessLookupError:
+            pass
+        try:
+            child.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            continue
+        return not D["OLD"]["members"](child.pid)
+    return False
+
+
+def journal(message):
+    with (ROOT / "opti.md").open("a") as stream:
+        stream.write("\nAR34 " + message + "\n")
+
+
+def run(report, sink, out, name, command, env, check):
+    for artifact in report["artifacts"].values():
+        assert D["sha"](artifact["path"]) == artifact["sha256"]
+    report["current_environment"] = {
+        k: v for k, v in env.items() if k.startswith(("MLXL3_", "DYLD_"))
+    }
+    D["save"](report, sink)
+    journal(name + " STARTED")
+    try:
+        return D["run_phase"](report, sink, out, name, command, env, check)
+    finally:
+        item = report["phases"][-1]
+        item["environment"] = report["current_environment"].copy()
+        D["save"](report, sink)
+        journal(
+            name + " " + item["status"].upper() + (" " + item["error"] if "error" in item else "")
+        )
+
+
+def validate_benchmark(raw, digest, tokens, golden=None):
+    assert type(tokens) is int and tokens in (32, 128)
+    if tokens == 32:
+        D["VALIDATE_BENCHMARK"](raw, digest)
+    exact = D["OLD"]["exact_fields"]
+    exact(
+        raw,
+        {
+            "status": "validated",
+            "binary_sha256": digest,
+            "mode": "baseline",
+            "model": D["MODEL"],
+            "tokens": tokens,
+            "repeats": 1,
+            "expert_cache_gib": 3.0,
+            "reader_joined": True,
+            "reaped": True,
+        },
+    )
+    assert set(raw["prompts"]) == {"MAIN"}
+    outputs = []
+    for group in ("warmup", "runs"):
+        rows = raw[group]
+        assert type(rows) is list and len(rows) == 1
+        row = rows[0]
+        exact(row, {"prompt": "MAIN"})
+        assert type(row["text"]) is str and row["text"]
+        assert (
+            type(row["token_hash"]) is str
+            and len(row["token_hash"]) == 16
+            and all(c in "0123456789abcdef" for c in row["token_hash"])
+        )
+        exact(row["generation_mode"], {"mtp_active": False, "dflash_active": False})
+        stats = row["stats"]
+        exact(
+            stats,
+            {
+                "generated_tokens": tokens,
+                "decode_tokens": tokens - 1,
+                "cached_prompt_tokens": 0,
+                "context_limit": 4096,
+            },
+        )
+        for field in ("decode_seconds", "decode_tps", "elapsed_seconds", "ttft_seconds"):
+            assert (
+                type(stats[field]) in (int, float)
+                and math.isfinite(stats[field])
+                and stats[field] > 0
+            )
+        assert math.isclose(
+            stats["decode_tps"], (tokens - 1) / stats["decode_seconds"], rel_tol=1e-5
+        )
+        assert stats.get("native_gpu_greedy_selections") is None
+        output = (row["text"], row["token_hash"])
+        if golden is not None:
+            assert output == (golden["text"], golden["token_hash"])
+        outputs.append(output)
+    assert outputs[0] == outputs[1], "warm/measured outputs differ"
+    return raw["runs"][0]["stats"]
+
+
+def checked_benchmark(folder, artifact, golden, tokens=32):
+    return validate_benchmark(
+        D["read_json"](folder / "report.json"), artifact["sha256"], tokens, golden
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("kind", choices=["quality", "speed"])
+    parser.add_argument("--run-after-root-grant", action="store_true")
+    parser.add_argument("--tokens", type=int, choices=[32, 128], default=32)
+    parser.add_argument("--plan", type=Path, default=ROOT / "build/ar34/plan.json")
+    parser.add_argument("--out", type=Path, default=HERE)
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error("exclusive root GPU grant required")
+    args.out.mkdir(parents=True, exist_ok=True)
+    out = args.out / ("speed" + str(args.tokens) if args.kind == "speed" else "quality")
+    out.mkdir()
+    sink = out / "report.json"
+    report = {
+        "status": "preflight",
+        "parity": False,
+        "all_children_joined": True,
+        "phases": [],
+        "plan_sha256": None,
+        "controller_sha256": D["sha"](__file__),
+    }
+    D["save"](report, sink)
+    D["OLD"]["stop"] = safe_stop
+    try:
+        assert all("UNCONFIRMED" not in part for spec in SPECS for part in spec)
+        report["plan_sha256"] = D["sha"](args.plan)
+        plan = D["read_json"](args.plan)
+        assert plan["source_files"] and set(plan["artifacts"]) >= {"native-libtest", "direct-cli"}
+        oracle = plan["oracle"]
+        golden_artifact = plan["goldens"][str(args.tokens)]
+        golden_path = Path(golden_artifact["path"])
+        assert D["sha"](golden_path) == golden_artifact["sha256"]
+        assert D["sha"](oracle["path"]) == oracle["sha256"]
+        routed = Path(C["ROUTED"])
+        required = [
+            Path(__file__),
+            ROOT / "build/ar34/basis.py",
+            ROOT / "build/ar34/components-basis.py",
+            ROOT / "build/ar34/test_run.py",
+            ROOT / "build/ar34/freeze.py",
+            D["HELPER"],
+            D["SCREEN"],
+            D["CLI_HELPER"],
+            D["PLAN"],
+            golden_path,
+            Path(oracle["path"]),
+            ROOT / "scripts/native_json_process.py",
+            ROOT / "scripts/benchmark-flash-bridge.py",
+            ROOT / "tests/physical_flash_ar_bridge.py",
+            routed / "cases.json",
+            routed / "stock.json",
+        ]
+        required += [
+            Path(D["MODEL"]) / name
+            for name in (
+                "config.json",
+                "generation_config.json",
+                "model.safetensors.index.json",
+                "tokenizer.json",
+                "tokenizer_config.json",
+            )
+        ]
+        frozen = {str((ROOT / name).resolve()) for name in plan["source_files"]}
+        assert all(str(path.resolve()) in frozen for path in required), (
+            "unfrozen helper/fixture/model metadata"
+        )
+        for name, digest in plan["source_files"].items():
+            assert D["sha"](ROOT / name) == digest, name
+        for artifact in plan["artifacts"].values():
+            assert D["sha"](artifact["path"]) == artifact["sha256"]
+        lib, executable = (plan["artifacts"][name] for name in ("native-libtest", "direct-cli"))
+        report.update(
+            status="running",
+            oracle_sha256=oracle["sha256"],
+            artifacts=plan["artifacts"],
+            flags=list(NEW),
+            tokens=args.tokens,
+            golden_sha256=golden_artifact["sha256"],
+        )
+        if args.kind == "quality":
+            for spec in SPECS:
+                name = spec[0]
+                env = {
+                    **environment(),
+                    "DYLD_PRINT_LIBRARIES": "1",
+                    "MLXL3_ROUTED_SCRATCH_FIXTURES": str(routed),
+                }
+                if name == "model":
+                    env.update(MLXL3_AR20_CAPTURE="0", MLXL3_AR20_ORACLE=oracle["path"])
+
+                def check(text, spec=spec):
+                    evidence = check_marker(text, spec)
+                    if spec[0] == "model":
+                        assert evidence["oracle_sha256"] == oracle["sha256"]
+                    return evidence
+
+                run(
+                    report,
+                    sink,
+                    out,
+                    name,
+                    [
+                        lib["path"],
+                        spec[1],
+                        "--exact",
+                        "--ignored",
+                        "--nocapture",
+                        "--test-threads=1",
+                    ],
+                    env,
+                    check,
+                )
+            run(
+                report,
+                sink,
+                out,
+                "cli",
+                [D["PYTHON"], str(D["CLI_HELPER"]), executable["path"], str(out)],
+                {**environment(), "DYLD_PRINT_LIBRARIES": "1"},
+                D["cli"],
+            )
+        else:
+            quality = D["read_json"](args.out / "quality/report.json")
+            assert (
+                quality["status"] == "validated_quality"
+                and quality["parity"] is True
+                and quality["all_children_joined"] is True
+            )
+            assert quality["plan_sha256"] == report["plan_sha256"]
+            assert len(quality["phases"]) == len(SPECS) + 1
+            assert [p["name"] for p in quality["phases"]] == [s[0] for s in SPECS] + ["cli"]
+            assert all(p["parity"] is True and p["joined"] is True for p in quality["phases"])
+            golden_report = D["read_json"](golden_path)
+            if args.tokens == 128:
+                assert (
+                    golden_report["binary_sha256"]
+                    == "f24201e3e5ca145f94397a90cf9edaa746d81c86102c67d2d51350a7d3e734f0"
+                ), "128-token oracle must come from frozen qualified OFF CLI"
+            validate_benchmark(golden_report, golden_report["binary_sha256"], args.tokens)
+            golden = golden_report["runs"][0]
+            for name, enabled in ARMS:
+                folder = out / name
+                command = [
+                    D["PYTHON"],
+                    str(ROOT / "scripts/benchmark-flash-bridge.py"),
+                    executable["path"],
+                    D["MODEL"],
+                    str(folder),
+                    "--prompt",
+                    "MAIN",
+                    "--tokens",
+                    str(args.tokens),
+                    "--repeats",
+                    "1",
+                    "--cache-gib",
+                    "3",
+                    "--timeout",
+                    "180",
+                ]
+                stats = run(
+                    report,
+                    sink,
+                    out,
+                    name,
+                    command,
+                    environment(enabled),
+                    lambda text, folder=folder: checked_benchmark(
+                        folder, executable, golden, args.tokens
+                    ),
+                )
+                journal(name + " TPS " + str(stats["decode_tps"]))
+                print(name, stats["decode_tps"], flush=True)
+        assert (
+            len(report["phases"]) == (len(SPECS) + 1 if args.kind == "quality" else len(ARMS))
+            and report["all_children_joined"]
+            and all(p["parity"] for p in report["phases"])
+        )
+        for name, digest in plan["source_files"].items():
+            assert D["sha"](ROOT / name) == digest, name
+        report.update(
+            status="validated_" + args.kind,
+            parity=True,
+            limits=f"Three MAIN{args.tokens} OFF/ON/OFF arms; controls and drift remain visible. No gain established by correctness alone.",
+        )
+        journal(args.kind + " CLOSED ALL_JOINED")
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        journal(args.kind + " FAILED " + repr(error))
+        raise
+    finally:
+        D["save"](report, sink)
+
+
+if __name__ == "__main__":
+    main()
