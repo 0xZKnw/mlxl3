@@ -237,6 +237,10 @@ pub struct Metal {
     #[cfg(test)]
     ar20_kernel_bits: u32,
     #[cfg(test)]
+    ar30_cooperative: bool,
+    #[cfg(test)]
+    ar30_cooperative_uses: [std::cell::Cell<u64>; 2],
+    #[cfg(test)]
     ar20_library: metal::Library,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
@@ -451,6 +455,7 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
+            let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
@@ -688,8 +693,9 @@ impl Metal {
                 include_str!("../shaders/flash_logsumexp.metal"),
             );
             let source = format!(
-                "{}\n#define MLXL3_AR20_TESTS {}\n{}",
+                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR20_TESTS {}\n{}",
                 crate::ar20_kernel_policy::defines(ar20_kernel_bits),
+                u32::from(ar30_cooperative),
                 u32::from(cfg!(test)),
                 source
             )
@@ -700,6 +706,10 @@ impl Metal {
             let source = source.replace(
                 r#"#include "ar20_trellis.metal""#,
                 include_str!("../shaders/ar20_trellis.metal"),
+            );
+            let source = source.replace(
+                r#"#include "ar30_kernel_tests.metal""#,
+                include_str!("../shaders/ar30_kernel_tests.metal"),
             );
             let library = device
                 .new_library_with_source(&source, &options)
@@ -857,6 +867,10 @@ impl Metal {
                 device,
                 #[cfg(test)]
                 ar20_kernel_bits,
+                #[cfg(test)]
+                ar30_cooperative,
+                #[cfg(test)]
+                ar30_cooperative_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 #[cfg(test)]
                 ar20_library: library,
                 queue,
@@ -1333,6 +1347,10 @@ mod ar10_model_tests;
 #[cfg(test)]
 #[path = "gpu/ar20_kernel_tests.rs"]
 mod ar20_kernel_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar30_kernel_tests.rs"]
+mod ar30_kernel_tests;
 
 #[cfg(test)]
 #[path = "gpu/ar20_capture_tests.rs"]

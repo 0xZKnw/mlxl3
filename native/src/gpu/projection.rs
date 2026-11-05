@@ -640,6 +640,11 @@ impl<'a> FlashProjection<'a> {
         );
         self.encode_finish(cmd, partial, 0, &dest, dest_offset, outputs, stage.gate)?;
         #[cfg(test)]
+        if gpu.ar30_cooperative && (2..=4).contains(&self.k) && !self.mtp_hidden {
+            let count = &gpu.ar30_cooperative_uses[usize::from(self.routed_record)];
+            count.set(count.get() + 1);
+        }
+        #[cfg(test)]
         if let Some(key) = routed_nt2 {
             gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + 1);
         } else if let Some(key) = self.fixed_key {
@@ -1135,6 +1140,18 @@ fn physical_flash_resident_nt2() -> Result<()> {
     )?;
     ensure!(!enabled || selected > 0, "candidate never encoded NT2");
     ensure!(unequal == 0, "resident NT2 diverged in {unequal} words");
+    if gpu.ar30_cooperative {
+        ensure!(super::ar30_kernel_tests::compiled_cooperative(&gpu)?);
+        let dispatches = gpu.ar30_cooperative_uses[0].get();
+        ensure!(dispatches > 0, "cooperative resident path was not executed");
+        eprintln!(
+            "AR30_COOPERATIVE_RESIDENT {}",
+            serde_json::json!({
+                "parity":true,"cases":cases.len(),"compiled_cooperative":true,
+                "resident_dispatches":dispatches,"unequal":unequal
+            })
+        );
+    }
     Ok(())
 }
 
@@ -1689,6 +1706,11 @@ impl<'a> FlashExpert<'a> {
         #[cfg(test)]
         gpu.expert_axis_dispatches
             .set(gpu.expert_axis_dispatches.get() + 1);
+        #[cfg(test)]
+        if gpu.ar30_cooperative {
+            let count = &gpu.ar30_cooperative_uses[1];
+            count.set(count.get() + 1);
+        }
         Ok(())
     }
 
