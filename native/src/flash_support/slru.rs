@@ -8,6 +8,7 @@ pub(super) struct Slru {
     reservations: usize,
 }
 impl Slru {
+    #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
     pub(super) fn new(slots: usize) -> Self {
         Self {
             slots,
@@ -63,17 +64,26 @@ impl Slru {
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(40)]
-fn slru_four_actual_promotions_preserve_every_slot_and_protected_capacity() {
+fn slru_actual_promotions_preserve_every_slot_and_protected_capacity() {
     let capacity = 10 + usize::from(kani::any::<bool>());
     let mut slru = Slru::new(capacity);
+    for slot in 0..6 {
+        assert!(slru.touch(slot, true));
+    }
+    assert!(slru.valid());
     for _ in 0..4 {
         let slot: u8 = kani::any();
         let hit: bool = kani::any();
+        let demotion = hit
+            && usize::from(slot) < capacity
+            && !slru.protected.contains(&usize::from(slot))
+            && slru.protected.len() == capacity / 2;
         assert_eq!(
             slru.touch(usize::from(slot), hit),
             usize::from(slot) < capacity
         );
         assert!(slru.valid());
+        kani::cover!(demotion);
     }
     let clear: bool = kani::any();
     if clear {
@@ -88,7 +98,21 @@ fn slru_four_actual_promotions_preserve_every_slot_and_protected_capacity() {
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use super::*;
+    use super::Slru;
+    #[test]
+    fn slru_rejects_out_of_range_slots_and_demotes_the_oldest_protected() {
+        let mut s = Slru::new(10);
+        for slot in 0..6 {
+            assert!(s.touch(slot, true));
+        }
+        assert_eq!(s.protected, vec![1, 2, 3, 4, 5]);
+        assert_eq!(s.probation, vec![6, 7, 8, 9, 0]);
+        assert!(!s.touch(usize::MAX, true));
+        assert!(s.valid());
+        s.clear();
+        assert_eq!(s.probation, (0..10).collect::<Vec<_>>());
+        assert!(s.protected.is_empty());
+    }
     struct Oracle {
         keys: Vec<Option<u32>>,
         protected: Vec<bool>,

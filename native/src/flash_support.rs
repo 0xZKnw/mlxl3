@@ -1495,11 +1495,13 @@ impl ExpertCache {
         self.predictive_lru
     }
 
+    #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
     pub(crate) fn enable_slru(&mut self) {
         if !self.predictive_lru {
             self.slru = Some(slru::Slru::new(self.capacity()));
         }
     }
+    #[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
     pub(crate) fn slru_enabled(&self) -> bool {
         self.slru.is_some()
     }
