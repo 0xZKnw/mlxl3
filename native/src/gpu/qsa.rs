@@ -10,6 +10,7 @@ pub(super) struct Pipelines {
     scores: ComputePipelineState,
     nax: std::cell::OnceCell<ComputePipelineState>,
     norm: ComputePipelineState,
+    prepare: Option<ComputePipelineState>,
     freq: ComputePipelineState,
     rope: ComputePipelineState,
     attention: ComputePipelineState,
@@ -18,13 +19,17 @@ pub(super) struct Pipelines {
     gate: ComputePipelineState,
 }
 impl Pipelines {
-    pub(super) fn load(p: &impl Fn(&str) -> Result<ComputePipelineState>) -> Result<Self> {
+    pub(super) fn load(
+        p: &impl Fn(&str) -> Result<ComputePipelineState>,
+        prepare: bool,
+    ) -> Result<Self> {
         Ok(Self {
             index_rope: p("qsa_index_rope")?,
             pool: p("qsa_pool")?,
             scores: p("qsa_index_scores")?,
             nax: std::cell::OnceCell::new(),
             norm: p("qsa_norm")?,
+            prepare: prepare.then(|| p("ar10_qsa_prepare")).transpose()?,
             freq: p("qsa_freq")?,
             rope: p("qsa_rope")?,
             attention: p("qsa_attention")?,
@@ -518,8 +523,40 @@ impl<'a> FlashQsa<'a> {
                     );
                     Ok((norm, rope))
                 };
-            let (qn, qr) = prepare(&qg, &self.q_norm, 24, 512)?;
-            let (kn, kr) = prepare(&k, &self.k_norm, 2, 256)?;
+            let (qn, qr, kn, kr) = if crate::flash_support::gdn_private_epilogue_eligible(
+                gpu.qsa_prepare.get(),
+                trace,
+                x.dtype == FloatType::F32,
+            ) {
+                let qr = half(6144)?;
+                let kr = half(512)?;
+                Metal::encode(
+                    cmd,
+                    gpu.qsa
+                        .prepare
+                        .as_ref()
+                        .context("QSA prepare pipeline not initialized")?,
+                    &[
+                        &qg.buffer,
+                        &k.buffer,
+                        &self.q_norm,
+                        &self.k_norm,
+                        &self.freq,
+                        &qr.buffer,
+                        &kr.buffer,
+                    ],
+                    [offset, self.eps.to_bits()],
+                    groups(26),
+                    32,
+                );
+                #[cfg(test)]
+                gpu.qsa_prepare_uses.set(gpu.qsa_prepare_uses.get() + 1);
+                (None, qr, None, kr)
+            } else {
+                let (qn, qr) = prepare(&qg, &self.q_norm, 24, 512)?;
+                let (kn, kr) = prepare(&k, &self.k_norm, 2, 256)?;
+                (Some(qn), qr, Some(kn), kr)
+            };
             let blit = cmd.new_blit_command_encoder();
             blit.copy_from_buffer(&kr.buffer, 0, &slab.keys, at, 1024);
             blit.copy_from_buffer(&v.buffer, 0, &slab.values, at, 1024);
@@ -603,16 +640,20 @@ impl<'a> FlashQsa<'a> {
             };
             Ok((
                 values,
-                trace.then_some([
-                    ("q_proj", qg),
-                    ("q_norm", qn),
-                    ("q_rope", qr),
-                    ("k_proj", k),
-                    ("k_norm", kn),
-                    ("k_rope", kr),
-                    ("v_proj", v),
-                    ("gated", gated),
-                ]),
+                if trace {
+                    Some([
+                        ("q_proj", qg),
+                        ("q_norm", qn.context("trace Q norm missing")?),
+                        ("q_rope", qr),
+                        ("k_proj", k),
+                        ("k_norm", kn.context("trace K norm missing")?),
+                        ("k_rope", kr),
+                        ("v_proj", v),
+                        ("gated", gated),
+                    ])
+                } else {
+                    None
+                },
             ))
         })?;
         let mut trace = steps
@@ -1070,3 +1111,7 @@ fn long_qsa_replays_oracle_and_checks_cache() -> Result<()> {
     )?;
     evaluation
 }
+
+#[cfg(test)]
+#[path = "ar10_qsa_tests.rs"]
+mod ar10_qsa_tests;

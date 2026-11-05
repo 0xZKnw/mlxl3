@@ -161,3 +161,38 @@ kernel void qsa_attention_finish(const device half* partial [[buffer(0)]],const 
     }
     if(lane==0)for(uint j=0;j<8;++j)out[head*256+stripe*8+j]=half(acc[j]);
 }
+
+inline void ar10_qsa_norm256(const device half* x,const device float* weight,
+    threadgroup half* normed,float eps,uint lane) {
+    #pragma clang fp contract(off)
+    float v[8],sum=0;
+    for(uint j=0;j<8;++j) {
+        uint col=(j/4)*128+lane*4+j%4;
+        v[j]=float(x[col]);sum+=v[j]*v[j];
+    }
+    float inverse=rsqrt(simd_sum(sum)/256.0f+eps);
+    for(uint j=0;j<8;++j) {
+        uint col=(j/4)*128+lane*4+j%4;
+        normed[col]=half((v[j]*inverse)*(1.0f+weight[col]));
+    }
+}
+kernel void ar10_qsa_prepare(const device half* qg [[buffer(0)]],const device half* k [[buffer(1)]],
+    const device float* q_gain [[buffer(2)]],const device float* k_gain [[buffer(3)]],
+    const device float* inv_freq [[buffer(4)]],device half* q_out [[buffer(5)]],device half* k_out [[buffer(6)]],
+    constant uint* p [[buffer(7)]],uint lane [[thread_index_in_simdgroup]],uint group [[threadgroup_position_in_grid]]) {
+    threadgroup half normed[256];
+    const bool query=group<24;
+    const uint head=query?group:group-24;
+    const device half* x=query?qg+head*512:k+head*256;
+    device half* out=query?q_out+head*256:k_out+head*256;
+    ar10_qsa_norm256(x,query?q_gain:k_gain,normed,as_type<float>(p[1]),lane);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for(uint slot=lane;slot<224;slot+=32) {
+        if(slot>=32) {uint pass=64+slot-32;out[pass]=normed[pass];continue;}
+        float angle=float(p[0])*float(inv_freq[slot]);
+        float c=metal::cos(angle),s=metal::sin(angle);
+        float xv=float(normed[slot]),xp=float(normed[slot+32]);
+        out[slot]=half(xv*c-xp*s);
+        out[slot+32]=half(xp*c+xv*s);
+    }
+}
