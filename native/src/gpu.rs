@@ -16,6 +16,7 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod greedy;
 mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
@@ -237,6 +238,10 @@ pub struct Metal {
     #[cfg(test)]
     ar20_kernel_bits: u32,
     #[cfg(test)]
+    ar30_cooperative: bool,
+    #[cfg(test)]
+    ar30_cooperative_uses: [std::cell::Cell<u64>; 2],
+    #[cfg(test)]
     ar20_library: metal::Library,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
@@ -376,6 +381,11 @@ pub struct Metal {
     model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
     logsumexp: ComputePipelineState,
+    device_greedy_pipeline: Option<ComputePipelineState>,
+    device_greedy_calls: std::cell::Cell<u64>,
+    device_greedy_heads: std::cell::Cell<u64>,
+    #[cfg(test)]
+    device_greedy_reject_result: std::cell::Cell<bool>,
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
@@ -384,6 +394,8 @@ pub struct Metal {
     #[cfg(test)]
     moe_finish_mix_uses: std::cell::Cell<usize>,
     gate_dot: [ComputePipelineState; 2],
+    router_pair: gate::PairedDot,
+    resident_scratch: crate::resident_scratch_policy::Budget,
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
@@ -451,6 +463,7 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
+            let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
                 hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
@@ -688,8 +701,9 @@ impl Metal {
                 include_str!("../shaders/flash_logsumexp.metal"),
             );
             let source = format!(
-                "{}\n#define MLXL3_AR20_TESTS {}\n{}",
+                "{}\n#define MLXL3_AR30_COOPERATIVE {}\n#define MLXL3_AR20_TESTS {}\n{}",
                 crate::ar20_kernel_policy::defines(ar20_kernel_bits),
+                u32::from(ar30_cooperative),
                 u32::from(cfg!(test)),
                 source
             )
@@ -700,6 +714,10 @@ impl Metal {
             let source = source.replace(
                 r#"#include "ar20_trellis.metal""#,
                 include_str!("../shaders/ar20_trellis.metal"),
+            );
+            let source = source.replace(
+                r#"#include "ar30_kernel_tests.metal""#,
+                include_str!("../shaders/ar30_kernel_tests.metal"),
             );
             let library = device
                 .new_library_with_source(&source, &options)
@@ -817,6 +835,8 @@ impl Metal {
                 .collect();
             let inverse = upload(&device, &perm)?;
             let gate_dot = [pipeline("gate_dot_half")?, pipeline("gate_dot_float")?];
+            let router_pair =
+                gate::PairedDot::load(&pipeline, hc_kernel_setting("MLXL3_NATIVE_ROUTER_PAIR")?)?;
             let gate_softmax = [
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,
@@ -850,6 +870,9 @@ impl Metal {
                 gdn_head_gates,
             )?;
             let logsumexp = pipeline("flash_logsumexp")?;
+            let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
+                .then(|| pipeline("flash_normalized_greedy"))
+                .transpose()?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&pipeline)?;
@@ -857,6 +880,10 @@ impl Metal {
                 device,
                 #[cfg(test)]
                 ar20_kernel_bits,
+                #[cfg(test)]
+                ar30_cooperative,
+                #[cfg(test)]
+                ar30_cooperative_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 #[cfg(test)]
                 ar20_library: library,
                 queue,
@@ -997,6 +1024,11 @@ impl Metal {
                 model_ops,
                 gdn,
                 logsumexp,
+                device_greedy_pipeline,
+                device_greedy_calls: std::cell::Cell::new(0),
+                device_greedy_heads: std::cell::Cell::new(0),
+                #[cfg(test)]
+                device_greedy_reject_result: std::cell::Cell::new(false),
                 ple,
                 moe_switch,
                 moe_mix,
@@ -1005,6 +1037,10 @@ impl Metal {
                 #[cfg(test)]
                 moe_finish_mix_uses: std::cell::Cell::new(0),
                 gate_dot,
+                router_pair,
+                resident_scratch: crate::resident_scratch_policy::Budget::new(hc_kernel_setting(
+                    "MLXL3_NATIVE_RESIDENT_SCRATCH",
+                )?),
                 gate_softmax,
                 route_half,
                 route_float,
@@ -1335,5 +1371,13 @@ mod ar10_model_tests;
 mod ar20_kernel_tests;
 
 #[cfg(test)]
+#[path = "gpu/ar30_kernel_tests.rs"]
+mod ar30_kernel_tests;
+
+#[cfg(test)]
 #[path = "gpu/ar20_capture_tests.rs"]
 mod ar20_capture_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar30_greedy_tests.rs"]
+mod ar30_greedy_tests;

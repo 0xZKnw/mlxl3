@@ -1,0 +1,20 @@
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+root=Path.cwd();old=runpy.run_path(str(root/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'));out=root/'docs/measurements/flash-ar30-20261105/cpu'
+cargo='/Users/justin/.cargo/bin/cargo';python='/Users/justin/Documents/mix-stq1_0/.venv/bin/python';env={**os.environ,'PATH':'/Users/justin/.cargo/bin:'+os.environ['PATH'],'MACOSX_DEPLOYMENT_TARGET':'26.2','CARGO_TARGET_DIR':str(root/'build/ar30/cargo-target')}
+mlx=subprocess.check_output([python,'-c','import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))'],text=True).strip();env['MLXL3_MLX_ROOT']=mlx
+commands=[('fmt',[cargo,'fmt','--check'],60,{}),('kani-scratch',[cargo,'kani','--lib','--no-default-features','-Z','stubbing','--exact','--harness','resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded','--jobs','1','--output-format','regular'],120,{'CARGO_TARGET_DIR':str(root/'build/ar30/kani-target')}),('clippy-no-direct',[cargo,'clippy','--locked','--all-targets','--no-default-features','--features','chat','--','-D','warnings'],180,{}),('clippy-direct',[cargo,'clippy','--locked','--all-targets','--features','chat','--','-D','warnings'],180,{}),('clippy-mlx',[cargo,'clippy','--locked','--all-targets','--features','mlx,chat','--','-D','warnings'],240,{}),('portable',[python,'-m','pytest','-q','tests/test_kani_manifest.py','tests/test_native_coverage.py'],60,{}),('full-direct-tests',[cargo,'test','--locked','--features','chat'],240,{}),('release-cli',[cargo,'build','--locked','--release','--features','chat','--bin','mlxl3-rs'],240,{}),('release-libtest',[cargo,'test','--locked','--release','--features','chat','--lib','--no-run','--message-format','json'],240,{})]
+r={'status':'running','all_children_joined':True,'checks':[],'source_head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'source_status':subprocess.check_output(['git','status','--short'],text=True),'deployment_target':'26.2','mlx_root':mlx};p=out/'cpu-all.json';assert not p.exists();save=lambda:p.write_text(json.dumps(r,indent=2)+'\n');save()
+try:
+ for name,cmd,limit,extra in commands:
+  row={'name':name,'command':cmd,'budget_seconds':limit,'status':'running','joined':False};r['checks'].append(row);r['all_children_joined']=False;save();child=None;t=time.monotonic()
+  try:
+   with (out/(name+'.log')).open('x') as log:
+    child=subprocess.Popen(cmd,stdout=log,stderr=subprocess.STDOUT,start_new_session=True,env={**env,**extra});row['pid']=child.pid;save();code=child.wait(timeout=limit)
+   row.update(exit_code=code,status='process_pass_pending_review' if code==0 else 'failed');assert code==0,(name,code)
+  except BaseException as error:row.update(status='failed',error=repr(error));raise
+  finally:row.update(joined=old['stop'](child),seconds=time.monotonic()-t);r['all_children_joined']=all(c['joined']for c in r['checks']);save()
+  assert row['joined'];print(name,row['status'],flush=True)
+ r['status']='processes_passed_pending_result_review'
+except BaseException as error:r.update(status='failed',error=repr(error));raise
+finally:save()

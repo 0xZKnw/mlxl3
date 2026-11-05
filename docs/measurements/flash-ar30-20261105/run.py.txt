@@ -1,0 +1,245 @@
+"""Bounded AR30 quality or MAIN32 group run; uses already audited process helpers.
+
+Copy to build/ar30/run.py with basis.py and components-basis.py from the tracked
+AR10/AR20 snapshots. The plan pins the final source and binaries before execution.
+"""
+
+import argparse
+import runpy
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+D = runpy.run_path(str(ROOT / "build/ar30/basis.py"))
+C = runpy.run_path(str(ROOT / "build/ar30/components-basis.py"))
+NEW = (
+    "MLXL3_NATIVE_QMV_COOPERATIVE",
+    "MLXL3_NATIVE_ROUTER_PAIR",
+    "MLXL3_NATIVE_DEVICE_GREEDY",
+    "MLXL3_NATIVE_RESIDENT_SCRATCH",
+)
+QUALITY_NAMES = ("windows", "resident", "routed", "router", "greedy", "scratch", "model")
+
+
+def quality_specs(plan):
+    specs = plan["quality"]
+    assert isinstance(specs, list) and tuple(spec["name"] for spec in specs) == QUALITY_NAMES
+    assert all(spec["expected"] and spec["test"].startswith("gpu::") for spec in specs)
+    return specs
+
+
+def check_marker(text, spec):
+    D["test_log"](text)
+    evidence = D["marker"](text, spec["marker"])
+    D["OLD"]["exact_fields"](evidence, {"parity": True, **spec.get("expected", {})})
+    for key in spec.get("positive", []):
+        assert type(evidence[key]) is int and evidence[key] > 0, key
+    if spec["name"] == "model":
+        D["OLD"]["exact_fields"](
+            evidence,
+            {
+                "case_count": 2,
+                "compared_state_words": 57606144,
+                "compared_logits": 993280,
+                "compared_hidden_bytes": 81920,
+                "initial_archive_states": 84,
+                "compiled_cooperative": True,
+                "device_greedy_counts": [2, 2],
+                "device_greedy_rollback": True,
+                "all_readers_joined": True,
+            },
+        )
+    if spec["name"] == "model":
+        assert evidence["router_pair_uses"] > 0 and evidence["resident_scratch_reuses"] > 0
+        assert 0 < evidence["resident_scratch_charge"] <= 32 << 20
+    return evidence
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("kind", choices=["quality", "speed"])
+    parser.add_argument("--plan", type=Path, default=ROOT / "build/ar30/plan.json")
+    args = parser.parse_args()
+    plan = D["read_json"](args.plan)
+    out = ROOT / "docs/measurements/flash-ar30-20261105" / args.kind
+    out.mkdir()
+    sink = out / "report.json"
+    report = {
+        "status": "running",
+        "parity": False,
+        "all_children_joined": True,
+        "phases": [],
+        "plan_sha256": D["sha"](args.plan),
+        "controller_sha256": D["sha"](__file__),
+    }
+    D["save"](report, sink)
+    try:
+        assert plan["source_files"] and plan["artifacts"]
+        specs = quality_specs(plan)
+        helpers = [
+            ROOT / "build/ar30/basis.py",
+            ROOT / "build/ar30/components-basis.py",
+            ROOT / "build/ar30/run.py",
+            D["HELPER"],
+            D["SCREEN"],
+            D["CLI_HELPER"],
+        ]
+        assert all(
+            str(path) in plan["source_files"] or str(path.relative_to(ROOT)) in plan["source_files"]
+            for path in helpers
+        )
+        for name, digest in plan["source_files"].items():
+            assert D["sha"](ROOT / name) == digest, name
+        for artifact in plan["artifacts"].values():
+            assert D["sha"](artifact["path"]) == artifact["sha256"]
+        env = D["environment"]("default")
+        env.update({flag: "1" for flag in NEW})
+        if args.kind == "quality":
+            lib = plan["artifacts"]["native-libtest"]
+            private = out / "resident-fixtures"
+            for spec in specs:
+                runenv = {**env, "DYLD_PRINT_LIBRARIES": "1", **spec.get("environment", {})}
+                report["current_environment"] = {
+                    k: v for k, v in runenv.items() if k.startswith(("MLXL3_", "DYLD_"))
+                }
+                D["save"](report, sink)
+                if spec["name"] == "resident":
+                    source = Path(C["NT2"])
+                    private.mkdir()
+                    for name in ("native-cases.json", "stock.json"):
+                        (private / name).write_bytes((source / name).read_bytes())
+                    runenv["MLXL3_NT2_FIXTURES"] = str(private)
+                command = [
+                    lib["path"],
+                    spec["test"],
+                    "--exact",
+                    "--ignored",
+                    "--nocapture",
+                    "--test-threads=1",
+                ]
+                D["run_phase"](
+                    report,
+                    sink,
+                    out,
+                    spec["name"],
+                    command,
+                    runenv,
+                    lambda text, spec=spec: {
+                        **check_marker(text, spec),
+                        **(
+                            {
+                                "full_binary_oracle": C["resident"](
+                                    D["OLD"],
+                                    private,
+                                    D["read_json"](private / "native-cases.json"),
+                                    D["read_json"](private / "stock.json"),
+                                )
+                            }
+                            if spec["name"] == "resident"
+                            else {}
+                        ),
+                    },
+                )
+                report["phases"][-1]["environment"] = report["current_environment"].copy()
+                with (ROOT / "opti.md").open("a") as journal:
+                    journal.write("\nAR30 QUALITY " + spec["name"] + " VALIDATED\n")
+            executable = plan["artifacts"]["direct-cli"]
+            D["run_phase"](
+                report,
+                sink,
+                out,
+                "cli",
+                [D["PYTHON"], str(D["CLI_HELPER"]), executable["path"], str(out)],
+                {**env, "DYLD_PRINT_LIBRARIES": "1"},
+                D["cli"],
+            )
+            assert len(report["phases"]) == len(plan["quality"]) + 1
+        else:
+            quality = D["read_json"](out.parent / "quality/report.json")
+            assert (
+                quality["status"] == "validated_quality"
+                and quality["parity"] is True
+                and quality["all_children_joined"] is True
+            )
+            assert quality["plan_sha256"] == report["plan_sha256"]
+            golden = D["read_json"](
+                ROOT
+                / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+            )["runs"][0]
+            executable = plan["artifacts"]["direct-cli"]
+            for name, values in [
+                ("control-start", (0, 0, 0, 0)),
+                ("kernels", (1, 1, 0, 0)),
+                ("host", (0, 0, 1, 1)),
+                ("combined", (1, 1, 1, 1)),
+                ("control-end", (0, 0, 0, 0)),
+            ]:
+                runenv = {**env, **dict(zip(NEW, map(str, values), strict=True))}
+                report["current_environment"] = {
+                    k: v for k, v in runenv.items() if k.startswith("MLXL3_")
+                }
+                D["save"](report, sink)
+                folder = out / name
+                command = [
+                    D["PYTHON"],
+                    str(ROOT / "scripts/benchmark-flash-bridge.py"),
+                    executable["path"],
+                    D["MODEL"],
+                    str(folder),
+                    "--prompt",
+                    "MAIN",
+                    "--tokens",
+                    "32",
+                    "--repeats",
+                    "1",
+                    "--cache-gib",
+                    "3",
+                    "--timeout",
+                    "180",
+                ]
+
+                def check(text, folder=folder, greedy=bool(values[2])):
+                    stats = D["benchmark"](folder / "report.json", executable["sha256"], golden)
+                    raw = D["read_json"](folder / "report.json")
+                    for row in raw["warmup"] + raw["runs"]:
+                        if greedy:
+                            D["OLD"]["exact_fields"](
+                                row["stats"],
+                                {"native_gpu_greedy_selections": 32, "native_gpu_greedy_heads": 31},
+                            )
+                        else:
+                            assert row["stats"].get("native_gpu_greedy_selections") is None
+                    return stats
+
+                stats = D["run_phase"](report, sink, out, name, command, runenv, check)
+                report["phases"][-1]["environment"] = report["current_environment"].copy()
+                with (ROOT / "opti.md").open("a") as journal:
+                    journal.write(
+                        "\nAR30 MAIN32 " + name + " VALIDATED " + str(stats["decode_tps"]) + "\n"
+                    )
+                print(name, stats["decode_tps"], flush=True)
+            assert len(report["phases"]) == 5
+        assert report["all_children_joined"] and all(phase["parity"] for phase in report["phases"])
+        report.update(
+            status="validated_" + args.kind,
+            parity=True,
+            limits="Short MAIN32 samples; strong drift forbids boost claims. Component, numerical and CPU bounded checks do not prove Metal or sustained throughput.",
+        )
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        D["save"](report, sink)
+        with (ROOT / "opti.md").open("a") as journal:
+            journal.write(
+                "\nAR30 "
+                + args.kind.upper()
+                + " CLOSED "
+                + report["status"]
+                + " joined="
+                + str(report["all_children_joined"])
+                + "\n"
+            )
+
+
+if __name__ == "__main__":
+    main()

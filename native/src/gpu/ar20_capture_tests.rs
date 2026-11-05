@@ -1,6 +1,7 @@
 //! Cross-process oracle: immutable compiler and IO switches never share the control process.
 use super::{
     ar20_kernel_tests::compiled_bits,
+    ar30_kernel_tests::compiled_cooperative,
     ssd_direct_tests::{check_initial, check_tensors, digest},
     *,
 };
@@ -109,7 +110,7 @@ fn actual_paths(gpu: &Metal, model: &FlashNext) -> Result<serde_json::Value> {
     let slru = model.slru_counts()?;
     let readahead = readers.readahead_counts();
     Ok(
-        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"readers_in_flight":readers.in_flight()}),
+        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight()}),
     )
 }
 
@@ -139,9 +140,22 @@ fn run_capture() -> Result<()> {
     };
     let checkpoint = crate::checkpoint::inspect(&model_path)?;
     let gpu = Metal::new()?;
+    ensure!(
+        std::env::var("MLXL3_NATIVE_DEVICE_GREEDY").as_deref() != Ok("1")
+            || gpu.device_greedy_available(),
+        "requested C03 path is unavailable"
+    );
     let bits = compiled_bits(&gpu)?;
+    let cooperative = compiled_cooperative(&gpu)?;
     if capture {
-        ensure!(bits == 0, "reference compiler options must be OFF");
+        ensure!(
+            bits == 0
+                && !cooperative
+                && !gpu.device_greedy_available()
+                && !gpu.router_pair.enabled.get()
+                && !gpu.resident_scratch.enabled.get(),
+            "reference compiler options must be OFF"
+        );
         ensure!(
             !gpu.gdn_head_gates.get()
                 && !gpu.qsa_chains.get()
@@ -184,7 +198,25 @@ fn run_capture() -> Result<()> {
     let mut paths = Vec::new();
     for token in [248044, 1] {
         let before = actual_paths(&gpu, &model)?;
-        let logits = model.forward(token)?;
+        let router_before = gpu.router_pair.uses.get();
+        let scratch_before = gpu.resident_scratch.reuses.get();
+        let cooperative_before = gpu
+            .ar30_cooperative_uses
+            .each_ref()
+            .map(std::cell::Cell::get);
+        let logits = if gpu.device_greedy_available() {
+            let counts = model.device_greedy_counts();
+            let (selected, logits) = model.forward_greedy_captured(token)?;
+            let canonical = crate::speculative::greedy_log_prob_id(&model.log_probs(&logits)?)
+                .context("reference normalized distribution is invalid")?;
+            ensure!(
+                selected == canonical
+                    && model.device_greedy_counts() == [counts[0] + 1, counts[1] + 1]
+            );
+            logits
+        } else {
+            model.forward(token)?
+        };
         let logits = logits_hash(&logits)?;
         let hidden = model
             .last_hidden()
@@ -201,6 +233,26 @@ fn run_capture() -> Result<()> {
         let control = model.snapshot();
         let offset = model.offset();
         let after = actual_paths(&gpu, &model)?;
+        ensure!(
+            !gpu.router_pair.enabled.get() || gpu.router_pair.uses.get() > router_before,
+            "paired router was not encoded on the real model path"
+        );
+        ensure!(
+            !gpu.resident_scratch.enabled.get()
+                || gpu.resident_scratch.reuses.get() > scratch_before,
+            "resident scratch did not reuse buffers on the model path"
+        );
+        if cooperative {
+            ensure!(
+                gpu.ar30_cooperative_uses
+                    .each_ref()
+                    .map(std::cell::Cell::get)
+                    .into_iter()
+                    .zip(cooperative_before)
+                    .all(|(after, before)| after > before),
+                "cooperative resident/routed paths were not both executed"
+            );
+        }
         let (next, states) = model.forward_trace(11)?;
         let next_logits = logits_hash(&next)?;
         state_words += check_tensors(&states)?;
@@ -230,6 +282,36 @@ fn run_capture() -> Result<()> {
         model.restore(&control)?;
     }
     ensure!(state_words == 57_606_144 && model.offset() == 2 && gpu.readers()?.in_flight() == 0);
+    if gpu.device_greedy_available() {
+        let retained = model.snapshot();
+        gpu.device_greedy_reject_result.set(true);
+        let rejected = model.forward_greedy(11);
+        gpu.device_greedy_reject_result.set(false);
+        ensure!(
+            rejected.is_err() && model.offset() == 2,
+            "failed scalar selection advanced state"
+        );
+        let (next, states) = model.forward_trace(11)?;
+        ensure!(logits_hash(&next)? == cases[1].next_logits);
+        check_tensors(&states)?;
+        let actual = states
+            .iter()
+            .map(|state| {
+                Ok(TensorHash {
+                    name: state.name.clone(),
+                    shape: state.shape.clone(),
+                    bytes: state.data.len(),
+                    sha256: digest(&state.data)?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        ensure!(
+            actual == cases[1].states,
+            "scalar failure rollback changed recurrent state"
+        );
+        model.restore(&retained)?;
+        ensure!(model.offset() == 2 && model.device_greedy_counts() == [2, 2]);
+    }
     if let Some((reference, oracle_sha)) = reference {
         ensure!(
             cases == reference.cases,
@@ -241,7 +323,7 @@ fn run_capture() -> Result<()> {
         );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
-            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
+            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
         );
     } else {
         let oracle = Oracle {

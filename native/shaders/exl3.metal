@@ -45,6 +45,16 @@ inline half codeword(uint x, uint cb) {
 
 #include "ar20_trellis.metal"
 
+// One SIMD owns all 16/24/32 packed words for K2/3/4. Every lane participates
+// in each shuffle, including lanes that do not own a word for K2/3.
+inline uint ar30_cooperative_load(const device uint* words, uint lane, uint k) {
+    return lane < 8u * k ? words[lane] : 0u;
+}
+inline ulong ar30_cooperative_pair(uint owned, uint high, uint low) {
+    return (ulong(simd_shuffle(owned, ushort(high))) << 32u)
+        | ulong(simd_shuffle(owned, ushort(low)));
+}
+
 inline ushort state(const device ushort* packed, uint tile, uint t, uint k) {
     uint b0 = t * k + k + 256u * k - 16u;
     uint b1 = b0 + 16u;
@@ -328,3 +338,4 @@ ROUTE_KERNEL(float, "route_float")
 #include "model_ops.metal"
 
 #include "ar20_kernel_tests.metal"
+#include "ar30_kernel_tests.metal"

@@ -915,6 +915,12 @@ impl FlashQsaLayer<'_> {
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
         self.residual.release_idle_state()?;
         let attention = &mut self.attention;
+        for projection in [&attention.q, &attention.k, &attention.v, &attention.out] {
+            projection.release_idle_scratch()?;
+        }
+        if let Some(index) = &attention.index {
+            index.qk.release_idle_scratch()?;
+        }
         let slab = Slab::new(
             attention.gpu,
             attention.capacity.min(32),

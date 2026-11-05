@@ -1,0 +1,110 @@
+"""Final composition without the confirmed cooperative-reader regression."""
+
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+D = runpy.run_path(str(ROOT / "build/ar30/basis.py"))
+R = runpy.run_path(str(ROOT / "build/ar30/run.py"))
+
+
+def main():
+    p = D["read_json"](ROOT / "build/ar30/plan.json")
+    q = D["read_json"](ROOT / "docs/measurements/flash-ar30-20261105/quality/report.json")
+    assert (
+        q["status"] == "validated_quality"
+        and q["parity"] is True
+        and q["all_children_joined"] is True
+        and q["plan_sha256"] == D["sha"](ROOT / "build/ar30/plan.json")
+    )
+    for path, digest in p["source_files"].items():
+        assert D["sha"](ROOT / path) == digest, path
+    new = p["artifacts"]["direct-cli"]
+    gold = D["read_json"](
+        ROOT
+        / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+    )["runs"][0]
+    out = ROOT / "docs/measurements/flash-ar30-20261105/compose-01"
+    out.mkdir()
+    sink = out / "report.json"
+    r = {
+        "status": "running",
+        "parity": False,
+        "all_children_joined": True,
+        "phases": [],
+        "controller_sha256": D["sha"](__file__),
+        "frozen_plan_sha256": q["plan_sha256"],
+        "start_epoch": time.time(),
+        "power": subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5),
+        "swap_context_only_not_abort": subprocess.check_output(
+            ["sysctl", "vm.swapusage"], text=True, timeout=5
+        ),
+    }
+    D["save"](r, sink)
+    try:
+        for name, a, flags in [
+            ("compatible", new, (0, 1, 1, 1)),
+            ("control-end", new, (0, 0, 0, 0)),
+        ]:
+            assert D["sha"](a["path"]) == a["sha256"]
+            env = D["environment"]("default")
+            env.update(dict(zip(R["NEW"], map(str, flags), strict=True)))
+            folder = out / name
+            cmd = [
+                D["PYTHON"],
+                str(ROOT / "scripts/benchmark-flash-bridge.py"),
+                a["path"],
+                D["MODEL"],
+                str(folder),
+                "--prompt",
+                "MAIN",
+                "--tokens",
+                "32",
+                "--repeats",
+                "1",
+                "--cache-gib",
+                "3",
+                "--timeout",
+                "180",
+            ]
+            r["current_environment"] = {k: v for k, v in env.items() if k.startswith("MLXL3_")}
+            D["save"](r, sink)
+            stats = D["run_phase"](
+                r,
+                sink,
+                out,
+                name,
+                cmd,
+                env,
+                lambda text, folder=folder, a=a: D["benchmark"](
+                    folder / "report.json", a["sha256"], gold
+                ),
+            )
+            r["phases"][-1]["environment"] = r["current_environment"].copy()
+            D["save"](r, sink)
+            with (ROOT / "opti.md").open("a") as f:
+                f.write(
+                    "\nAR30 COMPOSE-01 " + name + " VALIDATED " + str(stats["decode_tps"]) + "\n"
+                )
+            print(name, stats["decode_tps"], flush=True)
+        assert len(r["phases"]) == 2 and r["all_children_joined"]
+        r.update(status="completed_short_samples_only", parity=True)
+    except BaseException as error:
+        r.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        D["save"](r, sink)
+        with (ROOT / "opti.md").open("a") as f:
+            f.write(
+                "\nAR30 COMPOSE-01 CLOSED "
+                + r["status"]
+                + " joined="
+                + str(r["all_children_joined"])
+                + "\n"
+            )
+
+
+if __name__ == "__main__":
+    main()

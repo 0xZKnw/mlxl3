@@ -913,6 +913,9 @@ impl FlashGdnLayer<'_> {
     }
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
         self.reset();
+        for projection in [&self.attention.qkv, &self.attention.z, &self.attention.out] {
+            projection.release_idle_scratch()?;
+        }
         self.residual.release_idle_state()
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
