@@ -1,7 +1,7 @@
-//! Guards shared by the four opt-in, fixed-record AR expert paths.
+//! Guards shared by the four qualified, fixed-record AR expert paths.
 
 pub(crate) fn flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
-    crate::flash_support::hc_chain_flag(value, false).map(|on| on && qualified_m5)
+    crate::ar10_defaults::flag(value, qualified_m5)
 }
 
 pub(crate) fn eligible(routed: bool, extents: [[u32; 3]; 3]) -> bool {
@@ -24,7 +24,7 @@ pub(crate) fn prefix(index: usize, count: usize, width: u32, length: u64) -> Opt
 #[test]
 fn expert_ar_flags_and_destination_prefixes_are_strict() {
     for qualified in [false, true] {
-        assert_eq!(flag(None, qualified), Some(false));
+        assert_eq!(flag(None, qualified), Some(qualified));
         assert_eq!(flag(Some("0"), qualified), Some(false));
         assert_eq!(flag(Some("1"), qualified), Some(qualified));
         for value in ["", "01", "true", " 1", "1\n", "é"] {
@@ -115,13 +115,13 @@ fn expert_axis_admits_only_nonempty_bounded_ready_tables() {
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(10)]
-fn expert_ar_flags_are_strict_off_and_require_qualified_hardware() {
+fn expert_ar_flags_preserve_qualified_defaults_and_overrides() {
     let bytes: [u8; 4] = kani::any();
     let length = usize::from(kani::any::<u8>() % 5);
     let qualified: bool = kani::any();
     let present: bool = kani::any();
     if !present {
-        assert_eq!(flag(None, qualified), Some(false));
+        assert_eq!(flag(None, qualified), Some(qualified));
     } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
         let expected = if length == 1 && bytes[0] == b'0' {
             Some(false)

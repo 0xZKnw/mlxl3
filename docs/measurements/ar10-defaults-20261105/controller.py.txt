@@ -1,0 +1,395 @@
+"""PR132 default selection qualification; starts only after an explicit root grant."""
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/ar10-defaults-20261105"
+HELPER = ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"
+OLD = runpy.run_path(str(HELPER))
+SCREEN = Path(
+    "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py"
+)
+VALIDATE_BENCHMARK = runpy.run_path(str(SCREEN))["validate"]
+PYTHON = "/Users/justin/Documents/mix-stq1_0/.venv/bin/python"
+CLI_HELPER = Path(
+    "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py"
+)
+MODEL = "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+COUNTS = {
+    "parity": True,
+    "case_count": 2,
+    "compared_state_words": 57606144,
+    "compared_logits": 993280,
+    "compared_hidden_bytes": 81920,
+    "initial_archive_states": 84,
+    "legacy_continuation": True,
+    "all_readers_joined": True,
+    "context": 4096,
+}
+LEGACY_OFF = [
+    "HC_WORKSPACE",
+    "HC_UP_MIX",
+    "HC_DOWN_INJECT",
+    "SSD_EXTRA_WAVE",
+    "GDN_HALF_ELISION",
+    "GDN_NORM_GATE",
+    "FIXED_RESIDENCY",
+]
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def strict(text):
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            assert key not in value, "duplicate JSON field: " + key
+            value[key] = item
+        return value
+
+    json.loads(text, object_pairs_hook=unique)
+    return OLD["strict_json"](text)
+
+
+def read_json(path):
+    return strict(Path(path).read_text())
+
+
+PLAN = ROOT / "docs/measurements/flash-ar10-20261105/plan-final.json"
+FLAGS = tuple(read_json(PLAN)["arms"][1]["flags"])
+assert len(FLAGS) == len(set(FLAGS)) == 13
+
+
+def marker(text, name):
+    OLD["marker"](text, name)
+    return strict(
+        next(line.split(name + " ", 1)[1] for line in text.splitlines() if name + " " in line)
+    )
+
+
+def environment(mode):
+    assert mode in ("default", "off", "forced")
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+    env.update(
+        {
+            "PYTHONPATH": str(ROOT),
+            "MLXL3_FLASH_MODEL": MODEL,
+            "MLXL3_SSD_CACHE_GIB": "3",
+            "MLXL3_SSD_READERS": "4",
+            "MLXL3_SSD_DYNAMIC_READERS": "0",
+            "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+            "MLXL3_SSD_OVERLAP": "1",
+            "MLXL3_SSD_CACHE_POLICY": "auto",
+            "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+            "MLXL3_PROMPT_CACHE_MIB": "0",
+        }
+    )
+    env.update({"MLXL3_NATIVE_" + name: "0" for name in LEGACY_OFF})
+    if mode != "default":
+        env.update({flag: str(int(mode == "forced")) for flag in FLAGS})
+    assert all(
+        (flag not in env) if mode == "default" else env[flag] == str(int(mode == "forced"))
+        for flag in FLAGS
+    )
+    return env
+
+
+def test_log(text):
+    OLD["native_images"](text)
+    assert text.count("running 1 test") == text.count("test result:") == 1
+    assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+
+
+def default_model(text):
+    test_log(text)
+    evidence = marker(text, "NATIVE_AR10_COMPOSITION_MODEL")
+    OLD["exact_fields"](evidence, {**COUNTS, "initial_flags": [True] * 11})
+    assert type(evidence["cases"]) is list and len(evidence["cases"]) == 2
+    for row, token in zip(evidence["cases"], [248044, 1], strict=True):
+        OLD["exact_fields"](
+            row,
+            {
+                "token": token,
+                "parity": True,
+                "states": 84,
+                "cross_layer_triples": 34,
+                "moe_deferred": 34,
+                "legacy_continuation": True,
+                "continuation_new_uses": [0] * 11,
+            },
+        )
+        uses = row["actual_uses"]
+        assert (
+            type(uses) is list and len(uses) == 11 and all(type(n) is int and n >= 0 for n in uses)
+        )
+        assert uses[0] > 0 and uses[1:] == [960, 480, 480, 480, 48, 480, 36, 12, 12, 36]
+        axis = row["axis_qmv_dispatches"]
+        assert type(axis) is int and 144 <= axis < 1440 and axis % 3 == 0
+    initial = marker(text, "AR10_DEFAULT_INITIALIZATION")
+    OLD["exact_fields"](
+        initial,
+        {
+            "parity": True,
+            "environment_unset": True,
+            "enabled_flags": 13,
+            "created_expert_psos": 6,
+            "record_reuse_layers": 48,
+            "read_split_requested": True,
+            "all_readers_joined": True,
+        },
+    )
+    for name in ["reused_destinations", "split_records", "split_pieces"]:
+        assert type(initial[name]) is int and initial[name] >= 0, name
+    OLD["exact_fields"](
+        initial,
+        {
+            "record_reuse_observed": initial["reused_destinations"] > 0,
+            "read_split_observed": initial["split_records"] > 0,
+        },
+    )
+    assert initial["split_pieces"] >= initial["split_records"] and (
+        initial["split_pieces"] > 0
+    ) == (initial["split_records"] > 0)
+    return {"model": evidence, "initialization": initial}
+
+
+def idle(text):
+    test_log(text)
+    evidence = marker(text, "AR10_IDLE_PIPELINES")
+    OLD["exact_fields"](evidence, {"parity": True, "absent_expert_psos": 6})
+    return evidence
+
+
+def cli(text):
+    OLD["native_images"](text)
+    evidence = marker(text, "NATIVE_SSD_DIRECT_CLI")
+    OLD["exact_fields"](
+        evidence,
+        {
+            "parity": True,
+            "status": "verified",
+            "completed": 1,
+            "context_length": 4096,
+            "token_hash": "9f850af1cbba074b",
+            "mlx_loaded": False,
+            "child_joined": True,
+        },
+    )
+    return evidence
+
+
+def benchmark(path, digest, golden):
+    evidence = VALIDATE_BENCHMARK(read_json(path), digest)
+    OLD["exact_fields"](evidence, {"model": MODEL, "mode": "baseline", "expert_cache_gib": 3.0})
+    for row in evidence["warmup"] + evidence["runs"]:
+        assert (row["text"], row["token_hash"]) == (golden["text"], golden["token_hash"])
+        assert math.isclose(
+            row["stats"]["decode_tps"], 31 / row["stats"]["decode_seconds"], rel_tol=1e-5
+        )
+    return evidence["runs"][0]["stats"]
+
+
+def save(report, sink):
+    temporary = sink.with_suffix(".tmp")
+    temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    temporary.replace(sink)
+
+
+def run_phase(report, sink, out, name, command, env, check):
+    item = {
+        "name": name,
+        "status": "running",
+        "parity": False,
+        "joined": False,
+        "command": command,
+        "ar10_environment": {flag: env[flag] for flag in FLAGS if flag in env},
+    }
+    report["phases"].append(item)
+    report["all_children_joined"] = False
+    save(report, sink)
+    with (out / "journal.jsonl").open("a") as journal:
+        journal.write(json.dumps({"phase": name, "status": "started"}) + "\n")
+    child, failure, start = None, None, time.monotonic()
+    try:
+        with (out / (name + ".log")).open("x") as log:
+            child = subprocess.Popen(
+                command,
+                cwd=ROOT,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            item["pid"] = child.pid
+            save(report, sink)
+            code = child.wait(timeout=240)
+        assert code == 0 and not OLD["members"](child.pid), code
+        item["evidence"] = check((out / (name + ".log")).read_text())
+    except BaseException as error:  # noqa: BLE001 -- Persist interrupts, then reap and re-raise.
+        failure = error
+        item.update(status="failed", parity=False, error=repr(error))
+    finally:
+        try:
+            item["joined"] = OLD["stop"](child)
+        except BaseException as error:  # noqa: BLE001 -- Preserve cleanup failure beside the original error.
+            item["cleanup_error"] = repr(error)
+        item["seconds"] = time.monotonic() - start
+        if not item["joined"]:
+            item.update(status="failed", parity=False)
+        report["all_children_joined"] = all(p["joined"] for p in report["phases"])
+        save(report, sink)
+    if failure is not None:
+        raise failure
+    assert item["joined"], item
+    item.update(status="validated", parity=True)
+    save(report, sink)
+    with (out / "journal.jsonl").open("a") as journal:
+        journal.write(json.dumps({"phase": name, "status": "validated"}) + "\n")
+    return item["evidence"]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-after-root-grant", action="store_true")
+    parser.add_argument("--freeze", type=Path, default=ROOT / "build/ar10-defaults/freeze.json")
+    parser.add_argument("--out", type=Path, default=HERE)
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error("exclusive root GPU grant required")
+    args.out.mkdir(parents=True, exist_ok=True)
+    sink = args.out / "report.json"
+    assert not sink.exists(), "refusing to overwrite earlier evidence"
+    report = {"status": "preflight", "parity": False, "all_children_joined": True, "phases": []}
+    save(report, sink)
+    try:
+        freeze = read_json(args.freeze)
+        assert freeze["source_files"] and set(freeze["artifacts"]) >= {
+            "native-libtest",
+            "direct-cli",
+        }
+        for path, digest in freeze["source_files"].items():
+            assert sha(ROOT / path) == digest, path
+        for artifact in freeze["artifacts"].values():
+            assert sha(artifact["path"]) == artifact["sha256"]
+        lib, executable = (freeze["artifacts"][name] for name in ["native-libtest", "direct-cli"])
+        golden_path = (
+            ROOT
+            / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+        )
+        golden = read_json(golden_path)["runs"][0]
+        assert (
+            type(golden["text"]) is str
+            and golden["text"]
+            and type(golden["token_hash"]) is str
+            and golden["token_hash"]
+        )
+        report.update(
+            status="running",
+            freeze_sha256=sha(args.freeze),
+            controller_sha256=sha(__file__),
+            helper_sha256=sha(HELPER),
+            benchmark_validator_sha256=sha(SCREEN),
+            cli_helper_sha256=sha(CLI_HELPER),
+            plan_sha256=sha(PLAN),
+            golden_sha256=sha(golden_path),
+            ar10_flags=list(FLAGS),
+        )
+        save(report, sink)
+        for name, test, mode, check in [
+            (
+                "model-defaults",
+                "physical_ar10_defaults_preserve_full_state_and_continuation_without_overrides",
+                "default",
+                default_model,
+            ),
+            ("idle-forced-off", "physical_ar10_idle_does_not_create_expert_pipelines", "off", idle),
+        ]:
+            assert sha(lib["path"]) == lib["sha256"]
+            command = [
+                lib["path"],
+                "gpu::ar10_model_tests::" + test,
+                "--exact",
+                "--ignored",
+                "--nocapture",
+                "--test-threads=1",
+            ]
+            run_phase(
+                report,
+                sink,
+                args.out,
+                name,
+                command,
+                {**environment(mode), "DYLD_PRINT_LIBRARIES": "1"},
+                check,
+            )
+        assert sha(executable["path"]) == executable["sha256"]
+        run_phase(
+            report,
+            sink,
+            args.out,
+            "cli-defaults",
+            [PYTHON, str(CLI_HELPER), executable["path"], str(args.out)],
+            {**environment("default"), "DYLD_PRINT_LIBRARIES": "1"},
+            cli,
+        )
+        for name, mode in [("main32-defaults", "default"), ("main32-forced-on", "forced")]:
+            assert sha(executable["path"]) == executable["sha256"]
+            folder = args.out / name
+            command = [
+                PYTHON,
+                str(ROOT / "scripts/benchmark-flash-bridge.py"),
+                executable["path"],
+                MODEL,
+                str(folder),
+                "--prompt",
+                "MAIN",
+                "--tokens",
+                "32",
+                "--repeats",
+                "1",
+                "--cache-gib",
+                "3",
+                "--timeout",
+                "180",
+            ]
+            run_phase(
+                report,
+                sink,
+                args.out,
+                name,
+                command,
+                environment(mode),
+                lambda text, folder=folder: benchmark(
+                    folder / "report.json", executable["sha256"], golden
+                ),
+            )
+        assert len(report["phases"]) == 5 and report["all_children_joined"]
+        report.update(
+            status="validated_defaults_and_forced_equivalence_short_screen",
+            parity=True,
+            speed_interpretation="Two same-binary short samples; no boost or sustained throughput claim.",
+        )
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error=repr(error),
+            all_children_joined=all(p["joined"] for p in report["phases"]),
+        )
+        raise
+    finally:
+        save(report, sink)
+
+
+if __name__ == "__main__":
+    main()

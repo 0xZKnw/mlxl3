@@ -65,9 +65,15 @@ fn finite_hidden(bytes: &[u8]) -> bool {
             .all(|v| f32::from_le_bytes(*v).is_finite())
 }
 
-#[test]
-#[ignore = "physical Flash Next model, composed A01–A10 flags explicitly1 before Metal construction; exclusive GPU"]
-fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<()> {
+fn check_composition(default_environment: bool) -> Result<()> {
+    if default_environment {
+        ensure!(
+            crate::ar10_defaults::FLAGS
+                .iter()
+                .all(|name| std::env::var_os(name).is_none()),
+            "default gate requires all thirteen AR10 environment variables absent"
+        );
+    }
     let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
     let initial = flags(&gpu);
@@ -75,9 +81,19 @@ fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<(
         initial.iter().all(|&on| on) && gpu.cross_layer.get() && gpu.moe_deferred.get(),
         "all PSOs and accepted defaults must be initially enabled"
     );
-    set_new(&gpu, false);
+    let expert_psos = usize::from(gpu.expert_up_finish.is_some())
+        + usize::from(gpu.expert_gu_prepare.is_some())
+        + gpu.expert_axis_qmv.as_ref().map_or(0, |_| 4);
+    ensure!(expert_psos == 6);
+    if !default_environment {
+        set_new(&gpu, false);
+    }
     let mut model = FlashNext::load(&gpu, &c, 4096)?;
     ensure!(model.prefetcher.is_none());
+    if default_environment {
+        ensure!(model.ar10_record_reuse_layers() == 48 && gpu.readers()?.split_requested());
+    }
+    set_new(&gpu, false);
     let empty = model.snapshot();
     let (first, states) = model.forward_trace(248044)?;
     check_initial(&first, &states)?;
@@ -162,7 +178,26 @@ fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<(
         "NATIVE_AR10_COMPOSITION_MODEL {}",
         serde_json::json!({"parity":true,"initial_flags":initial,"context":4096,"cases":cases,"case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"legacy_continuation":true,"all_readers_joined":true})
     );
+    if default_environment {
+        let readers = gpu.readers()?;
+        eprintln!(
+            "AR10_DEFAULT_INITIALIZATION {}",
+            serde_json::json!({"parity":true,"environment_unset":true,"enabled_flags":13,"created_expert_psos":expert_psos,"record_reuse_layers":48,"read_split_requested":true,"reused_destinations":readers.reused_destinations.get(),"record_reuse_observed":readers.reused_destinations.get()>0,"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"read_split_observed":readers.split_records.get()>0,"all_readers_joined":readers.in_flight()==0})
+        );
+    }
     Ok(())
+}
+
+#[test]
+#[ignore = "physical Flash Next model, composed A01–A10 flags initially ON; exclusive GPU"]
+fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<()> {
+    check_composition(false)
+}
+
+#[test]
+#[ignore = "physical default constructor, all thirteen AR10 variables absent; exclusive GPU"]
+fn physical_ar10_defaults_preserve_full_state_and_continuation_without_overrides() -> Result<()> {
+    check_composition(true)
 }
 
 #[test]

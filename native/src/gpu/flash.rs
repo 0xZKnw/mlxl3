@@ -184,6 +184,14 @@ impl<'a> FlashNext<'a> {
             })
     }
 
+    #[cfg(test)]
+    pub(super) fn ar10_record_reuse_layers(&mut self) -> usize {
+        self.layers
+            .iter_mut()
+            .map(|layer| usize::from(layer.moe().record_reuse_enabled))
+            .sum()
+    }
+
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
         #[cfg(feature = "chat")]

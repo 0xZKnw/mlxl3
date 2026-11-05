@@ -124,16 +124,10 @@ impl<'a> FlashMoeRow<'a> {
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_SSD_EXTRA_WAVE must be 0 or 1")?;
-        let record_reuse_enabled = match std::env::var("MLXL3_NATIVE_RECORD_REUSE") {
-            Ok(value) => {
-                crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
-            }
-            Err(std::env::VarError::NotPresent) => {
-                crate::ssd_reads::extra_wave_flag(None, gpu.device.name() == "Apple M5")
-            }
-            Err(error) => return Err(error.into()),
-        }
-        .context("MLXL3_NATIVE_RECORD_REUSE must be 0 or 1")?;
+        let record_reuse_enabled = crate::ar10_defaults::setting(
+            "MLXL3_NATIVE_RECORD_REUSE",
+            gpu.device.name() == "Apple M5",
+        )?;
         let slru_enabled = match std::env::var("MLXL3_NATIVE_CACHE_SLRU") {
             Ok(value) => {
                 crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
