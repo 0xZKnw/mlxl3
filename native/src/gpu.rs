@@ -299,9 +299,9 @@ pub struct Metal {
     expert_ar_enabled: [std::cell::Cell<bool>; 4],
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
-    expert_up_finish: ComputePipelineState,
-    expert_gu_prepare: ComputePipelineState,
-    expert_axis_qmv: [[ComputePipelineState; 2]; 2],
+    expert_up_finish: Option<ComputePipelineState>,
+    expert_gu_prepare: Option<ComputePipelineState>,
+    expert_axis_qmv: Option<[[ComputePipelineState; 2]; 2]>,
     #[cfg(test)]
     expert_axis_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
@@ -684,18 +684,26 @@ impl Metal {
             let swiglu_pipeline = pipeline("flash_swiglu")?;
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
             let finish128_pipeline = pipeline("flash_finish128")?;
-            let expert_up_finish = pipeline("flash_up_finish_swiglu")?;
-            let expert_gu_prepare = pipeline("flash_dual_gu_prepare")?;
-            let expert_axis_qmv = [
-                [
-                    pipeline("flash_axis_k2_2560_640_nt1")?,
-                    pipeline("flash_axis_k2_2560_640_nt2")?,
-                ],
-                [
-                    pipeline("flash_axis_k2_640_2560_nt1")?,
-                    pipeline("flash_axis_k2_640_2560_nt2")?,
-                ],
-            ];
+            let expert_up_finish = expert_ar_enabled[0]
+                .then(|| pipeline("flash_up_finish_swiglu"))
+                .transpose()?;
+            let expert_gu_prepare = expert_ar_enabled[1]
+                .then(|| pipeline("flash_dual_gu_prepare"))
+                .transpose()?;
+            let expert_axis_qmv = expert_ar_enabled[3]
+                .then(|| -> Result<_> {
+                    Ok([
+                        [
+                            pipeline("flash_axis_k2_2560_640_nt1")?,
+                            pipeline("flash_axis_k2_2560_640_nt2")?,
+                        ],
+                        [
+                            pipeline("flash_axis_k2_640_2560_nt1")?,
+                            pipeline("flash_axis_k2_640_2560_nt2")?,
+                        ],
+                    ])
+                })
+                .transpose()?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32

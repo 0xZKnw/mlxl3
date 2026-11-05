@@ -25408,3 +25408,103 @@ AR10 COMMON MODEL QA avanttest : uniquegateallA01-A10vsOFF, tokens248044/1+conti
 AR10 build02/commonmodelQA : Clippyrejetteuniquementmanual_range_contains dugatetest ; syntaxeRange corrigée avantGPU, aucunruntimemathmodifié. Build03mêmescommandes. 44testsPythonorchestrationskipcarprlimitLinuxabsent, pasPASS ; inventaireet2checksmanifestpursexécutésexplicitement ensuite.
 
 AR10 COMMON03 build/CPU CLOS : strictClippyPASS, DIRECT/chat379PASS71ignored, releaseCLI/libtestPASS etMetalofflinePASS37warnings (dontheaderscanoniques). Kani ciblé7/7PASS258obligations/32covers ; expertagent4/4PASS476obligations15covers/hashsourceidentique. TentativeinventaireglobalKani ICE intrinsics.rs243/tyI32héritécommeUAR : inventaireglobalNONVÉRIFIÉ, logsconservés, aucuneéquivalenceCIverte. Débutphysiques10phasesexactesaprèsgelSHA, timeout180/join ; enéchecconsigneretpoursuivreautresphasesseulementsiGPUlibéré. Aucunevitessecandidatavantqualitécorrespondante.
+
+AR10 COMPONENTS A01 STARTED
+
+AR10 COMPONENTS A01 VALIDATED
+
+AR10 COMPONENTS A02 STARTED
+
+AR10 COMPONENTS A02 VALIDATED
+
+AR10 COMPONENTS A03-05 STARTED
+
+AR10 COMPONENTS A03-05 VALIDATED
+
+AR10 COMPONENTS A06 STARTED
+
+AR10 SPEED CONTROLLER SOURCE-ONLY handoff under the existing preregistered matrix, before any screen execution : nine short MAIN32 arms drafted (publishedPR130, samebinaryOFFstart, A02NT2, A03–06experts, A07+A10GDN, A01+A08+A09HC/QSA, A11+A12IO, compatibleall, OFFend), one warm+one measured32generated/31decode. Draft plan may remove unqualified flags or compose NT2 with experts after component results and root records the exact finalplan BEFORE GPU. Reuse existing qualified benchmark driver/validator/processgroup helpers, hashes and golden output captured. Preflight requires10component phases+model+CLI qualified/joined; report startsparityfalse, every failure retained, endpointdrift/noaddition/noindividualattribution limits. Source-only helper prepared by ar10_speed; no build/parser/selfcheck/prover/GPU executed here, parent owns grant and checks.
+
+AR10 COMPONENTS A06 VALIDATED
+
+AR10 COMPONENTS A07 STARTED
+
+AR10 COMPONENTS A07 VALIDATED
+
+AR10 COMPONENTS A08 STARTED
+
+AR10 COMPONENTS A08 VALIDATED
+
+AR10 COMPONENTS A09 STARTED
+
+AR10 COMPONENTS A09 VALIDATED
+
+AR10 COMPONENTS A10 STARTED
+
+AR10 COMPONENTS A10 VALIDATED
+
+AR10 COMPONENTS A11 STARTED
+
+AR10 COMPONENTS A11 VALIDATED
+
+AR10 COMPONENTS A12 STARTED
+
+AR10 COMPONENTS A12 VALIDATED
+
+AR10 COMPONENTS 10/10 VALIDATED components only; no model-speed claim
+
+AR10 QUALITY model STARTED
+
+AR10 QUALITY model VALIDATED
+
+AR10 QUALITY cli STARTED
+
+AR10 QUALITY cli VALIDATED
+
+AR10 QUALITY 2/2 VALIDATED before MAIN32
+
+AR10 QUALITÉ 12/12 candidats/10gates physiquesPASS ; modèleallA01-A10vsOFF+legacycontinuation2casexact,57,606,144statewords/993,280logits/81,920hiddenbytes/archive84 ; compteursréelsHC82/GU960/down480/experts480,480,48,480/whole36/QSA12,12/joint36/axis144vs1440dispatches ; L1+MoE34inchangés. CLI2tokens4096golden/noMLX/shutdownPASS. IOflagsONintégration, activitéreuse/splitmodèlenoninstrumentée : composantreuse17B/EOFetSharedsplit1248012Bdistinct ; pasgainIOattribué. CorrectioncomptableKani7guards=29covers (entrée32erronée),11guards=734checks/44covers ; paspreuveMetal/concurrence.
+AR10 MAIN32 avantmesures : planfigé docs/measurements/flash-ar10-20261105/plan.json neufbras (publié,OFFdébut,NT2seul,expertsA03-06,GDN07+10,HCQSA01+08+09,IO11+12,all,OFFfin),1warm+1mesuré32/31decode/cache3GiB/4readers/prefixOFF. Groupesnepermettentpasattributionindividuelle ; aucunseuilminimum, contrôlesfraisetdériveexplicites. A02microalterné6×16=82.495µsOFF/94.480GU/90.595down/99.613both, fortevariance/nonconcluant, pasrejetavantauditdesPSOfixeddim/copies/occupation. Planmodèlecomplèteencorelagardeavantdécision. Contrôleurselfcheck6plansinvalidesPASS ; CrossHairabsent/nonvérifié, réutilisationvalidators/processgroupqualifiés. TousCPU/build/proofsarrêtés, unmodèleGPUàlafois.
+
+AR10 MAIN32 published STARTED
+
+AR10 MAIN32 published VALIDATED 7.401531353772969
+
+AR10 MAIN32 off-start STARTED
+
+AR10 MAIN32 off-start VALIDATED 7.589933365901215
+
+AR10 MAIN32 nt2 STARTED
+
+AR10 MAIN32 nt2 VALIDATED 7.413658086632902
+
+AR10 MAIN32 experts STARTED
+
+AR10 MAIN32 experts VALIDATED 7.492045215861746
+
+AR10 MAIN32 gdn STARTED
+
+AR10 MAIN32 gdn VALIDATED 7.481795855459187
+
+AR10 MAIN32 hc-qsa STARTED
+
+AR10 MAIN32 hc-qsa VALIDATED 7.57056183367799
+
+AR10 MAIN32 io STARTED
+
+AR10 MAIN32 io VALIDATED 7.915627833607247
+
+AR10 MAIN32 compatible-all STARTED
+
+AR10 MAIN32 compatible-all VALIDATED 8.399582593418618
+
+AR10 MAIN32 off-end STARTED
+
+AR10 MAIN32 off-end VALIDATED 7.684633704585731
+
+AR10 MAIN32 CLOSED {"published": 7.401531353772969, "off-start": 7.589933365901215, "off-end": 7.684633704585731}
+
+AR10 MAIN32 matriceCLOSE/QUALITÉVALIDÉE : publié7.401531354, OFF7.589933366/7.684633705, NT27.413658087, experts7.492045216, GDN7.481795855, HCQSA7.570561834, IO7.915627834, all8.399582593tok/s ; dérivecontrôle+1.24771%,18sorties32tokensidentiquesgolden, tousenfantsjoints. Ensemble+9.3036/+10.6674%vsOFFfrais ; +13.4844%publiéfrais ; aucunboostindividuelétabli. Conserverpetitscandidatscorrectsencoreopt-in, auditcoûts docs/.../audit.md.
+AR10-IDLE-FIX avantédition/mesure : auditidentifie6PSOsexpertscréésmêmeOFF etVecNone/batchSharedOFF. Corrigeruniquementcoûtsnonactifs : PSOOptionchargéssiflaginitialON (erreurcontextuelleavantencodesiabsents), destinationsfreshpariteratorquandreuseOFF. Pasdechangementmath/shader/caches/threads/flagsdefaults. AjoutergatephysiqueOFF6PSOabsents, gardercommongateONexact etCLI ; refairestrictCPU/buildsaffectés puisuniquementOFF/ALL32surartefactsfinaux. Lematériel/modèle/protocoleinchangés, anciensrésultatsconservésnotclaimfinalcode. Defaultsdes12restentOFF/prototypesopt-in ; aucunminimumindividuelexigé, pasderetraitparbruit.
+
+AR10-IDLE-FIX compile/CPU CLOS : strictClippyPASS etDIRECT/chat379PASS73ignored (2nouveauxgatesphysiquesexplicitementignorésdanssuite), releasesCLI/libtestPASS ; aucuneformule/shader/helperprouvémodifié. Kani11preuves734checks44coversréutilisésauxSHAhelpersidentiques ; inventaireglobalICEtoujoursnonvérifié. Archivesexpert290ecbfe copiéesbyteidentiques. Nouveaugelavant3gatesGPUidleOFF/modelON/CLION, puis3MAIN32OFF/ALL/OFFseulement ; pasrelance10composantsarithmétiquementinchangés. ChacungateliecommandesetSHA ; anciensgelsetmesuresconservés.

@@ -593,7 +593,7 @@ impl ReadService {
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
         let count = reads.len();
-        self.start_shared_reusing(reads, (0..count).map(|_| None).collect(), limit, device)
+        self.start_shared_reusing(reads, (0..count).map(|_| None), limit, device)
     }
     /// Owners come only from private, retired cache slots after all old GPU uses
     /// completed and every old projection view was dropped by FlashMoeRow.
@@ -618,11 +618,12 @@ impl ReadService {
     fn start_shared_reusing(
         &self,
         reads: Vec<(SlotLease, File, u64, usize)>,
-        owners: Vec<Option<metal::Buffer>>,
+        owners: impl IntoIterator<Item = Option<metal::Buffer>, IntoIter: ExactSizeIterator>,
         limit: Duration,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), false)?;
+        let owners = owners.into_iter();
         ensure!(reads.len() == owners.len(), "record owner count mismatch");
         let reads = reads
             .into_iter()

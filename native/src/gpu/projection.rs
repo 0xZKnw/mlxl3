@@ -613,7 +613,9 @@ impl<'a> FlashProjection<'a> {
         Metal::encode_bound(
             cmd,
             if gate.is_some() {
-                &gpu.expert_up_finish
+                gpu.expert_up_finish
+                    .as_ref()
+                    .context("expert up finish pipeline was not loaded")?
             } else if self.generic {
                 &gpu.dense_finish
             } else {
@@ -1250,7 +1252,9 @@ impl<'a> FlashExpert<'a> {
             if dual {
                 Metal::encode_bound(
                     cmd,
-                    &gpu.expert_gu_prepare,
+                    gpu.expert_gu_prepare
+                        .as_ref()
+                        .context("expert dual preparation pipeline was not loaded")?,
                     [
                         (&x.buffer, 0),
                         (&expert.gate.suh, expert.gate.offsets.suh),
@@ -1425,7 +1429,10 @@ impl<'a> FlashExpert<'a> {
         });
         Metal::encode_bound(
             cmd,
-            &gpu.expert_axis_qmv[usize::from(stage == 2)][usize::from(nt == 2)],
+            &gpu.expert_axis_qmv
+                .as_ref()
+                .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
+                [usize::from(nt == 2)],
             bindings.into_iter(),
             [
                 1,
@@ -1566,7 +1573,9 @@ impl<'a> FlashExpert<'a> {
             ensure!(prepared.length() >= 10240, "short dual preparation");
             Metal::encode_bound(
                 cmd,
-                &gpu.expert_gu_prepare,
+                gpu.expert_gu_prepare
+                    .as_ref()
+                    .context("expert dual preparation pipeline was not loaded")?,
                 [
                     (input, 0),
                     (&self.gate.suh, self.gate.offsets.suh),

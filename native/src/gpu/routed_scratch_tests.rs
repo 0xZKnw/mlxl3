@@ -363,7 +363,9 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
                         let output = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
                         Metal::encode_bound(
                             cmd,
-                            &gpu.expert_gu_prepare,
+                            gpu.expert_gu_prepare
+                                .as_ref()
+                                .context("expert dual preparation pipeline was not loaded")?,
                             [
                                 (&x.buffer, 0),
                                 (&expert.gate.suh, expert.gate.offsets.suh),
@@ -425,7 +427,9 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
             let out = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
             Metal::encode_bound(
                 cmd,
-                &gpu.expert_gu_prepare,
+                gpu.expert_gu_prepare
+                    .as_ref()
+                    .context("expert dual preparation pipeline was not loaded")?,
                 [
                     (&synthetic_x.buffer, 0),
                     (&gate.buffer, 0),

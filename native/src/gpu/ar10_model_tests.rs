@@ -164,3 +164,17 @@ fn physical_ar10_composition_preserves_full_state_and_continuation() -> Result<(
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "physical Metal initialization, all AR10 flags explicitly OFF; exclusive GPU"]
+fn physical_ar10_idle_does_not_create_expert_pipelines() -> Result<()> {
+    let gpu = Metal::new()?;
+    ensure!(gpu.expert_ar_enabled.iter().all(|v| !v.get()));
+    ensure!(
+        gpu.expert_up_finish.is_none()
+            && gpu.expert_gu_prepare.is_none()
+            && gpu.expert_axis_qmv.is_none()
+    );
+    eprintln!("AR10_IDLE_PIPELINES {{\"parity\":true,\"absent_expert_psos\":6}}");
+    Ok(())
+}
