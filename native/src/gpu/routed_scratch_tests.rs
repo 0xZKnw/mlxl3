@@ -401,6 +401,54 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
         }
     }
     ensure!(compared == 81920);
+    let synthetic_x = gpu.f16_storage(&vec![0x3c00; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let gate_scale = gpu.f16_storage(&vec![0x3c00; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let up_scale = gpu.f16_storage(&vec![0x4000; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let expected_gate = gpu.prepare_view(&synthetic_x, &gate_scale)?;
+    let expected_up = gpu.prepare_view(&synthetic_x, &up_scale)?;
+    ensure!(expected_gate != expected_up);
+    for swapped in [false, true, false] {
+        let (gate, up) = if swapped {
+            (&up_scale, &gate_scale)
+        } else {
+            (&gate_scale, &up_scale)
+        };
+        let output = gpu.command(|cmd| {
+            let out = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
+            Metal::encode_bound(
+                cmd,
+                &gpu.expert_gu_prepare,
+                [
+                    (&synthetic_x.buffer, 0),
+                    (&gate.buffer, 0),
+                    (&up.buffer, 0),
+                    (&out, 0),
+                ]
+                .into_iter(),
+                [0i64, 1, 0, 2560],
+                MTLSize::new(20, 1, 1),
+                64,
+            );
+            Ok(out)
+        })?;
+        let words = Metal::read(&output, 5120);
+        ensure!(
+            (words[..2560] == expected_gate && words[2560..] == expected_up) == !swapped,
+            "Suh swap mutation was not detected/restored"
+        );
+    }
     for cell in &gpu.expert_ar_enabled {
         cell.set(false);
     }
@@ -433,7 +481,7 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
     }
     eprintln!(
         "NATIVE_EXPERT_AR_COMPONENT {}",
-        serde_json::json!({"parity":true,"words":compared,"slab_words":25600,"slab_reordered_routes":10,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
+        serde_json::json!({"parity":true,"words":compared,"slab_words":25600,"slab_reordered_routes":10,"suh_swap_detected_and_restored":true,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
     );
     Ok(())
 }
