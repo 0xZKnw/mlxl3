@@ -1,3 +1,4 @@
+use super::CachedPipeline as ComputePipelineState;
 use super::{MatrixView, Metal, checkpoint_float_weight, view::FloatType};
 use crate::{
     checkpoint::Checkpoint,
@@ -5,7 +6,7 @@ use crate::{
     tensor_layout::MatrixLayout,
 };
 use anyhow::{Result, ensure};
-use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize, NSRange};
+use metal::{Buffer, MTLResourceOptions as Storage, MTLSize, NSRange};
 use std::{collections::BTreeMap, rc::Rc};
 
 pub(super) struct Pipelines {

@@ -1,6 +1,13 @@
 # MLXL3 — journal des optimisations
 
 
+## Intégration PR139 / PR141 — 2026-11-05
+
+Fusion globale demandée, sans nouvel essai d’optimisation. Les options expérimentales CODEWORD_TABLE/CACHED_CAPS de PR139 restent désactivées par défaut ; les pipelines device-resident de PR141 et tous les champs de diagnostic sont conservés. Les macros Metal des deux chemins sont réunies ; les nouvelles PSO indirectes conservent leur chargeur d’origine. Le premier contrôle Rust a détecté l’import homonyme ComputePipelineState ; l’alias propriétaire CachedPipeline est conservé et l’import brut redondant retiré.
+
+`cargo fmt`, inventaire (283 fichiers), puis `MACOSX_DEPLOYMENT_TARGET=26.2 cargo check --locked --no-default-features --features direct-metal,chat --all-targets` passent (4,09 s pour la relance). La compilation Metal combinée a été tentée avec les deux macros à 1 : `xcrun` ne trouve pas l’outil `metal`, exit72, donc les shaders combinés restent non vérifiés. Aucun test, preuve, benchmark ni contrôle physique relancé ; les qualifications antérieures restent attachées à leurs binaires et ne qualifient pas cette composition. Intégration source dans PR139, aucune app remplacée.
+
+
 ## Intégration des PR127–137 — 2026-11-05
 
 Fusion demandée par l’utilisateur, sans nouvelle campagne d’optimisation. La pile Flash de PR129 et le dispatch Qwen de PR128 sont réunis : les quatre appels greedy GPU du bridge/CLI délèguent à Flash ; Qwen conserve son parcours existant et reste inéligible à ce chemin Flash. Le chargement DFlash conserve son accès explicite `flash_mut`. Les historiques du journal sont conservés ; le rapport SSD de PR127 remplace son brouillon antérieur.
@@ -26220,6 +26227,8 @@ AR33 old-off128 STARTED
 AR33 old-off128 VALIDATED
 
 AR33 CONFIRM_OLD128 CLOSED validated_independent_reference joined=True
+
+AR33 clôturepublication : référenceancienne128confirmée8.807120846 aprèsnewOFF7.845044375 ; séquencene séparepasoverheadOFFetconditions, aucuneabsence-régressionougainaffirmée. DeuxnouveauxoptinsT01/T02restentOFFexpérimentaux ; intégrationpardéfautNONqualifiée.279sources/helpers/meta et101logs/binsbruts archivéslossless+indicesSHA+roundtrip (10,355,976Barchives) ;原fichierslocauxconservés. 340testsprofilageCIpertinentsPASS2.73s, Ruff/fmt/diffcheckPASS ; documentrévisionT04final16.745s+mêmevariantsdonnéespréservées. TousessaisAR33closetGPU/CPUprocessusjoints ; T05réelcontinueenAR34depuis01da8/native82fff SANS T01/T02nouveaux pourpréserverbaselinequalifié. PublicationenPRexpérimentaleavecperformancesnonconcluantes, pasmerge/app/release. Lesancienséchecs E0433/inventaire/metalpath etlimitesKani restentvisibles.
 
 AR34-T05-A — préenregistrement précis AVANT prototype, issue138, 2026-11-05.
 
