@@ -1167,3 +1167,7 @@ mod tests {
 #[cfg(test)]
 #[path = "gpu/ssd_direct_tests.rs"]
 mod ssd_direct_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar10_model_tests.rs"]
+mod ar10_model_tests;
