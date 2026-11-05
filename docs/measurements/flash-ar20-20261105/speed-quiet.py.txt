@@ -1,0 +1,138 @@
+"""Eight short MAIN32 groups after independent numerical qualification."""
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+HERE = ROOT / "docs/measurements/flash-ar20-20261105"
+Q = runpy.run_path(str(ROOT / "build/ar20/quality.py"))
+OLD = Q["OLD"]
+VALIDATE = runpy.run_path("/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py")["validate"]
+PREFIX = "MLXL3_NATIVE_"
+SELECTED = [flag for flag in Q["NEW"] if flag not in (Q["HEAD"], PREFIX + "CACHE_SLRU")]
+ARMS = [("control-start", [], True), ("new-off", [], False), ("kernels", Q["MACROS"], False), ("attention", [PREFIX + n for n in ["QSA_CHAINS", "QSA_PREFETCH", "GDN_RESIDENT_BUNDLE"]], False), ("finish-mix", [PREFIX + n for n in ["H128_SIMD", "MOE_FINISH_MIX"]], False), ("host-io", [PREFIX + n for n in ["GPU_SPIN_WAIT", "EXPERT_READAHEAD_OFF"]], False), ("compatible", SELECTED, False), ("control-end", [], True)]
+
+
+def main(out=HERE / "main32", arms=ARMS, reuse_quality=False, target=SELECTED, label="MAIN32-01", freeze_path=ROOT / "build/ar20/freeze-common.json", quality_dir=HERE / "quality"):
+    out.mkdir(exist_ok=True)
+    sink = out / "report.json"
+    assert not sink.exists(), "refusing to overwrite prior evidence"
+    report = {"status": "preflight", "parity": False, "all_children_joined": True, "phases": []}
+
+    def save():
+        temporary = sink.with_suffix(".tmp")
+        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+        temporary.replace(sink)
+
+    def journal(message):
+        with (ROOT / "opti.md").open("a") as stream:
+            stream.write("\nAR20 " + label + " " + message + "\n")
+
+    def run(name, command, env, check):
+        item = {"name": name, "status": "running", "parity": False, "joined": False, "command": command, "flags": {k: v for k, v in env.items() if k.startswith("MLXL3_")}}
+        report["phases"].append(item)
+        report["all_children_joined"] = False
+        save()
+        journal(name + " STARTED")
+        child, start = None, time.monotonic()
+        try:
+            with (out / (name + ".log")).open("x") as log:
+                child = subprocess.Popen(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                item["pid"] = child.pid
+                save()
+                code = child.wait(timeout=240)
+            assert code == 0 and not OLD["members"](child.pid), code
+            item["evidence"] = check((out / (name + ".log")).read_text())
+            item.update(status="validated", parity=True)
+        except BaseException as error:
+            item.update(status="failed", parity=False, error=repr(error))
+            raise
+        finally:
+            item.update(joined=OLD["stop"](child), seconds=time.monotonic() - start)
+            report["all_children_joined"] = all(p["joined"] for p in report["phases"])
+            save()
+        assert item["joined"]
+        journal(name + " VALIDATED " + str(item["evidence"].get("decode_tps", "numerical-gate")))
+        return item["evidence"]
+
+    save()
+    try:
+        freeze = Q["read_json"](freeze_path)
+        prior = Q["read_json"](HERE / "fast-freeze.json")["baseline"]
+        cli, lib = (freeze["artifacts"][k] for k in ["direct-cli", "native-libtest"])
+        for artifact in [cli, lib, prior]:
+            assert Q["sha"](artifact["path"]) == artifact["sha256"]
+        for path, digest in freeze["source_files"].items():
+            assert Q["sha"](ROOT / path) == digest, path
+        quality = Q["read_json"](quality_dir / "report.json")
+        assert quality["status"] == "validated" and quality["parity"] is True and quality["all_children_joined"] is True
+        assert quality["freeze_sha256"] == Q["sha"](freeze_path)
+        assert target and set(Q["check_selected"](target)) <= set(quality["selected"])
+        assert arms and len({arm[0] for arm in arms}) == len(arms)
+        for _, selected, old_binary in arms:
+            assert type(old_binary) is bool and set(Q["check_selected"](selected)) <= set(target)
+        oracle = quality_dir / "oracle.json"
+        assert Q["sha"](oracle) == quality["oracle_sha256"]
+        baseline = Q["read_json"](ROOT / "docs/measurements/flash-ar10-20261105/plan-final.json")["arms"][1]["flags"]
+        assert len(baseline) == len(set(baseline)) == 13
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"PYTHONPATH": str(ROOT), "MLXL3_FLASH_MODEL": Q["MODEL"], "MLXL3_SSD_CACHE_GIB": "3", "MLXL3_SSD_READERS": "4", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_SSD_OVERLAP": "1", "MLXL3_SSD_CACHE_POLICY": "auto", "MLXL3_SSD_PREDICTOR_DTYPE": "f32", "MLXL3_PROMPT_CACHE_MIB": "0", "MLXL3_SSD_DYNAMIC_READERS": "0"})
+        env.update({PREFIX + name: "0" for name in ["HC_WORKSPACE", "HC_UP_MIX", "HC_DOWN_INJECT", "SSD_EXTRA_WAVE", "GDN_HALF_ELISION", "GDN_NORM_GATE", "FIXED_RESIDENCY"]})
+        env.update({flag: "1" for flag in baseline})
+
+        def flags(selected):
+            return {**env, **{flag: str(int(flag in selected)) for flag in Q["NEW"]}}
+
+        report.update(status="running", freeze_sha256=Q["sha"](freeze_path), quality_sha256=Q["sha"](quality_dir / "report.json"), controller_sha256=Q["sha"](__file__), prior=prior, baseline_flags=baseline, selected=target)
+        command = [lib["path"], "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle", "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+
+        def numerical(text):
+            OLD["native_images"](text)
+            assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+            evidence = Q["marker"](text, "AR20_MODEL_COMPARE")
+            OLD["exact_fields"](evidence, {**Q["COUNTS"], "parity": True, "status": "validated", "oracle_sha256": quality["oracle_sha256"]})
+            Q["paths"](evidence, target)
+            assert Q["sha"](oracle) == quality["oracle_sha256"]
+            return evidence
+
+        if reuse_quality:
+            previous = Q["read_json"](HERE / "main32/report.json")
+            assert previous["status"] == "validated_short_screen" and previous["parity"] is True and previous["all_children_joined"] is True
+            assert previous["freeze_sha256"] == report["freeze_sha256"]
+            gate = previous["phases"][0]
+            assert gate["name"] == "selected-quality" and gate["status"] == "validated" and gate["parity"] is True and gate["joined"] is True
+            assert previous["selected"] == target
+            numerical((HERE / "main32/selected-quality.log").read_text())
+            report["reused_quality_sha256"] = Q["sha"](HERE / "main32/report.json")
+        else:
+            run("selected-quality", command, {**flags(target), "DYLD_PRINT_LIBRARIES": "1", "MLXL3_AR20_CAPTURE": "0", "MLXL3_AR20_ORACLE": str(oracle)}, numerical)
+        gold = Q["read_json"](ROOT / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json")["runs"][0]
+        for name, selected, old_binary in arms:
+            artifact = prior if old_binary else cli
+            assert Q["sha"](artifact["path"]) == artifact["sha256"]
+            folder = out / name
+            command = ["/Users/justin/Documents/mix-stq1_0/.venv/bin/python", str(ROOT / "scripts/benchmark-flash-bridge.py"), artifact["path"], Q["MODEL"], str(folder), "--prompt", "MAIN", "--tokens", "32", "--repeats", "1", "--cache-gib", "3", "--timeout", "180"]
+
+            def speed(text, folder=folder, artifact=artifact):
+                value = VALIDATE(Q["read_json"](folder / "report.json"), artifact["sha256"])
+                assert all((r["text"], r["token_hash"]) == (gold["text"], gold["token_hash"]) for r in value["warmup"] + value["runs"])
+                return value["runs"][0]["stats"]
+
+            stats = run(name, command, flags(selected), speed)
+            print(name, stats["decode_tps"], flush=True)
+        assert len(report["phases"]) == len(arms) + int(not reuse_quality) and report["all_children_joined"]
+        report.update(status="validated_short_screen", parity=True)
+        journal("CLOSED " + str(len(arms)) + " MAIN32 groups, no sustained throughput claim")
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

@@ -10,20 +10,36 @@ use std::{collections::BTreeMap, rc::Rc};
 pub(super) struct Pipelines {
     from: [ComputePipelineState; 2],
     dense: ComputePipelineState,
+    joint_ab: Option<ComputePipelineState>,
+    whole: Option<ComputePipelineState>,
+    whole_head_gates: Option<ComputePipelineState>,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
     norm: ComputePipelineState,
+    norm_gate: Option<ComputePipelineState>,
     gate: ComputePipelineState,
     pub(super) to_float: ComputePipelineState,
 }
 impl Pipelines {
-    pub(super) fn load(p: &impl Fn(&str) -> Result<ComputePipelineState>) -> Result<Self> {
+    pub(super) fn load(
+        p: &impl Fn(&str) -> Result<ComputePipelineState>,
+        norm_gate: bool,
+        joint_ab: bool,
+        whole: bool,
+        head_gates: bool,
+    ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
+            joint_ab: joint_ab.then(|| p("gdn_joint_ab")).transpose()?,
+            whole: whole.then(|| p("ar10_gdn_whole")).transpose()?,
+            whole_head_gates: (whole && head_gates)
+                .then(|| p("ar20_gdn_whole_head_gates"))
+                .transpose()?,
             prepare: p("gdn_prepare_row")?,
             step: p("gdn_step_row")?,
             norm: p("gdn_norm_row")?,
+            norm_gate: norm_gate.then(|| p("gdn_norm_gate_row")).transpose()?,
             gate: p("gdn_gate_row")?,
             to_float: p("gdn_to_float")?,
         })
@@ -45,6 +61,8 @@ pub struct FlashGdnState {
 // The standard command buffer retains encoded resources through completion.
 // Pending keeps the state/output owners and the publication-status guard.
 struct PendingGdn {
+    #[cfg(test)]
+    test_gated: MatrixView,
     command: CommandBuffer,
     next: Frame,
     values: MatrixView,
@@ -57,7 +75,12 @@ pub(super) struct DeferredHcWrite {
     streams: MatrixView,
     branch: MatrixView,
     gate: MatrixView,
+    producer: Option<super::MoeOutput>,
 }
+#[allow(
+    clippy::large_enum_variant,
+    reason = "one pending row owns its GPU producers on the stack, avoiding a per-boundary allocation"
+)]
 pub(super) enum LayerOutput {
     Ready(MatrixView),
     Pending(DeferredHcWrite),
@@ -66,7 +89,13 @@ impl LayerOutput {
     pub(super) fn complete(self, gpu: &Metal) -> Result<MatrixView> {
         match self {
             Self::Ready(streams) => Ok(streams),
-            Self::Pending(write) => gpu.command(|cmd| write.encode(gpu, cmd)),
+            Self::Pending(mut write) => {
+                let encoded = gpu.command(|cmd| write.encode(gpu, cmd));
+                let producer = write.finish_producer();
+                let streams = encoded?;
+                producer?;
+                Ok(streams)
+            }
         }
     }
     pub(super) fn ready(&self) -> Result<&MatrixView> {
@@ -79,6 +108,18 @@ impl LayerOutput {
 impl DeferredHcWrite {
     fn encode(&self, gpu: &Metal, cmd: &CommandBufferRef) -> Result<MatrixView> {
         gpu.encode_hc_write(cmd, &self.streams, &self.branch, &self.gate)
+    }
+    fn finish_producer(&mut self) -> Result<()> {
+        if let Some(producer) = self.producer.take() {
+            producer.completed()?;
+        }
+        Ok(())
+    }
+}
+impl Drop for DeferredHcWrite {
+    fn drop(&mut self) {
+        // An abandoned/failed consumer must still join all submitted producers.
+        let _ = self.finish_producer();
     }
 }
 
@@ -157,6 +198,75 @@ impl<'a> FlashGdn<'a> {
     }
 
     fn encode(&self, cmd: &CommandBufferRef, x: &MatrixView, trace: bool) -> Result<PendingGdn> {
+        self.encode_for_consumer(cmd, x, trace, false)
+    }
+
+    fn encode_norm_gate(
+        &self,
+        cmd: &CommandBufferRef,
+        delta: &MatrixView,
+        z: &MatrixView,
+        trace: bool,
+        private_f32_consumer: bool,
+    ) -> Result<(Option<MatrixView>, MatrixView)> {
+        let gpu = self.gpu;
+        let p = &gpu.gdn;
+        let storage = if trace {
+            Storage::StorageModeShared
+        } else {
+            Storage::StorageModePrivate
+        };
+        if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_norm_gate.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            let pipeline = p
+                .norm_gate
+                .as_ref()
+                .context("GDN norm/gate pipeline was not selected at initialization")?;
+            ensure!(pipeline.thread_execution_width() == 32);
+            let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[&delta.buffer, &self.gain, &z.buffer, &gated.buffer],
+                [self.eps.to_bits()],
+                MTLSize::new(48, 1, 1),
+                32,
+            );
+            #[cfg(test)]
+            gpu.gdn_norm_gate_uses.set(gpu.gdn_norm_gate_uses.get() + 1);
+            return Ok((None, gated));
+        }
+        let normed = MatrixView::output(gpu, FloatType::F32, 1, 6144, storage)?;
+        Metal::encode(
+            cmd,
+            &p.norm,
+            &[&delta.buffer, &self.gain, &normed.buffer],
+            [self.eps.to_bits()],
+            MTLSize::new(48, 1, 1),
+            32,
+        );
+        let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
+        Metal::encode(
+            cmd,
+            &p.gate,
+            &[&normed.buffer, &z.buffer, &gated.buffer],
+            [6144u32],
+            MTLSize::new(192, 1, 1),
+            32,
+        );
+        Ok((Some(normed), gated))
+    }
+
+    fn encode_for_consumer(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+        private_f32_consumer: bool,
+    ) -> Result<PendingGdn> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -212,8 +322,23 @@ impl<'a> FlashGdn<'a> {
             g(80, 1, 1),
             32,
         );
-        let qkv = self.qkv.encode_row(cmd, &input, storage)?;
-        let z = self.z.encode_row(cmd, &input, storage)?;
+        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_resident_bundle.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            self.qkv
+                .encode_resident_pair(&self.z, cmd, &input, storage)?
+        } else {
+            None
+        };
+        let [qkv, z] = match pair {
+            Some(pair) => pair,
+            None => [
+                self.qkv.encode_row(cmd, &input, storage)?,
+                self.z.encode_row(cmd, &input, storage)?,
+            ],
+        };
         let dense = |w: &Buffer| -> Result<MatrixView> {
             let gate = half(48)?;
             Metal::encode(
@@ -226,91 +351,183 @@ impl<'a> FlashGdn<'a> {
             );
             Ok(gate)
         };
-        let a = dense(&self.a)?;
-        let b = dense(&self.b)?;
-        let conv = half(10240)?;
-        let q = half(2048)?;
-        let k = half(2048)?;
-        let v = half(6144)?;
-        Metal::encode(
-            cmd,
-            &p.prepare,
-            &[
-                &qkv.buffer,
-                &prev.history.buffer,
-                &self.conv,
-                &conv.buffer,
-                &q.buffer,
-                &k.buffer,
-                &v.buffer,
-                &next.history.buffer,
-            ],
-            [10240u32],
-            g(1, 80, 1),
-            32,
-        );
-        let delta = half(6144)?;
-        Metal::encode(
-            cmd,
-            &p.step,
-            &[
-                &q.buffer,
-                &k.buffer,
-                &v.buffer,
-                &a.buffer,
-                &b.buffer,
-                &self.a_log,
-                &self.dt_bias,
-                &prev.recurrent.buffer,
-                &delta.buffer,
-                &next.recurrent.buffer,
-            ],
-            [128u32],
-            g(1, u64::from(value_groups), 48),
-            64,
-        );
-        let normed = matrix(FloatType::F32, 6144)?;
-        Metal::encode(
-            cmd,
-            &p.norm,
-            &[&delta.buffer, &self.gain, &normed.buffer],
-            [self.eps.to_bits()],
-            g(48, 1, 1),
-            32,
-        );
-        let gated = half(6144)?;
-        Metal::encode(
-            cmd,
-            &p.gate,
-            &[&normed.buffer, &z.buffer, &gated.buffer],
-            [6144u32],
-            g(192, 1, 1),
-            32,
-        );
+        let (a, b) = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_joint_ab.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            let a = half(48)?;
+            let b = half(48)?;
+            Metal::encode(
+                cmd,
+                p.joint_ab
+                    .as_ref()
+                    .context("joint a/b pipeline not initialized")?,
+                &[&input.buffer, &self.a, &self.b, &a.buffer, &b.buffer],
+                [48u32],
+                g(24, 1, 1),
+                256,
+            );
+            #[cfg(test)]
+            gpu.gdn_joint_ab_uses.set(gpu.gdn_joint_ab_uses.get() + 1);
+            (a, b)
+        } else {
+            (dense(&self.a)?, dense(&self.b)?)
+        };
+        let head_gate_pipeline = p.whole_head_gates.as_ref().filter(|p| {
+            crate::flash_support::ar20_head_gates_eligible(
+                gpu.gdn_head_gates.get(),
+                gpu.gdn_whole.get(),
+                trace,
+                private_f32_consumer,
+                p.thread_execution_width() as u32,
+                p.max_total_threads_per_threadgroup() as u32,
+            )
+        });
+        let whole_pipeline = head_gate_pipeline.or_else(|| {
+            p.whole.as_ref().filter(|p| {
+                crate::flash_support::ar10_whole_gdn_eligible(
+                    gpu.gdn_whole.get(),
+                    trace,
+                    private_f32_consumer,
+                    p.thread_execution_width() as u32,
+                    p.max_total_threads_per_threadgroup() as u32,
+                )
+            })
+        });
+        let (conv, q, k, v, delta, normed, gated) = if let Some(pipeline) = whole_pipeline {
+            let gated = half(6144)?;
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[
+                    &qkv.buffer,
+                    &z.buffer,
+                    &a.buffer,
+                    &b.buffer,
+                    &prev.history.buffer,
+                    &self.conv,
+                    &self.a_log,
+                    &self.dt_bias,
+                    &prev.recurrent.buffer,
+                    &next.history.buffer,
+                    &next.recurrent.buffer,
+                    &self.gain,
+                    &gated.buffer,
+                ],
+                [self.eps.to_bits()],
+                g(48, 1, 1),
+                512,
+            );
+            #[cfg(test)]
+            {
+                gpu.gdn_whole_uses.set(gpu.gdn_whole_uses.get() + 1);
+                if head_gate_pipeline.is_some() {
+                    gpu.gdn_head_gate_uses.set(gpu.gdn_head_gate_uses.get() + 1);
+                }
+            }
+            (None, None, None, None, None, None, gated)
+        } else {
+            let conv = half(10240)?;
+            let q = half(2048)?;
+            let k = half(2048)?;
+            let v = half(6144)?;
+            Metal::encode(
+                cmd,
+                &p.prepare,
+                &[
+                    &qkv.buffer,
+                    &prev.history.buffer,
+                    &self.conv,
+                    &conv.buffer,
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &next.history.buffer,
+                ],
+                [10240u32],
+                g(1, 80, 1),
+                32,
+            );
+            let delta = half(6144)?;
+            Metal::encode(
+                cmd,
+                &p.step,
+                &[
+                    &q.buffer,
+                    &k.buffer,
+                    &v.buffer,
+                    &a.buffer,
+                    &b.buffer,
+                    &self.a_log,
+                    &self.dt_bias,
+                    &prev.recurrent.buffer,
+                    &delta.buffer,
+                    &next.recurrent.buffer,
+                ],
+                [128u32],
+                g(1, u64::from(value_groups), 48),
+                64,
+            );
+            let (normed, gated) =
+                self.encode_norm_gate(cmd, &delta, &z, trace, private_f32_consumer)?;
+            (
+                Some(conv),
+                Some(q),
+                Some(k),
+                Some(v),
+                Some(delta),
+                normed,
+                gated,
+            )
+        };
         let out_half = self.out.encode_row(cmd, &gated, storage)?;
-        let values = MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
-        Metal::encode(
-            cmd,
-            &p.to_float,
-            &[&out_half.buffer, &values.buffer],
-            [2560u32],
-            g(80, 1, 1),
-            32,
-        );
-        let steps = trace.then_some([
-            ("qkv", qkv),
-            ("z", z),
-            ("a", a),
-            ("b", b),
-            ("conv", conv),
-            ("q", q),
-            ("k", k),
-            ("v", v),
-            ("delta", delta),
-            ("normed", normed),
-            ("gated", gated),
-        ]);
+        let values = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_half_elision.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            #[cfg(test)]
+            gpu.gdn_half_elisions.set(gpu.gdn_half_elisions.get() + 1);
+            out_half
+        } else {
+            let values =
+                MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
+            Metal::encode(
+                cmd,
+                &p.to_float,
+                &[&out_half.buffer, &values.buffer],
+                [2560u32],
+                g(80, 1, 1),
+                32,
+            );
+            values
+        };
+        #[cfg(test)]
+        let test_gated = gated.clone();
+        let steps = if trace {
+            Some([
+                ("qkv", qkv),
+                ("z", z),
+                ("a", a),
+                ("b", b),
+                ("conv", conv.context("trace conv missing")?),
+                ("q", q.context("trace q missing")?),
+                ("k", k.context("trace k missing")?),
+                ("v", v.context("trace v missing")?),
+                ("delta", delta.context("trace delta missing")?),
+                (
+                    "normed",
+                    normed.context("trace requires materialized norm")?,
+                ),
+                ("gated", gated),
+            ])
+        } else {
+            None
+        };
         Ok(PendingGdn {
+            #[cfg(test)]
+            test_gated,
             command: cmd.to_owned(),
             next,
             values,
@@ -365,7 +582,12 @@ impl<'a> FlashGdn<'a> {
         let _scope = crate::flash_profile::span("native.hc_gdn.joined");
         let (read, pending) = gpu.command(|cmd| {
             let read = hc.encode_read(cmd, streams, false)?;
-            let pending = self.encode(cmd, read.mixed(), false)?;
+            let pending = self.encode_for_consumer(
+                cmd,
+                read.mixed(),
+                false,
+                streams.dtype == FloatType::F32,
+            )?;
             Ok((read, pending))
         })?;
         let read = read.finish(false)?;
@@ -444,40 +666,49 @@ impl<'a> LayerResidual<'a> {
                 gate,
                 &self.moe,
             )?;
+            let gate = mlp_read.gate.as_ref().context("missing MLP injection")?;
             let experts = self.moe.with_completed_gate(&mlp_read.mixed, routing)?;
-            return self.final_write(
-                &written,
-                experts.completed()?,
-                mlp_read.gate.as_ref().context("missing MLP injection")?,
-                defer_write,
-            );
+            return self.final_write(&written, experts, gate, defer_write);
         }
         let (written, mlp_read) =
             self.mlp_hc
                 .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
+        let gate = mlp_read.gate.as_ref().context("missing MLP injection")?;
         let experts = self.moe.lookahead(&mlp_read.mixed, next, depth)?;
-        self.final_write(
-            &written,
-            experts.completed()?,
-            mlp_read.gate.as_ref().context("missing MLP injection")?,
-            defer_write,
-        )
+        self.final_write(&written, experts, gate, defer_write)
     }
     fn final_write(
         &self,
         streams: &MatrixView,
-        branch: &MatrixView,
+        #[allow(unused_mut)] mut experts: super::MoeOutput,
         gate: &MatrixView,
         defer_write: bool,
     ) -> Result<LayerOutput> {
+        let deferred = crate::flash_support::defer_moe_completion(
+            self.mlp_hc.gpu.moe_deferred.get(),
+            defer_write,
+        );
+        let branch = if deferred {
+            experts.values_for_gpu()
+        } else {
+            experts.completed()?
+        }
+        .clone();
+        #[cfg(test)]
+        if deferred {
+            let gpu = self.mlp_hc.gpu;
+            gpu.moe_deferred_uses.set(gpu.moe_deferred_uses.get() + 1);
+            experts.injected_failure = gpu.moe_deferred_fail.replace(false);
+        }
         if defer_write {
             Ok(LayerOutput::Pending(DeferredHcWrite {
                 streams: streams.clone(),
-                branch: branch.clone(),
+                branch,
                 gate: gate.clone(),
+                producer: deferred.then_some(experts),
             }))
         } else {
-            let written = self.mlp_hc.write(streams, branch, gate)?;
+            let written = self.mlp_hc.write(streams, &branch, gate)?;
             #[cfg(test)]
             self.mlp_hc
                 .gpu
@@ -576,7 +807,7 @@ impl<'a> FlashGdnLayer<'a> {
 
     pub(super) fn forward_pending(
         &mut self,
-        write: DeferredHcWrite,
+        mut write: DeferredHcWrite,
         defer_write: bool,
     ) -> Result<LayerOutput> {
         let before = self.snapshot();
@@ -584,16 +815,28 @@ impl<'a> FlashGdnLayer<'a> {
             let gpu = self.attention.gpu;
             #[cfg(test)]
             let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
-            let (streams, read, pending) = gpu.command(|cmd| {
-                let streams = write.encode(gpu, cmd)?;
-                let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
-                let pending = self.attention.encode(cmd, read.mixed(), false)?;
+            let encoded = gpu.command(|cmd| {
+                let (streams, read) = self.residual.attn_hc.encode_after_write(
+                    cmd,
+                    &write.streams,
+                    &write.branch,
+                    &write.gate,
+                )?;
+                let pending = self.attention.encode_for_consumer(
+                    cmd,
+                    read.mixed(),
+                    false,
+                    streams.dtype == FloatType::F32,
+                )?;
                 Ok((streams, read, pending))
-            })?;
-            let read = read.finish(false)?;
-            let attention = self.attention.finish(pending)?;
+            });
             #[cfg(test)]
             drop(_scope);
+            let producer = write.finish_producer();
+            let (streams, read, pending) = encoded?;
+            producer?;
+            let read = read.finish(false)?;
+            let attention = self.attention.finish(pending)?;
             #[cfg(test)]
             gpu.cross_layer_triples
                 .set(gpu.cross_layer_triples.get() + 1);
@@ -670,6 +913,9 @@ impl FlashGdnLayer<'_> {
     }
     pub(super) fn release_idle_state(&mut self) -> Result<()> {
         self.reset();
+        for projection in [&self.attention.qkv, &self.attention.z, &self.attention.out] {
+            projection.release_idle_scratch()?;
+        }
         self.residual.release_idle_state()
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
@@ -741,3 +987,15 @@ mod hc_gdn_tests;
 #[cfg(test)]
 #[path = "cross_layer_tests.rs"]
 mod cross_layer_tests;
+
+#[cfg(test)]
+#[path = "gdn_uar_tests.rs"]
+mod gdn_uar_tests;
+
+#[cfg(test)]
+#[path = "ar10_gdn_tests.rs"]
+mod ar10_gdn_tests;
+
+#[cfg(test)]
+#[path = "ar20_gdn_tests.rs"]
+mod ar20_gdn_tests;

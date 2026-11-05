@@ -15,6 +15,9 @@
             uint row_base = threadgroup_position_in_grid.y * MLXL3_QMV_MB;
             uint row = row_base;
             uint split = threadgroup_position_in_grid.z;
+#if MLXL3_AR30_COOPERATIVE
+            const bool cooperative = K >= 2 && K <= 4 && !MLXL3_REFERENCE_MTP_BATCH;
+#endif
             static_assert(MLXL3_QMV_MB == 1u || !MLXL3_FUSE_OUTPUT,
                           "fused epilogue supports one row");
             threadgroup float partials[MLXL3_QMV_SG]
@@ -49,11 +52,44 @@
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
+#if MLXL3_AR20_PRELOAD
+            for (uint tile_pair = tile_begin + simd; tile_pair < tile_end; tile_pair += 2u * MLXL3_QMV_SG) {
+                ulong staged[2][MLXL3_QMV_NT][2];
+#if MLXL3_AR20_READER8
+                ulong staged_reader[2][MLXL3_QMV_NT];
+#endif
+                for (uint u = 0u; u < 2u; ++u) {
+                    uint tk = tile_pair + u * MLXL3_QMV_SG;
+                    if (tk >= tile_end) continue;
+                    for (uint ot = 0u; ot < MLXL3_QMV_NT; ++ot) {
+                        const device uint* src = trellis + (tk * uint(TILES_N) + tile_n + ot) * uint(PACKED_U32);
+#if MLXL3_AR30_COOPERATIVE
+                        if (cooperative) {
+                            uint owned = ar30_cooperative_load(src, lane, uint(K));
+                            for (uint g = 0u; g < 2u; ++g)
+                                staged[u][ot][g] = ar30_cooperative_pair(owned, word0[g], word1[g]);
+                        } else
+#endif
+                        {
+#if MLXL3_AR20_READER8
+                        if (K <= 6) staged_reader[u][ot] = ar20_window8(src, lane, uint(K));
+                        else
+#endif
+                        for (uint g = 0u; g < 2u; ++g)
+                            staged[u][ot][g] = (ulong(src[word0[g]]) << 32u) | ulong(src[word1[g]]);
+                        }
+                    }
+                }
+                for (uint u = 0u; u < 2u; ++u) {
+                    uint tile_k = tile_pair + u * MLXL3_QMV_SG;
+                    if (tile_k >= tile_end) break;
+#else
             for (
                 uint tile_k = tile_begin + simd;
                 tile_k < tile_end;
                 tile_k += MLXL3_QMV_SG
             ) {
+#endif
                 float x_values[MLXL3_QMV_MB][4];
                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
 #if defined(MLXL3_QMV_LANE_ORDER) && MLXL3_QMV_LANE_ORDER
@@ -97,17 +133,59 @@
                     const device uint* words = trellis +
                         (tile_k * uint(TILES_N) + tile_n + output_tile)
                         * uint(PACKED_U32);
+#if MLXL3_AR30_COOPERATIVE && !MLXL3_AR20_PRELOAD
+                    uint owned = cooperative ? ar30_cooperative_load(words, lane, uint(K)) : 0u;
+#endif
+#if MLXL3_AR20_READER8
+                    uint reader_cw[8];
+                    if (K <= 6
+#if MLXL3_AR30_COOPERATIVE
+                        && !cooperative
+#endif
+                    ) {
+#if MLXL3_AR20_PRELOAD
+                        ar20_read8(staged_reader[u][output_tile], uint(K), reader_cw);
+#else
+                        ar20_read8(ar20_window8(words, lane, uint(K)), uint(K), reader_cw);
+#endif
+                    }
+#endif
                     for (uint group = 0u; group < 2u; ++group) {
+                        uint cw0, cw1, cw2, cw3;
+#if MLXL3_AR20_READER8
+                        if (K <= 6
+#if MLXL3_AR30_COOPERATIVE
+                            && !cooperative
+#endif
+                        ) {
+                            cw0 = reader_cw[group * 4u];
+                            cw1 = reader_cw[group * 4u + 1u];
+                            cw2 = reader_cw[group * 4u + 2u];
+                            cw3 = reader_cw[group * 4u + 3u];
+                        } else
+#endif
+                        {
+#if MLXL3_AR20_PRELOAD
+                        ulong merged = staged[u][output_tile][group];
+#else
+#if MLXL3_AR30_COOPERATIVE
+                        ulong merged = cooperative
+                            ? ar30_cooperative_pair(owned, word0[group], word1[group])
+                            : (ulong(words[word0[group]]) << 32) | ulong(words[word1[group]]);
+#else
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
+#endif
+#endif
                         uint shift = shifts[group];
                         uint window = uint(merged >> shift);
-                        uint cw3 = window & 0xffffu;
-                        uint cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
-                        uint cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
-                        uint cw0 = MLXL3_K_BITS <= 5u
+                        cw3 = window & 0xffffu;
+                        cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
+                        cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
+                        cw0 = MLXL3_K_BITS <= 5u
                             ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
+                        }
                         uint j = group * 4u;
                         float weight0 = float(mlxl3_decode_codeword(cw0, CB));
                         float weight1 = float(mlxl3_decode_codeword(cw1, CB));
@@ -135,6 +213,9 @@
                 }
             }
 
+#if MLXL3_AR20_PRELOAD
+            }
+#endif
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
               for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
 #if MLXL3_REFERENCE_ACCUMULATION

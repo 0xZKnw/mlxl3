@@ -1,0 +1,32 @@
+"""Run the unchanged AR10 native8 diagnostic with the ALL12 composition."""
+import gzip,hashlib,json,os,runpy,subprocess,time
+from collections import Counter,defaultdict
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+H=ROOT/'docs/measurements/flash-ar20-20261105/profile'
+OLD=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+def main():
+ H.mkdir();sink=H/'report.json';report={'status':'running','parity':False,'joined':False}
+ def save():sink.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+ f=OLD['strict_json']((ROOT/'docs/measurements/flash-ar10-20261105/freeze-final.json').read_text());a=f['artifacts']['native-libtest'];assert hashlib.sha256(Path(a['path']).read_bytes()).hexdigest()==a['sha256']
+ for p,s in f['source_files'].items():assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==s,p
+ env={k:v for k,v in os.environ.items()if not k.startswith(('MLXL3_','DYLD_'))};env.update({'MLXL3_FLASH_MODEL':'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_PROMPT_CACHE_MIB':'0'})
+ flags=OLD['strict_json']((ROOT/'docs/measurements/flash-ar10-20261105/plan-final.json').read_text())['arms'][1]['flags'];assert len(flags)==13;env.update({k:'1'for k in flags})
+ cmd=[a['path'],'gpu::flash::tests::native8_sampling_profile_preserves_outputs','--exact','--ignored','--nocapture','--test-threads=1'];report.update(command=cmd,binary_sha256=a['sha256'],environment={k:v for k,v in env.items()if k.startswith('MLXL3_')});save();child=None;t=time.monotonic()
+ try:
+  with (H/'native8.log').open('x')as log:
+   child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);report['pid']=child.pid;save();code=child.wait(timeout=180)
+  assert code==0 and not OLD['members'](child.pid);txt=(H/'native8.log').read_text();assert 'test result: ok. 1 passed; 0 failed; 0 ignored;'in txt;e=OLD['marker'](txt,'I120_NATIVE8_PROFILE');OLD['exact_fields'](e,{'parity':True,'decode_rows':7,'continuation_state_words':28803072,'cross_layer_triples':238,'hc_gdn_doubles':14,'profile_scope_ancestry_checked':True});events=e.pop('events');assert len(events)>1000
+  raw=json.dumps({**e,'events':events},separators=(',',':'),allow_nan=False).encode();z=gzip.compress(raw,mtime=0);(H/'events.json.gz').write_bytes(z);host={};gpu=defaultdict(float);cold=Counter();rows=[x for x in events if x['name']=='native.row'];assert len(rows)==7
+  for name in ['native.row','native.central_wait','native.moe_wait','native.central_encode','native.hc.encode_read','native.hc.encode_write']:
+   es=[x for x in events if x['name']==name];host[name]={'events':len(es),'inclusive_ms_per_row':sum(x['end_ns']-x['start_ns']for x in es)/7e6}
+  for x in events:
+   if x['name']=='native.gpu_interval'and x['data']['valid']:
+    d=x['data'];owner=d['owner'];parent=x.get('parent');parentname=events[parent]['name']if parent is not None and parent<len(events)else owner;key=parentname if owner=='central'else owner;gpu[key]+=(d['gpu_end_seconds']-d['gpu_start_seconds'])*1000/7
+   if x['name']=='native.ssd_timeline':cold[len([p for p in x['data']['events']if p['event']=='read'])]+=1
+  s={'scope':'intrusive ALL12 composition diagnostic, overlapping composites, no predicted savings','host':host,'gpu_composite_ms_per_row':dict(gpu),'cold_batch_counts':dict(cold),'metal_requests_per_row':[x['data']['metal_requests']for x in rows],'metal_requested_bytes_per_row':[x['data']['metal_requested_bytes']for x in rows],'metal_allocation_host_ms_per_row':[x['data']['metal_allocation_host_ns']/1e6 for x in rows]};(H/'summary.json').write_text(json.dumps(s,indent=2,allow_nan=False)+'\n');report.update(status='validated_diagnostic_only',parity=True,summary=e,events=len(events),profile_sha256=hashlib.sha256(raw).hexdigest(),profile_gzip_sha256=hashlib.sha256(z).hexdigest())
+ except BaseException as error:report.update(status='failed',parity=False,error=repr(error));raise
+ finally:
+  report.update(joined=OLD['stop'](child),seconds=time.monotonic()-t);save()
+  with (ROOT/'opti.md').open('a')as p:p.write('\nAR20-PROFILE-01 '+report['status']+' parity='+str(report['parity'])+' joined='+str(report['joined'])+'\n')
+if __name__=='__main__':main()

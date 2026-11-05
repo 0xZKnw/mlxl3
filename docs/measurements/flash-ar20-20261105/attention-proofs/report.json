@@ -1,0 +1,58 @@
+{
+  "status": "passed",
+  "returncode": 0,
+  "all_children_joined": true,
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--jobs",
+    "1",
+    "--output-format",
+    "terse",
+    "--harness",
+    "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
+    "--harness",
+    "flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids"
+  ],
+  "source_commit": "b53427c44dbffc4e34e419ed085e091be7db4b01",
+  "source_sha256": "20eb8451e6b4d5ed532187f671f39690eb04045550aa52d302515bdb2253d450",
+  "versions": "Kani Rust Verifier 0.68.0 (cargo plugin)\nCBMC 6.11.0",
+  "properties": [
+    "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
+    "flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids"
+  ],
+  "budget_seconds": 90,
+  "pgid": 18699,
+  "counters": [
+    [
+      "0",
+      "573",
+      "6"
+    ],
+    [
+      "0",
+      "68",
+      ""
+    ]
+  ],
+  "covers": [
+    [
+      "3",
+      "3"
+    ],
+    [
+      "4",
+      "4"
+    ]
+  ],
+  "summaries": [
+    [
+      "2",
+      "0",
+      "2"
+    ]
+  ],
+  "seconds": 9.644018791994313
+}

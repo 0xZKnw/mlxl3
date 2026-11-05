@@ -9,7 +9,8 @@ use anyhow::{Context, Result, bail, ensure};
 use half::{bf16, f16};
 use metal::{
     Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize, foreign_types::ForeignType,
+    MTLResourceOptions as Storage, MTLSize,
+    foreign_types::{ForeignType, ForeignTypeRef},
 };
 
 pub struct FlashProjection<'a> {
@@ -26,18 +27,43 @@ pub struct FlashProjection<'a> {
     splits: u32,
     mtp_hidden: bool,
     generic: bool,
+    routed_record: bool,
     simdgroups: u32,
     nt: u32,
     static_key: Option<usize>,
     fixed_key: Option<u8>,
+    scratch: std::cell::RefCell<Option<ResidentScratch<'a>>>,
     #[cfg(test)]
     nt2_submissions: std::cell::Cell<u64>,
+}
+
+struct ResidentScratch<'a> {
+    prepared: Buffer,
+    partial: Buffer,
+    owner: CommandBuffer,
+    bytes: u64,
+    budget: &'a crate::resident_scratch_policy::Budget,
+}
+impl Drop for ResidentScratch<'_> {
+    fn drop(&mut self) {
+        // Abandoned/error commands retain their conservative charge until Metal teardown.
+        if self.owner.status() == MTLCommandBufferStatus::Completed {
+            self.budget.refund(self.bytes);
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
 enum Activation<'a> {
     Contiguous(&'a Buffer),
     View(&'a MatrixView),
+}
+
+#[derive(Default)]
+struct ExpertStage<'a> {
+    prepared: Option<(&'a Buffer, u64)>,
+    gate: Option<&'a Buffer>,
+    destination: Option<(&'a Buffer, u64)>,
 }
 
 pub struct ProjectionOutput {
@@ -264,10 +290,12 @@ impl<'a> FlashProjection<'a> {
             splits,
             mtp_hidden,
             generic,
+            routed_record: false,
             simdgroups,
             nt,
             static_key,
             fixed_key,
+            scratch: std::cell::RefCell::new(None),
             #[cfg(test)]
             nt2_submissions: std::cell::Cell::new(0),
         })
@@ -338,6 +366,89 @@ impl<'a> FlashProjection<'a> {
         self.encode_rows(cmd, x, storage)
     }
 
+    pub(super) fn encode_resident_pair(
+        &self,
+        other: &Self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<Option<[MatrixView; 2]>> {
+        let gpu = self.metal;
+        ensure!(
+            std::ptr::eq(gpu, other.metal),
+            "resident pair requires the same Metal instance"
+        );
+        if !gpu.gdn_resident_bundle.get() {
+            return Ok(None);
+        }
+        let Some(pipeline) = gpu.gdn_resident_qmv.as_ref() else {
+            return Ok(None);
+        };
+        let resident = |p: &Self| {
+            !p.generic
+                && !p.mtp_hidden
+                && !p.routed_record
+                && [p.offsets.trellis, p.offsets.suh, p.offsets.svh] == [0; 3]
+        };
+        if !crate::flash_support::ar20_resident_pair_eligible(
+            true,
+            [[self.input, self.output], [other.input, other.output]],
+            [
+                [self.k, self.cb as u32, self.nt],
+                [other.k, other.cb as u32, other.nt],
+            ],
+            [self.splits, other.splits],
+            [resident(self), resident(other)],
+            [self.bias.is_some(), other.bias.is_some()],
+            [
+                pipeline.thread_execution_width() as u32,
+                pipeline.max_total_threads_per_threadgroup() as u32,
+            ],
+        ) {
+            return Ok(None);
+        }
+        ensure!(
+            x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
+            "invalid resident pair input"
+        );
+        let prepared = [
+            buffer(&gpu.device, 5120, Storage::StorageModePrivate)?,
+            buffer(&gpu.device, 5120, Storage::StorageModePrivate)?,
+        ];
+        let partial = [
+            buffer(&gpu.device, 40960, Storage::StorageModePrivate)?,
+            buffer(&gpu.device, 24576, Storage::StorageModePrivate)?,
+        ];
+        let output = [
+            MatrixView::output(gpu, super::view::FloatType::F16, 1, 10240, storage)?,
+            MatrixView::output(gpu, super::view::FloatType::F16, 1, 6144, storage)?,
+        ];
+        for (projection, prepared) in [(self, &prepared[0]), (other, &prepared[1])] {
+            projection.encode_input_into(cmd, Activation::View(x), prepared, 0)?;
+        }
+        Metal::encode(
+            cmd,
+            pipeline,
+            &[
+                &prepared[0],
+                &self.packed,
+                &prepared[1],
+                &other.packed,
+                &partial[0],
+                &partial[1],
+            ],
+            [0u32],
+            MTLSize::new(512, 1, 1),
+            128,
+        );
+        self.encode_finish(cmd, &partial[0], 0, &output[0].buffer, 0, 10240, None)?;
+        other.encode_finish(cmd, &partial[1], 0, &output[1].buffer, 0, 6144, None)?;
+        #[cfg(test)]
+        gpu.gdn_resident_bundle_uses
+            .set(gpu.gdn_resident_bundle_uses.get() + 1);
+        Ok(Some(output))
+    }
+
     pub(super) fn encode_rows(
         &self,
         cmd: &CommandBufferRef,
@@ -363,7 +474,77 @@ impl<'a> FlashProjection<'a> {
         [inputs, partials, outputs]: [u32; 3],
         storage: Storage,
     ) -> Result<Buffer> {
-        self.encode_with_scratch(cmd, x, [inputs, partials, outputs], storage, None)
+        let extents = [inputs, partials, outputs];
+        let budget = &self.metal.resident_scratch;
+        if budget.enabled.get()
+            && budget.valid()
+            && crate::resident_scratch_policy::eligible(
+                true,
+                self.generic,
+                self.mtp_hidden,
+                self.routed_record,
+                inputs == self.input,
+                storage == Storage::StorageModePrivate,
+                cmd.status() == MTLCommandBufferStatus::NotEnqueued,
+            )
+            && let Ok(mut slot) = self.scratch.try_borrow_mut()
+        {
+            let sizes = [u64::from(inputs) * 2, u64::from(partials) * 4];
+            if slot.is_none() && budget.claim(sizes[0] + sizes[1]) {
+                let pair = (|| -> Result<_> {
+                    Ok(ResidentScratch {
+                        prepared: buffer(
+                            &self.metal.device,
+                            sizes[0],
+                            Storage::StorageModePrivate,
+                        )?,
+                        partial: buffer(&self.metal.device, sizes[1], Storage::StorageModePrivate)?,
+                        owner: cmd.to_owned(),
+                        bytes: sizes[0] + sizes[1],
+                        budget,
+                    })
+                })();
+                match pair {
+                    Ok(pair) => {
+                        let pair = slot.insert(pair);
+                        return self.encode_with_scratch(
+                            cmd,
+                            x,
+                            extents,
+                            storage,
+                            Some((&pair.prepared, &pair.partial)),
+                        );
+                    }
+                    Err(error) => {
+                        budget.refund(sizes[0] + sizes[1]);
+                        return Err(error);
+                    }
+                }
+            }
+            if let Some(pair) = slot.as_mut()
+                && crate::resident_scratch_policy::reusable(
+                    pair.owner.status() == MTLCommandBufferStatus::Completed,
+                    pair.owner.as_ptr() == cmd.as_ptr(),
+                    pair.prepared.length() == sizes[0]
+                        && pair.partial.length() == sizes[1]
+                        && pair.prepared.device().registry_id() == self.metal.device.registry_id()
+                        && pair.partial.device().registry_id() == self.metal.device.registry_id()
+                        && pair.prepared.as_ptr() != pair.partial.as_ptr(),
+                )
+            {
+                pair.owner = cmd.to_owned();
+                #[cfg(test)]
+                budget.reuses.set(budget.reuses.get() + 1);
+                return self.encode_with_scratch(
+                    cmd,
+                    x,
+                    extents,
+                    storage,
+                    Some((&pair.prepared, &pair.partial)),
+                );
+            }
+        }
+        self.encode_with_scratch(cmd, x, extents, storage, None)
     }
 
     fn encode_with_scratch(
@@ -373,6 +554,25 @@ impl<'a> FlashProjection<'a> {
         [inputs, partials, outputs]: [u32; 3],
         storage: Storage,
         scratch: Option<(&Buffer, &Buffer)>,
+    ) -> Result<Buffer> {
+        self.encode_expert_stage(
+            cmd,
+            x,
+            [inputs, partials, outputs],
+            storage,
+            scratch,
+            ExpertStage::default(),
+        )
+    }
+
+    fn encode_expert_stage(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [inputs, partials, outputs]: [u32; 3],
+        storage: Storage,
+        scratch: Option<(&Buffer, &Buffer)>,
+        stage: ExpertStage<'_>,
     ) -> Result<Buffer> {
         let gpu = self.metal;
         if let Some((prepared, partial)) = scratch {
@@ -392,7 +592,9 @@ impl<'a> FlashProjection<'a> {
             "MTP hidden projection requires four streams"
         );
         let owned_prepared;
-        let prepared = if let Some((prepared, _)) = scratch {
+        let prepared = if let Some((prepared, _)) = stage.prepared {
+            prepared
+        } else if let Some((prepared, _)) = scratch {
             prepared
         } else {
             owned_prepared = buffer(
@@ -402,19 +604,29 @@ impl<'a> FlashProjection<'a> {
             )?;
             &owned_prepared
         };
-        match x {
-            Activation::Contiguous(x) => Metal::encode_bound(
-                cmd,
-                &gpu.prepare128_pipeline,
-                [(x, 0), (&self.suh, self.offsets.suh), (prepared, 0)].into_iter(),
-                [self.input, 0, 0, 0, 0],
-                MTLSize::new(u64::from(inputs / 128), 1, 1),
-                64,
-            ),
-            Activation::View(x) => {
-                let scales =
-                    MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
-                gpu.encode_prepare_view(cmd, x, &scales, prepared)?;
+        let prepared_offset = stage.prepared.map_or(0, |(_, offset)| offset);
+        ensure!(
+            prepared_offset.is_multiple_of(2)
+                && prepared_offset
+                    .checked_add(u64::from(inputs) * 2)
+                    .is_some_and(|end| end <= prepared.length()),
+            "invalid prepared prefix"
+        );
+        if stage.prepared.is_none() {
+            match x {
+                Activation::Contiguous(x) => Metal::encode_bound(
+                    cmd,
+                    &gpu.prepare128_pipeline,
+                    [(x, 0), (&self.suh, self.offsets.suh), (prepared, 0)].into_iter(),
+                    [self.input, 0, 0, 0, 0],
+                    MTLSize::new(u64::from(inputs / 128), 1, 1),
+                    64,
+                ),
+                Activation::View(x) => {
+                    let scales =
+                        MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
+                    gpu.encode_prepare_view(cmd, x, &scales, prepared)?;
+                }
             }
         }
         let owned_partial;
@@ -436,8 +648,38 @@ impl<'a> FlashProjection<'a> {
             gpu.flash_scratch_bindings.set(bindings);
             gpu.flash_scratch_uses.set(count + 1);
         }
-        let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
-        let (pipeline, third, groups) = if self.k == 7 {
+        let dest = if let Some((dest, offset)) = stage.destination {
+            ensure!(
+                offset.is_multiple_of(2)
+                    && offset
+                        .checked_add(u64::from(outputs) * 2)
+                        .is_some_and(|end| end <= dest.length())
+                    && dest.device().registry_id() == gpu.device.registry_id(),
+                "invalid expert destination prefix"
+            );
+            dest.clone()
+        } else {
+            buffer(&gpu.device, u64::from(outputs) * 2, storage)?
+        };
+        let dest_offset = stage.destination.map_or(0, |(_, offset)| offset);
+        let routed_nt2 = crate::flash_qmv::routed_nt2_key(
+            [self.input, self.output],
+            self.splits,
+            [self.k, self.cb as u32, self.nt],
+            self.routed_record && batch == 1,
+            gpu.routed_nt2_gu.get(),
+            gpu.routed_nt2_down.get(),
+        );
+        let (pipeline, third, groups) = if let Some(key) = routed_nt2 {
+            (
+                &gpu.routed_nt2_pipelines
+                    .as_ref()
+                    .context("routed NT2 pipelines were not loaded")?[key],
+                (&self.svh, self.offsets.svh),
+                contracts::flash_reference_groups(self.output, 2)
+                    .context("invalid routed NT2 grid")?,
+            )
+        } else if self.k == 7 {
             (&gpu.k7_pipeline, (&gpu.inverse, 0), self.output)
         } else {
             (
@@ -470,7 +712,7 @@ impl<'a> FlashProjection<'a> {
             cmd,
             pipeline,
             [
-                (prepared, 0),
+                (prepared, prepared_offset),
                 (&self.packed, self.offsets.trellis),
                 third,
                 (partial, 0),
@@ -485,34 +727,16 @@ impl<'a> FlashProjection<'a> {
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
                 .context("invalid projection kernel thread count")? as usize,
         );
-        Metal::encode_bound(
-            cmd,
-            if self.generic {
-                &gpu.dense_finish
-            } else {
-                &gpu.finish128_pipeline
-            },
-            [
-                (partial, 0),
-                (&self.svh, self.offsets.svh),
-                self.bias
-                    .as_ref()
-                    .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
-                (&dest, 0),
-            ]
-            .into_iter(),
-            [
-                self.splits,
-                0,
-                u32::from(self.bias.is_some()),
-                0,
-                self.output,
-            ],
-            MTLSize::new(u64::from(outputs / 128), 1, 1),
-            64,
-        );
+        self.encode_finish(cmd, partial, 0, &dest, dest_offset, outputs, stage.gate)?;
         #[cfg(test)]
-        if let Some(key) = self.fixed_key {
+        if gpu.ar30_cooperative && (2..=4).contains(&self.k) && !self.mtp_hidden {
+            let count = &gpu.ar30_cooperative_uses[usize::from(self.routed_record)];
+            count.set(count.get() + 1);
+        }
+        #[cfg(test)]
+        if let Some(key) = routed_nt2 {
+            gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + 1);
+        } else if let Some(key) = self.fixed_key {
             let count = &gpu.flash_fixed_submissions[usize::from(key)];
             count.set(count.get() + 1);
         } else if let Some(key) = self.static_key {
@@ -524,6 +748,103 @@ impl<'a> FlashProjection<'a> {
             self.nt2_submissions.set(self.nt2_submissions.get() + 1);
         }
         Ok(dest)
+    }
+    #[allow(clippy::too_many_arguments)] // Explicit buffer offsets mirror the Metal bindings.
+    fn encode_finish(
+        &self,
+        cmd: &CommandBufferRef,
+        partial: &Buffer,
+        partial_offset: u64,
+        dest: &Buffer,
+        dest_offset: u64,
+        outputs: u32,
+        gate: Option<&Buffer>,
+    ) -> Result<()> {
+        let gpu = self.metal;
+        ensure!(
+            partial_offset.is_multiple_of(4)
+                && partial_offset
+                    .checked_add(u64::from(outputs) * u64::from(self.splits) * 4)
+                    .is_some_and(|end| end <= partial.length())
+                && dest_offset.is_multiple_of(2)
+                && dest_offset
+                    .checked_add(u64::from(outputs) * 2)
+                    .is_some_and(|end| end <= dest.length()),
+            "invalid finish prefixes"
+        );
+        let finish_bindings = [
+            (partial, partial_offset),
+            (&self.svh, self.offsets.svh),
+            self.bias
+                .as_ref()
+                .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
+            (dest, dest_offset),
+            gate.map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
+        ];
+        if let Some(gate) = gate {
+            ensure!(
+                !self.generic && gate.length() == u64::from(outputs) * 2,
+                "invalid up finish gate"
+            );
+        }
+        Metal::encode_bound(
+            cmd,
+            if gate.is_some() {
+                gpu.expert_up_finish
+                    .as_ref()
+                    .context("expert up finish pipeline was not loaded")?
+            } else if self.generic {
+                &gpu.dense_finish
+            } else {
+                &gpu.finish128_pipeline
+            },
+            finish_bindings[..if gate.is_some() { 5 } else { 4 }]
+                .iter()
+                .copied(),
+            [
+                self.splits,
+                0,
+                u32::from(self.bias.is_some()),
+                0,
+                self.output,
+            ],
+            MTLSize::new(u64::from(outputs / 128), 1, 1),
+            64,
+        );
+        Ok(())
+    }
+
+    fn encode_input_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        output: &Buffer,
+        offset: u64,
+    ) -> Result<()> {
+        ensure!(
+            offset
+                .checked_add(u64::from(self.input) * 2)
+                .is_some_and(|end| end <= output.length()),
+            "invalid expert prepared prefix"
+        );
+        match x {
+            Activation::Contiguous(x) => Metal::encode_bound(
+                cmd,
+                &self.metal.prepare128_pipeline,
+                [(x, 0), (&self.suh, self.offsets.suh), (output, offset)].into_iter(),
+                [self.input, 0, 0, 0, 0],
+                MTLSize::new(u64::from(self.input / 128), 1, 1),
+                64,
+            ),
+            Activation::View(x) => self.metal.encode_prepare_view_into(
+                cmd,
+                x,
+                &MatrixView::column_scales(&self.suh, self.offsets.suh, 1, self.input)?,
+                output,
+                offset,
+            )?,
+        }
+        Ok(())
     }
 }
 
@@ -908,6 +1229,18 @@ fn physical_flash_resident_nt2() -> Result<()> {
     )?;
     ensure!(!enabled || selected > 0, "candidate never encoded NT2");
     ensure!(unequal == 0, "resident NT2 diverged in {unequal} words");
+    if gpu.ar30_cooperative {
+        ensure!(super::ar30_kernel_tests::compiled_cooperative(&gpu)?);
+        let dispatches = gpu.ar30_cooperative_uses[0].get();
+        ensure!(dispatches > 0, "cooperative resident path was not executed");
+        eprintln!(
+            "AR30_COOPERATIVE_RESIDENT {}",
+            serde_json::json!({
+                "parity":true,"cases":cases.len(),"compiled_cooperative":true,
+                "resident_dispatches":dispatches,"unequal":unequal
+            })
+        );
+    }
     Ok(())
 }
 
@@ -955,6 +1288,97 @@ pub struct FlashExpert<'a> {
     up: FlashProjection<'a>,
     down: FlashProjection<'a>,
     routed: bool,
+}
+
+pub(super) struct PendingExpertFinish {
+    pub(super) partial: Buffer,
+    pub(super) partial_offset: u64,
+    pub(super) svh: Buffer,
+    pub(super) svh_offset: u64,
+}
+enum ReadyCohort {
+    Finished(Vec<Buffer>),
+    Pending(Vec<PendingExpertFinish>),
+}
+
+impl PendingExpertFinish {
+    pub(super) fn encode_mix(
+        gpu: &Metal,
+        cmd: &CommandBufferRef,
+        terms: &[&Self],
+        shared: &Buffer,
+        views: [&MatrixView; 3],
+    ) -> Result<()> {
+        let [scores, multiplier, out] = views;
+        ensure!(
+            terms.len() == 10 && gpu.owns_command_queue(cmd),
+            "invalid finish/mix route count or command owner"
+        );
+        let pipeline = gpu
+            .moe_finish_mix_pipeline
+            .as_ref()
+            .context("finish/mix pipeline was not loaded")?;
+        ensure!(
+            crate::expert_ar_policy::finish_mix_eligible(
+                gpu.moe_finish_mix.get(),
+                out.dtype == super::view::FloatType::F32,
+                false,
+                gpu.expert_ar_enabled[3].get(),
+                pipeline.thread_execution_width() as usize,
+                pipeline.max_total_threads_per_threadgroup() as usize
+            ),
+            "ineligible finish/mix pipeline"
+        );
+        for (view, width) in views.into_iter().zip([10, 1, 2560]) {
+            ensure!(
+                view.dtype == super::view::FloatType::F32
+                    && view.shape() == [1, width]
+                    && view.layout.offset == 0
+                    && view.layout.strides[1] == 1
+                    && view.buffer.device().registry_id() == gpu.device.registry_id(),
+                "invalid finish/mix scalar/output view"
+            );
+        }
+        ensure!(
+            shared.length() >= 5120 && shared.device().registry_id() == gpu.device.registry_id(),
+            "invalid shared contribution"
+        );
+        for term in terms {
+            ensure!(
+                crate::expert_ar_policy::finish_view_valid(
+                    term.partial_offset,
+                    term.partial.length(),
+                    term.svh_offset,
+                    term.svh.length()
+                ) && term.partial.device().registry_id() == gpu.device.registry_id()
+                    && term.svh.device().registry_id() == gpu.device.registry_id(),
+                "invalid pending expert finish view"
+            );
+        }
+        let mut bindings = terms
+            .iter()
+            .map(|term| (&term.partial, term.partial_offset))
+            .collect::<Vec<_>>();
+        bindings.extend(terms.iter().map(|term| (&term.svh, term.svh_offset)));
+        bindings.extend([
+            (shared, 0),
+            (&scores.buffer, 0),
+            (&multiplier.buffer, 0),
+            (&out.buffer, 0),
+        ]);
+        Metal::encode_bound(
+            cmd,
+            pipeline,
+            bindings.into_iter(),
+            [2560u32],
+            MTLSize::new(20, 1, 1),
+            640,
+        );
+        #[cfg(test)]
+        gpu.moe_finish_mix_uses
+            .set(gpu.moe_finish_mix_uses.get() + 1);
+        Ok(())
+    }
 }
 
 impl<'a> FlashExpert<'a> {
@@ -1020,10 +1444,12 @@ impl<'a> FlashExpert<'a> {
                 splits,
                 mtp_hidden: false,
                 generic: false,
+                routed_record: true,
                 simdgroups: 4,
                 nt: 1,
                 static_key: static_key(gpu, 2, Codebook::Mul1, 1, true)?,
                 fixed_key: fixed_key(gpu, [input, output], splits, [2, 2, 1], true)?,
+                scratch: std::cell::RefCell::new(None),
                 #[cfg(test)]
                 nt2_submissions: std::cell::Cell::new(0),
             })
@@ -1043,6 +1469,339 @@ impl<'a> FlashExpert<'a> {
     ) -> Result<Buffer> {
         let extents = self.expert_extents(self.gate.view_extents(x)?)?;
         self.encode(cmd, Activation::View(x), extents, storage)
+    }
+
+    pub(super) fn encode_view_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+        destination: Option<(&Buffer, u64)>,
+    ) -> Result<Buffer> {
+        let extents = self.expert_extents(self.gate.view_extents(x)?)?;
+        ensure!(
+            destination.is_none() || crate::expert_ar_policy::eligible(self.routed, extents),
+            "ineligible expert destination"
+        );
+        self.encode_into(cmd, Activation::View(x), extents, storage, destination)
+    }
+
+    /// Only experts already returned by the current ready cohort enter this grid.
+    pub(super) fn encode_ready_cohort(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+        storage: Storage,
+    ) -> Result<Vec<Buffer>> {
+        match Self::encode_ready_cohort_impl(cmd, x, experts, destinations, storage, false)? {
+            ReadyCohort::Finished(values) => Ok(values),
+            ReadyCohort::Pending(_) => anyhow::bail!("unexpected pending expert finish"),
+        }
+    }
+    pub(super) fn encode_ready_cohort_pending(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+    ) -> Result<Vec<PendingExpertFinish>> {
+        match Self::encode_ready_cohort_impl(
+            cmd,
+            x,
+            experts,
+            destinations,
+            Storage::StorageModePrivate,
+            true,
+        )? {
+            ReadyCohort::Pending(values) => Ok(values),
+            ReadyCohort::Finished(_) => anyhow::bail!("missing pending expert finish"),
+        }
+    }
+    fn encode_ready_cohort_impl(
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        experts: &[&Self],
+        destinations: &[Option<(&Buffer, u64)>],
+        storage: Storage,
+        pending_finish: bool,
+    ) -> Result<ReadyCohort> {
+        ensure!(
+            crate::expert_ar_policy::cohort(experts.len(), destinations.len()),
+            "invalid ready expert cohort"
+        );
+        let gpu = experts[0].gate.metal;
+        let eligible = experts.iter().all(|expert| {
+            std::ptr::eq(gpu, expert.gate.metal) && expert.routed && x.layout.shape == [1, 2560]
+        });
+        if !gpu.expert_ar_enabled[3].get() || !eligible {
+            ensure!(
+                !pending_finish,
+                "pending finishes require the actual ready expert axis"
+            );
+            return experts
+                .iter()
+                .zip(destinations)
+                .map(|(expert, &destination)| expert.encode_view_into(cmd, x, storage, destination))
+                .collect::<Result<Vec<_>>>()
+                .map(ReadyCohort::Finished);
+        }
+        for expert in experts {
+            ensure!(
+                crate::expert_ar_policy::eligible(
+                    expert.routed,
+                    expert.expert_extents(expert.gate.view_extents(x)?)?
+                ),
+                "invalid expert-axis extents"
+            );
+        }
+        let n = experts.len();
+        let dual = gpu.expert_ar_enabled[1].get();
+        let fused = gpu.expert_ar_enabled[0].get();
+        let stride = if dual { 5120u32 } else { 2560u32 };
+        let prepared = buffer(
+            &gpu.device,
+            u64::from(stride) * 2 * n as u64,
+            Storage::StorageModePrivate,
+        )?;
+        let partial = buffer(&gpu.device, 10240 * n as u64, Storage::StorageModePrivate)?;
+        for (index, expert) in experts.iter().enumerate() {
+            let offset = u64::from(stride) * 2 * index as u64;
+            if dual {
+                Metal::encode_bound(
+                    cmd,
+                    gpu.expert_gu_prepare
+                        .as_ref()
+                        .context("expert dual preparation pipeline was not loaded")?,
+                    [
+                        (&x.buffer, 0),
+                        (&expert.gate.suh, expert.gate.offsets.suh),
+                        (&expert.up.suh, expert.up.offsets.suh),
+                        (&prepared, offset),
+                    ]
+                    .into_iter(),
+                    [
+                        x.layout.offset,
+                        x.layout.strides[1],
+                        i64::from(x.dtype == super::view::FloatType::F32),
+                        2560,
+                    ],
+                    MTLSize::new(20, 1, 1),
+                    64,
+                );
+                #[cfg(test)]
+                gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+            } else {
+                expert
+                    .gate
+                    .encode_input_into(cmd, Activation::View(x), &prepared, offset)?;
+            }
+        }
+        Self::encode_axis_qmv(cmd, experts, 0, &prepared, 0, stride, &partial)?;
+        let mut gates = Vec::with_capacity(n);
+        for (index, expert) in experts.iter().enumerate() {
+            let gate = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
+            expert
+                .gate
+                .encode_finish(cmd, &partial, index as u64 * 2560, &gate, 0, 640, None)?;
+            gates.push(gate);
+        }
+        if !dual {
+            for (index, expert) in experts.iter().enumerate() {
+                expert.up.encode_input_into(
+                    cmd,
+                    Activation::View(x),
+                    &prepared,
+                    index as u64 * 5120,
+                )?;
+            }
+        }
+        Self::encode_axis_qmv(
+            cmd,
+            experts,
+            1,
+            &prepared,
+            if dual { 5120 } else { 0 },
+            stride,
+            &partial,
+        )?;
+        let mut activations = Vec::with_capacity(n);
+        for (index, expert) in experts.iter().enumerate() {
+            let up = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
+            expert.up.encode_finish(
+                cmd,
+                &partial,
+                index as u64 * 2560,
+                &up,
+                0,
+                640,
+                fused.then_some(&gates[index]),
+            )?;
+            let activated = if fused {
+                #[cfg(test)]
+                gpu.expert_ar_uses[0].set(gpu.expert_ar_uses[0].get() + 1);
+                up
+            } else {
+                gpu.encode_swiglu(cmd, &gates[index], &up, Storage::StorageModePrivate)?
+            };
+            activations.push(activated);
+        }
+        for (index, (expert, activation)) in experts.iter().zip(&activations).enumerate() {
+            expert.down.encode_input_into(
+                cmd,
+                Activation::Contiguous(activation),
+                &prepared,
+                index as u64 * 1280,
+            )?;
+        }
+        Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, 640, &partial)?;
+        #[cfg(test)]
+        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n as u64);
+        if pending_finish {
+            ensure!(
+                destinations.iter().all(Option::is_none),
+                "pending finishes cannot materialize destinations"
+            );
+            let values = experts
+                .iter()
+                .enumerate()
+                .map(|(index, expert)| PendingExpertFinish {
+                    partial: partial.clone(),
+                    partial_offset: index as u64 * 10240,
+                    svh: expert.down.svh.clone(),
+                    svh_offset: expert.down.offsets.svh,
+                })
+                .collect();
+            return Ok(ReadyCohort::Pending(values));
+        }
+        let mut outputs = Vec::with_capacity(n);
+        for (index, (expert, &destination)) in experts.iter().zip(destinations).enumerate() {
+            let (output, offset) = if let Some((output, offset)) = destination {
+                ensure!(
+                    output.device().registry_id() == gpu.device.registry_id(),
+                    "foreign expert-axis destination"
+                );
+                (output.clone(), offset)
+            } else {
+                (buffer(&gpu.device, 5120, storage)?, 0)
+            };
+            expert.down.encode_finish(
+                cmd,
+                &partial,
+                index as u64 * 10240,
+                &output,
+                offset,
+                2560,
+                None,
+            )?;
+            outputs.push(output);
+        }
+        Ok(ReadyCohort::Finished(outputs))
+    }
+
+    fn axis_projection(&self, stage: usize) -> &FlashProjection<'a> {
+        match stage {
+            0 => &self.gate,
+            1 => &self.up,
+            _ => &self.down,
+        }
+    }
+
+    fn axis_nt(projection: &FlashProjection<'_>) -> u32 {
+        let gpu = projection.metal;
+        if crate::flash_qmv::routed_nt2_key(
+            [projection.input, projection.output],
+            projection.splits,
+            [projection.k, projection.cb as u32, projection.nt],
+            projection.routed_record,
+            gpu.routed_nt2_gu.get(),
+            gpu.routed_nt2_down.get(),
+        )
+        .is_some()
+        {
+            2
+        } else {
+            projection.nt
+        }
+    }
+
+    fn encode_axis_qmv(
+        cmd: &CommandBufferRef,
+        experts: &[&Self],
+        stage: usize,
+        prepared: &Buffer,
+        offset: u64,
+        stride: u32,
+        partial: &Buffer,
+    ) -> Result<()> {
+        let first = experts[0].axis_projection(stage);
+        let gpu = first.metal;
+        let nt = Self::axis_nt(first);
+        ensure!(matches!(nt, 1 | 2), "invalid expert-axis NT");
+        ensure!(
+            experts.iter().all(|expert| {
+                let p = expert.axis_projection(stage);
+                p.k == 2
+                    && p.cb == Codebook::Mul1
+                    && p.splits == 1
+                    && p.input == first.input
+                    && p.output == first.output
+                    && (p.offsets.trellis, p.offsets.suh, p.offsets.svh)
+                        == (first.offsets.trellis, first.offsets.suh, first.offsets.svh)
+                    && Self::axis_nt(p) == nt
+            }),
+            "incompatible expert-axis record geometry"
+        );
+        let bindings: [(&Buffer, u64); 12] = std::array::from_fn(|index| match index {
+            0 => (prepared, offset),
+            11 => (partial, 0),
+            _ => (
+                &experts[(index - 1).min(experts.len() - 1)]
+                    .axis_projection(stage)
+                    .packed,
+                0,
+            ),
+        });
+        Metal::encode_bound(
+            cmd,
+            &gpu.expert_axis_qmv
+                .as_ref()
+                .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
+                [usize::from(nt == 2)],
+            bindings.into_iter(),
+            [
+                1,
+                2,
+                2,
+                first.input,
+                first.output,
+                u32::try_from(first.offsets.trellis)?,
+                u32::try_from(first.offsets.svh)?,
+                stride,
+            ],
+            MTLSize::new(
+                u64::from(
+                    contracts::flash_reference_groups(first.output, nt)
+                        .context("invalid axis grid")?,
+                ),
+                1,
+                experts.len() as u64,
+            ),
+            128,
+        );
+        #[cfg(test)]
+        if nt == 2 {
+            let key = usize::from(stage == 2);
+            gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + experts.len() as u64);
+        }
+        #[cfg(test)]
+        gpu.expert_axis_dispatches
+            .set(gpu.expert_axis_dispatches.get() + 1);
+        #[cfg(test)]
+        if gpu.ar30_cooperative {
+            let count = &gpu.ar30_cooperative_uses[1];
+            count.set(count.get() + 1);
+        }
+        Ok(())
     }
 
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
@@ -1084,6 +1843,23 @@ impl<'a> FlashExpert<'a> {
         [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
         storage: Storage,
     ) -> Result<Buffer> {
+        self.encode_into(
+            cmd,
+            x,
+            [gate_extents, up_extents, down_extents],
+            storage,
+            None,
+        )
+    }
+
+    fn encode_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
+        storage: Storage,
+        destination: Option<(&Buffer, u64)>,
+    ) -> Result<Buffer> {
         let gpu = self.gate.metal;
         let reuse = crate::flash_expert_scratch::select(
             self.routed,
@@ -1091,45 +1867,136 @@ impl<'a> FlashExpert<'a> {
             gpu.flash_expert_scratch_setting,
         )
         .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_ROUTED_SCRATCH must be 0 or 1"))?;
+        let eligible = crate::expert_ar_policy::eligible(
+            self.routed,
+            [gate_extents, up_extents, down_extents],
+        );
+        let dual = eligible && gpu.expert_ar_enabled[1].get();
         let pair = if reuse {
             let [prepared, partial] = crate::flash_expert_scratch::CAPACITIES;
             Some((
-                buffer(&gpu.device, prepared, Storage::StorageModePrivate)?,
+                buffer(
+                    &gpu.device,
+                    if dual { prepared * 2 } else { prepared },
+                    Storage::StorageModePrivate,
+                )?,
                 buffer(&gpu.device, partial, Storage::StorageModePrivate)?,
             ))
         } else {
             None
         };
         let scratch = pair.as_ref().map(|(prepared, partial)| (prepared, partial));
-        let gate = self.gate.encode_with_scratch(
+        let owned_dual = if dual && pair.is_none() {
+            Some(buffer(&gpu.device, 10240, Storage::StorageModePrivate)?)
+        } else {
+            None
+        };
+        let prepared = if dual {
+            Some(pair.as_ref().map_or_else(
+                || owned_dual.as_ref().expect("owned dual preparation"),
+                |pair| &pair.0,
+            ))
+        } else {
+            None
+        };
+        if let Some(prepared) = prepared {
+            let (input, offset, stride, fp32) = match x {
+                Activation::Contiguous(input) => (input, 0, 1, false),
+                Activation::View(x) => (
+                    &x.buffer,
+                    x.layout.offset,
+                    x.layout.strides[1],
+                    x.dtype == super::view::FloatType::F32,
+                ),
+            };
+            ensure!(prepared.length() >= 10240, "short dual preparation");
+            Metal::encode_bound(
+                cmd,
+                gpu.expert_gu_prepare
+                    .as_ref()
+                    .context("expert dual preparation pipeline was not loaded")?,
+                [
+                    (input, 0),
+                    (&self.gate.suh, self.gate.offsets.suh),
+                    (&self.up.suh, self.up.offsets.suh),
+                    (prepared, 0),
+                ]
+                .into_iter(),
+                [offset, stride, i64::from(fp32), 2560],
+                MTLSize::new(20, 1, 1),
+                64,
+            );
+            #[cfg(test)]
+            gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+        }
+        let gate = self.gate.encode_expert_stage(
             cmd,
             x,
             gate_extents,
             Storage::StorageModePrivate,
             scratch,
+            ExpertStage {
+                prepared: prepared.map(|b| (b, 0)),
+                ..Default::default()
+            },
         )?;
-        let up = self.up.encode_with_scratch(
-            cmd,
-            x,
-            up_extents,
-            Storage::StorageModePrivate,
-            scratch,
-        )?;
-        let activated =
+        let fused_up = crate::expert_ar_policy::eligible(
+            self.routed,
+            [gate_extents, up_extents, down_extents],
+        ) && gpu.expert_ar_enabled[0].get();
+        #[cfg(test)]
+        let mut up_id = 0;
+        let activated = if fused_up {
+            let activated = self.up.encode_expert_stage(
+                cmd,
+                x,
+                up_extents,
+                Storage::StorageModePrivate,
+                scratch,
+                ExpertStage {
+                    gate: Some(&gate),
+                    prepared: prepared.map(|b| (b, 5120)),
+                    ..Default::default()
+                },
+            )?;
+            #[cfg(test)]
+            gpu.expert_ar_uses[0].set(gpu.expert_ar_uses[0].get() + 1);
+            activated
+        } else {
+            let up = self.up.encode_expert_stage(
+                cmd,
+                x,
+                up_extents,
+                Storage::StorageModePrivate,
+                scratch,
+                ExpertStage {
+                    prepared: prepared.map(|b| (b, 5120)),
+                    ..Default::default()
+                },
+            )?;
+            #[cfg(test)]
+            {
+                up_id = up.as_ptr() as usize;
+            }
             self.gate
                 .metal
-                .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
-        let output = self.down.encode_with_scratch(
+                .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?
+        };
+        let output = self.down.encode_expert_stage(
             cmd,
             Activation::Contiguous(&activated),
             down_extents,
             storage,
             scratch,
+            ExpertStage {
+                destination,
+                ..Default::default()
+            },
         )?;
         #[cfg(test)]
         gpu.flash_expert_outputs.set([
             gate.as_ptr() as usize,
-            up.as_ptr() as usize,
+            up_id,
             activated.as_ptr() as usize,
             output.as_ptr() as usize,
         ]);
@@ -1138,7 +2005,32 @@ impl<'a> FlashExpert<'a> {
 }
 
 impl FlashProjection<'_> {
+    pub(super) fn release_idle_scratch(&self) -> Result<()> {
+        let mut slot = self
+            .scratch
+            .try_borrow_mut()
+            .map_err(|_| anyhow::anyhow!("resident scratch is borrowed"))?;
+        if slot
+            .as_ref()
+            .is_some_and(|pair| pair.owner.status() == MTLCommandBufferStatus::Completed)
+        {
+            *slot = None;
+        }
+        ensure!(
+            self.metal.resident_scratch.valid(),
+            "resident scratch charge underflow"
+        );
+        Ok(())
+    }
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        let scratch = self
+            .scratch
+            .try_borrow()
+            .map_err(|_| anyhow::anyhow!("resident scratch is borrowed"))?;
+        if let Some(pair) = scratch.as_ref() {
+            backings.record("resident_projection_scratch", &pair.prepared)?;
+            backings.record("resident_projection_scratch", &pair.partial)?;
+        }
         for buffer in [&self.packed, &self.suh, &self.svh]
             .into_iter()
             .chain(&self.bias)
@@ -1730,3 +2622,23 @@ fn ordinary_projection_group_preserves_owners_and_rejects_wrong_inputs() -> Resu
 #[cfg(test)]
 #[path = "routed_scratch_tests.rs"]
 mod routed_scratch_tests;
+
+#[cfg(test)]
+#[path = "routed_nt2_tests.rs"]
+mod routed_nt2_tests;
+
+#[cfg(test)]
+#[path = "ar20_projection_tests.rs"]
+mod ar20_projection_tests;
+
+#[cfg(test)]
+#[path = "resident_bundle_tests.rs"]
+mod resident_bundle_tests;
+
+#[cfg(test)]
+#[path = "ar20_finish_mix_tests.rs"]
+mod ar20_finish_mix_tests;
+
+#[cfg(test)]
+#[path = "resident_scratch_tests.rs"]
+mod resident_scratch_tests;

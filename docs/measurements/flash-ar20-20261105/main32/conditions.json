@@ -1,0 +1,18 @@
+{
+  "note": "Snapshot after initial control4.847tok/s; desktop not isolated; no swap stop authorized",
+  "commands": "pmset -g therm; sysctl vm.swapusage; ps -axo pid,pcpu,pmem,comm",
+  "thermal_warning_reported": false,
+  "performance_warning_reported": false,
+  "power_status_reported": false,
+  "swap_total_mib": 4096,
+  "swap_used_mib": 3686.88,
+  "swap_free_mib": 409.12,
+  "observed_cpu_percent": {
+    "Equibop Helper": 32.5,
+    "Equibop Renderer": 27.1,
+    "WindowServer": 13.3,
+    "WallpaperAerialsExtension": 7.0,
+    "VTDecoderXPCService": 5.0
+  },
+  "interpretation": "Active desktop applications; no attributed speed cause and no swap abort."
+}

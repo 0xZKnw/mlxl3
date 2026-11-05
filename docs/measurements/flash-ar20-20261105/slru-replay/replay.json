@@ -1,0 +1,236 @@
+{
+  "baseline_slots_hits_and_counts": "exact_all_phases_after_two_initial_generations",
+  "confirmed_tps_gain": false,
+  "no_gpu": true,
+  "slots_per_layer": 53,
+  "status": "complete_simulation_not_speed",
+  "total_slots": 2544,
+  "variants": [
+    {
+      "cases": [
+        {
+          "actual_slru_reservations": 0,
+          "name": "MAIN",
+          "phases": [
+            {
+              "cohorts": 4176,
+              "hits": 28262,
+              "logical_read_bytes": 16845665976,
+              "misses": 13498,
+              "part": "prefill",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42748,
+              "logical_read_bytes": 22728794544,
+              "misses": 18212,
+              "part": "decode",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 4176,
+              "hits": 28196,
+              "logical_read_bytes": 16928034768,
+              "misses": 13564,
+              "part": "prefill",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42700,
+              "logical_read_bytes": 22788699120,
+              "misses": 18260,
+              "part": "decode",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 4176,
+              "hits": 27994,
+              "logical_read_bytes": 17180133192,
+              "misses": 13766,
+              "part": "prefill",
+              "phase": "trace_3"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42548,
+              "logical_read_bytes": 22978396944,
+              "misses": 18412,
+              "part": "decode",
+              "phase": "trace_3"
+            }
+          ]
+        },
+        {
+          "actual_slru_reservations": 0,
+          "name": "HOLD",
+          "phases": [
+            {
+              "cohorts": 3936,
+              "hits": 26605,
+              "logical_read_bytes": 15918393060,
+              "misses": 12755,
+              "part": "prefill",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41266,
+              "logical_read_bytes": 24578348328,
+              "misses": 19694,
+              "part": "decode",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 3936,
+              "hits": 26526,
+              "logical_read_bytes": 16016986008,
+              "misses": 12834,
+              "part": "prefill",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41334,
+              "logical_read_bytes": 24493483512,
+              "misses": 19626,
+              "part": "decode",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 3936,
+              "hits": 26427,
+              "logical_read_bytes": 16140539196,
+              "misses": 12933,
+              "part": "prefill",
+              "phase": "trace_3"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41275,
+              "logical_read_bytes": 24567116220,
+              "misses": 19685,
+              "part": "decode",
+              "phase": "trace_3"
+            }
+          ]
+        }
+      ],
+      "policy": "decayed_LFU_reference"
+    },
+    {
+      "cases": [
+        {
+          "actual_slru_reservations": 51360,
+          "name": "MAIN",
+          "phases": [
+            {
+              "cohorts": 4176,
+              "hits": 28401,
+              "logical_read_bytes": 16672192308,
+              "misses": 13359,
+              "part": "prefill",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42342,
+              "logical_read_bytes": 23235487416,
+              "misses": 18618,
+              "part": "decode",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 4176,
+              "hits": 28401,
+              "logical_read_bytes": 16672192308,
+              "misses": 13359,
+              "part": "prefill",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42342,
+              "logical_read_bytes": 23235487416,
+              "misses": 18618,
+              "part": "decode",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 4176,
+              "hits": 28401,
+              "logical_read_bytes": 16672192308,
+              "misses": 13359,
+              "part": "prefill",
+              "phase": "trace_3"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 42342,
+              "logical_read_bytes": 23235487416,
+              "misses": 18618,
+              "part": "decode",
+              "phase": "trace_3"
+            }
+          ]
+        },
+        {
+          "actual_slru_reservations": 50160,
+          "name": "HOLD",
+          "phases": [
+            {
+              "cohorts": 3936,
+              "hits": 26845,
+              "logical_read_bytes": 15618870180,
+              "misses": 12515,
+              "part": "prefill",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41007,
+              "logical_read_bytes": 24901583436,
+              "misses": 19953,
+              "part": "decode",
+              "phase": "trace_1"
+            },
+            {
+              "cohorts": 3936,
+              "hits": 26845,
+              "logical_read_bytes": 15618870180,
+              "misses": 12515,
+              "part": "prefill",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41007,
+              "logical_read_bytes": 24901583436,
+              "misses": 19953,
+              "part": "decode",
+              "phase": "trace_2"
+            },
+            {
+              "cohorts": 3936,
+              "hits": 26845,
+              "logical_read_bytes": 15618870180,
+              "misses": 12515,
+              "part": "prefill",
+              "phase": "trace_3"
+            },
+            {
+              "cohorts": 6096,
+              "hits": 41007,
+              "logical_read_bytes": 24901583436,
+              "misses": 19953,
+              "part": "decode",
+              "phase": "trace_3"
+            }
+          ]
+        }
+      ],
+      "policy": "SLRU_50_50_per_layer"
+    }
+  ]
+}

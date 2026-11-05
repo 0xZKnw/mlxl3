@@ -1,0 +1,174 @@
+"""Short MAIN32 screens using the existing qualified driver and validator."""
+
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "docs/measurements/issue125-uar-20261104/default-speed"
+OLD = runpy.run_path(
+    str(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt")
+)
+VALIDATE = runpy.run_path(
+    "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py"
+)["validate"]
+FLAGS = [
+    "MLXL3_NATIVE_MOE_DEFERRED",
+    "MLXL3_NATIVE_GDN_HALF_ELISION",
+    "MLXL3_NATIVE_GDN_NORM_GATE",
+    "MLXL3_SSD_DYNAMIC_READERS",
+    "MLXL3_NATIVE_FIXED_RESIDENCY",
+]
+
+
+def main():
+    freeze = OLD["strict_json"](
+        (ROOT / "docs/measurements/issue125-uar-20261104/freeze.json").read_text()
+    )
+    quality = OLD["strict_json"]((OUT.parent / "default-quality/report.json").read_text())
+    assert (
+        quality["status"] == "validated"
+        and quality["parity"] is True
+        and quality["all_children_joined"] is True
+    )
+    cli = freeze["artifacts"]["direct-cli"]
+    assert hashlib.sha256(Path(cli["path"]).read_bytes()).hexdigest() == cli["sha256"]
+    for path, sha in freeze["source_files"].items():
+        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == sha, path
+    historical = OLD["strict_json"](
+        (
+            ROOT
+            / "docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json"
+        ).read_text()
+    )
+    golden = historical["runs"][0]
+    expected = (golden["text"], golden["token_hash"])
+    OUT.mkdir(parents=True, exist_ok=True)
+    sink = OUT / "report.json"
+    assert not sink.exists()
+    report = {"status": "running", "parity": False, "all_children_joined": False, "processes": []}
+
+    def save():
+        sink.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    def journal(value):
+        with (ROOT / "opti.md").open("a") as f:
+            f.write("\nUAR MAIN32 " + value + "\n")
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+    env.update(
+        {
+            "PYTHONPATH": str(ROOT),
+            "MLXL3_SSD_READERS": "4",
+            "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+            "MLXL3_SSD_CACHE_POLICY": "auto",
+            "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+            "MLXL3_PROMPT_CACHE_MIB": "0",
+            "MLXL3_NATIVE_HC_UP_MIX": "0",
+            "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+            "MLXL3_NATIVE_HC_WORKSPACE": "0",
+            "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        }
+    )
+    plan = [("final-default", [])]
+    save()
+    try:
+        for number, (name, selected) in enumerate(plan):
+            runenv = {**env, **{f: str(int(i in selected)) for i, f in enumerate(FLAGS)}}
+            runenv.pop("MLXL3_NATIVE_MOE_DEFERRED", None)
+            selected_cli = freeze["baseline"] if name == "published" else cli
+            folder = OUT / f"{number}-{name}"
+            cmd = [
+                "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+                str(ROOT / "scripts/benchmark-flash-bridge.py"),
+                selected_cli["path"],
+                "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+                str(folder),
+                "--prompt",
+                "MAIN",
+                "--tokens",
+                "32",
+                "--repeats",
+                "1",
+                "--cache-gib",
+                "3",
+                "--timeout",
+                "180",
+            ]
+            item = {
+                "name": name,
+                "status": "running",
+                "parity": False,
+                "joined": False,
+                "command": cmd,
+                "flags": {f: runenv.get(f) for f in FLAGS},
+            }
+            report["processes"].append(item)
+            save()
+            journal(name + " STARTED")
+            child = None
+            t = time.monotonic()
+            try:
+                with (OUT / f"{number}-{name}.driver.log").open("x") as log:
+                    child = subprocess.Popen(
+                        cmd,
+                        cwd=ROOT,
+                        env=runenv,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=240)
+                assert code == 0 and not OLD["members"](child.pid)
+                result = VALIDATE(
+                    OLD["strict_json"]((folder / "report.json").read_text()), selected_cli["sha256"]
+                )
+                for row in result["warmup"] + result["runs"]:
+                    assert (row["text"], row["token_hash"]) == expected
+                item.update(
+                    status="validated",
+                    parity=True,
+                    joined=True,
+                    seconds=time.monotonic() - t,
+                    stats=result["runs"][0]["stats"],
+                )
+                save()
+                journal(name + " VALIDATED " + str(item["stats"]["decode_tps"]))
+                print(name, item["stats"]["decode_tps"], flush=True)
+            except BaseException as error:
+                item.update(
+                    status="failed", parity=False, joined=OLD["stop"](child), error=repr(error)
+                )
+                save()
+                raise
+        report.update(
+            status="exploratory_singles_complete",
+            parity=True,
+            all_children_joined=True,
+            limits=[
+                "One warm+one MAIN32 per arm, no HOLD or sustained validation",
+                "Endpoint drift recorded, no summing gains",
+                "Composition selected separately after adaptation audit",
+            ],
+        )
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error=repr(error),
+            all_children_joined=all(x["joined"] for x in report["processes"]),
+        )
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

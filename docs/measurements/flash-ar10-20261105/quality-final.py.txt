@@ -1,0 +1,52 @@
+"""Two real entry-point gates after the shared physical components."""
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+HERE=ROOT/'docs/measurements/flash-ar10-20261105'
+OLD=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+NEW=runpy.run_path(str(ROOT/'build/ar10/components.py'))['NEW']
+
+def main():
+    f=OLD['strict_json']((ROOT/'build/ar10/freeze-final.json').read_text())
+    c=OLD['strict_json']((HERE/'components-01/report.json').read_text())
+    assert c['status']=='validated' and c['parity'] is True and c['all_children_joined'] is True and len(c['phases'])==10
+    for a in f['artifacts'].values():assert hashlib.sha256(Path(a['path']).read_bytes()).hexdigest()==a['sha256']
+    for p,h in f['source_files'].items():assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==h,p
+    out=HERE/'quality-final';out.mkdir();sink=out/'report.json'
+    r={'status':'running','parity':False,'all_children_joined':False,'phases':[]}
+    def save():sink.write_text(json.dumps(r,indent=2,allow_nan=False)+'\n')
+    def journal(s):
+        with (ROOT/'opti.md').open('a') as p:p.write('\nAR10 QUALITY '+s+'\n')
+    env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))}
+    env.update({'DYLD_PRINT_LIBRARIES':'1','PYTHONPATH':str(ROOT),'MLXL3_FLASH_MODEL':'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_SSD_DYNAMIC_READERS':'0'})
+    env.update({'MLXL3_NATIVE_'+k:'0' for k in ['HC_WORKSPACE','HC_UP_MIX','HC_DOWN_INJECT','SSD_EXTRA_WAVE','GDN_HALF_ELISION','GDN_NORM_GATE','FIXED_RESIDENCY']})
+    env.update({'MLXL3_NATIVE_'+k:'1' for k in NEW})
+    plans=[('idle',[f['artifacts']['native-libtest']['path'],'gpu::ar10_model_tests::physical_ar10_idle_does_not_create_expert_pipelines','--exact','--ignored','--nocapture','--test-threads=1'],'AR10_IDLE_PIPELINES'),('model',[f['artifacts']['native-libtest']['path'],'gpu::ar10_model_tests::physical_ar10_composition_preserves_full_state_and_continuation','--exact','--ignored','--nocapture','--test-threads=1'],'NATIVE_AR10_COMPOSITION_MODEL'),('cli',['/Users/justin/Documents/mix-stq1_0/.venv/bin/python','/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',f['artifacts']['direct-cli']['path'],str(out)],'NATIVE_SSD_DIRECT_CLI')]
+    save()
+    try:
+        for name,cmd,marker in plans:
+            a={'name':name,'command':cmd,'status':'running','parity':False,'joined':False};r['phases'].append(a);save();journal(name+' STARTED');child=None;t=time.monotonic()
+            try:
+                path=out/(name+'.log')
+                with path.open('x') as log:
+                    runenv={**env,**({'MLXL3_NATIVE_'+k:'0' for k in NEW} if name=='idle' else {})}
+                    child=subprocess.Popen(cmd,cwd=ROOT,env=runenv,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);a['pid']=child.pid;save();code=child.wait(timeout=180)
+                assert code==0 and not OLD['members'](child.pid)
+                text=path.read_text();OLD['native_images'](text);e=OLD['marker'](text,marker);assert e['parity'] is True
+                if name=='idle':
+                    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+                    OLD['exact_fields'](e,{'absent_expert_psos':6})
+                elif name=='model':
+                    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+                    OLD['exact_fields'](e,{'case_count':2,'compared_state_words':57606144,'compared_logits':993280,'compared_hidden_bytes':81920,'initial_archive_states':84,'legacy_continuation':True,'all_readers_joined':True})
+                    assert len(e['cases'])==2
+                else:OLD['exact_fields'](e,{'status':'verified','completed':1,'context_length':4096,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True})
+                a.update(status='validated',parity=True,evidence=e)
+            finally:
+                a['joined']=OLD['stop'](child);a['seconds']=time.monotonic()-t;save()
+            assert a['joined'];journal(name+' VALIDATED')
+        r.update(status='validated',parity=True,all_children_joined=True);journal('3/3 VALIDATED before final MAIN32')
+    except BaseException as e:
+        r.update(status='failed',parity=False,error=repr(e),all_children_joined=all(a['joined'] for a in r['phases']));journal('FAILED '+repr(e));raise
+    finally:save()
+if __name__=='__main__':main()

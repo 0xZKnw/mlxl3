@@ -1,0 +1,243 @@
+{
+  "scope": "Intrusive diagnostic; overlapping composites, not release speed or additive savings.",
+  "rows": 7,
+  "host_inclusive_ms_per_row": {
+    "native.row": {
+      "events": 7,
+      "ms": 191.8137027142857
+    },
+    "native.upload_copy": {
+      "events": 21,
+      "ms": 0.04026785714285715
+    },
+    "native.layer": {
+      "events": 336,
+      "ms": 181.6067852857143
+    },
+    "native.hc_gdn.joined": {
+      "events": 14,
+      "ms": 2.958910714285714
+    },
+    "native.central_encode": {
+      "events": 959,
+      "ms": 14.812446142857144
+    },
+    "native.hc.encode_read": {
+      "events": 679,
+      "ms": 4.285388
+    },
+    "native.hc.workspace.norm": {
+      "events": 1253,
+      "ms": 0.9389345714285715
+    },
+    "native.hc.workspace.gemv": {
+      "events": 1358,
+      "ms": 1.6295907142857142
+    },
+    "native.hc.workspace.activation": {
+      "events": 679,
+      "ms": 0.6033897142857143
+    },
+    "native.hc.result.mixed": {
+      "events": 679,
+      "ms": 0.494114
+    },
+    "native.hc.result.gate_gemv": {
+      "events": 672,
+      "ms": 0.46822028571428576
+    },
+    "native.hc.result.gate_activation": {
+      "events": 672,
+      "ms": 0.43977985714285717
+    },
+    "native.gdn.frame": {
+      "events": 252,
+      "ms": 0.3565895714285714
+    },
+    "native.central_wait": {
+      "events": 959,
+      "ms": 100.70359942857144
+    },
+    "native.gpu_interval": {
+      "events": 1838,
+      "ms": 0.4478595714285714
+    },
+    "native.hc.chain_write_read_gate": {
+      "events": 336,
+      "ms": 29.590000571428572
+    },
+    "native.hc.encode_write": {
+      "events": 672,
+      "ms": 3.979849
+    },
+    "native.route_readback_copy": {
+      "events": 336,
+      "ms": 0.02626285714285714
+    },
+    "native.ssd_timeline": {
+      "events": 336,
+      "ms": 0.22898914285714286
+    },
+    "native.moe_wait": {
+      "events": 336,
+      "ms": 11.712799
+    },
+    "native.hc.write_separate": {
+      "events": 98,
+      "ms": 3.414106142857143
+    },
+    "native.hc_gdn.cross_layer": {
+      "events": 238,
+      "ms": 59.23267285714286
+    },
+    "native.hc.read_separate": {
+      "events": 91,
+      "ms": 5.547701714285714
+    },
+    "native.head": {
+      "events": 7,
+      "ms": 7.830904714285714
+    },
+    "native.projection_wait": {
+      "events": 7,
+      "ms": 7.199964142857143
+    },
+    "native.projection_readback_copy": {
+      "events": 7,
+      "ms": 0.09079785714285714
+    },
+    "native.readback_copy": {
+      "events": 14,
+      "ms": 0.0906012857142857
+    },
+    "native.logprobs": {
+      "events": 7,
+      "ms": 0.9140477142857143
+    },
+    "native.cpu_select": {
+      "events": 7,
+      "ms": 0.215363
+    }
+  },
+  "gpu_composites_by_ancestry": {
+    "native.hc_gdn.joined": {
+      "events": 14,
+      "ms_per_row": 1.881732139736414
+    },
+    "native.hc.chain_write_read_gate": {
+      "events": 336,
+      "ms_per_row": 11.109422626239914
+    },
+    "moe": {
+      "events": 872,
+      "ms_per_row": 46.869446432018385
+    },
+    "native.hc.write_separate": {
+      "events": 98,
+      "ms_per_row": 0.053982154765565483
+    },
+    "native.layer": {
+      "events": 175,
+      "ms_per_row": 9.508285692261
+    },
+    "native.hc_gdn.cross_layer": {
+      "events": 238,
+      "ms_per_row": 31.059595265625312
+    },
+    "native.hc.read_separate": {
+      "events": 91,
+      "ms_per_row": 2.0420654826531455
+    },
+    "projection": {
+      "events": 7,
+      "ms_per_row": 6.8691547660689265
+    },
+    "native.logprobs": {
+      "events": 7,
+      "ms_per_row": 0.027726192326684083
+    }
+  },
+  "allocation_exclusive_per_row": {
+    "native.row": {
+      "requests": 1.0,
+      "requested_bytes": 40960.0,
+      "API_host_ms": 0.013875
+    },
+    "native.layer": {
+      "requests": 2092.714285714286,
+      "requested_bytes": 18536086.85714286,
+      "API_host_ms": 9.982556
+    },
+    "native.hc_gdn.joined": {
+      "requests": 28.0,
+      "requested_bytes": 348544.0,
+      "API_host_ms": 0.09664885714285715
+    },
+    "native.hc.workspace.norm": {
+      "requests": 97.0,
+      "requested_bytes": 3973120.0,
+      "API_host_ms": 0.758713
+    },
+    "native.hc.workspace.gemv": {
+      "requests": 194.0,
+      "requested_bytes": 4097280.0,
+      "API_host_ms": 1.113051142857143
+    },
+    "native.hc.workspace.activation": {
+      "requests": 97.0,
+      "requested_bytes": 124160.0,
+      "API_host_ms": 0.38130328571428573
+    },
+    "native.hc.result.mixed": {
+      "requests": 97.0,
+      "requested_bytes": 993280.0,
+      "API_host_ms": 0.4845355714285714
+    },
+    "native.hc.result.gate_gemv": {
+      "requests": 96.0,
+      "requested_bytes": 1536.0,
+      "API_host_ms": 0.34061314285714284
+    },
+    "native.hc.result.gate_activation": {
+      "requests": 96.0,
+      "requested_bytes": 1536.0,
+      "API_host_ms": 0.3137035714285714
+    },
+    "native.gdn.frame": {
+      "requests": 72.0,
+      "requested_bytes": 115458048.0,
+      "API_host_ms": 0.35010014285714286
+    },
+    "native.hc.chain_write_read_gate": {
+      "requests": 192.0,
+      "requested_bytes": 200448.0,
+      "API_host_ms": 0.6608972857142856
+    },
+    "native.hc.encode_write": {
+      "requests": 96.0,
+      "requested_bytes": 3932160.0,
+      "API_host_ms": 2.086643142857143
+    },
+    "native.hc_gdn.cross_layer": {
+      "requests": 476.0,
+      "requested_bytes": 5925248.0,
+      "API_host_ms": 1.6882532857142858
+    },
+    "native.head": {
+      "requests": 3.0,
+      "requested_bytes": 1495040.0,
+      "API_host_ms": 0.03433942857142857
+    },
+    "native.logprobs": {
+      "requests": 2.0,
+      "requested_bytes": 496642.0,
+      "API_host_ms": 0.026053285714285713
+    }
+  },
+  "allocation_totals_per_row": {
+    "requests": 3639.714285714286,
+    "requested_bytes": 155624088.85714287,
+    "API_host_ms": 18.33128614285714
+  },
+  "exclusive_allocation_equals_rows": true
+}

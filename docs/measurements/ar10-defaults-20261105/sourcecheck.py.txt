@@ -1,0 +1,86 @@
+"""Bounded synthetic controller checks; imports production definitions, no GPU/main grant."""
+import contextlib
+import copy
+import io
+import json
+import runpy
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+ROOT = Path('/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0')
+q = runpy.run_path(str(ROOT / 'build/ar10-defaults/controller.py'))
+checks = []
+def check(name, action, rejects=False):
+    try:
+        action()
+    except (AssertionError, ValueError, TypeError, KeyError):
+        assert rejects, name
+    else:
+        assert not rejects, name
+    checks.append(name)
+
+def default_env():
+    with patch.dict(q['os'].environ, {**dict.fromkeys(q['FLAGS'], '1'), 'MLXL3_FAKE_INHERITED':'1', 'DYLD_FAKE_INHERITED':'1'}):
+        env=q['environment']('default')
+    assert not set(q['FLAGS']) & env.keys() and 'MLXL3_FAKE_INHERITED' not in env and 'DYLD_FAKE_INHERITED' not in env
+check('default_removes_inherited13_and_dyld', default_env)
+check('forced13_all1', lambda: q['OLD']['exact_fields'](q['environment']('forced'), dict.fromkeys(q['FLAGS'], '1')))
+check('off13_all0', lambda: q['OLD']['exact_fields'](q['environment']('off'), dict.fromkeys(q['FLAGS'], '0')))
+def no_grant():
+    with patch.object(sys, 'argv', ['controller.py']), contextlib.redirect_stderr(io.StringIO()):
+        try:q['main']()
+        except SystemExit as error:assert error.code==2
+        else:raise AssertionError('main accepted missing root grant')
+check('no_main_without_root_grant', no_grant)
+model={**q['COUNTS'], 'initial_flags':[True]*11, 'cases':[{'token':token,'parity':True,'states':84,'cross_layer_triples':34,'moe_deferred':34,'legacy_continuation':True,'continuation_new_uses':[0]*11,'actual_uses':[48,960,480,480,480,48,480,36,12,12,36],'axis_qmv_dispatches':144} for token in [248044,1]]}
+initial={'parity':True,'environment_unset':True,'enabled_flags':13,'created_expert_psos':6,'record_reuse_layers':48,'read_split_requested':True,'all_readers_joined':True,'reused_destinations':0,'record_reuse_observed':False,'split_records':0,'split_pieces':0,'read_split_observed':False}
+def log(m=model,i=initial):
+    return 'dyld[1]: /System/Library/Frameworks/Metal.framework/Metal\nrunning 1 test\nNATIVE_AR10_COMPOSITION_MODEL '+json.dumps(m)+'\nAR10_DEFAULT_INITIALIZATION '+json.dumps(i)+'\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out;\n'
+check('valid_model_zero_observations_truthful', lambda:q['default_model'](log()))
+check('wrong_model_count_rejected', lambda:q['default_model'](log({**model,'compared_state_words':0})), True)
+check('nonabsent_initialization_rejected', lambda:q['default_model'](log(i={**initial,'environment_unset':False})), True)
+check('fake_reuse_observation_rejected', lambda:q['default_model'](log(i={**initial,'record_reuse_observed':True})), True)
+check('fake_split_observation_rejected', lambda:q['default_model'](log(i={**initial,'read_split_observed':True})), True)
+check('duplicate_false_true_rejected', lambda:q['marker']('MARK {"parity":false,"parity":true}','MARK'), True)
+check('idle_wrong_psos_rejected', lambda:q['idle']('dyld[1]: Metal\nrunning 1 test\nAR10_IDLE_PIPELINES {"parity":true,"absent_expert_psos":0}\ntest result: ok. 1 passed; 0 failed; 0 ignored;'), True)
+check('cli_wrong_golden_rejected', lambda:q['cli']('dyld[1]: Metal\nNATIVE_SSD_DIRECT_CLI '+json.dumps({'parity':True,'status':'verified','completed':1,'context_length':4096,'token_hash':'wrong','mlx_loaded':False,'child_joined':True})), True)
+with tempfile.TemporaryDirectory(prefix='ar10-default-controller-') as tmp:
+    base=Path(tmp)
+    value=q['read_json'](ROOT/'docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json')
+    value['runs']=[];p=base/'empty.json';p.write_text(json.dumps(value))
+    check('empty_benchmark_rejected', lambda:q['benchmark'](p,value['binary_sha256'],{'text':'x','token_hash':'x'}), True)
+    def phase(kind):
+        out=base/kind;out.mkdir();sink=out/'report.json';report={'status':'running','parity':False,'all_children_joined':True,'phases':[]};stopped=[]
+        child=SimpleNamespace(pid=12345)
+        def wait(timeout):
+            assert timeout==240
+            if kind=='timeout':raise subprocess.TimeoutExpired('synthetic',240)
+            return 0
+        child.wait=wait
+        def spawn(*args,**kwargs):
+            assert kwargs['start_new_session'] is True
+            if kind=='spawnfail':raise OSError('synthetic spawn failure')
+            return child
+        def stop(process):
+            stopped.append(process)
+            return kind!='cleanupfalse'
+        def validate(text):
+            if kind=='validationfail':raise ValueError('synthetic invalid evidence')
+            return {'nonempty':True}
+        with patch.object(q['subprocess'],'Popen',spawn),patch.dict(q['OLD'],{'stop':stop,'members':lambda pid:[]}):
+            try:q['run_phase'](report,sink,out,kind,['synthetic'],q['environment']('default'),validate)
+            except (AssertionError,ValueError,OSError,subprocess.TimeoutExpired):assert kind!='success'
+            else:assert kind=='success'
+        persisted=json.loads(sink.read_text());row=persisted['phases'][0]
+        assert len(stopped)==1 and persisted['parity'] is False
+        assert row['parity'] is (kind=='success') and row['status']==('validated' if kind=='success' else 'failed')
+        assert row['joined'] is (kind!='cleanupfalse')
+        if kind=='spawnfail':assert stopped==[None]
+    for kind in ['success','validationfail','timeout','cleanupfalse','spawnfail']:
+        check('actual_run_phase_'+kind,lambda kind=kind:phase(kind))
+assert len(checks)==18
+print(json.dumps({'status':'passed_source_controller_checks_only','check_count':len(checks),'checks':checks,'controller_sha256':q['sha'](ROOT/'build/ar10-defaults/controller.py'),'gpu_executed':False,'real_child_spawned':False,'main_with_grant_executed':False,'scope':'synthetic validators and actual run_phase with fake Popen/wait/stop; no model/build/prover','formal_verification':'not performed; CrossHair unavailable/no prover grant'},indent=2))

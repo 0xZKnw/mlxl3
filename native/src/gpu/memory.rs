@@ -14,8 +14,22 @@ pub(super) struct Backings {
     pub slots: Vec<usize>,
     pub resident_experts: usize,
     pub ple_rows: usize,
+    fixed: Option<Vec<Buffer>>,
 }
 impl Backings {
+    pub(super) fn collect_fixed() -> Self {
+        Self {
+            fixed: Some(Vec::new()),
+            ..Self::default()
+        }
+    }
+    pub(super) fn take_fixed(self) -> Result<(Vec<Buffer>, u64)> {
+        Ok((
+            self.fixed
+                .context("fixed-weight collection was not enabled")?,
+            self.bytes.get("fixed_weights").copied().unwrap_or(0),
+        ))
+    }
     pub(super) fn total(&self) -> Result<u64> {
         self.bytes
             .values()
@@ -24,6 +38,11 @@ impl Backings {
     }
     pub(super) fn record(&mut self, category: &'static str, buffer: &Buffer) -> Result<()> {
         if self.seen.insert(buffer.as_ptr() as usize) {
+            if category == "fixed_weights"
+                && let Some(buffers) = &mut self.fixed
+            {
+                buffers.push(buffer.clone());
+            }
             let total = self.bytes.entry(category).or_default();
             *total = total
                 .checked_add(buffer.length())
@@ -45,6 +64,7 @@ pub struct MemoryLedger {
     expert_bank_backing_bytes: u64,
     fixed_weight_backing_bytes: u64,
     fixed_weight_arrays_not_ready: usize,
+    resident_scratch_charge_bytes: u64,
     state_backing_bytes: BTreeMap<&'static str, u64>,
     ple_host_row_payload_bytes: usize,
     native_allocated_other_bytes: Option<u64>,
@@ -89,9 +109,14 @@ impl Metal {
     }
     pub(super) fn admit_load(&self, limit: Option<u64>, slots: usize) -> Result<()> {
         if let Some(limit) = limit {
-            let reserved = u64::try_from(slots)?
+            let mut reserved = u64::try_from(slots)?
                 .checked_mul(crate::flash_support::EXPERT_BYTES)
                 .context("Flash expert capacity overflow")?;
+            if self.resident_scratch.enabled.get() || self.resident_scratch.charged() > 0 {
+                reserved = reserved
+                    .checked_add(crate::resident_scratch_policy::CAP)
+                    .context("resident scratch admission overflow")?;
+            }
             ensure!(
                 fits(self.observed_memory()?, reserved, limit),
                 "Flash memory budget too small for expert banks"
@@ -115,6 +140,10 @@ impl FlashNext<'_> {
         mtp_prefix: Option<&crate::gpu::FlashQsaState>,
     ) -> Result<MemoryLedger> {
         let mut backings = Backings::default();
+        ensure!(
+            self.gpu.resident_scratch.valid(),
+            "resident scratch charge underflow"
+        );
         self.head.record_memory(&mut backings)?;
         self.mixer.record_memory(&mut backings)?;
         for layer in &self.layers {
@@ -167,6 +196,7 @@ impl FlashNext<'_> {
             expert_bank_backing_bytes: bank_bytes,
             fixed_weight_backing_bytes: fixed,
             fixed_weight_arrays_not_ready: 0,
+            resident_scratch_charge_bytes: self.gpu.resident_scratch.charged(),
             state_backing_bytes: backings.bytes,
             ple_host_row_payload_bytes: backings.ple_rows,
             native_allocated_other_bytes: memory
@@ -187,8 +217,13 @@ impl FlashNext<'_> {
     }
     pub fn release_idle_state(&mut self) -> Result<()> {
         self.gpu.ensure_reads_idle()?;
-        self.gpu.command(|_| Ok(()))?;
+        if self.fixed_residency.is_some() {
+            self.gpu.command(|_| Ok(()))?;
+            self.fixed_residency = None;
+        }
+        self.fixed_residency_checked = false;
         self.reset();
+        self.head.release_idle_scratch()?;
         self.mixer.release_workspace()?;
         for layer in &mut self.layers {
             layer.release_idle_state()?;
@@ -201,6 +236,11 @@ impl FlashNext<'_> {
         };
         let mut plan = ResourcePlan::native_ar(u32::try_from(positions)?, self.context)
             .context("invalid Flash request length")?;
+        if self.gpu.resident_scratch.enabled.get() || self.gpu.resident_scratch.charged() > 0 {
+            plan = plan
+                .with_resident_scratch()
+                .context("resident scratch reserve overflow")?;
+        }
         if self.gpu.hc_workspace_enabled.get() {
             plan = plan
                 .with_hc_workspace(self.layers.len() as u64 * 2 + 1, !self.gpu.hc_up_mix.get())

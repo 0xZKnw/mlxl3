@@ -1,0 +1,77 @@
+{
+  "status": "source_research_readonly_reanalysis_not_benchmark",
+  "source_commit": "63787f1cd137248fe6d1bb482e354ed458395ba9",
+  "source_profile": "docs/measurements/issue125-current-engine-20261104/selected-off-quality/native8-profile.json.gz",
+  "compressed_sha256": "5d524d902240b09d1d04a1bb04b5b09dec7a65b1f9121b735a045ec922dfce81",
+  "rows": 7,
+  "event_count": 12311,
+  "host_inclusive": {
+    "native.row": {
+      "events": 7,
+      "ms_per_row": 156.85611285714288
+    },
+    "native.central_wait": {
+      "events": 959,
+      "ms_per_row": 67.24500414285716
+    },
+    "native.moe_wait": {
+      "events": 336,
+      "ms_per_row": 27.44066042857143
+    },
+    "native.central_encode": {
+      "events": 959,
+      "ms_per_row": 6.63019
+    }
+  },
+  "gpu_composites": {
+    "native.hc_gdn.joined": {
+      "events": 14,
+      "sum_ms_per_row": 1.0725476188651686
+    },
+    "native.hc.chain_write_read_gate": {
+      "events": 336,
+      "sum_ms_per_row": 9.111005941771769
+    },
+    "moe": {
+      "events": 887,
+      "sum_ms_per_row": 36.55030949240817
+    },
+    "native.hc.write_separate": {
+      "events": 98,
+      "sum_ms_per_row": 0.08338691051384169
+    },
+    "central": {
+      "events": 182,
+      "sum_ms_per_row": 5.654982129012102
+    },
+    "native.hc_gdn.cross_layer": {
+      "events": 238,
+      "sum_ms_per_row": 18.695416664870987
+    },
+    "native.hc.read_separate": {
+      "events": 91,
+      "sum_ms_per_row": 1.8909523953750198
+    },
+    "projection": {
+      "events": 7,
+      "sum_ms_per_row": 3.3371607174298594
+    }
+  },
+  "moe_last_to_next_recorded_central_same_gpu_clock": {
+    "n": 336,
+    "median_ms": 0.32810415723361075,
+    "p95_ms": 0.7396250148303807,
+    "min_ms": 0.10529166320338845,
+    "max_ms": 1.9846250070258975,
+    "p95_definition": "sorted[int(.95*(n-1))]"
+  },
+  "limits": [
+    "intrusive diagnostic, not release throughput",
+    "composite GPU intervals overlap and are not additive",
+    "inclusive host waits are not recoverable time",
+    "CPU/GPU epochs not aligned",
+    "gaps are between named recorded command buffers, not global device idle"
+  ],
+  "no_new_gpu_run": true,
+  "no_l3_l5_retest": true
+}

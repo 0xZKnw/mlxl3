@@ -1,0 +1,107 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "moe",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen-default/native-libtest",
+        "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": null,
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0"
+      },
+      "pid": 86109,
+      "seconds": 8.171899082983145,
+      "evidence": {
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "deferred_producer_failure_recovery": true,
+        "encode_failure_no_commit": true,
+        "export_fallback": true,
+        "initial_archive_states": 84,
+        "late_failure_layer": 20,
+        "moe_deferred": true,
+        "parity": true,
+        "recovery": true,
+        "retained_prefix": true,
+        "steps": [
+          {
+            "candidate_commands": 136,
+            "control_commands": 170,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 248044,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 1,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 42,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 7,
+            "triples": 34
+          }
+        ]
+      }
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen-default/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/docs/measurements/issue125-uar-20261104/default-quality"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": null,
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0"
+      },
+      "pid": 86202,
+      "seconds": 10.768921166978544,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}

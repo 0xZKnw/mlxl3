@@ -458,10 +458,14 @@ for scenario in [
                 deadline = time.monotonic() + 10
                 while time.monotonic() < deadline:
                     output = target / "quality.json"
-                    if output.exists() and json.loads(output.read_text()):
-                        time.sleep(0.15)
-                        child.send_signal(signal.SIGINT)
-                        break
+                    if output.exists():
+                        try:
+                            live = json.loads(output.read_text())
+                        except json.JSONDecodeError:
+                            live = []
+                        if live and "pid" in live[0]:
+                            child.send_signal(signal.SIGINT)
+                            break
                     time.sleep(0.02)
                 else:
                     raise AssertionError("fixture never started")
@@ -479,7 +483,10 @@ for scenario in [
                     if scenario == "interrupt"
                     else "failed"
                 )
-                assert all(r["status"] == expected and r["reaped"] is True for r in results), (
+                assert all(
+                    r["status"] == expected and "reaped" in r and r["reaped"] is True
+                    for r in results
+                ), (
                     scenario,
                     results,
                     stdout,

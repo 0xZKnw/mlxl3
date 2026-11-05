@@ -71,6 +71,14 @@ impl ResourcePlan {
             + self.scratch_reserve_bytes
             + self.hc_workspace_reserve_bytes
     }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn with_resident_scratch(mut self) -> Option<Self> {
+        self.scratch_reserve_bytes = self
+            .scratch_reserve_bytes
+            .checked_add(crate::resident_scratch_policy::CAP)?;
+        Some(self)
+    }
 }
 
 /// Budget mode preserves the reference policy: reject speculation before loading its weights.

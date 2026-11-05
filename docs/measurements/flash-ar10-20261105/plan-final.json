@@ -1,0 +1,45 @@
+{
+  "quality_reports": [
+    {
+      "path": "docs/measurements/flash-ar10-20261105/components-01/report.json",
+      "kind": "components"
+    },
+    {
+      "path": "docs/measurements/flash-ar10-20261105/quality-final/report.json",
+      "kind": "model"
+    },
+    {
+      "path": "docs/measurements/flash-ar10-20261105/quality-final/report.json",
+      "kind": "cli"
+    }
+  ],
+  "arms": [
+    {
+      "name": "off-start",
+      "flags": []
+    },
+    {
+      "name": "all",
+      "flags": [
+        "MLXL3_NATIVE_HC_WRITE_NORM",
+        "MLXL3_NATIVE_ROUTED_NT2_GU",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV",
+        "MLXL3_NATIVE_GDN_WHOLE",
+        "MLXL3_NATIVE_GDN_JOINT_AB",
+        "MLXL3_NATIVE_QSA_PREPARE",
+        "MLXL3_NATIVE_QSA_GATE",
+        "MLXL3_NATIVE_RECORD_REUSE",
+        "MLXL3_NATIVE_READ_SPLIT"
+      ]
+    },
+    {
+      "name": "off-end",
+      "flags": []
+    }
+  ],
+  "mode": "final"
+}

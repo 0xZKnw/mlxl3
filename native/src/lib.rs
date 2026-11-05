@@ -1,6 +1,8 @@
 //! Native migration. This crate does not call Python or embed an interpreter.
 #[cfg(feature = "mlx")]
 pub mod affine;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod ar10_defaults;
 #[cfg(feature = "mlx")]
 pub mod array;
 pub mod checkpoint;
@@ -15,6 +17,10 @@ pub use contracts::{
     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, native_prompt_reuse,
     reusable_prefix_len, smallm_kernel_key,
 };
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod ar20_kernel_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod ar30_router_policy;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dec_one;
 #[cfg(any(feature = "mlx", test, kani))]
@@ -22,6 +28,10 @@ pub(crate) mod dense_epilogue;
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod expert_ar_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod fixed_residency_policy;
 #[cfg(any(test, kani))]
 mod flash_cache_profile;
 #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
@@ -58,6 +68,10 @@ pub(crate) mod gdn_epilogue;
 pub mod gemma4;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub mod gpu;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod gpu_greedy_policy;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod gpu_wait_policy;
 #[cfg(any(test, kani))]
 mod hc_gdn_policy_tests;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
@@ -83,6 +97,8 @@ mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
 pub mod registry;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod resident_scratch_policy;
 #[cfg(feature = "mlx")]
 pub mod router;
 pub mod runtime_stats;

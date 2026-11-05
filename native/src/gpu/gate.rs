@@ -1,7 +1,48 @@
 use super::{MatrixView, Metal, RouteOutput, read_weight, view::FloatType};
 use crate::checkpoint::Checkpoint;
 use anyhow::{Context, Result, ensure};
-use metal::{Buffer, MTLResourceOptions as Storage, MTLSize};
+use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
+
+pub(super) struct PairedDot {
+    pub(super) enabled: std::cell::Cell<bool>,
+    pipelines: Option<[ComputePipelineState; 2]>,
+    #[cfg(test)]
+    pub(super) uses: std::cell::Cell<usize>,
+}
+
+impl PairedDot {
+    pub(super) fn load(
+        pipeline: &impl Fn(&str) -> Result<ComputePipelineState>,
+        enabled: bool,
+    ) -> Result<Self> {
+        Ok(Self {
+            enabled: std::cell::Cell::new(enabled),
+            pipelines: enabled
+                .then(|| -> Result<_> {
+                    Ok([
+                        pipeline("ar30_gate_dot_pair_half")?,
+                        pipeline("ar30_gate_dot_pair_float")?,
+                    ])
+                })
+                .transpose()?,
+            #[cfg(test)]
+            uses: std::cell::Cell::new(0),
+        })
+    }
+
+    fn select(&self, precision: usize, shape: [u32; 2]) -> Option<&ComputePipelineState> {
+        let p = &self.pipelines.as_ref()?[precision];
+        crate::ar30_router_policy::geometry(
+            self.enabled.get(),
+            shape,
+            [
+                p.thread_execution_width() as u32,
+                p.max_total_threads_per_threadgroup() as u32,
+            ],
+        )
+        .map(|_| p)
+    }
+}
 
 pub struct FlashGate<'a> {
     gpu: &'a Metal,
@@ -115,7 +156,8 @@ impl<'a> FlashGate<'a> {
             "gate input belongs to another Metal device"
         );
         let precision = usize::from(x.dtype == FloatType::F32);
-        let dot = &gpu.gate_dot[precision];
+        let paired = gpu.router_pair.select(precision, [rows, width]);
+        let dot = paired.unwrap_or(&gpu.gate_dot[precision]);
         let softmax = &gpu.gate_softmax[precision];
         ensure!(
             dot.thread_execution_width() == 32
@@ -131,9 +173,13 @@ impl<'a> FlashGate<'a> {
             dot,
             &[&x.buffer, &self.weight, &logits.buffer],
             [x.layout.offset, x.layout.strides[0], x.layout.strides[1]],
-            MTLSize::new(512, u64::from(rows), 1),
+            MTLSize::new(if paired.is_some() { 256 } else { 512 }, u64::from(rows), 1),
             32,
         );
+        #[cfg(test)]
+        if paired.is_some() {
+            gpu.router_pair.uses.set(gpu.router_pair.uses.get() + 1);
+        }
         let groups = MTLSize::new(u64::from(rows), 1, 1);
         Metal::encode(
             cmd,
@@ -152,6 +198,10 @@ impl<'a> FlashGate<'a> {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "ar30_router_tests.rs"]
+mod ar30_router_tests;
 
 impl FlashGate<'_> {
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {

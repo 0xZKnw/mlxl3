@@ -1,0 +1,36 @@
+# B12 SLRU source audit after the completed trace replay
+
+**Recommendation: keep B12 OFF for the current AR decode speed composition.** No adaptation or comparison defect explaining the worse decode miss counts was found. Retain the opt-in candidate; its prefill miss reduction is a useful simulation result, not an established prefill throughput gain. This source-only review was preregistered as `AR20-B12-REVIEW-01`; no new test, replay, build, proof or GPU work was executed.
+
+| Case / part | LFU misses, three phases | SLRU misses, three phases | Difference |
+| --- | ---: | ---: | ---: |
+| MAIN prefill | 40,828 | 40,077 | −751 (−1.8394%) |
+| MAIN decode | 54,884 | 55,854 | +970 (+1.7674%) |
+| HOLD prefill | 38,522 | 37,545 | −977 (−2.5362%) |
+| HOLD decode | 59,005 | 59,859 | +854 (+1.4473%) |
+
+These are aggregates of the existing three deterministic replay phases, not three independent performance trials. Across both prefill and decode the difference is only +96 logical reads; the requested AR target makes the consistent decode increase the relevant exclusion signal. No tok/s or physical-SSD-read effect follows directly from logical miss counts.
+
+## Adaptation checks
+
+- [Pinned llama.cpp source](https://github.com/ggml-org/llama.cpp/blob/2bc46baa9207d098d03741ac394e7faaf1a955b6/src/llama-moe-cache.cpp#L53-L154) promotes unique hits in original request order before choosing any miss victim (lines118–139), sorts misses (139–151), appends hits to protected MRU, demotes protected LRU when its size exceeds `n_slots/2` (53–86), and evicts from probation LRU first (89–99). Native `ExpertCache::reserve` lines1373–1440 and `slru.rs` lines10–44 preserve these transitions. The sorted unique vector is not incorrectly reused as the hit-promotion order: the separate original-IDs pass at1398–1407 handles that. A fixed bitset prevents duplicate hits being touched twice; canonical returned routes still follow the original IDs.
+- Capacity is 53 slots per layer, with a maximum of floor(53/2)=26 protected entries and at least27 probation entries when protected is full. The `with_capacity(27)` protected allocation is spare vector storage, not a 27th admitted protected slot. Both replay arms instantiate48 independent 53-slot caches (2,544 total). The deliberate per-layer scope differs from upstream grouped-layer SLRU, but does not reduce the existing native layer capacity or borrow capacity unfairly.
+- `victim` (flash_support.rs1464–1472) excludes pending slots and every member of the entire routed cohort, including earlier sorted misses. It checks free eligible slots before occupied slots, preserving the native free-slot contract; this differs from upstream only when a free slot is outside the earliest probation position, e.g. after failures. It does not explain this successful, no-pending trace result.
+- `DemandPlan::reserve` (1656–1680) converts misses into generation-qualified pending leases after the common reservation step; successful completion does not touch replacement recency (`finish_demand`1571–1580). Therefore fully drained demand-only replay may mark fills immediately without changing the next reservation's replacement state. Failed/stale/pending paths are not represented by these historical score counts. Existing source tests separately cover abandonment and stale generations; this audit did not rerun them.
+- `enable_prefetch`/forced LRU explicitly disables SLRU; shrink drains and preserves the selected policy; invalidation resets the SLRU queues while retaining outstanding lease protection. Those transitions do not occur in the compared replay workload. No expert, score or route is dropped or approximated.
+
+## Comparison and repeated phase checks
+
+`Capture::validate`/`reconstruct` in current.rs validate nonempty shapes, distinct ten-expert cohorts,48 layers, IDs/slot bounds and the two initial generations; the reconstruction requires every physical LFU slot/hit and every layer's cumulative before/prefill/after counters to match. Only then does the SLRU scorer at506–572 start. The LFU scoring arm repeats these exact checks, preventing a candidate score from hiding a bad reconstructed baseline.
+
+Both policies start empty, consume the same two full generations and then all three observed phases in order, keeping their own policy state throughout. Prefill is not reset before decode, MAIN/HOLD each receive the same independent initial conditions, and the per-part counters are deltas from each policy's own prior cumulative totals. Every scored cohort must contribute exactly ten hit+miss observations and `misses × EXPERT_BYTES`. Real SLRU reservation counters are51,360 MAIN /50,160 HOLD, exactly five complete generations of48×(prompt_tokens+127); LFU counters are0. This is an active policy comparison, not an accidentally disabled flag.
+
+A metadata-only inspection of the original capture confirms that MAIN and HOLD each have identical expert ID vectors in the three phases, though their observed LFU slots/hits differ. Identical SLRU phase scores are compatible with an already stabilized recency policy after two warm generations. LFU retains its decayed count/clock state, including a divide-by-two every16 layer reservations, so equal route streams need not yield equal LFU scores at every generation. There is no reset of SLRU at the start of each phase in the source.
+
+## Limits and preserved evidence
+
+This workload is the historical full capture `issue58-20261029/current-capture.json`, not a fresh32-token benchmark of the new engine. The first336 MAIN decode route vectors were previously matched to the new ALL12 profile, but that does not extend the cache-state provenance to the current short campaign. The replay omits in-flight GPU/IO timing, OS page cache, actual read-ahead/split/reuse costs, host policy overhead and numerical model parity. SLRU still performs the common LFU accounting in addition to queue maintenance; reduced misses alone cannot establish a wall-time win. The upstream1–5% report compares SLRU with LRU on another runtime/hardware, whereas this baseline is native decayed LFU.
+
+Implementation commits: `0f54c5d7`, `fdf6fcc7`; code freeze `6e18b89a`. The root common additions do not change the reviewed SLRU implementation/replay. Exact root source/evidence hashes and computed aggregate counts are in [audit.json](audit.json). The existing replay files are `docs/measurements/flash-ar20-20261105/slru-replay/{replay.json,run.json,replay.log}` in root's worktree. Their run is one explicit ignored test selected and passed,381 unrelated tests filtered; `parity:false` deliberately avoids claiming numerical model parity.
+
+Proof archives to copy if not yet integrated: commit `10ab9526`, `docs/measurements/flash-ar20-20261105/io-proofs/{README.md,report.json,guards.log.gz,slru.rs.txt,ssd_reads.rs.txt,expert_ar_policy.rs.txt}`. B12 remains **Kani timeout / unverified** at capacities10/11, six fixed promotions plus four symbolic transitions and optional clear, unwind40; no domain reduction or rerun occurred. The separate B11 follow-up is `ef11b1b6`, `io-proofs/b11-isolated/{README.md,report.json,guards.log.gz}` (40 checks/4 covers passed). B09 CPU guards passed27 checks/4 covers in the first archive. None proves the Metal/OS/concurrent path.

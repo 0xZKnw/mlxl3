@@ -6,13 +6,13 @@ use serde::Deserialize;
 use std::{collections::BTreeSet, fs, os::unix::fs::FileExt, path::PathBuf};
 
 #[derive(Deserialize)]
-struct Case {
+pub(super) struct Case {
     path: PathBuf,
     prefix: String,
     x: Vec<u16>,
 }
 
-fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
+pub(super) fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
     let c = crate::checkpoint::inspect(&case.path)?;
     let (prefix, index) = case
         .prefix
@@ -28,7 +28,7 @@ fn record(gpu: &Metal, case: &Case) -> Result<Buffer> {
     upload(&gpu.device, &bytes)
 }
 
-fn input(gpu: &Metal, case: &Case, fp32: bool) -> Result<MatrixView> {
+pub(super) fn input(gpu: &Metal, case: &Case, fp32: bool) -> Result<MatrixView> {
     ensure!(case.x.len() == 2560);
     let mut values = vec![f16::from_f32(7.).to_bits(); 2564];
     for (index, &value) in case.x.iter().enumerate() {
@@ -80,7 +80,7 @@ fn check_bindings(gpu: &Metal, before: usize, reuse: bool) -> Result<[usize; 2]>
     Ok(pairs[0])
 }
 
-fn check_words(actual: &[u16], expected: &[u16]) -> Result<()> {
+pub(super) fn check_words(actual: &[u16], expected: &[u16]) -> Result<()> {
     ensure!(
         actual.len() == 2560
             && actual == expected
@@ -317,5 +317,341 @@ fn physical_routed_expert_scratch() -> Result<()> {
             &serde_json::json!({"parity":true,"cases":checks,"duplicate_encodes":3,"poison":true,"rejections_recovered":true,"fallbacks":true}),
         )?,
     )?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; independent real routed record fixtures required"]
+fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
+    let root = PathBuf::from(
+        std::env::var_os("MLXL3_ROUTED_SCRATCH_FIXTURES").context("fixtures required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("cases.json"))?)?;
+    let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
+    ensure!(cases.len() >= 5 && cases.len() == refs.len() && cases[0].prefix != cases[1].prefix);
+    let gpu = Metal::new()?;
+    let initial = gpu.expert_ar_enabled.each_ref().map(std::cell::Cell::get);
+    let mut compared = 0usize;
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    for (enabled, dual) in [(false, false), (true, false), (false, true), (true, true)] {
+        gpu.expert_ar_enabled[0].set(enabled);
+        gpu.expert_ar_enabled[1].set(dual);
+        for (case, expected) in cases[..4].iter().zip(&refs) {
+            for fp32 in [false, true] {
+                let backing = record(&gpu, case)?;
+                let expert = FlashExpert::from_backing(&gpu, &backing)?;
+                let x = input(&gpu, case, fp32)?;
+                let uses = gpu.expert_ar_uses[0].get();
+                let dual_uses = gpu.expert_ar_uses[1].get();
+                if dual {
+                    let expected_gate = gpu.prepare_view(
+                        &x,
+                        &MatrixView::column_scales(
+                            &expert.gate.suh,
+                            expert.gate.offsets.suh,
+                            1,
+                            2560,
+                        )?,
+                    )?;
+                    let expected_up = gpu.prepare_view(
+                        &x,
+                        &MatrixView::column_scales(&expert.up.suh, expert.up.offsets.suh, 1, 2560)?,
+                    )?;
+                    let prefixes = gpu.command(|cmd| {
+                        let output = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
+                        Metal::encode_bound(
+                            cmd,
+                            gpu.expert_gu_prepare
+                                .as_ref()
+                                .context("expert dual preparation pipeline was not loaded")?,
+                            [
+                                (&x.buffer, 0),
+                                (&expert.gate.suh, expert.gate.offsets.suh),
+                                (&expert.up.suh, expert.up.offsets.suh),
+                                (&output, 0),
+                            ]
+                            .into_iter(),
+                            [x.layout.offset, x.layout.strides[1], i64::from(fp32), 2560],
+                            MTLSize::new(20, 1, 1),
+                            64,
+                        );
+                        Ok(output)
+                    })?;
+                    let words = Metal::read(&prefixes, 5120);
+                    ensure!(words[..2560] == expected_gate && words[2560..] == expected_up);
+                }
+                let allocations = requests();
+                let output = gpu.command(|cmd| {
+                    let out = expert.encode_view(cmd, &x, Storage::StorageModeShared)?;
+                    drop(x);
+                    drop(expert);
+                    drop(backing);
+                    Ok(out)
+                })?;
+                ensure!(gpu.expert_ar_uses[0].get() - uses == u64::from(enabled));
+                ensure!(gpu.expert_ar_uses[1].get() - dual_uses == u64::from(dual));
+                ensure!(requests() - allocations == if enabled { 5 } else { 6 });
+                check_words(&Metal::read(&output, 2560), expected)?;
+                compared += 2560;
+            }
+        }
+    }
+    ensure!(compared == 81920);
+    let synthetic_x = gpu.f16_storage(&vec![0x3c00; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let gate_scale = gpu.f16_storage(&vec![0x3c00; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let up_scale = gpu.f16_storage(&vec![0x4000; 2560])?.matrix(MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let expected_gate = gpu.prepare_view(&synthetic_x, &gate_scale)?;
+    let expected_up = gpu.prepare_view(&synthetic_x, &up_scale)?;
+    ensure!(expected_gate != expected_up);
+    for swapped in [false, true, false] {
+        let (gate, up) = if swapped {
+            (&up_scale, &gate_scale)
+        } else {
+            (&gate_scale, &up_scale)
+        };
+        let output = gpu.command(|cmd| {
+            let out = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
+            Metal::encode_bound(
+                cmd,
+                gpu.expert_gu_prepare
+                    .as_ref()
+                    .context("expert dual preparation pipeline was not loaded")?,
+                [
+                    (&synthetic_x.buffer, 0),
+                    (&gate.buffer, 0),
+                    (&up.buffer, 0),
+                    (&out, 0),
+                ]
+                .into_iter(),
+                [0i64, 1, 0, 2560],
+                MTLSize::new(20, 1, 1),
+                64,
+            );
+            Ok(out)
+        })?;
+        let words = Metal::read(&output, 5120);
+        ensure!(
+            (words[..2560] == expected_gate && words[2560..] == expected_up) == !swapped,
+            "Suh swap mutation was not detected/restored"
+        );
+    }
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let slab = upload(&gpu.device, &vec![0x7e00u16; 25600])?;
+    let before = requests();
+    let command = gpu.queue.new_command_buffer().to_owned();
+    for route in [9, 1, 5, 0, 8, 2, 6, 4, 3, 7] {
+        let case = &cases[route % 4];
+        let backing = record(&gpu, case)?;
+        let expert = FlashExpert::from_backing(&gpu, &backing)?;
+        let x = input(&gpu, case, route % 2 != 0)?;
+        let prefix = crate::expert_ar_policy::prefix(route, 10, 2560, slab.length())
+            .context("slab prefix")?;
+        let output = expert.encode_view_into(
+            &command,
+            &x,
+            Storage::StorageModeShared,
+            Some((&slab, prefix)),
+        )?;
+        ensure!(output.as_ptr() == slab.as_ptr());
+    }
+    command.commit();
+    command.wait_until_completed();
+    ensure!(command.status() == MTLCommandBufferStatus::Completed);
+    // Each record upload and input upload adds two requests outside expert encoding.
+    ensure!(requests() - before == 70);
+    let words = Metal::read(&slab, 25600);
+    for route in 0..10 {
+        check_words(&words[route * 2560..(route + 1) * 2560], &refs[route % 4])?;
+    }
+    eprintln!(
+        "NATIVE_EXPERT_AR_COMPONENT {}",
+        serde_json::json!({"parity":true,"words":compared,"slab_words":25600,"slab_reordered_routes":10,"suh_swap_detected_and_restored":true,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; independent real routed record fixtures required"]
+fn physical_expert_axis_matches_independent_stock_and_ready_cohorts() -> Result<()> {
+    let root = PathBuf::from(
+        std::env::var_os("MLXL3_ROUTED_SCRATCH_FIXTURES").context("fixtures required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("cases.json"))?)?;
+    let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
+    ensure!(cases.len() >= 5 && cases.len() == refs.len() && cases[0].prefix != cases[1].prefix);
+    let gpu = Metal::new()?;
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let mut words = 0usize;
+    let mut cohorts = 0usize;
+    for composed in [false, true] {
+        gpu.expert_ar_enabled[0].set(composed);
+        gpu.expert_ar_enabled[1].set(composed);
+        gpu.expert_ar_enabled[3].set(true);
+        for (case, expected) in cases[..4].iter().zip(&refs) {
+            for fp32 in [false, true] {
+                for n in [1, 2, 10] {
+                    let backing = record(&gpu, case)?;
+                    let experts = (0..n)
+                        .map(|_| FlashExpert::from_backing(&gpu, &backing))
+                        .collect::<Result<Vec<_>>>()?;
+                    let x = input(&gpu, case, fp32)?;
+                    let before = gpu.expert_axis_dispatches.get();
+                    let uses = gpu.expert_ar_uses[3].get();
+                    let finish_uses = gpu.expert_ar_uses[0].get();
+                    let prepare_uses = gpu.expert_ar_uses[1].get();
+                    let outputs = gpu.command(|cmd| {
+                        let expert_refs = experts.iter().collect::<Vec<_>>();
+                        let out = FlashExpert::encode_ready_cohort(
+                            cmd,
+                            &x,
+                            &expert_refs,
+                            &vec![None; n],
+                            Storage::StorageModeShared,
+                        )?;
+                        drop(expert_refs);
+                        drop(experts);
+                        drop(backing);
+                        drop(x);
+                        Ok(out)
+                    })?;
+                    ensure!(
+                        gpu.expert_axis_dispatches.get() - before == 3
+                            && gpu.expert_ar_uses[3].get() - uses == n as u64
+                    );
+                    ensure!(
+                        gpu.expert_ar_uses[0].get() - finish_uses
+                            == if composed { n as u64 } else { 0 }
+                    );
+                    ensure!(
+                        gpu.expert_ar_uses[1].get() - prepare_uses
+                            == if composed { n as u64 } else { 0 }
+                    );
+                    ensure!(
+                        outputs
+                            .iter()
+                            .map(|b| b.as_ptr() as usize)
+                            .collect::<BTreeSet<_>>()
+                            .len()
+                            == n
+                    );
+                    for output in outputs {
+                        check_words(&Metal::read(&output, 2560), expected)?;
+                        words += 2560;
+                    }
+                    cohorts += 1;
+                }
+            }
+        }
+    }
+    // Distinct record identities share one input; capture the canonical branch
+    // before running the candidate, then compare each permuted slab prefix.
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let backings = cases[..2]
+        .iter()
+        .map(|case| record(&gpu, case))
+        .collect::<Result<Vec<_>>>()?;
+    let experts = backings
+        .iter()
+        .map(|backing| FlashExpert::from_backing(&gpu, backing))
+        .collect::<Result<Vec<_>>>()?;
+    let x = input(&gpu, &cases[0], true)?;
+    let expected = experts
+        .iter()
+        .map(|expert| expert.submit_fp16_view(&x)?.read())
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(expected[0] == refs[0] && expected[0] != expected[1]);
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(true);
+    }
+    let slab = upload(&gpu.device, &vec![0x7e00u16; 25600])?;
+    let order = [1, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    let expert_refs = order.iter().map(|&i| &experts[i]).collect::<Vec<_>>();
+    let destinations = (0..10).map(|i| Some((&slab, i * 5120))).collect::<Vec<_>>();
+    let before = gpu.expert_axis_dispatches.get();
+    gpu.command(|cmd| {
+        FlashExpert::encode_ready_cohort(
+            cmd,
+            &x,
+            &expert_refs,
+            &destinations,
+            Storage::StorageModeShared,
+        )?;
+        Ok(())
+    })?;
+    ensure!(gpu.expert_axis_dispatches.get() - before == 3);
+    let actual = Metal::read(&slab, 25600);
+    for (i, &record) in order.iter().enumerate() {
+        check_words(&actual[i * 2560..(i + 1) * 2560], &expected[record])?;
+    }
+    let before = gpu.expert_axis_dispatches.get();
+    let command = gpu.queue.new_command_buffer().to_owned();
+    ensure!(
+        FlashExpert::encode_ready_cohort(&command, &x, &[], &[], Storage::StorageModeShared)
+            .is_err()
+    );
+    ensure!(
+        FlashExpert::encode_ready_cohort(
+            &command,
+            &x,
+            &expert_refs,
+            &[],
+            Storage::StorageModeShared
+        )
+        .is_err()
+    );
+    ensure!(
+        gpu.expert_axis_dispatches.get() == before
+            && command.status() == MTLCommandBufferStatus::NotEnqueued
+    );
+    // An undersized final destination errors after real QMV encodes, without
+    // committing the command. A fresh command on the same owners must recover.
+    let bad = [Some((&slab, slab.length() - 2))];
+    ensure!(
+        FlashExpert::encode_ready_cohort(
+            &command,
+            &x,
+            &expert_refs[..1],
+            &bad,
+            Storage::StorageModeShared
+        )
+        .is_err()
+    );
+    ensure!(command.status() == MTLCommandBufferStatus::NotEnqueued);
+    drop(command);
+    let output = gpu.command(|cmd| {
+        FlashExpert::encode_ready_cohort(
+            cmd,
+            &x,
+            &expert_refs[..1],
+            &[None],
+            Storage::StorageModeShared,
+        )
+    })?;
+    check_words(&Metal::read(&output[0], 2560), &expected[1])?;
+    ensure!(cohorts == 48 && words == 532480);
+    eprintln!(
+        "NATIVE_EXPERT_AXIS_COMPONENT {}",
+        serde_json::json!({"parity":true,"cohorts":cohorts,"stock_words":words,"mixed_slab_words":25600,"dispatches_per_cohort":3,"empty_rejected":true,"uncommitted_error_recovered":true})
+    );
     Ok(())
 }

@@ -1,0 +1,48 @@
+{
+  "status": "passed_targeted_cpu_model_check",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--exact",
+    "--harness",
+    "ar10_defaults::qualified_defaults_preserve_strict_overrides_and_legacy_io",
+    "--harness",
+    "expert_ar_policy::expert_ar_flags_preserve_qualified_defaults_and_overrides",
+    "--jobs",
+    "1",
+    "--output-format",
+    "regular"
+  ],
+  "budget_seconds": 90,
+  "target_dir": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10-defaults/kani-target",
+  "source_sha256": {
+    "native/src/ar10_defaults.rs": "25690bc7696c5da34da85c49a11e185946c9b9b9436eb98171372d7ff84c7cab",
+    "native/src/expert_ar_policy.rs": "c985e2f231075c8ff93b9fea243af18a22f7fcbb01b4dd72c7574058eb703bfd",
+    "native/src/flash_support.rs": "e159175184e2777bbcac309af722113a31f972217c21721d3dcbdcc2e9e661dd"
+  },
+  "domain": "symbolic qualified/present booleans and UTF8 bytes length0..4; no assumptions, unwind10; no Metal/env/concurrency proof",
+  "pid": 72453,
+  "exit_code": 0,
+  "joined": true,
+  "seconds": 34.985995208000006,
+  "harnesses_passed": 2,
+  "obligations": {
+    "SUCCESS": 460,
+    "UNREACHABLE": 14,
+    "SATISFIED": 11
+  },
+  "summary": [
+    "** 0 of 237 failed (7 unreachable)",
+    "** 6 of 6 cover properties satisfied",
+    "** 0 of 237 failed (7 unreachable)",
+    "** 5 of 5 cover properties satisfied"
+  ],
+  "limitations": [
+    "UTF8 length <=4, unwind10; no assumptions; all selected covers satisfied.",
+    "No Metal, environment FFI, OS-string or concurrency proof; NonUnicode conversion covered by deterministic unit test."
+  ]
+}

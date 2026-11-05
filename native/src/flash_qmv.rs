@@ -13,6 +13,77 @@ pub(crate) const SPECS: [Spec; 5] = [
     Spec { k: 4, nt: 2 },
 ];
 
+pub(crate) fn routed_nt2_key(
+    shape: [u32; 2],
+    splits: u32,
+    format: [u32; 3],
+    routed: bool,
+    gu: bool,
+    down: bool,
+) -> Option<usize> {
+    if !routed || splits != 1 || format != [2, 2, 1] {
+        return None;
+    }
+    match shape {
+        [2560, 640] if gu => Some(0),
+        [640, 2560] if down => Some(1),
+        _ => None,
+    }
+}
+
+#[test]
+fn routed_nt2_preserves_records_shapes_and_independent_stage_controls() {
+    for routed in [false, true] {
+        for gu in [false, true] {
+            for down in [false, true] {
+                for (shape, key, selected) in [([2560, 640], 0, gu), ([640, 2560], 1, down)] {
+                    assert_eq!(
+                        routed_nt2_key(shape, 1, [2, 2, 1], routed, gu, down),
+                        (routed && selected).then_some(key)
+                    );
+                    assert!(routed_nt2_key(shape, 2, [2, 2, 1], routed, gu, down).is_none());
+                    assert!(routed_nt2_key(shape, 1, [3, 2, 1], routed, gu, down).is_none());
+                }
+                assert!(routed_nt2_key([2560, 641], 1, [2, 2, 1], routed, gu, down).is_none());
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn routed_nt2_requires_exact_records_and_covers_the_complete_output() {
+    let shape: [u32; 2] = kani::any();
+    let splits: u32 = kani::any();
+    let format: [u32; 3] = kani::any();
+    let routed: bool = kani::any();
+    let gu: bool = kani::any();
+    let down: bool = kani::any();
+    let key = routed_nt2_key(shape, splits, format, routed, gu, down);
+    assert_eq!(
+        key,
+        if routed && splits == 1 && format == [2, 2, 1] {
+            if shape == [2560, 640] && gu {
+                Some(0)
+            } else if shape == [640, 2560] && down {
+                Some(1)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    );
+    if key.is_some() {
+        let groups = crate::contracts::flash_reference_groups(shape[1], 2).unwrap();
+        assert_eq!(groups * 32, shape[1]);
+        assert!(groups > 0);
+    }
+    kani::cover!(key == Some(0));
+    kani::cover!(key == Some(1));
+    kani::cover!(!routed && key.is_none());
+}
+
 pub(crate) fn flag(value: Option<&str>) -> Option<bool> {
     match value {
         None | Some("1") => Some(true),

@@ -1,0 +1,73 @@
+{
+  "status": "ready_no_further_idle_requested_by_user",
+  "actions": [
+    {
+      "command": [
+        "/usr/bin/osascript",
+        "-e",
+        "tell application \"Equibop\" to quit"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.19967166700000002
+    },
+    {
+      "command": [
+        "/usr/bin/powermetrics",
+        "--samplers",
+        "cpu_power,gpu_power,thermal",
+        "-n",
+        "1",
+        "-i",
+        "500"
+      ],
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "powermetrics must be invoked as the superuser\n",
+      "seconds": 0.0073118749999999955
+    },
+    {
+      "command": [
+        "/usr/bin/osascript",
+        "-e",
+        "tell application \"Brave Browser\" to quit"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.12321483400000001
+    },
+    {
+      "command": [
+        "/usr/bin/sudo",
+        "-n",
+        "/usr/bin/powermetrics",
+        "--samplers",
+        "cpu_power,gpu_power,thermal",
+        "-n",
+        "1",
+        "-i",
+        "500"
+      ],
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "sudo: a password is required\n",
+      "seconds": 0.040150500000000006
+    }
+  ],
+  "equibop_still_running": false,
+  "observed_application_process_count_after_equibop_quit": 84,
+  "brave_still_running": false,
+  "cooling_started_epoch": 1793878518.968856,
+  "cooling_started_monotonic": 0.018836833,
+  "cooling_requested_seconds": 90,
+  "quality": "3 phases PASS; reference/model/CLI, all joined",
+  "cooling_elapsed_seconds": 58.62278509140015,
+  "cooling_ended_epoch": 1793878577.5916412,
+  "cooling_policy": "User explicitly canceled further timed cooling; actual interrupted idle recorded, no90s claim",
+  "invalid_cross_process_monotonic_delta_seconds": -0.008187792000000001,
+  "cooling_elapsed_basis": "time.time wall-clock delta across processes; not a temperature measurement",
+  "interrupted_sleep_tool_elapsed_seconds": 20.8389,
+  "clock_diagnostic": "macOS Python3.9 monotonic clock bases differ across processes; original negative delta retained as invalid"
+}

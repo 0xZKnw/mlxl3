@@ -1,0 +1,40 @@
+"""QUIET-01 same-binary controls; source-only until the root GPU grant."""
+
+import runpy
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SPEED = runpy.run_path(str(ROOT / "build/ar20/speed.py"))
+HERE = SPEED["HERE"]
+PREFIX = SPEED["PREFIX"]
+TARGET = SPEED["SELECTED"]
+ARMS = [
+    ("off-start", [], False),
+    ("kernels", SPEED["Q"]["MACROS"], False),
+    (
+        "attention",
+        [PREFIX + name for name in ["QSA_CHAINS", "QSA_PREFETCH", "GDN_RESIDENT_BUNDLE"]],
+        False,
+    ),
+    ("off-middle", [], False),
+    ("finish-mix", [PREFIX + name for name in ["H128_SIMD", "MOE_FINISH_MIX"]], False),
+    ("host-io", [PREFIX + name for name in ["GPU_SPIN_WAIT", "EXPERT_READAHEAD_OFF"]], False),
+    ("compatible", TARGET, False),
+    ("off-end", [], False),
+]
+
+
+def main():
+    SPEED["main"](
+        out=HERE / "quiet-01/performance",
+        arms=ARMS,
+        target=TARGET,
+        freeze_path=ROOT / "build/ar20/freeze-quiet.json",
+        quality_dir=HERE / "quiet-01/quality",
+        label="QUIET-01",
+        reuse_quality=False,
+    )
+
+
+if __name__ == "__main__":
+    main()

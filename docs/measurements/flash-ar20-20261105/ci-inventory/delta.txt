@@ -1,0 +1,76 @@
+native/src/ar20_kernel_policy.rs: array::from_fn 0 -> 1
+native/src/flash_cache_profile/shared/current.rs: .sum 2 -> 4
+native/src/flash_cache_profile/shared/current.rs: array::from_fn 10 -> 11
+native/src/flash_cache_profile/shared/current.rs: config MLXL3_CURRENT_POOL_CAPTURE 2 -> 3
+native/src/flash_cache_profile/shared/current.rs: config MLXL3_CURRENT_POOL_REPORT 2 -> 3
+native/src/gpu.rs: .transpose 0 -> 5
+native/src/gpu.rs: array::from_fn 2 -> 5
+native/src/gpu.rs: config MLXL3_NATIVE_EXPERT_AXIS_QMV 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_EXPERT_GU_PREPARE 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_EXPERT_OUTPUT_SLAB 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_EXPERT_UP_FINISH 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_GDN_HEAD_GATES 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_GDN_JOINT_AB 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_GDN_RESIDENT_BUNDLE 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_GDN_WHOLE 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_GPU_SPIN_WAIT 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_H128_SIMD 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_HC_WRITE_NORM 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_MOE_FINISH_MIX 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_MUL1_SWAR 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QMV_K_PRELOAD 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QSA_CHAINS 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QSA_GATE 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QSA_PREFETCH 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QSA_PREPARE 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_ROUTED_NT2_DOWN 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_ROUTED_NT2_GU 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_TRELLIS_READER8 0 -> 1
+native/src/gpu.rs: shader ../shaders/ar20_kernel_tests.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/ar20_trellis.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/flash_expert_axis.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/flash_gdn_resident.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/flash_gdn_whole.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/flash_qsa_ar20.metal 0 -> 1
+native/src/gpu.rs: shader ../shaders/flash_qsa_chain.metal 0 -> 1
+native/src/gpu/ar10_gdn_tests.rs: .finish 0 -> 2
+native/src/gpu/ar10_gdn_tests.rs: config MLXL3_FLASH_MODEL 0 -> 2
+native/src/gpu/ar10_model_tests.rs: array::from_fn 0 -> 1
+native/src/gpu/ar10_model_tests.rs: config MLXL3_FLASH_MODEL 0 -> 1
+native/src/gpu/ar20_capture_tests.rs: config MLXL3_AR20_CAPTURE 0 -> 1
+native/src/gpu/ar20_capture_tests.rs: config MLXL3_AR20_ORACLE 0 -> 1
+native/src/gpu/ar20_capture_tests.rs: config MLXL3_FLASH_MODEL 0 -> 1
+native/src/gpu/ar20_finish_mix_tests.rs: config MLXL3_ROUTED_SCRATCH_FIXTURES 0 -> 1
+native/src/gpu/ar20_gdn_tests.rs: .finish 0 -> 2
+native/src/gpu/ar20_gdn_tests.rs: config MLXL3_FLASH_MODEL 0 -> 1
+native/src/gpu/ar20_kernel_tests.rs: .to_f32 0 -> 5
+native/src/gpu/ar20_projection_tests.rs: config MLXL3_ROUTED_SCRATCH_FIXTURES 0 -> 1
+native/src/gpu/gdn.rs: .transpose 2 -> 5
+native/src/gpu/hc.rs: .shape 6 -> 7
+native/src/gpu/hc.rs: .transpose 5 -> 6
+native/src/gpu/hc_write_norm_tests.rs: config MLXL3_FLASH_MODEL 0 -> 1
+native/src/gpu/moe.rs: .take 1 -> 3
+native/src/gpu/moe.rs: .transpose 2 -> 3
+native/src/gpu/moe.rs: array::from_fn 0 -> 1
+native/src/gpu/moe.rs: config MLXL3_NATIVE_CACHE_SLRU 0 -> 1
+native/src/gpu/moe.rs: config MLXL3_NATIVE_RECORD_REUSE 0 -> 1
+native/src/gpu/projection.rs: .shape 5 -> 7
+native/src/gpu/projection.rs: array::from_fn 0 -> 1
+native/src/gpu/qsa.rs: .transpose 5 -> 11
+native/src/gpu/resident_bundle_tests.rs: .to_f32 0 -> 1
+native/src/gpu/resident_bundle_tests.rs: config MLXL3_FLASH_MODEL 0 -> 1
+native/src/gpu/routed_nt2_tests.rs: array::from_fn 0 -> 2
+native/src/gpu/routed_nt2_tests.rs: config MLXL3_ROUTED_SCRATCH_FIXTURES 0 -> 1
+native/src/gpu/routed_scratch_tests.rs: config MLXL3_ROUTED_SCRATCH_FIXTURES 1 -> 3
+native/src/ssd_reads.rs: .add 0 -> 1
+native/src/ssd_reads.rs: .run 2 -> 3
+native/src/ssd_reads.rs: .take 1 -> 2
+native/src/ssd_reads.rs: .try_clone 10 -> 13
+native/src/ssd_reads.rs: config MLXL3_NATIVE_READ_SPLIT 0 -> 1
+native/src/ssd_reads/readahead.rs: .try_clone 0 -> 1
+native/src/ssd_reads/readahead.rs: config MLXL3_NATIVE_EXPERT_READAHEAD_OFF 0 -> 1
+native/src/ssd_reads/record_reuse_tests.rs: .ready 0 -> 2
+native/src/ssd_reads/record_reuse_tests.rs: .try_clone 0 -> 1
+native/src/ssd_reads/split_record_tests.rs: .ready 0 -> 6
+native/src/ssd_reads/split_record_tests.rs: .start 0 -> 1
+native/src/ssd_reads/split_record_tests.rs: .try_clone 0 -> 1
