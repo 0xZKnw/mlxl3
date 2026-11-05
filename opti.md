@@ -25626,3 +25626,138 @@ AR20-B12 source QA beforeexecution : matchupstreamhitpromotionorder(uniqueorigin
 AR20-B12 source QA amendment beforeanyproof : Kaniactualqueueprefix6validpromotionsforcesprotectedoverflow/demotionreachable, then4symbolic(u8slot,boolhit)transitionsatcapacity10/11 +symbolicclear, unwind40/allassertionsretained, demotioncoverrequired. ThisisfiniteboundedCPUtransitionsonly, notproofall53slots/unboundedsequences/MetalIO. CPUboundarytestoutofrange/demotionwritten; direct-onlyconstructorscfgkeepsLinuxidlelibraryfreeofunusedhelpers. Noexecutionstarted.
 
 AR20-B09 source-only : pendingreadycohortreturnenumretainsF32partial/SVHoffsetviews, noGPUslab/copynew ; samehot/coldwavesandtrackedCBs, final25bindingskernel20x640threadsretainscanonicalHalf/H128/SVH/8+2routeorder. ExactM5OFFflag/privateF32/nontrace/A06/capabilityguard, A05slabsuppressedonlywhenselected. B08samehadamard128APIlocaltid%64compatibleconfirmedbykernelagent, allCTAbarriersuniform. Physical4casesN1/N2/N10/frozenstock76800routewords+distinct2recordreordereddupsmix10240F32words, badF16/offsetviewsandownersdroppedbeforecommit written. ActualCPUadmission/prefixguardKani4covers fullsymbolicdomainsregistered. NoCPUbuild/test/prover/GPU; sourcependingrootqualification.
+
+AR20 COMMON sourceintegration : tousB01–B12sourcesprésents, unionspréserventB10MoeOutputwaitstats etB04/B09projectiontests cfgtestdistincts. B01horscompositionperformance maisgatepourmétaressourcesconservé. Commoncrossprocessgateactual_paths étenduB01/B02/B03/B04/B09/B10/B11/B12(étatscache48couches+réservations+FDrecords, pasfausseactivité) ; captureexigeTOUSnouveauxflagsOFFycomprisIO/cache, pasuniquementmacros0. Uniquementlecturemetadata/testhelpersnoimpactmath. CPUcompilecommunpuiscomposantsavantmodèles/timing ; profils/provisoiresanciensséparés etpasrevendusfinalcode.
+
+AR20 COMMONbuild01 : compiletypeset390testsPASS85ignored, releaseartefactscréés maisClippy3diagnosticsrefusentvalidation(needlessborrowweights,2chunks_exactconstant→as_chunks). Chaîneshellnecontenaitpasset-e, doncbuildsattemptésaprèséchecClippy ; aucunequalitéGPU/speedlancéeetaucunPASSstrictrevendiqué. Deuxcontrôlesdepropriétédugroupeavantannulationontrefusépargarde(processusexecCargopuisdéjàterminé), aucunprocessusétrangerinterrompu. Corrige3styles sanschangementmath/ordre/len, gardeancienslogs etnouveaubuild02STRICTset-e; garderfulltests390carsemanticsinchangée,puisgatesphysiquescompiléesfinalesexécutées. NouveaucodecaptureétenducompilédanscesartefactsmaisnonqualifiéGPUencore.
+
+AR20 COMPONENTS-01 controller source prereg before writing/execution: adapt AR10 bounded controller, exactly12 phases B01/B05/B06/B07/B08/four-macro-routed/four-macro-resident/B02+B03/B04/B09+B08/B10/B11. ALL12 baseline read from AR10 final plan, old optional flags OFF, all new options OFF except each phase; L1/MoE defaults retained. Freeze-common artifact path/hash/source hashes required; missing routed/NT2 fixtures refuse preflight, independent resident stock copied to disposable phase directory before native outputs. Every child180s, exact1test/nonempty finite marker or full resident binary comparison, process-group cleanup finally, continue only joined, any failed phase keeps global parityfalse; journal immediately. No B12 replay/GPU/build/parse run in this source-only preparation; root executes CPU replay first and qualifies controller/physical gates. Resource metadata B01 requires two viable nonzero pipelines, not an occupancy/performance inference.
+
+AR20-B12-REPLAY validated_simulation joined=True (CPU simulation, not numerical parity or speed)
+
+AR20 COMPONENTS-01 B01 STARTED
+
+AR20 COMPONENTS-01 B01 VALIDATED
+
+AR20 COMPONENTS-01 B05 STARTED
+
+AR20 COMPONENTS-01 B05 VALIDATED
+
+AR20 COMPONENTS-01 B06 STARTED
+
+AR20 COMPONENTS-01 B06 VALIDATED
+
+AR20 COMPONENTS-01 B07 STARTED
+
+AR20 COMPONENTS-01 B07 VALIDATED
+
+AR20 COMPONENTS-01 B08 STARTED
+
+AR20 COMPONENTS-01 B08 VALIDATED
+
+AR20 COMPONENTS-01 B05-08-routed STARTED
+
+AR20 COMPONENTS-01 B05-08-routed VALIDATED
+
+AR20 COMPONENTS-01 B05-08-resident STARTED
+
+AR20 COMPONENTS-01 B05-08-resident VALIDATED
+
+AR20 COMPONENTS-01 B02-03 STARTED
+
+AR20 COMPONENTS-01 B02-03 VALIDATED
+
+AR20 COMPONENTS-01 B04 STARTED
+
+AR20 COMPONENTS-01 B04 VALIDATED
+
+AR20 COMPONENTS-01 B09-B08 STARTED
+
+AR20 COMPONENTS-01 B09-B08 VALIDATED
+
+AR20 COMPONENTS-01 B10 STARTED
+
+AR20 COMPONENTS-01 B10 VALIDATED
+
+AR20 COMPONENTS-01 B11 STARTED
+
+AR20 COMPONENTS-01 B11 VALIDATED
+
+AR20 COMPONENTS-01 CLOSED 12/12 validated; components only, no model-speed claim
+
+AR20 COMMON02 CLOS before GPU: fmt/strict DIRECT-chat Clippy PASS, release libtest+CLI PASS; full affected CPU suite390PASS/85ignored reused from COMMON01 after three style-only fixes. Offline Metal canonical/allfour+TESTS compile PASS40/63warnings; no Metal proof. Freeze docs/measurements/flash-ar20-20261105/freeze-common.json: lib157a86d728031888dd575282d0c193f6be439c3c84e289f88fb5aeeb35249192, CLI8d74a852d2bbdbfb08a6754c8e33585afa6b6e1fb54ed461c66c5aff26634875, HEAD41988dca+five hashed dirty Rust files/548sources. No-default Clippy inherited two test-counter cfg failures reproduced separately and fixed in isolated PR132 head2b16d176, not yet integrated into this frozen AR20 source. No numerical code changed by that fix.
+AR20 COMPONENTS-01 CLOS: 12/12 exact physical phases PASS, 50.9s aggregate gate time, all joined. Four kernel codebook/reader/preload/H128 independent/mutant oracles, routed+resident full frozen stock, QSA60cases/368640Half words, resident bundle4cases/65536words, finish/mix4cases/10240F32+76800stockHalf, rollback full115212288statewords, actual read-ahead inode/EOF/EBADF gate passed. Evidence docs/measurements/flash-ar20-20261105/components-01/report.json; no performance claim.
+AR20 QUALITY-01 prereg before execution: same common frozen artifacts, separate reference process ALL12 baseline/new12OFF creates immutable SHA-bound typed oracle; candidate process11new flagsON excluding B01 (known slowdown), then production CLI2token golden/noMLX/shutdown. B12ON here only to qualify numerical/actual cache path despite worse decode replay, selection for speed remains pending source audit. Full84initial archive, 57606144state words,993280logits,81920hidden bytes, continuation/restoreprefix and actual per-operation counters; finite/nonempty and exact hash parity required. Three phases240s maximum each, no overwritten evidence, join process groups on every path, any failed phase keeps global parityfalse. Controller source docs/.../quality.py.txt reuses reviewed helpers; bounded selfchecks requested, CrossHair unavailable (no proof). No compile/prover/other GPU during this qualification. Physicalcomponents12/12 PASS is required preflight.
+
+AR20 QUALITY reference STARTED
+
+AR20 QUALITY reference REFERENCE_CAPTURED
+
+AR20 QUALITY model STARTED
+
+AR20 QUALITY model VALIDATED
+
+AR20 QUALITY cli STARTED
+
+AR20 QUALITY cli VALIDATED
+
+AR20 QUALITY 3/3 QUALIFIED (reference capture parityfalse, candidate and CLI paritytrue)
+
+AR20 QUALITY-01 CLOS: 3/3 phases complete (separate reference captured/parityfalse, candidate11options/model exact/paritytrue, CLI2token verified/paritytrue), all joined; reference7.764s, model7.064s plus CLI. Full84initial/57606144statewords/993280logits/81920hiddenbytes exact, actual new kernel/runtime/IO/cache counters nonzero as applicable. Immutable oracle and report docs/measurements/flash-ar20-20261105/quality. No speed yet.
+AR20 MAIN32-01 prereg before controller/prototype measure: same frozencommon source/artifacts as COMPONENTS/QUALITY, eight arms in order frozenAR10-control-start / samebinary-allnewOFF / B05-08kernels / B02-04attention / B08+B09finishmix / B10+B11hostIO / compatibleB02-B11 / frozenAR10-control-end. B01 current adaptation rejected after audit and excluded, B12 excluded from decode composition after prereg replay worse decode misses pending finalsourceaudit, kept opt-in/quality11alreadyPASS. Same unchanged priorALL12 thirteenflagsON, old7optionalOFF/dynamicreadersOFF, model65c89531 EXL3avg2.05/M5 24GiB, cache3GiB/4readers/no lookahead/prefixOFF, MAIN32 one warm+one measured32generated/31decode/context4096, benchmark180s/group240s, exact complete text+hash golden on each warm and measured/ARonly. Before any speed, reuse immutable independent reference to rerun ONLY model comparison with B12OFF for final10-option composition (affected cache path); no repeat reference/CLI2token. Actual all10 path counters mandatory; real32token bridge warm/measurement checks quality across remaining groups. NewOFF intentionally checks added-code dormant cost; oldfrozenstart/end drift explicit. No full campaign each detail, no gain addition or minimumthreshold, audit weak/negative adaptations beforedecision, smallcompatiblevariants kept. Conditions Codex/desktop unisolated/no other known inference/compilation/prover; concurrent short CI Python controls mayrun, not sustained speed claim. Do not benchmark before final qualityvariant gate PASS; all children timeout/cleanup and partialfailedreportfalse. Evidence planned docs/measurements/flash-ar20-20261105/main32.
+
+AR20 B12 auditCLOS beforedecodecompositiondecision: source-only review 82bb6968, no replay rerun. Same48x53slots/26protected, same two-generation warmup/no reset, original routing hit order then sorted misses exactly llama.cpp, no adaptation fault found. Decode misses SLRU +1.7674%MAIN/+1.4473%HOLD, prefill -1.8394%/-2.5362%; miss ratios not throughput. Identical phase IDs/stable SLRU plausibly explain repeated counts while LFU clock/frequency ages. B12OFF AR composition, candidate retained opt-in for unmeasured prefill potential; numerical model11options PASS includesactual48SLRU/layer reservations. docs/.../slru-audit/{README.md,audit.json}. B12Kani remains timeout/~81s solve, neither proof nor counterexample; domain10/11slots/6promotions+4symbolictransitions/unwind40 unchanged.
+AR20 proof receiptscopied metadata-only from b67a63b1(attention),c24c933d(kernelmask),10ab9526/ef11b1b6(IO). New targeted totals7harnessPASS933obligations26covers plusSLRUtimeout; CPUboundedguards only, notMetal/arithmetic/concurrency/fullgeneration proof. Existing globalKaniinventoryICE remains unverified. Archives docs/.../{attention-proofs,kani-kernel-mask,io-proofs}, sourcefunction hashes retained.
+
+AR20 MAIN32-01 selected-quality STARTED
+
+AR20 MAIN32-01 selected-quality VALIDATED numerical-gate
+
+AR20 MAIN32-01 control-start STARTED
+
+AR20 MAIN32-01 control-start VALIDATED 4.847053096280905
+
+AR20 MAIN32-01 new-off STARTED
+
+AR20 MAIN32-01 new-off VALIDATED 6.536786517329563
+
+AR20 MAIN32-01 kernels STARTED
+
+AR20 MAIN32-01 conditions snapshot after first freshfrozencontrol4.847053096tok/s: no thermal/performancewarning orpowerstatusreported bypmset; swap3686.88/4096MiB used (no abort as userdirected), Equibop32.5+27.1%CPU/WindowServer13.3/Wallpaper7/VTDecoder5 knownactive. Only campaignCLI identified asmodelprocess. Do not comparedirectly previous9.17/8.35 historicalor attribute slowdown; currentgroupmatrix/endcontrol willqualifydrift. docs/.../main32/conditions.json.
+
+AR20 MAIN32-01 kernels VALIDATED 8.14990291844845
+
+AR20 MAIN32-01 attention STARTED
+
+AR20 MAIN32-01 attention VALIDATED 6.152138719492336
+
+AR20 MAIN32-01 finish-mix STARTED
+
+AR20 MAIN32-01 finish-mix VALIDATED 4.78525797856386
+
+AR20 MAIN32-01 host-io STARTED
+
+AR20 MAIN32-01 host-io VALIDATED 5.011479859152707
+
+AR20 MAIN32-01 compatible STARTED
+
+AR20 MAIN32-01 compatible VALIDATED 8.92249556886708
+
+AR20 MAIN32-01 control-end STARTED
+
+AR20 MAIN32-01 control-end VALIDATED 5.096781230012872
+
+AR20 MAIN32-01 CLOSED eight MAIN32 groups, no sustained throughput claim
+
+AR20 MAIN32-01 CLOS: all8groups/+selected-quality fullmodel PASS,16/16new MAIN32warm/measured outputs completegolden, alljoined. Fresholdfrozencontrol4.847053096/end5.096781230tok/s (+5.15216%drift), samebinarynewOFF6.536786517, kernels8.149902918, attention6.152138719, finishmix4.785257979, hostIO5.011479859, compatible10 8.922495569. Component/state/logit/CLI parity qualified, group speed singlepoints/exploratory only; 10tok/s not reached. Do not infer individualbenefits/sum groups or attribute old/newOFFcompiler gap to anycandidate. Adaptation audits clean so far: B02scratch36allocations/row~9.51MB+secondcombine, B03key<=128 no futurewindowloadbutextraregisters; B04onlydispatch/binding saving, samecompute; B09holdsallfinishtilllastcoldreads and20CTA640threads/mix64active; B10fewspinhits vsfallbacks, B11onefstat/record. Retaincompatiblecandidates OFF/optin, B01performanceREJECTEDafteraudit and B12decode-missOFF retained. Reports docs/.../main32/report.json, runtime-cost-audit and attention audit forthcoming.
+AR20 CONFIRM-01 prereg BEFORE controller adaptation/rerun: only necessary samebinary OFF/compatible10/compatible10/OFF (ABBA), same frozencommon CLI/source/model/checkpoint/protocolcache3GiB/4readers MAIN32onewarm+onemeasured/context4096/ARonly. This repeats MAIN32-01 newOFF6.5368 and compatible8.9225 to test reproducibility after +5.15%endpointcontrol drift and separate group/source binary differences; no new modelcapture/component repeats because exactqualified10 composition unchanged. Validate existing selected-quality receipts+immutableoraclehash and reuse fullmodel/CLI qualification,16prioroutputs; all8new warm/measured outputs mustequalgolden. Fourprocess240s/bench180s, flagsstrict/groupjoin/failedreportfalse, new docs/.../confirmation report, preserve originalcontroller/hash snapshot before adaptation. No additional parameter sweep or individualfullcampaign. Source/proofs/builds stopped, desktopconditionsknown and endpointdriftreported; no promised10tok/s.
+
+AR20 CONFIRM-01 off-start STARTED
+
+AR20 CONFIRM-01 off-start VALIDATED 6.08263887817464
+
+AR20 CONFIRM-01 compatible-A STARTED
+
+AR20 CONFIRM-01 compatible-A VALIDATED 5.209880344804168
+
+AR20 CONFIRM-01 compatible-B STARTED

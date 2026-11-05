@@ -104,10 +104,12 @@ fn logits_hash(words: &[u16]) -> Result<String> {
             .collect::<Vec<_>>(),
     )
 }
-fn actual_paths(gpu: &Metal) -> Result<serde_json::Value> {
+fn actual_paths(gpu: &Metal, model: &FlashNext) -> Result<serde_json::Value> {
     let readers = gpu.readers()?;
+    let slru = model.slru_counts()?;
+    let readahead = readers.readahead_counts();
     Ok(
-        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"readers_in_flight":readers.in_flight()}),
+        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"readers_in_flight":readers.in_flight()}),
     )
 }
 
@@ -140,6 +142,15 @@ fn run_capture() -> Result<()> {
     let bits = compiled_bits(&gpu)?;
     if capture {
         ensure!(bits == 0, "reference compiler options must be OFF");
+        ensure!(
+            !gpu.gdn_head_gates.get()
+                && !gpu.qsa_chains.get()
+                && !gpu.qsa_prefetch.get()
+                && !gpu.gdn_resident_bundle.get()
+                && !gpu.moe_finish_mix.get()
+                && !gpu.spin_wait_enabled,
+            "reference runtime options must be OFF"
+        );
     }
     ensure!(
         gpu.cross_layer.get()
@@ -156,6 +167,12 @@ fn run_capture() -> Result<()> {
     );
     let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
     ensure!(model.prefetcher.is_none());
+    if capture {
+        ensure!(
+            model.slru_counts()? == (0, 0) && gpu.readers()?.readahead_counts() == [0; 2],
+            "reference IO/cache options must be OFF"
+        );
+    }
     let empty = model.snapshot();
     let (initial, states) = model.forward_trace(248044)?;
     check_initial(&initial, &states)?;
@@ -166,7 +183,7 @@ fn run_capture() -> Result<()> {
     let mut state_words = 0;
     let mut paths = Vec::new();
     for token in [248044, 1] {
-        let before = actual_paths(&gpu)?;
+        let before = actual_paths(&gpu, &model)?;
         let logits = model.forward(token)?;
         let logits = logits_hash(&logits)?;
         let hidden = model
@@ -183,7 +200,7 @@ fn run_capture() -> Result<()> {
         );
         let control = model.snapshot();
         let offset = model.offset();
-        let after = actual_paths(&gpu)?;
+        let after = actual_paths(&gpu, &model)?;
         let (next, states) = model.forward_trace(11)?;
         let next_logits = logits_hash(&next)?;
         state_words += check_tensors(&states)?;

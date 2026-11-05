@@ -126,7 +126,9 @@ fn physical_ar20_reader8_preserves_every_packed_state() -> Result<()> {
 
 fn float_bits(buffer: &Buffer, count: usize) -> Vec<u32> {
     Metal::read(buffer, count * 2)
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|v| u32::from(v[0]) | (u32::from(v[1]) << 16))
         .collect()
 }

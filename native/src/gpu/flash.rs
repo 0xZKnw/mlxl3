@@ -163,6 +163,27 @@ pub struct FlashNext<'a> {
     pub(super) request_limit: Option<u64>,
 }
 impl<'a> FlashNext<'a> {
+    #[cfg(test)]
+    pub(super) fn slru_counts(&self) -> Result<(usize, usize)> {
+        self.layers
+            .iter()
+            .try_fold((0usize, 0usize), |(enabled, reservations), layer| {
+                let (on, count) = match layer {
+                    Layer::Gdn(a) => a.residual.moe.slru_counts(),
+                    Layer::Ple(a) => a.body.residual.moe.slru_counts(),
+                    Layer::Qsa(a) => a.residual.moe.slru_counts(),
+                };
+                Ok((
+                    enabled
+                        .checked_add(usize::from(on))
+                        .context("SLRU layer count overflow")?,
+                    reservations
+                        .checked_add(count)
+                        .context("SLRU reservation count overflow")?,
+                ))
+            })
+    }
+
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
         #[cfg(feature = "chat")]

@@ -606,7 +606,7 @@ impl<'a> FlashMoeRow<'a> {
                     &command,
                     &terms,
                     &shared,
-                    [&weights, &multiplier, &values],
+                    [weights, &multiplier, &values],
                 )?;
             } else {
                 let mut bindings = plan

@@ -69,7 +69,12 @@ fn physical_ar20_pending_finish_mix_preserves_canonical_routes_and_owners() -> R
         let mut route_cases = [0usize; 10];
         let groups: Vec<Vec<usize>> = match phase {
             0 => order.iter().map(|&r| vec![r]).collect(),
-            1 => order.chunks_exact(2).map(|g| g.to_vec()).collect(),
+            1 => order
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|g| g.to_vec())
+                .collect(),
             _ => vec![order.to_vec()],
         };
         for (g, routes) in groups.iter().enumerate() {
