@@ -12,3 +12,22 @@ kernel void ar20_codebook_omit_high_byte(device half* out [[buffer(0)]], uint cw
     out[cw] = fma(as_type<half>(ushort(sum)), as_type<half>(ushort(0x1eee)), as_type<half>(ushort(0xc931)));
 }
 #endif
+
+#if MLXL3_AR20_TESTS
+kernel void ar20_reader8_states(const device ushort* packed [[buffer(0)]], device ushort* out [[buffer(1)]],
+    constant uint& k [[buffer(2)]], uint lane [[thread_index_in_threadgroup]], uint tile [[threadgroup_position_in_grid]]) {
+    uint cw[8];
+    if (k <= 6u) ar20_read8(ar20_window8(reinterpret_cast<const device uint*>(packed) + tile * 8u * k, lane, k), k, cw);
+    else for (uint j=0u; j<8u; ++j) cw[j] = state(packed, tile, lane*8u+j, k);
+    for (uint j=0u; j<8u; ++j) out[tile * 256u + lane*8u+j] = ushort(cw[j]);
+}
+kernel void ar20_reader8_omit_high_word(const device ushort* packed [[buffer(0)]], device ushort* out [[buffer(1)]],
+    constant uint& k [[buffer(2)]], uint lane [[thread_index_in_threadgroup]], uint tile [[threadgroup_position_in_grid]]) {
+    const device uint* words = reinterpret_cast<const device uint*>(packed) + tile * 8u * k;
+    uint end = (lane*8u+8u)*k+256u*k, last=(end-1u)/32u, shift=(last+1u)*32u-end;
+    uint a=words[last%(8u*k)], b=words[(last-1u)%(8u*k)];
+    uint low=uint(((ulong(b)<<32u)|ulong(a))>>shift), high=uint(ulong(b)>>shift);
+    uint cw[8]; ar20_read8((ulong(high)<<32u)|ulong(low), k, cw);
+    for(uint j=0u;j<8u;++j) out[tile*256u+lane*8u+j]=ushort(cw[j]);
+}
+#endif

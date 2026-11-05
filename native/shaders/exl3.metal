@@ -43,6 +43,8 @@ inline half codeword(uint x, uint cb) {
     return codeword_canonical(x, cb);
 }
 
+#include "ar20_trellis.metal"
+
 inline ushort state(const device ushort* packed, uint tile, uint t, uint k) {
     uint b0 = t * k + k + 256u * k - 16u;
     uint b1 = b0 + 16u;

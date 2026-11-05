@@ -436,7 +436,7 @@ impl Metal {
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
             let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
                 hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
-                false,
+                hc_kernel_setting("MLXL3_NATIVE_TRELLIS_READER8")?,
                 false,
                 false,
             ]);
@@ -662,6 +662,10 @@ impl Metal {
             .replace(
                 r#"#include "ar20_kernel_tests.metal""#,
                 include_str!("../shaders/ar20_kernel_tests.metal"),
+            );
+            let source = source.replace(
+                r#"#include "ar20_trellis.metal""#,
+                include_str!("../shaders/ar20_trellis.metal"),
             );
             let library = device
                 .new_library_with_source(&source, &options)

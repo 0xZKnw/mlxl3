@@ -58,3 +58,68 @@ fn physical_ar20_codebook_preserves_all_half_states() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "physical AR20 B06 codec windows, wraps and tail bits; run alone"]
+fn physical_ar20_reader8_preserves_every_packed_state() -> Result<()> {
+    let gpu = Metal::new()?;
+    let bits = compiled_bits(&gpu)?;
+    ensure!(bits & 2 != 0, "enable TRELLIS_READER8");
+    let reader = pipeline(&gpu, "ar20_reader8_states")?;
+    let mutant = pipeline(&gpu, "ar20_reader8_omit_high_word")?;
+    let mut checked = 0;
+    let mut detected = false;
+    for k in 2usize..=8 {
+        for pattern in 0..4 {
+            let packed = (0..4 * 16 * k)
+                .map(|i| match pattern {
+                    0 => 0,
+                    1 => u16::MAX,
+                    2 => {
+                        if i % 2 == 0 {
+                            0xaaaa
+                        } else {
+                            0x5555
+                        }
+                    }
+                    _ => (i as u16).wrapping_mul(701).wrapping_add(33),
+                })
+                .collect::<Vec<_>>();
+            let source = upload(&gpu.device, &packed)?;
+            let output = buffer(&gpu.device, 2048, Storage::StorageModeShared)?;
+            let wrong = buffer(&gpu.device, 2048, Storage::StorageModeShared)?;
+            gpu.command(|cmd| {
+                Metal::encode(
+                    cmd,
+                    &reader,
+                    &[&source, &output],
+                    [k as u32],
+                    MTLSize::new(4, 1, 1),
+                    32,
+                );
+                if k <= 6 {
+                    Metal::encode(
+                        cmd,
+                        &mutant,
+                        &[&source, &wrong],
+                        [k as u32],
+                        MTLSize::new(4, 1, 1),
+                        32,
+                    );
+                }
+                Ok(())
+            })?;
+            let expected = codec::unpack(&packed, k)?;
+            ensure!(expected.len() == 1024 && Metal::read(&output, 1024) == expected);
+            if k <= 6 {
+                detected |= Metal::read(&wrong, 1024) != expected;
+            }
+            checked += expected.len();
+        }
+    }
+    ensure!(detected && checked == 28672);
+    eprintln!(
+        "AR20_READER8 {{\"parity\":true,\"state_words\":{checked},\"compiled_bits\":{bits},\"high_word_mutant_detected\":true,\"k7_k8_fallback\":true}}"
+    );
+    Ok(())
+}

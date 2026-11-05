@@ -97,17 +97,32 @@
                     const device uint* words = trellis +
                         (tile_k * uint(TILES_N) + tile_n + output_tile)
                         * uint(PACKED_U32);
+#if MLXL3_AR20_READER8
+                    uint reader_cw[8];
+                    if (K <= 6) ar20_read8(ar20_window8(words, lane, uint(K)), uint(K), reader_cw);
+#endif
                     for (uint group = 0u; group < 2u; ++group) {
+                        uint cw0, cw1, cw2, cw3;
+#if MLXL3_AR20_READER8
+                        if (K <= 6) {
+                            cw0 = reader_cw[group * 4u];
+                            cw1 = reader_cw[group * 4u + 1u];
+                            cw2 = reader_cw[group * 4u + 2u];
+                            cw3 = reader_cw[group * 4u + 3u];
+                        } else
+#endif
+                        {
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
                         uint shift = shifts[group];
                         uint window = uint(merged >> shift);
-                        uint cw3 = window & 0xffffu;
-                        uint cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
-                        uint cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
-                        uint cw0 = MLXL3_K_BITS <= 5u
+                        cw3 = window & 0xffffu;
+                        cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
+                        cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
+                        cw0 = MLXL3_K_BITS <= 5u
                             ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
+                        }
                         uint j = group * 4u;
                         float weight0 = float(mlxl3_decode_codeword(cw0, CB));
                         float weight1 = float(mlxl3_decode_codeword(cw1, CB));
