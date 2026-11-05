@@ -112,91 +112,22 @@ kernel void gdn_joint_ab(const device half* x [[buffer(0)]],const device half* a
 #undef BN
 }
 
-kernel void ar10_gdn_whole(const device half* qkv [[buffer(0)]],const device half* z [[buffer(1)]],
-    const device half* a [[buffer(2)]],const device half* b [[buffer(3)]],const device half* history [[buffer(4)]],
-    const device half* weight [[buffer(5)]],const device float* a_log [[buffer(6)]],const device half* dt_bias [[buffer(7)]],
-    const device float* state_in [[buffer(8)]],device half* history_out [[buffer(9)]],device float* state_out [[buffer(10)]],
-    const device float* gain [[buffer(11)]],device half* gated [[buffer(12)]],constant uint* params [[buffer(13)]],
-    uint lid [[thread_index_in_threadgroup]],uint h [[threadgroup_position_in_grid]]) {
-    const uint sg=lid/32,ln=lid%32,hk=h/3;
-    threadgroup half tq[128],tk[128],tv[128],ty[128];
-    if(sg<3) {
-        const uint channel_head=sg==0?hk:(sg==1?16+hk:32+h);
-        half values[4],sum=0.0h;
-        for(uint i=0;i<4;++i) {
-            uint channel=channel_head*128+ln*4+i;
-            float acc=0.0f;
-            for(uint t=0;t<4;++t) {
-                half x=t<3?history[t*10240+channel]:qkv[channel];
-                acc+=float(x)*float(weight[channel*4+t]);
-            }
-            half x=half(acc);
-            half tail=half(1.0h)/(half(1.0h)+metal::exp(metal::abs(x)));
-            half sigmoid=x<half(0.0h)?tail:half(1.0h)-tail;
-            half value=x*sigmoid;
-            values[i]=value;
-            volatile half squared=value*value;
-            sum+=squared;
-            // Shared Q/K heads have exactly one history owner; each V head is unique.
-            if(sg==2 || h%3==0) for(uint t=0;t<3;++t)
-                history_out[t*10240+channel]=t<2?history[(t+1)*10240+channel]:qkv[channel];
-            if(sg==2)tv[ln*4+i]=value;
-        }
-        if(sg<2) {
-            half total=simd_sum(sum);
-            half inverse=metal::precise::rsqrt(half(total+half(1.0e-6f)));
-            for(uint i=0;i<4;++i) {
-                volatile half normalized=values[i]*inverse;
-                if(sg==0)tq[ln*4+i]=normalized*half(0.08838834764831845f);
-                else tk[ln*4+i]=normalized;
-            }
-        }
-    }
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    threadgroup half* q=tq;
-    threadgroup half* k=tk;
-    threadgroup half* v=tv;
-    threadgroup half* y=ty;
-    uint thread_index_in_simdgroup=ln;
-    uint3 thread_position_in_grid=uint3(ln,sg,h);
-#define MLXL3_GDN_LOCAL_QKV 1
-#define MLXL3_GDN_FUSED_GATES 1
-#define MLXL3_GDN_SAVE_HISTORY 0
-#define MLXL3_GDN_SAVE_TAPE 0
-#define InT half
-#define StT float
-#define B 1
-#define T 1
-#define Dk 128
-#define Dv 128
-#define Hk 16
-#define Hv 48
-#include "gated_delta_packed.metal"
-#undef MLXL3_GDN_LOCAL_QKV
-#undef MLXL3_GDN_FUSED_GATES
-#undef MLXL3_GDN_SAVE_HISTORY
-#undef MLXL3_GDN_SAVE_TAPE
-#undef InT
-#undef StT
-#undef B
-#undef T
-#undef Dk
-#undef Dv
-#undef Hk
-#undef Hv
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    if(sg==0) {
-        const uint at=h*128+ln*4;
-        float values[4],sum=0;
-        for(uint i=0;i<4;++i){values[i]=float(ty[ln*4+i]);sum+=values[i]*values[i];}
-        float inverse=precise::rsqrt(simd_sum(sum)/128.0f+as_type<float>(params[0]));
-        for(uint i=0;i<4;++i) {
-            volatile float normalized=gain[ln*4+i]*(values[i]*inverse);
-            float gate=float(z[at+i]);
-            float p=1.0f/(1.0f+metal::precise::exp(metal::abs(gate)));
-            volatile float probability=gate<0.0f?p:1.0f-p;
-            volatile float product=normalized*probability;
-            gated[at+i]=half(product);
-        }
-    }
+#define AR20_WHOLE_GDN_ARGS const device half* qkv [[buffer(0)]],const device half* z [[buffer(1)]], \
+    const device half* a [[buffer(2)]],const device half* b [[buffer(3)]],const device half* history [[buffer(4)]], \
+    const device half* weight [[buffer(5)]],const device float* a_log [[buffer(6)]],const device half* dt_bias [[buffer(7)]], \
+    const device float* state_in [[buffer(8)]],device half* history_out [[buffer(9)]],device float* state_out [[buffer(10)]], \
+    const device float* gain [[buffer(11)]],device half* gated [[buffer(12)]],constant uint* params [[buffer(13)]], \
+    uint lid [[thread_index_in_threadgroup]],uint h [[threadgroup_position_in_grid]]
+
+kernel void ar10_gdn_whole(AR20_WHOLE_GDN_ARGS) {
+#define MLXL3_GDN_HEAD_GATES 0
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HEAD_GATES
 }
+
+kernel void ar20_gdn_whole_head_gates(AR20_WHOLE_GDN_ARGS) {
+#define MLXL3_GDN_HEAD_GATES 1
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HEAD_GATES
+}
+#undef AR20_WHOLE_GDN_ARGS

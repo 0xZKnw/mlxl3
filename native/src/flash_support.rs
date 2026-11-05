@@ -3806,3 +3806,45 @@ fn ar10_whole_gdn_requires_every_real_private_capability_guard() {
     kani::cover!(!actual && t);
     kani::cover!(!actual && s != 32);
 }
+
+pub(crate) fn ar20_head_gates_eligible(
+    enabled: bool,
+    whole: bool,
+    trace: bool,
+    private_f32: bool,
+    simd: u32,
+    threads: u32,
+) -> bool {
+    enabled && whole && ar10_whole_gdn_eligible(true, trace, private_f32, simd, threads)
+}
+#[test]
+fn ar20_head_gates_require_the_actual_whole_private_capability() {
+    assert!(ar20_head_gates_eligible(true, true, false, true, 32, 512));
+    for values in [
+        (false, true, false, true, 32, 512),
+        (true, false, false, true, 32, 512),
+        (true, true, true, true, 32, 512),
+        (true, true, false, false, 32, 512),
+        (true, true, false, true, 64, 512),
+        (true, true, false, true, 32, 511),
+    ] {
+        assert!(!ar20_head_gates_eligible(
+            values.0, values.1, values.2, values.3, values.4, values.5
+        ));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar20_head_gates_require_all_actual_runtime_and_capability_guards() {
+    let e: bool = kani::any();
+    let w: bool = kani::any();
+    let t: bool = kani::any();
+    let f: bool = kani::any();
+    let s: u32 = kani::any();
+    let n: u32 = kani::any();
+    let actual = ar20_head_gates_eligible(e, w, t, f, s, n);
+    assert_eq!(actual, e && w && !t && f && s == 32 && n >= 512);
+    kani::cover!(actual);
+    kani::cover!(!actual && e && !w);
+    kani::cover!(!actual && e && w && t);
+}
