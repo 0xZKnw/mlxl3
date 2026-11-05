@@ -231,3 +231,5 @@ kernel void ar10_qsa_attention_gate(const device half* queries [[buffer(0)]], co
         out[head*256+stripe*8+j]=attention*hc_sigmoid(qg[(head*2+1)*256+stripe*8+j]);
     }
 }
+
+#include "flash_qsa_ar20.metal"

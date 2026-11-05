@@ -3807,6 +3807,7 @@ fn ar10_whole_gdn_requires_every_real_private_capability_guard() {
     kani::cover!(!actual && s != 32);
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn ar20_head_gates_eligible(
     enabled: bool,
     whole: bool,
@@ -3847,4 +3848,75 @@ fn ar20_head_gates_require_all_actual_runtime_and_capability_guards() {
     kani::cover!(actual);
     kani::cover!(!actual && e && !w);
     kani::cover!(!actual && e && w && t);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar20_qsa_chains_eligible(
+    enabled: bool,
+    trace: bool,
+    fp32: bool,
+    keys: u32,
+    sparse: bool,
+    capability: [u32; 4],
+) -> bool {
+    ar10_qsa_gate_eligible(enabled, trace, fp32, keys, sparse)
+        && capability[0] == 32
+        && capability[1] >= 128
+        && capability[2] == 32
+        && capability[3] >= 1024
+}
+#[test]
+fn ar20_qsa_chains_guard_keeps_short_dense_private_capable_domain() {
+    assert!(ar20_qsa_chains_eligible(
+        true,
+        false,
+        true,
+        1,
+        false,
+        [32, 128, 32, 1024]
+    ));
+    for keys in [0, 1024, u32::MAX] {
+        assert!(!ar20_qsa_chains_eligible(
+            true,
+            false,
+            true,
+            keys,
+            false,
+            [32, 128, 32, 1024]
+        ));
+    }
+    for caps in [
+        [64, 128, 32, 1024],
+        [32, 127, 32, 1024],
+        [32, 128, 64, 1024],
+        [32, 128, 32, 1023],
+    ] {
+        assert!(!ar20_qsa_chains_eligible(
+            true, false, true, 87, false, caps
+        ));
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities() {
+    let (e, t, f, s): (bool, bool, bool, bool) = kani::any();
+    let k: u32 = kani::any();
+    let c: [u32; 4] = kani::any();
+    let a = ar20_qsa_chains_eligible(e, t, f, k, s, c);
+    assert_eq!(
+        a,
+        e && !t
+            && f
+            && !s
+            && k > 0
+            && k < 1024
+            && c[0] == 32
+            && c[1] >= 128
+            && c[2] == 32
+            && c[3] >= 1024
+    );
+    kani::cover!(a && k == 1);
+    kani::cover!(a && k == 1023);
+    kani::cover!(!a && s);
+    kani::cover!(!a && c[3] < 1024);
 }

@@ -253,6 +253,12 @@ pub struct Metal {
     #[cfg(test)]
     gdn_whole_uses: std::cell::Cell<usize>,
     qsa_prepare: std::cell::Cell<bool>,
+    qsa_chains: std::cell::Cell<bool>,
+    qsa_prefetch: std::cell::Cell<bool>,
+    #[cfg(test)]
+    qsa_chain_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    qsa_prefetch_uses: std::cell::Cell<usize>,
     qsa_gate_fused: std::cell::Cell<bool>,
     #[cfg(test)]
     qsa_gate_fused_uses: std::cell::Cell<usize>,
@@ -450,6 +456,8 @@ impl Metal {
             let gdn_whole = hc_kernel_setting("MLXL3_NATIVE_GDN_WHOLE")?;
             let gdn_head_gates = hc_kernel_setting("MLXL3_NATIVE_GDN_HEAD_GATES")?;
             let qsa_prepare = hc_kernel_setting("MLXL3_NATIVE_QSA_PREPARE")?;
+            let qsa_chains = hc_kernel_setting("MLXL3_NATIVE_QSA_CHAINS")?;
+            let qsa_prefetch = hc_kernel_setting("MLXL3_NATIVE_QSA_PREFETCH")?;
             let qsa_gate_fused = hc_kernel_setting("MLXL3_NATIVE_QSA_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             // Only qualified L1 consumers defer completion, so use L1's hardware default.
@@ -638,6 +646,14 @@ impl Metal {
                     include_str!("../shaders/flash_qsa.metal"),
                 )
                 .replace(
+                    "#include \"flash_qsa_ar20.metal\"",
+                    include_str!("../shaders/flash_qsa_ar20.metal"),
+                )
+                .replace(
+                    "#include \"flash_qsa_chain.metal\"",
+                    include_str!("../shaders/flash_qsa_chain.metal"),
+                )
+                .replace(
                     "#include \"flash_rope.metal\"",
                     include_str!("../shaders/flash_rope.metal"),
                 )
@@ -795,7 +811,13 @@ impl Metal {
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
-            let qsa = qsa::Pipelines::load(&pipeline, qsa_prepare, qsa_gate_fused)?;
+            let qsa = qsa::Pipelines::load(
+                &pipeline,
+                qsa_prepare,
+                qsa_gate_fused,
+                qsa_chains,
+                qsa_prefetch,
+            )?;
             let gdn = gdn::Pipelines::load(
                 &pipeline,
                 gdn_norm_gate,
@@ -828,6 +850,12 @@ impl Metal {
                 #[cfg(test)]
                 gdn_whole_uses: std::cell::Cell::new(0),
                 qsa_prepare: std::cell::Cell::new(qsa_prepare),
+                qsa_chains: std::cell::Cell::new(qsa_chains),
+                qsa_prefetch: std::cell::Cell::new(qsa_prefetch),
+                #[cfg(test)]
+                qsa_chain_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                qsa_prefetch_uses: std::cell::Cell::new(0),
                 qsa_gate_fused: std::cell::Cell::new(qsa_gate_fused),
                 #[cfg(test)]
                 qsa_gate_fused_uses: std::cell::Cell::new(0),
