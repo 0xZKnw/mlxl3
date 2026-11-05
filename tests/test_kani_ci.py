@@ -83,6 +83,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
         "flash_support::ar20_head_gates_require_all_actual_runtime_and_capability_guards",
         "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
+        "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
         "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
         "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
         "expert_ar_policy::expert_axis_admits_only_nonempty_bounded_ready_tables",

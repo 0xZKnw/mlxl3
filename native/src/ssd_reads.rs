@@ -415,6 +415,45 @@ impl SplitRecord {
     }
 }
 
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_eligible(enabled: bool, qualified_m5: bool) -> bool {
+    enabled && qualified_m5
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+fn readahead_identity_matches(inspected: [u64; 2], opened: [u64; 2]) -> bool {
+    inspected == opened
+}
+
+#[test]
+fn dedicated_readahead_requires_qualified_source_and_exact_inode() {
+    for e in [false, true] {
+        for q in [false, true] {
+            assert_eq!(readahead_eligible(e, q), e && q);
+        }
+    }
+    assert!(readahead_identity_matches([1, 2], [1, 2]));
+    assert!(!readahead_identity_matches([1, 2], [2, 1]));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
+    let e: bool = kani::any();
+    let q: bool = kani::any();
+    let a: [u64; 2] = kani::any();
+    let b: [u64; 2] = kani::any();
+    assert_eq!(readahead_eligible(e, q), e && q);
+    assert_eq!(
+        readahead_identity_matches(a, b),
+        a[0] == b[0] && a[1] == b[1]
+    );
+    kani::cover!(readahead_eligible(e, q) && readahead_identity_matches(a, b));
+    kani::cover!(e && !q);
+    kani::cover!(a[0] != b[0] && a[1] == b[1]);
+    kani::cover!(a[0] == b[0] && a[1] != b[1]);
+}
+
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 #[path = "ssd_reads/readahead.rs"]
 mod readahead;
@@ -714,7 +753,10 @@ impl ReadService {
                 "checkpoint record was truncated after inspection"
             );
             #[cfg(all(target_os = "macos", feature = "direct-metal"))]
-            let handle = if let Some(files) = self.readahead_files.as_ref().filter(|_| qualified_m5)
+            let handle = if let Some(files) = self
+                .readahead_files
+                .as_ref()
+                .filter(|_| readahead_eligible(true, qualified_m5))
             {
                 files.source(&record.file, file)?
             } else {

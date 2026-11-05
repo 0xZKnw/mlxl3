@@ -8,13 +8,13 @@ use std::{
 };
 
 pub(super) struct ExpertFiles {
-    files: RefCell<BTreeMap<(u64, u64), File>>,
+    files: RefCell<BTreeMap<[u64; 2], File>>,
     #[cfg(test)]
     selected_records: Cell<usize>,
 }
-fn identity(file: &File) -> Result<(u64, u64)> {
+fn identity(file: &File) -> Result<[u64; 2]> {
     let m = file.metadata()?;
-    Ok((m.dev(), m.ino()))
+    Ok([m.dev(), m.ino()])
 }
 fn disable_readahead(fd: std::os::fd::RawFd) -> Result<()> {
     // This setter affects an open-file description; the FD must be independently opened.
@@ -51,7 +51,7 @@ impl ExpertFiles {
                 format!("opening dedicated expert descriptor {}", path.display())
             })?;
             ensure!(
-                identity(&file)? == key,
+                readahead_identity_matches(key, identity(&file)?),
                 "expert file identity changed after inspection"
             );
             disable_readahead(file.as_raw_fd())?;
@@ -74,7 +74,7 @@ impl ExpertFiles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Seek, SeekFrom, Write};
+    use std::io::{Seek, SeekFrom};
 
     #[test]
     #[ignore = "Darwin F_RDAHEAD actual descriptor/byte/error oracle; run alone"]
