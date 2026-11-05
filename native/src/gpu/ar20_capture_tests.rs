@@ -110,7 +110,7 @@ fn actual_paths(gpu: &Metal, model: &FlashNext) -> Result<serde_json::Value> {
     let slru = model.slru_counts()?;
     let readahead = readers.readahead_counts();
     Ok(
-        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight()}),
+        serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight(),"device_hot_enabled":gpu.device_resident_route_enabled(),"device_hot_available":gpu.device_resident_route_available(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get)}),
     )
 }
 
@@ -145,6 +145,14 @@ fn run_capture() -> Result<()> {
             || gpu.device_greedy_available(),
         "requested C03 path is unavailable"
     );
+    let hot_setting = std::env::var("MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE");
+    let hot_default = hot_setting.is_err()
+        && gpu.device.name() == "Apple M5"
+        && gpu.device.argument_buffers_support() == metal::MTLArgumentBuffersTier::Tier2;
+    ensure!(
+        !(hot_setting.as_deref() == Ok("1") || hot_default) || gpu.device_resident_route_enabled(),
+        "requested or default T05 path is unavailable"
+    );
     let bits = compiled_bits(&gpu)?;
     let cooperative = compiled_cooperative(&gpu)?;
     if capture {
@@ -152,6 +160,7 @@ fn run_capture() -> Result<()> {
             bits == 0
                 && !cooperative
                 && !gpu.device_greedy_available()
+                && !gpu.device_resident_route_enabled()
                 && !gpu.router_pair.enabled.get()
                 && !gpu.resident_scratch.enabled.get(),
             "reference compiler options must be OFF"
@@ -181,6 +190,22 @@ fn run_capture() -> Result<()> {
     );
     let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
     ensure!(model.prefetcher.is_none());
+    if gpu.device_resident_route_enabled() {
+        model.request_limit = Some(u64::MAX);
+        let plan = model
+            .admit_request(128)?
+            .context("missing T05 request plan")?;
+        ensure!(
+            serde_json::to_value(plan)?["device_hot_reserve_bytes"]
+                == crate::device_hot_policy::RESERVE_BYTES,
+            "production admission omitted the T05 reserve"
+        );
+        model.request_limit = None;
+        ensure!(
+            gpu.admit_load(Some(1), 0).is_err(),
+            "impossible load budget accepted the T05 reserve"
+        );
+    }
     if capture {
         ensure!(
             model.slru_counts()? == (0, 0) && gpu.readers()?.readahead_counts() == [0; 2],
@@ -198,6 +223,7 @@ fn run_capture() -> Result<()> {
     let mut paths = Vec::new();
     for token in [248044, 1] {
         let before = actual_paths(&gpu, &model)?;
+        let hot_before = gpu.device_hot_submissions();
         let router_before = gpu.router_pair.uses.get();
         let scratch_before = gpu.resident_scratch.reuses.get();
         let cooperative_before = gpu
@@ -253,6 +279,24 @@ fn run_capture() -> Result<()> {
                 "cooperative resident/routed paths were not both executed"
             );
         }
+        if gpu.device_resident_route_enabled() {
+            ensure!(
+                gpu.device_hot_submissions() > hot_before,
+                "T05 was not submitted on the real model path"
+            );
+            ensure!(
+                gpu.device_resident_route_available(),
+                "T05 retained the preceding transaction after row completion"
+            );
+            let counts = super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get);
+            ensure!(
+                counts[0] > 0
+                    && counts[1] > 0
+                    && counts[1] + counts[2] == counts[0] * 10
+                    && counts[3] <= 10 * crate::flash_support::EXPERT_BYTES,
+                "T05 hit/miss/retirement accounting is incomplete"
+            );
+        }
         let (next, states) = model.forward_trace(11)?;
         let next_logits = logits_hash(&next)?;
         state_words += check_tensors(&states)?;
@@ -282,6 +326,41 @@ fn run_capture() -> Result<()> {
         model.restore(&control)?;
     }
     ensure!(state_words == 57_606_144 && model.offset() == 2 && gpu.readers()?.in_flight() == 0);
+    if gpu.device_resident_route_enabled() {
+        let retained = model.snapshot();
+        super::hc::FAIL_NEXT_PENDING_HC_ROUTE.with(|failure| failure.set(true));
+        let rejected = model.forward(11);
+        let unconsumed =
+            super::hc::FAIL_NEXT_PENDING_HC_ROUTE.with(|failure| failure.replace(false));
+        ensure!(
+            rejected.is_err() && !unconsumed && model.offset() == 2,
+            "T05 producer failure was not exercised or advanced state"
+        );
+        ensure!(
+            gpu.device_resident_route_available() && gpu.readers()?.in_flight() == 0,
+            "T05 failure left live GPU ownership or SSD reads"
+        );
+        let (next, states) = model.forward_trace(11)?;
+        ensure!(logits_hash(&next)? == cases[1].next_logits);
+        check_tensors(&states)?;
+        let actual = states
+            .iter()
+            .map(|state| {
+                Ok(TensorHash {
+                    name: state.name.clone(),
+                    shape: state.shape.clone(),
+                    bytes: state.data.len(),
+                    sha256: digest(&state.data)?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        ensure!(
+            actual == cases[1].states,
+            "T05 failure rollback changed recurrent state"
+        );
+        model.restore(&retained)?;
+        ensure!(model.offset() == 2);
+    }
     if gpu.device_greedy_available() {
         let retained = model.snapshot();
         gpu.device_greedy_reject_result.set(true);
@@ -323,7 +402,7 @@ fn run_capture() -> Result<()> {
         );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
-            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
+            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"device_hot_rollback":gpu.device_resident_route_enabled(),"device_hot_default_environment_unset":hot_setting.is_err(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
         );
     } else {
         let oracle = Oracle {

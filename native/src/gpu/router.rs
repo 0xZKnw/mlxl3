@@ -16,6 +16,11 @@ pub struct RouteOutput {
 }
 
 impl RouteOutput {
+    /// Same-queue GPU consumption only; these device IDs are not host-ready yet.
+    pub(super) fn device_indices(&self) -> &Buffer {
+        &self.indices
+    }
+
     /// Publish only after success; a different queue may immediately consume this view.
     pub fn completed_scores(&self) -> Result<&MatrixView> {
         #[cfg(test)]

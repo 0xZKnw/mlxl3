@@ -11,6 +11,7 @@ pub struct ResourcePlan {
     append_overlap_bytes: u64,
     scratch_reserve_bytes: u64,
     hc_workspace_reserve_bytes: u64,
+    device_hot_reserve_bytes: u64,
 }
 
 impl ResourcePlan {
@@ -34,6 +35,7 @@ impl ResourcePlan {
             // This is an admission estimate, independent of MLX's allocator limit.
             scratch_reserve_bytes: 512 << 20,
             hc_workspace_reserve_bytes: 0,
+            device_hot_reserve_bytes: 0,
         })
     }
 
@@ -70,6 +72,16 @@ impl ResourcePlan {
             + self.append_overlap_bytes
             + self.scratch_reserve_bytes
             + self.hc_workspace_reserve_bytes
+            + self.device_hot_reserve_bytes
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn with_device_hot(mut self) -> Option<Self> {
+        self.device_hot_reserve_bytes = 0;
+        self.extra_bytes()
+            .checked_add(crate::device_hot_policy::RESERVE_BYTES)?;
+        self.device_hot_reserve_bytes = crate::device_hot_policy::RESERVE_BYTES;
+        Some(self)
     }
 
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
@@ -213,5 +225,60 @@ fn native_admission_covers_the_complete_geometric_slab() {
         kani::cover!(positions == 2053 && context == 4096 && capacity == 4096);
         kani::cover!(positions == 33 && context == 50 && capacity == 50);
         kani::cover!(positions == 1 && context == 262144 && capacity == 32);
+    }
+}
+
+#[test]
+fn device_hot_admission_reserves_one_transaction_without_changing_default() {
+    for positions in [1, 32, 33, 4096, 262144] {
+        let base = ResourcePlan::native_ar(positions, 262144).unwrap();
+        assert_eq!(base.device_hot_reserve_bytes, 0);
+        let reserved = base.with_device_hot().unwrap();
+        let bytes = crate::device_hot_policy::RESERVE_BYTES;
+        assert_eq!(reserved.extra_bytes(), base.extra_bytes() + bytes);
+        assert_eq!(
+            reserved.with_device_hot().unwrap().extra_bytes(),
+            reserved.extra_bytes()
+        );
+        assert!(fits(1, reserved.extra_bytes(), 1 + reserved.extra_bytes()));
+        assert!(!fits(1, reserved.extra_bytes(), reserved.extra_bytes()));
+        assert_eq!(
+            reserved.with_resident_scratch().unwrap().extra_bytes(),
+            reserved.extra_bytes() + crate::resident_scratch_policy::CAP
+        );
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn device_hot_native_plan_charges_one_transaction_before_admission() {
+    let (positions, context): (u32, u32) = kani::any();
+    if let Some(base) = ResourcePlan::native_ar(positions, context) {
+        let reserved = base.with_device_hot().unwrap();
+        assert_eq!(base.device_hot_reserve_bytes, 0);
+        assert_eq!(
+            reserved.extra_bytes(),
+            base.extra_bytes() + crate::device_hot_policy::RESERVE_BYTES
+        );
+        assert_eq!(
+            reserved.with_device_hot().unwrap().extra_bytes(),
+            reserved.extra_bytes()
+        );
+        let observed: u64 = kani::any();
+        let limit: u64 = kani::any();
+        assert_eq!(
+            fits(observed, reserved.extra_bytes(), limit),
+            u128::from(observed)
+                + u128::from(base.extra_bytes())
+                + u128::from(crate::device_hot_policy::RESERVE_BYTES)
+                <= u128::from(limit)
+        );
+        kani::cover!(
+            positions == 128 && context == 4096 && fits(observed, reserved.extra_bytes(), limit)
+        );
+        kani::cover!(
+            fits(observed, base.extra_bytes(), limit)
+                && !fits(observed, reserved.extra_bytes(), limit)
+        );
     }
 }

@@ -1507,6 +1507,9 @@
     "shader ../shaders/flash_dense_epilogue.metal": 1,
     "shader mlxl3_flash_dense_epilogue_s2_v1": 1
   },
+  "native/src/device_hot_policy.rs": {
+    "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1
+  },
   "native/src/dflash.rs": {
     ".astype": 14,
     ".chat_greedy_ids": 4,
@@ -1770,7 +1773,7 @@
     ".take": 2,
     "array::from_fn": 2,
     "config MLXL3_FLASH_MULTI_TOKEN": 1,
-    "mlx": 29
+    "mlx": 30
   },
   "native/src/gated_delta.rs": {
     ".add": 1,
@@ -1879,6 +1882,7 @@
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
     "config MLXL3_NATIVE_CROSS_LAYER": 1,
     "config MLXL3_NATIVE_DEVICE_GREEDY": 1,
+    "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1,
     "config MLXL3_NATIVE_EXPERT_AXIS_QMV": 1,
     "config MLXL3_NATIVE_EXPERT_GU_PREPARE": 1,
     "config MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": 1,
@@ -1943,6 +1947,7 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/flash_static_qmv.metal": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
+    "shader ../shaders/indirect_hot.metal": 1,
     "shader ../shaders/mapped_expert.metal": 1,
     "shader ../shaders/model_ops.metal": 1,
     "shader ../shaders/router_topk.h": 1
@@ -1960,7 +1965,8 @@
     "config MLXL3_AR20_CAPTURE": 1,
     "config MLXL3_AR20_ORACLE": 1,
     "config MLXL3_FLASH_MODEL": 1,
-    "config MLXL3_NATIVE_DEVICE_GREEDY": 1
+    "config MLXL3_NATIVE_DEVICE_GREEDY": 1,
+    "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1
   },
   "native/src/gpu/ar20_finish_mix_tests.rs": {
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
@@ -1979,6 +1985,10 @@
     ".exp": 1,
     ".to_f32": 3
   },
+  "native/src/gpu/ar34_indirect_hot_tests.rs": {
+    ".to_f32": 2,
+    "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
+  },
   "native/src/gpu/convert_matmul.rs": {
     ".shape": 3,
     "config MLX_ENABLE_TF32": 1,
@@ -1989,6 +1999,10 @@
   },
   "native/src/gpu/cross_layer_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/device_hot_cache.rs": {
+    ".ready": 1,
+    ".take": 1
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
@@ -2031,10 +2045,11 @@
     "config MLXL3_SSD_DYNAMIC_READERS": 1
   },
   "native/src/gpu/hc.rs": {
-    ".finish": 3,
+    ".finish": 4,
     ".shape": 7,
+    ".take": 1,
     ".transpose": 6,
-    "config MLXL3_FLASH_MODEL": 2,
+    "config MLXL3_FLASH_MODEL": 3,
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2
@@ -2057,6 +2072,9 @@
   "native/src/gpu/hc_write_norm_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
   },
+  "native/src/gpu/indirect_hot.rs": {
+    ".shape": 1
+  },
   "native/src/gpu/memory.rs": {
     ".memory_stats": 2,
     "config MLXL3_FLASH_MODEL": 1,
@@ -2071,7 +2089,7 @@
   "native/src/gpu/moe.rs": {
     ".ready": 2,
     ".shape": 1,
-    ".take": 3,
+    ".take": 4,
     ".to_f32": 1,
     ".transpose": 3,
     "array::from_fn": 1,

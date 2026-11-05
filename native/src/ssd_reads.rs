@@ -659,6 +659,15 @@ impl ReadService {
             device,
         )
     }
+    /// Device-Hot retains old cache owners: this API accepts no reusable destination.
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn submit_shared_fresh(
+        &self,
+        records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
+        self.submit_shared(records, device)
+    }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     fn start_shared(
         &self,

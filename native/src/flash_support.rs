@@ -1461,6 +1461,28 @@ impl ExpertCache {
         Ok(map)
     }
 
+    /// Read identity only: this does not grant permission to overwrite a GPU-read backing.
+    #[cfg(any(
+        feature = "mlx",
+        all(target_os = "macos", feature = "direct-metal"),
+        test,
+        kani
+    ))]
+    pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
+        self.keys
+            .iter()
+            .zip(&self.pending)
+            .zip(&self.generations)
+            .map(|((&key, pending), &generation)| {
+                if pending.is_none() {
+                    key.map(|expert| (expert, generation))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     fn victim(&self, routed: &[u32]) -> Option<usize> {
         if let Some(slru) = &self.slru {
             let eligible = |i: usize| {
@@ -1693,6 +1715,40 @@ impl Drop for DemandPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ready_snapshot_excludes_pending_failed_and_recycled_generations() -> Result<()> {
+        let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+        let plan = DemandPlan::reserve(&cache, &[17])?;
+        let lease = plan.reads[0];
+        assert!(
+            cache
+                .borrow()
+                .ready_slot_snapshot()
+                .iter()
+                .all(Option::is_none)
+        );
+        assert!(plan.publish(lease));
+        assert_eq!(
+            cache.borrow().ready_slot_snapshot()[lease.slot],
+            Some((17, lease.generation))
+        );
+        drop(plan);
+        let snapshot = cache.borrow().ready_slot_snapshot();
+        cache.borrow_mut().invalidate();
+        let next = DemandPlan::reserve(&cache, &[17])?;
+        assert_ne!(next.reads[0], lease);
+        assert!(
+            cache
+                .borrow()
+                .ready_slot_snapshot()
+                .iter()
+                .all(Option::is_none)
+        );
+        assert!(!next.publish(lease));
+        assert!(next.publish(next.reads[0]));
+        assert_ne!(cache.borrow().ready_slot_snapshot(), snapshot);
+        Ok(())
+    }
     #[test]
     fn delayed_completion_cannot_publish_a_recycled_expert_slot() -> Result<()> {
         let mut cache = ExpertCache::new(11)?;

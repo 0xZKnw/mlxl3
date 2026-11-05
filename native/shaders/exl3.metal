@@ -337,5 +337,7 @@ ROUTE_KERNEL(float, "route_float")
 #include "mapped_expert.metal"
 #include "model_ops.metal"
 
+#include "indirect_hot.metal"
+
 #include "ar20_kernel_tests.metal"
 #include "ar30_kernel_tests.metal"

@@ -1419,6 +1419,19 @@ impl<'a> FlashExpert<'a> {
         [self.gate.input, self.gate.output]
     }
 
+    /// Full immutable direct-record allocation, for a generation-qualified read lease.
+    pub(super) fn record_backing(&self) -> Result<Buffer> {
+        let record = &self.gate.packed;
+        ensure!(
+            self.routed
+                && record.length() == crate::flash_support::EXPERT_BYTES
+                && std::ptr::eq::<metal::BufferRef>(record.as_ref(), self.up.packed.as_ref())
+                && std::ptr::eq::<metal::BufferRef>(record.as_ref(), self.down.packed.as_ref()),
+            "expert is not backed by one complete routed record"
+        );
+        Ok(record.clone())
+    }
+
     pub(super) fn from_backing(gpu: &'a Metal, backing: &Buffer) -> Result<Self> {
         ensure!(
             backing.length() == flash_support::EXPERT_BYTES,
