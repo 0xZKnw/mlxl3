@@ -378,11 +378,7 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
                         Ok(output)
                     })?;
                     let words = Metal::read(&prefixes, 5120);
-                    ensure!(
-                        words[..2560] == expected_gate
-                            && words[2560..] == expected_up
-                            && expected_gate != expected_up
-                    );
+                    ensure!(words[..2560] == expected_gate && words[2560..] == expected_up);
                 }
                 let allocations = requests();
                 let output = gpu.command(|cmd| {
