@@ -234,6 +234,10 @@ fn wait_command(command: &CommandBufferRef, enabled: bool) -> [u64; 4] {
 
 pub struct Metal {
     device: Device,
+    #[cfg(test)]
+    ar20_kernel_bits: u32,
+    #[cfg(test)]
+    ar20_library: metal::Library,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
     hc_gate_chain: std::cell::Cell<bool>,
@@ -430,6 +434,12 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
+            let ar20_kernel_bits = crate::ar20_kernel_policy::mask([
+                hc_kernel_setting("MLXL3_NATIVE_MUL1_SWAR")?,
+                false,
+                false,
+                false,
+            ]);
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
             let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
@@ -643,6 +653,16 @@ impl Metal {
                 "#include \"flash_logsumexp.metal\"",
                 include_str!("../shaders/flash_logsumexp.metal"),
             );
+            let source = format!(
+                "{}\n#define MLXL3_AR20_TESTS {}\n{}",
+                crate::ar20_kernel_policy::defines(ar20_kernel_bits),
+                u32::from(cfg!(test)),
+                source
+            )
+            .replace(
+                r#"#include "ar20_kernel_tests.metal""#,
+                include_str!("../shaders/ar20_kernel_tests.metal"),
+            );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -785,6 +805,10 @@ impl Metal {
             let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
+                #[cfg(test)]
+                ar20_kernel_bits,
+                #[cfg(test)]
+                ar20_library: library,
                 queue,
                 hc_chain: std::cell::Cell::new(hc_chain),
                 hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
@@ -1241,3 +1265,7 @@ mod ssd_direct_tests;
 #[cfg(test)]
 #[path = "gpu/ar10_model_tests.rs"]
 mod ar10_model_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar20_kernel_tests.rs"]
+mod ar20_kernel_tests;

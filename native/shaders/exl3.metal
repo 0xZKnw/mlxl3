@@ -5,7 +5,7 @@ using namespace metal;
 
 struct Params { uint count; uint k; uint cb; uint rows; uint cols; };
 
-inline half codeword(uint x, uint cb) {
+inline half codeword_canonical(uint x, uint cb) {
     x &= 0xffffu;
     if (cb < 2) {
         x = cb == 0 ? x * 89226354u + 64248484u : x * 0xCBAC1FEDu;
@@ -17,6 +17,30 @@ inline half codeword(uint x, uint cb) {
         + ((x >> 16) & 255u) + ((x >> 24) & 255u);
     return fma(as_type<half>(ushort(sum)), as_type<half>(ushort(0x1eee)),
         as_type<half>(ushort(0xc931)));
+}
+
+#ifndef MLXL3_AR20_SWAR
+#define MLXL3_AR20_SWAR 0
+#endif
+#ifndef MLXL3_AR20_READER8
+#define MLXL3_AR20_READER8 0
+#endif
+#ifndef MLXL3_AR20_PRELOAD
+#define MLXL3_AR20_PRELOAD 0
+#endif
+#ifndef MLXL3_AR20_H128
+#define MLXL3_AR20_H128 0
+#endif
+inline half codeword(uint x, uint cb) {
+#if MLXL3_AR20_SWAR
+    if (cb == 2u) {
+        x = (x & 0xffffu) * 0x83DCD12Du;
+        uint pairs = (x & 0x00ff00ffu) + ((x >> 8u) & 0x00ff00ffu);
+        uint sum = 0x6400u + (pairs & 0xffffu) + (pairs >> 16u);
+        return fma(as_type<half>(ushort(sum)), as_type<half>(ushort(0x1eee)), as_type<half>(ushort(0xc931)));
+    }
+#endif
+    return codeword_canonical(x, cb);
 }
 
 inline ushort state(const device ushort* packed, uint tile, uint t, uint k) {
@@ -268,3 +292,5 @@ ROUTE_KERNEL(float, "route_float")
 
 #include "mapped_expert.metal"
 #include "model_ops.metal"
+
+#include "ar20_kernel_tests.metal"
