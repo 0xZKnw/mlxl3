@@ -1,0 +1,259 @@
+{
+  "status": "validated",
+  "runs": [
+    {
+      "name": "02-Gauto",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "benchmarks/benchmark_flash_memory.py",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-next-ssd-impl/opt-12-memory/02-Gauto"
+      ],
+      "before": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4548.00M  free = 1596.00M  (encrypted)\n"
+      },
+      "exit": 0,
+      "seconds": 97.74303504102863,
+      "after": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4548.00M  free = 1596.00M  (encrypted)\n"
+      },
+      "delta_mib": {
+        "Pages free": 2714.047,
+        "File-backed pages": -1333.328,
+        "Pages occupied by compressor": 1116.641,
+        "Swapins": 3.875,
+        "Swapouts": 0.0
+      },
+      "cases": [
+        {
+          "prompt": "MAIN",
+          "mtp": false,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 6.653048276028531,
+          "memory": {
+            "mlx_active_bytes": 8373306880,
+            "mlx_cache_bytes": 81468490,
+            "mlx_peak_bytes": 8438075048,
+            "process_footprint_bytes": 8942689432,
+            "process_lifetime_peak_bytes": 8942689432
+          }
+        },
+        {
+          "prompt": "MAIN",
+          "mtp": true,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 6.600435429216596,
+          "memory": {
+            "mlx_active_bytes": 9087750112,
+            "mlx_cache_bytes": 269791928,
+            "mlx_peak_bytes": 9334114800,
+            "process_footprint_bytes": 9769312032,
+            "process_lifetime_peak_bytes": 9993445128
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": false,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 6.602391743070014,
+          "memory": {
+            "mlx_active_bytes": 8373184032,
+            "mlx_cache_bytes": 531304154,
+            "mlx_peak_bytes": 8437994216,
+            "process_footprint_bytes": 9315475088,
+            "process_lifetime_peak_bytes": 9993445128
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": true,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 6.368937861078655,
+          "memory": {
+            "mlx_active_bytes": 9087625952,
+            "mlx_cache_bytes": 269927444,
+            "mlx_peak_bytes": 9334005372,
+            "process_footprint_bytes": 9810698040,
+            "process_lifetime_peak_bytes": 9993445128
+          }
+        }
+      ],
+      "status": "validated"
+    },
+    {
+      "name": "03-Gauto",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "benchmarks/benchmark_flash_memory.py",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-next-ssd-impl/opt-12-memory/03-Gauto"
+      ],
+      "before": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4548.00M  free = 1596.00M  (encrypted)\n"
+      },
+      "exit": 0,
+      "seconds": 96.72117249999428,
+      "after": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4540.00M  free = 1604.00M  (encrypted)\n"
+      },
+      "delta_mib": {
+        "Pages free": 1202.078,
+        "File-backed pages": -757.672,
+        "Pages occupied by compressor": -32.25,
+        "Swapins": 2.859,
+        "Swapouts": 0.0
+      },
+      "cases": [
+        {
+          "prompt": "MAIN",
+          "mtp": false,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 6.7704986826849725,
+          "memory": {
+            "mlx_active_bytes": 9752721856,
+            "mlx_cache_bytes": 81567010,
+            "mlx_peak_bytes": 9817490024,
+            "process_footprint_bytes": 10328629384,
+            "process_lifetime_peak_bytes": 10328629384
+          }
+        },
+        {
+          "prompt": "MAIN",
+          "mtp": true,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 6.834476756663254,
+          "memory": {
+            "mlx_active_bytes": 10467165088,
+            "mlx_cache_bytes": 271019740,
+            "mlx_peak_bytes": 10713692724,
+            "process_footprint_bytes": 11155579688,
+            "process_lifetime_peak_bytes": 11377631968
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": false,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 6.879285514244203,
+          "memory": {
+            "mlx_active_bytes": 9752599008,
+            "mlx_cache_bytes": 530695898,
+            "mlx_peak_bytes": 9817398952,
+            "process_footprint_bytes": 10699743872,
+            "process_lifetime_peak_bytes": 11377631968
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": true,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 6.599773711798806,
+          "memory": {
+            "mlx_active_bytes": 10467040928,
+            "mlx_cache_bytes": 269806040,
+            "mlx_peak_bytes": 10713502228,
+            "process_footprint_bytes": 11331085072,
+            "process_lifetime_peak_bytes": 11377631968
+          }
+        }
+      ],
+      "status": "validated"
+    },
+    {
+      "name": "04-A8",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "benchmarks/benchmark_flash_memory.py",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/baseline/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-next-ssd-impl/opt-12-memory/04-A8",
+        "--cache-gib",
+        "8"
+      ],
+      "before": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4540.00M  free = 1604.00M  (encrypted)\n"
+      },
+      "exit": 0,
+      "seconds": 99.7750943750143,
+      "after": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "swap": "vm.swapusage: total = 6144.00M  used = 4794.88M  free = 1349.12M  (encrypted)\n"
+      },
+      "delta_mib": {
+        "Pages free": 1801.172,
+        "File-backed pages": -1296.25,
+        "Pages occupied by compressor": -257.25,
+        "Swapins": 10.453,
+        "Swapouts": 262.875
+      },
+      "cases": [
+        {
+          "prompt": "MAIN",
+          "mtp": false,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 7.129026198341144,
+          "memory": {
+            "mlx_active_bytes": 11968908544,
+            "mlx_cache_bytes": 81141026,
+            "mlx_peak_bytes": 12033676712,
+            "process_footprint_bytes": 12562065080,
+            "process_lifetime_peak_bytes": 12562065080
+          }
+        },
+        {
+          "prompt": "MAIN",
+          "mtp": true,
+          "hash": "d7c2f53d11d70633",
+          "tps_diagnostic": 6.905818731877107,
+          "memory": {
+            "mlx_active_bytes": 12683351776,
+            "mlx_cache_bytes": 271062688,
+            "mlx_peak_bytes": 12929715540,
+            "process_footprint_bytes": 13388392720,
+            "process_lifetime_peak_bytes": 13604858128
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": false,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 7.030919706852751,
+          "memory": {
+            "mlx_active_bytes": 11968785696,
+            "mlx_cache_bytes": 985631328,
+            "mlx_peak_bytes": 12033635784,
+            "process_footprint_bytes": 13387589904,
+            "process_lifetime_peak_bytes": 13604858128
+          }
+        },
+        {
+          "prompt": "HOLD",
+          "mtp": true,
+          "hash": "c2d954f130ed2a98",
+          "tps_diagnostic": 6.903568494529771,
+          "memory": {
+            "mlx_active_bytes": 12683227616,
+            "mlx_cache_bytes": 268536284,
+            "mlx_peak_bytes": 12929541460,
+            "process_footprint_bytes": 13936372008,
+            "process_lifetime_peak_bytes": 13936372008
+          }
+        }
+      ],
+      "status": "validated"
+    }
+  ]
+}

@@ -1,0 +1,249 @@
+Usage error!
+
+
+* *             CBMC 6.11.0 (cbmc-6.11.0) 64-bit            * *
+* *                 Copyright (C) 2001-2018                 * *
+* *              Daniel Kroening, Edmund Clarke             * *
+* * Carnegie Mellon University, Computer Science Department * *
+* *                  kroening@kroening.com                  * *
+* *        Protected in part by U.S. patent 7,225,417       * *
+
+Usage:                       Purpose:
+
+ cbmc [-?] [-h] [--help]      show this help
+ cbmc --version               show version and exit
+ cbmc [options] file.c ...    perform bounded model checking
+
+Analysis options:
+ --show-properties            show the properties, but don't run analysis
+ --symex-coverage-report f    generate a Cobertura XML coverage report in f
+ --property id                only check one specific property
+ --trace                      give a counterexample trace for failed properties
+ --stop-on-fail               stop analysis once a failed property is detected 
+                              (implies --trace)
+ --localize-faults            localize faults (experimental)
+
+C/C++ frontend options:
+ --preprocess                 stop after preprocessing
+ --test-preprocessor          stop after preprocessing, discard output
+ -I path                      set include path (C/C++)
+ --include file               set include file (C/C++)
+ -D macro                     define preprocessor macro (C/C++)
+ --c89, --c99, --c11,
+ --c17, --c23                 set C language standard (default: c11)
+ --cpp98, --cpp03, --cpp11    set C++ language standard (default: cpp98)
+ --unsigned-char              make "char" unsigned by default
+ --round-to-nearest, --round-to-even  rounding towards nearest even (default)
+ --round-to-plus-inf          rounding towards plus infinity
+ --round-to-minus-inf         rounding towards minus infinity
+ --round-to-zero              rounding towards zero
+ --no-library                 disable built-in abstract C library
+ --max-nondet-tree-depth N    limit size of nondet (e.g. input) object tree; at 
+                              level N pointers are set to null
+ --min-null-tree-depth N      minimum level at which a pointer can first be 
+                              NULL in a recursively nondet initialized struct
+ --function name              set main function name
+
+Platform options:
+ --arch arch_name             set architecture (default: arm64) to one of: alpha
+                              , arm, arm64, armel, armhf, hppa, i386, ia64, mips
+                              , mips64, mips64el, mipsel, mipsn32, mipsn32el, 
+                              powerpc, ppc64, ppc64le, riscv64, s390, s390x, sh4
+                              , sparc, sparc64, v850, x32, x86_64, or none
+ --os os_name                 set operating system (default: macos) to one of: 
+                              freebsd, linux, macos, netbsd, openbsd, solaris, 
+                              hurd, or windows
+ --i386-linux, --i386-win32, --i386-macos, --ppc-macos, --win32, --winx64  set 
+                              architecture and operating system
+ --LP64, --ILP64, --LLP64, --ILP32, --LP32  set width of int, long and 
+                              pointers, but don't override default architecture 
+                              and operating system
+ --16, --32, --64             equivalent to --LP32, --ILP32, --LP64 (on 
+                              Windows: --LLP64)
+ --little-endian              allow little-endian word-byte conversions
+ --big-endian                 allow big-endian word-byte conversions
+ --gcc                        use GCC as preprocessor
+
+Program representations:
+ --show-parse-tree            show parse tree
+ --show-symbol-table          show loaded symbol table
+ --show-goto-functions        show loaded goto program
+ --list-goto-functions        list loaded goto functions
+ --validate-goto-model        enable additional well-formedness checks on the 
+                              goto program
+ --validate-ssa-equation      enable additional well-formedness checks on the 
+                              SSA representation
+ --export-symex-ready-goto f  serialise goto-program in symex-ready-goto form 
+                              in f
+
+Program instrumentation options:
+ --no-standard-checks         disable default checks (more information in 
+                              manpage)
+ --bounds-check               enable array bounds checks (default on)
+ --no-bounds-check            disable array bounds checks
+ --pointer-check              enable pointer checks (default on)
+ --no-pointer-check           disable pointer checks
+ --memory-leak-check          enable memory leak checks
+ --memory-cleanup-check       enable memory cleanup checks
+ --div-by-zero-check          enable division by zero checks on integers 
+                              (default on)
+ --float-div-by-zero-check    enable division by zero checks on floating-point 
+                              numbers (default off)
+ --no-div-by-zero-check       disable division by zero checks
+ --signed-overflow-check      enable signed arithmetic over- and underflow 
+                              checks (default on)
+ --no-signed-overflow-check   disable signed arithmetic over- and underflow 
+                              checks
+ --unsigned-overflow-check    enable arithmetic over- and underflow checks
+ --pointer-overflow-check     enable pointer arithmetic over- and underflow 
+                              checks
+ --conversion-check           check whether values can be represented after 
+                              type cast
+ --undefined-shift-check      check shift greater than bit-width (default on)
+ --no-undefined-shift-check   disable check for shift greater than bit-width
+ --float-overflow-check       check floating-point for +/-Inf
+ --nan-check                  check floating-point for NaN
+ --enum-range-check           checks that all enum type expressions have values 
+                              in the enum range
+ --pointer-primitive-check    checks that all pointers in pointer primitives 
+                              are valid or null (default on)
+ --no-pointer-primitive-check  disable checks that all pointers in pointer 
+                              primitives are valid or null
+ --retain-trivial-checks      include checks that are trivially true
+ --error-label label          check that label label is unreachable
+ --no-built-in-assertions     ignore assertions in built-in library
+ --no-assertions              ignore user assertions
+ --no-assumptions             ignore user assumptions
+ --assert-to-assume           convert user assertions to assumptions
+ --cover CC                   create test-suite with coverage criterion CC, 
+                              where CC is one of assertion[s], assume[s], branch
+                              [es], condition[s], cover, decision[s], location[s
+                              ], or mcdc
+ --cover-failed-assertions    do not stop coverage checking at failed 
+                              assertions (this is the default for --cover 
+                              assertions)
+ --show-test-suite            print test suite for coverage criterion (requires 
+                              --cover)
+ --mm MM                      memory consistency model for concurrent programs 
+                              (default: sc)
+ --malloc-may-fail            allow malloc calls to return a null pointer
+ --no-malloc-may-fail         disable potential malloc failure
+ --malloc-fail-assert         set malloc failure mode to assert-then-assume
+ --malloc-fail-null           set malloc failure mode to return null
+ --string-abstraction         track C string lengths and zero-termination
+ --dfcc-debug-lib             enable debug assertions in the cprover contracts 
+                              library
+ --dfcc-simple-invalid-pointer-model  use simplified invalid pointer model in 
+                              the cprover contracts library (faster, unsound)
+ --reachability-slice-fb      remove instructions that cannot appear on a trace 
+                              from entry point through a property
+ --full-slice                 run full slicer (experimental)
+ --drop-unused-functions      drop functions trivially unreachable from main 
+                              function
+
+Semantic transformations:
+ --nondet-static              add nondeterministic initialization of variables 
+                              with static lifetime
+
+BMC options:
+ --paths [strategy]           explore paths one at a time
+ --show-symex-strategies      list strategies for use with --paths
+ --show-goto-symex-steps      show which steps symex travels, includes 
+                              diagnostic information
+ --show-points-to-sets        show points-to sets for pointer dereference. 
+                              Requires --json-ui.
+ --program-only               only show program expression
+ --show-byte-ops              show all byte extracts and updates
+ --depth nr                   limit search depth
+ --max-field-sensitivity-array-size M  maximum size M of arrays for which field 
+                              sensitivity will be applied to array, the default 
+                              is 64
+ --no-array-field-sensitivity  deactivate field sensitivity for arrays, this is 
+                              equivalent to setting the maximum field 
+                              sensitivity size for arrays to 0
+ --show-loops                 show the loops in the program
+ --unwind nr                  unwind loops nr times
+ --unwindset [T:]L:B,...      unwind loop L with a bound of B (optionally 
+                              restricted to thread T) (use --show-loops to get 
+                              the loop IDs)
+ --incremental-loop L         check properties after each unwinding of loop L 
+                              (use --show-loops to get the loop IDs)
+ --unwind-min nr              start incremental-loop after nr unwindings but 
+                              before solving that iteration. If for example it 
+                              is 1, then the loop will be unwound once, and 
+                              immediately checked. Note: this means for 
+                              --unwind-min 1 or 0 all properties are checked.
+ --unwind-max nr              stop incremental-loop after nr unwindings
+ --ignore-properties-before-unwind-min  do not check properties before 
+                              unwind-min when using --incremental-loop
+ --show-vcc                   show the verification conditions
+ --slice-formula              remove assignments unrelated to property
+ --unwinding-assertions       generate unwinding assertions (cannot be used 
+                              with --cover)
+ --partial-loops              permit paths with partial loops
+ --no-self-loops-to-assumptions  do not simplify while(1){} to assume(0)
+ --symex-complexity-limit N   how complex (N) a path can become before symex 
+                              abandons it. Currently uses guard size to 
+                              calculate complexity.
+ --symex-complexity-failed-child-loops-limit N  how many child branches (N) in 
+                              an iteration are allowed to fail due to 
+                              complexity violations before the loop gets 
+                              blacklisted
+ --graphml-witness filename   write the witness in GraphML format to filename
+ --symex-cache-dereferences   enable caching of repeated dereferences
+
+Backend options:
+ --object-bits n              number of bits used for object addresses
+ --sat-solver solver          use specified SAT solver
+ --external-sat-solver cmd    command to invoke SAT solver process
+ --no-sat-preprocessor        disable the SAT solver's simplifier
+ --dimacs                     generate CNF in DIMACS format
+ --beautify                   beautify the counterexample (greedy heuristic)
+ --smt1                       use default SMT1 solver (obsolete)
+ --smt2                       use default SMT2 solver (Z3)
+ --bitwuzla                   use Bitwuzla
+ --boolector                  use Boolector
+ --cprover-smt2               use CPROVER SMT2 solver
+ --cvc5                       use CVC5
+ --mathsat                    use MathSAT
+ --yices                      use Yices
+ --z3                         use Z3
+ --fpa                        use theory of floating-point arithmetic
+ --external-smt2-solver cmd   command to invoke SMT2 solver (combine with one 
+                              of the solver choices for solver-specific 
+                              constraints)
+ --refine                     use refinement procedure (experimental)
+ --refine-arrays              use refinement for arrays only
+ --refine-arithmetic          refinement of arithmetic expressions only
+ --max-node-refinement        maximum refinement iterations for arithmetic 
+                              expressions
+ --incremental-smt2-solver cmd  command to invoke external SMT solver for 
+                              incremental solving (experimental)
+ --outfile filename           output formula to given file
+ --dump-smt-formula filename  output smt incremental formula to the given file
+ --write-solver-stats-to json-file  collect the solver query complexity
+ --refine-strings             use string refinement (experimental)
+ --string-printable           restrict to printable strings (experimental)
+ --arrays-uf-never            never turn arrays into uninterpreted functions
+ --arrays-uf-always           always turn arrays into uninterpreted functions
+ --show-array-constraints     show array theory constraints added during post 
+                              processing. Requires --json-ui.
+
+User-interface options:
+ --xml-ui                     use XML-formatted output
+ --xml-interface              bi-directional XML interface
+ --json-ui                    use JSON-formatted output
+ --json-interface             bi-directional JSON interface
+ --trace-json-extended        add rawLhs property to trace
+ --trace-show-function-calls  show function calls in plain trace
+ --trace-show-code            show original code in plain trace
+ --trace-hex                  represent plain trace values in hex
+ --compact-trace              give a compact trace
+ --stack-trace                give a stack trace only
+ --flush                      flush every line of output
+ --verbosity #                verbosity level (default 6)
+ --timestamp [monotonic|wall]  print microsecond-precision timestamps. monotonic
+                              : stamps increase monotonically. wall: ISO-8601 
+                              wall clock timestamps.
+
+Unknown option: --cpp, did you mean one of --c89, --c99, --c11, --c17, --c23, --cpp98, --cpp03, --cpp11, --fpa?

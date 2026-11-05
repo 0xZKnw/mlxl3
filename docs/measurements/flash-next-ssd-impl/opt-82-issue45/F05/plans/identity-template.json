@@ -1,0 +1,93 @@
+{
+  "experiment": "82F05",
+  "status": "prepared_unfrozen_not_executed",
+  "source_commit": null,
+  "source_manifest_sha256": null,
+  "source_base_choice": "HEAD documentaire cba5166b; natif62cae/moteur80M; F01/F06 retir\u00e9s; F05 isol\u00e9 local, \u00e0 figer par parent",
+  "engine": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/runtime/mlxl3-rs",
+    "sha256": null
+  },
+  "native_tests": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/runtime/native-tests",
+    "sha256": null
+  },
+  "build_features": {
+    "cli": "default features + mlx,chat",
+    "native_tests": "default features + mlx,chat",
+    "no_default_features": false
+  },
+  "source_patch": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/source.patch",
+    "sha256": "1d0672b983cad14242e7683cb9ecd82e28f12bec8a2e7273f0c3885aa1d021d1"
+  },
+  "drivers": {
+    "observer": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "sha256": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac"
+    },
+    "supervisor45": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt",
+      "sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7"
+    },
+    "sampler49": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt",
+      "sha256": "045eb98d42cb52899a431e996a8e7ff4685882d4921ef199a4916a73f495c112"
+    },
+    "monitor43": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+      "sha256": "b5d71993cda1eca3f8b0706a1c419ae1c827d05e1d7b03e3e5d48d3f34bf4ca3"
+    },
+    "benchmark_driver": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+      "sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76"
+    },
+    "bridge_checker": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_dflash2.py",
+      "sha256": "7d10e30fdb2f9b593a95c3c1910635b4bb75978b7270bf7536007ea972fa104b"
+    },
+    "json_process": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/native_json_process.py",
+      "sha256": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c"
+    },
+    "memory_analyzer": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/analyze_flash_process_memory.py",
+      "sha256": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41"
+    }
+  },
+  "golden60": {
+    "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/reference.json",
+    "sha256": "a2b691aec70195403f0faef61ca3726869864e9b3d2ecf24196a684750b192c0",
+    "keys": [
+      "MAIN",
+      "HOLD"
+    ],
+    "fields": [
+      "token_hash",
+      "text"
+    ]
+  },
+  "flag": "MLXL3_SSD_BATCH_ROUTES",
+  "control": "0",
+  "candidate": "1",
+  "explicitly_unset_in_every_child": [
+    "MLXL3_SSD_QMV_HALF_OUTPUT",
+    "MLXL3_SSD_TOP10_EARLY_EXIT",
+    "MLXL3_FLASH_QSA_KEY_ONLY",
+    "MLXL3_FLASH_GDN_DENSE_ROWS"
+  ],
+  "loader_environment_safety": "External fixed env before Popen only; no set_var/remove_var after MLX initialization. Default loader explicitly unsets flag.",
+  "created_from": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/plans/quality-v2/run.json": "773bb1fd65b115241072236b84fd04e2ee0a5df503c004242dda3b4a5f29e5cf",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/plans/bridge/run.json": "c32da5bf784d54a97cf584a0b2897c300d648043cab2434bc8f9c938075ca242",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/plans/screen/run.json": "df0836c418f11da4bfbb78918674343ac2e7d4b62770f3248358e64987be08ae",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/plans/confirm/run.json": "fb7b1e82a922d1e2957e8d59c7759a0d00e649f1cf69cab0cf6722a2b6f7dd37"
+  },
+  "plans_sha256": {
+    "quality": "8421f17b884b1a14321634530de0b6138994bb2a7dbda4478139990b806197e4",
+    "bridge": "44724c42b2343b4a845b78f2b0e0ae9f6cff7867a18b5199e4ca601fc36ed4c9",
+    "screen": "36bea62a21d7fe2a97f37905823678859ba072b83b64722f981c1183a6aac30e",
+    "confirm": "2afc67d0688559564fc3e00d883211e5e727dd4739be307a3ddeaeb19b752833"
+  },
+  "source_and_binaries_must_be_frozen_before_launch": true
+}

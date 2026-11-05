@@ -1,0 +1,19 @@
+import runpy
+import sys
+from pathlib import Path
+
+engine, model, output = sys.argv[1:]
+api = runpy.run_path("scripts/benchmark-flash-bridge.py")
+api["PROMPTS"]["CAL"] = (
+    "Explain the difference between CPU caches and virtual memory. Give a numerical example."
+)
+api["run"](
+    Path(engine),
+    Path(model),
+    Path(output),
+    tokens=128,
+    repeats=1,
+    timeout=120,
+    cache_gib=3,
+    prompt="CAL",
+)

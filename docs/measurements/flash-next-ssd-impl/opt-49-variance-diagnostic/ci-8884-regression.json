@@ -1,0 +1,75 @@
+{
+  "conclusion": "",
+  "headSha": "8884c5ad1dfa11c0f7818586c3e83de50df2a847",
+  "jobs": [
+    {
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "databaseId": 118726478416,
+      "name": "desktop-and-protocol",
+      "startedAt": "2026-10-20T15:45:14Z",
+      "status": "in_progress",
+      "steps": [
+        {
+          "completedAt": "2026-10-20T15:45:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-20T15:45:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-20T15:45:23Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-10-20T15:45:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-20T15:45:31Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-10-20T15:45:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-20T15:45:57Z",
+          "conclusion": "success",
+          "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+          "number": 4,
+          "startedAt": "2026-10-20T15:45:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "name": "Run scripts/check-e2e.sh",
+          "number": 5,
+          "startedAt": "2026-10-20T15:45:57Z",
+          "status": "in_progress"
+        },
+        {
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 9,
+          "startedAt": "0001-01-01T00:00:00Z",
+          "status": "pending"
+        },
+        {
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "name": "Post Run actions/checkout@v4",
+          "number": 10,
+          "startedAt": "0001-01-01T00:00:00Z",
+          "status": "pending"
+        }
+      ],
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39451291213/job/118726478416"
+    }
+  ],
+  "status": "in_progress",
+  "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39451291213"
+}

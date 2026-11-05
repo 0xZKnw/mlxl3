@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "references/PonyExl3"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "apps/MLXL3Studio/Vendor/PonyExl3"))
 pytest.importorskip("ponyexl3.convert")
 from ponyexl3.convert import direct, hessian, measure, metal_search, mlx_trellis, reuse
 from ponyexl3.convert.direct import LayerQuantizationBasis
@@ -30,7 +30,7 @@ def _cpu_fixture(monkeypatch):
     basis = LayerQuantizationBasis(weight, weight, None, None, {})
     monkeypatch.setattr(hessian, "prepare_layer_quantization_basis", lambda *a, **kw: basis)
     monkeypatch.setattr(hessian, "oracle_comparison_weights", lambda *a, **kw: (weight, weight))
-    monkeypatch.setattr(measure, "_release_gpu_cache", lambda: None)
+    monkeypatch.setattr(measure, "_release_gpu_cache", lambda *_args: None)
 
     def cpu_search(rows, *, k, **kwargs):
         # Stand in only for trellis search; run the actual CPU LDLQ and metrics.

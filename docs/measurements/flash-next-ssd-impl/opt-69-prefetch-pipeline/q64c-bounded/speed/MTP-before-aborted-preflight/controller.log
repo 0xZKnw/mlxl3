@@ -1,0 +1,20 @@
+{'status': 'failed_or_interrupted', 'parity': False, 'confirmed_gain': False, 'phase': 'MTP-before', 'identity': '../../opt-70-pre-draft/identity-v3.json', 'original_vm_baseline': {'Swapins': 0, 'Swapouts': 157024256}, 'common_swapout_anchor': 157024256, 'historical_69_failed_swapout_bytes': 106037248, 'error': 'KeyboardInterrupt()'}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 90, in <module>
+    if control:run_plan(dest)
+               ^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 46, in run_plan
+    source_check();api['run_sampler'](plan,baseline)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 423, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 91, in main
+    stop.wait(10)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py", line 655, in wait
+    signaled = self._cond.wait(timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py", line 359, in wait
+    gotit = waiter.acquire(True, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

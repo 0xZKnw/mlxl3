@@ -1,0 +1,61 @@
+{
+  "status": "numerical_quality_passed_throughput_inconclusive_runtime_withdrawn",
+  "source_archive_sha256": "963d610bbb99a1a97a5b4e3760c0c702fa1ee58f7ccab4dd24c1408c5c6aaf28",
+  "base_engine": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "published_benchmark_fix": "62cae0b3a51db760185d65eee61f1da79c9b19c7",
+  "runtime": "F01 withdrawn effectively on2026-10-25 by exact inverse of archived tracked-source.patch; no compiled F01 feature retained",
+  "pairs": {
+    "MAIN": {
+      "screen": {
+        "C": 10.633186103952822,
+        "H": 11.138480255415338,
+        "ratio_C_H": 0.9546352698145826
+      },
+      "confirm": {
+        "H": 11.084251600382192,
+        "C": 11.355969568151858,
+        "ratio_C_H": 1.024513875863328
+      },
+      "geometric_delta_percent": -1.1042427445154823
+    },
+    "HOLD": {
+      "screen": {
+        "H": 10.169870876672901,
+        "C": 10.32174948724076,
+        "ratio_C_H": 1.0149341729516184
+      },
+      "confirm": {
+        "C": 10.041335116474151,
+        "H": 10.417939322373545,
+        "ratio_C_H": 0.9638504128075885
+      },
+      "geometric_delta_percent": -1.093745315478356
+    }
+  },
+  "limits": [
+    "not a formal proof of MLX/Metal",
+    "quality-v1 failure preserved",
+    "bridge shutdown events not certified by checker",
+    "bridge system swapouts 268173312B, source unknown",
+    "77B compression caps not qualified"
+  ],
+  "integration": {
+    "decision_date": "2026-10-25",
+    "status": "withdrawn_not_delivered",
+    "method": "Reverse only archived and verified F01 tracked hunks, preserve unrelated/private changes.",
+    "tracked_source_patch_sha256": "ffa4b34b17ba8c41d35d56705aec4e26b697bdbf711a91d9b6fe54dccbfc332e",
+    "prototype_source_patch_sha256": "fa63bb8ef98ad672ecf7d12241aa3e385693a5fc85f96d04bceb73f3135ba79f",
+    "production_base_after_withdrawal": "HEAD62cae0b3 controller / engine9dc85ef; later F06 work is independent and excluded from this archive.",
+    "preserved_unreferenced_test_sources": [
+      "native/src/linear_half_output_tests.rs",
+      "native/src/ssd_moe/half_output_tests.rs"
+    ],
+    "test_sources_status": "Preserved byte-identical to frozen F01 source snapshot, module declarations removed, not compiled against current baseline.",
+    "installed_app": "unchanged",
+    "publication": "documents pending; no F01 runtime gain to publish"
+  },
+  "publication_scope": "Historical evidence and negative results only. No binaries, active prototype, executable application or model weights.",
+  "verification_scope_note": "Existing176/528masked/112groupedreference cases used half=false; F01 numerical cases240synthetic/64real plus four-token48layer target differential remain distinct.",
+  "withdrawal_audit": "withdrawal-doc-audit.json",
+  "historical_audits": "Preserved as read: quality review predates v3 differential, confirm review predates withdrawal. This summary/README record the final withdrawn state."
+}

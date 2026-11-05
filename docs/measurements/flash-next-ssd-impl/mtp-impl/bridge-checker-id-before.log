@@ -1,0 +1,134 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_bridge_boundaries_and_cleanup[ok] ____________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-111/test_bridge_boundaries_and_cle0')
+capsys = <_pytest.capture.CaptureFixture object at 0x108d9ffb0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108e35ac0>
+fault = 'ok'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "invalid",
+            "malformed",
+            "silent",
+            "endless",
+            "crash",
+            "mode",
+            "empty",
+            "hash",
+            "count",
+            "divergence",
+            "accept-invalid",
+            "cancel-corruption",
+        ],
+    )
+    def test_bridge_boundaries_and_cleanup(tmp_path, capsys, monkeypatch, fault):
+        engine = tmp_path / "engine"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, signal, sys, time
+    cancelled = False
+    corrupt = False
+    def cancel(*args):
+        global cancelled
+        cancelled = True
+    signal.signal(signal.SIGUSR1, cancel)
+    def emit(**event): print(json.dumps(event), flush=True)
+    emit(type='ready', mtp_max_depth=1)
+    seen = set()
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown': break
+        cancelled = False
+        if fault == 'silent': time.sleep(5)
+        if fault == 'endless':
+            while True:
+                emit(type='heartbeat')
+                time.sleep(.01)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault == 'malformed': print('{bad', flush=True); continue
+        rid = r['request_id']
+        if rid in seen:
+            emit(type='error', request_id=rid, message='duplicate request ID')
+            continue
+        seen.add(rid)
+        if (not r['mtp_head_path'] or r['mtp_head_path'] == '/missing-head' or r.get('dflash2') or r.get('mtp_depth', 1) != 1) and fault != 'accept-invalid':
+            emit(type='error', request_id=rid, message='rejected')
+            continue
+        active = r['mtp'] and r['repetition_penalty'] == 1
+        if fault != 'mode': emit(type='generation_mode', request_id=rid, mtp_active=active)
+        emit(type='context_usage', request_id=rid, used_tokens=3)
+        time.sleep(.025)
+        if not cancelled:
+            emit(type='delta', request_id=rid, text='' if fault == 'empty' else 'answer')
+            time.sleep(.025)
+        if cancelled:
+            corrupt = True
+            emit(type='cancelled', request_id=rid)
+            continue
+        emit(type='complete', request_id=rid, token_hash='' if fault == 'hash' else 'different' if (fault == 'divergence' and active) or (fault == 'cancel-corruption' and corrupt) else 'abc', cache_context='' if fault == 'empty' else 'answer', stats={'generated_tokens': 0 if fault == 'count' else r['max_tokens']})
+    """
+        )
+        engine.chmod(0o755)
+        processes = []
+        original = bridge.subprocess.Popen
+    
+        def tracked(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+    
+        monkeypatch.setattr(bridge.subprocess, "Popen", tracked)
+        if fault == "ok":
+>           bridge.run(str(engine), "model", "model", [1, 2, 3], "prompt", timeout=2)
+
+tests/test_mtp_bridge.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/check-mtp-bridge.py:153: in run
+    result, text = generate(enabled, budget)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/check-mtp-bridge.py:112: in generate
+    result, mode, text = until(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kind = 'complete', request_id = '4', cancel_at = None, expect_error = False
+
+    def until(kind, request_id=None, cancel_at=None, expect_error=False):
+        mode = None
+        sent = False
+        text = ""
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"bridge deadline: {kind}")
+            try:
+                event = events.get(timeout=remaining)
+            except queue.Empty as error:
+                raise TimeoutError(f"bridge deadline: {kind}") from error
+            if not isinstance(event, dict) or "type" not in event:
+                raise ValueError("invalid bridge event")
+            if event["type"] == "error":
+                if request_id and event.get("request_id") not in (None, request_id):
+                    continue
+                if expect_error:
+                    return event, mode, text
+>               raise RuntimeError(event)
+E               RuntimeError: {'type': 'error', 'request_id': '4', 'message': 'duplicate request ID'}
+
+scripts/check-mtp-bridge.py:77: RuntimeError
+----------------------------- Captured stdout call -----------------------------
+{"status": "in_progress"}
+{"runtime": {"type": "ready", "mtp_max_depth": 1}, "head": "model", "prompt": "prompt", "context": 4096}
+{"warmup": false, "stats": {"generated_tokens": 3}}
+{"warmup": true, "stats": {"generated_tokens": 3}}
+{"status": "failed", "error": "RuntimeError: {'type': 'error', 'request_id': '4', 'message': 'duplicate request ID'}"}
+=========================== short test summary info ============================
+FAILED tests/test_mtp_bridge.py::test_bridge_boundaries_and_cleanup[ok] - Run...
+1 failed, 18 deselected in 0.46s

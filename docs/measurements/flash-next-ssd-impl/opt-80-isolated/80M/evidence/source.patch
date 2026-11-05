@@ -1,0 +1,184 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 98031fb3..16b5d13e 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -40,6 +40,7 @@ jobs:
+             --harness unique_expert_prefix_matches_independent_twenty_route_oracle
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
++            --harness reference_header_is_static_and_exactly_gated
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/codec.rs b/native/src/codec.rs
+index c71e643a..89a9e4ef 100644
+--- a/native/src/codec.rs
++++ b/native/src/codec.rs
+@@ -137,6 +137,16 @@ pub fn permutation() -> [usize; 256] {
+     out
+ }
+ 
++// The emitted bytes are fixed by EXL3's reference accumulation order.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn reference_reduction_header(enabled: bool) -> &'static str {
++    if enabled {
++        include_str!("../shaders/flash_reference_reduction.h")
++    } else {
++        ""
++    }
++}
++
+ pub fn permutation_inverse() -> [usize; 256] {
+     let mut out = [0; 256];
+     for (index, value) in permutation().into_iter().enumerate() {
+@@ -206,6 +216,61 @@ mod tests {
+             assert_eq!(direct[*p], i);
+         }
+     }
++    #[test]
++    fn static_reference_header_preserves_legacy_bytes_and_every_position() {
++        let positions = permutation().map(|p| p.to_string()).join(",");
++        let legacy = format!(
++            "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
++        );
++        let header = reference_reduction_header(true);
++        assert_eq!(header, legacy);
++        assert!(reference_reduction_header(false).is_empty());
++        let values = header
++            .split_once('{')
++            .unwrap()
++            .1
++            .strip_suffix("};\n")
++            .unwrap()
++            .split(',')
++            .map(|n| n.parse::<usize>().unwrap())
++            .collect::<Vec<_>>();
++        assert_eq!(values.len(), 256);
++        for row in 0..16 {
++            for col in 0..16 {
++                let lane = (row % 8) / 2 + (col % 8) * 4;
++                let index = lane * 8 + (col / 8) * 4 + (row / 8) * 2 + row % 2;
++                assert_eq!(values[index], row * 16 + col);
++            }
++        }
++        for _ in 0..256 {
++            assert!(std::ptr::eq(header, reference_reduction_header(true)));
++        }
++    }
++
++    #[test]
++    #[ignore = "CPU microbenchmark only; run release separately from GPU measurements"]
++    fn reference_header_cpu_microbench() {
++        use std::{hint::black_box, time::Instant};
++        let iterations = 50_000;
++        let start = Instant::now();
++        for _ in 0..iterations {
++            let positions = permutation().map(|p| p.to_string()).join(",");
++            black_box(format!(
++                "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
++            ));
++        }
++        let legacy = start.elapsed();
++        let start = Instant::now();
++        for _ in 0..iterations {
++            black_box(reference_reduction_header(black_box(true)));
++        }
++        println!(
++            "{{\"iterations\":{iterations},\"legacy_seconds\":{},\"static_seconds\":{}}}",
++            legacy.as_secs_f64(),
++            start.elapsed().as_secs_f64()
++        );
++    }
++
+     #[test]
+     fn codebooks_are_finite_exhaustively() {
+         for mode in [Codebook::Default, Codebook::Mcg, Codebook::Mul1] {
+@@ -220,6 +285,22 @@ mod tests {
+ mod verification {
+     use super::*;
+ 
++    #[kani::proof]
++    fn reference_header_is_static_and_exactly_gated() {
++        let enabled: bool = kani::any();
++        let header = reference_reduction_header(enabled);
++        assert_eq!(header.is_empty(), !enabled);
++        if enabled {
++            let bytes = header.as_bytes();
++            assert_eq!(bytes.len(), 1006);
++            assert_eq!(bytes[0], b'\n');
++            assert_eq!(bytes[1], b'#');
++            assert_eq!(bytes[bytes.len() - 1], b'\n');
++        }
++        kani::cover!(enabled);
++        kani::cover!(!enabled);
++    }
++
+     #[kani::proof]
+     fn bitrate_validation_accepts_exactly_one_through_eight() {
+         let k: usize = kani::any();
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 3a8173fe..ed2f9e31 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -2,7 +2,7 @@
+ use crate::{
+     array::{self, Array, Dtype},
+     checkpoint::Checkpoint,
+-    codec::{self, Codebook},
++    codec::{self, Codebook, reference_reduction_header},
+ };
+ use anyhow::{Context, Result, ensure};
+ 
+@@ -354,7 +354,7 @@ impl Exl3Linear {
+         let input_tiles = self.rows / 16;
+         let output_tiles = self.cols / 16;
+         let mut header =
+-            codebook_header(self.cb) + &reference_reduction_header(self.reference_accumulation);
++            codebook_header(self.cb) + reference_reduction_header(self.reference_accumulation);
+         let output = if self.k == 7 {
+             let inverse = codec::permutation_inverse()
+                 .map(|v| v.to_string())
+@@ -514,7 +514,7 @@ impl Exl3Linear {
+             nt = 1;
+         }
+         let header = codebook_header(self.cb)
+-            + &reference_reduction_header(self.reference_accumulation)
++            + reference_reduction_header(self.reference_accumulation)
+             + &format!(
+                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
+                 u8::from(self.mtp_hidden_batch)
+@@ -1398,7 +1398,7 @@ fn expert_mapped_layout(
+     ));
+     let header = codebook_header(cb)
+         + &masked_header
+-        + &reference_reduction_header(slot_major)
++        + reference_reduction_header(slot_major)
+         + &format!(
+             "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
+             u8::from(k == 3),
+@@ -1533,16 +1533,6 @@ fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
+     splits
+ }
+ 
+-fn reference_reduction_header(enabled: bool) -> String {
+-    if !enabled {
+-        return String::new();
+-    }
+-    let positions = codec::permutation().map(|p| p.to_string()).join(",");
+-    format!(
+-        "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
+-    )
+-}
+-
+ pub(crate) fn codebook_header(cb: Codebook) -> String {
+     let body = match cb {
+         Codebook::Default => {
+diff --git a/native/shaders/flash_reference_reduction.h b/native/shaders/flash_reference_reduction.h
+new file mode 100644
+index 00000000..c0af2ad2
+--- /dev/null
++++ b/native/shaders/flash_reference_reduction.h
+@@ -0,0 +1,3 @@
++
++#define MLXL3_REFERENCE_ACCUMULATION 1
++constant ushort mlxl3_reference_positions[256] = {0,16,128,144,8,24,136,152,32,48,160,176,40,56,168,184,64,80,192,208,72,88,200,216,96,112,224,240,104,120,232,248,1,17,129,145,9,25,137,153,33,49,161,177,41,57,169,185,65,81,193,209,73,89,201,217,97,113,225,241,105,121,233,249,2,18,130,146,10,26,138,154,34,50,162,178,42,58,170,186,66,82,194,210,74,90,202,218,98,114,226,242,106,122,234,250,3,19,131,147,11,27,139,155,35,51,163,179,43,59,171,187,67,83,195,211,75,91,203,219,99,115,227,243,107,123,235,251,4,20,132,148,12,28,140,156,36,52,164,180,44,60,172,188,68,84,196,212,76,92,204,220,100,116,228,244,108,124,236,252,5,21,133,149,13,29,141,157,37,53,165,181,45,61,173,189,69,85,197,213,77,93,205,221,101,117,229,245,109,125,237,253,6,22,134,150,14,30,142,158,38,54,166,182,46,62,174,190,70,86,198,214,78,94,206,222,102,118,230,246,110,126,238,254,7,23,135,151,15,31,143,159,39,55,167,183,47,63,175,191,71,87,199,215,79,95,207,223,103,119,231,247,111,127,239,255};

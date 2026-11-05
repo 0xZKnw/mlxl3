@@ -450,6 +450,8 @@ public class MTLargeOperator: MTMathAtom {
  has optional boundaries. Note: Only one boundary may be present, it is not required to have
  both. */
 public class MTInner: MTMathAtom {
+    /// Draw a frame around the contained list (boxed).
+    public var hasFrame = false
     /// The inner math list
     public var innerList: MTMathList?
     /// The left boundary atom. This must be a node of type kMTMathAtomBoundary
@@ -475,8 +477,9 @@ public class MTInner: MTMathAtom {
         super.init(inner)
         self.type = .inner
         self.innerList = MTMathList(inner?.innerList)
-        self.leftBoundary = MTMathAtom(inner?.leftBoundary)
-        self.rightBoundary = MTMathAtom(inner?.rightBoundary)
+        self.leftBoundary = inner?.leftBoundary.map { MTMathAtom($0) }
+        self.rightBoundary = inner?.rightBoundary.map { MTMathAtom($0) }
+        self.hasFrame = inner?.hasFrame ?? false
     }
     
     override init() {
@@ -485,7 +488,7 @@ public class MTInner: MTMathAtom {
     }
     
     override public var description: String {
-        var string = "\\inner"
+        var string = hasFrame ? "\\boxed" : "\\inner"
         if self.leftBoundary != nil {
             string += "[\(self.leftBoundary!.nucleus)]"
         }

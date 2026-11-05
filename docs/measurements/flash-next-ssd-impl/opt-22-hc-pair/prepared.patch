@@ -1,0 +1,378 @@
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -216,10 +216,12 @@
+             (320, 10240) => (8, 1),
+             _ => return self.forward(x),
+         };
+-        if self.bias.is_some()
+-            || x.dtype() != Dtype::Float32
+-            || !matches!(x.shape(), [1, k] | [1, 1, k] if *k == self.logical_input)
+-        {
++        let rows = match x.shape() {
++            [rows, k] | [rows, 1, k]
++                if (1..=2).contains(rows) && *k == self.logical_input => *rows,
++            _ => return self.forward(x),
++        };
++        if self.bias.is_some() || x.dtype() != Dtype::Float32 {
+             return self.forward(x);
+         }
+         // Read half weights directly while retaining MLX 0.32.2's FP32 GEMV order.
+@@ -227,13 +229,13 @@
+         *shape.last_mut().expect("validated HC rank") = self.logical_output;
+         Ok(array::metal_kernel(
+             &format!(
+-                "mlxl3_flash_hc_gemv_{}_{}",
++                "mlxl3_flash_hc_gemv_{}_{}_r{rows}",
+                 self.logical_input, self.logical_output
+             ),
+             &["x", "weight"],
+             &["out"],
+             &format!(
+-                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n",
++                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n#define ROWS {rows}\n",
+                 self.logical_input, self.logical_output
+             ),
+             include_str!("../shaders/flash_hc_gemv.metal"),
+@@ -1019,7 +1021,9 @@
+     }
+ 
+     fn check(p: &Projection, x: &Array) -> Result<Vec<f32>> {
+-        let expected = p.forward(x)?;
++        let expected = if x.shape()[0] == 2 && x.dtype() == Dtype::Float32 {
++            Array::concatenate(&[&p.forward(&x.slice(0, 0, 1)?)?, &p.forward(&x.slice(0, 1, 2)?)?], 0)?
++        } else { p.forward(x)? };
+         let actual = p.forward_flash_hc(x)?;
+         let values = actual.astype(Dtype::Float32)?.to_f32()?;
+         ensure!(
+@@ -1142,6 +1146,28 @@
+     }
+ 
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; paired HC rows against serial GEMV"]
++    fn mixed_gemv_pair_preserves_every_hc_matrix_and_strides() -> Result<()> {
++        let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut matrices = 0;
++        let mut checked = 0;
++        for (name, tensor) in &c.tensors {
++            if !["input_mix_weight_down.weight", "input_mix_weight_up.weight", "block_inject_weight.weight"].iter().any(|suffix| name.ends_with(suffix)) { continue; }
++            let k = tensor.shape[1] as i32;
++            let n = tensor.shape[0] as i32;
++            let p = Projection::load(&c, name.strip_suffix(".weight").expect("suffix"), k, n, false)?;
++            let values: Vec<f32> = (0..2*k).map(|i| ((i as u32).wrapping_mul(747796405).wrapping_add(2891336453) as i32) as f32 / 1073741824.).collect();
++            for x in [Array::from_f32(&values, &[2, 1, k])?, Array::from_f32(&values, &[k, 2])?.transpose(&[1, 0])?] {
++                checked += check(&p, &x)?.len();
++            }
++            matrices += 1;
++        }
++        ensure!(matrices == 298 && checked == 4*1056392, "incomplete paired HC census");
++        println!("HC paired GEMV: {matrices} real matrices, {checked} finite bit-exact values");
++        Ok(())
++    }
++
++    #[test]
+     #[ignore = "physical Apple GPU and Flash checkpoint; microbenchmark, not model throughput"]
+     fn mixed_gemv_micro() -> Result<()> {
+         let c =
+@@ -1159,12 +1185,13 @@
+                 false,
+             )?;
+             let x = Array::from_f32(
+-                &(0..k).map(|i| (i as f32 * 0.173).sin()).collect::<Vec<_>>(),
+-                &[1, 1, k],
++                &(0..2 * k).map(|i| (i as f32 * 0.173).sin()).collect::<Vec<_>>(),
++                &[2, 1, k],
+             )?;
+             check(&p, &x)?;
++            let serial = || Array::concatenate(&[&p.forward_flash_hc(&x.slice(0, 0, 1)?)?, &p.forward_flash_hc(&x.slice(0, 1, 2)?)?], 0);
+             for _ in 0..8 {
+-                p.forward(&x)?.eval()?;
++                serial()?.eval()?;
+                 p.forward_flash_hc(&x)?.eval()?;
+             }
+             for repeat in 0..5 {
+@@ -1173,7 +1200,7 @@
+                     let start = std::time::Instant::now();
+                     for _ in 0..32 {
+                         if arm == 0 {
+-                            p.forward(&x)?.eval()?;
++                            serial()?.eval()?;
+                         } else {
+                             p.forward_flash_hc(&x)?.eval()?;
+                         }
+@@ -1181,7 +1208,7 @@
+                     seconds[arm] = start.elapsed().as_secs_f64();
+                 }
+                 println!(
+-                    "HC_GEMV_MICRO {}",
++                    "HC_PAIR_MICRO {}",
+                     serde_json::json!({"shape":[k,n],"repeat":repeat,"iterations":32,"seconds":seconds})
+                 );
+             }
+@@ -1193,6 +1220,7 @@
+     #[kani::proof]
+     fn actual_mixed_hc_path_matches_mlx() {
+         let x = f32::from(kani::any::<i8>());
++        let y = f32::from(kani::any::<i8>());
+         let w = f32::from(kani::any::<i8>());
+         let weight = Array::from_f32(&[w], &[1, 1])
+             .unwrap()
+@@ -1200,9 +1228,9 @@
+             .unwrap()
+             .broadcast_to(&[320, 10240])
+             .unwrap();
+-        let input = Array::from_f32(&[x], &[1, 1])
++        let input = Array::from_f32(&[x, y], &[2, 1])
+             .unwrap()
+-            .broadcast_to(&[1, 10240])
++            .broadcast_to(&[2, 10240])
+             .unwrap();
+         check(&projection(weight), &input).unwrap();
+     }
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -104,31 +104,37 @@
+         })
+     }
+     fn read(&self, streams: &Array) -> Result<(Array, Option<Array>)> {
+-        let normalized = self.norm.forward(&streams.reshape(&[1, 1, WIDTH])?)?;
++        ensure!(matches!(streams.shape(), [rows, WIDTH] if (1..=2).contains(rows)), "invalid Flash HC rows");
++        let rows = streams.shape()[0];
++        ensure!(rows == 1 || streams.dtype() == Dtype::Float32, "Flash HC pair requires FP32");
++        let normalized = self.norm.forward(&streams.reshape(&[rows, 1, WIDTH])?)?;
+         let weights = self.up.forward_flash_hc(
+             &self
+                 .down
+                 .forward_flash_hc(&normalized)?
+                 .qwen4_hc_activate()?,
+         )?;
+-        let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[1, H])?;
++        let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[rows, H])?;
+         let injection = self
+             .inject
+             .as_ref()
+             .map(|p| {
+                 p.forward_flash_hc(&normalized)?
+                     .qwen4_hc_gate()?
+-                    .reshape(&[1, HC])
++                    .reshape(&[rows, HC])
+             })
+             .transpose()?;
+         Ok((mixed, injection))
+     }
+     fn write(streams: &Array, branch: &Array, gate: &Array) -> Result<Array> {
++        ensure!(matches!(streams.shape(), [rows, WIDTH] if (1..=2).contains(rows)), "invalid Flash HC write rows");
++        let rows = streams.shape()[0];
++        ensure!(branch.shape() == [rows, H] && gate.shape() == [rows, HC], "invalid Flash HC branch/gate");
+         streams.add(
+             &branch
+-                .reshape(&[1, 1, H])?
+-                .mul(&gate.reshape(&[1, HC, 1])?)?
+-                .reshape(&[1, WIDTH])?,
++                .reshape(&[rows, 1, H])?
++                .mul(&gate.reshape(&[rows, HC, 1])?)?
++                .reshape(&[rows, WIDTH])?,
+         )
+     }
+ }
+@@ -897,20 +903,32 @@
+         streams: &[Array; 2],
+         tokens: [u32; 2],
+     ) -> Result<([Array; 2], LayerState)> {
+-        let a = self.prepare(&streams[0], tokens[0])?;
+-        let first = self.snapshot()?;
+-        let b = self.prepare(&streams[1], tokens[1])?;
+-        let output = self
+-            .moe
+-            .forward_many(&Array::concatenate(&[&a.1, &b.1], 0)?)?;
+-        Ok((
+-            [
+-                Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
+-                Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
+-            ],
+-            first,
+-        ))
+-    }
++        let (streams, first_ple) = match &mut self.ple {
++            Some(ple) => {
++                let a = ple.forward(&streams[0], tokens[0])?;
++                let first = (clone_array(&ple.history)?, ple.rows.previous);
++                let b = ple.forward(&streams[1], tokens[1])?;
++                (Array::concatenate(&[&a, &b], 0)?, Some(first))
++            }
++            None => (Array::concatenate(&[&streams[0], &streams[1]], 0)?, None),
++        };
++        let (mixed, gate) = self.attn_hc.read(&streams)?;
++        let a = match &mut self.attention {
++            Attention::Gdn(g) => g.forward(&mixed.slice(0, 0, 1)?)?,
++            Attention::Qsa(q) => q.forward(&mixed.slice(0, 0, 1)?)?,
++        };
++        let mut first = self.snapshot()?;
++        first.ple = first_ple;
++        let b = match &mut self.attention {
++            Attention::Gdn(g) => g.forward(&mixed.slice(0, 1, 2)?)?,
++            Attention::Qsa(q) => q.forward(&mixed.slice(0, 1, 2)?)?,
++        };
++        let streams = Hc::write(&streams, &Array::concatenate(&[&a, &b], 0)?, &gate.context("missing attention injection")?)?;
++        let (mixed, gate) = self.mlp_hc.read(&streams)?;
++        let output = Hc::write(&streams, &self.moe.forward_many(&mixed)?, &gate.context("missing MoE injection")?)?;
++        Ok(([output.slice(0, 0, 1)?, output.slice(0, 1, 2)?], first))
++    }
++
+     fn reset(&mut self) {
+         match &mut self.attention {
+             Attention::Gdn(gdn) => gdn.reset(),
+@@ -1185,9 +1203,8 @@
+             streams = output;
+             states.push(first);
+         }
+-        let logits =
+-            Array::concatenate(&[&self.logits(&streams[0])?, &self.logits(&streams[1])?], 0)?;
+         let hidden = Array::concatenate(&[&streams[0], &streams[1]], 0)?;
++        let logits = self.logits(&hidden)?;
+         self.drain()?;
+         self.verification = Some(PairState {
+             base,
+@@ -2168,6 +2185,76 @@
+         Ok(())
+     }
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; exact HC pair and shape boundaries"]
++    fn flash_hc_pair_preserves_serial_rounding_and_rejects_invalid_shapes() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let hc = Hc::load(
++            &c,
++            "model.language_model.layers.0.attn_hyper_connection",
++            1e-6,
++            true,
++        )?;
++        let values = (0..2 * WIDTH)
++            .map(|i| (i as f32 * 0.017).sin())
++            .collect::<Vec<_>>();
++        for transpose in [false, true] {
++            let input = if transpose { Array::from_f32(&values, &[WIDTH, 2])?.transpose(&[1, 0])? } else { Array::from_f32(&values, &[2, WIDTH])? };
++            let a = hc.read(&input.slice(0, 0, 1)?)?;
++            let b = hc.read(&input.slice(0, 1, 2)?)?;
++            let (mixed, gate) = hc.read(&input)?;
++            let gate = gate.context("missing pair gate")?;
++            ensure!(mixed.shape() == [2, H] && gate.shape() == [2, HC]);
++            ensure!(mixed.to_f32()?.iter().all(|v| v.is_finite()));
++            ensure!(
++                mixed.to_bytes()? == Array::concatenate(&[&a.0, &b.0], 0)?.to_bytes()?,
++                "HC pair mixed differs"
++            );
++            ensure!(
++                gate.to_bytes()?
++                    == Array::concatenate(
++                        &[&a.1.context("first gate")?, &b.1.context("second gate")?],
++                        0
++                    )?
++                    .to_bytes()?,
++                "HC pair gate differs"
++            );
++            let expected = Array::concatenate(
++                &[
++                    &Hc::write(
++                        &input.slice(0, 0, 1)?,
++                        &mixed.slice(0, 0, 1)?,
++                        &gate.slice(0, 0, 1)?,
++                    )?,
++                    &Hc::write(
++                        &input.slice(0, 1, 2)?,
++                        &mixed.slice(0, 1, 2)?,
++                        &gate.slice(0, 1, 2)?,
++                    )?,
++                ],
++                0,
++            )?;
++            ensure!(
++                Hc::write(&input, &mixed, &gate)?.to_bytes()? == expected.to_bytes()?,
++                "HC pair write differs"
++            );
++            ensure!(Hc::write(&input, &mixed.slice(0, 0, 1)?, &gate).is_err());
++            ensure!(Hc::write(&input, &mixed, &gate.slice(0, 0, 1)?).is_err());
++        }
++        ensure!(hc.read(&Array::zeros_dtype(&[2, WIDTH], Dtype::Float16)?).is_err(), "half pair accepted");
++        for shape in [
++            vec![WIDTH],
++            vec![0, WIDTH],
++            vec![3, WIDTH],
++            vec![1, WIDTH - 1],
++        ] {
++            ensure!(
++                hc.read(&Array::zeros_dtype(&shape, Dtype::Float32)?)
++                    .is_err()
++            );
++        }
++        Ok(())
++    }
++    #[test]
+     #[ignore = "physical Apple GPU and independent upstream norm fixture"]
+     fn flash_norms_match_upstream_rounding() -> Result<()> {
+         let root = std::env::var("MLXL3_FLASH_NORM_REFERENCE")?;
+--- a/native/shaders/flash_hc_gemv.metal
++++ b/native/shaders/flash_hc_gemv.metal
+@@ -5,16 +5,28 @@
+ uint group_n = sg % BN;
+ uint output = threadgroup_position_in_grid.x * (BM * 4) + (sg / BN) * 4;
+ float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
++#if ROWS == 2
++float second[4] = {0.0f, 0.0f, 0.0f, 0.0f};
++#endif
+ uint column = (group_n * 32 + lane) * 4;
+ for (uint block = 0; block < (K + BN * 128 - 1) / (BN * 128); ++block) {
+     float coeff[4];
+     for (uint n = 0; n < 4; ++n) {
+         coeff[n] = column + n < K ? x[column + n] : 0.0f;
+     }
++#if ROWS == 2
++    float coeff_second[4];
++    for (uint n = 0; n < 4; ++n) {
++        coeff_second[n] = column + n < K ? x[K + column + n] : 0.0f;
++    }
++#endif
+     for (uint m = 0; m < 4; ++m) {
+         for (uint n = 0; n < 4; ++n) {
+             float w = column + n < K ? float(weight[(output + m) * K + column + n]) : 0.0f;
+             result[m] = fma(w, coeff[n], result[m]);
++#if ROWS == 2
++            second[m] = fma(w, coeff_second[n], second[m]);
++#endif
+         }
+     }
+     column += BN * 128;
+@@ -22,20 +34,35 @@
+ for (uint m = 0; m < 4; ++m) {
+     for (ushort delta = 16; delta >= 1; delta >>= 1) {
+         result[m] += simd_shuffle_down(result[m], delta);
++#if ROWS == 2
++        second[m] += simd_shuffle_down(second[m], delta);
++#endif
+     }
+ }
+ #if BN > 1
+ threadgroup float partials[BN * 8];
++#if ROWS == 2
++threadgroup float partials_second[BN * 8];
++#endif
+ if (lane == 0) {
+     for (uint m = 0; m < 4; ++m) partials[group_n * 8 + m] = result[m];
++#if ROWS == 2
++    for (uint m = 0; m < 4; ++m) partials_second[group_n * 8 + m] = second[m];
++#endif
+ }
+ threadgroup_barrier(mem_flags::mem_threadgroup);
+ if (group_n == 0) {
+     for (uint other = 1; other < BN; ++other) {
+         for (uint m = 0; m < 4; ++m) result[m] += partials[other * 8 + m];
++#if ROWS == 2
++        for (uint m = 0; m < 4; ++m) second[m] += partials_second[other * 8 + m];
++#endif
+     }
+ }
+ #endif
+ if (group_n == 0 && lane == 0) {
+     for (uint m = 0; m < 4; ++m) out[output + m] = result[m];
++#if ROWS == 2
++    for (uint m = 0; m < 4; ++m) out[N + output + m] = second[m];
++#endif
+ }

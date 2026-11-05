@@ -1,0 +1,15 @@
+import csv,hashlib,json,runpy
+from pathlib import Path
+p=Path("docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3")
+d=p/"micro-v2"
+assert json.loads((d/"campaign-result.json").read_text())["status"]=="passed_quality_and_postflight30s"
+source=p/"qualify.py"
+result=runpy.run_path(str(source))["qualify"](json.loads((d/"samples.json").read_text()),gated=True)
+result.update(qualifier_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),input_sha256=hashlib.sha256((d/"samples.json").read_bytes()).hexdigest(),identity="identity-v2.json")
+with (d/"qualification.json").open("x") as out:json.dump(result,out,indent=2);out.write("\n")
+with (d/"cells.csv").open("x",newline="") as out:
+ writer=csv.DictWriter(out,fieldnames=list(result["cells"][0]))
+ writer.writeheader();writer.writerows(result["cells"])
+print(json.dumps({k:v for k,v in result.items() if k!="cells"},indent=2))
+for row in result["cells"]:
+ print(row["layer"],row["rows"],row["mixed"],row["grouped"],round(row["median_gain_percent"],3),[round(x,3) for x in row["drift_percent"]],round(row["gain_spread_points"],3),row["threshold_passed"])

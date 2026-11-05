@@ -1,0 +1,23 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 18.66s
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-46589c985e3028a5)
+
+running 2 tests
+test flash_cache_profile::shared::arc::arc_complete_batches_protect_late_hits_and_reject_invalid_requests_atomically ... ok
+test flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states ... FAILED
+
+failures:
+
+---- flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states stdout ----
+
+thread 'flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states' (5922538) panicked at native/src/flash_cache_profile/shared/arc.rs:191:5:
+assertion failed: cache.b1.is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`

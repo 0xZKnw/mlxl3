@@ -1,0 +1,44 @@
+{
+  "status": "complete_static_review_no_new_prototype",
+  "completed_at": "2026-10-22T17:32:44.825849+00:00",
+  "source_manifest": "sources.json",
+  "historical_trials": [
+    "57P",
+    "58",
+    "63",
+    "64",
+    "65R",
+    "65T",
+    "66F",
+    "68",
+    "69R2",
+    "70R"
+  ],
+  "priorities": [
+    {
+      "pista": "submit prediction after current early GPU Hot",
+      "local": "native/src/ssd_moe.rs::SsdMoe::forward_draft_lookahead",
+      "upstream": "runtime/model/ExpertStore.cpp::planAhead/startAhead",
+      "status": "hypothesis; GPU and exclusive timing unmeasured"
+    },
+    {
+      "pista": "GPU Hot B2 share and direct output",
+      "local": "71P; native/src/linear.rs and native/shaders/_qmv_mapped_tile_kernel.metal",
+      "upstream": "runtime/ops/MoE.cpp::addRouting/addRouted",
+      "status": "preregistered, deferred, no code or measurement"
+    },
+    {
+      "pista": "persistent window dispatch lists and buffers",
+      "upstream": "metal/src/engine/window.cpp::Window::run/run_ds",
+      "status": "deferred until exclusive host timing supports cost"
+    }
+  ],
+  "licenses": {
+    "splash": "Apache-2.0",
+    "strata": "MIT"
+  },
+  "no_executable_change": true,
+  "no_new_gpu_load": true,
+  "no_new_tps_gain": true,
+  "scope_limit": "targeted source review, not an exhaustive upstream audit"
+}

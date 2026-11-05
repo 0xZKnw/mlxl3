@@ -1,0 +1,89 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/Documents/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.61s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-a05ece10cea85bde)
+
+running 41 tests
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+test contracts::older_gpus_never_select_tensor_ops ... ok
+test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+test contracts::gdn_history_capacity_covers_partial_commits ... ok
+test contracts::gdn_tape_requires_a_valid_commit ... ok
+test codec::tests::permutation_is_bijective ... ok
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test mtp::draft_projection_tests::optional_projection_must_match_target_and_affine_contract ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test mcp::tests::parses_json_and_sse_responses ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+
+test result: ok. 39 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-bba8ffc8bbf31691)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (target/debug/deps/contracts-d05bac0450cbd59f)
+
+running 15 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail ... FAILED
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+
+failures:
+
+---- flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail stdout ----
+
+thread 'flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail' (8661783) panicked at native/tests/contracts.rs:138:5:
+assertion failed: checkpoint::inspect(&model).unwrap().tensors.contains_key("ple.head_bias")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+error: test failed, to rerun pass `--test contracts`

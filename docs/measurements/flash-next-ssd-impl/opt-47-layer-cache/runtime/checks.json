@@ -1,0 +1,62 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "exit_code": 0,
+    "seconds": 0.38472737499978393,
+    "reaped": true
+  },
+  {
+    "name": "budget-mutation",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--lib",
+      "flash_support::tests::per_layer_slots_preserve_budget_and_reject_malformed_profiles",
+      "--",
+      "--exact"
+    ],
+    "exit_code": 101,
+    "seconds": 1.961205625004368,
+    "reaped": true
+  },
+  {
+    "name": "budget-restored",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--lib",
+      "flash_support::tests::per_layer_slots_preserve_budget_and_reject_malformed_profiles",
+      "--",
+      "--exact"
+    ],
+    "exit_code": 0,
+    "seconds": 0.9562706660071854,
+    "reaped": true
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 101,
+    "seconds": 3.115566458000103,
+    "reaped": true
+  }
+]

@@ -3,7 +3,7 @@ import Foundation
 enum ModelDownloadStatus { case idle, transferring, paused, complete, failed }
 
 /// Transfer rate uses monotonic time and counts only newly received bytes.
-struct ModelDownloadProgress {
+struct ModelDownloadProgress: Sendable {
     private(set) var completed = 0.0
     private(set) var total: Double
     private(set) var bytesPerSecond: Double?

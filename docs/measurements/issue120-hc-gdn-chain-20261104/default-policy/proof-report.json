@@ -1,0 +1,129 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 2.479709750012262,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "hc_gdn_flag_preserves_qualified_defaults_and_exact_literals",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_gdn_flag_preserves_qualified_defaults_and_exact_literals"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 22.340956750005716,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "original-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/original.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/original-test"
+      ],
+      "limit_seconds": 15,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.1427129999792669,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "mutant-build",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/mutant.rs",
+        "-o",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/mutant-test"
+      ],
+      "limit_seconds": 15,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.1328232499945443,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "original",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/original-test",
+        "--exact",
+        "policy_tests::hc_gdn_flag_is_strict_and_defaults_only_to_qualified_hardware"
+      ],
+      "limit_seconds": 15,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.2664196669938974,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "default-false-mutant",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/mutant-test",
+        "--exact",
+        "policy_tests::hc_gdn_flag_is_strict_and_defaults_only_to_qualified_hardware"
+      ],
+      "limit_seconds": 15,
+      "exit_code": 101,
+      "expected_exit_code": 101,
+      "seconds": 0.24487295799190179,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    },
+    {
+      "name": "original-reused",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/default-policy/mutation/original-test",
+        "--exact",
+        "policy_tests::hc_gdn_flag_is_strict_and_defaults_only_to_qualified_hardware"
+      ],
+      "limit_seconds": 15,
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "seconds": 0.005819291021907702,
+      "joined": true,
+      "timeout": false,
+      "status": "passed"
+    }
+  ],
+  "all_children_joined": true,
+  "mutation_scope": "exact production helper copies+actual test module, only default qualified\u2192false; worktree executable sources never mutated",
+  "source_helper_sha256": [
+    "2d30bdae710d6f567249a3d43392317e853855107511dd9dceb117da098571ac",
+    "9fcb79738e6bb7fd71a558ad33186cde0e104b0946b8eb9af297b2d2066c636c",
+    "ffd72c7af210ef3cc47a525d6c4bf4bede50219dd53f4a1e4d0da501aa06c3df"
+  ]
+}

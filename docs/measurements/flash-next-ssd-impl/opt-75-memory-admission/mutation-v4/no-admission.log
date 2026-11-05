@@ -1,0 +1,115 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_real_sampler_admission_and_pressure_reap_owned_children[short] ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-no-admission/test_real_sampler_admission_an0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1084e0da0>
+fault = 'short'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "short",
+            "missing_budget",
+            "live_free",
+            "live_compressor",
+            "after_swap",
+            "after_swapin",
+            "none",
+        ],
+    )
+    def test_real_sampler_admission_and_pressure_reap_owned_children(tmp_path, monkeypatch, fault):
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+            "bridge": Path("scripts/benchmark-flash-bridge.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        before = {**baseline, **gauges()}
+        if fault == "short":
+            before["Pages free"] -= 1
+        live = before.copy()
+        if fault == "live_free":
+            live["Pages free"] = (512 << 20) - 1
+        if fault == "live_compressor":
+            live["Pages occupied by compressor"] += 1
+        if fault == "after_swap":
+            live["Swapouts"] += 1
+        if fault == "after_swapin":
+            live["Swapins"] += (256 << 20) + 1
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        def vm_stat(command, **kwargs):
+            assert command == ["vm_stat"] and kwargs == {"text": True, "timeout": 5}
+            return "synthetic memory sample"
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                g = namespace["main"].__globals__
+                g["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                g["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": before.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+                namespace["monitor"].__globals__["subprocess"] = SimpleNamespace(
+                    TimeoutExpired=subprocess.TimeoutExpired, check_output=vm_stat
+                )
+            if selected == (tmp_path / paths["parser"]).resolve():
+                namespace["parse_vm"] = lambda _: live.copy()
+            return namespace
+    
+        g = api["run_sampler"].__globals__
+        monkeypatch.setitem(g, "ROOT", tmp_path)
+        monkeypatch.setitem(g, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.setitem(g, "subprocess", SimpleNamespace(check_output=vm_stat))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        item = {
+            **record(),
+            "name": "admission",
+            "command": [
+                sys.executable,
+                "-c",
+                "import time; from pathlib import Path; Path('child-started').touch(); "
+                + f"time.sleep({3 if fault.startswith('live') else 0})",
+            ],
+            "env": {"MLXL3_FLASH_MODEL": "path-never-loaded"},
+            "expected_exit": 0,
+            "timeout_seconds": 5,
+        }
+        if fault == "missing_budget":
+            del item["load_headroom_bytes"]
+        plan = tmp_path / "run.json"
+        plan.write_text(json.dumps([item]))
+        if fault == "none":
+            api["run_sampler"](plan, baseline)
+        else:
+>           with pytest.raises(AssertionError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE AssertionError
+
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/tests/test_flash_memory_admission.py:193: Failed
+----------------------------- Captured stdout call -----------------------------
+{'name': 'admission', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.01970154199807439, 'swapouts_bytes': 0}
+=========================== short test summary info ============================
+FAILED tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]
+1 failed in 0.05s

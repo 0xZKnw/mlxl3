@@ -1,0 +1,78 @@
+{
+  "status": "CPU_defaults_qualified_GPU_absence_pending",
+  "versions": {
+    "Rust": "1.98.1",
+    "Kani": "0.68.0",
+    "CBMC": "6.11.0"
+  },
+  "unit_tests_passed": 3,
+  "unit_tests_ignored": 0,
+  "full_no_default_cpu": {
+    "passed": 336,
+    "failed": 0,
+    "ignored": 8
+  },
+  "strict_CPU_clippy": "passed all-targets",
+  "manifest_tests_passed": 2,
+  "proofs": [
+    {
+      "harness": "hc_gdn_flag_preserves_qualified_defaults_and_exact_literals",
+      "status": "successful",
+      "checks": 240,
+      "unreachable": 7,
+      "covers_satisfied": 7,
+      "covers_total": 7,
+      "unreachable_properties": [
+        [
+          "std::fmt::Arguments::<'_>::from_str.assertion.1",
+          "attempt to shift left with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.1",
+          "attempt to subtract with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.2",
+          "attempt to shift right with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.3",
+          "index out of bounds: the length is less than or equal to the given index"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.2",
+          "attempt to subtract with overflow"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.3",
+          "attempt to add with overflow"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.18",
+          "attempt to add with overflow"
+        ]
+      ]
+    },
+    {
+      "harness": "hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
+      "status": "successful",
+      "checks": 43,
+      "unreachable": 0,
+      "covers_satisfied": 8,
+      "covers_total": 8,
+      "unreachable_properties": []
+    }
+  ],
+  "domains": {
+    "eligibility": "all enabled/trace/same_owner bool and all u32[2], unwind10",
+    "flag": "all qualification/presence bools and valid UTF8 strings0..4bytes plus None, unwind10; no assume/stub"
+  },
+  "mutation": "exact production helper copies and actual current unit module; default qualified\u2192false fails101, original0 and same original reused0; no worktree mutation",
+  "limits": [
+    "CPU policies only; no Metal/OS/concurrency proof",
+    "qualified bool does not prove actual GPU-name mapping",
+    "ignored tests remain ignored in CPU suite; final physical absence/default checks are separate",
+    "S2 GDN/HC/dispatch/math retained unchanged; no new speed measurement by this owner"
+  ],
+  "all_owned_children_joined": true
+}

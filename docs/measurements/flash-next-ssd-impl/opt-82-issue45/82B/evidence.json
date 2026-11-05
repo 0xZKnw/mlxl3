@@ -1,0 +1,126 @@
+{
+  "trial": "82B",
+  "status": "implemented_regression_tests_passed_not_a_performance_gain",
+  "preregistration": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/opti.md:15200",
+  "base_head": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "scope": "Only two Python files edited; no opti/index/native/CI/push by this agent",
+  "sources": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+      "before_sha256": "3f7c8680773c357328e08a793e091c8e6f84c3270b0d8fe24442dd6dfa7fcb98",
+      "after_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+      "archived_before": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/82B/before-benchmark-flash-bridge.py",
+      "archived_after": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/82B/after-benchmark-flash-bridge.py"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/tests/test_flash_benchmark.py",
+      "before_sha256": "c67999860631d4b8f56109d57027d1c9d2ac8ee2aed855922f9dfdeffa582a14",
+      "after_sha256": "63398f6d6303d67b4c78c66dd88b47cc8b9da4e3b99190d31c5efe16bfec81b9",
+      "archived_before": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/82B/before-test_flash_benchmark.py",
+      "archived_after": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/82B/after-test_flash_benchmark.py"
+    }
+  ],
+  "patch_sha256": "3a07939de855b0e5aeb25dadcbb05631b8868e1ae89ee0cbb21b7d3f7915e333",
+  "changes": [
+    "Normal stdout EOF has a distinct in-memory sentinel; reader errors remain errors.",
+    "After exit zero, join reader and drain remaining events before medians/status=validated.",
+    "Reject late error and invalid event structure; fail if no normal EOF marker.",
+    "Preserve bounded shutdown and failure cleanup; benign final status remains accepted."
+  ],
+  "checks": [
+    {
+      "name": "baseline_reproduction",
+      "command": "PYTHONDONTWRITEBYTECODE=1 /Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 -m pytest -q -p no:cacheprovider tests/test_flash_benchmark.py -k 'late_error or late_invalid or late_null or late_missing_type'",
+      "source": "original production benchmark; extended regression fixture",
+      "exit_code": 1,
+      "result": "8 failed, 55 deselected in 2.49s; all eight DID NOT RAISE",
+      "log": "baseline-regressions.log",
+      "log_sha256": "66363619fa8c490c4b2ddceabb41afe70e80033cff8c04e092f213f6bcbc2c48"
+    },
+    {
+      "name": "format",
+      "command": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 -m ruff format scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py",
+      "exit_code": 0,
+      "result": "2 files left unchanged",
+      "log": "format.log",
+      "log_sha256": "43affe539ba0ae8b202b306a3294d04f3b7fc062316c1c825399076d966c8f2d"
+    },
+    {
+      "name": "focused_full_file",
+      "command": "PYTHONDONTWRITEBYTECODE=1 /Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 -m pytest -q -p no:cacheprovider tests/test_flash_benchmark.py",
+      "exit_code": 0,
+      "result": "66 passed in 22.15s",
+      "log": "pytest-focused.log",
+      "log_sha256": "6994689e4e23b46af62d828d02d14e9c55043dfa2f29ba1d30e4c48c22a9c0ba"
+    },
+    {
+      "name": "lint",
+      "command": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 -m ruff check --no-cache scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py",
+      "exit_code": 0,
+      "result": "All checks passed!",
+      "log": "ruff.log",
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "name": "symbolic_attempt",
+      "command": "PYTHONDONTWRITEBYTECODE=1 /Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 -m crosshair check scripts/benchmark-flash-bridge.py --analysis_kind asserts --per_condition_timeout 5 --per_path_timeout 2",
+      "exit_code": 1,
+      "result": "No module named crosshair",
+      "proof_status": "not_verified_tool_unavailable",
+      "log": "crosshair.log",
+      "log_sha256": "c27f28b4d13eee64a841146cc98226af1e78134cad3d1f94219ee5e81d80b14b"
+    }
+  ],
+  "all_our_child_processes_reaped": true,
+  "gpu_or_model_used": false,
+  "regression_coverage": {
+    "new_parameter_cases": 18,
+    "total_tests_in_file": 66,
+    "baseline_detected_cases": [
+      "late_error",
+      "late_invalid",
+      "late_null",
+      "late_missing_type",
+      "df_late_error",
+      "df_late_invalid",
+      "compare_late_error",
+      "compare_late_invalid"
+    ],
+    "new_cases": [
+      "late_status",
+      "late_error",
+      "late_invalid",
+      "late_null",
+      "late_missing_type",
+      "late_bad_type",
+      "late_empty_type",
+      "late_array",
+      "late_nonzero",
+      "eof",
+      "error",
+      "malformed",
+      "df_late_error",
+      "df_late_invalid",
+      "df_late_nonzero",
+      "compare_late_error",
+      "compare_late_invalid",
+      "compare_late_nonzero"
+    ],
+    "production_boundary": "bench.run with real disposable subprocess, queue, stdout reader, shutdown, report and reaping; existing healthy CLI cases retained"
+  },
+  "ci": {
+    "workflow": ".github/workflows/rust.yml",
+    "test_line": 232,
+    "format_line": 241,
+    "lint_line": 242,
+    "change_required": false,
+    "local_uncommitted_sha_ci": "not_run"
+  },
+  "limits": [
+    "Tests are not formal proof. CrossHair absent; source-level symbolic verification not established.",
+    "No real MLX bridge or model used for this controller fix.",
+    "Existing historical measurements are not retroactively certified or all invalidated.",
+    "Full repository Python suite not repeated by this subagent; relevant complete 66-test file run.",
+    "Parent GPU campaign started after all CPU checks ended; no further tests run during GPU."
+  ]
+}

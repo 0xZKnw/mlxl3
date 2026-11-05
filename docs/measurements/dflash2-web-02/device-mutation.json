@@ -1,0 +1,20 @@
+{
+  "mutation": "vocabulary equality replaced by positive vocabulary",
+  "red_returncode": 101,
+  "restored_returncode": 101,
+  "source_restored_byte_exact": true,
+  "source_sha256": "107d47d637cce1a4edbb38b4c0eafcadefbefe6458b3bdedcd85fafc9cf6150a",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "--lib",
+    "dflash::tests::device_draft_checks_width_vocabulary_anchor_and_context",
+    "--",
+    "--exact"
+  ],
+  "restored_rebuild_returncode": 0,
+  "restored_byte_exact": true,
+  "first_restored_failure_reason": "Original mtime restored before Cargo invocation; Cargo reused mutated test binary. Source content was byte exact. Touch source and rebuild corrects this; failed log retained."
+}

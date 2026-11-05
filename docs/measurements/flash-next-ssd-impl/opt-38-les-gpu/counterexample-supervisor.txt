@@ -1,0 +1,62 @@
+from pathlib import Path
+import json
+import os
+import signal
+import subprocess
+import time
+
+w = Path.cwd()
+p = w / "docs/measurements/flash-next-ssd-impl/opt-38-les-gpu"
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+}
+commands = [
+    (
+        "kani-victim-playback",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "predictive_victims_exclude_pending_and_fall_back_only_when_needed",
+            "--concrete-playback",
+            "print",
+        ],
+        120,
+        True,
+    )
+]
+records = []
+for name, command, limit, proof in commands:
+    r = {"name": name, "command": command, "timeout_seconds": limit, "status": "running"}
+    records.append(r)
+    child = None
+    started = time.monotonic()
+    try:
+        with (p / "checks" / (name + ".log")).open("w") as log:
+            child = subprocess.Popen(
+                command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+            )
+            r["pid"] = child.pid
+            r["exit_code"] = child.wait(timeout=limit)
+        r["status"] = "passed" if r["exit_code"] == 0 else ("unverified" if proof else "failed")
+    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt) as e:
+        r["status"] = "unverified" if proof else "failed"
+        r["error"] = repr(e)
+    finally:
+        if child is not None:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=10)
+            r["joined"] = True
+        r["elapsed_seconds"] = time.monotonic() - started
+        (p / "counterexample-checks.json").write_text(json.dumps(records, indent=2) + "\n")
+    print(name, r["status"], flush=True)
+    if r["status"] == "failed":
+        raise SystemExit(1)

@@ -1,0 +1,84 @@
+{
+  "status": "complete",
+  "all_parity_gates_passed": false,
+  "cases": {
+    "fixture64-trunk8": {
+      "status": "failed",
+      "parity": false,
+      "model": "build/lfm25-v3-native-probe/output",
+      "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+      "rms_tolerance": 0.02,
+      "minimum_argmax_matches": 31,
+      "tokens": 32,
+      "vocabulary": 128,
+      "command": [
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Engines/v1.4.4/mlxl3",
+        "forward",
+        "build/lfm25-v3-native-probe/output",
+        "--tokens",
+        "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35"
+      ],
+      "relative_rms": 0.04013891566203687,
+      "argmax_matches": 32,
+      "finite_values": 4096,
+      "cuda_sha256": "01ee72b92234380bfee791a7aa39b7328e97e4218ca887520229ab25b0894692",
+      "error": "ValueError('Native/CUDA fidelity gate failed')",
+      "elapsed_seconds": 0.36525454104412347
+    },
+    "fixture64-hq": {
+      "status": "failed",
+      "parity": false,
+      "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+      "rms_tolerance": 0.02,
+      "minimum_argmax_matches": 31,
+      "case": "fixture64-hq",
+      "command": [
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Engines/v1.4.4/mlxl3",
+        "forward",
+        "build/lfm25-v3-native-controls/fixture64-hq/output",
+        "--tokens",
+        "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35"
+      ],
+      "relative_rms": 0.021797768188512225,
+      "argmax_matches": 32,
+      "finite_values": 4096
+    },
+    "historical-hq": {
+      "status": "failed",
+      "parity": false,
+      "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+      "rms_tolerance": 0.02,
+      "minimum_argmax_matches": 31,
+      "case": "historical-hq",
+      "command": [
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Engines/v1.4.4/mlxl3",
+        "forward",
+        "build/lfm25-v3-native-controls/historical-hq/output",
+        "--tokens",
+        "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35"
+      ],
+      "relative_rms": 0.02346505265407041,
+      "argmax_matches": 32,
+      "finite_values": 4096
+    },
+    "historical-trunk8": {
+      "status": "passed",
+      "parity": true,
+      "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+      "rms_tolerance": 0.02,
+      "minimum_argmax_matches": 31,
+      "case": "historical-trunk8",
+      "command": [
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Engines/v1.4.4/mlxl3",
+        "forward",
+        "build/lfm25-v3-native-controls/historical-trunk8/output",
+        "--tokens",
+        "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35"
+      ],
+      "relative_rms": 0.001922610663667649,
+      "argmax_matches": 32,
+      "finite_values": 4096
+    }
+  },
+  "decision": "K8 passes on the unchanged historical source fixture; both HQ controls and the constructed K8 fixture fail. No universal numerical parity claimed; full-model quality remains mandatory."
+}

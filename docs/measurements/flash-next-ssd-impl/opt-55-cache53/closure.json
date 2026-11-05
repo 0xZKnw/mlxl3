@@ -1,0 +1,82 @@
+{
+  "status": "closed_offline_profile_rejected_no_gpu_campaign",
+  "total_slots": 2544,
+  "eligible_for_runtime_trial": false,
+  "cases": [
+    {
+      "name": "OFF-MAIN",
+      "training": true,
+      "baseline_jobs": 18401,
+      "selected_jobs": 17930,
+      "reduction_percent": 2.559643497635998
+    },
+    {
+      "name": "MTP-MAIN",
+      "training": true,
+      "baseline_jobs": 19904,
+      "selected_jobs": 19419,
+      "reduction_percent": 2.4366961414790995
+    },
+    {
+      "name": "OFF-HOLD",
+      "training": false,
+      "baseline_jobs": 19708,
+      "selected_jobs": 19799,
+      "reduction_percent": -0.46174142480211083
+    },
+    {
+      "name": "MTP-HOLD",
+      "training": false,
+      "baseline_jobs": 22186,
+      "selected_jobs": 22306,
+      "reduction_percent": -0.5408816370684215
+    }
+  ],
+  "production_engine_unchanged": true,
+  "confirmed_tps_gain": false,
+  "verification": {
+    "python": 245,
+    "rust_mlx_chat_pass": 133,
+    "rust_mlx_chat_ignored": 129,
+    "cpu_focused": 5,
+    "cpu_focused_ignored": 2,
+    "parser_regressions": 11,
+    "formal_unique_count": "two120s timeouts; unverified20tuples len0..20 slots<512",
+    "formal_actual_replay": "Kani ICEintrinsics.rs243; unverified10u32 ids<512 bank20,4reserves",
+    "crosshair": "module absent",
+    "mutations": "gzip wrongpath, duplicate jobs, heldout leakage eachdetected andrestored"
+  },
+  "commands": {
+    "kani-jobs.log": {
+      "bytes": 221098,
+      "sha256": "819bebf27647bf76ffb9da5f2bb35fd57785a9608a5fe13bab46bbfd3229686d"
+    },
+    "kani-jobs-v2.log": {
+      "bytes": 61593,
+      "sha256": "43cb54bb1773ecb4280a8104f1a794a9091cd66b184f0c10c4709d2711f2a1ae"
+    },
+    "kani-resident.log": {
+      "bytes": 19266,
+      "sha256": "2ccccda5cc23c32a9bd71a3cc6dec587e27de88cc3080a1675fbe0786888b5ef"
+    },
+    "crosshair.log": {
+      "bytes": 79,
+      "sha256": "4504e874d79740678bb61f191ea37c1b546edbf8cf527af89b11ff60a58856e7"
+    },
+    "mutation-dedup.log": {
+      "bytes": 1129,
+      "sha256": "235907c0e153af27490a6b79cbdefb14d0d790293d94ed869137f7fb8092677a"
+    },
+    "mutation-heldout.log": {
+      "bytes": 2344,
+      "sha256": "bfc7fda4269bd2085658f2d169b781f9fb197f062af779d55078b73af016ce9d"
+    },
+    "mutation-gzip.log": {
+      "bytes": 2121,
+      "sha256": "0f72c476337abb7161819b67bf500b70cebef4b229ebb4b6f0cfc3d5a0083137"
+    }
+  },
+  "source_identity_note": "only cfg(kani) proof additions/selection after replay; executable helper unchanged; core engine sources byte-identicalb2c3",
+  "initial_failure": "input/extraction.json.gz lossless retained withSHA; input-v2 validated",
+  "remaining_roadmap": "hybrid GPU/CPU, only true repeated experts grouped, then rounding/compute analysis before Hadamard fusion; P0 excluded"
+}

@@ -1,0 +1,70 @@
+{
+  "status": "passed_cpu_build_checks",
+  "commands": [
+    {
+      "name": "fmt-final",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "seconds": 0.36039899999741465,
+      "reaped": true
+    },
+    {
+      "name": "clippy-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "seconds": 3.0171997500001453,
+      "reaped": true
+    },
+    {
+      "name": "release-tests-final",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "seconds": 47.2578492500179,
+      "reaped": true
+    },
+    {
+      "name": "release-build-final",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "seconds": 0.0797232500044629,
+      "reaped": true
+    }
+  ]
+}

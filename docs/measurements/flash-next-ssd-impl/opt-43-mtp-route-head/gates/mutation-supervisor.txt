@@ -1,0 +1,117 @@
+import hashlib
+import json
+import os
+import re
+import signal
+import subprocess
+from pathlib import Path
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/mutation")
+source = Path("native/src/lfm2.rs")
+original = source.read_bytes()
+old = """            let weight = weight.transpose(&[1, 0])?.astype(Dtype::Float32)?;
+            let project = |row| -> Result<Array> {"""
+new = """            let project = |row| -> Result<Array> {
+                let weight = weight.transpose(&[1, 0])?.astype(Dtype::Float32)?;"""
+assert original.decode().count(old) == 1
+result = {
+    "status": "incomplete",
+    "original_sha256": hashlib.sha256(original).hexdigest(),
+    "property": "exactly one explicit gate weight promotion per pair, two unchanged scalar GEMVs",
+    "steps": [],
+}
+assert not (p / "result.json").exists(), "refusing to overwrite mutation evidence"
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+}
+
+
+def run(name, command, timeout):
+    record = {"name": name, "command": command, "timeout_seconds": timeout, "status": "running"}
+    result["steps"].append(record)
+    child = None
+    try:
+        with (p / (name + ".log")).open("w") as log:
+            child = subprocess.Popen(
+                command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+            )
+            record["pid"] = child.pid
+            record["exit_code"] = child.wait(timeout=timeout)
+        record["status"] = "completed"
+        return record["exit_code"]
+    finally:
+        if child is not None and child.poll() is None:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=10)
+        record["reaped"] = child is None or child.poll() is not None
+        (p / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+
+
+try:
+    source.write_text(original.decode().replace(old, new))
+    (p / "mutant.patch").write_text(
+        subprocess.check_output(["git", "diff", "--", "native/src/lfm2.rs"], text=True)
+    )
+    assert (
+        run(
+            "build",
+            [
+                "cargo",
+                "test",
+                "--locked",
+                "--release",
+                "--lib",
+                "--features",
+                "mlx,chat",
+                "--no-run",
+            ],
+            180,
+        )
+        == 0
+    )
+    result["power_before"] = subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5)
+    result["vm_before"] = subprocess.check_output(["vm_stat"], text=True, timeout=5)
+    assert result["power_before"].splitlines()[0] == "Now drawing from 'Battery Power'"
+    unit = Path(
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec"
+    )
+    result["mutant_binary_sha256"] = hashlib.sha256(unit.read_bytes()).hexdigest()
+    code = run(
+        "counterexample",
+        [
+            str(unit),
+            "lfm2::flash_hc_tests::paired_projection_matches_scalar_cpu_and_rejects_invalid_rows",
+            "--exact",
+            "--ignored",
+            "--test-threads=1",
+            "--nocapture",
+        ],
+        45,
+    )
+    log = (p / "counterexample.log").read_text()
+    assert code != 0 and re.search(r"test result: FAILED\. 0 passed; 1 failed;", log)
+    assert "Array::explicit_casts_for_test() - before == expected_casts" in log, "different failure"
+    result["vm_after"] = subprocess.check_output(["vm_stat"], text=True, timeout=5)
+    result["power_after"] = subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5)
+    assert result["power_after"].splitlines()[0] == result["power_before"].splitlines()[0]
+    result["status"] = "detected"
+except BaseException as error:
+    result.update(status="failed_or_interrupted", error=repr(error))
+    raise
+finally:
+    source.write_bytes(original)
+    result["restored_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    assert result["restored_sha256"] == result["original_sha256"]
+    if result["status"] == "detected":
+        result["status"] = "detected_and_restored"
+    (p / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    with Path("opti.md").open("a") as journal:
+        journal.write(
+            "\n- **43-A mutation partage : "
+            + result["status"]
+            + "** ; gates/mutation/result.json, sourcesrestauréesbyteexact, ciblepositiveimmuablepréservée.\n"
+        )
+    print({"status": result["status"], "restored_sha256": result["restored_sha256"]})

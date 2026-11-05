@@ -1,0 +1,15 @@
+{
+  "status": "design_only_not_implemented_or_timed",
+  "upstream": "Niko1221/Strata cbfd5b926b794b356195d3cb600191b0c3567540 metal/kernels/moe.metal gu_body/dn_body",
+  "difference_from_retired48": [
+    "NT1 singleton pipeline retained; MB2 reserved for actual two-row repetitions",
+    "No sentinel second row or per-FMA missing-row branch",
+    "Stable original-route scatter, no change in reduction/Hadamard rounding"
+  ],
+  "candidate": "One MLX primitive/clear/event boundary with two separately compiled pipelines writing disjoint original scratch rows; GPU plans for early residents, CPU plans possible for known demanded slots",
+  "required_before_prototype": [
+    "preregister numeric contract and cold/hot real route cases",
+    "verify two shader signatures and shared-output lifetime",
+    "measure added dispatch against genuine repeat frequency; no assumption of 15tok/s"
+  ]
+}

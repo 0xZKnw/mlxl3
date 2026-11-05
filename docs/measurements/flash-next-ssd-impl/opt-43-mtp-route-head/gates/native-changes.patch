@@ -1,0 +1,533 @@
+diff --git a/native/src/array.rs b/native/src/array.rs
+index 144858aa..1175870f 100644
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -14,6 +14,7 @@ use std::{
+ #[cfg(test)]
+ thread_local! {
+     static HOST_READBACKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
++    static EXPLICIT_CASTS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+ }
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+@@ -904,6 +905,10 @@ impl Array {
+         HOST_READBACKS.get()
+     }
+     #[cfg(test)]
++    pub(crate) fn explicit_casts_for_test() -> u64 {
++        EXPLICIT_CASTS.get()
++    }
++    #[cfg(test)]
+     pub(crate) fn is_available_for_test(&self) -> Result<bool> {
+         let mut ready = 0;
+         checked(unsafe { mlxl3_array_is_available(self.handle.as_ptr(), &mut ready) })?;
+@@ -980,6 +985,8 @@ impl Array {
+         self.unary(2, &[axis, start, end], 0., 0)
+     }
+     pub fn astype(&self, dtype: Dtype) -> Result<Self> {
++        #[cfg(test)]
++        EXPLICIT_CASTS.set(EXPLICIT_CASTS.get().saturating_add(1));
+         self.unary(3, &[], 0., dtype as i32)
+     }
+     pub fn astype_f16(&self) -> Result<Self> {
+diff --git a/native/src/lfm2.rs b/native/src/lfm2.rs
+index a8932a5f..2154d7b3 100644
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -207,6 +207,34 @@ impl Projection {
+         }
+     }
+ 
++    pub(crate) fn forward_pair(&self, x: &Array) -> Result<[Array; 2]> {
++        ensure!(
++            x.shape() == [2, self.logical_input]
++                && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
++            "paired projection expects two floating-point rows"
++        );
++        if let ProjectionWeights::Dense(weight) = &self.weights
++            && weight.dtype() == Dtype::Float16
++            && x.dtype() == Dtype::Float32
++        {
++            // Share MLX's promotion while keeping both original mono-row GEMVs.
++            let weight = weight.transpose(&[1, 0])?.astype(Dtype::Float32)?;
++            let project = |row| -> Result<Array> {
++                let value = x.slice(0, row, row + 1)?.matmul(&weight)?;
++                match &self.bias {
++                    Some(bias) => value.add(bias),
++                    None => Ok(value),
++                }
++            };
++            Ok([project(0)?, project(1)?])
++        } else {
++            Ok([
++                self.forward(&x.slice(0, 0, 1)?)?,
++                self.forward(&x.slice(0, 1, 2)?)?,
++            ])
++        }
++    }
++
+     pub(crate) fn forward_flash_hc(&self, x: &Array) -> Result<Array> {
+         let ProjectionWeights::Dense(weight) = &self.weights else {
+             return self.forward(x);
+@@ -1040,6 +1068,85 @@ mod flash_hc_tests {
+         Ok(values)
+     }
+ 
++    #[test]
++    #[ignore = "physical Apple GPU; paired projection promotion and fallback contracts"]
++    fn paired_projection_matches_scalar_cpu_and_rejects_invalid_rows() -> Result<()> {
++        let k = 16;
++        let n = 5;
++        let weights = (0..k * n)
++            .map(|i| ((i * 7 % 15) - 7) as f32 / 16.)
++            .collect::<Vec<_>>();
++        let values = (0..2 * k)
++            .map(|i| ((i * 11 % 31) - 15) as f32 / 32.)
++            .collect::<Vec<_>>();
++        let x = Array::from_f32(&values, &[2, k])?;
++        let strided = Array::from_f32(
++            &(0..k as usize)
++                .flat_map(|col| [values[col], values[k as usize + col]])
++                .collect::<Vec<_>>(),
++            &[k, 2],
++        )?
++        .transpose(&[1, 0])?;
++        let mut checked = 0;
++        for weight_dtype in [Dtype::Float16, Dtype::Float32] {
++            let mut p = projection(Array::from_f32(&weights, &[n, k])?.astype(weight_dtype)?);
++            for bias in [false, true] {
++                p.bias = if bias {
++                    Some(Array::from_f32(&vec![1.; n as usize], &[n])?.astype(Dtype::Float16)?)
++                } else {
++                    None
++                };
++                for dtype in [Dtype::Float16, Dtype::Float32] {
++                    for input in [x.astype(dtype)?, strided.astype(dtype)?] {
++                        let before = Array::explicit_casts_for_test();
++                        let pair = p.forward_pair(&input)?;
++                        let expected_casts =
++                            u64::from(weight_dtype == Dtype::Float16 && dtype == Dtype::Float32);
++                        ensure!(Array::explicit_casts_for_test() - before == expected_casts);
++                        for (row, actual) in pair.iter().enumerate() {
++                            let expected =
++                                p.forward(&input.slice(0, row as i32, row as i32 + 1)?)?;
++                            let output = actual.to_f32()?;
++                            ensure!(
++                                actual.shape() == [1, n]
++                                    && output.len() == n as usize
++                                    && output.iter().all(|v| v.is_finite())
++                            );
++                            ensure!(
++                                actual.dtype() == expected.dtype()
++                                    && actual.to_bytes()? == expected.to_bytes()?
++                            );
++                            for (out, &v) in output.iter().enumerate() {
++                                let cpu = (0..k as usize)
++                                    .map(|col| {
++                                        f64::from(weights[out * k as usize + col])
++                                            * f64::from(values[row * k as usize + col])
++                                    })
++                                    .sum::<f64>()
++                                    + f64::from(u8::from(bias));
++                                ensure!(v == cpu as f32, "dyadic CPU oracle differs");
++                            }
++                            checked += output.len();
++                        }
++                    }
++                }
++            }
++            for invalid in [
++                Array::zeros(&[1, k])?,
++                Array::zeros(&[3, k])?,
++                Array::zeros(&[2, k - 1])?,
++                Array::zeros(&[2, 1, k])?,
++                Array::zeros_dtype(&[2, k], Dtype::UInt32)?,
++            ] {
++                ensure!(p.forward_pair(&invalid).is_err());
++            }
++            let zero = p.forward_pair(&Array::zeros(&[2, k])?)?;
++            ensure!(zero.iter().all(|v| v.shape() == [1, n]));
++        }
++        ensure!(checked == 160);
++        Ok(())
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; exact mixed HC GEMV and fallback contracts"]
+     fn mixed_gemv_matches_mlx_cpu_and_fallbacks() -> Result<()> {
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 0085ace5..ef51b3e7 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -1682,6 +1682,31 @@ mod tests {
+             }
+         }
+     }
++    #[cfg(kani)]
++    #[kani::proof]
++    #[kani::unwind(100)]
++    fn actual_paired_verification_checks_tokens_shapes_and_commit() {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
++            .unwrap();
++        let mut model = FlashNext::from_checkpoint(&c).unwrap();
++        let tokens = kani::any::<[u32; 2]>();
++        let retained = if kani::any::<bool>() { 1 } else { 2 };
++        match model.verify_pair(tokens) {
++            Ok((logits, hidden)) => {
++                assert!(tokens.iter().all(|&t| t < 248320));
++                assert_eq!(logits.shape(), [2, 248320]);
++                assert_eq!(hidden.shape(), [2, WIDTH]);
++                assert_eq!(model.offset(), 2);
++                model.commit_pair(retained).unwrap();
++                assert_eq!(model.offset(), retained);
++                kani::cover!(retained == 1);
++                kani::cover!(retained == 2);
++            }
++            Err(_) => {
++                kani::cover!(tokens.iter().any(|&t| t >= 248320));
++            }
++        }
++    }
+     fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
+         let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
+         for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
+@@ -1704,6 +1729,288 @@ mod tests {
+         }
+         Ok(bytes)
+     }
++    #[test]
++    #[ignore = "physical Apple GPU; original route/head component profile, not release throughput"]
++    fn flash_route_head_component_profile() -> Result<()> {
++        use std::time::Instant;
++        let started = Instant::now();
++        let snapshot = |phase: &str| -> Result<()> {
++            let output = std::process::Command::new("vm_stat").output()?;
++            ensure!(output.status.success(), "VM snapshot failed");
++            println!(
++                "MTP43_VM {}",
++                serde_json::json!({
++                    "phase":phase,"seconds":started.elapsed().as_secs_f64(),
++                    "raw":String::from_utf8(output.stdout)?
++                })
++            );
++            Ok(())
++        };
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut model = FlashNext::from_checkpoint(&c)?;
++        snapshot("loaded")?;
++        model.forward(EOS)?;
++        let first = model
++            .last_hidden
++            .as_ref()
++            .context("missing first hidden")?
++            .try_clone()?;
++        model.forward(7)?;
++        let second = model
++            .last_hidden
++            .as_ref()
++            .context("missing second hidden")?
++            .try_clone()?;
++        first.eval()?;
++        second.eval()?;
++        let x = Array::from_f32(
++            &(0..2 * H)
++                .map(|i| ((i * 17 + 13) % 257) as f32 / 257. - 0.5)
++                .collect::<Vec<_>>(),
++            &[2, H],
++        )?;
++        x.eval()?;
++        let inputs = [x.slice(0, 0, 1)?, x.slice(0, 1, 2)?];
++        for input in &inputs {
++            input.eval()?;
++        }
++        ensure!(model.layers.len() == 48);
++        let mut checked_gate_logits = 0;
++        for layer in &model.layers {
++            for input in &inputs {
++                let logits = layer.moe.gate_for_test().forward(input)?;
++                ensure!(logits.shape() == [1, 512] && logits.dtype() == Dtype::Float32);
++                let values = logits.to_f32()?;
++                ensure!(values.len() == 512 && values.iter().all(|v| v.is_finite()));
++                checked_gate_logits += values.len();
++                let probabilities = logits.softmax_precise()?.to_f32()?;
++                ensure!(
++                    probabilities.len() == 512
++                        && probabilities.iter().all(|v| v.is_finite() && *v >= 0.)
++                );
++                let mut order = (0..512usize).collect::<Vec<_>>();
++                order.sort_by(|&a, &b| {
++                    probabilities[a]
++                        .total_cmp(&probabilities[b])
++                        .then(a.cmp(&b))
++                });
++                let expected = &order[502..];
++                let (indices, weights) = layer.moe.route(input)?;
++                ensure!(
++                    indices.to_u32()? == expected.iter().map(|&id| id as u32).collect::<Vec<_>>()
++                );
++                let weights = weights.to_f32()?;
++                ensure!(weights.len() == 10 && weights.iter().all(|v| v.is_finite()));
++                let total = expected.iter().map(|&id| probabilities[id]).sum::<f32>();
++                ensure!(total.is_finite() && total > 0.);
++                for (&weight, &id) in weights.iter().zip(expected) {
++                    ensure!((weight - probabilities[id] / total).abs() <= 2e-6);
++                }
++            }
++        }
++        for streams in [&first, &second] {
++            let logits = model.logits(streams)?;
++            ensure!(logits.shape() == [1, 248320]);
++            let values = logits.to_f32()?;
++            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++        }
++        snapshot("inputs_ready")?;
++        let routes = || -> Result<()> {
++            for layer in &model.layers {
++                let a = layer.moe.route(&inputs[0])?;
++                let b = layer.moe.route(&inputs[1])?;
++                let ids = Array::concatenate(&[&a.0, &b.0], 0)?.to_u32()?;
++                ensure!(ids.len() == 20);
++                std::hint::black_box(ids);
++            }
++            Ok(())
++        };
++        let heads = || -> Result<()> {
++            std::hint::black_box(model.logits(&first)?);
++            std::hint::black_box(model.logits(&second)?);
++            Ok(())
++        };
++        for _ in 0..2 {
++            routes()?;
++            heads()?;
++        }
++        snapshot("warmup_done")?;
++        let mut route_samples = Vec::new();
++        let mut head_samples = Vec::new();
++        snapshot("route_begin")?;
++        for _ in 0..5 {
++            let start = Instant::now();
++            for _ in 0..16 {
++                routes()?;
++            }
++            route_samples.push(start.elapsed().as_secs_f64() / 16.);
++        }
++        snapshot("route_end")?;
++        snapshot("head_begin")?;
++        for _ in 0..5 {
++            let start = Instant::now();
++            for _ in 0..16 {
++                heads()?;
++            }
++            head_samples.push(start.elapsed().as_secs_f64() / 16.);
++        }
++        snapshot("head_end")?;
++        ensure!(
++            checked_gate_logits == 49152 && route_samples.len() == 5 && head_samples.len() == 5
++        );
++        ensure!(
++            route_samples
++                .iter()
++                .chain(&head_samples)
++                .all(|v| v.is_finite() && *v > 0.)
++        );
++        let memory = crate::array::memory_stats(false)?;
++        let peak = memory
++            .process_lifetime_peak_bytes
++            .context("missing process peak")?;
++        ensure!(peak > 0 && peak <= 10 << 30);
++        println!(
++            "MTP43_COMPONENT {}",
++            serde_json::json!({
++                "status":"completed_original_components","gate_layers":48,"gate_logit_count":checked_gate_logits,
++                "head_logit_count":496640,"warmup_sweeps":2,"samples":5,"sweeps_per_sample":16,
++                "route_pair_48_layers_seconds":route_samples,"head_pair_seconds":head_samples,
++                "memory":memory,"limits":"materialized inputs, original two M1 gates and heads; wall-clock components, not release throughput"
++            })
++        );
++        Ok(())
++    }
++    #[test]
++    #[ignore = "physical Apple GPU and full Flash gates; exact shared promotion and component timing"]
++    fn flash_paired_gate_cast_preserves_full_routes() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let model = FlashNext::from_checkpoint(&c)?;
++        let values = (0..2 * H)
++            .map(|i| ((i * 17 + 13) % 257) as f32 / 257. - 0.5)
++            .collect::<Vec<_>>();
++        let x = Array::from_f32(&values, &[2, H])?;
++        let strided = Array::from_f32(
++            &(0..H as usize)
++                .flat_map(|col| [values[col], values[H as usize + col]])
++                .collect::<Vec<_>>(),
++            &[H, 2],
++        )?
++        .transpose(&[1, 0])?;
++        let alternating = Array::from_f32(
++            &(0..2 * H)
++                .map(|i| if i % 2 == 0 { 1. } else { -1. })
++                .collect::<Vec<_>>(),
++            &[2, H],
++        )?;
++        let mut checked = 0;
++        ensure!(model.layers.len() == 48);
++        for input in [&x, &strided, &Array::zeros(&[2, H])?, &alternating] {
++            input.eval()?;
++            for layer in &model.layers {
++                let gate = layer.moe.gate_for_test();
++                let before = Array::explicit_casts_for_test();
++                let actual = gate.forward_pair(input)?;
++                ensure!(
++                    Array::explicit_casts_for_test() - before == 1,
++                    "gate cast not shared"
++                );
++                let routes = layer.moe.route_pair(input)?;
++                for (row, logits) in actual.iter().enumerate() {
++                    let scalar = input.slice(0, row as i32, row as i32 + 1)?;
++                    let expected = gate.forward(&scalar)?;
++                    let values = logits.to_f32()?;
++                    ensure!(
++                        logits.shape() == [1, 512]
++                            && logits.dtype() == Dtype::Float32
++                            && values.len() == 512
++                            && values.iter().all(|v| v.is_finite())
++                    );
++                    ensure!(
++                        logits.to_bytes()? == expected.to_bytes()?,
++                        "paired gate logits differ"
++                    );
++                    let probabilities = logits.softmax_precise()?;
++                    let expected_probabilities = expected.softmax_precise()?;
++                    ensure!(probabilities.to_bytes()? == expected_probabilities.to_bytes()?);
++                    let (ids, weights) = &routes[row];
++                    let (expected_ids, expected_weights) = layer.moe.route(&scalar)?;
++                    let id_values = ids.to_u32()?;
++                    let weight_values = weights.to_f32()?;
++                    ensure!(
++                        ids.shape() == [1, 10]
++                            && weights.shape() == [1, 10]
++                            && id_values.len() == 10
++                            && id_values.iter().all(|&i| i < 512)
++                            && weight_values.len() == 10
++                            && weight_values.iter().all(|v| v.is_finite())
++                    );
++                    ensure!(
++                        ids.to_bytes()? == expected_ids.to_bytes()?
++                            && weights.to_bytes()? == expected_weights.to_bytes()?,
++                        "paired route differs"
++                    );
++                    checked += values.len();
++                }
++            }
++        }
++        ensure!(checked == 196608);
++        for invalid in [
++            Array::zeros(&[1, H])?,
++            Array::zeros(&[3, H])?,
++            Array::zeros(&[2, H - 1])?,
++            x.astype(Dtype::Float16)?,
++        ] {
++            ensure!(model.layers[0].moe.route_pair(&invalid).is_err());
++        }
++        let run = |shared: bool| -> Result<()> {
++            for layer in &model.layers {
++                let [a, b] = if shared {
++                    layer.moe.route_pair(&x)?
++                } else {
++                    [
++                        layer.moe.route(&x.slice(0, 0, 1)?)?,
++                        layer.moe.route(&x.slice(0, 1, 2)?)?,
++                    ]
++                };
++                let ids = Array::concatenate(&[&a.0, &b.0], 0)?.to_u32()?;
++                ensure!(ids.len() == 20);
++                std::hint::black_box(ids);
++            }
++            Ok(())
++        };
++        for _ in 0..2 {
++            run(false)?;
++            run(true)?;
++        }
++        let mut blocks = Vec::new();
++        for block in 0..5 {
++            let mut times = [0.; 2];
++            for shared in if block % 2 == 0 {
++                [false, true]
++            } else {
++                [true, false]
++            } {
++                let started = std::time::Instant::now();
++                for _ in 0..16 {
++                    run(shared)?;
++                }
++                times[usize::from(shared)] = started.elapsed().as_secs_f64() / 16.;
++            }
++            ensure!(times.iter().all(|v| v.is_finite() && *v > 0.));
++            blocks.push(serde_json::json!({"original":times[0],"shared":times[1],"order":if block%2==0 { ["original","shared"] } else { ["shared","original"] }}));
++        }
++        let memory = crate::array::memory_stats(false)?;
++        ensure!(
++            memory
++                .process_lifetime_peak_bytes
++                .is_some_and(|p| p > 0 && p <= 10 << 30)
++        );
++        println!(
++            "MTP43_ROUTE_PAIR {}",
++            serde_json::json!({"status":"passed_exact_route_components","checked_logits":checked,"gate_layers":48,"input_cases":4,"blocks":blocks,"memory":memory,"limits":"materialized inputs, two M1 GEMVs, component wall-clock; not release throughput"})
++        );
++        Ok(())
++    }
+     #[cfg(feature = "chat")]
+     #[test]
+     #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index 246f599b..ae8aeb4f 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -282,6 +282,17 @@ impl SsdMoe {
+             router::topk(&probabilities, 10, true)
+         }
+     }
++    pub(crate) fn route_pair(&self, x: &Array) -> Result<[(Array, Array); 2]> {
++        ensure!(
++            x.shape() == [2, H] && x.dtype() == Dtype::Float32,
++            "paired streamed MoE expects two exact FP32 route rows"
++        );
++        let [first, second] = self
++            .gate
++            .forward_pair(x)?
++            .map(|logits| router::topk(&logits.softmax_precise()?, 10, true));
++        Ok([first?, second?])
++    }
+     fn predict(&self, x: &Array) -> Result<Array> {
+         let x = if self.predictor_half {
+             x.astype(Dtype::Float16)?
+@@ -360,9 +371,13 @@ impl SsdMoe {
+             self.schedule_events.clear();
+             self.prediction_ready_at_demand = None;
+         }
+-        let pairs = (0..rows)
+-            .map(|row| self.route(&x.slice(0, row, row + 1)?))
+-            .collect::<Result<Vec<_>>>()?;
++        let pairs = if rows == 2 && x.dtype() == Dtype::Float32 {
++            Vec::from(self.route_pair(x)?)
++        } else {
++            (0..rows)
++                .map(|row| self.route(&x.slice(0, row, row + 1)?))
++                .collect::<Result<Vec<_>>>()?
++        };
+         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+         let ids = selected.to_u32()?;
+@@ -648,6 +663,11 @@ impl SsdMoe {
+     pub(crate) fn cache_for_test_invalidate(&mut self) {
+         self.cache.borrow_mut().invalidate();
+     }
++
++    #[cfg(test)]
++    pub(crate) fn gate_for_test(&self) -> &Projection {
++        &self.gate
++    }
+ }
+ 
+ #[cfg(test)]

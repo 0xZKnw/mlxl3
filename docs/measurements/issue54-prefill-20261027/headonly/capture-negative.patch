@@ -1,0 +1,36 @@
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index b6da24b1..14d06ab6 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -922,6 +922,16 @@ impl Drop for Verification<'_> {
+ 
+ impl FlashNext {
+     fn forward_captured(&mut self, token: u32, kind: Kind) -> Result<(Array, Array)> {
++        let (logits, captured) = self.forward_captured_optional(token, kind, true)?;
++        Ok((logits.context("missing captured logits")?, captured))
++    }
++
++    fn forward_captured_optional(
++        &mut self,
++        token: u32,
++        kind: Kind,
++        head: bool,
++    ) -> Result<(Option<Array>, Array)> {
+         ensure!(
+             self.verification.is_none() && self.offset < self.context && token < 248320,
+             "invalid captured Flash forward"
+@@ -944,7 +954,13 @@ impl FlashNext {
+             }
+             ensure!(captures.len() == 5, "incomplete Flash captures");
+             let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
+-            let logits = self.logits(&streams)?;
++            let captured = if head { captured } else { captured.scalar_mul(0.)? };
++            let logits = if head {
++                Some(self.logits(&streams)?)
++            } else {
++                streams.eval()?;
++                None
++            };
+             captured.eval()?;
+             self.drain()?;
+             self.last_hidden = Some(streams);

@@ -1,0 +1,32 @@
+{
+  "status": "correctness_validated_encoder_aggregation_requires_separate_analysis",
+  "date_utc": "2026-11-04T09:37:38.887430+00:00",
+  "binary_sha256": "b99bd613aad16eb354a1140fb9f6ba41ed0fef21ad1556378358eca3501b1ea4",
+  "source_checkpoint": "f1557529",
+  "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "quality": {
+    "archived_passivity": "validated;84 states/28803072 finite F32 words and496640 logits independent fixture",
+    "natural": "validated;warm/control/observed64greedyIDs plusfinalhidden/logits and84 continuationstates exact",
+    "selected_tests": 2,
+    "ignored_within_selected_tests": 0,
+    "native_loaded_image_audit": true,
+    "all_owned_children_joined": true
+  },
+  "capture": {
+    "start_utc": "2026-11-03T22:35:35.918Z",
+    "end_utc": "2026-11-03T22:35:41.694Z",
+    "duration_seconds": 5.775173,
+    "release_utc": "2026-11-03T22:35:36.730689Z",
+    "scope": "starts while gate idle then captures partial observed decode; not whole generation",
+    "exports_successful": 4,
+    "shader_timeline_rows": 0
+  },
+  "limits": [
+    "Test-only intrusive label/counter and existing MoE/read tracing overhead; no release throughput gain measured.",
+    "Metal exporter combines several declared logical one-dispatch encoder labels into physical encoder groups joined by ampersands; individual-kernel cost must not be assigned from aggregate duration.",
+    "Strict initial analyzer leaves composite labels unknown as designed; preserved initial summary must not be relabeled as complete kernel attribution.",
+    "Raw trace/XML/TOC kept local because exports include unrelated processes and inherited environment.",
+    "GPU/parser/counter proof scope remains separate; CPU Kani does not prove Metal or concurrency."
+  ],
+  "counter_scope": "63 decoded forward rows; newBuffer requested bytes are allocation requests, not live RAM or peakfootprint"
+}

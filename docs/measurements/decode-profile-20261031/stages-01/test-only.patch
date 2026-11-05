@@ -1,0 +1,267 @@
+--- docs/measurements/decode-profile-20261031/stages-01/before/native_src_qwen4.rs
++++ native/src/qwen4.rs
+@@ -227,7 +227,9 @@
+                 #[cfg(test)]
+                 {
+                     crate::flash_profile::stage($name, &$value)?;
+-                    self.stages.push(($name.into(), $value.try_clone()?));
++                    if crate::flash_profile::retain_test_stages() {
++                        self.stages.push(($name.into(), $value.try_clone()?));
++                    }
+                 }
+             };
+         }
+@@ -611,7 +613,9 @@
+                 #[cfg(test)]
+                 {
+                     crate::flash_profile::stage($name, &$value)?;
+-                    self.stages.push(($name.into(), $value.try_clone()?));
++                    if crate::flash_profile::retain_test_stages() {
++                        self.stages.push(($name.into(), $value.try_clone()?));
++                    }
+                 }
+             };
+         }
+@@ -679,7 +683,9 @@
+                 #[cfg(test)]
+                 {
+                     crate::flash_profile::stage($name, &$value)?;
+-                    self.stages.push(($name.into(), $value.try_clone()?));
++                    if crate::flash_profile::retain_test_stages() {
++                        self.stages.push(($name.into(), $value.try_clone()?));
++                    }
+                 }
+             };
+         }
+@@ -918,7 +924,9 @@
+                 #[cfg(test)]
+                 {
+                     crate::flash_profile::stage($name, &$value)?;
+-                    self.stages.push(($name.into(), $value.try_clone()?));
++                    if crate::flash_profile::retain_test_stages() {
++                        self.stages.push(($name.into(), $value.try_clone()?));
++                    }
+                 }
+             };
+         }
+@@ -1047,7 +1055,9 @@
+         let (streams, mixed, gate) = self.prepare(streams, token)?;
+         let output = self.moe.forward_lookahead(&mixed, next, depth)?;
+         #[cfg(test)]
+-        self.stages.push(("moe".into(), output.try_clone()?));
++        if crate::flash_profile::retain_test_stages() {
++            self.stages.push(("moe".into(), output.try_clone()?));
++        }
+         let written = Hc::write(&streams, &output, &gate)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("mlp_hc_write", &written)?;
+@@ -1071,7 +1081,7 @@
+             crate::flash_profile::stage("attn_hc_gate", gate.as_ref().context("missing gate")?)?;
+         }
+         #[cfg(test)]
+-        {
++        if crate::flash_profile::retain_test_stages() {
+             self.stages.push(("attn_mixed".into(), mixed.try_clone()?));
+             self.stages.push((
+                 "attn_gate".into(),
+@@ -1090,7 +1100,9 @@
+             &gate.context("missing attention injection")?,
+         )?;
+         #[cfg(test)]
+-        self.stages.push(("attention".into(), branch.try_clone()?));
++        if crate::flash_profile::retain_test_stages() {
++            self.stages.push(("attention".into(), branch.try_clone()?));
++        }
+         #[cfg(test)]
+         crate::flash_profile::stage("attn_hc_write", &streams)?;
+         let (mixed, gate) = self.mlp_hc.read(&streams)?;
+@@ -1100,7 +1112,7 @@
+             crate::flash_profile::stage("mlp_hc_gate", gate.as_ref().context("missing gate")?)?;
+         }
+         #[cfg(test)]
+-        {
++        if crate::flash_profile::retain_test_stages() {
+             self.stages.push(("mlp_mixed".into(), mixed.try_clone()?));
+             self.stages.push((
+                 "mlp_gate".into(),
+@@ -1786,11 +1798,15 @@
+             .reshape(&[1, WIDTH])
+     }
+     pub fn forward(&mut self, target: &FlashNext, hidden: &Array, token: u32) -> Result<Array> {
++        #[cfg(test)]
++        if !crate::flash_profile::retain_test_stages() {
++            self.stages.clear();
++        }
+         let streams = self.mixed(target, hidden, token)?;
+         let output = self.layer.forward(&streams, token)?;
+         let (mixed, _) = self.mixer.read(&output)?;
+         #[cfg(test)]
+-        {
++        if crate::flash_profile::retain_test_stages() {
+             self.stages = vec![("mixed".into(), streams.try_clone()?)];
+             self.stages.extend(
+                 self.layer
+--- docs/measurements/decode-profile-20261031/stages-01/before/native_src_flash_profile.rs
++++ native/src/flash_profile.rs
+@@ -2,7 +2,12 @@
+ use anyhow::{Result, ensure};
+ use serde::Serialize;
+ use serde_json::Value;
+-use std::{cell::RefCell, time::Instant};
++use std::{
++    cell::{Cell, RefCell},
++    marker::PhantomData,
++    rc::Rc,
++    time::Instant,
++};
+ 
+ #[derive(Serialize)]
+ pub(crate) struct Event {
+@@ -68,8 +73,91 @@
+ }
+ thread_local! {
+     static TRACE: RefCell<Option<Trace>> = const { RefCell::new(None) };
++    static RETAIN_TEST_STAGES: Cell<bool> = const { Cell::new(true) };
+ }
+ pub(crate) struct Span(usize);
++
++pub(crate) fn retain_test_stages() -> bool {
++    RETAIN_TEST_STAGES.get()
++}
++
++pub(crate) struct StageRetention {
++    previous: bool,
++    _thread: PhantomData<Rc<()>>,
++}
++impl StageRetention {
++    pub(crate) fn new(enabled: bool) -> Self {
++        Self {
++            previous: RETAIN_TEST_STAGES.replace(enabled),
++            _thread: PhantomData,
++        }
++    }
++}
++impl Drop for StageRetention {
++    fn drop(&mut self) {
++        RETAIN_TEST_STAGES.set(self.previous);
++    }
++}
++
++#[test]
++fn stage_retention_is_scoped_restored_after_panic_and_thread_local() {
++    assert!(retain_test_stages());
++    {
++        let _off = StageRetention::new(false);
++        assert!(!retain_test_stages());
++        {
++            let _on = StageRetention::new(true);
++            assert!(retain_test_stages());
++        }
++        assert!(!retain_test_stages());
++        let mut retained = Vec::new();
++        if retain_test_stages() {
++            retained.push(1);
++        }
++        assert!(retained.is_empty());
++        std::thread::spawn(|| {
++            assert!(retain_test_stages());
++            {
++                let _off = StageRetention::new(false);
++                assert!(!retain_test_stages());
++            }
++            assert!(retain_test_stages());
++        })
++        .join()
++        .unwrap();
++        assert!(!retain_test_stages());
++    }
++    assert!(retain_test_stages());
++    let failure = std::panic::catch_unwind(|| {
++        let _off = StageRetention::new(false);
++        assert!(!retain_test_stages());
++        panic!("disposable stage-retention regression");
++    });
++    assert!(failure.is_err() && retain_test_stages());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(33)]
++fn stage_retention_restores_symbolic_nested_scopes() {
++    let outer: bool = kani::any();
++    let inner: bool = kani::any();
++    assert!(retain_test_stages());
++    {
++        let _outer = StageRetention::new(outer);
++        assert!(retain_test_stages() == outer);
++        {
++            let _inner = StageRetention::new(inner);
++            assert!(retain_test_stages() == inner);
++        }
++        assert!(retain_test_stages() == outer);
++    }
++    assert!(retain_test_stages());
++    kani::cover!(!outer && !inner);
++    kani::cover!(!outer && inner);
++    kani::cover!(outer && !inner);
++    kani::cover!(outer && inner);
++}
+ 
+ #[derive(Debug, PartialEq, Serialize)]
+ pub(crate) struct ReadbackSample {
+--- docs/measurements/decode-profile-20261031/stages-01/before/native_src_qwen4_profile.rs
++++ native/src/qwen4/profile.rs
+@@ -52,6 +52,18 @@
+         .iter()
+         .map(|l| [l.moe.hits, l.moe.misses, l.moe.read_bytes])
+         .collect()
++}
++fn test_stage_count(target: &FlashNext, head: Option<&FlashMtpHead>) -> usize {
++    fn layer_count(layer: &Layer) -> usize {
++        layer.stages.len()
++            + match &layer.attention {
++                Attention::Gdn(gdn) => gdn.stages.len(),
++                Attention::Qsa(qsa) => qsa.stages.len(),
++            }
++            + layer.ple.as_ref().map_or(0, |ple| ple.stages.len())
++    }
++    target.layers.iter().map(layer_count).sum::<usize>()
++        + head.map_or(0, |head| head.stages.len() + layer_count(&head.layer))
+ }
+ fn save(p: &Path, v: &impl serde::Serialize) -> Result<()> {
+     let file = std::fs::OpenOptions::new()
+@@ -161,6 +173,9 @@
+     let mut expected_draft = None;
+     let mut summaries = Vec::new();
+     for &(phase, traced, fenced) in phases {
++        let natural = matches!(kind.as_str(), "natural" | "context");
++        let _stage_policy = natural.then(|| profile::StageRetention::new(phase == "warmup"));
++        let test_stage_retention = profile::retain_test_stages();
+         target.reset();
+         let use_dflash = dflash && phase != "sequential_oracle";
+         let use_mtp = mtp && phase != "sequential_oracle";
+@@ -289,6 +304,15 @@
+         crate::array::disk_profile_enable(false);
+         let after = snapshot()?;
+         let final_counts = counts(&target);
++        let test_stage_count = test_stage_count(&target, head.as_ref());
++        if natural {
++            ensure!(
++                test_stage_retention == (phase == "warmup")
++                    && ((test_stage_retention && test_stage_count > 0)
++                        || (!test_stage_retention && test_stage_count == 0)),
++                "unexpected retained diagnostic stages: {phase}"
++            );
++        }
+         ensure!(
+             output.len() == budget
+                 && session.pending.is_empty()
+@@ -356,6 +380,8 @@
+             });
+         let summary = serde_json::json!({"phase":phase,"traced":traced,"fenced":fenced,"mtp":mtp,"prompt":label,"prompt_ids":prompt_ids,"tokens":output,"token_hash":format!("{hash:016x}"),"text":tokenizer.decode(&output)?,"prefill_epoch":prefill_epoch,"decode_epoch":decode_epoch,"prefill_seconds":prefill_seconds,"decode_seconds":decode_seconds,"diagnostic_tps":(budget-1)as f64/decode_seconds,"before_counts":before_counts,"prefill_counts":prefill_counts,"after_counts":final_counts,"before":before,"prefill_boundary":prefill_snapshot,"after":after,"steps":steps,"mtp_proposed":session.proposed,"mtp_accepted":session.accepted,"mtp_blocks":session.blocks,"mtp_head_verify_repair_total_seconds":session.profile_seconds,"logit_count":host.len(),"full_logits_target_head_states_byte_exact":true,"prefill_event_count":prefill_events.len(),"decode_event_count":decode_events.len()});
+         let mut summary = summary;
++        summary["test_stage_retention"] = serde_json::json!(test_stage_retention);
++        summary["test_stage_count"] = serde_json::json!(test_stage_count);
+         summary["dflash"] = Value::Bool(use_dflash);
+         summary["full_draft_states_byte_exact"] = if use_dflash {
+             Value::Bool(true)

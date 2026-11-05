@@ -1,0 +1,88 @@
+F........F                                                               [100%]
+=================================== FAILURES ===================================
+________ test_external_oracle_rejects_divergence_and_invalid_memory[0] _________
+
+fault = 0
+
+    @pytest.mark.parametrize("fault", range(8))
+    def test_external_oracle_rejects_divergence_and_invalid_memory(fault):
+        value, golden = event(128), copy.deepcopy(GOLD)
+        if fault == 0:
+            value["token_hash"] = "wrong"
+        elif fault == 1:
+            value["cache_context"] = ""
+        elif fault == 2:
+            value["cache_context"] = golden["cache_context"][:30]
+        elif fault == 3:
+            golden["tokens"] = []
+        elif fault == 4:
+            golden["tokens"][0] = True
+        elif fault == 5:
+            golden["token_hash"] = "wrong"
+        else:
+            value["stats"]["memory"]["process_footprint_bytes"] = (0, 12_000_000_000)[fault - 6]
+>       with pytest.raises(AssertionError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+tests/test_flash_pool_driver.py:52: Failed
+_ test_driver_reaches_real_runner_and_records_failure_without_validation[True] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-91/test_driver_reaches_real_runne1')
+diverge = True
+
+    @pytest.mark.parametrize("diverge", [False, True])
+    def test_driver_reaches_real_runner_and_records_failure_without_validation(tmp_path, diverge):
+        engine = tmp_path / "bridge"
+        complete = event(17)
+        complete["stats"].update(
+            generated_tokens=17,
+            decode_tokens=16,
+            decode_tps=16.0,
+            decode_seconds=1.0,
+            ttft_seconds=1.0,
+            prefill_tps=80.0,
+        )
+        if diverge:
+            complete["token_hash"] = "wrong"
+        engine.write_text(
+            "#!/usr/bin/env python3\nimport json,sys\n"
+            + f"complete={complete!r}\n"
+            + "print(json.dumps({'type':'ready'}),flush=True)\n"
+            + "for line in sys.stdin:\n"
+            + " r=json.loads(line)\n"
+            + " if r['type']=='shutdown': break\n"
+            + " rid=r['request_id']\n"
+            + " print(json.dumps({'type':'generation_mode','request_id':rid,'mtp_active':False,'dflash_active':False}),flush=True)\n"
+            + " print(json.dumps(dict(complete,type='complete',request_id=rid)),flush=True)\n"
+        )
+        engine.chmod(0o755)
+        config = tmp_path / "config.json"
+        output = tmp_path / "output"
+        config.write_text(
+            json.dumps(
+                {
+                    "engine": str(engine),
+                    "model": str(tmp_path),
+                    "output": str(output),
+                    "golden": str(ROOT / "docs/measurements/sushi-20261027/gold-AR-MAIN.json"),
+                    "tokens": 17,
+                    "repeats": 1,
+                    "prompt": "MAIN",
+                }
+            )
+        )
+        if diverge:
+>           with pytest.raises(AssertionError, match="external token oracle"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE AssertionError
+
+tests/test_flash_pool_driver.py:98: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 16.0, "ttft_seconds": 1.0, "token_hash": "wrong"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 16.0, "ttft_seconds": 1.0, "token_hash": "wrong"}
+POOL_BRIDGE_VALIDATED
+=========================== short test summary info ============================
+FAILED tests/test_flash_pool_driver.py::test_external_oracle_rejects_divergence_and_invalid_memory[0]
+FAILED tests/test_flash_pool_driver.py::test_driver_reaches_real_runner_and_records_failure_without_validation[True]
+2 failed, 8 passed, 2 deselected in 0.21s

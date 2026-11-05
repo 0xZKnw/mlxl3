@@ -1,0 +1,364 @@
+..FFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+__________ test_real_multi_token_routes_reuse_experts_between_rows[3] __________
+
+width = 3
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+__________ test_real_multi_token_routes_reuse_experts_between_rows[4] __________
+
+width = 4
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+__________ test_real_multi_token_routes_reuse_experts_between_rows[5] __________
+
+width = 5
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+__________ test_real_multi_token_routes_reuse_experts_between_rows[6] __________
+
+width = 6
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+__________ test_real_multi_token_routes_reuse_experts_between_rows[7] __________
+
+width = 7
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+__________ test_real_multi_token_routes_reuse_experts_between_rows[8] __________
+
+width = 8
+
+    @pytest.mark.parametrize("width", range(1, 9))
+    def test_real_multi_token_routes_reuse_experts_between_rows(width):
+        rows = trace()
+        data = rows[2]["data"]
+        data.update(
+            rows=width,
+            ids=list(range(10)) * width,
+            slots_hit=[[i, False] for i in range(10)] * width,
+            cold_rows=10 * width,
+        )
+>       out = API["validate_events"](rows)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = [{'name': 'decode', 'parent': None, 'start_ns': 0, 'end_ns': 1000, ...}, {'name': 'layer_0', 'parent': 0, 'start_ns': ...t': 1, 'start_ns': 2, 'end_ns': 998, ...}, {'name': 'disk_read_batch', 'parent': 2, 'start_ns': 3, 'end_ns': 900, ...}]
+
+    def validate_events(events):
+        assert isinstance(events, list) and events, "empty trace"
+        children = [0] * len(events)
+        paths, layers, ends = [], [], {}
+        groups = defaultdict(lambda: {"wall": [], "self": []})
+        routes, batches, jobs = [], [], []
+        for i, event in enumerate(events):
+            name = event["name"]
+            assert isinstance(name, str) and name
+            begin, end = integer(event["start_ns"]), integer(event["end_ns"])
+            assert end >= begin
+            parent = event["parent"]
+            layer = None
+            if parent is not None:
+                assert type(parent) is int and 0 <= parent < i
+                p = events[parent]
+                assert p["start_ns"] <= begin <= end <= p["end_ns"], "invalid nesting"
+                assert begin >= ends.get(parent, p["start_ns"]), "overlapping siblings"
+                ends[parent] = end
+                children[parent] += end - begin
+                layer = layers[parent]
+            if name.startswith("layer_"):
+                layer = int(name.removeprefix("layer_"))
+                assert 0 <= layer < 48
+            path = (paths[parent] + "/" if parent is not None else "") + name
+            paths.append(path)
+            layers.append(layer)
+            data = event["data"]
+            if name == "moe_forward_rows":
+                assert isinstance(data, dict)
+                rows, cap = integer(data["rows"]), integer(data["capacity"])
+                ids, slots = data["ids"], data["slots_hit"]
+>               assert 1 <= rows <= 2 and 10 <= cap <= 512
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError
+
+scripts/profile_flash.py:72: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[3]
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[4]
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[5]
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[6]
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[7]
+FAILED tests/test_flash_profile.py::test_real_multi_token_routes_reuse_experts_between_rows[8]
+6 failed, 2 passed, 70 deselected in 0.07s

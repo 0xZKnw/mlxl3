@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "native/ffi/mlx_bridge.cpp",
+    "-I",
+    "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include",
+    "--cpp11",
+    "--function",
+    "mlxl3_readback_profile_copy",
+    "--bounds-check",
+    "--pointer-check",
+    "--signed-overflow-check",
+    "--unsigned-overflow-check",
+    "--unwind",
+    "8",
+    "--unwinding-assertions",
+    "--trace"
+  ],
+  "timeout_seconds": 60,
+  "status": "finished_inspection_required",
+  "exit_code": 6,
+  "reaped": true,
+  "seconds": 0.2570372500049416
+}

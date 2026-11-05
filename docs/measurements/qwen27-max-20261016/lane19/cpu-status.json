@@ -1,0 +1,184 @@
+{
+  "status": "complete",
+  "stages": [
+    {
+      "name": "fmt",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "fmt",
+          "--all"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13090,
+        "seconds": 0.40078758308663964,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "fmt-check",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13095,
+        "seconds": 0.290739250020124,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "guard-unit",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "test",
+          "--release",
+          "--features",
+          "mlx,chat",
+          "--lib",
+          "contracts::exl3_lane_"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13103,
+        "seconds": 32.61295700003393,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "key-kani",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_layout_key_distinguishes_options"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13197,
+        "seconds": 1.740378792048432,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "mapping-kani",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13267,
+        "seconds": 1.211721708998084,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "guard-kani",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_order_preserves_shape_and_large_m_fallback"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13297,
+        "seconds": 1.235380957950838,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "clippy",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--all-targets",
+          "--features",
+          "mlx,chat",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13328,
+        "seconds": 2.7206483751069754,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "rust-suite",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--release",
+          "--features",
+          "mlx,chat"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13368,
+        "seconds": 58.866222667042166,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "engine-build",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "build",
+          "--locked",
+          "--release",
+          "--features",
+          "mlx,chat"
+        ],
+        "timeout_seconds": 600,
+        "pid": 13906,
+        "seconds": 0.13102358300238848,
+        "exit_code": 0,
+        "reaped": true
+      }
+    }
+  ]
+}

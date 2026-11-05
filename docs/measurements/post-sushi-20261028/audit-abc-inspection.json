@@ -1,0 +1,177 @@
+{
+  "status": "completed_diagnostic",
+  "tokens": 17,
+  "cross_arm_tokens_hash_text_prompt_ids": "exact",
+  "internal_final_full_states_logits": "exact across four phases per arm",
+  "results": {
+    "A": {
+      "components": {
+        "host_async_submit/Hot": {
+          "count": 1536,
+          "host_ms_per_token": 16.9404545,
+          "median_us": 170.5625,
+          "p95_us": 329.25
+        },
+        "expert_calculate_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 1.15690675,
+          "median_us": 22.708,
+          "p95_us": 30.625
+        },
+        "expert_gate_up_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 0.4148338125,
+          "median_us": 7.916,
+          "p95_us": 12.25
+        },
+        "expert_down_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 0.4729345625,
+          "median_us": 9.292,
+          "p95_us": 12.709
+        },
+        "expert_calculate_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 1.1223224375,
+          "median_us": 23.792,
+          "p95_us": 35.958
+        },
+        "expert_gate_up_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 0.5508598125,
+          "median_us": 11.3955,
+          "p95_us": 19.0
+        },
+        "expert_down_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 0.4065754375,
+          "median_us": 8.708,
+          "p95_us": 12.041
+        }
+      },
+      "expert_factory_keys_prefill_and_decode": 22,
+      "limits": "Host wall spans nested; different A vs B/C instrumentation, B/C instrumented alike; not GPU idle or release throughput."
+    },
+    "B": {
+      "components": {
+        "host_async_submit/Hot": {
+          "count": 1536,
+          "host_ms_per_token": 21.88402325,
+          "median_us": 218.4165,
+          "p95_us": 463.958
+        },
+        "expert_calculate_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 2.0350979375,
+          "median_us": 24.208,
+          "p95_us": 60.875
+        },
+        "expert_gate_up_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 1.312812625,
+          "median_us": 12.084,
+          "p95_us": 33.959
+        },
+        "exl3_banked_scale_build/Hot": {
+          "count": 3072,
+          "host_ms_per_token": 0.948299125,
+          "median_us": 1.625,
+          "p95_us": 4.042
+        },
+        "expert_down_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 0.5862239375,
+          "median_us": 9.833,
+          "p95_us": 16.209
+        },
+        "expert_calculate_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 2.04746125,
+          "median_us": 28.3955,
+          "p95_us": 93.834
+        },
+        "expert_gate_up_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 1.263514875,
+          "median_us": 14.9375,
+          "p95_us": 48.667
+        },
+        "exl3_banked_scale_build/Cold/other": {
+          "count": 2768,
+          "host_ms_per_token": 0.4857246875,
+          "median_us": 1.666,
+          "p95_us": 5.834
+        },
+        "expert_down_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 0.59743025,
+          "median_us": 10.833,
+          "p95_us": 22.833
+        }
+      },
+      "expert_factory_keys_prefill_and_decode": 22,
+      "limits": "Host wall spans nested; different A vs B/C instrumentation, B/C instrumented alike; not GPU idle or release throughput."
+    },
+    "C": {
+      "components": {
+        "host_async_submit/Hot": {
+          "count": 1536,
+          "host_ms_per_token": 14.8434159375,
+          "median_us": 117.792,
+          "p95_us": 283.291
+        },
+        "expert_calculate_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 1.0514191875,
+          "median_us": 20.75,
+          "p95_us": 27.084
+        },
+        "expert_gate_up_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 0.5147213125,
+          "median_us": 10.0,
+          "p95_us": 14.0
+        },
+        "exl3_banked_scale_build/Hot": {
+          "count": 3072,
+          "host_ms_per_token": 0.2674474375,
+          "median_us": 1.25,
+          "p95_us": 1.917
+        },
+        "expert_down_build/Hot": {
+          "count": 768,
+          "host_ms_per_token": 0.4481471875,
+          "median_us": 8.833,
+          "p95_us": 12.375
+        },
+        "expert_calculate_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 1.080463,
+          "median_us": 24.292,
+          "p95_us": 30.667
+        },
+        "expert_gate_up_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 0.551846625,
+          "median_us": 12.2295,
+          "p95_us": 16.583
+        },
+        "exl3_banked_scale_build/Cold/other": {
+          "count": 2768,
+          "host_ms_per_token": 0.2374720625,
+          "median_us": 1.208,
+          "p95_us": 2.125
+        },
+        "expert_down_build/Cold/other": {
+          "count": 692,
+          "host_ms_per_token": 0.4364845625,
+          "median_us": 9.875,
+          "p95_us": 12.834
+        }
+      },
+      "expert_factory_keys_prefill_and_decode": 22,
+      "limits": "Host wall spans nested; different A vs B/C instrumentation, B/C instrumented alike; not GPU idle or release throughput."
+    }
+  },
+  "swapouts_bytes": 0
+}

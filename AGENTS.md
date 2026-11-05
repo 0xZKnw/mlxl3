@@ -38,9 +38,11 @@ quantification, CLI, GUI, mémoire, cache et téléchargements.
    révision datée si elles changent ; ne pas les effacer. Ne pas additionner
    des gains issus de tests incompatibles ni présenter du bruit comme un gain.
 7. Le journal doit distinguer **validé**, **rejeté**, **non concluant**,
-   **bloqué/interrompu** et **en cours**, ainsi que l'état d'intégration réel
+   **prometteur conservé**, **bloqué/interrompu** et **en cours**, ainsi que l'état d'intégration réel
    (prototype, code local, app installée, publication). Un benchmark réussi
-   n'implique pas que l'app a été mise à jour.
+   n'implique pas que l'app a été mise à jour. Qualité, performance et intégration
+   ont des statuts séparés : conserver un candidat ne signifie pas annoncer
+   un gain confirmé.
 8. Identifier précisément les sources et artefacts comparés : commit, état
    local modifié, empreintes des binaires, options et variables d'environnement
    pertinentes, modèle/checkpoint et dépendances. Une mesure d'un prototype
@@ -49,14 +51,37 @@ quantification, CLI, GUI, mémoire, cache et téléchargements.
 9. **Valider la correction avant de mesurer la vitesse.** Utiliser des oracles
    indépendants et vérifier les formes, le nombre de valeurs et leur finitude ;
    deux sorties vides ou un filtre qui sélectionne zéro test ne constituent pas
-   une parité. Pour un changement numérique ou de cache, vérifier aussi les
-   logits/états pertinents et le parcours réel bridge/CLI, avec une tolérance
-   explicitée ou une égalité bit à bit selon le contrat.
+   une parité. Un microbenchmark peut suivre les oracles du composant. Pour un
+   changement numérique ou de cache, vérifier aussi les logits/états pertinents
+   et le parcours réel bridge/CLI avant la vitesse modèle et l'activation,
+   avec une tolérance explicitée ou une égalité bit à bit selon le contrat.
 10. Séparer les mesures GPU des compilations, proveurs et autres inférences.
     Ne charger qu'un modèle GPU à la fois pour une campagne. Prévoir warmup,
     répétitions et ordre alterné adaptés ; relever les conditions connues et
     les contrôles inchangés. Une forte dérive, un changement de protocole ou
     une parité non vérifiée interdit de présenter un gain comme établi.
+    **La dérive seule n'impose ni rejet ni retrait** : garder le résultat brut
+    et qualifier l'incertitude. Aucun seuil minimum de gain individuel ni
+    exigence de significativité statistique pour conserver un petit candidat
+    correct, simple, avec coût mémoire borné et mécanisme plausible.
+11. **Avant de rejeter ou retirer un candidat décevant, auditer son adaptation.**
+    Vérifier le chemin réellement exécuté, les formes et dtypes, les fallbacks,
+    les copies/allocations et synchronisations ajoutées, les options et la
+    fidélité au mécanisme amont. Distinguer une idée inefficace d'une
+    implémentation incomplète ou trop coûteuse. Si un défaut concret est trouvé,
+    le corriger et préenregistrer les seuls contrôles et mesures affectés avant
+    de conclure. Consigner cet audit et ses limites dans `opti.md` ; une
+    régression ne justifie pas à elle seule un retrait immédiat sans cet examen.
+12. **Évaluer aussi les petits gains en composition**, selon la procédure
+    courante d'`opti.md` : conserver les candidats prometteurs et compatibles,
+    puis comparer un petit ensemble à une référence fixe. Ne pas exiger une
+    campagne modèle complète par micro-optimisation. Qualifier la correction
+    du composant avant son microbenchmark ; qualifier les chemins réels et la
+    composition avant le pilote modèle et l'activation par défaut. La mesure
+    globale décide du gain de l'ensemble, sans addition des pourcentages ni
+    attribution automatique à chaque membre. Un résultat indécis reste
+    réutilisable ; un ralentissement reproductible demande une isolation ou
+    un réglage par mode, pas l'abandon automatique des autres candidats.
 
 Les rapports détaillés peuvent rester dans `docs/` et les mesures brutes dans
 leurs fichiers habituels, mais `opti.md` doit toujours contenir un résumé et
@@ -160,6 +185,10 @@ uniquement pour remplir le journal, ni publier sans demande de l'utilisateur.
 
 ## Changelogs et releases
 
+- **All release notes and patch notes must be written in English**, both in
+  `docs/release-*.md` and in GitHub release bodies, for Desktop and engine
+  releases, including stable releases and prereleases. Preserve exact versions,
+  filenames, source SHAs, sizes, checksums, validation limits and credits.
 - Pour chaque release demandée, rédiger un changelog clair et structuré dans
   `docs/release-*.md`, puis reprendre ce contenu dans la release GitHub.
   Présenter les nouveautés, performances, correctifs, installation/compatibilité

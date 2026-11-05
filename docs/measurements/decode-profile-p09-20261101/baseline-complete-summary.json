@@ -1,0 +1,206 @@
+{
+  "status": "six_complete_baseline_processes; no candidate comparison",
+  "runs": [
+    "baseline-1-AR",
+    "baseline-2-MTP",
+    "baseline-3-DF",
+    "baseline-4-DF",
+    "baseline-5-MTP-s32",
+    "baseline-6-AR-s32"
+  ],
+  "rows": [
+    {
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "samples": 4,
+      "decode_tps": {
+        "median": 11.486960161565296,
+        "min": 11.470822722022216,
+        "max": 11.544058806826667,
+        "mad": 0.012011510978137352
+      },
+      "prefill_seconds": {
+        "median": 7.8235335415,
+        "min": 7.706455,
+        "max": 7.906427916,
+        "mad": 0.07773668700000025
+      },
+      "ttft_seconds": {
+        "median": 7.823883667,
+        "min": 7.706780166,
+        "max": 7.906763042000001,
+        "mad": 0.0777239375000005
+      },
+      "elapsed_seconds": {
+        "median": 18.885075917,
+        "min": 18.708125333,
+        "max": 18.968036417,
+        "mad": 0.07654760399999994
+      },
+      "last_vs_first_process_tps_percent": 0.3878328885867699
+    },
+    {
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "samples": 4,
+      "decode_tps": {
+        "median": 11.422782357402099,
+        "min": 11.382713943962385,
+        "max": 11.607772454755965,
+        "mad": 0.03387178612686892
+      },
+      "prefill_seconds": {
+        "median": 7.2894106255,
+        "min": 7.229983041,
+        "max": 7.297422,
+        "mad": 0.005106958000000272
+      },
+      "ttft_seconds": {
+        "median": 7.289772104,
+        "min": 7.23033575,
+        "max": 7.297818958,
+        "mad": 0.005122874999999638
+      },
+      "elapsed_seconds": {
+        "median": 18.4131071875,
+        "min": 18.171296541,
+        "max": 18.444856209,
+        "mad": 0.03080522950000031
+      },
+      "last_vs_first_process_tps_percent": 1.231060805450812
+    },
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "samples": 4,
+      "decode_tps": {
+        "median": 12.137204652566613,
+        "min": 11.911171872652014,
+        "max": 12.232941157752094,
+        "mad": 0.08686170994270803
+      },
+      "prefill_seconds": {
+        "median": 8.1590111455,
+        "min": 8.089716125,
+        "max": 8.588624791,
+        "mad": 0.035575582999999966
+      },
+      "ttft_seconds": {
+        "median": 8.159543604,
+        "min": 8.090208291,
+        "max": 8.589220541000001,
+        "mad": 0.03557962499999956
+      },
+      "elapsed_seconds": {
+        "median": 18.623702521,
+        "min": 18.472052292,
+        "max": 19.251511417,
+        "mad": 0.10853193750000045
+      },
+      "last_vs_first_process_tps_percent": 1.9930552747056796
+    },
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "samples": 4,
+      "decode_tps": {
+        "median": 11.172463636652196,
+        "min": 11.065537891767146,
+        "max": 11.347655876974432,
+        "mad": 0.08236859834751709
+      },
+      "prefill_seconds": {
+        "median": 7.6405794789999995,
+        "min": 7.601808583,
+        "max": 7.729291292,
+        "mad": 0.03256085449999979
+      },
+      "ttft_seconds": {
+        "median": 7.641094208,
+        "min": 7.602288125,
+        "max": 7.729804166,
+        "mad": 0.03260183300000019
+      },
+      "elapsed_seconds": {
+        "median": 19.002460979,
+        "min": 18.806467416,
+        "max": 19.2069125,
+        "mad": 0.1437085835000005
+      },
+      "last_vs_first_process_tps_percent": 1.7932257904620164
+    },
+    {
+      "mode": "dflash2",
+      "prompt": "MAIN",
+      "samples": 4,
+      "decode_tps": {
+        "median": 12.463378309930667,
+        "min": 12.317531461699275,
+        "max": 12.517809849490831,
+        "mad": 0.030137374073992973
+      },
+      "prefill_seconds": {
+        "median": 8.033259833,
+        "min": 8.006998,
+        "max": 8.049317709,
+        "mad": 0.012793875499999885
+      },
+      "ttft_seconds": {
+        "median": 8.0336705835,
+        "min": 8.007505041,
+        "max": 8.049756625,
+        "mad": 0.012810000000000876
+      },
+      "elapsed_seconds": {
+        "median": 18.218502020499997,
+        "min": 18.169696459,
+        "max": 18.353726667,
+        "mad": 0.03257718699999934
+      },
+      "last_vs_first_process_tps_percent": 0.7608579097327928
+    },
+    {
+      "mode": "dflash2",
+      "prompt": "HOLD",
+      "samples": 4,
+      "decode_tps": {
+        "median": 11.918917811421599,
+        "min": 11.737255391799202,
+        "max": 12.10662769349379,
+        "mad": 0.1430442256734734
+      },
+      "prefill_seconds": {
+        "median": 7.553458104000001,
+        "min": 7.516594583,
+        "max": 7.613258584,
+        "mad": 0.021651583500000626
+      },
+      "ttft_seconds": {
+        "median": 7.5539059994999995,
+        "min": 7.516982458,
+        "max": 7.613686833,
+        "mad": 0.021676270499999983
+      },
+      "elapsed_seconds": {
+        "median": 18.243191375000002,
+        "min": 18.007137708,
+        "max": 18.367755958,
+        "mad": 0.0956266664999994
+      },
+      "last_vs_first_process_tps_percent": 0.025369175899525587
+    }
+  ],
+  "limits": [
+    "Interruption and CPU preparation between processes4 and5 retained; no thermal sensor reading.",
+    "DFlash width1 proposal (B2), adaptive off.",
+    "Global swap write cap amended from0 to32MiB with original anchor unchanged."
+  ],
+  "sha256": {
+    "baseline-1-AR": "4fb91a0ab796031f6f6a564ec8e8568b81100a0afe3fd58371c8e312f5c6c123",
+    "baseline-2-MTP": "55842a172c7e6165a5e0cfcd9b0ae1dc5762c7ff083139f18791cc313b58ba81",
+    "baseline-3-DF": "0eddd0a1633adbc5030a958fcae2e20999057a57c73609980b2c904f80227718",
+    "baseline-4-DF": "6828c0dd482f24aea6006f8f79fa88101109d0bed16be52cda05b1563d2ed6ae",
+    "baseline-5-MTP-s32": "2296e900bb40f41fe27b1dda9916f6accc02808a0203fdbaf3b0352b0a47a8b4",
+    "baseline-6-AR-s32": "47d6d012c3f594b25ed11744a9dce456af1738776a064e6b381e1bbd52c8b8a3"
+  }
+}

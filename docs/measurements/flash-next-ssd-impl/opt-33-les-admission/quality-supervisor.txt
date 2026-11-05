@@ -1,0 +1,194 @@
+from pathlib import Path
+import os, subprocess, json, time, signal, re, runpy, hashlib
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+p = w / "docs/measurements/flash-next-ssd-impl/opt-33-les-admission"
+old = json.loads(
+    (
+        w / "docs/measurements/flash-next-ssd-impl/opt-27-shared-overlap/repair/quality.json"
+    ).read_text()
+)
+ident = json.loads((p / "identity.json").read_text())
+parse_vm = runpy.run_path(str(w / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+records = []
+
+assert json.loads((p.parent / "opt-30-les/download.json").read_text())["status"] == "verified", (
+    "model restoration not verified"
+)
+for previous in old:
+    previous["env"]["MLXL3_SSD_LOOKAHEAD_DEPTH"] = "4"
+    if previous["name"] == "ssd":
+        previous["expected_tests"] = 7
+extra = {
+    **old[1],
+    "name": "les-full-state",
+    "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-33/les-admission/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_lookahead_preserves_full_logits_states_and_pair_commits",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+    ],
+    "expected_tests": 1,
+    "timeout_seconds": 240,
+}
+old.insert(0, extra)
+copy_check = {
+    **extra,
+    "name": "staged-ffi",
+    "command": [
+        extra["command"][0],
+        "array::tests::staged_records_copy_exact_disjoint_bytes_and_reject_invalid_ranges",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+    ],
+}
+old.insert(0, copy_check)
+for depth in [0, 4]:
+    profile = {
+        **extra,
+        "name": "decode-profile-" + str(depth),
+        "command": [
+            extra["command"][0],
+            "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states",
+            "--exact",
+            "--ignored",
+            "--test-threads=1",
+            "--nocapture",
+        ],
+        "env": {**extra["env"], "MLXL3_SSD_LOOKAHEAD_DEPTH": str(depth)},
+        "timeout_seconds": 360,
+    }
+    old.insert(-1, profile)
+for path, h in ident["binaries"].items():
+    assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == h
+for path, h in ident["files"].items():
+    assert hashlib.sha256((w / path).read_bytes()).hexdigest() == h
+
+
+def snapshot():
+    return {
+        key: subprocess.check_output(cmd, text=True, timeout=5)
+        for key, cmd in [
+            ("power", ["pmset", "-g", "batt"]),
+            ("vm_stat", ["vm_stat"]),
+            ("swap", ["sysctl", "vm.swapusage"]),
+        ]
+    }
+
+
+try:
+    for prev in old:
+        name = prev["name"]
+        cmd = [
+            x.replace("flash-opt-27/shared-overlap-repaired", "flash-opt-33/les-admission")
+            for x in prev["command"]
+        ]
+        limit = prev["timeout_seconds"]
+        r = {
+            "name": name,
+            "command": cmd,
+            "env": prev["env"],
+            "timeout_seconds": limit,
+            "expected_tests": prev["expected_tests"],
+            "status": "running",
+            "before": snapshot(),
+        }
+        records.append(r)
+        (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+        child = None
+        t = time.monotonic()
+        try:
+            with (p / (name + ".log")).open("w") as f:
+                child = subprocess.Popen(
+                    cmd,
+                    env={**os.environ, **prev["env"]},
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+                r["pid"] = child.pid
+                r["exit_code"] = child.wait(timeout=limit)
+            assert r["exit_code"] == 0, "quality process failed"
+            log = (p / (name + ".log")).read_text()
+            if r["expected_tests"] is not None:
+                counts = re.findall(r"test result: ok[.] (\d+) passed; 0 failed;", log)
+                assert counts and sum(map(int, counts)) == r["expected_tests"], (
+                    "absent or incorrect test count"
+                )
+                r["observed_tests"] = sum(map(int, counts))
+                if name.startswith("decode-profile-"):
+                    profiles = [
+                        json.loads(line.split("FLASH_COST_PROFILE ", 1)[1])
+                        for line in log.splitlines()
+                        if "FLASH_COST_PROFILE " in line
+                    ]
+                    assert len(profiles) == 2 and {a["prompt"] for a in profiles} == {
+                        "MAIN",
+                        "HOLD",
+                    }
+                    assert all(
+                        a["status"] == "validated_diagnostic"
+                        and a["steps"] == 32
+                        and len(a["tokens"]) == 32
+                        for a in profiles
+                    )
+                    if name.endswith("4"):
+                        assert all(
+                            a["native"]["prefetch"]["submitted"] > 0
+                            and a["mtp"]["prefetch"]["submitted"] > 0
+                            for a in profiles
+                        )
+                    r["diagnostics"] = profiles
+            else:
+                summary = json.loads(log.strip().splitlines()[-1])
+                assert summary == {
+                    "status": "validated",
+                    "budgets": [1, 2, 3, 17],
+                    "cancel_checked": True,
+                }
+                r["summary"] = summary
+            r["after"] = snapshot()
+            r["swapout_bytes"] = (
+                parse_vm(r["after"]["vm_stat"])["Swapouts"]
+                - parse_vm(r["before"]["vm_stat"])["Swapouts"]
+            )
+            assert 0 <= r["swapout_bytes"] <= 256 << 20, "quality swap limit exceeded"
+            r["status"] = "passed"
+        except BaseException as exc:
+            r.update(
+                status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                error=repr(exc),
+            )
+            raise
+        finally:
+            if child is not None and child.poll() is None:
+                os.killpg(child.pid, signal.SIGTERM)
+                try:
+                    child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait()
+            r["reaped"] = child is None or child.poll() is not None
+            r["seconds"] = time.monotonic() - t
+            (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+            with (w / "opti.md").open("a") as f:
+                f.write(
+                    "\n- 33 qualité "
+                    + name
+                    + " : **"
+                    + r["status"]
+                    + "**, swapouts+"
+                    + str(r.get("swapout_bytes", "non mesuré"))
+                    + "octets ; quality.json/log.\n"
+                )
+            print(
+                {k: r[k] for k in ["name", "status", "seconds", "swapout_bytes"] if k in r},
+                flush=True,
+            )
+finally:
+    (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")

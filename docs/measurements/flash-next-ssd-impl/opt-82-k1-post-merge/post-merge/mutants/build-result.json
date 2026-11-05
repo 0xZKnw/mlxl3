@@ -1,0 +1,234 @@
+{
+  "status": "six_mutants_built_normal_sources_restored_no_GPU",
+  "plan_sha256": "032101718cd3b97878d85a23b95f35ef7efe2add381bc0b4ecabd077f050a282",
+  "builds": [
+    {
+      "name": "h128-wrong-projection-slot",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    70354.\nPages active:                                 546212.\nPages inactive:                               540742.\nPages speculative:                              4277.\nPages throttled:                                   0.\nPages wired down:                             183955.\nPages purgeable:                               18834.\n\"Translation faults\":                      735564242.\nPages copy-on-write:                        33420726.\nPages zero filled:                         708849098.\nPages reactivated:                          70030932.\nPages purged:                                9458866.\nFile-backed pages:                            481478.\nAnonymous pages:                              609753.\nPages stored in compressor:                   307921.\nPages occupied by compressor:                 173158.\nDecompressions:                            141632320.\nCompressions:                              160030007.\nPageins:                                   982996856.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114853.\nPages tagged resident:                        101641.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5034.\nPages tag-storage free:                           85.\nPages tag-storage non-tag pageable:            43884.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 1152679936,
+          "File-backed pages": 7888535552,
+          "Pages occupied by compressor": 2837020672,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 41756,
+      "maximum_sampled_tree_rss_bytes": 1016086528,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/h128-wrong-projection-slot-native-tests",
+      "sha256": "bc4e4668c805acf4e9828022fc71389fc44244cc023bd5cfebe6dea269012bce",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    },
+    {
+      "name": "h128-remove-half-rounding",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    58199.\nPages active:                                 548646.\nPages inactive:                               551578.\nPages speculative:                               527.\nPages throttled:                                   0.\nPages wired down:                             186601.\nPages purgeable:                               13825.\n\"Translation faults\":                      735866641.\nPages copy-on-write:                        33430079.\nPages zero filled:                         709082180.\nPages reactivated:                          70031015.\nPages purged:                                9462349.\nFile-backed pages:                            485971.\nAnonymous pages:                              614780.\nPages stored in compressor:                   307910.\nPages occupied by compressor:                 173147.\nDecompressions:                            141632333.\nCompressions:                              160030007.\nPageins:                                   983000102.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114689.\nPages tagged resident:                        101477.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5034.\nPages tag-storage free:                           64.\nPages tag-storage non-tag pageable:            43905.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 953532416,
+          "File-backed pages": 7962148864,
+          "Pages occupied by compressor": 2836840448,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 41848,
+      "maximum_sampled_tree_rss_bytes": 371228672,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/h128-remove-half-rounding-native-tests",
+      "sha256": "dbef65705e64e03035b9a27f59f53dafcf5472af8434f9afadfaf7dbd3f8e283",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    },
+    {
+      "name": "activation-wrong-row-mask",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    46269.\nPages active:                                 551336.\nPages inactive:                               557774.\nPages speculative:                              1553.\nPages throttled:                                   0.\nPages wired down:                             188620.\nPages purgeable:                               16910.\n\"Translation faults\":                      735993971.\nPages copy-on-write:                        33433509.\nPages zero filled:                         709164753.\nPages reactivated:                          70031028.\nPages purged:                                9462349.\nFile-backed pages:                            493015.\nAnonymous pages:                              617648.\nPages stored in compressor:                   307909.\nPages occupied by compressor:                 173146.\nDecompressions:                            141632334.\nCompressions:                              160030007.\nPageins:                                   983001170.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114617.\nPages tagged resident:                        101405.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5034.\nPages tag-storage free:                           93.\nPages tag-storage non-tag pageable:            43876.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 758071296,
+          "File-backed pages": 8077557760,
+          "Pages occupied by compressor": 2836824064,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 41896,
+      "maximum_sampled_tree_rss_bytes": 366297088,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/activation-wrong-row-mask-native-tests",
+      "sha256": "f0306db206a086cd791dc2fa99a28c2b9acf117939eb2ae293e28e81bf9b2cda",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    },
+    {
+      "name": "activation-wrong-up-plane",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    46239.\nPages active:                                 550831.\nPages inactive:                               559312.\nPages speculative:                               591.\nPages throttled:                                   0.\nPages wired down:                             188579.\nPages purgeable:                               15079.\n\"Translation faults\":                      736115897.\nPages copy-on-write:                        33436778.\nPages zero filled:                         709237469.\nPages reactivated:                          70031039.\nPages purged:                                9462349.\nFile-backed pages:                            494537.\nAnonymous pages:                              616197.\nPages stored in compressor:                   307909.\nPages occupied by compressor:                 173146.\nDecompressions:                            141632334.\nCompressions:                              160030007.\nPageins:                                   983001591.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114677.\nPages tagged resident:                        101465.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5034.\nPages tag-storage free:                           99.\nPages tag-storage non-tag pageable:            43870.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 757579776,
+          "File-backed pages": 8102494208,
+          "Pages occupied by compressor": 2836824064,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 41942,
+      "maximum_sampled_tree_rss_bytes": 365510656,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/activation-wrong-up-plane-native-tests",
+      "sha256": "62e1f63cc9ad8ac33d3294e805690afeaf13ce777a32d842b48e7a5b2c4cefbe",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    },
+    {
+      "name": "activation-skip-half-multiply-rounding",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    44732.\nPages active:                                 550765.\nPages inactive:                               562614.\nPages speculative:                               595.\nPages throttled:                                   0.\nPages wired down:                             186849.\nPages purgeable:                               15456.\n\"Translation faults\":                      736240291.\nPages copy-on-write:                        33440231.\nPages zero filled:                         709309942.\nPages reactivated:                          70031050.\nPages purged:                                9462349.\nFile-backed pages:                            497421.\nAnonymous pages:                              616553.\nPages stored in compressor:                   307906.\nPages occupied by compressor:                 173143.\nDecompressions:                            141632337.\nCompressions:                              160030007.\nPageins:                                   983002023.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114697.\nPages tagged resident:                        101485.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5034.\nPages tag-storage free:                          100.\nPages tag-storage non-tag pageable:            43869.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 732889088,
+          "File-backed pages": 8149745664,
+          "Pages occupied by compressor": 2836774912,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 41993,
+      "maximum_sampled_tree_rss_bytes": 365543424,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/activation-skip-half-multiply-rounding-native-tests",
+      "sha256": "1d26786503df05f1af81fde8907e5e96853518494f3ff954034b977b8dd54039",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    },
+    {
+      "name": "activation-read-poison-cold",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 600,
+      "status": "built_not_executed",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    42609.\nPages active:                                 550486.\nPages inactive:                               565519.\nPages speculative:                               656.\nPages throttled:                                   0.\nPages wired down:                             186291.\nPages purgeable:                               14576.\n\"Translation faults\":                      736362670.\nPages copy-on-write:                        33443518.\nPages zero filled:                         709384718.\nPages reactivated:                          70031061.\nPages purged:                                9462479.\nFile-backed pages:                            500409.\nAnonymous pages:                              616252.\nPages stored in compressor:                   307896.\nPages occupied by compressor:                 173137.\nDecompressions:                            141632348.\nCompressions:                              160030007.\nPageins:                                   983002444.\nPageouts:                                     172597.\nSwapins:                                        4204.\nSwapouts:                                      39192.\nPages tagged:                                 114761.\nPages tagged resident:                        101549.\nPages tagged compressed:                       13212.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5035.\nPages tag-storage free:                           99.\nPages tag-storage non-tag pageable:            43870.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1990784.\nTagged compressions:                         4138356.\nTagged decompressions:                       3969945.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 548.38M  free = 475.62M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 698105856,
+          "File-backed pages": 8198701056,
+          "Pages occupied by compressor": 2836676608,
+          "Swapins": 68878336,
+          "Swapouts": 642121728
+        }
+      },
+      "pid": 42039,
+      "maximum_sampled_tree_rss_bytes": 365608960,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "exit": 0,
+      "binary": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/mutants/activation-read-poison-cold-native-tests",
+      "sha256": "7f23375a6990b76c02eee21354c6b7f710566c51b71ce84af8491a121f84e067",
+      "bytes": 46744192,
+      "source_restored_byte_exact": true,
+      "reaped": true
+    }
+  ]
+}

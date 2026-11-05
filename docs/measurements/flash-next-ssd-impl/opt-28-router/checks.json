@@ -1,0 +1,148 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.28855487500550225
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 2.6137297920067795
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 4.562122041010298
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 41.06417899997905
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.13278066698694602
+  },
+  {
+    "name": "kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_top10_matches_legacy"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 1,
+    "status": "unverified",
+    "reaped": true,
+    "seconds": 4.106075707997661
+  },
+  {
+    "name": "cbmc-metal",
+    "command": [
+      "cbmc",
+      "native/shaders/flash_top10.metal",
+      "--unwind",
+      "11",
+      "--unwinding-assertions"
+    ],
+    "timeout_seconds": 30,
+    "status": "unverified",
+    "error": "FileNotFoundError(2, 'No such file or directory')",
+    "reaped": true,
+    "seconds": 0.002216749999206513
+  },
+  {
+    "name": "restored-oracle",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "router::tests::flash_top10_matches_legacy_cpu_and_boundaries",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.18764575000386685
+  },
+  {
+    "name": "float-router",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "router::tests::float_router_preserves_precision_ties_and_boundaries",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.17904633295256644
+  }
+]

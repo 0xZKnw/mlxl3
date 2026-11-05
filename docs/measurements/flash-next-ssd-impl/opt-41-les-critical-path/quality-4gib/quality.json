@@ -1,0 +1,318 @@
+[
+  {
+    "name": "les-full-state",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_lookahead_preserves_full_logits_states_and_pair_commits",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 240,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   556140.\nPages active:                                 248722.\nPages inactive:                               235487.\nPages speculative:                             19278.\nPages throttled:                                   0.\nPages wired down:                             187025.\nPages purgeable:                                4175.\n\"Translation faults\":                      748407648.\nPages copy-on-write:                        22429515.\nPages zero filled:                         962154086.\nPages reactivated:                          69693676.\nPages purged:                                7821957.\nFile-backed pages:                            257083.\nAnonymous pages:                              246404.\nPages stored in compressor:                   485153.\nPages occupied by compressor:                 272046.\nDecompressions:                            207005771.\nCompressions:                              251700266.\nPageins:                                   460035944.\nPageouts:                                      79374.\nSwapins:                                     3843610.\nSwapouts:                                    4730353.\nPages tagged:                                  90816.\nPages tagged resident:                         69412.\nPages tagged compressed:                       21404.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3620.\nPages tag-storage free:                         5394.\nPages tag-storage non-tag pageable:            39983.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3406912.\nTagged compressions:                         3303913.\nTagged decompressions:                       3109933.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43231,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   553302.\nPages active:                                 216487.\nPages inactive:                               272591.\nPages speculative:                              1378.\nPages throttled:                                   0.\nPages wired down:                             184905.\nPages purgeable:                                 684.\n\"Translation faults\":                      749184302.\nPages copy-on-write:                        22437388.\nPages zero filled:                         962816619.\nPages reactivated:                          69827404.\nPages purged:                                7827106.\nFile-backed pages:                            300237.\nAnonymous pages:                              190219.\nPages stored in compressor:                   527524.\nPages occupied by compressor:                 290035.\nDecompressions:                            207221809.\nCompressions:                              251971226.\nPageins:                                   460366525.\nPageouts:                                      79689.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90432.\nPages tagged resident:                         68778.\nPages tagged compressed:                       21654.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3629.\nPages tag-storage free:                         2557.\nPages tag-storage non-tag pageable:            42814.\nPages tag-storage non-tag wired:                  78.\nBytes of compressed tags:                    3411328.\nTagged compressions:                         3306941.\nTagged decompressions:                       3112708.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 20.42182145899278
+  },
+  {
+    "name": "flash_matches_independent_reference_states_and_logits",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 180,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   552924.\nPages active:                                 216879.\nPages inactive:                               272597.\nPages speculative:                              1386.\nPages throttled:                                   0.\nPages wired down:                             184916.\nPages purgeable:                                 684.\n\"Translation faults\":                      749186633.\nPages copy-on-write:                        22437796.\nPages zero filled:                         962817160.\nPages reactivated:                          69827404.\nPages purged:                                7827106.\nFile-backed pages:                            300267.\nAnonymous pages:                              190595.\nPages stored in compressor:                   527454.\nPages occupied by compressor:                 289995.\nDecompressions:                            207221888.\nCompressions:                              251971226.\nPageins:                                   460366552.\nPageouts:                                      79689.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90431.\nPages tagged resident:                         68778.\nPages tagged compressed:                       21653.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3629.\nPages tag-storage free:                         2456.\nPages tag-storage non-tag pageable:            42915.\nPages tag-storage non-tag wired:                  78.\nBytes of compressed tags:                    3411008.\nTagged compressions:                         3306941.\nTagged decompressions:                       3112709.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43289,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   514067.\nPages active:                                 262728.\nPages inactive:                               258937.\nPages speculative:                              9171.\nPages throttled:                                   0.\nPages wired down:                             181968.\nPages purgeable:                                3705.\n\"Translation faults\":                      749678112.\nPages copy-on-write:                        22440791.\nPages zero filled:                         963359557.\nPages reactivated:                          69863368.\nPages purged:                                7829242.\nFile-backed pages:                            349670.\nAnonymous pages:                              181166.\nPages stored in compressor:                   536997.\nPages occupied by compressor:                 291827.\nDecompressions:                            207411716.\nCompressions:                              252173352.\nPageins:                                   460706302.\nPageouts:                                      79740.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90336.\nPages tagged resident:                         68300.\nPages tagged compressed:                       22036.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3627.\nPages tag-storage free:                         2473.\nPages tag-storage non-tag pageable:            42896.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3484096.\nTagged compressions:                         3307507.\nTagged decompressions:                       3112891.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 3.4183767499926034
+  },
+  {
+    "name": "flash_mtp_head_matches_reference_and_cache_only",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_mtp_head_matches_reference_and_cache_only",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 180,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   514023.\nPages active:                                 262777.\nPages inactive:                               258938.\nPages speculative:                              9171.\nPages throttled:                                   0.\nPages wired down:                             181968.\nPages purgeable:                                3705.\n\"Translation faults\":                      749679703.\nPages copy-on-write:                        22441188.\nPages zero filled:                         963359788.\nPages reactivated:                          69863368.\nPages purged:                                7829242.\nFile-backed pages:                            349671.\nAnonymous pages:                              181215.\nPages stored in compressor:                   536970.\nPages occupied by compressor:                 291821.\nDecompressions:                            207411749.\nCompressions:                              252173352.\nPageins:                                   460706305.\nPageouts:                                      79740.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90334.\nPages tagged resident:                         68300.\nPages tagged compressed:                       22034.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3627.\nPages tag-storage free:                         2246.\nPages tag-storage non-tag pageable:            43123.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3483968.\nTagged compressions:                         3307507.\nTagged decompressions:                       3112893.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43322,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   553153.\nPages active:                                 245108.\nPages inactive:                               235806.\nPages speculative:                              8648.\nPages throttled:                                   0.\nPages wired down:                             183127.\nPages purgeable:                                2090.\n\"Translation faults\":                      750001785.\nPages copy-on-write:                        22443367.\nPages zero filled:                         963927861.\nPages reactivated:                          69870181.\nPages purged:                                7831081.\nFile-backed pages:                            309358.\nAnonymous pages:                              180204.\nPages stored in compressor:                   538475.\nPages occupied by compressor:                 292856.\nDecompressions:                            207440470.\nCompressions:                              252382044.\nPageins:                                   460906139.\nPageouts:                                      79755.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90330.\nPages tagged resident:                         68213.\nPages tagged compressed:                       22117.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3626.\nPages tag-storage free:                         2576.\nPages tag-storage non-tag pageable:            42793.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3503552.\nTagged compressions:                         3307642.\nTagged decompressions:                       3112945.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 2.4079953329928685
+  },
+  {
+    "name": "flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 180,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   552974.\nPages active:                                 245282.\nPages inactive:                               235816.\nPages speculative:                              8651.\nPages throttled:                                   0.\nPages wired down:                             183138.\nPages purgeable:                                2090.\n\"Translation faults\":                      750003971.\nPages copy-on-write:                        22443796.\nPages zero filled:                         963928531.\nPages reactivated:                          69870181.\nPages purged:                                7831081.\nFile-backed pages:                            309375.\nAnonymous pages:                              180374.\nPages stored in compressor:                   538414.\nPages occupied by compressor:                 292837.\nDecompressions:                            207440537.\nCompressions:                              252382044.\nPageins:                                   460906148.\nPageouts:                                      79755.\nSwapins:                                     3843614.\nSwapouts:                                    4730353.\nPages tagged:                                  90328.\nPages tagged resident:                         68213.\nPages tagged compressed:                       22115.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3626.\nPages tag-storage free:                         2269.\nPages tag-storage non-tag pageable:            43100.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3503424.\nTagged compressions:                         3307642.\nTagged decompressions:                       3112947.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43346,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   555886.\nPages active:                                 217745.\nPages inactive:                               241342.\nPages speculative:                              1929.\nPages throttled:                                   0.\nPages wired down:                             183928.\nPages purgeable:                                2233.\n\"Translation faults\":                      750881179.\nPages copy-on-write:                        22453476.\nPages zero filled:                         964686326.\nPages reactivated:                          69995566.\nPages purged:                                7838563.\nFile-backed pages:                            317819.\nAnonymous pages:                              143197.\nPages stored in compressor:                   584892.\nPages occupied by compressor:                 317868.\nDecompressions:                            207723200.\nCompressions:                              252719394.\nPageins:                                   461641858.\nPageouts:                                      79857.\nSwapins:                                     3843618.\nSwapouts:                                    4730353.\nPages tagged:                                  89256.\nPages tagged resident:                         66983.\nPages tagged compressed:                       22273.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3619.\nPages tag-storage free:                         1041.\nPages tag-storage non-tag pageable:            44328.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3541120.\nTagged compressions:                         3308872.\nTagged decompressions:                       3114017.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 12.499157917001867
+  },
+  {
+    "name": "flash_pair_verification_preserves_serial_logits_and_all_states",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 180,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   555820.\nPages active:                                 217816.\nPages inactive:                               241351.\nPages speculative:                              1931.\nPages throttled:                                   0.\nPages wired down:                             183933.\nPages purgeable:                                2233.\n\"Translation faults\":                      750882844.\nPages copy-on-write:                        22453881.\nPages zero filled:                         964686576.\nPages reactivated:                          69995566.\nPages purged:                                7838563.\nFile-backed pages:                            317830.\nAnonymous pages:                              143268.\nPages stored in compressor:                   584830.\nPages occupied by compressor:                 317847.\nDecompressions:                            207723271.\nCompressions:                              252719394.\nPageins:                                   461641864.\nPageouts:                                      79857.\nSwapins:                                     3843618.\nSwapouts:                                    4730353.\nPages tagged:                                  89255.\nPages tagged resident:                         66983.\nPages tagged compressed:                       22272.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3619.\nPages tag-storage free:                         1121.\nPages tag-storage non-tag pageable:            44248.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3540928.\nTagged compressions:                         3308872.\nTagged decompressions:                       3114018.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43410,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   547832.\nPages active:                                 226206.\nPages inactive:                               256694.\nPages speculative:                               151.\nPages throttled:                                   0.\nPages wired down:                             181151.\nPages purgeable:                                1583.\n\"Translation faults\":                      751799518.\nPages copy-on-write:                        22459391.\nPages zero filled:                         965501721.\nPages reactivated:                          70080154.\nPages purged:                                7840381.\nFile-backed pages:                            326625.\nAnonymous pages:                              156426.\nPages stored in compressor:                   567090.\nPages occupied by compressor:                 306664.\nDecompressions:                            207962043.\nCompressions:                              252947046.\nPageins:                                   462036742.\nPageouts:                                      79868.\nSwapins:                                     3843626.\nSwapouts:                                    4730353.\nPages tagged:                                  88515.\nPages tagged resident:                         66138.\nPages tagged compressed:                       22377.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3615.\nPages tag-storage free:                         1970.\nPages tag-storage non-tag pageable:            43399.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3556864.\nTagged compressions:                         3309433.\nTagged decompressions:                       3114474.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 12.889707624999573
+  },
+  {
+    "name": "held",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 90,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   547628.\nPages active:                                 226409.\nPages inactive:                               256700.\nPages speculative:                               153.\nPages throttled:                                   0.\nPages wired down:                             181167.\nPages purgeable:                                1583.\n\"Translation faults\":                      751801750.\nPages copy-on-write:                        22459808.\nPages zero filled:                         965502428.\nPages reactivated:                          70080154.\nPages purged:                                7840381.\nFile-backed pages:                            326634.\nAnonymous pages:                              156628.\nPages stored in compressor:                   567005.\nPages occupied by compressor:                 306641.\nDecompressions:                            207962137.\nCompressions:                              252947046.\nPageins:                                   462036748.\nPageouts:                                      79868.\nSwapins:                                     3843626.\nSwapouts:                                    4730353.\nPages tagged:                                  88515.\nPages tagged resident:                         66138.\nPages tagged compressed:                       22377.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3615.\nPages tag-storage free:                         1839.\nPages tag-storage non-tag pageable:            43530.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3556864.\nTagged compressions:                         3309433.\nTagged decompressions:                       3114474.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43446,
+    "maximum_live_swapout_bytes": 0,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   511776.\nPages active:                                 257486.\nPages inactive:                               268304.\nPages speculative:                              5238.\nPages throttled:                                   0.\nPages wired down:                             181478.\nPages purgeable:                                1599.\n\"Translation faults\":                      752396623.\nPages copy-on-write:                        22462483.\nPages zero filled:                         966051285.\nPages reactivated:                          70093391.\nPages purged:                                7840795.\nFile-backed pages:                            348455.\nAnonymous pages:                              182573.\nPages stored in compressor:                   542608.\nPages occupied by compressor:                 294416.\nDecompressions:                            208175033.\nCompressions:                              253138692.\nPageins:                                   462476783.\nPageouts:                                      79904.\nSwapins:                                     3843626.\nSwapouts:                                    4730353.\nPages tagged:                                  88548.\nPages tagged resident:                         66300.\nPages tagged compressed:                       22248.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3614.\nPages tag-storage free:                         1319.\nPages tag-storage non-tag pageable:            44050.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3534976.\nTagged compressions:                         3309511.\nTagged decompressions:                       3114678.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "reaped": true,
+    "seconds": 4.476308000012068
+  },
+  {
+    "name": "bridge",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check-mtp-bridge.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/critical-path/mlxl3-rs",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "--tokens",
+      "1,2,3,17"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "4",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 400,
+    "expected_tests": null,
+    "status": "interrupted",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   511746.\nPages active:                                 257514.\nPages inactive:                               268306.\nPages speculative:                              5240.\nPages throttled:                                   0.\nPages wired down:                             181478.\nPages purgeable:                                1599.\n\"Translation faults\":                      752398218.\nPages copy-on-write:                        22462888.\nPages zero filled:                         966051518.\nPages reactivated:                          70093391.\nPages purged:                                7840795.\nFile-backed pages:                            348460.\nAnonymous pages:                              182600.\nPages stored in compressor:                   542600.\nPages occupied by compressor:                 294414.\nDecompressions:                            208175050.\nCompressions:                              253138692.\nPageins:                                   462476789.\nPageouts:                                      79904.\nSwapins:                                     3843626.\nSwapouts:                                    4730353.\nPages tagged:                                  88545.\nPages tagged resident:                         66300.\nPages tagged compressed:                       22245.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3614.\nPages tag-storage free:                         1329.\nPages tag-storage non-tag pageable:            44040.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    3534656.\nTagged compressions:                         3309511.\nTagged decompressions:                       3114681.\n",
+      "swap": "vm.swapusage: total = 4096.00M  used = 2866.75M  free = 1229.25M  (encrypted)\n"
+    },
+    "pid": 43471,
+    "maximum_live_swapout_bytes": 0,
+    "error": "KeyboardInterrupt()",
+    "reaped": true,
+    "seconds": 131.72861549998925
+  }
+]

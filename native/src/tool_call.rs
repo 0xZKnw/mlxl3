@@ -520,6 +520,10 @@ impl StreamFilter {
         visible
     }
 
+    pub fn is_preparing_tool(&self) -> bool {
+        self.inside
+    }
+
     pub fn finish(&mut self) -> Vec<String> {
         let visible = if self.inside || self.buffer.is_empty() {
             Vec::new()
@@ -546,6 +550,31 @@ fn marker_suffix_start(text: &[u8], marker: &[u8]) -> usize {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn tool_preparation_is_visible_for_every_marker_chunk_boundary() {
+        for (open, close) in [
+            (JSON_OPEN, JSON_CLOSE),
+            (GEMMA_OPEN, GEMMA_CLOSE),
+            (PYTHON_OPEN, PYTHON_CLOSE),
+        ] {
+            for split in 0..=open.len() {
+                let mut filter = StreamFilter::new();
+                assert!(!filter.is_preparing_tool());
+                filter.feed(&open[..split]);
+                assert_eq!(filter.is_preparing_tool(), split == open.len());
+                filter.feed(&open[split..]);
+                assert!(filter.is_preparing_tool());
+                assert!(filter.feed("file contents\n").is_empty());
+                assert!(filter.is_preparing_tool());
+                filter.feed(close);
+                assert!(!filter.is_preparing_tool());
+            }
+        }
+        let mut filter = StreamFilter::new();
+        assert_eq!(filter.feed("ordinary answer"), ["ordinary answer"]);
+        assert!(!filter.is_preparing_tool());
+    }
 
     #[test]
     fn parses_supported_calls_without_executing_prose() {
@@ -622,6 +651,20 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    fn tool_preparation_flag_matches_hidden_state() {
+        let inside: bool = kani::any();
+        let passthrough: bool = kani::any();
+        let filter = StreamFilter {
+            inside,
+            passthrough,
+            ..StreamFilter::new()
+        };
+        assert_eq!(filter.is_preparing_tool(), inside);
+        kani::cover!(inside);
+        kani::cover!(!inside);
+    }
 
     #[kani::proof]
     #[kani::unwind(12)]

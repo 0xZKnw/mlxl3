@@ -1,0 +1,78 @@
+{
+  "status": "complete_exact_zero_new_swapout_campaign",
+  "responses_including_warmup": 36,
+  "decoded_tokens_per_measurement": 127,
+  "mode_stats": {
+    "MAIN": {
+      "B2": {
+        "tps": [
+          11.470852681882537,
+          11.618434774938349
+        ],
+        "mean_tps": 11.544643728410442,
+        "peak_bytes": 7847450912
+      },
+      "MTP": {
+        "tps": [
+          11.21977354598864,
+          11.050911079638011
+        ],
+        "mean_tps": 11.135342312813325,
+        "peak_bytes": 7890901520
+      },
+      "ADAPT": {
+        "tps": [
+          11.375660361316257,
+          11.357701288901232
+        ],
+        "mean_tps": 11.366680825108745,
+        "peak_bytes": 7891507464
+      },
+      "OFF": {
+        "prompt": "MAIN",
+        "tps": 10.72828773661159,
+        "peak_bytes": 7137351656,
+        "token_hash": "f6b5f974c6db2e7a"
+      }
+    },
+    "HOLD": {
+      "B2": {
+        "tps": [
+          10.912513235406008,
+          11.089680723221251
+        ],
+        "mean_tps": 11.00109697931363,
+        "peak_bytes": 7847909712
+      },
+      "MTP": {
+        "tps": [
+          10.20443309444937,
+          10.196772655488644
+        ],
+        "mean_tps": 10.200602874969007,
+        "peak_bytes": 7887116840
+      },
+      "ADAPT": {
+        "tps": [
+          10.826402150548954,
+          10.88647385116907
+        ],
+        "mean_tps": 10.856438000859011,
+        "peak_bytes": 7885920640
+      },
+      "OFF": {
+        "prompt": "HOLD",
+        "tps": 10.337427925343302,
+        "peak_bytes": 7141824416,
+        "token_hash": "9d02c1a97e015196"
+      }
+    }
+  },
+  "precapped_gain_vs_old_adaptive": "PRECAP/campaign-result.json",
+  "memory_load_gain_scope": "separate load CHHC, not a TPS A/B",
+  "source_identity": "../identity-v2.json",
+  "swapouts_anchor_bytes": 157155328,
+  "new_swapout_bytes": 0,
+  "all_children_reaped": true,
+  "limits": "two measurements per B2/MTP/PRECAP and one OFF per prompt; two prompts; mode comparison descriptive with bracket controls, not a universal ranking"
+}

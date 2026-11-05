@@ -1,0 +1,71 @@
+[
+  {
+    "cmd": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.41834541701246053,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/retained-0.log",
+    "reaped": true
+  },
+  {
+    "cmd": [
+      "cargo",
+      "clippy",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 3.6796849580132402,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/retained-1.log",
+    "reaped": true
+  },
+  {
+    "cmd": [
+      "cargo",
+      "test",
+      "--release",
+      "--lib",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 37.79496716699214,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/retained-2.log",
+    "reaped": true
+  },
+  {
+    "cmd": [
+      "cargo",
+      "build",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "exit_code": 0,
+    "seconds": 31.396362250001403,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/retained-3.log",
+    "reaped": true
+  },
+  {
+    "cmd": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.02385783300269395,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/retained-4.log",
+    "reaped": true
+  }
+]

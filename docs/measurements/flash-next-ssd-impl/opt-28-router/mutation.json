@@ -1,0 +1,36 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "limit": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 28.468553499958944
+  },
+  {
+    "name": "mutant-oracle",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "router::tests::flash_top10_matches_legacy_cpu_and_boundaries",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "limit": 60,
+    "exit_code": 101,
+    "status": "failed",
+    "reaped": true,
+    "seconds": 0.3855732499505393
+  }
+]

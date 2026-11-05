@@ -1,0 +1,33 @@
+{
+  "status": "not_started_condition_not_met",
+  "requires": [
+    "copy-baab confirms +3%copy/-3%FR/drifts<=3%",
+    "copy-code-control no regression>3% and drifts<=3%"
+  ],
+  "runtime_change": "Auto context-copy default for Qwen3.6-35B-A3B on M5 detected by existing cached array::is_m5_gpu; env0 disables, env1 preserves explicit force on35B; unsupported/dense never enabled; fixed2/7 unchanged",
+  "policy_verification": "Pure supported/m5/Option<bool> policy,12 deterministic combinations and full symbolic Kani flags with branch covers, no assumptions. Actual ready/Tune/configure share policy.",
+  "proof_resource_cleanup": "Keep successful empty-history boundary and disabled harnesses unchanged; replace uncompleted21-length partition by original aggregate0..20 source contract, same fullu32/prefix0..7/flags/index/unwind33, no domain removed/stub/assumption. Preserve source snapshot and every negative attempt. This avoids20 redundant CI proof launches; aggregate remains unverified after previous resource limit. Raise existing Kani CI job budget30->60minutes, pinned0.68.0, no claim of remote success.",
+  "checks": [
+    "fmt check",
+    "strictClippyalltargetsmlx-chat",
+    "CPUchatfull",
+    "releasefullmlx-chat",
+    "targetpolicyKani",
+    "boundary/disabledKani; resource-bound full attempt where practical",
+    "buildlocalbundleSDK26.5/MACOSX26.2",
+    "real signed45-check bridge default/unset and env0; verifykeys1/0",
+    "production bridge copy35completions + Tune4samples under default policy",
+    "affected final artifact speed validation; exact protocol fixed before launch"
+  ],
+  "unchanged_numeric_paths": [
+    "DFlashChat::advance",
+    "DFlashCopy history/new/propose/record",
+    "Qwen verification/commit",
+    "draftcapturecache",
+    "Metal kernels/weights/Auto widths"
+  ],
+  "source_archive_before_change": "build/dflash2-web-02/copy-flag-qualified (to create only if requirements pass)",
+  "final_delivery": "local generated app only; no install/push/release;27B remains stopped",
+  "date_unix": 1791492678.830592,
+  "reason": "copy-baab-decision.json: between-pass French control drift exceeds fixed 3% limit; no measurement, default-policy edit, proof cleanup or CI timeout edit launched from this conditional plan."
+}

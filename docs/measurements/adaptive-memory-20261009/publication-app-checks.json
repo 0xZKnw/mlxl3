@@ -1,0 +1,80 @@
+{
+  "signature": {
+    "command": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "status": "passed"
+  },
+  "plist": {
+    "command": [
+      "plutil",
+      "-lint",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Info.plist"
+    ],
+    "exit_code": 0,
+    "stdout": "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Info.plist: OK\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  "gui_arch": {
+    "command": [
+      "lipo",
+      "-verify_arch",
+      "arm64",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "status": "passed"
+  },
+  "runtime_arch": {
+    "command": [
+      "lipo",
+      "-verify_arch",
+      "arm64",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "status": "passed"
+  },
+  "runtime_info": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "runtime-info"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"architecture\":\"aarch64\",\"bridge_protocol\":1,\"chat_enabled\":true,\"commit\":\"63bf98973e02\",\"mlx_enabled\":true,\"profile\":\"release\",\"version\":\"1.4.2\"}\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  "chat_timeline": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+      "--check-chat-timeline"
+    ],
+    "exit_code": 0,
+    "stdout": "Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation\n",
+    "stderr": "",
+    "status": "passed"
+  },
+  "mcp_preferences": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+      "--check-mcp-preferences"
+    ],
+    "exit_code": 0,
+    "stdout": "MCP checks passed: default off, persisted on/off, request flag, isolated preview\n",
+    "stderr": "",
+    "status": "passed"
+  }
+}

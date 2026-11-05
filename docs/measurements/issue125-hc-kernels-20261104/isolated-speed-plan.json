@@ -1,0 +1,85 @@
+{
+  "status": "prepared_not_started_quality_must_pass_first",
+  "scope": "isolated L3 and isolated L4; L5/L1/L2 excluded; no composed gain inferred",
+  "reference": {
+    "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+    "sha256": "3dfea63ea3c2be58e3126f91686817d53d21fcf137c1eb62d8991e1d1647c4c4",
+    "source": "qualified final P13"
+  },
+  "candidate": {
+    "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/frozen/direct-cli",
+    "sha256": "1e378cf32442031d5acd45e6c3c9dbf61bc27cb54a7d81056bf31ca9314a9edd",
+    "source": "fdf99c6d91f0b5d04258ac5fa0b9fb9b03555162"
+  },
+  "driver_template": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+    "{binary}",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "{output_prefix}",
+    "--tokens",
+    "32",
+    "--repeats",
+    "1",
+    "--cache-gib",
+    "3",
+    "--timeout",
+    "300"
+  ],
+  "common_environment": {
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+  },
+  "environment_absent": [
+    "MLXL3_NATIVE_FLASH_NT2",
+    "MLXL3_NATIVE_FLASH_STATIC_K",
+    "MLXL3_NATIVE_AR_HC_CHAIN",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+    "MLXL3_NATIVE_ROUTED_SCRATCH",
+    "MLXL3_NATIVE_SSD_DIRECT",
+    "MLXL3_NATIVE_HC_GDN_CHAIN",
+    "MLXL3_NATIVE_HC_WORKSPACE",
+    "MLXL3_NATIVE_FLASH_EXPERT_ENCODER",
+    "MLXL3_NATIVE_GPU_GREEDY"
+  ],
+  "screens": [
+    {
+      "name": "L3-up-mix",
+      "order": [
+        "A",
+        "B",
+        "B",
+        "A"
+      ],
+      "A": "reference; both kernel flags absent",
+      "B": "candidate",
+      "B_environment": {
+        "MLXL3_NATIVE_HC_UP_MIX": "1",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0"
+      }
+    },
+    {
+      "name": "L4-down-inject",
+      "order": [
+        "A",
+        "B",
+        "B",
+        "A"
+      ],
+      "A": "reference; both kernel flags absent",
+      "B": "candidate",
+      "B_environment": {
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "1"
+      }
+    }
+  ],
+  "protocol": "one model/process at a time, MAIN+HOLD, one warm and one measured32-token response each; same prompts/options as existing driver, T0/K1/penalty1; strict full text/token/hash/count/ledger/noMLX/cleanup before any throughput claim",
+  "limits": "Record control and candidate drift, TTFT/decode/whole response/Metal and known conditions; no inferred time from dispatch counters, no arbitrary3percent abort, no swap abort, no repetition unless explicit new reason; root owns execution and retention verdict; original source/artifacts immutable"
+}

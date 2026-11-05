@@ -1,0 +1,30 @@
+{
+  "status": "finished_inspection_required",
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "Game Performance",
+    "--time-limit",
+    "20s",
+    "--target-stdout",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/metal-smoke/target.log",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/metal-smoke/probe.trace",
+    "--launch",
+    "--",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/ultra-profile/v1/prototype-engine",
+    "array::tests::readback_profiling_preserves_layouts_errors_and_overlap",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 90,
+  "maximum_trace_bytes": 1073741824,
+  "source": "frozen v1 d4bb7309; no model weights, no engine change",
+  "scope": "qualify actual GPU intervals and preserve byte/layout/overlap physical oracle under Instruments",
+  "exit_code": 54,
+  "reaped": true,
+  "seconds": 28.201826500007883
+}

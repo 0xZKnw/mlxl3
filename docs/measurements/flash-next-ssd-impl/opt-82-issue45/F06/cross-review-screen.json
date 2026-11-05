@@ -1,0 +1,1125 @@
+{
+  "trial": "82F06 HCscreen independent read-only audit",
+  "status": "screen_closed_exact_outputs_mixed_single_pair_no_gain_promoted",
+  "reviewed_at_utc": "2026-10-25T00:03:30.222084+00:00",
+  "identity": {
+    "reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/identity-frozen-v2.json",
+    "source_count": 85,
+    "source_mismatches": [],
+    "engine_actual": "cbc03630aa08fd8dcdb949b905896ec1dc7f37888a7e984059c12624ec6743e7",
+    "engine_expected": "cbc03630aa08fd8dcdb949b905896ec1dc7f37888a7e984059c12624ec6743e7",
+    "benchmark_actual": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "benchmark_expected": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "plan_sha256": "df0836c418f11da4bfbb78918674343ac2e7d4b62770f3248358e64987be08ae",
+    "gold60_sha256": "a2b691aec70195403f0faef61ca3726869864e9b3d2ecf24196a684750b192c0"
+  },
+  "gold60": {
+    "responses_checked": 8,
+    "text_and_hash_equal": true,
+    "128_generated_127_decode": true,
+    "fixed_B2": true,
+    "inactive_MTP_schema": "fiveMTPcounters explicitlyJSONnull, not integer0",
+    "histogram": "8buckets; bucket1 countsblocks of2targetrows(anchor+1proposal); valueblocks69MAIN/70HOLD, otherbuckets0"
+  },
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 11.20606832423682,
+      "C_tps": 11.170360442464133,
+      "gain_percent": -0.31864772496038585,
+      "warm_gain_percent": -1.553250467425682,
+      "same_counters_and_logical_demand_both_phases": true
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 10.585690891076645,
+      "C_tps": 10.7114039752114,
+      "gain_percent": 1.1875756190909303,
+      "warm_gain_percent": -2.0173695615028686,
+      "same_counters_and_logical_demand_both_phases": true
+    }
+  ],
+  "records": [
+    {
+      "name": "MAIN-0-H",
+      "prompt": "MAIN",
+      "arm": "H",
+      "flag": "0",
+      "report_sha256": "7079573ad3d5edb22ca09c785f98e8f197d4848bbefbd060912d8bb52dcbe920",
+      "reaped": true,
+      "reader_joined": true,
+      "samples": {
+        "warmup": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "0-MAIN-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 11.322124439706855,
+          "decode_seconds": 11.216976166999999,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "lookup_blocks": 0,
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23664803544,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.215046876999997,
+            "verification": 10.447957244,
+            "draft": 0.5423470449999999,
+            "commit_cache": 0.224712711
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 88.30745572440942,
+            "verification": 82.26737987401575,
+            "draft": 4.270449173228346,
+            "commit_cache": 1.7693914251968506
+          },
+          "memory": {
+            "mlx_active_bytes": 7144344704,
+            "mlx_cache_bytes": 66523886,
+            "mlx_peak_bytes": 7289774324,
+            "process_compressed_lifetime_logical_bytes": 2959900672,
+            "process_compressed_logical_bytes": 2922938368,
+            "process_compressed_peak_logical_bytes": 2946695168,
+            "process_decompressions": 174688,
+            "process_footprint_bytes": 7753767176,
+            "process_id": 92359,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7850842376,
+            "process_start_abstime": 1404609520599
+          }
+        },
+        "runs": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "1-MAIN-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 11.20606832423682,
+          "decode_seconds": 11.333145250000001,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "lookup_blocks": 0,
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23930630100,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.330897997000003,
+            "verification": 10.573446831000004,
+            "draft": 0.5277390789999997,
+            "commit_cache": 0.229678749
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 89.21966926771657,
+            "verification": 83.25548685826774,
+            "draft": 4.155425818897635,
+            "commit_cache": 1.808494086614173
+          },
+          "memory": {
+            "mlx_active_bytes": 7144336512,
+            "mlx_cache_bytes": 66736246,
+            "mlx_peak_bytes": 7288395092,
+            "process_compressed_lifetime_logical_bytes": 3135651840,
+            "process_compressed_logical_bytes": 3088924672,
+            "process_compressed_peak_logical_bytes": 3091562496,
+            "process_decompressions": 205648,
+            "process_footprint_bytes": 7756798216,
+            "process_id": 92359,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7850842376,
+            "process_start_abstime": 1404609520599
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": -1.0250383317023437,
+      "warm_to_measure_own_decompressions": 30960,
+      "warm_to_measure_own_compressed_logical_bytes": 165986304,
+      "warm_to_measure_footprint_bytes": 3031040
+    },
+    {
+      "name": "MAIN-1-C",
+      "prompt": "MAIN",
+      "arm": "C",
+      "flag": "1",
+      "report_sha256": "633fc8432edf7080a2ed26e34c5a000805c669f86b9f091dd15df897b231cf6e",
+      "reaped": true,
+      "reader_joined": true,
+      "samples": {
+        "warmup": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "0-MAIN-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 11.14626348892459,
+          "decode_seconds": 11.393952792,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "lookup_blocks": 0,
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23664803544,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.391537466000003,
+            "verification": 10.645188624000003,
+            "draft": 0.515137667,
+            "commit_cache": 0.23117958599999994
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 89.69714540157483,
+            "verification": 83.82038286614176,
+            "draft": 4.056202102362205,
+            "commit_cache": 1.8203117007874012
+          },
+          "memory": {
+            "mlx_active_bytes": 7144344704,
+            "mlx_cache_bytes": 66446830,
+            "mlx_peak_bytes": 7289790084,
+            "process_compressed_lifetime_logical_bytes": 2199126016,
+            "process_compressed_logical_bytes": 2154872832,
+            "process_compressed_peak_logical_bytes": 2179317760,
+            "process_decompressions": 128814,
+            "process_footprint_bytes": 7758305616,
+            "process_id": 92677,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7849417064,
+            "process_start_abstime": 1405659090496
+          }
+        },
+        "runs": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "1-MAIN-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 11.170360442464133,
+          "decode_seconds": 11.3693735,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "lookup_blocks": 0,
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23930630100,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.367531667999996,
+            "verification": 10.618683916,
+            "draft": 0.5190831199999999,
+            "commit_cache": 0.22973121099999996
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 89.5081233700787,
+            "verification": 83.61168437795276,
+            "draft": 4.087268661417322,
+            "commit_cache": 1.8089071732283462
+          },
+          "memory": {
+            "mlx_active_bytes": 7144340608,
+            "mlx_cache_bytes": 66356370,
+            "mlx_peak_bytes": 7288740756,
+            "process_compressed_lifetime_logical_bytes": 2334507008,
+            "process_compressed_logical_bytes": 2285469696,
+            "process_compressed_peak_logical_bytes": 2286829568,
+            "process_decompressions": 159544,
+            "process_footprint_bytes": 7755389264,
+            "process_id": 92677,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7849417064,
+            "process_start_abstime": 1405659090496
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 0.21618862288232954,
+      "warm_to_measure_own_decompressions": 30730,
+      "warm_to_measure_own_compressed_logical_bytes": 130596864,
+      "warm_to_measure_footprint_bytes": -2916352
+    },
+    {
+      "name": "HOLD-0-H",
+      "prompt": "HOLD",
+      "arm": "H",
+      "flag": "0",
+      "report_sha256": "ffbe053ca62fdf8c244a7f7fc4476788408caf169339941a0f3d8965f281378a",
+      "reaped": true,
+      "reader_joined": true,
+      "samples": {
+        "warmup": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "0-HOLD-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 10.676120721832277,
+          "decode_seconds": 11.895706625,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "lookup_blocks": 0,
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25765207740,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.794566540999998,
+            "verification": 11.030861497999997,
+            "draft": 0.5302564949999999,
+            "commit_cache": 0.233418499
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 92.87060268503936,
+            "verification": 86.85717714960627,
+            "draft": 4.175247992125984,
+            "commit_cache": 1.837940937007874
+          },
+          "memory": {
+            "mlx_active_bytes": 7144215680,
+            "mlx_cache_bytes": 67536788,
+            "mlx_peak_bytes": 7289582192,
+            "process_compressed_lifetime_logical_bytes": 1953333248,
+            "process_compressed_logical_bytes": 1911357440,
+            "process_compressed_peak_logical_bytes": 1934393344,
+            "process_decompressions": 113778,
+            "process_footprint_bytes": 7738677560,
+            "process_id": 92883,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7848008016,
+            "process_start_abstime": 1406713223743
+          }
+        },
+        "runs": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "1-HOLD-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 10.585690891076645,
+          "decode_seconds": 11.997327459,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "lookup_blocks": 0,
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25474420944,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.891795083999996,
+            "verification": 11.121248335999999,
+            "draft": 0.5349634610000001,
+            "commit_cache": 0.23554758099999998
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 93.63618176377949,
+            "verification": 87.56888453543306,
+            "draft": 4.212310716535434,
+            "commit_cache": 1.8547053622047243
+          },
+          "memory": {
+            "mlx_active_bytes": 7144217728,
+            "mlx_cache_bytes": 67545196,
+            "mlx_peak_bytes": 7289000792,
+            "process_compressed_lifetime_logical_bytes": 2138095616,
+            "process_compressed_logical_bytes": 2085879808,
+            "process_compressed_peak_logical_bytes": 2088337408,
+            "process_decompressions": 144626,
+            "process_footprint_bytes": 7738824992,
+            "process_id": 92883,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7848008016,
+            "process_start_abstime": 1406713223743
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": -0.8470289266278686,
+      "warm_to_measure_own_decompressions": 30848,
+      "warm_to_measure_own_compressed_logical_bytes": 174522368,
+      "warm_to_measure_footprint_bytes": 147432
+    },
+    {
+      "name": "HOLD-1-C",
+      "prompt": "HOLD",
+      "arm": "C",
+      "flag": "1",
+      "report_sha256": "9bcac1c0fc7abc32380ae77bb3dbed64f636a2d25fdb77e47cd0d997a67e7067",
+      "reaped": true,
+      "reader_joined": true,
+      "samples": {
+        "warmup": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "0-HOLD-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 10.460743912040732,
+          "decode_seconds": 12.140627958,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "lookup_blocks": 0,
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25765207740,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 12.040160959000001,
+            "verification": 11.268082786,
+            "draft": 0.5377747509999998,
+            "commit_cache": 0.23427325000000007
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 94.804417,
+            "verification": 88.72506130708662,
+            "draft": 4.234446858267715,
+            "commit_cache": 1.8446712598425203
+          },
+          "memory": {
+            "mlx_active_bytes": 7144221824,
+            "mlx_cache_bytes": 67576686,
+            "mlx_peak_bytes": 7289598032,
+            "process_compressed_lifetime_logical_bytes": 2320072704,
+            "process_compressed_logical_bytes": 2275065856,
+            "process_compressed_peak_logical_bytes": 2297987072,
+            "process_decompressions": 134856,
+            "process_footprint_bytes": 7741512016,
+            "process_id": 93157,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7850924368,
+            "process_start_abstime": 1407771957345
+          }
+        },
+        "runs": {
+          "gold_text_and_hash_exact": true,
+          "tokens": [
+            128,
+            127
+          ],
+          "mode": {
+            "dflash_active": true,
+            "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            "dflash_mode": 1,
+            "dflash_proposals": 1,
+            "dflash_requested": true,
+            "mtp_active": false,
+            "mtp_depth": 0,
+            "mtp_reason": null,
+            "mtp_requested": false,
+            "request_id": "1-HOLD-False",
+            "type": "generation_mode"
+          },
+          "inactive_MTP_counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "decode_tps": 10.7114039752114,
+          "decode_seconds": 11.856522291000001,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "lookup_blocks": 0,
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25474420944,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "profile_host_inclusive_seconds": {
+            "block": 11.754316038000002,
+            "verification": 10.989988790999998,
+            "draft": 0.5300040819999999,
+            "commit_cache": 0.23429083400000003
+          },
+          "profile_host_inclusive_ms_per_decode_token": {
+            "block": 92.55366959055121,
+            "verification": 86.5353448110236,
+            "draft": 4.173260488188975,
+            "commit_cache": 1.8448097165354331
+          },
+          "memory": {
+            "mlx_active_bytes": 7144217728,
+            "mlx_cache_bytes": 67442934,
+            "mlx_peak_bytes": 7289046840,
+            "process_compressed_lifetime_logical_bytes": 2480766976,
+            "process_compressed_logical_bytes": 2430713856,
+            "process_compressed_peak_logical_bytes": 2432352256,
+            "process_decompressions": 165311,
+            "process_footprint_bytes": 7741495632,
+            "process_id": 93157,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7850924368,
+            "process_start_abstime": 1407771957345
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 2.3961972999085646,
+      "warm_to_measure_own_decompressions": 30455,
+      "warm_to_measure_own_compressed_logical_bytes": 155648000,
+      "warm_to_measure_footprint_bytes": -16384
+    }
+  ],
+  "phases": [
+    {
+      "name": "pre20",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 6718128128,
+        "File-backed pages": 5368889344,
+        "Pages occupied by compressor": 5979652096,
+        "Swapins": 53460992,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 6673874944,
+        "File-backed pages": 5385273344,
+        "Pages occupied by compressor": 5958041600,
+        "Swapins": 53460992,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": -44253184,
+        "File-backed pages": 16384000,
+        "Pages occupied by compressor": -21610496,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    {
+      "name": "MAIN-0-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 6673793024,
+        "File-backed pages": 5385289728,
+        "Pages occupied by compressor": 5958041600,
+        "Swapins": 53460992,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 7680638976,
+        "File-backed pages": 5065031680,
+        "Pages occupied by compressor": 6909591552,
+        "Swapins": 53460992,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": 1006845952,
+        "File-backed pages": -320258048,
+        "Pages occupied by compressor": 951549952,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    {
+      "name": "MAIN-1-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 65536,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 65536,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 7643086848,
+        "File-backed pages": 5071568896,
+        "Pages occupied by compressor": 6900875264,
+        "Swapins": 53460992,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 7717863424,
+        "File-backed pages": 5119721472,
+        "Pages occupied by compressor": 7101382656,
+        "Swapins": 53526528,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": 74776576,
+        "File-backed pages": 48152576,
+        "Pages occupied by compressor": 200507392,
+        "Swapins": 65536,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    {
+      "name": "HOLD-0-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 1228800,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 1228800,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 7709638656,
+        "File-backed pages": 5123899392,
+        "Pages occupied by compressor": 7100678144,
+        "Swapins": 53526528,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 7584759808,
+        "File-backed pages": 5093277696,
+        "Pages occupied by compressor": 6915080192,
+        "Swapins": 54755328,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": -124878848,
+        "File-backed pages": -30621696,
+        "Pages occupied by compressor": -185597952,
+        "Swapins": 1228800,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    {
+      "name": "HOLD-1-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 7579926528,
+        "File-backed pages": 5093851136,
+        "Pages occupied by compressor": 6913097728,
+        "Swapins": 54755328,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 7620263936,
+        "File-backed pages": 5181423616,
+        "Pages occupied by compressor": 6785482752,
+        "Swapins": 54755328,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": 40337408,
+        "File-backed pages": 87572480,
+        "Pages occupied by compressor": -127614976,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    {
+      "name": "post30",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'",
+      "system_vm_before": {
+        "Pages free": 7618101248,
+        "File-backed pages": 5181849600,
+        "Pages occupied by compressor": 6784925696,
+        "Swapins": 54755328,
+        "Swapouts": 475791360
+      },
+      "system_vm_after": {
+        "Pages free": 6896238592,
+        "File-backed pages": 5279219712,
+        "Pages occupied by compressor": 6348734464,
+        "Swapins": 54755328,
+        "Swapouts": 475791360
+      },
+      "system_vm_delta": {
+        "Pages free": -721862656,
+        "File-backed pages": 97370112,
+        "Pages occupied by compressor": -436191232,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    }
+  ],
+  "supervisor_status": "completed_expected_outcomes_not_speed",
+  "sampler": {
+    "status": "completed_observations_not_attribution",
+    "joined": true,
+    "samples": 120,
+    "error_samples": 0
+  },
+  "memory": {
+    "snapshots": 12,
+    "max_process_lifetime_peak_bytes": 7850924368,
+    "max_current_footprint_bytes": 7758305616,
+    "max_current_compressed_logical_bytes": 3088924672,
+    "max_compressed_peak_logical_bytes": 3091562496,
+    "max_own_ledger_swapins_logical_bytes": 0,
+    "global_swapouts_bytes": 0,
+    "global_swapins_bytes": 1294336,
+    "compression77B_status": "failed historicalcaps not requalified; logicalcompressedbytes not physicalcompressedDRAM",
+    "causality": "No ownership of globalVM changes or speed cause inferred; own snapshotdelta includes prefill+decode+cachework.",
+    "global_swapin_attribution": "unknown;65536BMAIN-C+1228800BHOLD-H; not zero system swap-in, no modelownershipestablished"
+  },
+  "excluded_confirm_v1": {
+    "status": "failed_or_interrupted",
+    "commands": [
+      {
+        "name": "pre20",
+        "status": "completed_expected_outcome",
+        "exit_code": 0,
+        "reaped": true,
+        "error": null
+      },
+      {
+        "name": "MAIN-0-C",
+        "status": "failed_or_interrupted",
+        "exit_code": null,
+        "reaped": true,
+        "error": "KeyboardInterrupt()"
+      }
+    ],
+    "sampler_status": "failed_or_interrupted",
+    "sampler_joined": true,
+    "partial_reports": {
+      "plans/confirm/MAIN-0-C/report.json": "incomplete"
+    },
+    "excluded_from_all_speed_ratios_and_counter_comparisons": true,
+    "reason": "Parentpreflight wronglyrequiredinactiveMTPcounter0insteadnull andmisreadwidthbucket; shellwithouterrexit continuedlaunch. Interruptedthenreaped. Noenginefault shown; freshconfirm-v2only mayqualifyreverse."
+  },
+  "profile_limits": [
+    "block/verification/draft/commit fields are host-inclusive timing intervals with lazyGPU and waits; not exclusiveGPUtime.",
+    "Do not add decode+block+verification or infer additivekernelcosts from these nested spans.",
+    "NoSSDphysicaltrafficcounter here: expert_demand_bytes is logicalurgentreadaccounting, with exactsame H/C trajectories."
+  ],
+  "interpretation": [
+    "MAIN slightlynegative/HOLDpositive ononepair each; CHv2 stillpending, no gainpromoted.",
+    "Warm-to-measure changes and memorycompression are descriptive, not causal diagnosis.",
+    "Physicalpeak below12GB in snapshots; 77Bcompressedcaps remainfailed andledger0 doesnotproveabsenceprivateSwapout."
+  ],
+  "no_test_benchmark_build_prover_gpu_or_W_write": true
+}

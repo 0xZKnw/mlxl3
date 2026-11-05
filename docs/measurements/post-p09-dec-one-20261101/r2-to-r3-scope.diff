@@ -1,0 +1,83 @@
+--- R2/native/src/linear.rs
++++ R3/native/src/linear.rs
+@@ -257,6 +257,7 @@
+             };
+             crate::dense_epilogue::enabled_setting(setting.as_deref())
+                 .context("MLXL3_FLASH_DEC_ONE must be 0 or 1")?
++                && crate::dec_one::target_scope(prefix)
+         } else {
+             false
+         };
+--- R2/native/src/dec_one.rs
++++ R3/native/src/dec_one.rs
+@@ -1,4 +1,8 @@
+ //! Canonical S2 QMV and finish in one arrival kernel, with per-call private storage.
++
++pub(crate) fn target_scope(prefix: &str) -> bool {
++    prefix.starts_with("model.language_model.layers.")
++}
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub(crate) struct Layout {
+@@ -88,12 +92,44 @@
+             assert_eq!((l.output_word * 4) % 16, 0);
+         }
+     }
++
++    #[test]
++    fn dec_one_target_scope_excludes_mtp_head_and_similar_prefixes() {
++        for layer in 0..48 {
++            assert!(target_scope(&format!(
++                "model.language_model.layers.{layer}.linear_attn.out_proj"
++            )));
++        }
++        for prefix in [
++            "mtp.layers.0.self_attn.o_proj",
++            "mtp.fc_hidden",
++            "lm_head",
++            "",
++            "model.language_model.layers",
++            "model.language_model.layersX.0",
++            "xmodel.language_model.layers.0",
++        ] {
++            assert!(!target_scope(prefix));
++        }
++    }
+ }
+ 
+ #[cfg(kani)]
+ #[kani::proof]
+ fn dec_one_storage_contract() {
+     let rows: i32 = kani::any();
++    let scope: u8 = kani::any();
++    let prefix = match scope % 5 {
++        0 => "model.language_model.layers.0.linear_attn.out_proj",
++        1 => "model.language_model.layers.47.self_attn.o_proj",
++        2 => "mtp.layers.0.self_attn.o_proj",
++        3 => "model.language_model.layersX.0",
++        _ => "lm_head",
++    };
++    assert_eq!(target_scope(prefix), scope % 5 < 2);
++    kani::cover!(scope % 5 == 0);
++    kani::cover!(scope % 5 == 2);
++    kani::cover!(scope % 5 == 3);
+     match layout(rows) {
+         Some(l) => {
+             assert!(rows == 1 || rows == 2);
+--- R2/native/src/linear/dense_epilogue_tests.rs
++++ R3/native/src/linear/dense_epilogue_tests.rs
+@@ -575,6 +575,14 @@
+ #[ignore = "physical Apple GPU and independent Flash fixtures; DEC_ONE=1, F02=0; run alone"]
+ fn dec_one_complete_projections_preserve_fixtures_pending_rows_and_fallbacks() -> Result<()> {
+     use std::sync::atomic::Ordering::Relaxed;
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let mtp = Exl3Linear::from_checkpoint(&checkpoint, "mtp.layers.0.self_attn.o_proj")?;
++    ensure!(!mtp.dec_one, "DEC-ONE escaped into the MTP head");
++    crate::dec_one::REQUESTS.store(0, Relaxed);
++    let output = mtp.forward(&Array::zeros(&[1, 6144])?)?;
++    ensure!(output.shape() == [1, 2560]);
++    ensure!(output.to_f32()?.iter().all(|v| *v == 0.0));
++    ensure!(crate::dec_one::REQUESTS.load(Relaxed) == 0);
+     let mut checks = 0;
+     for mut case in cases(false)? {
+         ensure!(case.linear.dec_one, "DEC-ONE flag was not loaded");

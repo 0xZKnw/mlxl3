@@ -1,0 +1,97 @@
+{
+  "status": "validated_80M_only_release_candidate",
+  "cpu_tests": {
+    "library_passed": 116,
+    "library_ignored": 6,
+    "chat_integration_passed": 16
+  },
+  "native_suite": {
+    "passed": 129,
+    "ignored": 146
+  },
+  "format": "passed",
+  "clippy_chat": "passed",
+  "clippy_mlx_chat": "passed",
+  "release_build": "passed",
+  "kani": {
+    "harness": "reference_header_is_static_and_exactly_gated",
+    "failed": 0,
+    "properties": 27,
+    "covers_satisfied": 2,
+    "symbolic_input": "bool enabled; no assumptions",
+    "scope": "real CPU function gating/length/three bytes; not Metal proof"
+  },
+  "mutation": "one header position changed0to17: focused testfailed; source restored and testpassed",
+  "microbenchmark": {
+    "scope": "CPU isolated header generation only; not tok/s",
+    "iterations": 50000,
+    "legacy_seconds": 0.226000667,
+    "static_seconds": 1.7209e-05
+  },
+  "physical": {
+    "exl3_cases": 144,
+    "prefix_cases": 36,
+    "parity": "byte_exact",
+    "bridge_v1": "configuration error WIDTH1+ADAPTIVE1;0checks;childreaped",
+    "bridge_v2": "43/43 complete parity=true, cancellation/recovery covered",
+    "memory": {
+      "records": 70,
+      "process_footprint_max_bytes": 7857428864,
+      "process_lifetime_peak_max_bytes": 7937382832,
+      "process_ledger_swapins_max_bytes": 0,
+      "process_compressed_max_logical_bytes": 2544500736,
+      "scope": "observed bridge event memory, not causal model attribution of system swap"
+    },
+    "mtp_states": "1physicaltestpassed;budgets1/2/3/17;acceptanceandrejection;statesexact"
+  },
+  "source_patch_sha256": "63613e8960950b6523557615401b2583d43578d045af29e08a4f0f376697b2ec",
+  "speed": {
+    "dflash": "two positive pairs per prompt, geometric MAIN+0.9798%, HOLD+1.1275%",
+    "off_mtp_controls": {
+      "status": "non_regression_observed_single_pair_each_mode_prompt",
+      "pairs": [
+        {
+          "prompt": "MAIN",
+          "mode": "baseline",
+          "H_tps": 10.451473300266146,
+          "C_tps": 10.715883867825974,
+          "ratio": 1.0252988798768778
+        },
+        {
+          "prompt": "MAIN",
+          "mode": "mtp",
+          "H_tps": 10.88961638528852,
+          "C_tps": 11.106460098752171,
+          "ratio": 1.019912888185538
+        },
+        {
+          "prompt": "HOLD",
+          "mode": "baseline",
+          "H_tps": 9.96536675358317,
+          "C_tps": 10.237543660201576,
+          "ratio": 1.0273122819609766
+        },
+        {
+          "prompt": "HOLD",
+          "mode": "mtp",
+          "H_tps": 9.679507044046892,
+          "C_tps": 10.137811743697018,
+          "ratio": 1.0473479380266575
+        }
+      ],
+      "responses_checked": 16,
+      "parity_gold60": true,
+      "process_lifetime_peak_max_bytes": 8221743608,
+      "process_ledger_swapins_max_bytes": 0,
+      "system_swapouts_max_delta_bytes": 0,
+      "mtp_states": "1physicaltestpassed;budgets1/2/3/17;acceptanceandrejection;statesexact",
+      "scope_note": "Native MTP state test has childRSS only, not process ledger JSON; bridge memory observations separate."
+    }
+  },
+  "limits": [
+    "other80candidatesnotapplied",
+    "77Bcompressioncapsfailedunchanged",
+    "fullKaniCI0a27failed;newcommitCIpending",
+    "notproofMetal/concurrency/longcontexts"
+  ]
+}

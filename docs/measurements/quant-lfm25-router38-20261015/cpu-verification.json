@@ -1,0 +1,44 @@
+{
+  "status": "cpu_preflight_passed",
+  "full_suite": {
+    "passed": 1258,
+    "skipped": 1,
+    "seconds": 96.25,
+    "skipped_reason": "local Ling model absent",
+    "warnings": "12 expected historic SDK warnings"
+  },
+  "final_affected": {
+    "passed": 177,
+    "skipped": 0,
+    "seconds": 2.71
+  },
+  "source_sha256": {
+    "scripts/evaluate_lfm25_router.py": "0e2d511eb10ae7c4e7b8186d8edc6d29c064d0050d6aad71d16e14a4a6a760b1",
+    "scripts/lfm25_router_plan.py": "56fa89893248facf8b5a6846f1b8788fbf94985cf89f9a91d96ae4893876951f",
+    "scripts/capture_lfm25_router.py": "745fbd552825aff93b2a0289ab237e13f077fdae6960524f2b02a114fb5ea4e0",
+    "scripts/recalibrate_lfm25_router.py": "2d8b2e55f5494ece4e604085b012ea00a179ec93b4882a1732d42d1c10ddf7c4",
+    "scripts/recalibrate_lfm25_router_modal.py": "72b90471d690266a816abe5cd4669e823e7c373883f7f60daea1a477b223b304",
+    "tests/test_recalibrate_lfm25_router_modal.py": "43bdd6e40fbcebcda667acfe8ebadd0c16f7b224b533d4d8dfee1ffd90ed8daa",
+    "tests/test_recalibrate_lfm25_router.py": "488cdffde733466178772e3d70ca11df55bae5b8cf11cd8d6f6b385f803c6828",
+    "tests/test_evaluate_lfm25_router.py": "ba0578d8cc78c04f8e83b384ba3cd2b90239646e072e04164f13cc87d1f6e737",
+    "tests/test_capture_lfm25_router.py": "bd0975904b273a1478fec1812f772b3133c463625ec252e921659766139991ae"
+  },
+  "checks": {
+    "ruff_format": "passed",
+    "ruff_strict": "passed",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "workflow_yaml_project_python": "passed",
+    "real_modal_cli_help": "passed"
+  },
+  "crosshair": {
+    "properties": [
+      "child timeout positive/within limit",
+      "cleanup reservation at least30seconds"
+    ],
+    "per_condition_timeout_seconds": 20,
+    "confirmed_postconditions": 2,
+    "scope": "symbolic counterexample search; no tensor, CUDA or I/O proof"
+  },
+  "gpu": "not_yet_run"
+}

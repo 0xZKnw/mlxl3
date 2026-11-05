@@ -1,0 +1,64 @@
+"""Three MAIN32 processes after targeted current-HC quality; root grant required."""
+import argparse
+import hashlib
+import json
+import math
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT=Path('/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0')
+OUT=ROOT/'docs/measurements/issue125-current-engine-20261104/fast-hc-main32/performance'
+A1=ROOT/'docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json'
+REF=Path('/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen-default/cli')
+REF_SHA='9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c'
+
+def validate(report,sha):
+ assert type(report)is dict and report['status']=='validated' and report['reaped']is True and report['reader_joined']is True
+ assert report['binary_sha256']==sha and type(report['tokens'])is int and report['tokens']==32 and report['repeats']==1
+ assert set(report['prompts'])=={'MAIN'}
+ for group in ['runs','warmup']:
+  assert type(report[group])is list and len(report[group])==1
+  row=report[group][0];s=row['stats'];assert row['prompt']=='MAIN' and type(row['text'])is str and row['text'] and type(row['token_hash'])is str and row['token_hash']
+  for k,v in {'generated_tokens':32,'decode_tokens':31,'cached_prompt_tokens':0,'context_limit':4096}.items():assert type(s[k])is int and s[k]==v
+  assert row['generation_mode']['mtp_active']is False and row['generation_mode']['dflash_active']is False
+  assert all(type(s[k])in(int,float) and math.isfinite(s[k]) and s[k]>0 for k in ['decode_tps','decode_seconds','elapsed_seconds','ttft_seconds'])
+ return report
+
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--run-after-root-grant',action='store_true');args=p.parse_args()
+ if not args.run_after_root_grant:p.error('exclusive root GPU grant required')
+ old=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+ freeze=old['strict_json']((ROOT/'docs/measurements/issue125-current-engine-20261104/freeze.json').read_text());cli=freeze['artifacts']['direct-cli']
+ qpath=OUT.parent/'quality/report.json';q=old['strict_json'](qpath.read_text());assert q['status']=='validated' and q['parity']is True and q['all_children_joined']is True and len(q['phases'])==2
+ assert hashlib.sha256(Path(cli['path']).read_bytes()).hexdigest()==cli['sha256'] and hashlib.sha256(REF.read_bytes()).hexdigest()==REF_SHA
+ driver=ROOT/'scripts/benchmark-flash-bridge.py';assert hashlib.sha256(driver.read_bytes()).hexdigest()=='8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8'
+ reference=validate(old['strict_json'](A1.read_text()),REF_SHA)
+ OUT.mkdir(parents=True,exist_ok=True);sink=OUT/'report.json';assert not sink.exists();r={'status':'running','parity':False,'all_children_joined':False,'historical_A1_path':str(A1),'historical_A1_sha256':hashlib.sha256(A1.read_bytes()).hexdigest(),'historical_A1_tps':reference['runs'][0]['stats']['decode_tps'],'quality_report_sha256':hashlib.sha256(qpath.read_bytes()).hexdigest(),'processes':[]}
+ def save():sink.write_text(json.dumps(r,indent=2,allow_nan=False)+'\n')
+ def journal(text):
+  with (ROOT/'opti.md').open('a')as f:f.write('\nI125-CURRENT-HC FAST MAIN32 '+text+'\n')
+ env={k:v for k,v in os.environ.items()if not k.startswith(('MLXL3_','DYLD_'))};env.update({'PYTHONPATH':str(ROOT),'MLXL3_SSD_READERS':'4','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_SSD_PREDICTOR_DTYPE':'f32','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_NATIVE_SSD_EXTRA_WAVE':'0','MLXL3_NATIVE_HC_WORKSPACE':'0'})
+ reports=[];save();journal('STARTED K3 K4 closingL1A2, historicalA1 retained, MAIN32only')
+ try:
+  for i,(kind,up,down)in enumerate([('K3',1,0),('K4',0,1),('closing-A2',0,0)],1):
+   item={'kind':kind,'status':'running','parity':False,'joined':False};r['processes'].append(item);save();runenv=env.copy();runenv.update({'MLXL3_NATIVE_HC_UP_MIX':str(up),'MLXL3_NATIVE_HC_DOWN_INJECT':str(down)})
+   path=str(REF)if kind=='closing-A2'else cli['path'];sha=REF_SHA if kind=='closing-A2'else cli['sha256'];folder=OUT/(str(i)+'-'+kind)
+   cmd=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python',str(driver),path,'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531',str(folder),'--prompt','MAIN','--tokens','32','--repeats','1','--cache-gib','3','--timeout','300'];item['command']=cmd;child=None;start=time.monotonic()
+   try:
+    with (OUT/(str(i)+'.driver.log')).open('xb')as log:child=subprocess.Popen(cmd,cwd=ROOT,env=runenv,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);item['pid']=child.pid;save();code=child.wait(timeout=600)
+    assert code==0 and not old['members'](child.pid)
+    report=validate(old['strict_json']((folder/'report.json').read_text()),sha)
+    for row in report['warmup']+report['runs']:assert(row['text'],row['token_hash'])==(reference['runs'][0]['text'],reference['runs'][0]['token_hash'])
+    reports.append(report);s=report['runs'][0]['stats'];item.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,decode_tps=s['decode_tps'],ttft_seconds=s['ttft_seconds'],elapsed_seconds=s['elapsed_seconds']);save();journal(kind+' VALIDATED '+json.dumps({k:item[k]for k in ['decode_tps','ttft_seconds','elapsed_seconds']}));print(kind+' '+str(s['decode_tps']),flush=True)
+   except BaseException as error:item.update(status='failed',parity=False,joined=old['stop'](child),error=repr(error));save();raise
+  a1=reference['runs'][0]['stats'];a2=reports[2]['runs'][0]['stats'];summary={'status':'exploratory_single_samples','parity':True,'all_children_joined':True,'outputs_checked_including_historical_A1':8,'historical_A1_tps':a1['decode_tps'],'closing_A2_tps':a2['decode_tps'],'endpoint_control_drift_percent':100*(a2['decode_tps']/a1['decode_tps']-1),'candidates':{},'limits':['HistoricalA1 precedes exploration, notcontemporaneouspair','onewarm+oneMAIN32measurement perprocess; noHOLD/ABBA or withinvariantdrift','endpointdrift isobserved notinterpolated; noaddedgains']}
+  for kind,report in zip(['K3','K4'],reports[:2],strict=True):
+   s=report['runs'][0]['stats'];summary['candidates'][kind]={'decode_tps':s['decode_tps'],'single_sample_percent_vs_A1':100*(s['decode_tps']/a1['decode_tps']-1),'single_sample_percent_vs_A2':100*(s['decode_tps']/a2['decode_tps']-1),'ttft_seconds':s['ttft_seconds'],'elapsed_seconds':s['elapsed_seconds'],'metal_allocated_bytes':s['memory']['native_metal_allocated_bytes']}
+  (OUT/'summary.json').write_text(json.dumps(summary,indent=2,allow_nan=False)+'\n');r.update(status='completed',parity=True,all_children_joined=True);journal('CLOSED K3/K4/A2, endpointdrift recorded, all8outputs equal')
+ except BaseException as error:r.update(status='failed',parity=False,error=repr(error),all_children_joined=all(x['joined']for x in r['processes']));journal('FAILED '+repr(error));raise
+ finally:save()
+
+if __name__=='__main__':main()

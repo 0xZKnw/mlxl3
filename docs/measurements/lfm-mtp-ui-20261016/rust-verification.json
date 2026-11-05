@@ -1,0 +1,270 @@
+{
+  "status": "complete",
+  "created_at": "2026-10-15T23:23:38.839811+00:00",
+  "source_base": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "source_state": "local modifications, uncommitted",
+  "source_files": {
+    "native/src/contracts.rs": {
+      "bytes": 40675,
+      "sha256": "28484258f89c3996ecfba9bcfd97f777ead073673edcc99511a16996f353b383"
+    },
+    "native/src/lfm2.rs": {
+      "bytes": 33486,
+      "sha256": "da5126114c8a5bb101de7620847fef2c1a3baeea15fe8d18f582b0ac4e04f106"
+    },
+    "native/src/main.rs": {
+      "bytes": 167123,
+      "sha256": "53dbe243ef6b256bacdba6c35780848ceda55204fc8e245d666b744c750a4676"
+    }
+  },
+  "tools": {
+    "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+    "rustc": "1.98.1 (48a229cea 2026-09-01)",
+    "kani": "0.68.0",
+    "cbmc": "6.11.0",
+    "mlx": "0.32.2"
+  },
+  "environment": {
+    "target_dir": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target",
+    "mlx_root": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "target": "aarch64-apple-darwin",
+    "gpu_execution": false
+  },
+  "behavior": {
+    "scope": "batch-one logical persistent F16 context states",
+    "lfm25_24b_a2b": {
+      "fixed_bytes": 245760,
+      "bytes_per_token": 20480,
+      "step": 1,
+      "max_tokens": null,
+      "draft_bytes_per_token": null
+    },
+    "excluded": [
+      "weights",
+      "larger backing retained by sliced views",
+      "temporary activations/workspace",
+      "allocator cache",
+      "process RAM",
+      "macOS/reserved memory"
+    ]
+  },
+  "tests": {
+    "focused_new_passed": 5,
+    "focused_new_ignored": 0,
+    "full_cpu_chat_passed": 80,
+    "full_cpu_chat_ignored": 3,
+    "ignored_reasons": [
+      "downloaded DFlash package",
+      "physical Apple GPU codec",
+      "local Transformers tokenizer fixture"
+    ],
+    "mlx_chat_test_binaries": "compiled and linked, not executed",
+    "mutation_half_kv": {
+      "cpu_returncode": 101,
+      "cpu_failed_tests": 5,
+      "kani_returncode": 1,
+      "kani_failed_assertion": "actual.map(|p| p.bytes_per_token) == expected",
+      "restored_byteexact": true
+    }
+  },
+  "proofs": {
+    "method": "bounded model checking of real production CPU accumulator; widened i128 oracle; no stubs",
+    "harnesses": [
+      {
+        "harness": "lfm_context_attention_matches_f16_shapes_and_rejects_overflow",
+        "status_counts": {
+          "SUCCESS": 61,
+          "SATISFIED": 3
+        },
+        "log": "build/lfm-mtp-ui-20261016/rust/lfm_context_attention_matches_f16_shapes_and_rejects_overflow-final.log"
+      },
+      {
+        "harness": "lfm_context_conv_matches_f16_history_and_rejects_overflow",
+        "status_counts": {
+          "SUCCESS": 63,
+          "SATISFIED": 4
+        },
+        "log": "build/lfm-mtp-ui-20261016/rust/lfm_context_conv_matches_f16_history_and_rejects_overflow-final.log"
+      },
+      {
+        "harness": "lfm_context_memory_small_dimensions_match_wide_oracle",
+        "status_counts": {
+          "SUCCESS": 96,
+          "SATISFIED": 4
+        },
+        "log": "build/lfm-mtp-ui-20261016/rust/lfm_context_memory_small_dimensions_match_wide_oracle-final.log"
+      }
+    ],
+    "domains": [
+      "nonnegative i64 accumulated bytes, all i32 KV head counts, fixed head_dim64",
+      "nonnegative i64 accumulated bytes, all i32 convolution lengths, fixed hidden_dim2048",
+      "nonnegative i64 accumulated bytes, both dimensions all i8 values promoted to i32"
+    ],
+    "assumptions": "total>=0 follows constructor zero and successful checked additions only",
+    "loops": "none in new arithmetic/harnesses; no unwinding checks disabled",
+    "deadline_seconds_per_harness": 120,
+    "limits": [
+      "does not prove arbitrary pair of full-range i32 dimensions together",
+      "does not prove serde JSON/MLX/Metal/FFI dtype behavior",
+      "does not prove model/operator construction, allocations, retained backing or concurrency",
+      "does not execute a loaded-model bridge ready event or generation"
+    ],
+    "aggregate_property_counts": {
+      "individual_properties": 231,
+      "verification_SUCCESS": 220,
+      "cover_SATISFIED": 11,
+      "negative_statuses": 0
+    },
+    "counting_note": "Kani summary 0 of N failed counts verification checks only; cover checks are additional. Initial per-harness manifest counts were correct. Prior human report of 209 SUCCESS + 11 covers was incorrect: correct total is 220 SUCCESS + 11 SATISFIED, 231 individual properties.",
+    "recount_evidence": "build/lfm-mtp-ui-20261016/rust/proof-property-recount.json",
+    "recount_at": "2026-10-15T23:26:21.413922+00:00"
+  },
+  "checks": "see checks.json and proof-mutation-and-final-build.json for exact commands/status/durations/logs",
+  "warnings": [
+    "existing block v0.1.6 future-incompatibility notice",
+    "Kani installed toolchain emits existing semicolon macro and injected unstable-feature notices"
+  ],
+  "ci": "existing rust.yml inspected: PR+push CPU/Kani checks; parent owns affected CI integration/remote run",
+  "runtime_info": {
+    "returncode": 0,
+    "log": "delivered-runtime-info.log"
+  },
+  "delivered_binary": {
+    "path": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target/debug/mlxl3-rs",
+    "features": [
+      "default direct-metal",
+      "mlx",
+      "chat"
+    ],
+    "bytes": 48046632,
+    "sha256": "3855c4a2a6791d1d0b4ddedb9cbce10139b73d17a223545381a06ec819c0cea7"
+  },
+  "unrun": [
+    "full pre-existing Kani suite (parent explicitly bounded new-harness run instead of historical 25 min repeat)",
+    "physical Apple GPU state parity and memory allocation",
+    "loaded LFM model bridge ready event",
+    "GitHub exact-commit CI run"
+  ],
+  "evidence_files": {
+    "build/lfm-mtp-ui-20261016/rust/build-mlx-chat.log": {
+      "bytes": 2736,
+      "sha256": "2872aaf943b3af28c6e056f1c80d18271b4dba34a5225e7cd993fbdba421cbea"
+    },
+    "build/lfm-mtp-ui-20261016/rust/checks.json": {
+      "bytes": 3193,
+      "sha256": "0679d96cf64a3b776b981f69814d75deb65d898227bc200c9220179adac535f8"
+    },
+    "build/lfm-mtp-ui-20261016/rust/clippy-mlx-chat.log": {
+      "bytes": 4947,
+      "sha256": "6d3a2f538448ce4dd6ef4b9a367d1799d81152f16af34a8eb298319c9f367bd3"
+    },
+    "build/lfm-mtp-ui-20261016/rust/delivered-cli-help.log": {
+      "bytes": 1253,
+      "sha256": "815bd9cb0e9ed578f78001e1642025f6f27e6adf857f29f63f9ce20d516583dd"
+    },
+    "build/lfm-mtp-ui-20261016/rust/delivered-runtime-info.log": {
+      "bytes": 152,
+      "sha256": "fa0011eda7b15101cdeb2cac9647d10df212ddc5be2cd0e3ad8b759eb2167519"
+    },
+    "build/lfm-mtp-ui-20261016/rust/final-build-mlx-chat.log": {
+      "bytes": 409,
+      "sha256": "718601776a8a3fb98bd13507786a108b2da3f1df17b2bfbf40b90b1836ff31ae"
+    },
+    "build/lfm-mtp-ui-20261016/rust/focused-restored.log": {
+      "bytes": 792,
+      "sha256": "45faec7d156ba302fdc5b9bb77e360fb69daea43489d00c0b3e8f0ff010ef660"
+    },
+    "build/lfm-mtp-ui-20261016/rust/format-check.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/lfm-mtp-ui-20261016/rust/format.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/lfm-mtp-ui-20261016/rust/full-cpu-chat.log": {
+      "bytes": 7688,
+      "sha256": "bca9c80b3a63037a91e8287db94c6583c1d0f10ed037e6b5d2950aabc5dfdfc0"
+    },
+    "build/lfm-mtp-ui-20261016/rust/initial-0.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/lfm-mtp-ui-20261016/rust/initial-1.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build/lfm-mtp-ui-20261016/rust/initial-2.log": {
+      "bytes": 3039,
+      "sha256": "fb9aa078bcbf03d6f6e87ca02d0354eceb738e34a62f57568561368f753b8790"
+    },
+    "build/lfm-mtp-ui-20261016/rust/initial.json": {
+      "bytes": 776,
+      "sha256": "9a62b7d268f6bb28cce4050dcdd8a53b4d9bdc3c999dc5cd8740eadbabee54b4"
+    },
+    "build/lfm-mtp-ui-20261016/rust/kani-final.json": {
+      "bytes": 1620,
+      "sha256": "7c92abea95af7bb63e66046bd3e214ad8cbf39232a0afc79d72af85668e1f9d1"
+    },
+    "build/lfm-mtp-ui-20261016/rust/kani-mutation-half-kv.log": {
+      "bytes": 31176,
+      "sha256": "ce2af6ca9ae26726f2098762b5059af35abdcc2e0c5eb2aca7b7adaedadb73d0"
+    },
+    "build/lfm-mtp-ui-20261016/rust/kani-restored-attention.log": {
+      "bytes": 31044,
+      "sha256": "fa3d151e9bbcd8301fd3afbb3dcac5dd7ceaf3413edf2aef3898a609f5356121"
+    },
+    "build/lfm-mtp-ui-20261016/rust/kani.json": {
+      "bytes": 875,
+      "sha256": "08bf82be1e96f5f335c357ee28dcb8d152d6fd0268fc67fd0803b2709060a0f6"
+    },
+    "build/lfm-mtp-ui-20261016/rust/lfm_context_attention_matches_f16_shapes_and_rejects_overflow-final.log": {
+      "bytes": 31048,
+      "sha256": "1e707bd02ddfee0520b284987c873212d0eea1584621bb085f19e0e8d17143f0"
+    },
+    "build/lfm-mtp-ui-20261016/rust/lfm_context_attention_matches_f16_shapes_and_rejects_overflow.log": {
+      "bytes": 47691,
+      "sha256": "aac6c1f4c283a389ea4fd35abce4f370fd571abfac4c6ba06657de5d3ac98303"
+    },
+    "build/lfm-mtp-ui-20261016/rust/lfm_context_conv_matches_f16_history_and_rejects_overflow-final.log": {
+      "bytes": 32405,
+      "sha256": "9034fefa9dd985b6bf022af0c89d79fca5014dc25e20550dbabf23c678f1eb6d"
+    },
+    "build/lfm-mtp-ui-20261016/rust/lfm_context_conv_matches_f16_history_and_rejects_overflow.log": {
+      "bytes": 32768,
+      "sha256": "7b69f6da8a498b0dc9669a035d87c94fefdafe9e303aa87733d7c6b1e49ced2c"
+    },
+    "build/lfm-mtp-ui-20261016/rust/lfm_context_memory_small_dimensions_match_wide_oracle-final.log": {
+      "bytes": 45231,
+      "sha256": "e4604400e1ba9274ec5f2f421e02e0bc6d4a1c9cf58e7f6d49c58f400d9f3ed1"
+    },
+    "build/lfm-mtp-ui-20261016/rust/mutation-half-kv.log": {
+      "bytes": 2445,
+      "sha256": "5c892f03e13701c91c8871dd8038d1098462dd271a47113cfca2df9fd04ee5ae"
+    },
+    "build/lfm-mtp-ui-20261016/rust/proof-mutation-and-final-build.json": {
+      "bytes": 1661,
+      "sha256": "5cbd08d6a5f287fb9a347d86db281b2f8e3f0bdec2c758582fce23294ef737e0"
+    },
+    "build/lfm-mtp-ui-20261016/rust/source-diff.patch": {
+      "bytes": 12022,
+      "sha256": "20bbdeaa26d3a20100ef1f62ab1deb3afd7b7ec209d75cbd5caad6a6e1c82297"
+    },
+    "build/lfm-mtp-ui-20261016/rust/test-mlx-chat-no-run.log": {
+      "bytes": 765,
+      "sha256": "f24712b31dc3a8a44f6bf41840034400f9ad93259f358aa2a17bcbc6c06d864d"
+    },
+    "build/lfm-mtp-ui-20261016/rust/verification-initial.json": {
+      "bytes": 9951,
+      "sha256": "2e86ed586633fc140d828d82d1b4451e6f2421faafeff52d482d05bd0883ea70"
+    },
+    "build/lfm-mtp-ui-20261016/rust/proof-property-recount.json": {
+      "bytes": 1445,
+      "sha256": "a678bbb44fb8245f69658d2425ae7e9dafa503c26f9d1522d525b71992a73b42"
+    },
+    "build/lfm-mtp-ui-20261016/rust/archive-initial.json": {
+      "bytes": 716,
+      "sha256": "bc4eacf87d93ebd82864ae0bad71c6f9929e4345701d77ff5154e8c6e501ad57"
+    }
+  }
+}

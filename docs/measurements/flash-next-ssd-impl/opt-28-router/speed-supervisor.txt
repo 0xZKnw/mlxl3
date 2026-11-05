@@ -1,0 +1,70 @@
+driver = "import sys,runpy,json\nfrom pathlib import Path\nengine,model,dest,mode,prompt,reference,old_reference=sys.argv[1:]\nflash=runpy.run_path('scripts/benchmark-flash-bridge.py')\noriginal=flash['validate']\nref=Path(reference)\nold=json.loads(Path(old_reference).read_text())['runs'][0]\ndef checked(event, generation_mode, mtp, budget):\n original(event,generation_mode,mtp,budget)\n response={key:event[key] for key in ['token_hash','cache_context']}\n if not response['cache_context'].startswith(old['text']):\n  raise ValueError('128-token output does not preserve the validated 64-token prefix')\n if ref.exists():\n  if json.loads(ref.read_text()) != response:\n   raise ValueError('128-token baseline/candidate token or text divergence')\n else:\n  if mode != 'baseline': raise ValueError('missing OFF oracle before MTP')\n  ref.write_text(json.dumps(response,ensure_ascii=False))\nflash['run'].__globals__['validate']=checked\nflash['run'](Path(engine),Path(model),Path(dest),mtp=mode=='mtp',tokens=128,repeats=3,timeout=120,cache_gib=5,prompt=prompt)\n"
+
+from pathlib import Path
+import subprocess,os,json,time,signal,hashlib,runpy,statistics
+w=Path.cwd(); root=Path('/Users/justin/Documents/mix-stq1_0'); base=w/'docs/measurements/flash-next-ssd-impl/opt-28-router'; out=base/'speed'; out.mkdir(exist_ok=True); py=root/'.venv/bin/python'; model=root/'models/Qwen3.8-Flash-Next-exl3-205-65c89531'; engines={'H':root/'build/flash-opt-20/mixed-hc/mlxl3-rs','C':root/'build/flash-opt-28/top10/mlxl3-rs'}; hashes={'H':'7a9a21205812dee34680df4b85600116b8ecb65c58d7897826206af54a8406a1','C':'248a35c3f2e668a4e157b527769b2103ce390d8d93731f6a6f62f5a19c17b2aa'}
+parse_vm=runpy.run_path(str(w/'benchmarks/benchmark_flash_memory.py'))['parse_vm']; schedule=json.loads((w/'docs/measurements/flash-next-ssd-impl/opt-18-hc/speed/matrix.json').read_text())['schedule']; schedule=[r for r in schedule if r['repeat']<=2]; env={**os.environ,'MLXL3_SSD_CACHE_GIB':'5','MLXL3_ALLOCATOR_CACHE_MIB':'512','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_READERS':'4'}
+assert not (out/'execution.json').exists()
+plan={'schedule':schedule,'engines':{k:str(v) for k,v in engines.items()},'sha256':hashes,'env':{k:v for k,v in env.items() if k.startswith('MLXL3_')},'tokens':128,'decode_tokens':127,'context':4096,'warmup':1,'paired_repeats':2,'within_arm_repeats':3,'criteria':{'minimum_gain_percent_by_mode':{'baseline':1,'mtp':1},'gain_range_max_points':3,'process_peak_extra_max_bytes':256<<20,'system_swapout_arm_max_bytes':256<<20},'power_requirement':'Battery before and after every arm','within_arm_tps_max_min_ratio':1.25,'source_head':'fb782d985972ab9f4eed2926389365c713811095','started_at':time.time()};(out/'matrix.json').write_text(json.dumps(plan,indent=2)+'\n'); done=[]; references={}
+for label in ['MAIN','HOLD']:
+ golden=json.loads((w/f'docs/measurements/flash-next-ssd-impl/opt-18-hc/speed/1-{label}-baseline-H/report.json').read_text())['runs'][0];references[label]=(golden['token_hash'],golden['text'])
+def require_battery(power: str):
+ if not power.splitlines() or power.splitlines()[0] != "Now drawing from 'Battery Power'":
+  raise ValueError('Battery power required before and after every arm')
+def require_reserve(power: str):
+ import re
+ match=re.search(r"\t(\d+)%;",power)
+ if match is None: raise ValueError("unreadable battery percentage")
+ percent=int(match[1])
+ if not 0<=percent<=100: raise ValueError("invalid battery percentage")
+ if percent<=5: raise KeyboardInterrupt("battery reserve <=5%; no next arm")
+def snapshot():
+ d={' '.join(cmd):subprocess.check_output(cmd,text=True,timeout=5) for cmd in [['vm_stat'],['sysctl','vm.swapusage'],['pmset','-g','batt'],['pmset','-g','therm']]};d['vm_bytes']=parse_vm(d['vm_stat']);return d
+def passes_speed(pair: dict) -> bool:
+ return pair['gain_percent'] >= {'baseline':1,'mtp':1}[pair['mode']]
+def compare():
+ pairs=[]
+ for repeat in [1,2,3]:
+  for mode in ['baseline','mtp']:
+   for prompt in ['MAIN','HOLD']:
+    cells=[r for r in done if (r['repeat'],r['mode'],r['prompt'])==(repeat,mode,prompt) and r['status']=='validated']
+    if len(cells)==2:
+     arms={r['arm']:r for r in cells};h,c=arms['H'],arms['C'];pairs.append({'repeat':repeat,'mode':mode,'prompt':prompt,'H_tps':h['tps'],'C_tps':c['tps'],'gain_percent':100*(c['tps']/h['tps']-1),'extra_peak_bytes':c['peak_bytes']-h['peak_bytes']})
+ return pairs
+result={'status':'running','parity_complete':False,'pairs':[]}; (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
+try:
+ for item in schedule:
+  rec=item.copy(); done.append(rec);child=None;start=time.monotonic();dest=out/item['name']; binary=engines[item['arm']];assert hashlib.sha256(binary.read_bytes()).hexdigest()==hashes[item['arm']]
+  cmd=[str(py),'-c',driver,str(binary),str(model),str(dest),item['mode'],item['prompt'],str(out/('reference128-'+item['prompt']+'.json')),str(w/('docs/measurements/flash-next-ssd-impl/opt-18-hc/speed/1-'+item['prompt']+'-baseline-H/report.json'))];rec.update(status='running',command=cmd,before=snapshot());(out/'execution.json').write_text(json.dumps(done,indent=2)+'\n')
+  try:
+   require_battery(rec['before']['pmset -g batt'])
+   require_reserve(rec['before']['pmset -g batt'])
+   with (out/(item['name']+'.log')).open('w') as log:
+    child=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);rec['pid']=child.pid;(out/'execution.json').write_text(json.dumps(done,indent=2)+'\n');code=child.wait(timeout=360)
+   rec['exit_code']=code;rec['after']=snapshot();require_battery(rec['after']['pmset -g batt']);assert code==0,'benchmark failed';report=json.loads((dest/'report.json').read_text());assert report['status']=='validated' and report['binary_sha256']==hashes[item['arm']]
+   assert len(report['warmup'])==1 and len(report['runs'])==3
+   reference128=json.loads((out/('reference128-'+item['prompt']+'.json')).read_text())
+   for response in report['warmup']+report['runs']:
+    assert (response['token_hash'],response['text'])==(reference128['token_hash'],reference128['cache_context']),'text/token divergence'
+    assert response['stats']['generated_tokens']==128 and response['stats']['decode_tokens']==127
+   rec['peak_bytes']=max(r['stats']['memory']['process_lifetime_peak_bytes'] for r in report['warmup']+report['runs']);assert type(rec['peak_bytes']) is int and rec['peak_bytes']>0
+   rec['samples_tps']=[r['stats']['decode_tps'] for r in report['runs']];rec['tps']=statistics.median(rec['samples_tps']);assert max(rec['samples_tps'])/min(rec['samples_tps'])<=1.25,'severe within-arm throughput drift';rec['swapout_bytes']=rec['after']['vm_bytes']['Swapouts']-rec['before']['vm_bytes']['Swapouts'];assert 0<=rec['swapout_bytes']<=256<<20,'swap limit exceeded'
+   rec.update(status='validated',parity=True)
+  except BaseException as exc:
+   rec.update(status='interrupted' if isinstance(exc,KeyboardInterrupt) else 'failed',parity=False,error=repr(exc));raise
+  finally:
+   if child is not None and child.poll() is None:
+    os.killpg(child.pid,signal.SIGTERM)
+    try:child.wait(timeout=5)
+    except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
+   rec['reaped']=child is None or child.poll() is not None;rec['seconds']=time.monotonic()-start;(out/'execution.json').write_text(json.dumps(done,indent=2)+'\n');print({k:rec[k] for k in ['name','status','tps','peak_bytes','swapout_bytes','seconds'] if k in rec},flush=True)
+   with (w/'opti.md').open('a') as f:f.write('\n- 28 '+item['name']+' : **'+rec['status']+'**, débit'+str(rec.get('tps','non mesuré'))+'tok/s, pic'+str(rec.get('peak_bytes','non mesuré'))+'octets, swapouts+'+str(rec.get('swapout_bytes','non mesuré'))+'octets ; opt-28-router/speed/execution.json et rapport du bras.\n')
+  pairs=compare();result['pairs']=pairs;(out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
+  if any(p['extra_peak_bytes']>256<<20 for p in pairs):result.update(status='rejected',reason='paired memory limit failed');break
+  if len(done)==8 and any(not passes_speed(p) for p in pairs):result.update(status='rejected',reason='first-round speed criterion failed');break
+ else:
+  pairs=compare(); ranges={mode+'-'+prompt:max(p['gain_percent'] for p in pairs if p['mode']==mode and p['prompt']==prompt)-min(p['gain_percent'] for p in pairs if p['mode']==mode and p['prompt']==prompt) for mode in ['baseline','mtp'] for prompt in ['MAIN','HOLD']};passed=all(passes_speed(p) for p in pairs) and all(v<=3 for v in ranges.values()); result.update(status='validated' if passed else 'non_conclusive',reason='all preregistered criteria passed' if passed else 'paired speed/stability criteria failed',parity_complete=True,gain_range_points=ranges)
+except BaseException as exc:result.update(status='interrupted' if isinstance(exc,KeyboardInterrupt) else 'failed',reason=repr(exc),parity_complete=False)
+finally:
+ result.update(completed_arms=sum(r['status']=='validated' for r in done),planned_arms=len(schedule),not_started_arms=len(schedule)-len(done),finished_at=time.time());(out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(result,flush=True)
+ with (w/'opti.md').open('a') as f:f.write('\n- **28 confirmation128 terminée : '+result['status']+'**, '+str(result['completed_arms'])+'/16bras ; '+result.get('reason','')+'. Résultat opt-28-router/speed/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.\n')

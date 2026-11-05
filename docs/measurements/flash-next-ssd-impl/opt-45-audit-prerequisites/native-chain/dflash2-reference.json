@@ -1,0 +1,50 @@
+{
+  "status": "complete",
+  "tokens": [
+    248044,
+    1,
+    42,
+    248044,
+    7
+  ],
+  "steps": [],
+  "reference": "mlx-vlm 0.7.3 + PonyExl3 8e7fa6b",
+  "branch_dtype": "float16",
+  "mode": "eval",
+  "activation": "upstream compiled float16 swiglu",
+  "native_chain": {
+    "status": "passed_native_chain",
+    "hidden_sha256": "cce207be528e08f3e1951b34d3c42c180b4341436767facfc6d6424bb470326b",
+    "logit_count": 744960,
+    "relative_rmse": 9.949326724158797e-05,
+    "logit_tolerance": 0.004,
+    "tokens": [
+      42,
+      91,
+      42
+    ],
+    "confidence_count": 0,
+    "maximum_confidence_error": 0.0,
+    "confidence_tolerance": 0.0001
+  },
+  "draft_head": {
+    "kind": "dflash2",
+    "revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+    "hidden_sha256": "cce207be528e08f3e1951b34d3c42c180b4341436767facfc6d6424bb470326b",
+    "logits": {
+      "file": "draft-head-logits.f32",
+      "shape": [
+        3,
+        248320
+      ],
+      "count": 744960
+    },
+    "tokens": [
+      42,
+      91,
+      42
+    ],
+    "confidence": [],
+    "anchor": 7
+  }
+}

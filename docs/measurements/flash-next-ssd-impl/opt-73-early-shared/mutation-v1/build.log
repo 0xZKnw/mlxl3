@@ -1,0 +1,32 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/Documents/mix-stq1_0/build/flash-opt-73-mutant/crate)
+error: couldn't read `native/src/../../docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts-speed/residual-norm-counterexample.json`: No such file or directory (os error 2)
+   --> native/src/flash_draft.rs:282:47
+    |
+282 |       let fixture: Value = serde_json::from_str(include_str!(
+    |  _______________________________________________^
+283 | |         "../../docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts-speed/residual-norm-counterexample.json"
+284 | |     ))?;
+    | |_____^
+
+error[E0599]: no method named `sub` found for struct `array::Array` in the current scope
+    --> native/src/ssd_moe.rs:1079:34
+     |
+1079 |             Some(value) => value.sub(&value)?,
+     |                                  ^^^
+     |
+    ::: native/src/array.rs:473:1
+     |
+ 473 | pub struct Array {
+     | ---------------- method `sub` not found for this struct
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `sub`, perhaps you need to implement it:
+             candidate #1: `Sub`
+help: there is a method `sum` with a similar name, but with different arguments
+    --> native/src/array.rs:1042:5
+     |
+1042 |     pub fn sum(&self, axis: i32, keepdims: bool) -> Result<Self> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

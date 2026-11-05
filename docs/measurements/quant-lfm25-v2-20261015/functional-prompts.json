@@ -1,0 +1,35 @@
+{
+  "context": 4096,
+  "temperature": 0,
+  "top_k": 0,
+  "repetition_penalty": 1,
+  "mcp_enabled": false,
+  "cases": [
+    {
+      "name": "fr",
+      "prompt": "Explique en une phrase, en français, ce qu’est une architecture mixture of experts.",
+      "max_tokens": 512
+    },
+    {
+      "name": "math",
+      "prompt": "Calcule 17 × 23. Réponds uniquement avec le nombre.",
+      "max_tokens": 512
+    },
+    {
+      "name": "json",
+      "prompt": "Réponds uniquement avec cet objet JSON, sans balisage : {\"ok\":true,\"n\":7}.",
+      "max_tokens": 512
+    },
+    {
+      "name": "python",
+      "prompt": "Écris une fonction Python add(a, b) qui retourne leur somme, sans explication.",
+      "max_tokens": 1024
+    }
+  ],
+  "history": {
+    "code": "CEDAR-42",
+    "max_tokens": 768,
+    "prompt": "Remember this exact project code: CEDAR-42. Reply briefly.",
+    "followup": "What exact project code did I give you?"
+  }
+}

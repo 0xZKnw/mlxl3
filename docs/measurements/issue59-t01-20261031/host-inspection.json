@@ -1,0 +1,227 @@
+{
+  "status": "passed_independent_data_consistency_audit_not_numerical_parity",
+  "input": "host-profile-r1.json",
+  "input_sha256": "18965bdc8914042daf82580d32dd9c18e097318bd32e1dede4d690bbd75d597e",
+  "errors": [],
+  "matrix": {
+    "lots": 8,
+    "samples": 24,
+    "calls_per_sample": 256,
+    "measured_builder_calls": 6144,
+    "fine_cpp_calls": 2048,
+    "fine_cpp_misses": 0,
+    "fine_cpp_evictions": 0,
+    "all_outputs_pending": true,
+    "host_readbacks_delta": 0
+  },
+  "signature": {
+    "name": "mlxl3_rs_expert_2560_640_2_2_1_4_1_slots1_resident53",
+    "header_bytes": 1842,
+    "source_bytes": 14733,
+    "source_matches_current_shader": true
+  },
+  "identity": {
+    "source_files_checked": 500,
+    "mismatches": [],
+    "missing": [],
+    "binaries": {
+      "libtest": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t01-20261031/libtest-r1/prototype-engine",
+        "sha256": "20a0006f54e00bbae2e937b9c86f73fcc24dfe8262d36b7c5d1179984cae8e0c",
+        "bytes": 11036592,
+        "matches": true
+      }
+    },
+    "unlisted_opti_and_reports_not_frozen": true
+  },
+  "supervisor": {
+    "reaped": true,
+    "exit_code": 0,
+    "swapouts_bytes": 0,
+    "swapins_bytes": 0
+  },
+  "mode_stats": {
+    "off": {
+      "samples": 8,
+      "calls": 2048,
+      "host_ns_per_builder": {
+        "mean": 5529.21533203125,
+        "median": 5509.439453125,
+        "minimum": 5276.04296875,
+        "maximum": 5801.10546875
+      },
+      "rust_total_ns_per_builder": {
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0
+      }
+    },
+    "coarse": {
+      "samples": 8,
+      "calls": 2048,
+      "host_ns_per_builder": {
+        "mean": 5369.5068359375,
+        "median": 5399.494140625,
+        "minimum": 5160.96875,
+        "maximum": 5547.52734375
+      },
+      "rust_total_ns_per_builder": {
+        "mean": 2397.7353515625,
+        "median": 2399.74609375,
+        "minimum": 2340.51171875,
+        "maximum": 2463.57421875
+      }
+    },
+    "fine": {
+      "samples": 8,
+      "calls": 2048,
+      "host_ns_per_builder": {
+        "mean": 5883.1171875,
+        "median": 5875.08203125,
+        "minimum": 5671.7109375,
+        "maximum": 6212.56640625
+      },
+      "rust_total_ns_per_builder": {
+        "mean": 2853.62353515625,
+        "median": 2842.29296875,
+        "minimum": 2741.5234375,
+        "maximum": 3029.75
+      }
+    }
+  },
+  "observer_ratios_not_causal_speedups": {
+    "coarse_over_off": {
+      "ratio_of_mode_means": 0.9711155224560447,
+      "paired_lot_ratios": [
+        0.9716590768059822,
+        0.9046073519123173,
+        0.9884060536330649,
+        1.0062319140735116,
+        1.013530467996186,
+        0.9781892946225828,
+        0.9341611606362524,
+        0.9770794238614787
+      ],
+      "paired_ratio_summary": {
+        "mean": 0.971733092942672,
+        "median": 0.9776343592420307,
+        "minimum": 0.9046073519123173,
+        "maximum": 1.013530467996186
+      }
+    },
+    "fine_over_off": {
+      "ratio_of_mode_means": 1.0640058008626585,
+      "paired_lot_ratios": [
+        1.0646394851674668,
+        1.024633640005306,
+        1.1260585892556862,
+        1.1012157482036324,
+        1.0362187483942427,
+        1.0862840359614916,
+        1.033385771718231,
+        1.0438234496349315
+      ],
+      "paired_ratio_summary": {
+        "mean": 1.0645324335426236,
+        "median": 1.0542314674011992,
+        "minimum": 1.024633640005306,
+        "maximum": 1.1260585892556862
+      }
+    },
+    "fine_over_coarse": {
+      "ratio_of_mode_means": 1.095653170254848
+    }
+  },
+  "fine_rust_phases_ns_per_builder": {
+    "validation": {
+      "mean": 15.3310546875,
+      "median": 15.1171875,
+      "minimum": 13.94921875,
+      "maximum": 17.7578125
+    },
+    "cstrings": {
+      "mean": 691.6162109375,
+      "median": 685.83984375,
+      "minimum": 659.30859375,
+      "maximum": 750.4609375
+    },
+    "marshalling": {
+      "mean": 62.53173828125,
+      "median": 59.9140625,
+      "minimum": 54.0859375,
+      "maximum": 84.00390625
+    },
+    "initialize": {
+      "mean": 19.88427734375,
+      "median": 18.97265625,
+      "minimum": 17.453125,
+      "maximum": 24.07421875
+    },
+    "ffi": {
+      "mean": 2027.7431640625,
+      "median": 2017.400390625,
+      "minimum": 1950.22265625,
+      "maximum": 2136.578125
+    },
+    "adoption": {
+      "mean": 36.51708984375,
+      "median": 36.3828125,
+      "minimum": 33.046875,
+      "maximum": 39.8515625
+    },
+    "total": {
+      "mean": 2853.62353515625,
+      "median": 2842.29296875,
+      "minimum": 2741.5234375,
+      "maximum": 3029.75
+    }
+  },
+  "fine_cpp_phases_ns_per_builder": {
+    "lookup_ns": {
+      "mean": 650.40087890625,
+      "median": 641.37109375,
+      "minimum": 620.6171875,
+      "maximum": 704.41796875
+    },
+    "factory_ns": {
+      "mean": 0.0,
+      "median": 0.0,
+      "minimum": 0.0,
+      "maximum": 0.0
+    },
+    "output_metadata_ns": {
+      "mean": 38.32568359375,
+      "median": 38.158203125,
+      "minimum": 36.28515625,
+      "maximum": 41.4765625
+    },
+    "invoke_ns": {
+      "mean": 697.541015625,
+      "median": 693.525390625,
+      "minimum": 671.38671875,
+      "maximum": 735.5703125
+    },
+    "handles_ns": {
+      "mean": 19.59130859375,
+      "median": 19.7109375,
+      "minimum": 16.76171875,
+      "maximum": 21.2890625
+    },
+    "total_ns": {
+      "mean": 1992.7080078125,
+      "median": 1983.8046875,
+      "minimum": 1912.2734375,
+      "maximum": 2101.015625
+    }
+  },
+  "limits": [
+    "Statistics describe eight lot means per mode, not a distribution of individual calls.",
+    "Whole-loop time includes expert graph preparation, drop and metadata checks.",
+    "Fine instrumentation has observer overhead; mode ratios are observations, not causal speedups.",
+    "C++ phases are nested within Rust FFI; no subtraction or addition across scopes.",
+    "invoke includes source/signature construction and primitive/handle work; it does not isolate source generation.",
+    "No evaluated GPU result, numerical parity, pipeline/hash/encoding/SSD cost or model throughput measured.",
+    "No multiplication by 48 or translation into tok/s in this audit."
+  ]
+}

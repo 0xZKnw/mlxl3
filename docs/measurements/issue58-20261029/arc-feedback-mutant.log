@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 18.59s
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-46589c985e3028a5)
+
+running 1 test
+test flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states ... FAILED
+
+failures:
+
+---- flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states stdout ----
+
+thread 'flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states' (5926070) panicked at native/src/flash_cache_profile/shared/arc.rs:188:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_cache_profile::shared::arc::arc_ghost_feedback_and_replace_follow_literal_scalar_states
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,42 @@
+{
+  "status": "initial_two_process_screen",
+  "parity": true,
+  "all_children_joined": true,
+  "outputs_checked": 4,
+  "prompt": "MAIN",
+  "measured_samples_per_variant": 1,
+  "reference_engine_sha256": "9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c",
+  "candidate_engine_sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+  "gain_established": false,
+  "control_drift": "not_estimable_single_sample",
+  "metrics": {
+    "decode_tps": {
+      "reference": 6.561890387484125,
+      "candidate": 6.524038899897618,
+      "single_sample_percent": -0.5768381571673808
+    },
+    "decode_seconds": {
+      "reference": 4.724248375,
+      "candidate": 4.7516577500000015,
+      "single_sample_percent": 0.5801848849659841
+    },
+    "ttft_seconds": {
+      "reference": 13.4188145,
+      "candidate": 13.149685959,
+      "single_sample_percent": -2.0056059423133155
+    },
+    "elapsed_seconds": {
+      "reference": 18.143075667,
+      "candidate": 17.901364667,
+      "single_sample_percent": -1.332249307870359
+    }
+  },
+  "metal_allocated_bytes": [
+    6608617472,
+    6608617472
+  ],
+  "limits": [
+    "OneA thenoneB/MAINonly;noHOLD/drift/statisticalgain or sustainedclaim",
+    "Reference acceptedL1;candidate onlyL2extra1,other3experimental0;L1defaultabsentON"
+  ]
+}

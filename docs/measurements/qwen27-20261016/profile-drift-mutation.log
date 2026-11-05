@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_drift_cannot_be_promoted_despite_parity_and_positive_gain ________
+
+    def test_drift_cannot_be_promoted_despite_parity_and_positive_gain():
+        report = fixture()
+        for sample in report["samples"]:
+            if sample["phase"] == "measure" and sample["round"] >= 4:
+                sample["seconds"] *= 1.04
+        result = profile.analyze(report)
+        assert result["parity"] is True
+>       assert all(not row["speed_gate_passed"] for row in result["comparisons"])
+E       assert False
+E        +  where False = all(<generator object test_drift_cannot_be_promoted_despite_parity_and_positive_gain.<locals>.<genexpr> at 0x109257d30>)
+
+tests/test_smallm_profile.py:56: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_smallm_profile.py::test_drift_cannot_be_promoted_despite_parity_and_positive_gain
+1 failed in 0.03s

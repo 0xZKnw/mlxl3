@@ -1,0 +1,134 @@
+{
+  "status": "verified_disk_artifacts",
+  "model": "Qwen3.6-35B-A3B",
+  "format": {
+    "draft_layer_magic": "MDFD0004",
+    "name": "splash-packed-q4-moe",
+    "q4_bits": 4,
+    "q8_bits": 8,
+    "quant_group_size": 64,
+    "section_alignment_bytes": 16384,
+    "storage_n": 256,
+    "target_layer_magic": "MDFM0001",
+    "vision_magic": "MDFV0001"
+  },
+  "execution_geometry": {
+    "allocation_extent_target_bytes": 134217728,
+    "attention_history_group": 128,
+    "draft_proposal_tokens": 7,
+    "draft_query_rows": 8,
+    "draft_sliding_window": 2048,
+    "maximum_batch_width": 4,
+    "prefill_token_budget": 2048,
+    "target_kv_block_tokens": 32,
+    "target_verify_rows": 8
+  },
+  "draft": {
+    "architecture": "DFlash2DraftModel",
+    "block_size": 8,
+    "dynamic_conv_group_size": 16,
+    "dynamic_conv_kernel_size": 2,
+    "hidden_size": 2048,
+    "intermediate_size": 6144,
+    "is_causal": false,
+    "layers": 6,
+    "selector_rank": 256,
+    "selector_top_k": 16,
+    "sliding_window": 2048,
+    "target_capture_layers": [
+      1,
+      6,
+      11,
+      16,
+      22,
+      27,
+      32,
+      37
+    ]
+  },
+  "manifest_sha256": "22aa0f68a76fa8b84245b81eb1606f25aaa002259663f84f361fd7c66f244418",
+  "local_draft_and_layout": {
+    "draft/layer-0.bin": {
+      "bytes": 34324480,
+      "sha256": "6e49b64d9448bf9965826d6c92badcd40c3321a7b86066c25b7c30852cc4c5b9"
+    },
+    "draft/layer-1.bin": {
+      "bytes": 34324480,
+      "sha256": "755ef7fcf8107c3a2cd5bd24e96ad726aa06174f72d628413e32fa7b7d8ffdda"
+    },
+    "draft/layer-2.bin": {
+      "bytes": 34324480,
+      "sha256": "126cedd11a4b13febc299df0101a096dd6f6761e86bc0ac5db1dc6f2f78c31c1"
+    },
+    "draft/layer-3.bin": {
+      "bytes": 34324480,
+      "sha256": "d96490a76307408fc2d2e42d86481f3061b04a2289193d2e8face84531b68f9e"
+    },
+    "draft/layer-4.bin": {
+      "bytes": 34324480,
+      "sha256": "92103acb13eb656fc46220f07bdc4f1da0233fed8b27ab5f2877544f1147bd93"
+    },
+    "draft/layer-5.bin": {
+      "bytes": 34324480,
+      "sha256": "2de274812de6d8cdf8bdfb2b6edd43da1b7b4b82e5ffe7316e36d6d50404600d"
+    },
+    "draft/model.bin": {
+      "bytes": 273498112,
+      "sha256": "532f9ca34fd57b0d042f79232bea70770c28e23d69eeb2293a46e9640959926f"
+    },
+    "layout.json": {
+      "bytes": 255855,
+      "sha256": "2e67217507b9b13c613a4ea6deb2cb5bc937547a520bf79a1a4a900db62860d7"
+    }
+  },
+  "artifacts_outside_draft_install": [
+    "target/embedding.bin",
+    "target/head.bin",
+    "target/layer-0.bin",
+    "target/layer-1.bin",
+    "target/layer-10.bin",
+    "target/layer-11.bin",
+    "target/layer-12.bin",
+    "target/layer-13.bin",
+    "target/layer-14.bin",
+    "target/layer-15.bin",
+    "target/layer-16.bin",
+    "target/layer-17.bin",
+    "target/layer-18.bin",
+    "target/layer-19.bin",
+    "target/layer-2.bin",
+    "target/layer-20.bin",
+    "target/layer-21.bin",
+    "target/layer-22.bin",
+    "target/layer-23.bin",
+    "target/layer-24.bin",
+    "target/layer-25.bin",
+    "target/layer-26.bin",
+    "target/layer-27.bin",
+    "target/layer-28.bin",
+    "target/layer-29.bin",
+    "target/layer-3.bin",
+    "target/layer-30.bin",
+    "target/layer-31.bin",
+    "target/layer-32.bin",
+    "target/layer-33.bin",
+    "target/layer-34.bin",
+    "target/layer-35.bin",
+    "target/layer-36.bin",
+    "target/layer-37.bin",
+    "target/layer-38.bin",
+    "target/layer-39.bin",
+    "target/layer-4.bin",
+    "target/layer-5.bin",
+    "target/layer-6.bin",
+    "target/layer-7.bin",
+    "target/layer-8.bin",
+    "target/layer-9.bin",
+    "tokenizer/chat_template.jinja",
+    "tokenizer/config.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+    "tokenizer/vocab.json",
+    "vision/model.bin"
+  ]
+}

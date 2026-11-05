@@ -1,0 +1,215 @@
+{
+  "status": "complete_readonly_snapshot",
+  "observed_utc": "2026-10-15T18:43:59.881718+00:00",
+  "source_commit": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+  "pr_workflows": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-10-15T18:27:13Z",
+      "databaseId": 38785738409,
+      "event": "pull_request",
+      "headBranch": "codex/lfm25-calibration-v3",
+      "headSha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "updatedAt": "2026-10-15T18:28:50Z",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738409",
+      "workflowName": "Native Rust checks"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-10-15T18:27:13Z",
+      "databaseId": 38785738444,
+      "event": "pull_request",
+      "headBranch": "codex/lfm25-calibration-v3",
+      "headSha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+      "name": "EXL3 conversion contracts",
+      "status": "completed",
+      "updatedAt": "2026-10-15T18:32:52Z",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738444",
+      "workflowName": "EXL3 conversion contracts"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-10-15T18:27:13Z",
+      "databaseId": 38785738428,
+      "event": "pull_request",
+      "headBranch": "codex/lfm25-calibration-v3",
+      "headSha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+      "name": "Regression checks",
+      "status": "completed",
+      "updatedAt": "2026-10-15T18:38:23Z",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738428",
+      "workflowName": "Regression checks"
+    }
+  ],
+  "push_workflows": [
+    {
+      "conclusion": "cancelled",
+      "createdAt": "2026-10-15T18:27:10Z",
+      "databaseId": 38785730189,
+      "event": "push",
+      "headBranch": "codex/lfm25-calibration-v3",
+      "headSha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+      "name": "Regression checks",
+      "status": "completed",
+      "updatedAt": "2026-10-15T18:27:16Z",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785730189",
+      "workflowName": "Regression checks"
+    },
+    {
+      "conclusion": "cancelled",
+      "createdAt": "2026-10-15T18:27:10Z",
+      "databaseId": 38785730233,
+      "event": "push",
+      "headBranch": "codex/lfm25-calibration-v3",
+      "headSha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+      "name": "Native Rust checks",
+      "status": "completed",
+      "updatedAt": "2026-10-15T18:28:43Z",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785730233",
+      "workflowName": "Native Rust checks"
+    }
+  ],
+  "jobs": {
+    "native": [
+      {
+        "id": 116597835646,
+        "name": "native (macos-26)",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-15T18:28:50Z",
+        "completed_at": "2026-10-15T18:34:23Z",
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738409/job/116597835646"
+      },
+      {
+        "id": 116597836062,
+        "name": "kani",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "in_progress",
+        "conclusion": null,
+        "started_at": "2026-10-15T18:28:45Z",
+        "completed_at": null,
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738409/job/116597836062"
+      },
+      {
+        "id": 116597836231,
+        "name": "native (ubuntu-latest)",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-15T18:28:45Z",
+        "completed_at": "2026-10-15T18:30:37Z",
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738409/job/116597836231"
+      }
+    ],
+    "regression": [
+      {
+        "id": 116597158046,
+        "name": "desktop-and-protocol",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-15T18:27:22Z",
+        "completed_at": "2026-10-15T18:38:20Z",
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738428/job/116597158046"
+      }
+    ],
+    "conversion": [
+      {
+        "id": 116597146578,
+        "name": "packing-proof",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-15T18:27:16Z",
+        "completed_at": "2026-10-15T18:27:45Z",
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738444/job/116597146578"
+      },
+      {
+        "id": 116597146889,
+        "name": "conversion",
+        "head_sha": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-15T18:27:22Z",
+        "completed_at": "2026-10-15T18:32:52Z",
+        "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38785738444/job/116597146889"
+      }
+    ]
+  },
+  "regression": {
+    "pytest_passed": 734,
+    "pytest_skipped": 115,
+    "warnings": 10,
+    "pytest_seconds": 84.59,
+    "full_e2e_passed": true
+  },
+  "router38_conversion": {
+    "tests_passed": 322,
+    "tests_seconds": 13.81,
+    "symbolic_postconditions_confirmed": 11,
+    "symbolic_postconditions_not_confirmed": 1,
+    "not_confirmed_function": "evaluate_lfm25_router.domain_gate",
+    "not_confirmed_line": 109,
+    "per_condition_timeout_seconds": 20,
+    "counterexample_observed": false,
+    "not_confirmed_raw_log_line": "conversion\tCheck deployable router recalibration without cloud credentials\t2026-10-15T18:29:33.5496910Z /Users/runner/work/mlxl3/mlxl3/scripts/evaluate_lfm25_router.py:109: info: Not confirmed.",
+    "strict_confirmation_count_gate_in_this_block": false
+  },
+  "failures_introduced_observed": [],
+  "limits": [
+    "Native/Kani is the last status shown in jobs; do not claim complete CI green until it completes successfully.",
+    "Ubuntu skipped the platform-specific MLX bridge step; macOS compiled/linted that bridge successfully.",
+    "CI step success is not equivalent to all symbolic conditions confirmed; domain_gate is unconfirmed in CI despite separate historical local confirmation.",
+    "Historical map/compact/pilot attempts also have Not confirmed results in raw conversion log.",
+    "115 regression tests skipped; conversion separately installs/exercises optional Torch-dependent router tests.",
+    "No local tests, proof, compiler, inference, GPU or CI rerun was executed for this review.",
+    "Only metadata/log/source reads and build evidence writes performed."
+  ],
+  "commands": [
+    "gh run list --commit 3da63cb55b7ead34b5ee3f57d0bd0fb775166108 --limit 30 --json databaseId,headSha,headBranch,event,name,workflowName,status,conclusion,createdAt,updatedAt,url",
+    "gh api repos/0xZKnw/mlxl3/actions/runs/38785738409/jobs?per_page=100",
+    "gh api repos/0xZKnw/mlxl3/actions/runs/38785738428/jobs?per_page=100",
+    "gh api repos/0xZKnw/mlxl3/actions/runs/38785738444/jobs?per_page=100",
+    "gh run view 38785738428 --log",
+    "gh run view 38785738444 --log",
+    "git show 3da63cb55b7ead34b5ee3f57d0bd0fb775166108:.github/workflows/quantization.yml",
+    "git show 3da63cb55b7ead34b5ee3f57d0bd0fb775166108:scripts/evaluate_lfm25_router.py"
+  ],
+  "files": {
+    "lfm25-router38-3da-ci-runs.json": {
+      "bytes": 1935,
+      "sha256": "25dbf9378d247bae22268b731a5d23b27c9215dd1c3b51e1e6ffed64509eb722"
+    },
+    "lfm25-router38-3da-native-jobs.json": {
+      "bytes": 9755,
+      "sha256": "b5139b120a1908a6b9b00fae9ba798c5ec2e8b665b8dee2f0efacc51fa3d1151"
+    },
+    "lfm25-router38-3da-native-jobs-final.json": {
+      "bytes": 9755,
+      "sha256": "b5139b120a1908a6b9b00fae9ba798c5ec2e8b665b8dee2f0efacc51fa3d1151"
+    },
+    "lfm25-router38-3da-regression-jobs.json": {
+      "bytes": 2276,
+      "sha256": "17592eb6823f622f18305a875a0f10869202a927cc8f5d2b5bea1309f06ba6a3"
+    },
+    "lfm25-router38-3da-conversion-jobs.json": {
+      "bytes": 5896,
+      "sha256": "d2116a343b85624055635d588a36a377cd738b29a8a99ee6b4879e73ed3b4f48"
+    },
+    "lfm25-router38-3da-regression.log": {
+      "bytes": 113554,
+      "sha256": "2cb2d57a6fdcb0854314fe041b875921fbc74339c5bc81b264c9cc83857de14f"
+    },
+    "lfm25-router38-3da-conversion.log": {
+      "bytes": 192826,
+      "sha256": "7286305ecf6738b3fcddd669a423374036317c53de10af595c87797d8329cf1b"
+    },
+    "lfm25-router38-3da-quantization.yml": {
+      "bytes": 12754,
+      "sha256": "53d7ce3be240bb80e1a9fdf4fa8f58253f7dc468171209e2794e46d8ee002661"
+    }
+  }
+}

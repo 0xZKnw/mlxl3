@@ -1,0 +1,789 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:381:17
+    |
+381 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:534:17
+    |
+534 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 9`
+Checking harness array::memory_stats_decoder_preserves_validity_and_values...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/c9ce5985d679519b/out/mlxl3_native-c9ce5985d679519b__RNvNtCs4vZ1j8MrPpD_12mlxl3_native5array50memory_stats_decoder_preserves_validity_and_values.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<u64> as std::cmp::PartialEq>::eq thread 0
+Runtime Symex: 0.0445944s
+size of program expression: 3431 steps
+slicing removed 1899 assignments
+Generated 602 VCC(s), 82 remaining after simplification
+Runtime Postprocess Equation: 0.0004565s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0193975s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 2.9041e-05s
+Solving with CaDiCaL 3.0.0
+8629 variables, 16101 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000645875s
+Runtime decision procedure: 0.0204913s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+8630 variables, 16102 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000151209s
+Runtime decision procedure: 0.000277709s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+8631 variables, 16103 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000238666s
+Runtime decision procedure: 0.000313417s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+8632 variables, 16104 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00805388s
+Runtime decision procedure: 0.00820121s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+8633 variables, 16105 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 9.4667e-05s
+Runtime decision procedure: 0.00021775s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+8634 variables, 16106 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000512292s
+Runtime decision procedure: 0.00055325s
+
+RESULTS:
+Check 1: array::MemoryStats::from_raw::{closure#0}.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 2: array::MemoryStats::from_raw::{closure#0}.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 3: <std::option::Option<u64> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 4: array::MemoryStats::from_raw.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:344:31 in function array::MemoryStats::from_raw
+
+Check 5: array::MemoryStats::from_raw.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:345:30 in function array::MemoryStats::from_raw
+
+Check 6: array::MemoryStats::from_raw.assertion.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:346:29 in function array::MemoryStats::from_raw
+
+Check 7: array::memory_stats_decoder_preserves_validity_and_values.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_id == process_id"
+	 - Location: native/src/array.rs:2378:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 8: array::memory_stats_decoder_preserves_validity_and_values.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2379:40 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 9: array::memory_stats_decoder_preserves_validity_and_values.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.mlx_active_bytes == values[0]"
+	 - Location: native/src/array.rs:2379:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 10: array::memory_stats_decoder_preserves_validity_and_values.assertion.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2380:39 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 11: array::memory_stats_decoder_preserves_validity_and_values.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.mlx_cache_bytes == values[1]"
+	 - Location: native/src/array.rs:2380:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 12: array::memory_stats_decoder_preserves_validity_and_values.assertion.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2381:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 13: array::memory_stats_decoder_preserves_validity_and_values.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.mlx_peak_bytes == values[2]"
+	 - Location: native/src/array.rs:2381:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 14: array::memory_stats_decoder_preserves_validity_and_values.assertion.8
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2384:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 15: array::memory_stats_decoder_preserves_validity_and_values.assertion.9
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2385:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 16: array::memory_stats_decoder_preserves_validity_and_values.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_footprint_bytes ==
+if values[11] & 1 != 0 { Some(values[3]) } else { None }"
+	 - Location: native/src/array.rs:2382:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 17: array::memory_stats_decoder_preserves_validity_and_values.assertion.11
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2392:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 18: array::memory_stats_decoder_preserves_validity_and_values.assertion.12
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2393:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 19: array::memory_stats_decoder_preserves_validity_and_values.assertion.13
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_lifetime_peak_bytes ==
+if values[11] & 1 != 0 { Some(values[4]) } else { None }"
+	 - Location: native/src/array.rs:2390:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 20: array::memory_stats_decoder_preserves_validity_and_values.assertion.14
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2400:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 21: array::memory_stats_decoder_preserves_validity_and_values.assertion.15
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2401:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 22: array::memory_stats_decoder_preserves_validity_and_values.assertion.16
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_start_abstime ==
+if values[11] & 1 != 0 { Some(values[10]) } else { None }"
+	 - Location: native/src/array.rs:2398:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 23: array::memory_stats_decoder_preserves_validity_and_values.assertion.17
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2408:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 24: array::memory_stats_decoder_preserves_validity_and_values.assertion.18
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2409:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 25: array::memory_stats_decoder_preserves_validity_and_values.assertion.19
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_compressed_logical_bytes ==
+if values[11] & 2 != 0 { Some(values[5]) } else { None }"
+	 - Location: native/src/array.rs:2406:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 26: array::memory_stats_decoder_preserves_validity_and_values.assertion.20
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2416:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 27: array::memory_stats_decoder_preserves_validity_and_values.assertion.21
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2417:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 28: array::memory_stats_decoder_preserves_validity_and_values.assertion.22
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_compressed_peak_logical_bytes ==
+if values[11] & 2 != 0 { Some(values[6]) } else { None }"
+	 - Location: native/src/array.rs:2414:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 29: array::memory_stats_decoder_preserves_validity_and_values.assertion.23
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2424:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 30: array::memory_stats_decoder_preserves_validity_and_values.assertion.24
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2425:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 31: array::memory_stats_decoder_preserves_validity_and_values.assertion.25
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_compressed_lifetime_logical_bytes ==
+if values[11] & 2 != 0 { Some(values[7]) } else { None }"
+	 - Location: native/src/array.rs:2422:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 32: array::memory_stats_decoder_preserves_validity_and_values.assertion.26
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2432:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 33: array::memory_stats_decoder_preserves_validity_and_values.assertion.27
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2433:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 34: array::memory_stats_decoder_preserves_validity_and_values.assertion.28
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_decompressions ==
+if values[11] & 4 != 0 { Some(values[8]) } else { None }"
+	 - Location: native/src/array.rs:2430:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 35: array::memory_stats_decoder_preserves_validity_and_values.assertion.29
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2440:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 36: array::memory_stats_decoder_preserves_validity_and_values.assertion.30
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2441:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 37: array::memory_stats_decoder_preserves_validity_and_values.assertion.31
+	 - Status: SUCCESS
+	 - Description: "assertion failed: stats.process_ledger_swapins_logical_bytes ==
+if values[11] & 8 != 0 { Some(values[9]) } else { None }"
+	 - Location: native/src/array.rs:2438:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 38: array::memory_stats_decoder_preserves_validity_and_values.assertion.32
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2446:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 39: array::memory_stats_decoder_preserves_validity_and_values.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: values[11] == 0"
+	 - Location: native/src/array.rs:2446:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 40: array::memory_stats_decoder_preserves_validity_and_values.assertion.33
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 41: array::memory_stats_decoder_preserves_validity_and_values.assertion.34
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 42: array::memory_stats_decoder_preserves_validity_and_values.assertion.35
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:56 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 43: array::memory_stats_decoder_preserves_validity_and_values.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: values[11] == 15 && values[5] == 0 && values[9] == 0"
+	 - Location: native/src/array.rs:2447:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 44: array::memory_stats_decoder_preserves_validity_and_values.assertion.36
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2448:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 45: array::memory_stats_decoder_preserves_validity_and_values.assertion.37
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2448:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 46: array::memory_stats_decoder_preserves_validity_and_values.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: values[11] == 15 && values[5] == u64::MAX"
+	 - Location: native/src/array.rs:2448:5 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 47: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 48: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 49: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 50: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 51: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 52: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 53: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 54: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 55: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 56: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 57: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 58: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 59: array::MemoryStats::from_raw::{closure#0}.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:342:48 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 60: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 61: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 62: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 63: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 64: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 65: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 66: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 67: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 68: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 69: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 70: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 71: array::MemoryStats::from_raw::{closure#0}.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 72: array::MemoryStats::from_raw::{closure#0}.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:342:82 in function array::MemoryStats::from_raw::{closure#0}
+
+Check 73: array::MemoryStats::from_raw.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:344:31 in function array::MemoryStats::from_raw
+
+Check 74: array::MemoryStats::from_raw.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:345:30 in function array::MemoryStats::from_raw
+
+Check 75: array::MemoryStats::from_raw.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:346:29 in function array::MemoryStats::from_raw
+
+Check 76: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2379:40 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 77: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2380:39 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 78: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2381:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 79: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2384:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 80: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2385:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 81: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2392:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 82: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.7
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2393:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 83: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.8
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2400:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 84: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.9
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2401:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 85: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.10
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2408:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 86: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.11
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2409:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 87: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.12
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2416:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 88: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.13
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2417:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 89: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.14
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2424:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 90: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.15
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2425:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 91: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.16
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2432:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 92: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.17
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2433:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 93: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.18
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2440:12 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 94: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.19
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2441:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 95: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.20
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2446:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 96: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.21
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 97: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.22
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 98: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.23
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2447:56 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 99: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.24
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2448:18 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 100: array::memory_stats_decoder_preserves_validity_and_values.array_bounds.25
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/array.rs:2448:38 in function array::memory_stats_decoder_preserves_validity_and_values
+
+Check 101: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 102: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 103: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 104: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 105: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 106: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 107: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 108: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 109: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 110: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 111: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 112: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 113: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 114: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 115: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 116: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 117: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 118: <std::option::Option<u64> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<u64> as std::cmp::PartialEq>::eq
+
+Check 119: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 120: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 121: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 122: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 123: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 124: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 125: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 126: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 127: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 128: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 129: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+Check 130: std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq
+
+
+SUMMARY:
+ ** 0 of 127 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.5806091s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

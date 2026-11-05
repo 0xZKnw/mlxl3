@@ -1,0 +1,100 @@
+{
+  "status": "closed_with_preserved_fork_failure_and_two_OFF_retries",
+  "source_commit": "aa5bc75fef0f6d23b6e3f04ef76b7bb56ea081a2",
+  "identity": "identity-v6.json",
+  "speed_qualification": {
+    "status": "inconclusive_drift",
+    "confirmed_gain": false,
+    "baseline": "H",
+    "candidate": "C",
+    "pairs": [
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.648781371923278,
+        "candidate_tps": 10.618670535377104,
+        "gain_percent": -0.2827632148178383
+      },
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.42414748018191,
+        "candidate_tps": 10.742992592576593,
+        "gain_percent": 3.058716437011877
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 9.543683550228831,
+        "candidate_tps": 8.433276327375742,
+        "gain_percent": -11.6349962465642
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 9.583576526806409,
+        "candidate_tps": 9.848825885994847,
+        "gain_percent": 2.767749163858646
+      }
+    ],
+    "drift": {
+      "MAIN": {
+        "control_percent": 2.1549377747047016,
+        "gain_spread_points": 3.341479651829715
+      },
+      "HOLD": {
+        "control_percent": 0.4180039747506248,
+        "gain_spread_points": 14.402745410422845
+      }
+    },
+    "memory_status": "requires_campaign_postflight_before_publication"
+  },
+  "confirmed_gain": false,
+  "controls": [
+    {
+      "folder": "control-lfu-v6-before",
+      "name": "before-OFF-MAIN",
+      "tps": 10.26833023336055,
+      "peak_bytes": 7146379216
+    },
+    {
+      "folder": "control-lfu-v6-before",
+      "name": "before-OFF-HOLD",
+      "tps": 10.110321352354472,
+      "peak_bytes": 7140644768
+    },
+    {
+      "folder": "control-lfu-v6-before",
+      "name": "before-MTP-MAIN",
+      "tps": 11.085961674009425,
+      "peak_bytes": 8194659608
+    },
+    {
+      "folder": "control-lfu-v6-before",
+      "name": "before-MTP-HOLD",
+      "tps": 10.101107010739932,
+      "peak_bytes": 7921195608
+    },
+    {
+      "folder": "control-lfu-v6-after",
+      "name": "after-MTP-MAIN",
+      "tps": 11.152036955851186,
+      "peak_bytes": 8193758512
+    },
+    {
+      "folder": "control-lfu-v6-after",
+      "name": "after-MTP-HOLD",
+      "tps": 10.309614431057852,
+      "peak_bytes": 7920736808
+    },
+    {
+      "folder": "control-lfu-v6-after-retry",
+      "name": "after-OFF-MAIN",
+      "tps": 10.725457261290801,
+      "peak_bytes": 7146182536
+    },
+    {
+      "folder": "control-lfu-v6-after-retry",
+      "name": "after-OFF-HOLD",
+      "tps": 10.280891009467238,
+      "peak_bytes": 7139858312
+    }
+  ],
+  "excluded": "Initial after-OFF-MAIN incomplete; initial after-OFF-HOLD not launched; initial postflight failed to spawn; all preserved. Successful retry retains same VM origin; no claim of retroactive initial postflight success."
+}

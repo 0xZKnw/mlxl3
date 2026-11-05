@@ -1,0 +1,52 @@
+{
+  "url": "https://github.com/0xZKnw/mlxl3/pull/122",
+  "observed_head": "d976c60542a54abf48e9bced65f33fc316df258b",
+  "base": "28f1a84e5371775205aeace22f4bf391a301a884",
+  "state": "open_ready_mergeable",
+  "qualification": {
+    "final_executable_source": "08a8aa5a9424c64e3fda38e2e4500e9ae34d569a",
+    "final_cli": "d419a9ffa3264af50096779760392f4d43f9cd0d40cba2d6297f337e6958a9fb",
+    "final_libtest": "1787abcd74699f612e99b3d220491aa9ff95f0ca6ebeb5df30a169e96054e12d",
+    "physical": "6/6 passed, option absent, all owned processes joined",
+    "cpu": "332/8 ignored, direct348/51, MLX384/269; 3 strict Clippy",
+    "proof": "242 CPU checks/17covers; UTF8<=4/unwind10, 7 standard guards unreachable; no Metal/OS/concurrency proof",
+    "timing": "AR32 short screen +1.817/+3.545%; same enabled runtime, no sustained/long-context claim"
+  },
+  "workflow_runs": [
+    {
+      "id": 41857017434,
+      "name": "Apple compatibility contracts",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 41857017433,
+      "name": "Regression checks",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 41857017488,
+      "name": "Native Rust checks",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 41857017423,
+      "name": "Flash profile compatibility",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41857017780,
+      "name": "EXL3 conversion contracts",
+      "status": "in_progress",
+      "conclusion": null
+    }
+  ],
+  "limits": [
+    "Observed exact-head CI is partial; no global-green claim.",
+    "This receipt adds documents only; inspect the next pushed head separately.",
+    "No merge, installed-app replacement or release."
+  ]
+}

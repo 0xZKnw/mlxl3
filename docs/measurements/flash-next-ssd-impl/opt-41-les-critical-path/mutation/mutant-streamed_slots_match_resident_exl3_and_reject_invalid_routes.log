@@ -1,0 +1,17 @@
+
+running 1 test
+test linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes ... 
+thread 'linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes' (1985945) panicked at native/src/linear.rs:1364:13:
+assertion `left == right` failed: validated slots were read back from MLX
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 189 filtered out; finished in 0.06s
+

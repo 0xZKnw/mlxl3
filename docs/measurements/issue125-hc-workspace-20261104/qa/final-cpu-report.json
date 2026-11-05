@@ -1,0 +1,307 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "fmt-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--check"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.6667314160149544,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "inventory-final",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.6713235420174897,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "manifest-final",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_kani_manifest.py"
+      ],
+      "limit_seconds": 30,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.346309625019785,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 90,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 7.947992957982933,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 90,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 4.681363290990703,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 14.834756958007347,
+      "joined": true,
+      "test_results": []
+    },
+    {
+      "name": "full-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 46.083078083000146,
+      "joined": true,
+      "test_results": [
+        [
+          252,
+          0,
+          8
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "full-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 44.805286291986704,
+      "joined": true,
+      "test_results": [
+        [
+          267,
+          0,
+          50
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "full-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "limit_seconds": 240,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 47.38335387498955,
+      "joined": true,
+      "test_results": [
+        [
+          294,
+          0,
+          260
+        ],
+        [
+          44,
+          0,
+          9
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  ],
+  "all_children_joined": true,
+  "totals": {
+    "full-cpu": {
+      "passed": 340,
+      "failed": 0,
+      "ignored": 8
+    },
+    "full-direct": {
+      "passed": 356,
+      "failed": 0,
+      "ignored": 54
+    },
+    "full-mlx": {
+      "passed": 392,
+      "failed": 0,
+      "ignored": 272
+    }
+  },
+  "sources_sha256": {
+    "native/src/gpu/hc.rs": "8f9009e37fa14563b637e58bab29d9211758847d147f692f2065ebbe22065c4f",
+    "native/src/gpu/hc_workspace.rs": "95c42fee6c5ae2c1abcb9cdcb33d0d4149d3b6a9adb1a152e61c93a361f00a8e",
+    "native/src/gpu/hc_workspace_tests.rs": "9727a7f39b25dbfb0e4dc345fa98b53328aa39294cb2e0decee1e68dd408054c",
+    "native/src/hc_workspace_policy.rs": "9720c6febcf9be19866fc2bf807bcfc1930d2b71d0f903dd3406a58dd57964f2",
+    "native/src/hc_workspace_policy_tests.rs": "514c6c78d3edeebe998c2007b1b5e1353816a67057ec63bceff277096e2a135b",
+    "native/src/gpu.rs": "0e99f432bd19d385b2179262b99efc72c52c5b64a33ce479cb6a5d9fa05a8183",
+    "native/src/gpu/memory.rs": "71f032be946e319170da914cd30627c45b64cb293a556e1d73458dbb0e5a125b",
+    "native/src/flash_memory.rs": "28dac068e847ef71e1f24686228caefc80c1e8ac6e537de3ab2e79e735dbc081"
+  },
+  "physical": "not_executed",
+  "kernels_changed": false
+}

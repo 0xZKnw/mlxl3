@@ -1,0 +1,36 @@
+{
+  "status": "mutation_detected_restored_and_positive_rechecked",
+  "source_sha256": "fd4bbf21eca955c2d10e70589966bdf7aabe7a1b09e5c72c0f8c33122429c5d9",
+  "commands": [
+    {
+      "name": "guard-mutation",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5",
+        "--",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "reaped": true,
+      "seconds": 2.7398645840003155
+    },
+    {
+      "name": "guard-restored",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5",
+        "--",
+        "--exact"
+      ],
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 1.9352844590030145
+    }
+  ]
+}

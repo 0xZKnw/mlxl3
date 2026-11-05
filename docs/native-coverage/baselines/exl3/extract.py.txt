@@ -1,0 +1,113 @@
+"""Extract first/middle/last tiles of one real projection per checkpoint and check the CPU CLI."""
+
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+import numpy as np
+
+vendor = Path("apps/MLXL3Studio/Vendor/PonyExl3")
+sys.path.insert(0, str(vendor.resolve()))
+from ponyexl3.ref.decode import decode_codewords
+from ponyexl3.ref.trellis import unpack_trellis_tile
+
+directories = {k: Path(v) for k, v in json.loads(Path(sys.argv[1]).read_text()).items()}
+cli = Path(sys.argv[2]).resolve()
+directories["flash"] = directories["qwen-moe"].parent / "Qwen3.8-Flash-Next-exl3-205-65c89531"
+out = Path("docs/native-coverage/baselines/exl3")
+out.mkdir(exist_ok=True)
+
+
+def sha(path):
+    with path.open("rb") as fp:
+        return hashlib.file_digest(fp, "sha256").hexdigest()
+
+
+def codec(op, values, k, mode):
+    request = {"op": op, "data": values.tolist(), "k": k, "mode": mode}
+    result = subprocess.run(
+        [cli, "codec"],
+        input=json.dumps(request) + "\n",
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=12,
+    )
+    lines = result.stdout.splitlines()
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert set(row) == {"data"} and len(row["data"]) == 256
+    return row["data"]
+
+
+for name, root in directories.items():
+    index = json.loads((root / "model.safetensors.index.json").read_bytes())["weight_map"]
+    if name == "lfm-moe":
+        key = sorted(key for key in index if key.endswith(".experts.0.w1.trellis"))[0]
+    else:
+        expert = "" if name == "qwen-dense" else ".experts.0"
+        key = f"model.language_model.layers.0.mlp{expert}.gate_proj.trellis"
+    prefix = key.removesuffix(".trellis")
+    mode = 2 if prefix + ".mul1" in index else 1 if prefix + ".mcg" in index else 0
+    with (root / index[key]).open("rb") as fp:
+        n = int.from_bytes(fp.read(8), "little")
+        assert 0 < n < 100_000_000
+        header = fp.read(n)
+        tensor = json.loads(header)[key]
+        nr, nc, nw = tensor["shape"]
+        assert tensor["dtype"] in ("I16", "U16") and 1 <= nw // 16 <= 8 and nw % 16 == 0
+        start, end = tensor["data_offsets"]
+        assert end - start == nr * nc * nw * 2 and nr * nc >= 3
+        k = nw // 16
+        doc = {
+            "checkpoint": root.name,
+            "shard": index[key],
+            "header_sha256": hashlib.sha256(header).hexdigest(),
+            "tensor": key,
+            "dtype": tensor["dtype"],
+            "shape": tensor["shape"],
+            "k": k,
+            "mode": mode,
+            "tiles": [],
+        }
+        for tile in (0, nr * nc // 2, nr * nc - 1):
+            offset = 8 + n + start + tile * nw * 2
+            fp.seek(offset)
+            packed = np.frombuffer(fp.read(nw * 2), dtype="<u2")
+            states = unpack_trellis_tile(packed, k)
+            values = decode_codewords(states, mode)
+            bits = values.view(np.uint16)
+            assert states.shape == (256,) and values.shape == (256,) and np.isfinite(values).all()
+            assert codec("unpack", packed, k, mode) == states.tolist()
+            assert codec("codebook", states, k, mode) == bits.tolist()
+            mutated = packed.copy()
+            mutated[0] ^= 1
+            assert codec("unpack", mutated, k, mode) != states.tolist()
+            doc["tiles"].append(
+                {
+                    "tile": tile,
+                    "shard_offset_bytes": offset,
+                    "packed": packed.tolist(),
+                    "states": states.tolist(),
+                    "f16_bits": bits.tolist(),
+                }
+            )
+    (out / (name + ".json")).write_text(json.dumps(doc, separators=(",", ":")) + "\n")
+    print(name, key, k, mode, len(doc["tiles"]), flush=True)
+
+assert not any(s == "mlx" or s.startswith("mlx.") for s in sys.modules)
+refs = [vendor / "ponyexl3/ref" / f for f in ("trellis.py", "codebook.py", "decode.py")]
+(out / "provenance.json").write_text(
+    json.dumps(
+        {
+            "cli_sha256": sha(cli),
+            "numpy_version": np.__version__,
+            "oracle_files": {str(p): sha(p) for p in refs},
+            "extractor_sha256": sha(Path(__file__)),
+        },
+        indent=2,
+    )
+    + "\n"
+)

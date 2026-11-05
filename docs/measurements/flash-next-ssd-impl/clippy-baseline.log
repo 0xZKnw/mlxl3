@@ -1,0 +1,117 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/Documents/mix-stq1_0)
+error: this function has too many arguments (8/7)
+   --> native/src/qwen4.rs:832:5
+    |
+832 | /     fn load(
+833 | |         c: &Checkpoint,
+834 | |         p: &str,
+835 | |         linear: bool,
+...   |
+840 | |         overlap: bool,
+841 | |     ) -> Result<Self> {
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> native/src/qwen4.rs:1017:17
+     |
+1017 |                 &c,
+     |                 ^^ help: change this to: `c`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_borrow
+     = note: `-D clippy::needless-borrow` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::needless_borrow)]`
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> native/src/qwen4.rs:1028:13
+     |
+1028 |             &c,
+     |             ^^ help: change this to: `c`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_borrow
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> native/src/qwen4.rs:1033:37
+     |
+1033 |         let head = Projection::load(&c, "lm_head", H, 248320, false)?;
+     |                                     ^^ help: change this to: `c`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_borrow
+
+error: could not compile `mlxl3-native` (lib) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: items after a test module
+   --> native/src/qwen4.rs:34:1
+    |
+ 34 | mod tests {
+    | ^^^^^^^^^
+...
+249 | impl Norm {
+    | ^^^^^^^^^
+...
+293 | struct Hc {
+    | ^^^^^^^^^
+...
+299 | impl Hc {
+    | ^^^^^^^
+...
+343 | struct Gdn {
+    | ^^^^^^^^^^
+...
+356 | impl Gdn {
+    | ^^^^^^^^
+...
+447 | struct Qsa {
+    | ^^^^^^^^^^
+...
+464 | impl Qsa {
+    | ^^^^^^^^
+...
+611 | struct Ngrams {
+    | ^^^^^^^^^^^^^
+...
+622 | impl Ngrams {
+    | ^^^^^^^^^^^
+...
+754 | struct Ple {
+    | ^^^^^^^^^^
+...
+764 | impl Ple {
+    | ^^^^^^^^
+...
+820 | enum Attention {
+    | ^^^^^^^^^^^^^^
+...
+824 | pub(crate) struct Layer {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+...
+831 | impl Layer {
+    | ^^^^^^^^^^
+...
+894 | pub struct FlashNext {
+    | ^^^^^^^^^^^^^^^^^^^^
+...
+903 | impl FlashNext {
+    | ^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#items_after_test_module
+    = note: `-D clippy::items-after-test-module` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::items_after_test_module)]`
+    = help: move the items to before the test module was defined
+
+error: items after a test module
+  --> native/src/ssd_moe.rs:34:1
+   |
+34 | mod tests {
+   | ^^^^^^^^^
+...
+71 | impl SsdMoe {
+   | ^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#items_after_test_module
+   = help: move the items to before the test module was defined
+
+error: could not compile `mlxl3-native` (lib test) due to 6 previous errors

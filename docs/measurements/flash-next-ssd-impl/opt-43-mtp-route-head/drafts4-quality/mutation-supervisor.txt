@@ -1,0 +1,144 @@
+import hashlib
+import json
+import os
+import re
+import runpy
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+W = Path.cwd()
+ROOT = Path("/Users/justin/Documents/mix-stq1_0")
+P = W / "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality"
+OUT = P / "mutations"
+OUT.mkdir(exist_ok=True)
+SOURCE = W / "native/src/flash_draft.rs"
+original = SOURCE.read_bytes()
+digest = hashlib.sha256(original).hexdigest()
+quality = json.loads((P / "quality.json").read_text())
+assert len(quality) == 7 and all(r["status"] == "passed" and r["reaped"] for r in quality)
+identity = json.loads((P / "identity.json").read_text())
+assert digest == identity["files"]["native/src/flash_draft.rs"]
+assert not (OUT / "result.json").exists()
+(OUT / "positive-source.txt").write_bytes(original)
+result = {"status": "running", "source_before_sha256": digest, "commands": []}
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": str(ROOT / "target"),
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+}
+helpers = runpy.run_path(str(P.parent / "speed-heads/bench-supervisor.txt"))
+parse_vm = runpy.run_path(str(W / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+
+
+def run(name, command, extra, expected, physical=False):
+    record = {"name": name, "command": command, "env": extra, "status": "running"}
+    result["commands"].append(record)
+    child = None
+    started = time.monotonic()
+    try:
+        if physical:
+            record["before"] = helpers["snapshot"](parse_vm)
+            assert (
+                record["before"]["pmset -g batt"].splitlines()[0] == "Now drawing from 'AC Power'"
+            )
+        log = OUT / (name + ".log")
+        with log.open("w") as stream:
+            child = subprocess.Popen(
+                command,
+                env={**env, **extra},
+                stdout=stream,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            record["pid"] = child.pid
+            (OUT / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+            record["exit_code"] = (
+                helpers["monitor"](child, record, parse_vm) if physical else child.wait(timeout=180)
+            )
+        assert record["exit_code"] == expected, log.read_text()[-3000:]
+        if physical:
+            record["after"] = helpers["snapshot"](parse_vm)
+            assert (
+                record["after"]["pmset -g batt"].splitlines()[0]
+                == record["before"]["pmset -g batt"].splitlines()[0]
+            )
+            for key in ["Swapins", "Swapouts"]:
+                delta = record["after"]["vm_bytes"][key] - record["before"]["vm_bytes"][key]
+                assert 0 <= delta <= 256 << 20
+            text = log.read_text()
+            if expected == 101:
+                assert "0 passed; 1 failed;" in text
+                assert (
+                    "selector disagrees with independent oracle"
+                    if "numpy" in name
+                    else "incomplete draft generation: tokens=1, budget=1, pending=0, seconds=0"
+                ) in text
+            else:
+                assert "1 passed; 0 failed;" in text
+        record["status"] = "passed_expected_result"
+        return log.read_text()
+    finally:
+        if child is not None:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=10)
+        record["reaped"] = child is None or child.poll() is not None
+        record["seconds"] = time.monotonic() - started
+        (OUT / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(name, record["status"], flush=True)
+
+
+try:
+    text = original.decode()
+    for old, new in [
+        ("let scores = edges.add(", "let scores = edges.scalar_mul(0.25)?.add("),
+        (
+            'weight("markov_head.markov_w1.weight")\n                    .take(&Array::from_u32(&[previous]',
+            'weight("markov_head.markov_w1.weight")\n                    .take(&Array::from_u32(&[anchor]',
+        ),
+        ("&& (budget == 1 || result.seconds > 0.)", "&& result.seconds > 0."),
+    ]:
+        assert text.count(old) == 1, old
+        text = text.replace(old, new)
+    SOURCE.write_text(text)
+    (OUT / "mutant-source.txt").write_text(text)
+    log = run(
+        "build",
+        ["cargo", "test", "--locked", "--release", "--lib", "--features", "mlx,chat", "--no-run"],
+        {},
+        0,
+    )
+    unit = re.search(r"Executable unittests native/src/lib.rs \(([^)]+)\)", log)[1]
+    for name, case in [
+        ("dflash2-numpy", "dflash2-numpy"),
+        ("dspark-numpy", "dspark-numpy"),
+        ("zero-decode", "dflash2-greedy"),
+    ]:
+        row = next(r for r in quality if r["name"] == case)
+        run(name, [unit, *row["command"][1:]], row["env"], 101, physical=True)
+    result["status"] = "detected_pending_restoration"
+except BaseException as error:
+    result.update(status="failed_or_interrupted", error=repr(error))
+    raise
+finally:
+    SOURCE.write_bytes(original)
+    result["source_after_sha256"] = hashlib.sha256(SOURCE.read_bytes()).hexdigest()
+    assert result["source_after_sha256"] == digest
+    result["restored"] = True
+    (OUT / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+
+try:
+    for name in ["dflash2-numpy", "dspark-numpy", "dflash2-greedy"]:
+        row = next(r for r in quality if r["name"] == name)
+        run("restored-" + name, row["command"], row["env"], 0, physical=True)
+    result["status"] = "detected_restored_and_positive_rechecked"
+except BaseException as error:
+    result.update(status="restored_but_positive_recheck_failed", error=repr(error))
+    raise
+finally:
+    (OUT / "result.json").write_text(json.dumps(result, indent=2) + "\n")

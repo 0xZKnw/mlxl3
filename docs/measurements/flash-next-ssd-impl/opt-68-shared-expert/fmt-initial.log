@@ -1,0 +1,123 @@
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:5:
+     let reference: serde_json::Value =
+         serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+     ensure!(reference["status"] == "complete");
+-    let checkpoint =
+-        crate::checkpoint::inspect(&std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let checkpoint = crate::checkpoint::inspect(&std::path::PathBuf::from(std::env::var(
++        "MLXL3_FLASH_MODEL",
++    )?))?;
+     crate::array::set_default_cache_limit(512 << 20)?;
+     [0, 23, 47]
+         .into_iter()
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:28:
+                 true,
+             )?;
+             ensure!(
+-                moe.shared_gate.is_exl3()
+-                    && moe.shared_up.is_exl3()
+-                    && moe.shared_down.is_exl3()
++                moe.shared_gate.is_exl3() && moe.shared_up.is_exl3() && moe.shared_down.is_exl3()
+             );
+             Ok((moe, values))
+         })
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:73:
+             && !values.is_empty()
+             && values.iter().all(|v| v.is_finite())
+     );
+-    ensure!(actual.to_bytes()? == expected.to_bytes()?, "shared expert differs");
++    ensure!(
++        actual.to_bytes()? == expected.to_bytes()?,
++        "shared expert differs"
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:94:
+                         let row = x.slice(0, row, row + 1)?;
+                         let gate = moe.shared_gate.forward(&row)?.astype(Dtype::Float16)?;
+                         let up = moe.shared_up.forward(&row)?.astype(Dtype::Float16)?;
+-                        let down = moe
+-                            .shared_down
+-                            .forward(&gate.swiglu(&up)?)?
+-                            .astype(dtype)?;
++                        let down = moe.shared_down.forward(&gate.swiglu(&up)?)?.astype(dtype)?;
+                         shared.push(down.mul(&moe.multiplier.forward(&row)?.sigmoid()?)?);
+                         gates.push(gate);
+                         ups.push(up);
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:129:
+                         std::mem::swap(&mut moe.shared_gate, &mut moe.shared_up);
+                         let wrong = moe.shared(&x)?.to_bytes()?;
+                         std::mem::swap(&mut moe.shared_gate, &mut moe.shared_up);
+-                        ensure!(wrong != expected.to_bytes()?, "bad projection escaped oracle");
++                        ensure!(
++                            wrong != expected.to_bytes()?,
++                            "bad projection escaped oracle"
++                        );
+                         exact(&moe.shared(&x)?, &expected, &[rows, H])?;
+                     }
+                     cases += 1;
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:137:
+             }
+         }
+         for shape in [vec![0, H], vec![9, H], vec![1, H - 1], vec![H]] {
+-            ensure!(moe.shared(&Array::zeros_dtype(&shape, Dtype::Float32)?).is_err());
++            ensure!(
++                moe.shared(&Array::zeros_dtype(&shape, Dtype::Float32)?)
++                    .is_err()
++            );
+         }
+-        ensure!(moe.shared(&Array::zeros_dtype(&[1, H], Dtype::UInt32)?).is_err());
++        ensure!(
++            moe.shared(&Array::zeros_dtype(&[1, H], Dtype::UInt32)?)
++                .is_err()
++        );
+         moe.drain()?;
+     }
+     ensure!(cases == 96);
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:146:
+-    println!("FLASH_SHARED_BATCH cases=96 intermediate_checks=288 scalar_gates=byte_exact invalid=15 mutation=detected_restored parity=byte_exact");
++    println!(
++        "FLASH_SHARED_BATCH cases=96 intermediate_checks=288 scalar_gates=byte_exact invalid=15 mutation=detected_restored parity=byte_exact"
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:175:
+             }
+         }
+         for pair in 0..5 {
+-            for candidate in if pair % 2 == 0 { [false, true] } else { [true, false] } {
++            for candidate in if pair % 2 == 0 {
++                [false, true]
++            } else {
++                [true, false]
++            } {
+                 for (moe, _) in &mut fixtures {
+                     moe.shared_batch = candidate;
+                 }
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:185:
+                         moe.shared(x)?.eval()?;
+                     }
+                 }
+-                samples.push(serde_json::json!({"rows":rows,"pair":pair,"candidate":candidate,
+-                    "seconds":started.elapsed().as_secs_f64(),"calls":96}));
++                samples.push(
++                    serde_json::json!({"rows":rows,"pair":pair,"candidate":candidate,
++                    "seconds":started.elapsed().as_secs_f64(),"calls":96}),
++                );
+             }
+         }
+     }
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs:193:
+     let report = serde_json::json!({"status":"complete","parity":"byte_exact","layers":[0,23,47],
+         "meaning":"component wall time includes host construction, dispatch and evaluation; not exclusive GPU time or generation throughput",
+         "warmups_per_layer_variant":8,"samples":samples});
+-    std::fs::write(std::env::var("MLXL3_SHARED_MICRO_OUTPUT")?, serde_json::to_vec_pretty(&report)?)?;
++    std::fs::write(
++        std::env::var("MLXL3_SHARED_MICRO_OUTPUT")?,
++        serde_json::to_vec_pretty(&report)?,
++    )?;
+     println!("FLASH_SHARED_MICRO rows=B2,B4 samples=20 calls_per_sample=96 parity=byte_exact");
+     Ok(())
+ }

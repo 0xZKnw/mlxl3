@@ -1,0 +1,106 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error[E0061]: this method takes 6 arguments but 5 arguments were supplied
+    --> native/src/main.rs:1620:25
+     |
+1620 |                 session.advance(target, head, anchor, context, remaining)
+     |                         ^^^^^^^------------------------------------------ argument #6 is missing
+     |
+note: method defined here
+    --> native/src/mtp.rs:869:16
+     |
+ 869 |         pub fn advance(
+     |                ^^^^^^^
+help: provide the argument
+     |
+1620 |                 session.advance(target, head, anchor, context, remaining, /* allow_lookup */)
+     |                                                                         ++++++++++++++++++++
+
+error[E0599]: no method named `enable_adaptive` found for mutable reference `&mut ChatMtpSession` in the current scope
+    --> native/src/main.rs:2402:17
+     |
+2402 |         session.enable_adaptive();
+     |                 ^^^^^^^^^^^^^^^ method not found in `&mut ChatMtpSession`
+
+error[E0599]: no method named `enable_prompt_lookup` found for mutable reference `&mut ChatMtpSession` in the current scope
+    --> native/src/main.rs:2407:17
+     |
+2407 |         session.enable_prompt_lookup(&tokens);
+     |                 ^^^^^^^^^^^^^^^^^^^^ method not found in `&mut ChatMtpSession`
+
+error[E0061]: this method takes 5 arguments but 6 arguments were supplied
+    --> native/src/main.rs:2474:44
+     |
+2474 |                   dflash_next = Some(session.advance(
+     |                                              ^^^^^^^
+...
+2480 | /                     |ids| {
+2481 | |                         tokenizer
+2482 | |                             .tokenizer()
+2483 | |                             .decode(ids, false)
+2484 | |                             .is_ok_and(|s| s.contains('\n'))
+2485 | |                     },
+     | |_____________________- unexpected argument #6 of type `{closure@native/src/main.rs:2480:21: 2480:26}`
+     |
+note: method defined here
+    --> native/src/main.rs:1610:8
+     |
+1610 |     fn advance(
+     |        ^^^^^^^
+help: remove the extra argument
+     |
+2479 -                     budget - generated.len(),
+2480 -                     |ids| {
+2481 -                         tokenizer
+2482 -                             .tokenizer()
+2483 -                             .decode(ids, false)
+2484 -                             .is_ok_and(|s| s.contains('\n'))
+2485 -                     },
+2479 +                     budget - generated.len(),
+     |
+
+error[E0308]: mismatched types
+    --> native/src/main.rs:3620:30
+     |
+3620 |                         Some(&mut head),
+     |                         ---- ^^^^^^^^^ expected `&mut ChatMtpHead`, found `&mut Head`
+     |                         |
+     |                         arguments to this enum variant are incorrect
+     |
+     = note: expected mutable reference `&mut ChatMtpHead`
+                found mutable reference `&mut Head`
+help: the type constructed contains `&mut Head` due to the type of the argument passed
+    --> native/src/main.rs:3620:25
+     |
+3620 |                         Some(&mut head),
+     |                         ^^^^^---------^
+     |                              |
+     |                              this argument influences the type of `Some`
+note: tuple variant defined here
+    --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/option.rs:606:4
+
+error[E0308]: mismatched types
+    --> native/src/main.rs:3672:31
+     |
+3672 |         let actual = run(Some(&mut head))?;
+     |                          ---- ^^^^^^^^^ expected `&mut ChatMtpHead`, found `&mut Head`
+     |                          |
+     |                          arguments to this enum variant are incorrect
+     |
+     = note: expected mutable reference `&mut ChatMtpHead`
+                found mutable reference `&mut Head`
+help: the type constructed contains `&mut Head` due to the type of the argument passed
+    --> native/src/main.rs:3672:26
+     |
+3672 |         let actual = run(Some(&mut head))?;
+     |                          ^^^^^---------^
+     |                               |
+     |                               this argument influences the type of `Some`
+note: tuple variant defined here
+    --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/option.rs:606:4
+
+Some errors have detailed explanations: E0061, E0599.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `mlxl3-native` (bin "mlxl3-rs") due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+Some errors have detailed explanations: E0061, E0308, E0599.
+error: could not compile `mlxl3-native` (bin "mlxl3-rs" test) due to 6 previous errors

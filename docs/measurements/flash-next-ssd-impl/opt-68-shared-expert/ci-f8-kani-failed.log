@@ -1,0 +1,1431 @@
+kani	UNKNOWN STEP	﻿2026-10-21T22:33:54.0012143Z Current runner version: '2.338.0'
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0027337Z ##[group]Runner Image Provisioner
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0027886Z Hosted Compute Agent
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0028279Z Version: 20261015.610
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0028660Z Commit: 267fdb4e8bbec4ab5ea31367f3a00d5c480c7656
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0029084Z Build Date: 2026-10-14T17:06:54Z
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0029479Z Worker ID: {4ee1136f-780f-41c2-9b2e-8a27be0235dc}
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0029880Z Region: centralus
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0030204Z Cloud: Azure
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0030516Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0031250Z ##[group]Operating System
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0031621Z Ubuntu
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0031919Z 22.04.5
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0032221Z LTS
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0032542Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0032844Z ##[group]Runner Image
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0033205Z Image: ubuntu-22.04
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0033525Z Version: 20261018.327.1
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0034255Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261018.327/images/ubuntu/Ubuntu2204-Readme.md
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0035099Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261018.327
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0035675Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0036285Z ##[group]GITHUB_TOKEN Permissions
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0037704Z Contents: read
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0038032Z Metadata: read
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0038382Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0039674Z Secret source: Actions
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0040462Z Cache mode: write
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0040853Z Prepare workflow directory
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0235662Z Prepare all required actions
+kani	UNKNOWN STEP	2026-10-21T22:33:54.0266492Z Getting action download info
+kani	UNKNOWN STEP	2026-10-21T22:33:54.2693026Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+kani	UNKNOWN STEP	2026-10-21T22:33:54.3723098Z Download action repository 'model-checking/kani-github-action@v1' (SHA:69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237)
+kani	UNKNOWN STEP	2026-10-21T22:33:54.6591004Z Getting action download info
+kani	UNKNOWN STEP	2026-10-21T22:33:54.7547422Z Download action repository 'dtolnay/rust-toolchain@stable' (SHA:b725eda525362e7cf34af9a7243cac1e3f01a7ec)
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9389105Z Complete job name: kani
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9823523Z ##[group]Run actions/checkout@v4
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9824115Z with:
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9824401Z   repository: 0xZKnw/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9828596Z   token: ***
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9829079Z   ssh-strict: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9829502Z   ssh-user: git
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9829941Z   persist-credentials: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9830433Z   clean: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9830876Z   sparse-checkout-cone-mode: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9831408Z   fetch-depth: 1
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9831837Z   fetch-tags: false
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9832282Z   show-progress: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9832741Z   lfs: false
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9833185Z   submodules: false
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9833681Z   set-safe-directory: true
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9834189Z   allow-unsafe-pr-checkout: false
+kani	UNKNOWN STEP	2026-10-21T22:33:54.9834841Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0505420Z Syncing repository: 0xZKnw/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0506672Z ##[group]Getting Git version info
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0507363Z Working directory is '/home/runner/work/mlxl3/mlxl3'
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0508353Z [command]/usr/bin/git version
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0551727Z git version 2.55.0
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0568576Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0589132Z Temporarily overriding HOME='/home/runner/work/_temp/ff5856e9-bff4-489d-9e83-9b64b7abcb8d' before making global git config changes
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0590668Z Adding repository directory to the temporary git global config as a safe directory
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0591845Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mlxl3/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0626491Z Deleting the contents of '/home/runner/work/mlxl3/mlxl3'
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0631066Z ##[group]Initializing the repository
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0634419Z [command]/usr/bin/git init /home/runner/work/mlxl3/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0724664Z hint: Using 'master' as the name for the initial branch. This default branch name
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0733215Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0734440Z hint: to use in all of your new repositories, which will suppress this warning,
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0735333Z hint: call:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0738428Z hint:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0739153Z hint: 	git config --global init.defaultBranch <name>
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0739891Z hint:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0740562Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0741659Z hint: 'development'. The just-created branch can be renamed via this command:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0742564Z hint:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0743074Z hint: 	git branch -m <name>
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0743661Z hint:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0744417Z hint: Disable this message with "git config set advice.defaultBranchName false"
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0745687Z Initialized empty Git repository in /home/runner/work/mlxl3/mlxl3/.git/
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0760050Z [command]/usr/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0768603Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0769635Z ##[group]Disabling automatic garbage collection
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0770713Z [command]/usr/bin/git config --local gc.auto 0
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0804229Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0804933Z ##[group]Setting up auth
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0805672Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0822079Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+kani	UNKNOWN STEP	2026-10-21T22:33:55.0996373Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1014508Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1120515Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1137007Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1236973Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1258652Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1259180Z ##[group]Fetching the repository
+kani	UNKNOWN STEP	2026-10-21T22:33:55.1264227Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f8c9202ed37015c7adf3d787e5471f654f064cea:refs/remotes/origin/codex/flash-next-ssd-205
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7607587Z From https://github.com/0xZKnw/mlxl3
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7608094Z  * [new ref]         f8c9202ed37015c7adf3d787e5471f654f064cea -> origin/codex/flash-next-ssd-205
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7610468Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7610912Z ##[group]Determining the checkout info
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7613117Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7617488Z [command]/usr/bin/git sparse-checkout disable
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7641624Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7656566Z ##[group]Checking out the ref
+kani	UNKNOWN STEP	2026-10-21T22:34:06.7659297Z [command]/usr/bin/git checkout --progress --force -B codex/flash-next-ssd-205 refs/remotes/origin/codex/flash-next-ssd-205
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7589329Z Switched to a new branch 'codex/flash-next-ssd-205'
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7590230Z branch 'codex/flash-next-ssd-205' set up to track 'origin/codex/flash-next-ssd-205'.
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7634009Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7662803Z [command]/usr/bin/git log -1 --format=%H
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7678413Z f8c9202ed37015c7adf3d787e5471f654f064cea
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7844308Z ##[group]Run model-checking/kani-github-action@v1
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7844517Z with:
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7844642Z   kani-version: 0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7844899Z   command: cargo kani
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7845095Z   args: --lib --no-default-features --jobs 1 --output-format terse
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7845298Z   working-directory: .
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7845429Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.7880884Z ##[start-action display=Install Rust;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8051942Z ##[group]Run dtolnay/rust-toolchain@stable
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8052119Z with:
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8052235Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8052361Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8062944Z ##[start-action display=Parse toolchain version;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.parse]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8095025Z ##[group]Run if [[ -z $toolchain ]]; then
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8095266Z ^[[36;1mif [[ -z $toolchain ]]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8095631Z ^[[36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8095994Z ^[[36;1m  echo "'toolchain' is a required input" >&2^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8096165Z ^[[36;1m  exit 1^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8096363Z ^[[36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8096599Z ^[[36;1m  if [[ Linux == macOS ]]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8096906Z ^[[36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8097403Z ^[[36;1m  else^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8097633Z ^[[36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8097889Z ^[[36;1m  fi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8098068Z ^[[36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8098374Z ^[[36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8098637Z ^[[36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8098934Z ^[[36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8099204Z ^[[36;1melse^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8099323Z ^[[36;1m  delimiter=EOF^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8099500Z ^[[36;1m  while [[ $toolchain == *$delimiter* ]]; do delimiter+=_; done^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8099790Z ^[[36;1m  printf 'toolchain<<%s\n%s\n%s\n' "$delimiter" "$toolchain" "$delimiter" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8100020Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8119595Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8119793Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8119909Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8120034Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8182117Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=11]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8184766Z ##[start-action display=Set $CARGO_HOME;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8205046Z ##[group]Run echo CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8205326Z ^[[36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8216407Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8216598Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8245048Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=5]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8246472Z ##[start-action display=Install rustup if needed;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_2]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8262139Z ##[group]Run if ! command -v rustup &>/dev/null; then
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8262440Z ^[[36;1mif ! command -v rustup &>/dev/null; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8262870Z ^[[36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8263346Z ^[[36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8263510Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8274167Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8274356Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8274481Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8274625Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8299402Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=5]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8300946Z ##[start-action display=Install rustup if needed on windows;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_3]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8305060Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8313813Z ##[start-action display=rustup toolchain install stable;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_4]
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8325556Z ##[group]Run set -f  # split targets and components on commas and whitespace, without glob expansion
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8325932Z ^[[36;1mset -f  # split targets and components on commas and whitespace, without glob expansion^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8326189Z ^[[36;1mflags=()^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8326386Z ^[[36;1mfor t in ${targets//,/ }; do flags+=(--target "$t"); done^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8326623Z ^[[36;1mfor c in ${components//,/ }; do flags+=(--component "$c"); done^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8326904Z ^[[36;1mif [[ $toolchain == nightly && -n $components ]]; then flags+=(--allow-downgrade); fi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8327308Z ^[[36;1mlog=$(mktemp)^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8327448Z ^[[36;1mtrap 'rm -f "$log"' EXIT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8327608Z ^[[36;1mfor attempt in 1 2 3 4 5; do^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8327928Z ^[[36;1m  if rustup toolchain install "$toolchain" "${flags[@]}" --profile minimal --no-self-update --force-non-host 2>&1 | tee "$log"; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8328247Z ^[[36;1m    break^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8328366Z ^[[36;1m  else^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8328487Z ^[[36;1m    status=$?^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8328616Z ^[[36;1m  fi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8328788Z ^[[36;1m  if [[ $attempt == 5 ]] || ! grep -Fq 'checksum failed for ' "$log" \^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8329099Z ^[[36;1m      || ! grep -Fq 'this is likely due to an ongoing update of the official release server' "$log"; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8329358Z ^[[36;1m    exit "$status"^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8329500Z ^[[36;1m  fi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8329702Z ^[[36;1m  echo "Retrying rustup toolchain install in 30 seconds (retry $attempt of 4)" >&2^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8329934Z ^[[36;1m  sleep 30^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8330057Z ^[[36;1mdone^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8340856Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341045Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341168Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341318Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341443Z   targets: 
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341560Z   components: 
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341685Z   RUSTUP_PERMIT_COPY_RENAME: 1
+kani	UNKNOWN STEP	2026-10-21T22:34:07.8341824Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.4829204Z info: syncing channel updates for stable-x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:08.5917391Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:08.5966000Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+kani	UNKNOWN STEP	2026-10-21T22:34:08.5966245Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:08.5990362Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=767]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.5994879Z ##[start-action display=rustup default stable;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_5]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6006238Z ##[group]Run rustup default "$toolchain" --force-non-host
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6006507Z ^[[36;1mrustup default "$toolchain" --force-non-host^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6023052Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6023325Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6023445Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6023590Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6023718Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6071775Z info: using existing install for stable-x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6077737Z info: default toolchain set to stable-x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6077917Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6121595Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6121898Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6131049Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=13]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6133639Z ##[start-action display=Create cachekey;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.rustc-version]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6144318Z ##[group]Run DATE=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6144819Z ^[[36;1mDATE=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6145190Z ^[[36;1mHASH=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-hash: //p')^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6145473Z ^[[36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6158100Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6158285Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6158407Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6158555Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6158677Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6332131Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=19]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6334089Z ##[start-action display=Disable incremental compilation;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_6]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6347025Z ##[group]Run if [ -z "${CARGO_INCREMENTAL+set}" ]; then
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6347405Z ^[[36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6347591Z ^[[36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6347752Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6362867Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6363062Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6363182Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6363328Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6389994Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=5]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6391496Z ##[start-action display=Enable colors in Cargo output;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_7]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6420350Z ##[group]Run if [ -z "${CARGO_TERM_COLOR+set}" ]; then
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6420574Z ^[[36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6420776Z ^[[36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6420944Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6432624Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6432812Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6432932Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6433079Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6433206Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6458700Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=6]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6460977Z ##[start-action display=Enable Cargo sparse registry;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_8]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6472269Z ##[group]Run # implemented in 1.66, stabilized in 1.68, made default in 1.70
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6472644Z ^[[36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6473042Z ^[[36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6473509Z ^[[36;1m  if rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.6[89]\.'; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6473840Z ^[[36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6474144Z ^[[36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6474434Z ^[[36;1m  elif rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.6[67]\.'; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6474759Z ^[[36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6475047Z ^[[36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6475240Z ^[[36;1m  fi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6475361Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6485838Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486022Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486148Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486295Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486424Z   CARGO_TERM_COLOR: always
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486559Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6486678Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6801917Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=34]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6804336Z ##[start-action display=Work around spurious network errors in curl 8.0;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_9]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6814949Z ##[group]Run # https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6815365Z ^[[36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6815724Z ^[[36;1mif rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.7[01]\.'; then^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6815997Z ^[[36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6816177Z ^[[36;1mfi^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6828542Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6828727Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6828846Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6828995Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6829125Z   CARGO_TERM_COLOR: always
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6829256Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6829375Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6916538Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=11]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6919572Z ##[start-action display=rustc +stable --version --verbose;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_10]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6929775Z ##[group]Run rustc +"$toolchain" --version --verbose
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6929987Z ^[[36;1mrustc +"$toolchain" --version --verbose^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6941506Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6941698Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6941819Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6941967Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6942099Z   CARGO_TERM_COLOR: always
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6942229Z   toolchain: stable
+kani	UNKNOWN STEP	2026-10-21T22:34:08.6942349Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7016516Z rustc 1.99.1 (58cf8f9c3 2026-10-13)
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7016802Z binary: rustc
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7016999Z commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7017474Z commit-date: 2026-10-13
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7017677Z host: x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7017818Z release: 1.99.1
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7017939Z LLVM version: 23.1.1
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7026093Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=10]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7051244Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain;outcome=success;conclusion=success;duration_ms=916]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7052698Z ##[start-action display=Install Kani;id=__model-checking_kani-github-action.__run]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7063784Z ##[group]Run /home/runner/work/_actions/model-checking/kani-github-action/v1/src/install-kani.sh 0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7064188Z ^[[36;1m/home/runner/work/_actions/model-checking/kani-github-action/v1/src/install-kani.sh 0.68.0^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7075899Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7076089Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7076213Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7076362Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7076494Z   CARGO_TERM_COLOR: always
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7076626Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:08.7391939Z ^[[1m^[[92m    Updating^[[0m crates.io index
+kani	UNKNOWN STEP	2026-10-21T22:34:08.8283423Z ^[[1m^[[92m Downloading^[[0m crates ...
+kani	UNKNOWN STEP	2026-10-21T22:34:08.9033937Z ^[[1m^[[92m  Downloaded^[[0m kani-verifier v0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.9465281Z ^[[1m^[[92m  Installing^[[0m kani-verifier v0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:08.9469555Z ^[[1m^[[92m    Updating^[[0m crates.io index
+kani	UNKNOWN STEP	2026-10-21T22:34:09.1440039Z ^[[1m^[[92m    Updating^[[0m crates.io index
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2276333Z ^[[1m^[[92m Downloading^[[0m crates ...
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2515945Z ^[[1m^[[92m  Downloaded^[[0m bitflags v2.13.2
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2617703Z ^[[1m^[[92m  Downloaded^[[0m anyhow v1.0.104
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2636577Z ^[[1m^[[92m  Downloaded^[[0m cfg-if v1.0.4
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2642335Z ^[[1m^[[92m  Downloaded^[[0m cfg_aliases v0.2.2
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2677240Z ^[[1m^[[92m  Downloaded^[[0m home v0.5.12
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2802156Z ^[[1m^[[92m  Downloaded^[[0m os_info v3.15.0
+kani	UNKNOWN STEP	2026-10-21T22:34:09.2819590Z ^[[1m^[[92m  Downloaded^[[0m log v0.4.34
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3029352Z ^[[1m^[[92m  Downloaded^[[0m nix v0.31.3
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3093493Z ^[[1m^[[92m  Downloaded^[[0m libc v0.2.189
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3408145Z ^[[1m^[[92m   Compiling^[[0m libc v0.2.189
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3408617Z ^[[1m^[[92m   Compiling^[[0m cfg_aliases v0.2.2
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3408925Z ^[[1m^[[92m   Compiling^[[0m cfg-if v1.0.4
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3409229Z ^[[1m^[[92m   Compiling^[[0m bitflags v2.13.2
+kani	UNKNOWN STEP	2026-10-21T22:34:09.3965246Z ^[[1m^[[92m   Compiling^[[0m anyhow v1.0.104
+kani	UNKNOWN STEP	2026-10-21T22:34:09.4217958Z ^[[1m^[[92m   Compiling^[[0m nix v0.31.3
+kani	UNKNOWN STEP	2026-10-21T22:34:09.5538583Z ^[[1m^[[92m   Compiling^[[0m log v0.4.34
+kani	UNKNOWN STEP	2026-10-21T22:34:09.5664714Z ^[[1m^[[92m   Compiling^[[0m kani-verifier v0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:09.6256800Z ^[[1m^[[92m   Compiling^[[0m home v0.5.12
+kani	UNKNOWN STEP	2026-10-21T22:34:10.3066256Z ^[[1m^[[92m   Compiling^[[0m os_info v3.15.0
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8357442Z ^[[1m^[[92m    Finished^[[0m `release` profile [optimized] target(s) in 2.10s
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8369602Z ^[[1m^[[92m  Installing^[[0m /home/runner/.cargo/bin/cargo-kani
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8369883Z ^[[1m^[[92m  Installing^[[0m /home/runner/.cargo/bin/kani
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8372544Z ^[[1m^[[92m   Installed^[[0m package `kani-verifier v0.68.0` (executables `cargo-kani`, `kani`)
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8435222Z Installed Kani 0.68.0 successfully
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8683404Z [0/5] Running Kani first-time setup...
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8692624Z [1/5] Ensuring the existence of: /home/runner/.kani/kani-0.68.0
+kani	UNKNOWN STEP	2026-10-21T22:34:10.8693305Z [2/5] Downloading Kani release bundle: kani-0.68.0-x86_64-unknown-linux-gnu.tar.gz
+kani	UNKNOWN STEP	2026-10-21T22:34:13.8676590Z [3/5] Installing rust toolchain version: nightly-2026-08-21-x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:13.8709346Z info: syncing channel updates for nightly-2026-08-21-x86_64-unknown-linux-gnu
+kani	UNKNOWN STEP	2026-10-21T22:34:14.0319502Z info: latest update on 2026-08-21 for version 1.100.0-nightly (8925ea358 2026-08-20)
+kani	UNKNOWN STEP	2026-10-21T22:34:14.0319785Z info: downloading 3 components
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3682863Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3731565Z   nightly-2026-08-21-x86_64-unknown-linux-gnu installed - rustc 1.100.0-nightly (8925ea358 2026-08-20)
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3731836Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3784859Z [5/5] Successfully completed Kani first-time setup.
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3828539Z ##[end-action id=__model-checking_kani-github-action.__run;outcome=success;conclusion=success;duration_ms=11677]
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3831280Z ##[start-action display=Run Kani;id=__model-checking_kani-github-action.__run_2]
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3844200Z ##[group]Run cd .;
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3844352Z ^[[36;1mcd .;^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3844548Z ^[[36;1mcargo kani --lib --no-default-features --jobs 1 --output-format terse^[[0m
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3858986Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3859173Z env:
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3859293Z   CARGO_HOME: /home/runner/.cargo
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3859437Z   CARGO_INCREMENTAL: 0
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3859565Z   CARGO_TERM_COLOR: always
+kani	UNKNOWN STEP	2026-10-21T22:34:20.3859696Z ##[endgroup]
+kani	UNKNOWN STEP	2026-10-21T22:34:20.4055594Z Kani Rust Verifier 0.68.0 (cargo plugin)
+kani	UNKNOWN STEP	2026-10-21T22:34:20.4068999Z CBMC 6.11.0
+kani	UNKNOWN STEP	2026-10-21T22:34:21.2682098Z ^[[1m^[[92m   Compiling^[[0m proc-macro2 v1.0.107
+kani	UNKNOWN STEP	2026-10-21T22:34:21.2682730Z ^[[1m^[[92m   Compiling^[[0m unicode-ident v1.0.24
+kani	UNKNOWN STEP	2026-10-21T22:34:21.2683267Z ^[[1m^[[92m   Compiling^[[0m quote v1.0.47
+kani	UNKNOWN STEP	2026-10-21T22:34:21.2683762Z ^[[1m^[[92m   Compiling^[[0m libc v0.2.189
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3046642Z ^[[1m^[[92m   Compiling^[[0m pin-project-lite v0.2.17
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3258424Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3259705Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3278020Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3278422Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3278750Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3278952Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3279239Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3279425Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3348433Z ^[[1m^[[92m   Compiling^[[0m bytes v1.11.1
+kani	UNKNOWN STEP	2026-10-21T22:34:21.3869654Z ^[[1m^[[92m   Compiling^[[0m itoa v1.0.18
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4410801Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4450859Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4467989Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4497983Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4527672Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4557641Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4558244Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4578168Z ^[[1m^[[92m   Compiling^[[0m futures-core v0.3.34
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4578405Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4888313Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4927930Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4938136Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4938608Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4968060Z ^[[1m^[[92m   Compiling^[[0m once_cell v1.21.4
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4968557Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.4997765Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5027808Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5028331Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5688147Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5717818Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5747731Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5777736Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5807634Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5837922Z ^[[1m^[[92m   Compiling^[[0m fnv v1.0.7
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5838231Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5867781Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5897540Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.5987979Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6018151Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6048144Z ^[[1m^[[92m   Compiling^[[0m serde_core v1.0.229
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6048442Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6068019Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6097720Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6127661Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6128000Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6157455Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6278135Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6278467Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6278940Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6279108Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6279318Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6279514Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6279905Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6280177Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.6885315Z ^[[1m^[[92m   Compiling^[[0m utf8parse v0.2.2
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7101496Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7118445Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7124267Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7124483Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7124698Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7124883Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7125144Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7125416Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.7568637Z ^[[1m^[[92m   Compiling^[[0m anstyle-parse v1.0.0
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8076961Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8087957Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8117813Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8147652Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8147924Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8148150Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8148432Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8148718Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8231954Z ^[[1m^[[92m   Compiling^[[0m syn v2.0.119
+kani	UNKNOWN STEP	2026-10-21T22:34:21.8638440Z ^[[1m^[[92m   Compiling^[[0m syn v3.0.5
+kani	UNKNOWN STEP	2026-10-21T22:34:21.9458942Z ^[[1m^[[92m   Compiling^[[0m http v0.2.12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0810975Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0837878Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0867510Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0897484Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0927498Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0927741Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0957624Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.0987360Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2278656Z ^[[1m^[[92m   Compiling^[[0m errno v0.3.14
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2548416Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2549157Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2577663Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2607709Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2617558Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2637600Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2648136Z ^[[1m^[[92m   Compiling^[[0m signal-hook-registry v1.4.8
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2667619Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.2697366Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3204176Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3217792Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3244891Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3267577Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3267857Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3268065Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3268353Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3268646Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3268790Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3269051Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3269257Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3269431Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3269666Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3269864Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3270141Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3270420Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.3478624Z ^[[1m^[[92m   Compiling^[[0m socket2 v0.6.3
+kani	UNKNOWN STEP	2026-10-21T22:34:22.4348983Z ^[[1m^[[92m   Compiling^[[0m mio v1.2.0
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5068329Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5077766Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5097572Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5107557Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5107810Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5108017Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5108297Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5108585Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5492574Z ^[[1m^[[92m   Compiling^[[0m tracing-core v0.1.36
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5891874Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5917824Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5947579Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5977602Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5977864Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5978068Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5978350Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.5978715Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.6360794Z ^[[1m^[[92m   Compiling^[[0m zmij v1.0.23
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7163491Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7173188Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7173537Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7173773Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7174047Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7174314Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7174649Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7174987Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7549167Z ^[[1m^[[92m   Compiling^[[0m cfg-if v1.0.4
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7668135Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7698302Z ^[[1m^[[92m   Compiling^[[0m getrandom v0.4.3
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7698678Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7698942Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7761044Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7817798Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7877738Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7906945Z ^[[1m^[[92m   Compiling^[[0m httparse v1.10.1
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7908103Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:22.7927769Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:22.8698787Z ^[[1m^[[92m   Compiling^[[0m rustix v1.1.4
+kani	UNKNOWN STEP	2026-10-21T22:34:22.9738713Z ^[[1m^[[92m   Compiling^[[0m futures-sink v0.3.32
+kani	UNKNOWN STEP	2026-10-21T22:34:22.9918163Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:22.9947950Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:22.9978310Z ^[[1m^[[92m   Compiling^[[0m hashbrown v0.16.1
+kani	UNKNOWN STEP	2026-10-21T22:34:22.9978633Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0008082Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0037812Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0067734Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0097933Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0127463Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0508555Z ^[[1m^[[92m   Compiling^[[0m equivalent v1.0.2
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0658534Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0688124Z ^[[1m^[[92m   Compiling^[[0m is_terminal_polyfill v1.70.2
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0688462Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0688864Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0717817Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0747642Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0748120Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0777771Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0807459Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0837588Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0838043Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0867899Z ^[[1m^[[92m   Compiling^[[0m zerocopy v0.8.57
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0868289Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0897571Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0927504Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0927916Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0957717Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.0987415Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3180927Z ^[[1m^[[92m   Compiling^[[0m colorchoice v1.0.5
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3191593Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3228294Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3267769Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3277881Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3307627Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3308042Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3337737Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3367358Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3428000Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3457632Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3458057Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3488013Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3517923Z ^[[1m^[[92m   Compiling^[[0m futures-task v0.3.34
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3518221Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3518854Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3547946Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3577459Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3748636Z ^[[1m^[[92m   Compiling^[[0m anstyle-query v1.1.5
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3778085Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3807717Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3808119Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3837657Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3837959Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3838289Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3838595Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3956920Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3957624Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3960032Z ^[[1m^[[92m   Compiling^[[0m anstyle v1.0.14
+kani	UNKNOWN STEP	2026-10-21T22:34:23.3977634Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4004251Z ^[[1m^[[92m   Compiling^[[0m futures-util v0.3.34
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4037670Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4040524Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4077622Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4127768Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4137639Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4157676Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4540575Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4567629Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4597529Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4627539Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4627908Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4657401Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4657715Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4658019Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.4748936Z ^[[1m^[[92m   Compiling^[[0m anstream v1.0.0
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5678276Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5707847Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5708122Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5708295Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5708535Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5708732Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5709019Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5709300Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:23.5942403Z ^[[1m^[[92m   Compiling^[[0m indexmap v2.13.0
+kani	UNKNOWN STEP	2026-10-21T22:34:23.9886090Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:23.9917807Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:23.9947587Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:23.9977613Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:23.9997625Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.0037873Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.0067659Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.0097482Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.1278701Z ^[[1m^[[92m   Compiling^[[0m tracing v0.1.44
+kani	UNKNOWN STEP	2026-10-21T22:34:24.1928308Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:24.1977950Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2007611Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2037598Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2067506Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2078147Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2107629Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2137348Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2147567Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2177615Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2184263Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2197722Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2207471Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2207710Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2208009Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2209847Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.2991905Z ^[[1m^[[92m   Compiling^[[0m signal-hook v0.3.18
+kani	UNKNOWN STEP	2026-10-21T22:34:24.3608993Z ^[[1m^[[92m   Compiling^[[0m heck v0.5.0
+kani	UNKNOWN STEP	2026-10-21T22:34:24.4918688Z ^[[1m^[[92m   Compiling^[[0m strsim v0.11.1
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5538841Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5553326Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5607724Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5637689Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5667596Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5697597Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5697951Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5698245Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.5986852Z ^[[1m^[[92m   Compiling^[[0m clap_lex v1.1.0
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6568317Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6568667Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6568870Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6569035Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6569246Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6569435Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6569687Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6569960Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.6771928Z ^[[1m^[[92m   Compiling^[[0m serde_json v1.0.151
+kani	UNKNOWN STEP	2026-10-21T22:34:24.7378767Z ^[[1m^[[92m   Compiling^[[0m bitflags v2.13.2
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8068394Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8108009Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8137715Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8167690Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8167989Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8168196Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8168487Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8168784Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:24.8258325Z ^[[1m^[[92m   Compiling^[[0m linux-raw-sys v0.12.1
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0026774Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0058027Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0058406Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0087799Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0088093Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0088308Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0088604Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0088950Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:25.0580785Z ^[[1m^[[92m   Compiling^[[0m anyhow v1.0.104
+kani	UNKNOWN STEP	2026-10-21T22:34:25.1711542Z ^[[1m^[[92m   Compiling^[[0m tokio-macros v2.6.1
+kani	UNKNOWN STEP	2026-10-21T22:34:25.1998742Z ^[[1m^[[92m   Compiling^[[0m zerocopy-derive v0.8.57
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2118485Z ^[[1m^[[92m   Compiling^[[0m slab v0.4.12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2668152Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2678091Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2707860Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2737954Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2757938Z ^[[1m^[[92m   Compiling^[[0m try-lock v0.2.5
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2758235Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2767751Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2798048Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2827562Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2962590Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:25.2987978Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3018295Z ^[[1m^[[92m   Compiling^[[0m serde v1.0.229
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3018658Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3027710Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3047850Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3077662Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3087710Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:25.3108504Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:25.4681098Z ^[[1m^[[92m   Compiling^[[0m want v0.3.1
+kani	UNKNOWN STEP	2026-10-21T22:34:25.4969830Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:25.4998082Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5017831Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5027730Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5057693Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5077527Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5081073Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5081562Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:25.5123892Z ^[[1m^[[92m   Compiling^[[0m clap_derive v4.6.4
+kani	UNKNOWN STEP	2026-10-21T22:34:25.6968655Z ^[[1m^[[92m   Compiling^[[0m tokio v1.50.0
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7230756Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7257992Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7287711Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7317693Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7347671Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7377553Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7407745Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:25.7437356Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:25.9302139Z ^[[1m^[[92m   Compiling^[[0m serde_derive v1.0.229
+kani	UNKNOWN STEP	2026-10-21T22:34:28.0978211Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:28.0997646Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1007646Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1037515Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1057373Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1057595Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1057889Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:28.1058186Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:28.3012252Z ^[[1m^[[92m   Compiling^[[0m clap_builder v4.6.6
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4788360Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4808007Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4808471Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4808836Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4809171Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4809466Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4809831Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:28.4810200Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8312300Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8327890Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8357706Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8387722Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8388114Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8417736Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8447767Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:28.8477386Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9078253Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9107868Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9108259Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9137690Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9167543Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9167786Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9168073Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:28.9168383Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0238327Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0247857Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0267570Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0277599Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0304515Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0327369Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0328090Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0357354Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.0491461Z ^[[1m^[[92m   Compiling^[[0m tokio-util v0.7.18
+kani	UNKNOWN STEP	2026-10-21T22:34:29.1206270Z ^[[1m^[[92m   Compiling^[[0m http-body v0.4.6
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2076609Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2077389Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2107859Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2117629Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2137577Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2147633Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2148059Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2148431Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.2268341Z ^[[1m^[[92m   Compiling^[[0m socket2 v0.5.10
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3198056Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3237730Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3257632Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3287466Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3297489Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3297727Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3298018Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3298310Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3417836Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3447629Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3467587Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3497581Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3498198Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3498407Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3498701Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3499107Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3728784Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3768251Z ^[[1m^[[92m   Compiling^[[0m h2 v0.3.27
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3768575Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3777749Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3807544Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3827530Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3837566Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3867582Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3887384Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3927859Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3947564Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3947801Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3947980Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3948203Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3948408Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3948737Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.3949023Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4152664Z ^[[1m^[[92m   Compiling^[[0m futures-channel v0.3.32
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4948131Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4977848Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4978121Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4978306Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4978547Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4978755Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4979054Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.4979347Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5128512Z ^[[1m^[[92m   Compiling^[[0m tower-service v0.3.3
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5308053Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5337978Z ^[[1m^[[92m   Compiling^[[0m fastrand v2.5.0
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5338320Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5367558Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5397511Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5427689Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5427957Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5457627Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.5457963Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6118160Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6147724Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6177590Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6207577Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6237618Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6267501Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6297658Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6327828Z ^[[1m^[[92m   Compiling^[[0m powerfmt v0.2.0
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6328031Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6868104Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6927881Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6957551Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.6987549Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7007575Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7039243Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7047742Z ^[[1m^[[92m   Compiling^[[0m time-core v0.1.9
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7077558Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7087349Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7708601Z ^[[1m^[[92m   Compiling^[[0m num-conv v0.2.2
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7853714Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7877762Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7907430Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7907650Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7907884Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7908076Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7908364Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7908646Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.7968025Z ^[[1m^[[92m   Compiling^[[0m deranged v0.5.8
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8048898Z ^[[1m^[[92m   Compiling^[[0m memchr v2.8.3
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8256645Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8287937Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8318095Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8318718Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8327882Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8328215Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8328750Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8329085Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:29.8346625Z ^[[1m^[[92m   Compiling^[[0m mlxl3-native v1.4.3 (/home/runner/work/mlxl3/mlxl3)
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0058581Z ^[[1m^[[92m   Compiling^[[0m httpdate v1.0.3
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0448176Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0477629Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0477904Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0507545Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0507822Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0567560Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0597872Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0615133Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0816802Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0817984Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0887552Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0917514Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0927634Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0947486Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0977631Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.0987390Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4408154Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4467867Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4497663Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4507565Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4507848Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4508061Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4508356Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.4508653Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.5378617Z ^[[1m^[[92m   Compiling^[[0m time v0.3.55
+kani	UNKNOWN STEP	2026-10-21T22:34:30.5948244Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.5977877Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6007799Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6037789Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6067689Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6097641Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6127791Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.6147530Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7218486Z ^[[1m^[[92m   Compiling^[[0m clap v4.6.6
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7398140Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7427840Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7445589Z ^[[1m^[[92m   Compiling^[[0m half v2.7.1
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7447595Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7487549Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7487827Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7517471Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7547612Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.7577288Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.8938529Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.8957780Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.8977783Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9007747Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9037617Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9038522Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9077801Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9097348Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9108353Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9128223Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9128476Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9128678Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9128949Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9129193Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9129539Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9130914Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:30.9512692Z ^[[1m^[[92m   Compiling^[[0m tempfile v3.27.0
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0419187Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0447953Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0477847Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0487666Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0507992Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0537762Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0567884Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.0578127Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1388189Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1397852Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1398130Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1398308Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1398541Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1398739Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1399020Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.1399312Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2510716Z ^[[1m^[[92m   Compiling^[[0m hyper v0.14.32
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2718209Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2748206Z    --> /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/lib.rs:210:50
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2777774Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2807913Z 210 | #![cfg_attr(error_generic_member_access, feature(error_generic_member_access))]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2837710Z     |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2867698Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2897807Z     = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2927435Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2957770Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.2987710Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3017539Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3047603Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3077742Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3107409Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3124556Z ^[[1m^[[92m   Compiling^[[0m fs2 v0.4.3
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3489733Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3518128Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3547888Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3577948Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3578328Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3598655Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3599285Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3599677Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3764068Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3764935Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3765262Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3765530Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3765846Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3766130Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3766496Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.3766871Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4521995Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4522452Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4522679Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4522944Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4523152Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4523354Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4523617Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:31.4540121Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4144939Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4145295Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4145501Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4145672Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4145898Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4146087Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4146355Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:32.4146636Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7874073Z warning: trailing semicolon in macro used in expression position
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7874357Z    --> native/src/contracts.rs:381:17
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7874507Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7874673Z 381 |         None => assert!(!(2..=8).contains(&rows)),
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7874857Z     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7875006Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7875278Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7875883Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7876269Z     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7876780Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877007Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877110Z warning: trailing semicolon in macro used in expression position
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877474Z    --> native/src/contracts.rs:534:17
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877617Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877746Z 534 |         None => assert!(!(2..24).contains(&rows)),
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7877920Z     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7878064Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7878322Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7878715Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7879079Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7879305Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888053Z warning: trailing semicolon in macro used in expression position
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888283Z    --> native/src/memory_policy.rs:341:21
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888429Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888549Z 341 |             None => assert!(current > 3),
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888709Z     |                     ^^^^^^^^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7888852Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7889104Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7889494Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7890210Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+kani	UNKNOWN STEP	2026-10-21T22:34:32.7890543Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3201245Z warning: function `missing_jobs` is never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3201860Z  --> native/src/flash_cache_profile/profile53.rs:3:4
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3202382Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3202672Z 3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3202984Z   |    ^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3203162Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3203399Z   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3203619Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3203714Z warning: constant `PRIOR` is never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3203964Z  --> native/src/flash_draft_budget.rs:5:7
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3204188Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3204464Z 5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3204763Z   |       ^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3204866Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3204991Z warning: struct `Label` is never constructed
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3205255Z  --> native/src/flash_draft_budget.rs:7:8
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3205487Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3205646Z 7 | struct Label {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3205823Z   |        ^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3205924Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3206035Z warning: struct `VerifyBudget` is never constructed
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3206323Z   --> native/src/flash_draft_budget.rs:13:19
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3206559Z    |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3206742Z 13 | pub(crate) struct VerifyBudget {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3206974Z    |                   ^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3207280Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3207373Z warning: function `logit` is never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3207625Z   --> native/src/flash_draft_budget.rs:29:4
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3207853Z    |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3208025Z 29 | fn logit(p: f64) -> f64 {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3208231Z    |    ^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3208337Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3208431Z warning: function `sigmoid` is never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3208993Z   --> native/src/flash_draft_budget.rs:33:4
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3209235Z    |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3209406Z 33 | fn sigmoid(z: f64) -> f64 {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3209617Z    |    ^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3209815Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3209906Z warning: function `seed` is never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3210154Z   --> native/src/flash_draft_budget.rs:37:4
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3210390Z    |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3210555Z 37 | fn seed(rows: f64) -> f64 {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3210756Z    |    ^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3210852Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3211057Z warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3211442Z    --> native/src/flash_draft_budget.rs:86:8
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3211681Z     |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3211854Z  85 | impl VerifyBudget {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3212101Z     | ----------------- methods in this implementation
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3212393Z  86 |     fn line(&self) -> Option<(f64, f64)> {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3212638Z     |        ^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3212813Z ...
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3212982Z  99 |     fn costs(&self) -> [f64; 8] {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3213210Z     |        ^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3213377Z ...
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3213633Z 105 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3213950Z     |                   ^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3214146Z ...
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3214317Z 123 |     pub(crate) fn observe(
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3214534Z     |                   ^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3214727Z ...
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3214933Z 174 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3215201Z     |        ^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3215381Z ...
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3215548Z 191 |     fn fit(&mut self) {
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3215747Z     |        ^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3215851Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3218403Z warning: use of an unstable feature
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3218650Z  --> <crate attribute>:1:12
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3218862Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3219050Z 1 | #![feature(register_tool)]
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3219265Z   |            ^^^^^^^^^^^^^
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3219456Z   |
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3219722Z   = note: requested on the command line with `--force-warn unstable-features`
+kani	UNKNOWN STEP	2026-10-21T22:34:33.3219982Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0837363Z warning: Found the following unsupported constructs:
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0837741Z              - caller_location (1)
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0837973Z              - foreign function (1)
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0838186Z          
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0838456Z          Verification will fail if one or more of these constructs is reachable.
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0839001Z          See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+kani	UNKNOWN STEP	2026-10-21T22:34:39.0839325Z 
+kani	UNKNOWN STEP	2026-10-21T22:34:39.1309354Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 17.94s
+kani	UNKNOWN STEP	2026-10-21T22:34:39.1311171Z ^[[1m^[[33mwarning^[[0m: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/home/runner/work/mlxl3/mlxl3)
+kani	UNKNOWN STEP	2026-10-21T22:34:39.1311784Z ^[[1m^[[92mnote^[[0m: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+kani	UNKNOWN STEP	2026-10-21T22:34:49.2041058Z Checking harness codec::verification::exl3_permutation_and_inverse_are_bijections...
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9790548Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9792523Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9792844Z  ** 0 of 192 failed (1 unreachable)
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9793027Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9793125Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9793363Z Verification Time: 79.77524s
+kani	UNKNOWN STEP	2026-10-21T22:36:08.9793517Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.0382000Z Checking harness codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile...
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2189438Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2189944Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2190235Z  ** 0 of 81 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2190363Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2190461Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2190579Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2191070Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2191169Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2191391Z Verification Time: 0.18077764s
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2191701Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.2714606Z Checking harness codec::verification::symbolic_pack_indices_stay_inside_one_tile...
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4152300Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4152781Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153055Z  ** 0 of 76 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153167Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153265Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153429Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153433Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153526Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153751Z Verification Time: 0.1436698s
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4153868Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.4651767Z Checking harness codec::verification::bitrate_validation_accepts_exactly_one_through_eight...
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5123525Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124058Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124336Z  ** 0 of 56 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124454Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124597Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124771Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124775Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5124873Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5125109Z Verification Time: 0.04707434s
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5125225Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5549763Z Checking harness contracts::memory_saver_releases_every_unused_buffer...
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5822772Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823222Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823452Z  ** 0 of 3 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823527Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823596Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823706Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823711Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823772Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5823920Z Verification Time: 0.0271605s
+kani	UNKNOWN STEP	2026-10-21T22:36:09.5824014Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6250777Z Checking harness contracts::idle_cache_release_preserves_small_working_sets...
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6475371Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6475696Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6475917Z  ** 0 of 4 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476029Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476104Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476223Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476230Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476300Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476449Z Verification Time: 0.0223755s
+kani	UNKNOWN STEP	2026-10-21T22:36:09.6476542Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:09.7147554Z Checking harness contracts::verification::qmv_shape_matches_wide_arithmetic...
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0096526Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097107Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097526Z  ** 0 of 180 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097608Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097678Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097800Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097803Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0097863Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0098015Z Verification Time: 1.294709s
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0098109Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:11.0793579Z Checking harness contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles...
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8223612Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224179Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224457Z  ** 0 of 192 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224584Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224687Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224881Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224884Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8224978Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8225180Z Verification Time: 1.7429252s
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8225275Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.8640458Z Checking harness contracts::verification::accepted_data_ranges_are_exact_and_in_bounds...
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9520960Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9521506Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9521808Z  ** 0 of 5 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9521929Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522045Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522239Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522244Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522342Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522587Z Verification Time: 0.087957166s
+kani	UNKNOWN STEP	2026-10-21T22:36:12.9522741Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:13.2105298Z Checking harness contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions...
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7007539Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7008175Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7008463Z  ** 0 of 352 failed (1 unreachable)
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009046Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009147Z  ** 1 of 1 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009256Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009259Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009322Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009468Z Verification Time: 4.489965s
+kani	UNKNOWN STEP	2026-10-21T22:36:17.7009562Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:17.9421753Z Checking harness contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions...
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4442846Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443296Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443509Z  ** 0 of 330 failed (5 unreachable)
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443623Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443692Z  ** 1 of 1 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443809Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443813Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4443873Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4444018Z Verification Time: 5.5019345s
+kani	UNKNOWN STEP	2026-10-21T22:36:23.4444142Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:23.8607825Z Checking harness contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary...
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5677595Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678118Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678338Z  ** 0 of 97 failed (1 unreachable)
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678457Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678527Z  ** 3 of 3 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678634Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678638Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678701Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678850Z Verification Time: 1.7067173s
+kani	UNKNOWN STEP	2026-10-21T22:36:25.5678944Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6131567Z Checking harness contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits...
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6647084Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6647640Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6647833Z  ** 0 of 11 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6647912Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6647984Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6648101Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6648105Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6648208Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6648349Z Verification Time: 0.051471602s
+kani	UNKNOWN STEP	2026-10-21T22:36:25.6648447Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7127413Z Checking harness contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows...
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7642700Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643204Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643495Z  ** 0 of 12 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643609Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643715Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643887Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643892Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7643988Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7644207Z Verification Time: 0.051467557s
+kani	UNKNOWN STEP	2026-10-21T22:36:25.7644343Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8121138Z Checking harness contracts::verification::gdn_tape_prefix_covers_all_valid_commits...
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8713703Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714172Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714439Z  ** 0 of 66 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714565Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714666Z  ** 5 of 5 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714884Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714888Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8714981Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8715147Z Verification Time: 0.0590924s
+kani	UNKNOWN STEP	2026-10-21T22:36:25.8715253Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9142196Z Checking harness contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch...
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9352077Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9352584Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9352798Z  ** 0 of 2 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9352875Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9352943Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9353056Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9353062Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9353122Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9353267Z Verification Time: 0.0209242s
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9353414Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:25.9877657Z Checking harness contracts::tensor_source_interval_is_ordered_and_cannot_wrap...
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1750737Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1751384Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1751658Z  ** 0 of 19 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1751773Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752287Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752411Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752414Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752473Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752713Z Verification Time: 0.18723698s
+kani	UNKNOWN STEP	2026-10-21T22:36:26.1752809Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.2432911Z Checking harness contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row...
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5820893Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5821455Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5821738Z  ** 0 of 85 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5821853Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5821970Z  ** 3 of 3 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5822146Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5822157Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5822247Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5822471Z Verification Time: 0.33869052s
+kani	UNKNOWN STEP	2026-10-21T22:36:26.5822613Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.6587064Z Checking harness contracts::grouped_mb3_preserves_rows_and_all_fallbacks...
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9118157Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9118584Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9118824Z  ** 0 of 164 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9118906Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9118974Z  ** 6 of 6 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9119093Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9119106Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9119168Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9119312Z Verification Time: 0.2529339s
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9119403Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:26.9640132Z Checking harness contracts::flash_reference_batch_has_exact_bounded_coverage...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0668452Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0669002Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679480Z  ** 0 of 69 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679622Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679720Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679880Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679884Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0679972Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0680188Z Verification Time: 0.10269479s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.0680331Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1177630Z Checking harness contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1704851Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1705376Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1705653Z  ** 0 of 61 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1705772Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1705874Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1706070Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1706073Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1706164Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1706385Z Verification Time: 0.052636594s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.1706494Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2156847Z Checking harness contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2549471Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2549987Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550203Z  ** 0 of 7 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550282Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550364Z  ** 3 of 3 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550486Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550489Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550551Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550696Z Verification Time: 0.039219026s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.2550800Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.3174055Z Checking harness contracts::mtp_add_norm_launch_bounds...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4658888Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4659412Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4659694Z  ** 0 of 109 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4659845Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4659953Z  ** 3 of 3 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4660129Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4660133Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4660221Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4660448Z Verification Time: 0.14826779s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.4660601Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5141814Z Checking harness contracts::pipeline_layer_has_no_final_or_outside_submission...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5924992Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925491Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925699Z  ** 0 of 13 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925775Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925849Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925969Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5925971Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5926038Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5926187Z Verification Time: 0.07820683s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.5926286Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6350232Z Checking harness contracts::mtp_pipeline_default_is_limited_to_measured_target...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6666237Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6666662Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667302Z  ** 0 of 1 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667378Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667451Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667566Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667569Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667634Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667784Z Verification Time: 0.031463493s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.6667886Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.7211474Z Checking harness contracts::dense_mlp_batch_stays_within_supported_domain...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8184175Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8184693Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8184972Z  ** 0 of 61 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185099Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185209Z  ** 5 of 5 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185384Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185389Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185485Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185695Z Verification Time: 0.097182445s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8185836Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8593729Z Checking harness contracts::smallm_kernel_key_is_injective...
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8980340Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8980859Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981076Z  ** 0 of 3 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981152Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981230Z  ** 4 of 4 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981343Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981346Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981412Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981562Z Verification Time: 0.038580198s
+kani	UNKNOWN STEP	2026-10-21T22:36:27.8981664Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:27.9506616Z Checking harness dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples...
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3549591Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550098Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550381Z  ** 0 of 49 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550499Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550601Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550780Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550785Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3550882Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3551080Z Verification Time: 0.4042175s
+kani	UNKNOWN STEP	2026-10-21T22:36:28.3551176Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4011925Z Checking harness dflash::verification::alignment_is_monotonic_and_aligned_when_representable...
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4323103Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4323625Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4323910Z  ** 0 of 11 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4324023Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4324084Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4324272Z Verification Time: 0.031019757s
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4324427Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.4835356Z Checking harness dflash::verification::draft_capture_keeps_full_window_at_both_boundaries...
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5803699Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5804280Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5804659Z  ** 0 of 34 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5804941Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805050Z  ** 3 of 3 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805229Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805233Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805321Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805503Z Verification Time: 0.09673021s
+kani	UNKNOWN STEP	2026-10-21T22:36:28.5805635Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.6304593Z Checking harness dflash::dflash_layouts_have_bounded_published_geometry...
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7145265Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7145918Z VERIFICATION RESULT:
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146332Z  ** 0 of 30 failed
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146472Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146655Z  ** 2 of 2 cover properties satisfied
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146855Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146858Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7146957Z VERIFICATION:- SUCCESSFUL
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7147313Z Verification Time: 0.08387434s
+kani	UNKNOWN STEP	2026-10-21T22:36:28.7147459Z 
+kani	UNKNOWN STEP	2026-10-21T22:36:29.7212878Z Checking harness flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels...
+kani	UNKNOWN STEP	2026-10-21T22:42:23.4442391Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.
+kani	UNKNOWN STEP	2026-10-21T22:42:23.4450617Z ##[error]Process completed with exit code 143.
+kani	UNKNOWN STEP	2026-10-21T22:42:23.5028454Z ##[end-action id=__model-checking_kani-github-action.__run_2;outcome=failure;conclusion=failure;duration_ms=483118]
+kani	UNKNOWN STEP	2026-10-21T22:42:23.6599268Z Cleaning up orphan processes
+kani	UNKNOWN STEP	2026-10-21T22:42:23.7581901Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

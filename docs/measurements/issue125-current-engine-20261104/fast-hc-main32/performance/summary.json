@@ -1,0 +1,32 @@
+{
+  "status": "exploratory_single_samples",
+  "parity": true,
+  "all_children_joined": true,
+  "outputs_checked_including_historical_A1": 8,
+  "historical_A1_tps": 6.561890387484125,
+  "closing_A2_tps": 6.614966436247115,
+  "endpoint_control_drift_percent": 0.8088530229676705,
+  "candidates": {
+    "K3": {
+      "decode_tps": 6.653877866186786,
+      "single_sample_percent_vs_A1": 1.401844183165779,
+      "single_sample_percent_vs_A2": 0.5882332180319638,
+      "ttft_seconds": 12.929992375,
+      "elapsed_seconds": 17.5889465,
+      "metal_allocated_bytes": 6608617472
+    },
+    "K4": {
+      "decode_tps": 6.524044849123723,
+      "single_sample_percent_vs_A1": -0.5767474938713768,
+      "single_sample_percent_vs_A2": -1.374482969787738,
+      "ttft_seconds": 13.487679208,
+      "elapsed_seconds": 18.23936475,
+      "metal_allocated_bytes": 6608617472
+    }
+  },
+  "limits": [
+    "HistoricalA1 precedes exploration, notcontemporaneouspair",
+    "onewarm+oneMAIN32measurement perprocess; noHOLD/ABBA or withinvariantdrift",
+    "endpointdrift isobserved notinterpolated; noaddedgains"
+  ]
+}

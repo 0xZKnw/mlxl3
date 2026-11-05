@@ -1,0 +1,35 @@
+[
+  {
+    "name": "error-before-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 43739,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.3976749579887837
+  },
+  {
+    "name": "error-before-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--no-run"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 43742,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 33.80574241600698
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "differences": [
+    "native/src/gpu.rs: config MLXL3_NATIVE_SSD_DIRECT 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_AR_HC_CHAIN 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_AR_HC_GATE_CHAIN 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_FLASH_FIXED_DIMS 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_FLASH_NT2 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_FLASH_STATIC_K 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_ROUTED_SCRATCH 0 -> 1",
+    "native/src/gpu/flash.rs: config MLXL3_NATIVE_SSD_DIRECT 0 -> 1",
+    "native/src/gpu/ssd_direct_tests.rs: config MLXL3_FLASH_MODEL 0 -> 2",
+    "native/src/ssd_reads/direct_tests.rs: .ready 0 -> 7",
+    "native/src/ssd_reads/direct_tests.rs: .try_clone 0 -> 8"
+  ],
+  "inherited_sources_unchanged": [
+    "native/src/gpu/ssd_direct_tests.rs",
+    "native/src/ssd_reads/direct_tests.rs"
+  ],
+  "inherited_gpu_flag_in_HEAD": 1,
+  "baseline_source_head": "038abd98a59b382fd49cb376560571a91840933c",
+  "baseline_hashes": {
+    "docs/native-coverage/mlx-sites.json": "555ac930f79b1fb19f38ebb185d50a8dcf456b7b34168efa219d77e7a2f5f405",
+    "native/src/gpu.rs": "654aff875ae3e92b092be9c092505a94c6eaa954e3afc787b18f297cf5158785",
+    "native/src/gpu/ssd_direct_tests.rs": "4bb87e9290e179d5649e03a9576e6677104885d6eeb2b9f4ca7381b15efad994",
+    "native/src/ssd_reads/direct_tests.rs": "bd6d1833c111e272893c2f0bfa04a7eb195f130d4ac69c0c8c043111fa464f40"
+  }
+}

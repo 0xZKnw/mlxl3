@@ -1,0 +1,264 @@
+import ast
+import copy
+import hashlib
+import json
+import math
+import random
+import statistics
+import subprocess
+import tempfile
+from pathlib import Path
+from types import SimpleNamespace
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads")
+source = (p / "bench-supervisor.txt").read_text()
+hashes = {
+    name: hashlib.sha256((p / name).read_bytes()).hexdigest()
+    for name in ["bench-supervisor.txt", "guards-supervisor.txt"]
+}
+(p / "guard-checks.json").write_text(
+    json.dumps({"status": "incomplete", "source_hashes": hashes}) + "\n"
+)
+tree = ast.parse(source)
+functions = [n for n in tree.body if isinstance(n, ast.FunctionDef)]
+namespace = {
+    "json": json,
+    "math": math,
+    "statistics": statistics,
+    "LIMIT": 256 << 20,
+    "Path": Path,
+    "sys": SimpleNamespace(argv=["guard", "heads", "baseline"]),
+    "hashlib": hashlib,
+}
+exec(
+    compile(ast.Module(body=functions, type_ignores=[]), "actual-benchmark-functions", "exec"),
+    namespace,
+)
+plan = namespace["schedule"]()
+assert len(plan) == 16
+fixture = [
+    {
+        **item,
+        "status": "validated",
+        "reaped": True,
+        "tps": 10.2 if item["label"] == "C" else 10.0,
+        "peak_bytes": 8 << 30,
+        "swapout_bytes": 0,
+        "swapin_bytes": 0,
+    }
+    for item in plan
+]
+evaluate = namespace["evaluate"]
+assert evaluate(fixture, "baseline")["status"] == "non_regression"
+assert evaluate(fixture, "mtp")["status"] == "validated_gain"
+cases = []
+for length in range(16):
+    assert evaluate(fixture[:length], "mtp")["status"] == "incomplete"
+    assert evaluate(fixture[:length], "mtp")["parity_complete"] is False
+    cases.append("prefix-" + str(length))
+for field, value in [
+    ("tps", True),
+    ("tps", float("nan")),
+    ("tps", float("inf")),
+    ("tps", 0),
+    ("tps", -1),
+    ("peak_bytes", 0),
+    ("peak_bytes", True),
+    ("peak_bytes", (10 << 30) + 1),
+    ("status", "running"),
+    ("reaped", False),
+    ("swapin_bytes", -1),
+    ("swapin_bytes", (256 << 20) + 1),
+    ("swapout_bytes", (256 << 20) + 1),
+    ("prompt", "wrong"),
+    ("pair", 100),
+    ("label", "wrong"),
+]:
+    altered = copy.deepcopy(fixture)
+    altered[0][field] = value
+    try:
+        evaluate(altered, "mtp")
+    except (AssertionError, KeyError, ValueError, TypeError):
+        pass
+    else:
+        raise AssertionError("invalid arm accepted " + str((field, value)))
+    cases.append(str((field, value)))
+for records in [fixture + [fixture[0]], fixture[:1] + fixture[:15], list(reversed(fixture))]:
+    try:
+        evaluate(records, "mtp")
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("bad order accepted")
+    cases.append("invalid-order")
+for tps, baseline, mtp in [
+    (9.8, "non_conclusive", "non_conclusive"),
+    (9.95, "non_regression", "non_conclusive"),
+    (10.0, "non_regression", "non_conclusive"),
+    (10.1, "non_regression", "validated_gain"),
+]:
+    altered = [{**r, "tps": tps if r["label"] == "C" else 10.0} for r in fixture]
+    assert evaluate(altered, "baseline")["status"] == baseline
+    assert evaluate(altered, "mtp")["status"] == mtp
+    cases.append("effect-" + str(tps))
+for key in ["tps", "peak_bytes"]:
+    altered = copy.deepcopy(fixture)
+    index = next(i for i, r in enumerate(altered) if r["label"] == "C")
+    altered[index][key] = 11.0 if key == "tps" else (8 << 30) + (256 << 20) + 1
+    result = evaluate(altered, "mtp")
+    assert result["status"] == "non_conclusive" and result["parity_complete"] is True
+    cases.append("range-or-memory-" + key)
+altered = [{**r, "tps": r["tps"] * (1.11 if r["pair"] == 3 else 1.0)} for r in fixture]
+assert evaluate(altered, "mtp")["effect_ok"] is True
+assert evaluate(altered, "mtp")["variability_ok"] is False
+assert evaluate(altered, "mtp")["status"] == "non_conclusive"
+cases.append("control-drift-with-unchanged-paired-ratios")
+stopping = namespace["stopping_reason"]
+assert stopping([], "mtp") is None
+assert stopping(fixture, "mtp") is None
+negative = [
+    {**r, "tps": 9.8 if r["label"] == "C" and r["pair"] == 0 else r["tps"]} for r in fixture
+]
+assert stopping(negative[:2], "mtp") is None
+assert stopping(negative[:4], "mtp") == "balanced_block_has_negative_pair"
+assert stopping(negative[:4], "baseline") is None
+memory = copy.deepcopy(fixture)
+memory[1]["peak_bytes"] += (256 << 20) + 1
+assert stopping(memory[:2], "mtp") == "memory"
+drift = [{**r, "tps": r["tps"] / (1.12 if r["pair"] == 1 else 1.0)} for r in fixture]
+assert stopping(drift[:4], "baseline") == "control_drift"
+edge = [{**r, "tps": 10.0 if r["pair"] == 0 and r["label"] == "C" else r["tps"]} for r in fixture]
+assert stopping(edge[:4], "mtp") is None
+assert evaluate(edge, "mtp")["status"] == "validated_gain"
+cases.extend(
+    [
+        "balanced-wait",
+        "balanced-negative",
+        "off-effect-not-stopped",
+        "memory-stop",
+        "control-drift-stop",
+        "nonnegative-geometric-criterion",
+    ]
+)
+
+rng = random.Random(43)
+for _ in range(200):
+    scale = 10 ** rng.uniform(-3, 3)
+    altered = [{**r, "tps": r["tps"] * scale} for r in fixture]
+    assert evaluate(altered, "mtp")["status"] == "validated_gain"
+    assert all(abs(v - 1.02) < 1e-12 for v in evaluate(altered, "mtp")["median_ratios"].values())
+
+# Exercise the actual monitor with deterministic wait/probe failures.
+monitor = namespace["monitor"]
+monitor_cases = []
+for label, swapout, swapin, power, probe_error, deadline, expected in [
+    ("valid", 0, 0, "Battery Power", False, False, "ok"),
+    ("valid-ac", 0, 0, "AC Power", False, False, "ok"),
+    ("swapout", 1 + (256 << 20), 0, "Battery Power", False, False, "AssertionError"),
+    ("swapin", 0, 1 + (256 << 20), "Battery Power", False, False, "AssertionError"),
+    ("negative", -1, 0, "Battery Power", False, False, "AssertionError"),
+    ("power", 0, 0, "AC Power", False, False, "AssertionError"),
+    ("probe-error", 0, 0, "Battery Power", True, False, "TimeoutExpired"),
+    ("deadline", 0, 0, "Battery Power", False, True, "TimeoutExpired"),
+]:
+
+    class Child:
+        calls = 0
+
+        def wait(self, timeout):
+            self.calls += 1
+            assert 0 < timeout <= 2
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired(["fixture"], timeout)
+            return 0
+
+    clock = iter([0, 361 if deadline else 0, 0])
+
+    def probe(command, **kwargs):
+        assert kwargs["timeout"] == 5
+        if probe_error:
+            raise subprocess.TimeoutExpired(command, 5)
+        return "Now drawing from '" + power + "'\n" if command[0] == "pmset" else "fixture"
+
+    namespace.update(
+        time=SimpleNamespace(monotonic=lambda: next(clock)),
+        subprocess=SimpleNamespace(TimeoutExpired=subprocess.TimeoutExpired, check_output=probe),
+    )
+    child = Child()
+    record = {
+        "command": ["fixture"],
+        "before": {
+            "vm_bytes": {"Swapouts": 0, "Swapins": 0},
+            "pmset -g batt": "Now drawing from 'AC Power'\n"
+            if label == "valid-ac"
+            else "Now drawing from 'Battery Power'\n",
+        },
+    }
+    try:
+        assert monitor(child, record, lambda _: {"Swapouts": swapout, "Swapins": swapin}) == 0
+        observed = "ok"
+    except (AssertionError, subprocess.TimeoutExpired) as error:
+        observed = type(error).__name__
+    assert observed == expected, (label, observed)
+    assert child.calls <= 2
+    monitor_cases.append({"case": label, "observed": observed})
+
+# Preflight must reject stale/missing proof before any subprocess or GPU call.
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    base = root / "trial"
+    trial = base / "heads"
+    trial.mkdir(parents=True)
+    (base / "speed-heads").mkdir()
+    (trial / "mutation-ac").mkdir()
+    (trial / "quality.json").write_text(json.dumps([{"status": "passed", "reaped": True}] * 7))
+    (trial / "mutation-ac/result.json").write_text('{"status":"detected_and_restored"}')
+    for name in hashes:
+        (base / "speed-heads" / name).write_bytes((p / name).read_bytes())
+    namespace["BASE"] = base
+    preflight = []
+    for scenario in ["incomplete", "missing-hash", "stale", "valid"]:
+        proof = {"status": "passed", "source_hashes": dict(hashes)}
+        if scenario == "incomplete":
+            proof["status"] = "incomplete"
+        if scenario == "missing-hash":
+            proof["source_hashes"].pop("bench-supervisor.txt")
+        if scenario == "stale":
+            proof["source_hashes"]["bench-supervisor.txt"] = "0" * 64
+        (base / "speed-heads/guard-checks.json").write_text(json.dumps(proof))
+        try:
+            namespace["main"]()
+        except AssertionError:
+            observed = "rejected"
+        except FileNotFoundError as error:
+            assert Path(error.filename).name == "identity-heads.json"
+            observed = "passed_guard"
+        else:
+            raise AssertionError("preflight reached a GPU")
+        assert observed == ("passed_guard" if scenario == "valid" else "rejected")
+        preflight.append({"case": scenario, "observed": observed})
+(p / "guard-checks.json").write_text(
+    json.dumps(
+        {
+            "status": "passed",
+            "source_hashes": hashes,
+            "decision_cases": cases,
+            "scaling_cases": 200,
+            "seed": 43,
+            "monitor_cases": monitor_cases,
+            "artifact_preflight_cases": preflight,
+            "limits": "actual function AST with deterministic fake waits/OS probes, decision mutations and preflight; existing driver and process reaping patterns reused; not a proof",
+        },
+        indent=2,
+    )
+    + "\n"
+)
+print(
+    {
+        "status": "passed",
+        "decision_cases": len(cases),
+        "scaling_cases": 200,
+        "monitor_cases": len(monitor_cases),
+        "preflight_cases": len(preflight),
+    }
+)

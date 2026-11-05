@@ -1,0 +1,11 @@
+--- a/native/src/ssd_moe/hot_activation.rs
++++ b/native/src/ssd_moe/hot_activation.rs
+@@ -22,7 +22,7 @@
+ if (slots[row] >= CAPACITY) { activated[i] = half(0); return; }
+ uint col = i % 640u;
+ half gate = gu[row * 1280u + col];
+-half up = gu[row * 1280u + 640u + col];
++half up = gu[row * 1280u + col];
+ half sigmoid = Mlxl3HotSigmoid()(gate);
+ half silu = Mlxl3HotMultiply()(gate, sigmoid);
+ activated[i] = Mlxl3HotMultiply()(silu, up);

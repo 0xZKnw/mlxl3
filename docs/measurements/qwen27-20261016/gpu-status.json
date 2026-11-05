@@ -1,0 +1,54 @@
+[
+  {
+    "name": "mlp-parity",
+    "command": [
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+      "qwen35::tests::dense_mlp_batch_matches_serial_layers",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "status": "passed",
+    "conditions_before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "swap": "vm.swapusage: total = 6144.00M  used = 5400.75M  free = 743.25M  (encrypted)\n"
+    },
+    "timeout_seconds": 900,
+    "returncode": 0,
+    "seconds": 6.471007624990307,
+    "reaped": true,
+    "conditions_after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "swap": "vm.swapusage: total = 6144.00M  used = 5216.75M  free = 927.25M  (encrypted)\n"
+    }
+  },
+  {
+    "name": "prefix-continuation-parity",
+    "command": [
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+      "qwen35::tests::dense_smallm_dispatch_matches_serial_prefixes",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "status": "failed",
+    "conditions_before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "swap": "vm.swapusage: total = 6144.00M  used = 5216.75M  free = 927.25M  (encrypted)\n"
+    },
+    "timeout_seconds": 900,
+    "error": "RuntimeError('nonzero exit or missing exact test: -15')",
+    "seconds": 136.82094504206907,
+    "reaped": true,
+    "conditions_after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "swap": "vm.swapusage: total = 6144.00M  used = 4997.25M  free = 1146.75M  (encrypted)\n"
+    }
+  }
+]

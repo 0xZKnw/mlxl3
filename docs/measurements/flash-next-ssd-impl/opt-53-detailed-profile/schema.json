@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "clock_units": {
+    "native_event": "start_ns/end_ns monotonic nanoseconds relative to each prefill/decode trace start; wall alignment uses nearby prefill_epoch/decode_epoch Unix seconds",
+    "disk_job": "steady_clock nanoseconds relative to start of the C++ batch, not native trace epoch",
+    "summaries": "seconds unless explicitly *_bytes/count/tokens/epoch",
+    "components_csv": "min/p50/p90/p95/p99/max/total are inclusive host wall nanoseconds; count is event count; host_self_total_ns excludes direct child spans"
+  },
+  "native_event": {
+    "name": "scope or completion stage name",
+    "parent": "earlier array index or null; nested spans overlap by design",
+    "start_ns": "unsigned timestamp",
+    "end_ns": "unsigned timestamp >= start",
+    "data": "null or metadata (actual routes/slots/hits, jobs, shapes, output steps)"
+  },
+  "disk_job_fields": [
+    "job_index",
+    "static_worker_index",
+    "start_ns",
+    "end_ns",
+    "bytes_returned_by_preadv",
+    "failed_0_or_1"
+  ],
+  "roles": "nearest layer_0..47 is target; layer=null scopes under mtp_head_proposal/cache/prefill extend are head, other null scopes are global",
+  "route_fields": "10 unique experts per row, rows1 or2; cold occurrences may duplicate an expert across two rows, deduplicated disk jobs are separately counted",
+  "vm": "Compressions/Decompressions count system pages/events; do not interpret as compressed physical byte sizes. Swapins/Swapouts pages * recorded page size = new swap bytes. Compressor occupied pages is a gauge, may decrease. Windows bounded by synchronous snapshots outside clocks, include snapshot overhead; not model exclusive.",
+  "memory": "physical process footprint and lifetime peak differ from RSS and MLX active/cache/peak allocations; do not sum them",
+  "mtp": "127 emitted decode steps include near-zero queued outputs. Report all-step and actual-model-call distributions separately; proposals, accepted and blocks are per phase. verify_pair covers the target model, not pure overhead.",
+  "fences": "fenced stages eval real arrays and alter overlap/fusion/launch frequency. These are component completion wall costs incl dispatch/wait; they are not exclusive GPU hardware counters, and not release TPS.",
+  "natural": "no added GPU evals; nested host spans/JSON metadata collection impose overhead, compared to adjacent untraced unit controls and fresh release controls. LFU weights/ages persist between six resets.",
+  "quality": "nonempty finite 248320 logits/all target and MTP head state bytes checked each phase against first untraced phase; natural128 additionally exact external text/hash; fenced33 checked against exact natural token prefix. Independent model/pair/session oracles precede campaigns.",
+  "files": [
+    "protocol.json",
+    "matrix.json",
+    "campaign-identity.json",
+    "*/run.json",
+    "*/run-result.json",
+    "*/system-samples.json",
+    "*/dataset-result.json",
+    "*/profile/complete.json",
+    "*/profile/*-summary.json",
+    "*/profile/*-prefill.json.gz",
+    "*/profile/*-decode.json.gz",
+    "*/profile/analysis.json (may be losslessly gzipped after campaign)",
+    "*/profile/components.csv"
+  ],
+  "limits": [
+    "no GPU exclusive timestamps",
+    "no per-model physical NVMe traffic or GPU frequency",
+    "global system observations do not attribute activity to an application",
+    "the two fixed prompts and contexts do not represent all production workloads"
+  ],
+  "quantile_method": "empirical nearest rank ceil(p*n)-1, zero samples retained",
+  "exports": "exports/*.csv; ns for component/worker distributions; output_step.seconds and phase clocks seconds; layer_role head separate; acceptance intervals by block start decoded step",
+  "csv_record_endings": "CRLF (standard Python csv dialect); Git source whitespace validation allows cr-at-eol only, keeping other checks"
+}

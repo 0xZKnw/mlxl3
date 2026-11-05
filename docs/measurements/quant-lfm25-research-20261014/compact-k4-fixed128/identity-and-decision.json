@@ -1,0 +1,53 @@
+{
+  "decision": "rejected",
+  "reason": "both shapes regress in every measured pair; medians and all first-last drifts inside 3 percent",
+  "identities": {
+    "src/mlxl3_quantizer/metal.py": "94967443578995ef2b9d0259523301d5b3fd8ff3bc4f76f906cd474d882beef9",
+    "src/mlxl3_quantizer/traceback_parent.metal": "ee8584bed22228f2648b4587417431fe07784f91a1fa72f1a35d929a9a0de5b6",
+    "tests/test_quantize_k4_batch_policy.py": "5b24db2147b9f30b6a356056338127130c2fe072fde87514035ca3bd3cb08d44"
+  },
+  "statistics": {
+    "gate_up": {
+      "reference": {
+        "seconds": [
+          13.403022875019815,
+          13.848510875017382,
+          13.560474833997432
+        ],
+        "median_s": 13.560474833997432,
+        "first_last_drift_percent": 1.1747496101873534
+      },
+      "candidate": {
+        "seconds": [
+          15.668436540989205,
+          15.539854959002696,
+          15.614996874995995
+        ],
+        "median_s": 15.614996874995995,
+        "first_last_drift_percent": -0.3410657205867973
+      },
+      "median_change_percent": 15.150811945372865
+    },
+    "down": {
+      "reference": {
+        "seconds": [
+          6.9409747090539895,
+          6.853675791993737,
+          6.860567792027723
+        ],
+        "median_s": 6.860567792027723,
+        "first_last_drift_percent": -1.1584384095418399
+      },
+      "candidate": {
+        "seconds": [
+          7.708429082995281,
+          7.6902941659791395,
+          7.79613558400888
+        ],
+        "median_s": 7.708429082995281,
+        "first_last_drift_percent": 1.1377999339330813
+      },
+      "median_change_percent": 12.358471145096894
+    }
+  }
+}

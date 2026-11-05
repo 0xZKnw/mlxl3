@@ -1,0 +1,130 @@
+{
+  "status": "complete",
+  "initial_failure": "I001 testimports; v1logs preserved",
+  "stages": [
+    {
+      "name": "imports",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "check",
+          "--config",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/pyproject.toml",
+          "--fix",
+          "/tmp/mlxl3-q27-max-20261016/campaign19_check.py",
+          "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14684,
+        "seconds": 0.01926241593901068,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "format",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "format",
+          "--config",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/pyproject.toml",
+          "/tmp/mlxl3-q27-max-20261016/campaign19_check.py",
+          "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14685,
+        "seconds": 0.010735291987657547,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "lint",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "check",
+          "--config",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/pyproject.toml",
+          "/tmp/mlxl3-q27-max-20261016/campaign19_check.py",
+          "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14686,
+        "seconds": 0.010289750061929226,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "tests",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "pytest",
+          "-q",
+          "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14687,
+        "seconds": 0.23743108299095184,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "compile",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "py_compile",
+          "/tmp/mlxl3-q27-max-20261016/campaign19_check.py",
+          "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14688,
+        "seconds": 0.03951370797585696,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "crosshair",
+      "child": {
+        "status": "failed",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "crosshair",
+          "check",
+          "/tmp/mlxl3-q27-max-20261016/campaign19_check.py"
+        ],
+        "timeout_seconds": 60,
+        "pid": 14689,
+        "error": "RuntimeError('child exited 1')",
+        "seconds": 0.01900537498295307,
+        "exit_code": 1,
+        "reaped": true
+      }
+    }
+  ],
+  "sources": {
+    "/tmp/mlxl3-q27-max-20261016/campaign19_check.py": "3c42a4d4384e798aa7e3044f03adf5e01d3047ed6c755e889fced4d767444bdc",
+    "/tmp/mlxl3-q27-max-20261016/test_campaign19_check.py": "ff3928bf1b7648a0757e34aaa6dca27d609788ff484addd6e5a29e5ac4382855"
+  },
+  "python_proof": "CrossHair attempted; module absent, not proved"
+}

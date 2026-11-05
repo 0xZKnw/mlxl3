@@ -1,0 +1,32 @@
+import hashlib,json,runpy,shutil,subprocess
+from pathlib import Path
+root=Path.cwd();D=runpy.run_path(str(root/'build/ar30/basis.py'));C=runpy.run_path(str(root/'build/ar30/components-basis.py'));out=root/'build/ar30/frozen';out.mkdir()
+messages=[]
+for line in (root/'docs/measurements/flash-ar30-20261105/cpu/release-libtest-after-box.log').read_text().splitlines():
+ try:r=json.loads(line)
+ except json.JSONDecodeError:continue
+ if r.get('reason')=='compiler-artifact' and r.get('executable') and r['profile']['test'] and 'lib' in r['target']['kind']:messages.append(r['executable'])
+assert len(messages)==1,messages
+artifacts={}
+for name,source in [('direct-cli',root/'build/ar30/cargo-target/release/mlxl3-rs'),('native-libtest',Path(messages[0]))]:
+ dest=out/name;shutil.copy2(source,dest);artifacts[name]={'path':str(dest),'bytes':dest.stat().st_size,'sha256':D['sha'](dest)}
+old=D['read_json'](root/'docs/measurements/flash-ar20-20261105/freeze-default-integration.json')
+files=set(old['source_files'])
+for name in subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],text=True).splitlines():
+ if name.startswith('native/') and Path(name).suffix in {'.rs','.metal','.h','.cpp','.toml'}:files.add(name)
+for p in [root/'build/ar30/basis.py',root/'build/ar30/components-basis.py',root/'build/ar30/run.py',D['HELPER'],D['SCREEN'],D['CLI_HELPER'],root/'docs/measurements/flash-ar30-20261105/run.py.txt',C['NT2']/'native-cases.json',C['NT2']/'stock.json',C['ROUTED']/'cases.json',C['ROUTED']/'stock.json',root/'docs/measurements/flash-ar20-20261105/quiet-01/quality/oracle.json']:
+ files.add(str(p))
+assert 'opti.md' not in files
+model=Path(D['MODEL'])
+for n in ['config.json','generation_config.json','tokenizer.json','tokenizer_config.json','model.safetensors.index.json']:files.add(str(model/n))
+quality=[
+ {'name':'windows','test':'gpu::ar30_kernel_tests::physical_ar30_cooperative_words_preserve_every_window_bit','marker':'AR30_COOPERATIVE_WINDOWS','expected':{'compiled_cooperative':True,'state_words':2300928,'basis_vectors':8960,'mutant_rates_detected':3}},
+ {'name':'resident','test':'gpu::projection::physical_flash_resident_nt2','marker':'AR30_COOPERATIVE_RESIDENT','expected':{'compiled_cooperative':True,'cases':48,'unequal':0},'positive':['resident_dispatches'],'environment':{'MLXL3_NATIVE_FLASH_NT2':'1'}},
+ {'name':'routed','test':'gpu::projection::ar20_projection_tests::physical_ar30_cooperative_preserves_frozen_routed_stock','marker':'AR30_COOPERATIVE_ROUTED','expected':{'compiled_cooperative':True,'finite_half_words':(len(D['read_json'](C['ROUTED']/'cases.json'))-1)*2*2560},'positive':['routed_dispatches'],'environment':{'MLXL3_ROUTED_SCRATCH_FIXTURES':str(C['ROUTED'])}},
+ {'name':'router','test':'gpu::gate::ar30_router_tests::physical_ar30_paired_router_preserves_reference_words_strides_and_routes','marker':'AR30_ROUTER_PAIR','expected':{'cases':10,'finite_logit_words':11264,'finite_probability_words':11264,'route_ids':220,'finite_route_score_words':220,'actual_pair_uses':10}},
+ {'name':'greedy','test':'gpu::ar30_greedy_tests::physical_ar30_device_greedy_matches_independent_half_normalized_oracle','marker':'AR30_DEVICE_GREEDY','expected':{'cases':11,'input_half_words':2731520,'valid_selections':8,'invalid_distributions':3,'raw_argmax_mutation_detected':True,'wrong_extent_rejected':True}},
+ {'name':'scratch','test':'gpu::projection::resident_scratch_tests::physical_ar30_resident_scratch_preserves_retained_outputs_and_pending_owners','marker':'AR30_RESIDENT_SCRATCH','expected':{'cases':8,'finite_half_words':81920,'completed_reuses':2,'cached_pair_bytes':46080,'retained_outputs':True,'poisoned_pair':True,'same_command_fallback':True,'pending_fallback':True,'failed_owner_retained':True,'idle_refund':True,'abandoned_charge_retained':True}},
+ {'name':'model','test':'gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle','marker':'AR20_MODEL_COMPARE','expected':{'case_count':2,'compiled_cooperative':True,'device_greedy_counts':[2,2],'device_greedy_rollback':True},'positive':['router_pair_uses','resident_scratch_reuses','resident_scratch_charge'],'environment':{'MLXL3_AR20_CAPTURE':'0','MLXL3_AR20_ORACLE':str(root/'docs/measurements/flash-ar20-20261105/quiet-01/quality/oracle.json')}},
+]
+plan={'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'source_status':subprocess.check_output(['git','status','--short'],text=True),'source_files':{p:D['sha'](root/p)for p in sorted(files)},'artifacts':artifacts,'quality':quality,'protocol':'AR only MAIN32/31 decode; defaults13ON/AR20OFF; new4flags only; 1warm+1measured perprocess; 5arms controls/kernels/host/combined/control. No swap abort or cooling timer. Exclusive GPU after CPU joined. No formal Metal claim.','model':{'path':str(model),'checkpoint':'65c895314393431c09050b2e04e250836b3a6eb4','quantization':'EXL3 avg2.05/H4/MTP2','config_sha256':D['sha'](model/'config.json')},'toolchain':subprocess.check_output(['/Users/justin/.cargo/bin/rustc','-Vv'],text=True),'deployment_target':'26.2'}
+(root/'build/ar30/plan.json').write_text(json.dumps(plan,indent=2)+'\n');(root/'docs/measurements/flash-ar30-20261105/freeze.json').write_text(json.dumps(plan,indent=2)+'\n');print(json.dumps({'artifacts':artifacts,'source_files':len(files),'quality_phases':len(quality)},indent=2))

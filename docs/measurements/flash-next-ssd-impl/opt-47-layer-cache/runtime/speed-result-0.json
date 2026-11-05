@@ -1,0 +1,175 @@
+{
+  "status": "rejected_screen",
+  "confirmed_gain": false,
+  "records": [
+    {
+      "stage": 0,
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "label": "H",
+      "status": "validated",
+      "tps": 9.11730954183911,
+      "peak_bytes": 7137335176,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+      "mtp_counts": null,
+      "swapouts_bytes": 0,
+      "report": "speed-0-baseline-MAIN-H-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "label": "C",
+      "status": "validated",
+      "tps": 9.047434793585062,
+      "peak_bytes": 7125407600,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+      "mtp_counts": null,
+      "swapouts_bytes": 0,
+      "report": "speed-0-baseline-MAIN-C-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "label": "H",
+      "status": "validated",
+      "tps": 8.999836796105129,
+      "peak_bytes": 7134697352,
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "mtp_counts": null,
+      "swapouts_bytes": 0,
+      "report": "speed-0-baseline-HOLD-H-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "label": "C",
+      "status": "validated",
+      "tps": 8.9515653847518,
+      "peak_bytes": 7132813192,
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "mtp_counts": null,
+      "swapouts_bytes": 0,
+      "report": "speed-0-baseline-HOLD-C-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "label": "H",
+      "status": "validated",
+      "tps": 8.984682983515079,
+      "peak_bytes": 8131024152,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+      "mtp_counts": [
+        72,
+        54,
+        72
+      ],
+      "swapouts_bytes": 0,
+      "report": "speed-0-mtp-MAIN-H-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "label": "C",
+      "status": "validated",
+      "tps": 9.001331463341765,
+      "peak_bytes": 7923587600,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+      "mtp_counts": [
+        72,
+        54,
+        72
+      ],
+      "swapouts_bytes": 0,
+      "report": "speed-0-mtp-MAIN-C-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "label": "H",
+      "status": "validated",
+      "tps": 8.403347484243481,
+      "peak_bytes": 7916608016,
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "mtp_counts": [
+        78,
+        48,
+        78
+      ],
+      "swapouts_bytes": 0,
+      "report": "speed-0-mtp-HOLD-H-bridge/report.json"
+    },
+    {
+      "stage": 0,
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "label": "C",
+      "status": "validated",
+      "tps": 9.700889995627549,
+      "peak_bytes": 7913904608,
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "mtp_counts": [
+        78,
+        48,
+        78
+      ],
+      "swapouts_bytes": 0,
+      "report": "speed-0-mtp-HOLD-C-bridge/report.json"
+    }
+  ],
+  "qualification": {
+    "eligible": false,
+    "pairs": [
+      {
+        "stage": 0,
+        "mode": "baseline",
+        "prompt": "MAIN",
+        "H_tps": 9.11730954183911,
+        "C_tps": 9.047434793585062,
+        "gain_percent": -0.7663965771195325,
+        "extra_peak_bytes": -11927576
+      },
+      {
+        "stage": 0,
+        "mode": "baseline",
+        "prompt": "HOLD",
+        "H_tps": 8.999836796105129,
+        "C_tps": 8.9515653847518,
+        "gain_percent": -0.5363587412409387,
+        "extra_peak_bytes": -1884160
+      },
+      {
+        "stage": 0,
+        "mode": "mtp",
+        "prompt": "MAIN",
+        "H_tps": 8.984682983515079,
+        "C_tps": 9.001331463341765,
+        "gain_percent": 0.18529846692680874,
+        "extra_peak_bytes": -207436552
+      },
+      {
+        "stage": 0,
+        "mode": "mtp",
+        "prompt": "HOLD",
+        "H_tps": 8.403347484243481,
+        "C_tps": 9.700889995627549,
+        "gain_percent": 15.440781353109557,
+        "extra_peak_bytes": -2703408
+      }
+    ]
+  }
+}

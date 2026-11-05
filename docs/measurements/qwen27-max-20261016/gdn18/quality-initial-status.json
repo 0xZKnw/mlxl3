@@ -1,0 +1,40 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+    "gated_delta::tests::fused_preparation_recurrence_matches_split_and_all_prefixes",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "sources": {
+    "native/src/contracts.rs": "8dcb8979ac615a439f9c6296216a5c8874ae3fd465f8bf562e22c65f03b80d7d",
+    "native/src/gated_delta.rs": "5a54338ae77cb816c4f9e3d11ec923dcdf578512e8832bcc4400939c06c04228",
+    "native/shaders/gated_delta_packed.metal": "c1587fe3d4774ddb771ff8baedfb08b65b9a24a28822bd867093d9283b9b45cb",
+    "target/release/deps/mlxl3_native-139c3f42a710aa58": "f675aa7b9414f5e0b9a409ead249af17b85b2f62fe3995fcd117969a9cbcc612"
+  },
+  "environment": {
+    "MLXL3_MTP_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "256",
+    "MLXL3_GDN_FUSED_MICRO": "0"
+  },
+  "child": {
+    "status": "process_complete",
+    "parity": false,
+    "command": [
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+      "gated_delta::tests::fused_preparation_recurrence_matches_split_and_all_prefixes",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "timeout_seconds": 300,
+    "pid": 12234,
+    "seconds": 1.795823459,
+    "exit_code": 0,
+    "reaped": true
+  }
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_CACHE_COMPACTION": "0"
+    },
+    "label": "cache-copy-disabled-detected",
+    "status": "expected_failure_detected",
+    "expected_exit": 101,
+    "exit_code": 101,
+    "nonempty_oracle": true,
+    "elapsed": 0.40482401847839355
+  },
+  {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {},
+    "label": "cache-copy-all-bits",
+    "status": "passed",
+    "expected_exit": 0,
+    "exit_code": 0,
+    "nonempty_oracle": true,
+    "elapsed": 0.13306784629821777
+  },
+  {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::memory_feature_tests::compact_prefill_snapshot_preserves_logits_states_and_budget",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_COMPACT_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/adaptive-memory-20261009/cache-compact-model.json"
+    },
+    "label": "cache-compact-model",
+    "status": "passed",
+    "expected_exit": 0,
+    "exit_code": 0,
+    "nonempty_oracle": true,
+    "elapsed": 4.5184712409973145
+  }
+]

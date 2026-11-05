@@ -1,0 +1,270 @@
+{
+  "status": "closed_63V_standalone",
+  "source_identity": "identity-v5.json",
+  "binary_sha256": "b49cc73c6ea18ab83cc43878be3b64d9d06773cbb3a212ff5f44c22df49de4e1",
+  "processes": 32,
+  "responses_including_warmups": 64,
+  "all_outputs_exact_to_OFF_oracle": true,
+  "preflight_samples": 11,
+  "postflight_samples": 16,
+  "postflight_seconds": 30.005223989486694,
+  "new_swapouts_bytes": 0,
+  "cumulative_swapins_bytes": 13074432,
+  "modes": {
+    "OFF": {
+      "qualification": {
+        "status": "inconclusive_drift",
+        "confirmed_gain": false,
+        "baseline": "H",
+        "candidate": "C",
+        "pairs": [
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.839781293803778,
+            "candidate_tps": 10.76686204901529,
+            "gain_percent": -0.6727003323413028
+          },
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.690818187743735,
+            "candidate_tps": 10.76293586390494,
+            "gain_percent": 0.6745758359625098
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 10.32963701777523,
+            "candidate_tps": 9.330290911583106,
+            "gain_percent": -9.67455201448464
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 10.007720161002666,
+            "candidate_tps": 10.377635729235593,
+            "gain_percent": 3.696302077613889
+          }
+        ],
+        "drift": {
+          "MAIN": {
+            "control_percent": 1.393374234264111,
+            "gain_spread_points": 1.3472761683038126
+          },
+          "HOLD": {
+            "control_percent": 3.2166852349347685,
+            "gain_spread_points": 13.37085409209853
+          }
+        },
+        "memory_status": "passed_campaign_postflight30s_zero_new_swapout",
+        "control_only": true,
+        "claim": "unchanged B1 path; no gain attributed to multi-token",
+        "limits": "local same-mode paired window; independent OFF HOLD outlier retained; experimental flag remains default 0"
+      },
+      "peak_bytes": 7143315312,
+      "candidate_peak_bytes": [
+        7139858288,
+        7143315312,
+        7138858888,
+        7135926200
+      ],
+      "tps": [
+        10.839781293803778,
+        10.76686204901529,
+        10.76293586390494,
+        10.690818187743735,
+        10.32963701777523,
+        9.330290911583106,
+        10.377635729235593,
+        10.007720161002666
+      ]
+    },
+    "MTP": {
+      "qualification": {
+        "status": "validated_gain",
+        "confirmed_gain": true,
+        "baseline": "H",
+        "candidate": "C",
+        "pairs": [
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.496634268396429,
+            "candidate_tps": 11.145512153670898,
+            "gain_percent": 6.181770924687058
+          },
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.537674140121384,
+            "candidate_tps": 11.225314982026829,
+            "gain_percent": 6.525546650634273
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 9.646761972244025,
+            "candidate_tps": 10.25868917170465,
+            "gain_percent": 6.3433429913714034
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 9.597605344324572,
+            "candidate_tps": 10.257024925765393,
+            "gain_percent": 6.870667815391673
+          }
+        ],
+        "drift": {
+          "MAIN": {
+            "control_percent": 0.3909812486133646,
+            "gain_spread_points": 0.34377572594721517
+          },
+          "HOLD": {
+            "control_percent": 0.5121759663572867,
+            "gain_spread_points": 0.5273248240202699
+          }
+        },
+        "memory_status": "passed_campaign_postflight30s_zero_new_swapout",
+        "limits": "local same-mode paired window; independent OFF HOLD outlier retained; experimental flag remains default 0"
+      },
+      "peak_bytes": 8201065752,
+      "candidate_peak_bytes": [
+        7923767824,
+        7925914176,
+        7925176848,
+        7920376360
+      ],
+      "tps": [
+        10.496634268396429,
+        11.145512153670898,
+        11.225314982026829,
+        10.537674140121384,
+        9.646761972244025,
+        10.25868917170465,
+        10.257024925765393,
+        9.597605344324572
+      ]
+    },
+    "R": {
+      "qualification": {
+        "status": "inconclusive_drift",
+        "confirmed_gain": false,
+        "baseline": "H",
+        "candidate": "C",
+        "pairs": [
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 9.030102227956416,
+            "candidate_tps": 9.762227465895347,
+            "gain_percent": 8.10760741636274
+          },
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 8.855224444943415,
+            "candidate_tps": 9.841517567433357,
+            "gain_percent": 11.137979941921671
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 8.575678958438646,
+            "candidate_tps": 9.58022267906452,
+            "gain_percent": 11.713868085481227
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 8.648253247344613,
+            "candidate_tps": 9.502677408503885,
+            "gain_percent": 9.879731047672745
+          }
+        ],
+        "drift": {
+          "MAIN": {
+            "control_percent": 1.9748543258309104,
+            "gain_spread_points": 3.0303725255589313
+          },
+          "HOLD": {
+            "control_percent": 0.8462803850014966,
+            "gain_spread_points": 1.8341370378084818
+          }
+        },
+        "memory_status": "passed_campaign_postflight30s_zero_new_swapout",
+        "limits": "local same-mode paired window; independent OFF HOLD outlier retained; experimental flag remains default 0"
+      },
+      "peak_bytes": 8429181408,
+      "candidate_peak_bytes": [
+        8221579816,
+        8218434088,
+        8214469136,
+        8216189456
+      ],
+      "tps": [
+        9.030102227956416,
+        9.762227465895347,
+        9.841517567433357,
+        8.855224444943415,
+        8.575678958438646,
+        9.58022267906452,
+        9.502677408503885,
+        8.648253247344613
+      ]
+    },
+    "A": {
+      "qualification": {
+        "status": "inconclusive_drift",
+        "confirmed_gain": false,
+        "baseline": "H",
+        "candidate": "C",
+        "pairs": [
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.15234526649221,
+            "candidate_tps": 10.866713836880978,
+            "gain_percent": 7.0364881378349065
+          },
+          {
+            "prompt": "MAIN",
+            "baseline_tps": 10.199851465120828,
+            "candidate_tps": 10.934522126979342,
+            "gain_percent": 7.202758435951506
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 9.064617482599413,
+            "candidate_tps": 9.626507125301769,
+            "gain_percent": 6.19871322514125
+          },
+          {
+            "prompt": "HOLD",
+            "baseline_tps": 8.711749474979026,
+            "candidate_tps": 9.766805220718838,
+            "gain_percent": 12.110721833427762
+          }
+        ],
+        "drift": {
+          "MAIN": {
+            "control_percent": 0.4679332447982354,
+            "gain_spread_points": 0.16627029811659977
+          },
+          "HOLD": {
+            "control_percent": 4.050483873920596,
+            "gain_spread_points": 5.912008608286512
+          }
+        },
+        "memory_status": "passed_campaign_postflight30s_zero_new_swapout",
+        "limits": "local same-mode paired window; independent OFF HOLD outlier retained; experimental flag remains default 0"
+      },
+      "peak_bytes": 8934480424,
+      "candidate_peak_bytes": [
+        8257624592,
+        8261523960,
+        8263146000,
+        8233720312
+      ],
+      "tps": [
+        10.15234526649221,
+        10.866713836880978,
+        10.934522126979342,
+        10.199851465120828,
+        9.064617482599413,
+        9.626507125301769,
+        9.766805220718838,
+        8.711749474979026
+      ]
+    }
+  },
+  "remaining_before_63_full_closure": "63+GPU_HOT_WIDE interaction quality and paired comparison; larger cache cancelled by user"
+}

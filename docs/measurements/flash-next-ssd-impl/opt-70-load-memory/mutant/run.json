@@ -1,0 +1,40 @@
+[
+  {
+    "name": "pre20",
+    "command": [
+      "/bin/sleep",
+      "20"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 25
+  },
+  {
+    "name": "mutant",
+    "command": [
+      "/usr/bin/time",
+      "-l",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-70M/mutant/mlxl3_native",
+      "array::tests::uninitialized_storage_is_ready_and_reads_only_filled_ranges",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64"
+    },
+    "expected_exit": 101,
+    "timeout_seconds": 90
+  },
+  {
+    "name": "post30",
+    "command": [
+      "/bin/sleep",
+      "30"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 35
+  }
+]

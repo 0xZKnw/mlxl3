@@ -1,0 +1,2972 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index e8854877..ee1d30c3 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -38,6 +38,7 @@
+ #include "mlx/transforms.h"
+ #include "mlx/memory.h"
+ #include "mlx/version.h"
++#include "flash_prepare.h"
+ #include "prepared_metal.h"
+ 
+ namespace mx = mlx::core;
+@@ -212,6 +213,12 @@ void mlxl3_array_free(void* p) noexcept { delete static_cast<mx::array*>(p); }
+ int mlxl3_array_clone(void* p, void** out) noexcept {
+   return protect([&] { *out = new mx::array(arr(p)); });
+ }
++int mlxl3_flash_prepare128(void* input, void* scales, void** out) noexcept {
++  return protect([&] {
++    if (!out) throw std::invalid_argument("null FlashPrepare128 output");
++    *out = new mx::array(mlxl3::flash_prepare128(arr(input), arr(scales)));
++  });
++}
+ int mlxl3_array_compact_copy(void* p, void** out) noexcept {
+   return protect([&] {
+     if (!out) throw std::invalid_argument("null compact output");
+diff --git a/native/src/array.rs b/native/src/array.rs
+index 160a6426..2fedd281 100644
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -81,6 +81,11 @@ unsafe extern "C" {
+     fn mlxl3_set_cache_limit(bytes: u64) -> i32;
+     fn mlxl3_pack_embedding(p: *mut c_void, out: *mut *mut c_void) -> i32;
+     fn mlxl3_array_retained_bytes(p: *mut c_void, out: *mut u64) -> i32;
++    fn mlxl3_flash_prepare128(
++        input: *mut c_void,
++        scales: *mut c_void,
++        out: *mut *mut c_void,
++    ) -> i32;
+     fn mlxl3_array_compact_copy(p: *mut c_void, out: *mut *mut c_void) -> i32;
+     fn mlxl3_array_affine4(
+         x: *mut c_void,
+@@ -1546,6 +1551,11 @@ impl Array {
+         ))
+     }
+ 
++    pub(crate) fn flash_prepare128(&self, scales: &Self) -> Result<Self> {
++        Self::output(|out| unsafe {
++            mlxl3_flash_prepare128(self.handle.as_ptr(), scales.handle.as_ptr(), out)
++        })
++    }
+     pub fn swiglu(&self, up: &Self) -> Result<Self> {
+         self.binary(up, 6, 0, 0.)
+     }
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index 99f4f0c2..29440172 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -933,7 +933,7 @@ impl FlashNext {
+         head: bool,
+     ) -> Result<(Option<Array>, Array)> {
+         ensure!(
+-            self.verification.is_none() && self.offset < self.context && token < 248320,
++            self.verification.is_none() && self.offset < self.assets.context && token < 248320,
+             "invalid captured Flash forward"
+         );
+         let result = (|| -> Result<_> {
+@@ -975,7 +975,7 @@ impl FlashNext {
+     fn draft_input(&self, anchor: u32, kind: Kind, proposals: usize) -> Result<Array> {
+         ensure!(anchor < 248320, "invalid Flash draft anchor");
+         let rows = kind.rows(proposals)?;
+-        let (file, base) = self.embed.source()?;
++        let (file, base) = self.assets.embed.source()?;
+         let mut embeddings = Vec::new();
+         for row in 0..rows {
+             let token = if row == 0 { anchor } else { kind.mask() };
+@@ -996,7 +996,7 @@ impl FlashNext {
+         ensure!(
+             self.verification.is_none()
+                 && (1..=8).contains(&tokens.len())
+-                && tokens.len() <= usize::try_from(self.context - self.offset)?
++                && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
+                 && tokens.iter().all(|&t| t < 248320),
+             "invalid Flash draft verification"
+         );
+@@ -1047,19 +1047,19 @@ impl FlashNext {
+             let mixed = streams
+                 .iter()
+                 .map(|x| -> Result<Array> {
+-                    let (mixed, _) = self.mixer.read(x)?;
++                    let (mixed, _) = self.assets.mixer.read(x)?;
+                     mixed.astype(Dtype::Float16)
+                 })
+                 .collect::<Result<Vec<_>>>()?;
+             let logits = if self.multi_token {
+                 verification_projection(
+-                    &self.head,
++                    &self.assets.head,
+                     &Array::concatenate(&mixed.iter().collect::<Vec<_>>(), 0)?,
+                 )?
+             } else {
+                 let heads = mixed
+                     .iter()
+-                    .map(|x| self.head.forward(x))
++                    .map(|x| self.assets.head.forward(x))
+                     .collect::<Result<Vec<_>>>()?;
+                 Array::concatenate(&heads.iter().collect::<Vec<_>>(), 0)?
+             };
+@@ -1132,7 +1132,7 @@ fn generate(
+             && prompt
+                 .len()
+                 .checked_add(budget - 1)
+-                .is_some_and(|n| n <= target.context as usize),
++                .is_some_and(|n| n <= target.assets.context as usize),
+         "invalid draft generation budget or state"
+     );
+     if let PrefixPolicy::Adaptive(plan) = &draft.policy {
+@@ -1186,7 +1186,7 @@ fn generate(
+                 continue;
+             }
+             let remaining = budget - result.tokens.len();
+-            let context = usize::try_from(target.context - target.offset)?;
++            let context = usize::try_from(target.assets.context - target.offset)?;
+             ensure!(context > 0, "Flash draft context exhausted");
+             let count = width.min(context - 1).min(remaining - 1);
+             let anchor = *result.tokens.last().context("missing anchor")?;
+@@ -1211,7 +1211,8 @@ fn generate(
+             phases[0] = lap();
+             let (hidden, _) = draft.forward(&input, count)?;
+             phases[1] = lap();
+-            let (mut proposals, confidence) = draft.select(&target.head, &hidden, count, anchor)?;
++            let (mut proposals, confidence) =
++                draft.select(&target.assets.head, &hidden, count, anchor)?;
+             ensure!(proposals.len() == count, "incomplete proposal block");
+             let selected = draft.policy.choose(&confidence, count)?;
+             ensure!(
+@@ -1795,7 +1796,7 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
+                 .sum::<u64>();
+             let verification = target.verify_draft(&serial[2..2 + width], kind)?;
+             if verification.target.lookahead_depth > 0
+-                && verification.target.layers[0].moe.prefetch_pipeline
++                && verification.target.layers[0].moe.policy.prefetch_pipeline
+             {
+                 let predictions_after = verification
+                     .target
+@@ -1980,7 +1981,7 @@ fn flash_draft_greedy_generation_matches_tokens_and_states() -> Result<()> {
+         .unwrap_or_else(|_| "3".into())
+         .parse::<usize>()?;
+     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+-    target.context = 4096;
++    target.assets.context = 4096;
+     let mut draft = Draft::load(Path::new(&path), kind)?;
+     configure_policy(&mut draft, target_path)?;
+     let tokens = prompt(target_path)?;
+@@ -2037,7 +2038,7 @@ fn flash_draft_speed_arm() -> Result<()> {
+         .parse::<usize>()?;
+     ensure!((1..=7).contains(&width));
+     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+-    target.context = 4096;
++    target.assets.context = 4096;
+     let mut head = if mode == "mtp" {
+         Some(FlashMtpHead::load(&checkpoint, &target)?)
+     } else {
+@@ -2192,7 +2193,7 @@ fn flash_prefix_policies_preserve_real_tokens_and_states() -> Result<()> {
+     let root = std::env::var("MLXL3_FLASH_MODEL")?;
+     let checkpoint = crate::checkpoint::inspect(Path::new(&root))?;
+     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+-    target.context = 4096;
++    target.assets.context = 4096;
+     let mut draft = Draft::load(
+         Path::new(&std::env::var("MLXL3_FLASH_DRAFT_MODEL")?),
+         Kind::Dspark,
+@@ -2253,7 +2254,7 @@ fn flash_draft_calibration_arm() -> Result<()> {
+     ensure!(prefix <= 3 && std::env::var_os("MLXL3_FLASH_PREFIX_PROFILE").is_none());
+     let checkpoint = crate::checkpoint::inspect(root)?;
+     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+-    target.context = 4096;
++    target.assets.context = 4096;
+     let kind =
+         Kind::parse(&std::env::var("MLXL3_FLASH_DRAFT_KIND").unwrap_or_else(|_| "dspark".into()))?;
+     let mut draft = Draft::load(Path::new(&draft_path), kind)?;
+diff --git a/native/src/flash_draft_runtime.rs b/native/src/flash_draft_runtime.rs
+index da56301a..ea76e43c 100644
+--- a/native/src/flash_draft_runtime.rs
++++ b/native/src/flash_draft_runtime.rs
+@@ -101,14 +101,16 @@ impl Session {
+             return Ok(token);
+         }
+         ensure!(
+-            remaining > 0 && target.offset == self.draft.offset && target.offset < target.context,
++            remaining > 0
++                && target.offset == self.draft.offset
++                && target.offset < target.assets.context,
+             "DFlash target and cache positions differ"
+         );
+         let mut count = self
+             .options
+             .width
+             .min(remaining - 1)
+-            .min((target.context - target.offset - 1) as usize);
++            .min((target.assets.context - target.offset - 1) as usize);
+         if self.options.precap {
+             count = self.pre_budget.choose(count);
+         }
+@@ -132,7 +134,8 @@ impl Session {
+         ensure!(input.shape() == [count as i32 + 1, H]);
+         let (hidden, _) = self.draft.forward(&input, count)?;
+         let (mut proposals, confidence) =
+-            self.draft.select(&target.head, &hidden, count, anchor)?;
++            self.draft
++                .select(&target.assets.head, &hidden, count, anchor)?;
+         ensure!(
+             proposals.len() == count && confidence.len() == count,
+             "incomplete DFlash selection"
+@@ -315,7 +318,7 @@ impl FlashNext {
+             .context("DFlash draft is not configured")?;
+         let result = (|| {
+             ensure!(
+-                !tokens.is_empty() && tokens.len() < self.context as usize,
++                !tokens.is_empty() && tokens.len() < self.assets.context as usize,
+                 "invalid DFlash prompt"
+             );
+             let mut last = None;
+@@ -506,7 +509,7 @@ mod tests {
+         ensure!(target.offset == 0);
+         ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
+         target.reset();
+-        target.context = 4;
++        target.assets.context = 4;
+         ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
+         ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
+         ensure!(target.forward_tokens(&[7]).is_err());
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index 4d33cfb5..3b995dd4 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -118,6 +118,26 @@ impl std::fmt::Display for CacheError {
+ }
+ impl std::error::Error for CacheError {}
+ 
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn native_prepare_shape(rows: i32, width: i32) -> bool {
++    (1..=20).contains(&rows) && matches!(width, 640 | 2560)
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn native_prepare_grid_contains_complete_hadamard_groups() {
++    let rows: i32 = kani::any();
++    let width: i32 = kani::any();
++    if native_prepare_shape(rows, width) {
++        let elements = rows * width;
++        assert!(elements > 0 && elements <= 51200 && elements % 128 == 0);
++        kani::cover!(rows == 20 && width == 2560);
++        kani::cover!(rows == 1 && width == 640);
++    } else {
++        kani::cover!(rows == 21);
++    }
++}
++
+ pub const EXPERT_BYTES: u64 = 1_248_012;
+ pub const NGRAM_DIM: usize = 160;
+ pub const NGRAM_WORDS: usize = 41;
+@@ -897,11 +917,20 @@ pub fn segment_tokens(current: u32, previous: [u32; 2], eos: u32) -> [u32; 3] {
+     ]
+ }
+ 
++/// Identifies one outstanding write, even when the same slot and expert recur.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub(crate) struct SlotLease {
++    pub(crate) slot: usize,
++    pub(crate) expert: u32,
++    generation: u64,
++}
++
+ /// Reservation is atomic: every routed expert gets a distinct protected slot.
+ /// A failed read must invalidate its reservation before it can become a hit.
+ pub struct ExpertCache {
+     keys: Vec<Option<u32>>,
+     pending: Vec<Option<u32>>,
++    generations: Vec<u64>,
+     prefetched: Vec<bool>,
+     predicted: [bool; 512],
+     predictive_lru: bool,
+@@ -948,6 +977,7 @@ impl ExpertCache {
+         Ok(Self {
+             keys: vec![None; slots],
+             pending: vec![None; slots],
++            generations: vec![0; slots],
+             prefetched: vec![false; slots],
+             predicted: [false; 512],
+             predictive_lru: false,
+@@ -1078,17 +1108,42 @@ impl ExpertCache {
+             return Ok(None);
+         }
+         let slot = self.victim(&[]).ok_or(CacheError::NoSlot)?;
++        self.generations[slot] = self.generations[slot]
++            .checked_add(1)
++            .ok_or(CacheError::Clock)?;
+         self.keys[slot] = None;
+         self.prefetched[slot] = false;
+         self.pending[slot] = Some(id);
+         Ok(Some(slot))
+     }
+ 
++    pub(crate) fn pending_lease(&self, slot: usize, expert: u32) -> Option<SlotLease> {
++        if self.pending.get(slot) != Some(&Some(expert)) {
++            return None;
++        }
++        Some(SlotLease {
++            slot,
++            expert,
++            generation: self.generations[slot],
++        })
++    }
++
++    pub(crate) fn finish_lease(&mut self, lease: SlotLease, valid: bool) -> bool {
++        if self.pending_lease(lease.slot, lease.expert) != Some(lease) {
++            return false;
++        }
++        self.publish_current(lease.slot, lease.expert, valid)
++    }
++
+     /// Only the inference thread publishes a completed write. Demand may have won.
+     pub fn publish_prefetch(&mut self, slot: usize, id: u32, valid: bool) -> bool {
+-        if self.pending.get(slot) != Some(&Some(id)) {
++        let Some(lease) = self.pending_lease(slot, id) else {
+             return false;
+-        }
++        };
++        self.finish_lease(lease, valid)
++    }
++
++    fn publish_current(&mut self, slot: usize, id: u32, valid: bool) -> bool {
+         self.pending[slot] = None;
+         if !valid || self.contains(id) {
+             return false;
+@@ -1119,6 +1174,23 @@ impl ExpertCache {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    #[test]
++    fn delayed_completion_cannot_publish_a_recycled_expert_slot() -> Result<()> {
++        let mut cache = ExpertCache::new(11)?;
++        let slot = cache.claim_prefetch(17)?.unwrap();
++        let old = cache.pending_lease(slot, 17).unwrap();
++        assert!(!cache.finish_lease(old, false));
++        assert_eq!(cache.claim_prefetch(17)?, Some(slot));
++        let current = cache.pending_lease(slot, 17).unwrap();
++        assert_ne!(old, current);
++        assert!(!cache.finish_lease(old, true));
++        assert!(!cache.contains(17));
++        assert!(cache.finish_lease(current, true));
++        assert!(cache.contains(17));
++        assert!(!cache.finish_lease(current, true));
++        Ok(())
++    }
++
+     #[test]
+     fn layer_slot_proof_fixture_matches_original_for_every_suffix() {
+         let prefix = "53,".repeat(47).into_bytes();
+@@ -2643,3 +2715,21 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(14)]
++fn stale_prefetch_completion_preserves_new_reservation() {
++    let mut cache = ExpertCache::new(11).unwrap();
++    let expert = u32::from(kani::any::<u8>()) * 2 + u32::from(kani::any::<bool>());
++    let slot = cache.claim_prefetch(expert).unwrap().unwrap();
++    let old = cache.pending_lease(slot, expert).unwrap();
++    assert!(!cache.finish_lease(old, false));
++    assert_eq!(cache.claim_prefetch(expert).unwrap(), Some(slot));
++    let current = cache.pending_lease(slot, expert).unwrap();
++    let valid: bool = kani::any();
++    assert!(!cache.finish_lease(old, valid));
++    assert_eq!(cache.pending_lease(slot, expert), Some(current));
++    kani::cover!(valid && expert == 511);
++    kani::cover!(!valid && expert == 0);
++}
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 2ba26966..dd15395b 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1343,6 +1343,7 @@ pub fn expert_mapped(
+         false,
+         None,
+         false,
++        false,
+     )
+ }
+ 
+@@ -1484,6 +1485,7 @@ pub(crate) fn expert_slots(
+     k: usize,
+     cb: Codebook,
+     stable_shapes: bool,
++    native_prepare: bool,
+ ) -> Result<Array> {
+     ensure!(
+         trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
+@@ -1506,6 +1508,7 @@ pub(crate) fn expert_slots(
+         selected.masked,
+         selected.groups.as_ref(),
+         stable_shapes,
++        native_prepare,
+     )
+ }
+ 
+@@ -1527,6 +1530,7 @@ fn expert_mapped_layout(
+     masked: bool,
+     groups: Option<&GroupedRoutes>,
+     stable_shapes: bool,
++    native_prepare: bool,
+ ) -> Result<Array> {
+     codec::check_k(k)?;
+     ensure!(k != 7, "mapped K=7 is not supported");
+@@ -1576,6 +1580,12 @@ fn expert_mapped_layout(
+     );
+     let xhat = if input_pretransformed {
+         x.astype(Dtype::Float16)?.reshape(&[-1])?
++    } else if native_prepare
++        && crate::flash_support::native_prepare_shape(rows, input_dims)
++        && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
++        && suh.is_some_and(|scale| scale.dtype() == Dtype::Float16)
++    {
++        x.flash_prepare128(suh.expect("validated input scales"))?
+     } else {
+         x.astype(Dtype::Float16)?
+             .mul(
+@@ -1992,6 +2002,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), before);
+                             assert_eq!(actual.shape(), [rows as i32, output as i32]);
+@@ -2012,6 +2023,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
+                             assert_eq!(grouped.shape(), actual.shape());
+@@ -2042,6 +2054,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     changed.to_bytes()?,
+@@ -2111,6 +2124,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_eq!(masked.shape(), actual.shape());
+                                 let values = masked.to_f32()?;
+@@ -2146,6 +2160,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     actual.to_bytes()?,
+@@ -2340,6 +2355,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )?;
+             assert_eq!(
+                 Array::host_readbacks_for_test(),
+@@ -2396,6 +2412,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )
+             .is_err()
+         );
+diff --git a/native/src/linear/prepared_tests.rs b/native/src/linear/prepared_tests.rs
+index de0b714c..8a0f3b92 100644
+--- a/native/src/linear/prepared_tests.rs
++++ b/native/src/linear/prepared_tests.rs
+@@ -92,6 +92,7 @@ fn prepared_cold_chain_quality_and_micro() -> anyhow::Result<()> {
+                             2,
+                             Codebook::Mul1,
+                             false,
++                            false,
+                         )
+                     };
+                     let y = make()?;
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 26404fdc..01db8b60 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -521,14 +521,11 @@ struct Qsa {
+     k_norm: Norm,
+     iq_norm: Norm,
+     ik_norm: Norm,
+-    keys: Option<Array>,
+-    values: Option<Array>,
+-    index_tail: Option<Array>,
+-    blocks: Option<Array>,
+-    offset: i32,
++    state: QsaState,
+     frequencies: [Array; 2],
+ }
+ 
++#[derive(Default)]
+ struct QsaState {
+     keys: Option<Array>,
+     values: Option<Array>,
+@@ -544,19 +541,15 @@ fn clone_array(value: &Option<Array>) -> Result<Option<Array>> {
+ impl Qsa {
+     fn snapshot(&self) -> Result<QsaState> {
+         Ok(QsaState {
+-            keys: clone_array(&self.keys)?,
+-            values: clone_array(&self.values)?,
+-            index_tail: clone_array(&self.index_tail)?,
+-            blocks: clone_array(&self.blocks)?,
+-            offset: self.offset,
++            keys: clone_array(&self.state.keys)?,
++            values: clone_array(&self.state.values)?,
++            index_tail: clone_array(&self.state.index_tail)?,
++            blocks: clone_array(&self.state.blocks)?,
++            offset: self.state.offset,
+         })
+     }
+     fn restore(&mut self, state: QsaState) {
+-        self.keys = state.keys;
+-        self.values = state.values;
+-        self.index_tail = state.index_tail;
+-        self.blocks = state.blocks;
+-        self.offset = state.offset;
++        self.state = state;
+     }
+     fn load(c: &Checkpoint, p: &str, eps: f32, rope: f32) -> Result<Self> {
+         let proj =
+@@ -599,11 +592,7 @@ impl Qsa {
+                 eps,
+                 true,
+             )?,
+-            keys: None,
+-            values: None,
+-            index_tail: None,
+-            blocks: None,
+-            offset: 0,
++            state: QsaState::default(),
+             frequencies,
+         })
+     }
+@@ -671,7 +660,7 @@ impl Qsa {
+                 }
+             };
+         }
+-        let offset = self.offset;
++        let offset = self.state.offset;
+         let qk = self.append_cache(x)?;
+         let qg = self
+             .q
+@@ -684,8 +673,8 @@ impl Qsa {
+         stage!("q_norm", query_norm);
+         let query = self.rope(&query_norm.transpose(&[0, 2, 1, 3])?, 64, offset)?;
+         stage!("q_rope", query);
+-        let keys = self.keys.as_ref().context("missing QSA keys")?;
+-        let values = self.values.as_ref().context("missing QSA values")?;
++        let keys = self.state.keys.as_ref().context("missing QSA keys")?;
++        let values = self.state.values.as_ref().context("missing QSA values")?;
+         let count = (offset + 1) / 4;
+         let (attn_keys, attn_values) = if count > 512 {
+             let iq = self.rope(
+@@ -698,6 +687,7 @@ impl Qsa {
+             )?;
+             let scores = iq.astype(Dtype::Float32)?.matmul(
+                 &self
++                    .state
+                     .blocks
+                     .as_ref()
+                     .context("missing QSA index blocks")?
+@@ -747,8 +737,8 @@ impl Qsa {
+             .astype(Dtype::Float16)?
+             .reshape(&[1, 1, 5, 128])?;
+         let raw = qk.slice(2, 4, 5)?.reshape(&[1, 1, 128])?;
+-        let tail = Self::append(&self.index_tail, &raw, 1)?;
+-        if (self.offset + 1) % 4 == 0 {
++        let tail = Self::append(&self.state.index_tail, &raw, 1)?;
++        if (self.state.offset + 1) % 4 == 0 {
+             let pool = tail
+                 .astype(Dtype::Float32)?
+                 .sum(1, true)?
+@@ -757,12 +747,12 @@ impl Qsa {
+             let block = self.rope(
+                 &self.ik_norm.forward(&pool)?.reshape(&[1, 1, 1, 128])?,
+                 32,
+-                self.offset - 3,
++                self.state.offset - 3,
+             )?;
+-            self.blocks = Some(Self::append(&self.blocks, &block, 2)?);
+-            self.index_tail = None;
++            self.state.blocks = Some(Self::append(&self.state.blocks, &block, 2)?);
++            self.state.index_tail = None;
+         } else {
+-            self.index_tail = Some(tail);
++            self.state.index_tail = Some(tail);
+         }
+         let raw_key = self
+             .k
+@@ -772,7 +762,7 @@ impl Qsa {
+         stage!("k_proj", raw_key);
+         let key_norm = self.k_norm.forward(&raw_key)?;
+         stage!("k_norm", key_norm);
+-        let key = self.rope(&key_norm.transpose(&[0, 2, 1, 3])?, 64, self.offset)?;
++        let key = self.rope(&key_norm.transpose(&[0, 2, 1, 3])?, 64, self.state.offset)?;
+         stage!("k_rope", key);
+         let value = self
+             .v
+@@ -781,17 +771,17 @@ impl Qsa {
+             .reshape(&[1, 1, 2, 256])?;
+         stage!("v_proj", value);
+         let value = value.transpose(&[0, 2, 1, 3])?;
+-        self.keys = Some(Self::append(&self.keys, &key, 2)?);
+-        self.values = Some(Self::append(&self.values, &value, 2)?);
+-        self.offset = self.offset.checked_add(1).context("QSA offset exhausted")?;
++        self.state.keys = Some(Self::append(&self.state.keys, &key, 2)?);
++        self.state.values = Some(Self::append(&self.state.values, &value, 2)?);
++        self.state.offset = self
++            .state
++            .offset
++            .checked_add(1)
++            .context("QSA offset exhausted")?;
+         Ok(qk)
+     }
+     fn reset(&mut self) {
+-        self.keys = None;
+-        self.values = None;
+-        self.index_tail = None;
+-        self.blocks = None;
+-        self.offset = 0;
++        self.state = QsaState::default();
+     }
+ }
+ 
+@@ -1071,7 +1061,7 @@ impl Layer {
+         eps: f32,
+         rope: f32,
+         slots: usize,
+-        overlap: bool,
++        policy: crate::ssd_moe::ResolvedPolicy,
+     ) -> Result<Self> {
+         Ok(Self {
+             #[cfg(test)]
+@@ -1088,7 +1078,7 @@ impl Layer {
+                     rope,
+                 )?))
+             },
+-            moe: SsdMoe::load(c, &format!("{p}.mlp"), slots, overlap)?,
++            moe: SsdMoe::load_resolved(c, &format!("{p}.mlp"), slots, policy)?,
+             ple: ple
+                 .then(|| Ple::load(c, &format!("{p}.ple"), eps))
+                 .transpose()?,
+@@ -1320,14 +1310,19 @@ impl Layer {
+     }
+ }
+ 
+-pub struct FlashNext {
++struct ModelAssets {
+     path: PathBuf,
+     embed: TensorInfo,
+-    layers: Vec<Layer>,
+     mixer: Hc,
+     head: Projection,
+-    offset: i32,
+     context: i32,
++}
++
++/// One inference session. Layer caches, transactions and the draft are session-local.
++pub struct FlashNext {
++    assets: ModelAssets,
++    layers: Vec<Layer>,
++    offset: i32,
+     pub last_hidden: Option<Array>,
+     verification: Option<PairState>,
+     multi_token: bool,
+@@ -1482,6 +1477,7 @@ impl FlashNext {
+         );
+         let types = t["layer_types"].as_array().context("missing layer types")?;
+         ensure!(types.len() == 48, "invalid layer count");
++        let policy = crate::ssd_moe::ResolvedPolicy::resolve(true, overlap)?;
+         let mut layers = Vec::with_capacity(48);
+         for (i, kind) in types.iter().enumerate() {
+             let linear = i % 4 != 3;
+@@ -1507,7 +1503,7 @@ impl FlashNext {
+                 eps,
+                 rope,
+                 layer_slots[i],
+-                overlap,
++                policy,
+             )?);
+             #[cfg(test)]
+             assert_eq!(layers[i].moe.slots_for_test(), layer_slots[i]);
+@@ -1524,13 +1520,15 @@ impl FlashNext {
+         let mixer = Hc::load(c, "model.language_model.hyper_connection_mixer", eps, false)?;
+         let head = Projection::load(c, "lm_head", H, 248320, false)?;
+         Ok(Self {
+-            path: c.path.clone(),
+-            embed,
++            assets: ModelAssets {
++                path: c.path.clone(),
++                embed,
++                mixer,
++                head,
++                context,
++            },
+             layers,
+-            mixer,
+-            head,
+             offset: 0,
+-            context,
+             last_hidden: None,
+             verification: None,
+             multi_token,
+@@ -1543,7 +1541,7 @@ impl FlashNext {
+     }
+     pub fn embedding(&self, token: u32) -> Result<Array> {
+         ensure!(token < 248320, "token outside Flash vocabulary");
+-        let (file, base) = self.embed.source()?;
++        let (file, base) = self.assets.embed.source()?;
+         let offset = flash_support::row_offset(base, u64::from(token), 248320, 5120)
+             .context("token embedding offset overflow")?;
+         Array::from_file(file, offset, &[1, H], Dtype::BFloat16)?.astype(Dtype::Float16)
+@@ -1567,7 +1565,7 @@ impl FlashNext {
+             self.verification.is_none(),
+             "uncommitted Flash verification"
+         );
+-        ensure!(self.offset < self.context, "Flash context exhausted");
++        ensure!(self.offset < self.assets.context, "Flash context exhausted");
+         let mut streams = self.streams(token)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("embedding_streams", &streams)?;
+@@ -1610,10 +1608,10 @@ impl FlashNext {
+     fn logits(&self, streams: &Array) -> Result<Array> {
+         #[cfg(test)]
+         let _profile = crate::flash_profile::span("logits");
+-        let (mixed, _) = self.mixer.read(streams)?;
++        let (mixed, _) = self.assets.mixer.read(streams)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("final_hc_read", &mixed)?;
+-        let logits = self.head.forward(&mixed.astype(Dtype::Float16)?)?;
++        let logits = self.assets.head.forward(&mixed.astype(Dtype::Float16)?)?;
+         #[cfg(test)]
+         let _eval = crate::flash_profile::span("lm_head_eval_inclusive");
+         logits.eval()?;
+@@ -1631,7 +1629,7 @@ impl FlashNext {
+                     }
+                 }
+                 Attention::Qsa(q) => {
+-                    if let Some(blocks) = &q.blocks {
++                    if let Some(blocks) = &q.state.blocks {
+                         blocks.eval()?;
+                     }
+                 }
+@@ -1647,7 +1645,7 @@ impl FlashNext {
+             "uncommitted Flash verification"
+         );
+         ensure!(
+-            self.context - self.offset >= 2 && tokens.iter().all(|&t| t < 248320),
++            self.assets.context - self.offset >= 2 && tokens.iter().all(|&t| t < 248320),
+             "invalid Flash verification tokens or context"
+         );
+         let base = self.offset;
+@@ -1674,11 +1672,11 @@ impl FlashNext {
+             let input = streams
+                 .iter()
+                 .map(|stream| -> Result<Array> {
+-                    self.mixer.read(stream)?.0.astype(Dtype::Float16)
++                    self.assets.mixer.read(stream)?.0.astype(Dtype::Float16)
+                 })
+                 .collect::<Result<Vec<_>>>()?;
+             let logits = verification_projection(
+-                &self.head,
++                &self.assets.head,
+                 &Array::concatenate(&input.iter().collect::<Vec<_>>(), 0)?,
+             )?;
+             logits.eval()?;
+@@ -1759,7 +1757,7 @@ impl FlashNext {
+     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
+         ensure!(
+             !tokens.is_empty()
+-                && tokens.len() <= usize::try_from(self.context - self.offset)?
++                && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
+                 && tokens.iter().all(|&t| t < 248320),
+             "invalid Flash token batch"
+         );
+@@ -1786,7 +1784,7 @@ impl FlashNext {
+         }
+     }
+     pub fn context_limit(&self) -> i32 {
+-        self.context
++        self.assets.context
+     }
+     pub fn offset(&self) -> i32 {
+         self.offset
+@@ -1837,7 +1835,7 @@ pub struct FlashMtpHead {
+ impl FlashMtpHead {
+     pub fn load(c: &Checkpoint, target: &FlashNext) -> Result<Self> {
+         ensure!(
+-            c.path == target.path && c.model_type == "qwen4_exp",
++            c.path == target.assets.path && c.model_type == "qwen4_exp",
+             "Flash MTP requires the target checkpoint"
+         );
+         let config: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
+@@ -1845,11 +1843,20 @@ impl FlashMtpHead {
+             config["text_config"]["mtp_num_hidden_layers"] == 1,
+             "Flash MTP requires one native draft layer"
+         );
+-        let eps = target.mixer.norm.eps;
++        let eps = target.assets.mixer.norm.eps;
+         let rope = config["text_config"]["rope_parameters"]["rope_theta"]
+             .as_f64()
+             .context("missing MTP RoPE")? as f32;
+-        let mut layer = Layer::load(c, "mtp.layers.0", false, false, eps, rope, 512, true)?;
++        let mut layer = Layer::load(
++            c,
++            "mtp.layers.0",
++            false,
++            false,
++            eps,
++            rope,
++            512,
++            crate::ssd_moe::ResolvedPolicy::resolve(false, true)?,
++        )?;
+         layer.moe.warm_all()?;
+         Ok(Self {
+             #[cfg(test)]
+@@ -1902,7 +1909,7 @@ impl FlashMtpHead {
+             self.stages.push(("layer".into(), output.try_clone()?));
+             self.stages.push(("output".into(), mixed.try_clone()?));
+         }
+-        let logits = target.head.forward(&mixed.astype(Dtype::Float16)?)?;
++        let logits = target.assets.head.forward(&mixed.astype(Dtype::Float16)?)?;
+         logits.eval()?;
+         self.layer.moe.drain()?;
+         self.eval_cache()?;
+@@ -1921,9 +1928,14 @@ impl FlashMtpHead {
+         let Attention::Qsa(qsa) = &self.layer.attention else {
+             anyhow::bail!("invalid MTP attention");
+         };
+-        for array in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks]
+-            .into_iter()
+-            .flatten()
++        for array in [
++            &qsa.state.keys,
++            &qsa.state.values,
++            &qsa.state.index_tail,
++            &qsa.state.blocks,
++        ]
++        .into_iter()
++        .flatten()
+         {
+             array.eval()?;
+         }
+@@ -1934,7 +1946,7 @@ impl FlashMtpHead {
+     }
+     pub fn offset(&self) -> i32 {
+         match &self.layer.attention {
+-            Attention::Qsa(q) => q.offset,
++            Attention::Qsa(q) => q.state.offset,
+             Attention::Gdn(_) => 0,
+         }
+     }
+@@ -2146,7 +2158,7 @@ mod tests {
+                     model.lookahead_depth = depth;
+                     for layer in &mut model.layers {
+                         layer.moe.cache_for_test_invalidate();
+-                        layer.moe.predictor_half = half;
++                        layer.moe.policy.predictor_half = half;
+                     }
+                     let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+                     for step in 0..3 {
+@@ -2233,8 +2245,13 @@ mod tests {
+         }
+     }
+     pub(super) fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
+-        let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
+-        for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
++        let mut bytes = vec![qsa.state.offset.to_le_bytes().to_vec()];
++        for value in [
++            &qsa.state.keys,
++            &qsa.state.values,
++            &qsa.state.index_tail,
++            &qsa.state.blocks,
++        ] {
+             let mut item = vec![u8::from(value.is_some())];
+             if let Some(value) = value {
+                 ensure!(
+@@ -3052,7 +3069,7 @@ mod tests {
+                             }
+                         }
+                         Attention::Qsa(q) => {
+-                            if let Some(blocks) = &q.blocks {
++                            if let Some(blocks) = &q.state.blocks {
+                                 blocks.eval()?;
+                             }
+                         }
+@@ -3344,8 +3361,8 @@ mod tests {
+                         .clone(),
+                     "next states differ after commit"
+                 );
+-                let context = model.context;
+-                model.context = model.offset + 1;
++                let context = model.assets.context;
++                model.assets.context = model.offset + 1;
+                 let before = state_bytes(&model)?;
+                 ensure!(
+                     model.verify_pair([1, 2]).is_err(),
+@@ -3355,7 +3372,7 @@ mod tests {
+                     before == state_bytes(&model)?,
+                     "context rejection changed state"
+                 );
+-                model.context = context;
++                model.assets.context = context;
+             }
+         }
+         Ok(())
+@@ -3419,9 +3436,9 @@ mod tests {
+                 unreachable!()
+             };
+             for (name, array) in [
+-                ("keys", &q.keys),
+-                ("values", &q.values),
+-                ("index_tail", &q.index_tail),
++                ("keys", &q.state.keys),
++                ("values", &q.state.values),
++                ("index_tail", &q.state.index_tail),
+             ] {
+                 if let Some(array) = array {
+                     check(
+@@ -3849,7 +3866,7 @@ mod tests {
+                 "invalid RoPE dtype accepted"
+             );
+             ensure!(
+-                qsa.offset == 0 && qsa.keys.is_none(),
++                qsa.state.offset == 0 && qsa.state.keys.is_none(),
+                 "rejected RoPE changed cache"
+             );
+             for (step, case) in steps.iter().enumerate() {
+diff --git a/native/src/qwen4/mtp_prefill_tests.rs b/native/src/qwen4/mtp_prefill_tests.rs
+index 04e3cd53..d5a4b084 100644
+--- a/native/src/qwen4/mtp_prefill_tests.rs
++++ b/native/src/qwen4/mtp_prefill_tests.rs
+@@ -109,7 +109,7 @@ fn mtp_final_prefill_head_matches_old_bridge_states_and_errors() -> Result<()> {
+         (vec![EOS, 7], true, 4096),
+         (vec![EOS, 7, 8], false, 2),
+     ] {
+-        target.context = context;
++        target.assets.context = context;
+         let cancelled = AtomicBool::new(cancelled);
+         let error = reference(&mut target, &mut head, &tokens, &cancelled).unwrap_err();
+         let expected = snapshot(&target, &head)?;
+diff --git a/native/src/qwen4/profile.rs b/native/src/qwen4/profile.rs
+index 6234a85d..db43f158 100644
+--- a/native/src/qwen4/profile.rs
++++ b/native/src/qwen4/profile.rs
+@@ -414,3 +414,131 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
+ fn actual_detailed_profile_path() {
+     flash_detailed_profile_preserves_full_outputs_and_states().unwrap();
+ }
++
++#[test]
++#[ignore = "physical Apple GPU, records or checks Flash migration fixtures in a disposable directory"]
++fn ar_migration_prompt_fixtures() -> Result<()> {
++    use std::io::Write;
++
++    let directory = PathBuf::from(std::env::var("MLXL3_AR_FIXTURE_DIR")?);
++    let record = match std::env::var("MLXL3_AR_FIXTURE_MODE")?.as_str() {
++        "record" => true,
++        "check" => false,
++        _ => anyhow::bail!("expected record or check"),
++    };
++    let marker = directory.join("complete");
++    if record {
++        std::fs::create_dir(&directory)?;
++    } else {
++        ensure!(
++            std::fs::read(&marker)? == b"flash-ar-v1\n",
++            "incomplete AR fixtures"
++        );
++    }
++    let path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
++    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
++    let mut target = FlashNext::from_checkpoint(&crate::checkpoint::inspect(&path)?)?;
++    for (label, expected_len, prompt) in [
++        (
++            "MAIN",
++            87,
++            "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.",
++        ),
++        (
++            "HOLD",
++            82,
++            "Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.",
++        ),
++    ] {
++        target.reset();
++        let ids = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
++            role: "user".into(),
++            content: prompt.into(),
++        }])?)?;
++        ensure!(ids.len() == expected_len);
++        let mut logits = target.forward_tokens(&ids)?;
++        for step in 0..=1 {
++            ensure!(logits.shape().iter().product::<i32>() == 248320);
++            let mut values = super::tests::state_bytes(&target)?;
++            ensure!(values.len() == 136 && target.layers.len() == 48);
++            values.push(super::tests::tensor_state_bytes(&logits)?);
++            for layer in &target.layers {
++                let routes = &layer.moe.route_ids;
++                ensure!(routes.len() == 10 && routes.iter().all(|&v| v < 512));
++                values.push(routes.iter().flat_map(|v| v.to_le_bytes()).collect());
++            }
++            for (i, value) in values.into_iter().enumerate() {
++                let path = directory.join(format!("{label}-{step}-{i}.bin"));
++                if record {
++                    File::create_new(&path)?.write_all(&value)?;
++                } else {
++                    ensure!(
++                        value == std::fs::read(&path)?,
++                        "AR fixture mismatch at {label}/{step}/{i}"
++                    );
++                }
++            }
++            if step == 0 {
++                let next = logits.chat_greedy_ids()?;
++                ensure!(next.len() == 1);
++                logits = target.forward(next[0])?;
++            }
++        }
++    }
++    if record {
++        File::create_new(marker)?.write_all(b"flash-ar-v1\n")?;
++    }
++    println!("AR_FIXTURES prompts=2 checkpoints=4 states=136 logits=248320 route_layers=48");
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; native Flash prepare layouts, lifetime and FP16 rounding"]
++fn native_prepare_matches_canonical_hadamard() -> Result<()> {
++    let mut pending = Vec::new();
++    for width in [640, 2560] {
++        for rows in [1, 3, 10, 20] {
++            let data: Vec<_> = (0..rows * width)
++                .map(|i| ((i % 113) - 56) as f32 * 0.01953125 + 0.000031)
++                .collect();
++            let scales = Array::from_f32(&data, &[width, rows])?
++                .astype(Dtype::Float16)?
++                .transpose(&[1, 0])?;
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                let x = Array::from_f32(&data, &[rows, width])?.astype(dtype)?;
++                let broadcast = x.slice(0, 0, 1)?.broadcast_to(&[rows, width])?;
++                for input in [&x, &broadcast] {
++                    let expected = input
++                        .astype(Dtype::Float16)?
++                        .mul(&scales)?
++                        .reshape(&[-1, 128])?
++                        .hadamard_transform(Some(1.0 / 128f32.sqrt()))?
++                        .reshape(&[-1])?;
++                    pending.push((input.flash_prepare128(&scales)?, expected));
++                }
++            }
++        }
++    }
++    ensure!(pending.len() == 32);
++    for (candidate, expected) in pending.into_iter().rev() {
++        ensure!(candidate.shape() == expected.shape() && candidate.dtype() == Dtype::Float16);
++        let reference = expected.to_f32()?;
++        ensure!(
++            reference.len() >= 640
++                && reference.iter().all(|v| v.is_finite())
++                && reference.iter().any(|&v| v != 0.0)
++        );
++        ensure!(
++            candidate.to_bytes()? == expected.to_bytes()?,
++            "native EXL3 preparation diverged"
++        );
++    }
++    for shape in [[21, 640], [1, 128], [0, 640]] {
++        let x = Array::zeros_dtype(&shape, Dtype::Float16)?;
++        ensure!(x.flash_prepare128(&x).is_err());
++    }
++    let bad = Array::zeros_dtype(&[1, 640], Dtype::UInt32)?;
++    ensure!(bad.flash_prepare128(&bad).is_err());
++    println!("NATIVE_PREPARE real_layouts=32 rejected=4");
++    Ok(())
++}
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a9f9ba7c..c66bae91 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -50,6 +50,26 @@ impl Drop for ColdConsumers {
+     }
+ }
+ 
++mod policy;
++pub(crate) use policy::ResolvedPolicy;
++
++struct ExpertStore {
++    records: Vec<TensorInfo>,
++    banks: Vec<Array>,
++    cache: Rc<RefCell<ExpertCache>>,
++    last: Option<Array>,
++}
++
++impl ExpertStore {
++    fn drain(&mut self) -> Result<()> {
++        if let Some(last) = &self.last {
++            last.eval()?;
++            self.last = None;
++        }
++        Ok(())
++    }
++}
++
+ pub struct SsdMoe {
+     gate: Projection,
+     resident_gate: Option<Array>,
+@@ -57,27 +77,11 @@ pub struct SsdMoe {
+     shared_up: Projection,
+     shared_down: Projection,
+     multiplier: Projection,
+-    records: Vec<TensorInfo>,
+-    banks: Vec<Array>,
+-    cache: Rc<RefCell<ExpertCache>>,
+-    last: Option<Array>,
++    store: ExpertStore,
++    pub(crate) policy: ResolvedPolicy,
+     pub hits: u64,
+     pub misses: u64,
+     pub read_bytes: u64,
+-    overlap: bool,
+-    readers: usize,
+-    gpu_hot: bool,
+-    gpu_hot_wide: bool,
+-    unique_cohorts: bool,
+-    shared_exl3: bool,
+-    stable_expert_kernels: bool,
+-    shared_batch: bool,
+-    weighted_epilogue: bool,
+-    cold_ready: bool,
+-    cold_ready_rows: i32,
+-    cold_priority: bool,
+-    cold_shared: bool,
+-    routed_index_cache: bool,
+     routed_indices: [Option<Array>; 8],
+     #[cfg(test)]
+     routed_index_builds: usize,
+@@ -101,7 +105,6 @@ pub struct SsdMoe {
+     cold_ready_prepared_rest: usize,
+     #[cfg(test)]
+     cold_priority_batches: usize,
+-    pub(crate) prefetch_pipeline: bool,
+     #[cfg(test)]
+     cohort_sizes: Vec<usize>,
+     #[cfg(test)]
+@@ -116,7 +119,6 @@ pub struct SsdMoe {
+     hot_ready_at_routes: Option<bool>,
+     #[cfg(test)]
+     hot_ready_at_demand: Option<bool>,
+-    pub(crate) predictor_half: bool,
+     pub(crate) prefetcher: Option<(usize, Rc<RefCell<ReaderPool>>)>,
+     #[cfg(test)]
+     pub(crate) route_ids: Vec<u32>,
+@@ -140,78 +142,20 @@ pub struct SsdMoe {
+ 
+ impl SsdMoe {
+     pub fn load(c: &Checkpoint, prefix: &str, slots: usize, overlap: bool) -> Result<Self> {
+-        let control = |name, default: &str| -> Result<String> {
+-            match std::env::var(name) {
+-                Ok(value) => Ok(value),
+-                Err(std::env::VarError::NotPresent) => Ok(default.into()),
+-                Err(error) => Err(error.into()),
+-            }
+-        };
+-        let force_lru =
+-            crate::flash_support::parse_lru_override(&control("MLXL3_SSD_CACHE_POLICY", "auto")?)
+-                .context("MLXL3_SSD_CACHE_POLICY must be auto or lru")?;
+-        let predictor_half = crate::flash_support::parse_predictor_half(&control(
+-            "MLXL3_SSD_PREDICTOR_DTYPE",
+-            "f32",
+-        )?)
+-        .context("MLXL3_SSD_PREDICTOR_DTYPE must be f32 or f16")?;
+-        let resident_gates = match control("MLXL3_SSD_RESIDENT_GATES", "0")?.as_str() {
+-            "0" => false,
+-            "1" => true,
+-            _ => anyhow::bail!("MLXL3_SSD_RESIDENT_GATES must be 0 or 1"),
+-        };
+-        let gpu_hot = match control("MLXL3_SSD_GPU_HOT", "0")?.as_str() {
+-            "0" => false,
+-            "1" => prefix.starts_with("model.language_model.layers."),
+-            _ => anyhow::bail!("MLXL3_SSD_GPU_HOT must be 0 or 1"),
+-        };
+-        let gpu_hot_wide =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_GPU_HOT_WIDE", "0")?)
+-                .context("MLXL3_SSD_GPU_HOT_WIDE must be 0 or 1")?;
+-        let unique_cohorts =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_UNIQUE_COHORT", "0")?)
+-                .context("MLXL3_SSD_UNIQUE_COHORT must be 0 or 1")?;
+-        let shared_exl3 =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_EXL3", "0")?)
+-                .context("MLXL3_SSD_SHARED_EXL3 must be 0 or 1")?;
+-        let stable_expert_kernels = crate::flash_support::parse_gpu_hot_wide(&control(
+-            "MLXL3_SSD_STABLE_EXPERT_KERNELS",
+-            "0",
+-        )?)
+-        .context("MLXL3_SSD_STABLE_EXPERT_KERNELS must be 0 or 1")?;
+-        let shared_batch =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+-                .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
+-        let weighted_epilogue =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_WEIGHTED_EPILOGUE", "0")?)
+-                .context("MLXL3_SSD_WEIGHTED_EPILOGUE must be 0 or 1")?;
+-        let cold_ready =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
+-                .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
+-        let cold_ready_rows =
+-            crate::cold_ready::parse_max_rows(Some(&control("MLXL3_SSD_COLD_READY_ROWS", "2")?))
+-                .context("MLXL3_SSD_COLD_READY_ROWS must be 2 or 4")?;
+-        let cold_priority =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_PRIORITY", "0")?)
+-                .context("MLXL3_SSD_COLD_PRIORITY must be 0 or 1")?;
+-        let cold_shared =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_SHARED", "0")?)
+-                .context("MLXL3_SSD_COLD_SHARED must be 0 or 1")?;
+-        let routed_index_cache = crate::flash_support::parse_gpu_hot_wide(&control(
+-            "MLXL3_SSD_ROUTED_INDEX_CACHE",
+-            "0",
+-        )?)
+-        .context("MLXL3_SSD_ROUTED_INDEX_CACHE must be 0 or 1")?;
+-        crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
+-            .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
+-        let prefetch_pipeline =
+-            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
+-                .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
+-        let readers = std::env::var("MLXL3_SSD_READERS")
+-            .unwrap_or_else(|_| "4".into())
+-            .parse::<usize>()
+-            .context("invalid SSD reader count")?;
+-        ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
++        Self::load_resolved(
++            c,
++            prefix,
++            slots,
++            ResolvedPolicy::resolve(prefix.starts_with("model.language_model.layers."), overlap)?,
++        )
++    }
++
++    pub(crate) fn load_resolved(
++        c: &Checkpoint,
++        prefix: &str,
++        slots: usize,
++        policy: ResolvedPolicy,
++    ) -> Result<Self> {
+         let mut records = Vec::with_capacity(512);
+         for expert in 0..512 {
+             let p = format!("{prefix}.experts.{expert}");
+@@ -261,7 +205,7 @@ impl SsdMoe {
+         }
+         let s = i32::try_from(slots)?;
+         let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
+-        if force_lru {
++        if policy.force_lru {
+             cache.borrow_mut().enable_predictive_lru();
+         }
+         let banks = [
+@@ -280,39 +224,27 @@ impl SsdMoe {
+         let projection = |suffix: &str, input, output| {
+             Projection::load(c, &format!("{prefix}.{suffix}"), input, output, false)
+         };
+-        let resident_gate = if resident_gates && prefix.starts_with("model.language_model.layers.")
+-        {
+-            let name = format!("{prefix}.gate.weight");
+-            let info = c.tensors.get(&name).context("missing dense Flash gate")?;
+-            ensure!(
+-                info.shape == [512, H as usize]
+-                    && matches!(info.dtype.as_str(), "F16" | "BF16" | "F32")
+-                    && !c.tensors.contains_key(&format!("{prefix}.gate.bias")),
+-                "resident Flash gate must be dense 512x2560 without bias"
+-            );
+-            // Match MLX matmul's transpose-then-promote order, once at load.
+-            let weight = linear::checkpoint_array(c, &name)?
+-                .astype(Dtype::Float16)?
+-                .transpose(&[1, 0])?
+-                .astype(Dtype::Float32)?;
+-            weight.eval()?;
+-            Some(weight)
+-        } else {
+-            None
+-        };
++        let resident_gate =
++            if policy.resident_gates && prefix.starts_with("model.language_model.layers.") {
++                let name = format!("{prefix}.gate.weight");
++                let info = c.tensors.get(&name).context("missing dense Flash gate")?;
++                ensure!(
++                    info.shape == [512, H as usize]
++                        && matches!(info.dtype.as_str(), "F16" | "BF16" | "F32")
++                        && !c.tensors.contains_key(&format!("{prefix}.gate.bias")),
++                    "resident Flash gate must be dense 512x2560 without bias"
++                );
++                // Match MLX matmul's transpose-then-promote order, once at load.
++                let weight = linear::checkpoint_array(c, &name)?
++                    .astype(Dtype::Float16)?
++                    .transpose(&[1, 0])?
++                    .astype(Dtype::Float32)?;
++                weight.eval()?;
++                Some(weight)
++            } else {
++                None
++            };
+         Ok(Self {
+-            gpu_hot,
+-            gpu_hot_wide,
+-            unique_cohorts,
+-            shared_exl3,
+-            stable_expert_kernels,
+-            shared_batch,
+-            weighted_epilogue,
+-            cold_ready,
+-            cold_ready_rows,
+-            cold_priority,
+-            cold_shared,
+-            routed_index_cache,
+             routed_indices: std::array::from_fn(|_| None),
+             #[cfg(test)]
+             routed_index_builds: 0,
+@@ -336,7 +268,6 @@ impl SsdMoe {
+             cold_ready_prepared_rest: 0,
+             #[cfg(test)]
+             cold_priority_batches: 0,
+-            prefetch_pipeline,
+             #[cfg(test)]
+             cohort_sizes: Vec::new(),
+             #[cfg(test)]
+@@ -357,16 +288,16 @@ impl SsdMoe {
+             shared_up: projection("shared_expert.up_proj", H, I)?,
+             shared_down: projection("shared_expert.down_proj", I, H)?,
+             multiplier: projection("shared_expert_gate", H, 1)?,
+-            records,
+-            banks,
+-            cache,
+-            last: None,
++            store: ExpertStore {
++                records,
++                banks,
++                cache,
++                last: None,
++            },
++            policy,
+             hits: 0,
+             misses: 0,
+             read_bytes: 0,
+-            overlap,
+-            readers,
+-            predictor_half,
+             prefetcher: None,
+             #[cfg(test)]
+             route_ids: Vec::new(),
+@@ -398,7 +329,8 @@ impl SsdMoe {
+         let sources = jobs
+             .iter()
+             .map(|&(expert, _)| {
+-                self.records
++                self.store
++                    .records
+                     .get(expert as usize)
+                     .context("invalid expert")?
+                     .source()
+@@ -422,10 +354,11 @@ impl SsdMoe {
+         if read_profile.is_some() {
+             crate::array::disk_profile_enable(true);
+         }
+-        let result = Array::read_records(&sources, &mut self.banks, &views, self.readers);
++        let result =
++            Array::read_records(&sources, &mut self.store.banks, &views, self.policy.readers);
+         #[cfg(test)]
+         if let Some(profile) = &read_profile {
+-            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"schedule":crate::array::disk_profile_schedule(),"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
++            profile.data(serde_json::json!({"jobs":jobs,"workers":self.policy.readers,"schedule":crate::array::disk_profile_schedule(),"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
+         }
+         result?;
+         self.read_bytes = bytes;
+@@ -455,7 +388,7 @@ impl SsdMoe {
+         route_rows: i32,
+     ) -> Result<Option<ColdWaves>> {
+         ensure!(
+-            (1..=self.cold_ready_rows).contains(&route_rows)
++            (1..=self.policy.cold_ready_rows).contains(&route_rows)
+                 && routed_x.shape() == [route_rows * 10, H]
+                 && cold
+                     .iter()
+@@ -463,7 +396,7 @@ impl SsdMoe {
+             "invalid Cold wave route domain"
+         );
+         #[cfg(test)]
+-        let priority_active = route_rows == 2 && self.cold_priority;
++        let priority_active = route_rows == 2 && self.policy.cold_priority;
+         #[cfg(test)]
+         let cold_occurrences = cold.clone();
+         #[cfg(test)]
+@@ -483,7 +416,8 @@ impl SsdMoe {
+         let sources = jobs
+             .iter()
+             .map(|&(expert, _)| {
+-                self.records
++                self.store
++                    .records
+                     .get(expert as usize)
+                     .context("invalid expert")?
+                     .source()
+@@ -498,8 +432,9 @@ impl SsdMoe {
+             .map(|ranges| ranges.as_slice())
+             .collect::<Vec<_>>();
+         // Reservations exclude Hot; only published slots enter W1. Drop joins all readers.
+-        let mut batch =
+-            unsafe { Array::begin_read_records(&sources, &mut self.banks, &views, self.readers)? };
++        let mut batch = unsafe {
++            Array::begin_read_records(&sources, &mut self.store.banks, &views, self.policy.readers)?
++        };
+         let shared = match shared {
+             Some((x, output)) => {
+                 // Start disk work before building the independent resident expert.
+@@ -633,7 +568,7 @@ impl SsdMoe {
+                 "ready_job_indices":ready.iter().enumerate().filter_map(|(i,&done)|done.then_some(i)).collect::<Vec<_>>(),
+                 "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
+                 "split":first.is_some(),"io_ok":finished.is_ok(),
+-                "jobs_mapping":jobs,"workers":self.readers,
++                "jobs_mapping":jobs,"workers":self.policy.readers,
+                 "route_rows":route_rows,"priority":priority_active,
+                 "cold_occurrences":cold_occurrences,
+                 "multiplicities":crate::cold_ready::job_multiplicities(jobs, &cold_occurrences),
+@@ -647,8 +582,8 @@ impl SsdMoe {
+     }
+ 
+     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
+-        let capacity = self.banks[0].shape()[0];
+-        let slots = if self.shared_exl3 {
++        let capacity = self.store.banks[0].shape()[0];
++        let slots = if self.policy.shared_exl3 {
+             linear::ExpertSlots::grouped(slots, capacity)?
+         } else {
+             linear::ExpertSlots::new(slots, capacity)?
+@@ -669,13 +604,17 @@ impl SsdMoe {
+             .reshape(&[n, 1, H])?
+             .broadcast_to(&[n, 2, H])?
+             .reshape(&[n * 2, H])?;
+-        let suh = slots.gather_scales(&self.banks[2])?.reshape(&[n * 2, H])?;
+-        let svh = slots.gather_scales(&self.banks[3])?.reshape(&[n * 2, I])?;
++        let suh = slots
++            .gather_scales(&self.store.banks[2])?
++            .reshape(&[n * 2, H])?;
++        let svh = slots
++            .gather_scales(&self.store.banks[3])?
++            .reshape(&[n * 2, I])?;
+         #[cfg(test)]
+         let gu_build = crate::flash_profile::span("expert_gate_up_build");
+         let gu = linear::expert_slots(
+             &expanded,
+-            &self.banks[0],
++            &self.store.banks[0],
+             &suh,
+             &svh,
+             slots,
+@@ -683,7 +622,8 @@ impl SsdMoe {
+             2,
+             2,
+             Codebook::Mul1,
+-            self.stable_expert_kernels,
++            self.policy.stable_expert_kernels,
++            self.policy.native_prepare,
+         )?
+         .reshape(&[n, 2, I])?;
+         #[cfg(test)]
+@@ -704,15 +644,20 @@ impl SsdMoe {
+         let down_build = crate::flash_profile::span("expert_down_build");
+         let down = linear::expert_slots(
+             &activated,
+-            &self.banks[1],
+-            &slots.gather_scales(&self.banks[4])?.reshape(&[n, I])?,
+-            &slots.gather_scales(&self.banks[5])?.reshape(&[n, H])?,
++            &self.store.banks[1],
++            &slots
++                .gather_scales(&self.store.banks[4])?
++                .reshape(&[n, I])?,
++            &slots
++                .gather_scales(&self.store.banks[5])?
++                .reshape(&[n, H])?,
+             slots,
+             H,
+             1,
+             2,
+             Codebook::Mul1,
+-            self.stable_expert_kernels,
++            self.policy.stable_expert_kernels,
++            self.policy.native_prepare,
+         )?;
+         #[cfg(test)]
+         drop(down_build);
+@@ -744,7 +689,7 @@ impl SsdMoe {
+         }
+     }
+     fn predict(&self, x: &Array) -> Result<Array> {
+-        let x = if self.predictor_half {
++        let x = if self.policy.predictor_half {
+             x.astype(Dtype::Float16)?
+         } else {
+             x.try_clone()?
+@@ -773,18 +718,18 @@ impl SsdMoe {
+     pub(crate) fn warm_all(&mut self) -> Result<()> {
+         self.drain()?;
+         ensure!(
+-            self.cache.borrow().capacity() == 512,
++            self.store.cache.borrow().capacity() == 512,
+             "resident draft requires all expert slots"
+         );
+         let ids = (0..512u32).collect::<Vec<_>>();
+-        let routes = self.cache.borrow_mut().reserve(&ids)?;
++        let routes = self.store.cache.borrow_mut().reserve(&ids)?;
+         let jobs = ids
+             .iter()
+             .zip(&routes)
+             .filter_map(|(&id, &(slot, hit))| (!hit).then_some((id, slot)))
+             .collect::<Vec<_>>();
+         if let Err(error) = self.fill_many(&jobs) {
+-            self.cache.borrow_mut().invalidate();
++            self.store.cache.borrow_mut().invalidate();
+             return Err(error);
+         }
+         Ok(())
+@@ -815,7 +760,7 @@ impl SsdMoe {
+         next: Option<&mut Self>,
+         depth: usize,
+     ) -> Result<Array> {
+-        if !self.prefetch_pipeline || depth == 0 {
++        if !self.policy.prefetch_pipeline || depth == 0 {
+             return self.forward_draft_rows(x);
+         }
+         ensure!(
+@@ -863,7 +808,7 @@ impl SsdMoe {
+             .checked_mul(10)
+             .context("routed input row count overflow")?;
+         let cache_slot =
+-            (self.routed_index_cache && (1..=8).contains(&rows)).then(|| rows as usize - 1);
++            (self.policy.routed_index_cache && (1..=8).contains(&rows)).then(|| rows as usize - 1);
+         if let Some(indices) = cache_slot.and_then(|slot| self.routed_indices[slot].as_ref()) {
+             #[cfg(test)]
+             {
+@@ -886,19 +831,19 @@ impl SsdMoe {
+     }
+ 
+     fn prepare_resident_hot(&mut self, x: &Array, selected: &Array) -> Result<Option<ResidentHot>> {
+-        if let Some(last) = self.last.take() {
++        if self.store.last.is_some() {
+             #[cfg(test)]
+             let _profile = crate::flash_profile::span("hot_previous_bank_users_wait");
+-            last.eval()?;
++            self.store.drain()?;
+         }
+-        let map = self.cache.borrow().resident_slot_map()?;
++        let map = self.store.cache.borrow().resident_slot_map()?;
+         if map.iter().all(|&slot| slot == u32::MAX) {
+             return Ok(None);
+         }
+         let input = self.routed_input(x)?;
+         #[cfg(test)]
+         let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
+-        let slots = linear::ExpertSlots::residents(selected, &map, self.banks[0].shape()[0])?;
++        let slots = linear::ExpertSlots::residents(selected, &map, self.store.banks[0].shape()[0])?;
+         slots.indices().async_eval()?;
+         let output = self.calculate_slots(&input, &slots)?;
+         #[cfg(test)]
+@@ -907,7 +852,7 @@ impl SsdMoe {
+         } else {
+             output
+         };
+-        self.last = Some(output.try_clone()?);
++        self.store.last = Some(output.try_clone()?);
+         output.async_eval()?;
+         #[cfg(test)]
+         {
+@@ -948,7 +893,7 @@ impl SsdMoe {
+             self.profile_seconds[0] += started.elapsed().as_secs_f64();
+             drop(planning);
+         }
+-        let available = self.cache.borrow().available_slots();
++        let available = self.store.cache.borrow().available_slots();
+         if crate::flash_support::largest_expert_prefix(&ids, available) == Some(rows as usize) {
+             return self.forward_rows_prepared(
+                 x,
+@@ -976,9 +921,10 @@ impl SsdMoe {
+                 .collect::<Vec<_>>();
+             // Reused Hot values still count as demand before Cold chooses its victims.
+             if !hot_ids.is_empty() {
+-                let before = self.cache.borrow().prefetch_hits;
++                let before = self.store.cache.borrow().prefetch_hits;
+                 ensure!(
+-                    self.cache
++                    self.store
++                        .cache
+                         .borrow_mut()
+                         .reserve(&hot_ids)?
+                         .iter()
+@@ -989,21 +935,19 @@ impl SsdMoe {
+             }
+             hot.output.eval()?;
+             hot.complete = true;
+-            self.last = None;
++            self.store.last = None;
+         }
+         let mut output = Vec::new();
+         let mut begin = 0;
+         while begin < rows {
+-            let available = self.cache.borrow().available_slots();
++            let available = self.store.cache.borrow().available_slots();
+             let count =
+                 crate::flash_support::largest_expert_prefix(&ids[begin as usize * 10..], available)
+                     .filter(|&count| count > 0)
+                     .context("route window has no reservable expert prefix")?
+                     as i32;
+             let end = begin + count;
+-            if let Some(last) = self.last.take() {
+-                last.eval()?;
+-            }
++            self.store.drain()?;
+             output.push(
+                 self.forward_rows_prepared(
+                     &x.slice(0, begin, end)?,
+@@ -1053,14 +997,14 @@ impl SsdMoe {
+         if let Some((_, pool)) = &self.prefetcher {
+             pool.borrow_mut().poll();
+         }
+-        let available = self.cache.borrow().available_slots();
++        let available = self.store.cache.borrow().available_slots();
+         if prepared.is_none() && available < rows as usize * 10 {
+-            if self.unique_cohorts
+-                && self.gpu_hot
+-                && self.gpu_hot_wide
+-                && self.overlap
++            if self.policy.unique_cohorts
++                && self.policy.gpu_hot
++                && self.policy.gpu_hot_wide
++                && self.policy.overlap
+                 && depth == 0
+-                && (self.prefetcher.is_none() || self.prefetch_pipeline)
++                && (self.prefetcher.is_none() || self.policy.prefetch_pipeline)
+             {
+                 return self.forward_unique_rows(x, row_limit);
+             }
+@@ -1094,11 +1038,11 @@ impl SsdMoe {
+         }
+         #[cfg(test)]
+         let routing = crate::flash_profile::span("router_build_and_wait_inclusive");
+-        let hybrid = self.gpu_hot
+-            && self.overlap
+-            && (rows <= 2 || self.gpu_hot_wide)
++        let hybrid = self.policy.gpu_hot
++            && self.policy.overlap
++            && (rows <= 2 || self.policy.gpu_hot_wide)
+             && depth == 0
+-            && (self.prefetcher.is_none() || self.prefetch_pipeline);
++            && (self.prefetcher.is_none() || self.policy.prefetch_pipeline);
+         let (selected, weights, host_ids, hot) = match prepared {
+             Some(prepared) => (
+                 prepared.selected,
+@@ -1167,24 +1111,24 @@ impl SsdMoe {
+             Some(value) => value,
+             None => self.routed_input(x)?,
+         };
+-        if !early_hot && let Some(last) = self.last.take() {
++        if !early_hot && self.store.last.is_some() {
+             #[cfg(test)]
+             let _profile = crate::flash_profile::span("previous_bank_users_wait");
+-            last.eval()?;
++            self.store.drain()?;
+         }
+         #[cfg(test)]
+         let import_start = std::time::Instant::now();
+         if let Some((layer, pool)) = &self.prefetcher {
+-            self.cache.borrow_mut().enable_predictive_lru();
++            self.store.cache.borrow_mut().enable_predictive_lru();
+             let mut pool = pool.borrow_mut();
+             pool.poll();
+             pool.note_late(*layer, &ids);
+-            if self.prefetch_pipeline {
+-                pool.wait_demand(*layer, &self.cache, &ids);
++            if self.policy.prefetch_pipeline {
++                pool.wait_demand(*layer, &self.store.cache, &ids);
+             }
+         }
+-        let before = self.cache.borrow().prefetch_hits;
+-        let fill = ExpertFill::new(&self.cache);
++        let before = self.store.cache.borrow().prefetch_hits;
++        let fill = ExpertFill::new(&self.store.cache);
+         let snapshot_hot = |id: u32| {
+             snapshot
+                 .as_ref()
+@@ -1201,7 +1145,7 @@ impl SsdMoe {
+             let reserved = if cold_ids.is_empty() {
+                 Vec::new()
+             } else {
+-                self.cache.borrow_mut().reserve(&cold_ids)?
++                self.store.cache.borrow_mut().reserve(&cold_ids)?
+             };
+             let mut reserved = reserved.into_iter();
+             ids.iter()
+@@ -1217,7 +1161,7 @@ impl SsdMoe {
+                 })
+                 .collect::<Vec<_>>()
+         } else {
+-            self.cache.borrow_mut().reserve(&ids)?
++            self.store.cache.borrow_mut().reserve(&ids)?
+         };
+         self.count_prefetch_hits(before);
+         #[cfg(test)]
+@@ -1242,7 +1186,7 @@ impl SsdMoe {
+         #[cfg(test)]
+         if let Some(profile) = &profile {
+             let hits = routes.iter().filter(|p| p.1).count();
+-            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hits,"cold_rows":ids.len()-hits,"resident_gpu_rows":hot.len(),"completed_hot":completed_hot,"capacity":self.cache.borrow().capacity()}));
++            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hits,"cold_rows":ids.len()-hits,"resident_gpu_rows":hot.len(),"completed_hot":completed_hot,"capacity":self.store.cache.borrow().capacity()}));
+         }
+         let hot_output = if early_hot {
+             #[cfg(test)]
+@@ -1250,7 +1194,7 @@ impl SsdMoe {
+                 self.overlap_hot_rows += hot.len() as u64;
+             }
+             gpu_hot
+-        } else if self.overlap && !hot.is_empty() && !cold.is_empty() {
++        } else if self.policy.overlap && !hot.is_empty() && !cold.is_empty() {
+             let value = self.calculate(
+                 &routed_x.take(
+                     &Array::from_u32(
+@@ -1262,7 +1206,7 @@ impl SsdMoe {
+                 &hot.iter().map(|p| p.1).collect::<Vec<_>>(),
+             )?;
+             // Retain submitted reads of the banks even if a later operation fails.
+-            self.last = Some(value.try_clone()?);
++            self.store.last = Some(value.try_clone()?);
+             value.async_eval()?;
+             #[cfg(test)]
+             {
+@@ -1319,15 +1263,15 @@ impl SsdMoe {
+         let mut consumers = ColdConsumers::default();
+         let mut shared = None;
+         // Wider Cold waves are opt-in; grouped and prefetched paths retain their fallback.
+-        let split_cold = self.cold_ready
+-            && (1..=self.cold_ready_rows).contains(&rows)
++        let split_cold = self.policy.cold_ready
++            && (1..=self.policy.cold_ready_rows).contains(&rows)
+             && depth == 0
+             && self.prefetcher.is_none()
+-            && !self.shared_exl3
+-            && !self.weighted_epilogue
++            && !self.policy.shared_exl3
++            && !self.policy.weighted_epilogue
+             && jobs.len() > 2
+             && hot_output.is_some();
+-        let priority_active = split_cold && rows == 2 && self.cold_priority;
++        let priority_active = split_cold && rows == 2 && self.policy.cold_priority;
+         if priority_active {
+             crate::cold_ready::prioritize_jobs(&mut jobs, &cold);
+             #[cfg(test)]
+@@ -1350,7 +1294,7 @@ impl SsdMoe {
+                 &routed_x,
+                 &mut cold,
+                 &mut consumers,
+-                self.cold_shared.then_some((x, &mut shared)),
++                self.policy.cold_shared.then_some((x, &mut shared)),
+                 rows,
+             )
+         } else {
+@@ -1399,7 +1343,7 @@ impl SsdMoe {
+                 };
+                 let combined = if let Some(first) = &first_cold {
+                     Some(Array::concatenate(&[&hot_output, first, &cold_output], 0)?)
+-                } else if self.weighted_epilogue {
++                } else if self.policy.weighted_epilogue {
+                     None
+                 } else {
+                     Some(Array::concatenate(&[&hot_output, &cold_output], 0)?)
+@@ -1415,7 +1359,7 @@ impl SsdMoe {
+                     };
+                     order.push(index as u32);
+                 }
+-                if self.weighted_epilogue {
++                if self.policy.weighted_epilogue {
+                     (
+                         crate::weighted_epilogue::apply(
+                             &hot_output,
+@@ -1461,7 +1405,7 @@ impl SsdMoe {
+         let output = routed.add(&shared)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("moe_add_completion", &output)?;
+-        self.last = Some(output.try_clone()?);
++        self.store.last = Some(output.try_clone()?);
+         let predicted_ids = prediction
+             .map(|p| -> Result<Vec<u32>> {
+                 let mut ids = p.to_u32()?;
+@@ -1476,7 +1420,10 @@ impl SsdMoe {
+             })
+             .transpose()?;
+         if let (Some(next), Some(ids)) = (next, predicted_ids) {
+-            if ids.iter().any(|&id| !next.cache.borrow().contains(id)) {
++            if ids
++                .iter()
++                .any(|&id| !next.store.cache.borrow().contains(id))
++            {
+                 output.async_eval()?;
+             }
+             next.prefetch(&ids, depth)?;
+@@ -1515,7 +1462,7 @@ impl SsdMoe {
+             "invalid shared expert shape or dtype"
+         );
+         let rows = x.shape()[0];
+-        let batched = (self.shared_batch
++        let batched = (self.policy.shared_batch
+             && rows > 1
+             && self.shared_gate.is_exl3()
+             && self.shared_up.is_exl3()
+@@ -1539,7 +1486,7 @@ impl SsdMoe {
+     }
+ 
+     fn count_prefetch_hits(&mut self, before: u64) {
+-        let used = self.cache.borrow().prefetch_hits - before;
++        let used = self.store.cache.borrow().prefetch_hits - before;
+         if let Some((_, pool)) = &self.prefetcher {
+             pool.borrow()
+                 .counters
+@@ -1562,7 +1509,7 @@ impl SsdMoe {
+         };
+         let mut pool = pool.borrow_mut();
+         pool.poll();
+-        self.cache.borrow_mut().protect_predictions(ids)?;
++        self.store.cache.borrow_mut().protect_predictions(ids)?;
+         let mut cold = Vec::new();
+         #[cfg(test)]
+         {
+@@ -1573,7 +1520,7 @@ impl SsdMoe {
+             {
+                 self.prefetch_profile[1] += 1;
+             }
+-            if self.cache.borrow().contains(id) {
++            if self.store.cache.borrow().contains(id) {
+                 #[cfg(test)]
+                 {
+                     self.prefetch_profile[2] += 1;
+@@ -1591,30 +1538,33 @@ impl SsdMoe {
+             if admitted == budget.min(4) || !pool.has_room() {
+                 break;
+             }
+-            let Some(slot) = self.cache.borrow_mut().claim_prefetch(id)? else {
++            let Some(slot) = self.store.cache.borrow_mut().claim_prefetch(id)? else {
+                 continue;
+             };
+-            let read = self.records[id as usize]
++            let read = self.store.records[id as usize]
+                 .source()
+                 .and_then(|(file, offset)| {
+                     Array::prepare_read(
+                         file,
+                         offset,
+-                        &mut self.banks,
++                        &mut self.store.banks,
+                         &expert_slot_destinations(slot),
+                     )
+                 });
+             let read = match read {
+                 Ok(read) => read,
+                 Err(_) => {
+-                    self.cache.borrow_mut().publish_prefetch(slot, id, false);
++                    self.store
++                        .cache
++                        .borrow_mut()
++                        .publish_prefetch(slot, id, false);
+                     pool.counters
+                         .failed
+                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                     continue;
+                 }
+             };
+-            if pool.submit(layer, id, slot, Rc::clone(&self.cache), read) {
++            if pool.submit(layer, id, slot, Rc::clone(&self.store.cache), read) {
+                 admitted += 1;
+                 #[cfg(test)]
+                 {
+@@ -1626,21 +1576,23 @@ impl SsdMoe {
+     }
+ 
+     pub fn drain(&mut self) -> Result<()> {
+-        if let Some(last) = self.last.take() {
+-            last.eval()?;
+-        }
+-        Ok(())
++        self.store.drain()
+     }
+ 
+     #[cfg(test)]
+     pub(crate) fn cache_for_test_invalidate(&mut self) {
+-        self.cache.borrow_mut().invalidate();
++        self.store.cache.borrow_mut().invalidate();
+     }
+ 
+     #[cfg(test)]
+     pub(crate) fn slots_for_test(&self) -> usize {
+-        let slots = self.cache.borrow().capacity();
+-        assert!(self.banks.iter().all(|b| b.shape()[0] == slots as i32));
++        let slots = self.store.cache.borrow().capacity();
++        assert!(
++            self.store
++                .banks
++                .iter()
++                .all(|b| b.shape()[0] == slots as i32)
++        );
+         slots
+     }
+ 
+@@ -1996,7 +1948,7 @@ mod tests {
+         let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+         let ids = current.route(&input)?.0.to_u32()?;
+         ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
+-        let warm = current.cache.borrow_mut().reserve(&ids[..5])?;
++        let warm = current.store.cache.borrow_mut().reserve(&ids[..5])?;
+         let jobs = ids[..5]
+             .iter()
+             .zip(warm)
+@@ -2019,7 +1971,8 @@ mod tests {
+         );
+         ensure!(current.overlap_hot_rows == 5 && current.misses == 5);
+         ensure!(
+-            ids.iter().all(|&id| !current.cache.borrow().contains(id)),
++            ids.iter()
++                .all(|&id| !current.store.cache.borrow().contains(id)),
+             "failed prediction left unfilled routes cached"
+         );
+         std::mem::swap(&mut next.gate, &mut next.shared_down);
+@@ -2046,10 +1999,10 @@ mod tests {
+         let (checkpoint, input, expected) = admission_fixture()?;
+         let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+         // Exercise the existing transaction after CPU reservation; the hybrid early failure has its own check.
+-        moe.gpu_hot = false;
++        moe.policy.gpu_hot = false;
+         let ids = moe.route(&input)?.0.to_u32()?;
+         ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
+-        let warm = moe.cache.borrow_mut().reserve(&ids[..5])?;
++        let warm = moe.store.cache.borrow_mut().reserve(&ids[..5])?;
+         let jobs = ids[..5]
+             .iter()
+             .zip(warm)
+@@ -2057,13 +2010,13 @@ mod tests {
+             .collect::<Vec<_>>();
+         moe.fill_many(&jobs)?;
+         // Same storage, invalid layout: fail the real hot calculation before any cold read.
+-        let invalid = moe.banks[0].reshape(&[24, -1])?;
+-        let bank = std::mem::replace(&mut moe.banks[0], invalid);
++        let invalid = moe.store.banks[0].reshape(&[24, -1])?;
++        let bank = std::mem::replace(&mut moe.store.banks[0], invalid);
+         let error = moe
+             .forward(&input)
+             .err()
+             .context("invalid hot bank unexpectedly succeeded")?;
+-        moe.banks[0] = bank;
++        moe.store.banks[0] = bank;
+         ensure!(
+             error
+                 .to_string()
+@@ -2072,7 +2025,7 @@ mod tests {
+         );
+         ensure!(moe.read_bytes == 5 * EXPERT_BYTES && moe.misses == 5);
+         ensure!(
+-            ids.iter().all(|&id| !moe.cache.borrow().contains(id)),
++            ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)),
+             "unfilled routes cached after hot failure"
+         );
+         let actual = moe.forward(&input)?;
+@@ -2106,7 +2059,7 @@ mod tests {
+             .find(|id| !selected.contains(id))
+             .context("fixture needs an unrouted old expert")?;
+         let ids = (0..89u32).collect::<Vec<_>>();
+-        let routes = moe.cache.borrow_mut().reserve(&ids)?;
++        let routes = moe.store.cache.borrow_mut().reserve(&ids)?;
+         let jobs = ids
+             .iter()
+             .zip(routes)
+@@ -2114,7 +2067,7 @@ mod tests {
+             .collect::<Vec<_>>();
+         moe.fill_many(&jobs)?;
+         for _ in 0..3 {
+-            moe.cache.borrow_mut().reserve(&[marker])?;
++            moe.store.cache.borrow_mut().reserve(&[marker])?;
+         }
+         let others = ids
+             .into_iter()
+@@ -2124,16 +2077,16 @@ mod tests {
+             let cohort = (offset..offset + 10)
+                 .map(|i| others[i % others.len()])
+                 .collect::<Vec<_>>();
+-            moe.cache.borrow_mut().reserve(&cohort)?;
++            moe.store.cache.borrow_mut().reserve(&cohort)?;
+         }
+-        ensure!(moe.cache.borrow().contains(marker));
++        ensure!(moe.store.cache.borrow().contains(marker));
+         moe.prefetcher = Some((0, Rc::new(RefCell::new(ReaderPool::new()?))));
+         ensure!(
+             moe.forward(&input)?.to_bytes()? == expected,
+             "independent MoE oracle differs"
+         );
+         ensure!(
+-            !moe.cache.borrow().contains(marker),
++            !moe.store.cache.borrow().contains(marker),
+             "attached first-layer LES pool retained the old LFU policy"
+         );
+         Ok(())
+@@ -2221,14 +2174,14 @@ mod tests {
+                 == sorted_hot.into_iter().collect::<BTreeSet<_>>(),
+             "fixture must warm the strongest four under both selectors"
+         );
+-        let routes = next.cache.borrow_mut().reserve(&hot)?;
++        let routes = next.store.cache.borrow_mut().reserve(&hot)?;
+         let jobs = hot
+             .iter()
+             .zip(routes)
+             .map(|(&id, (slot, _))| (id, slot))
+             .collect::<Vec<_>>();
+         next.fill_many(&jobs)?;
+-        ensure!(hot.iter().all(|&id| next.cache.borrow().contains(id)));
++        ensure!(hot.iter().all(|&id| next.store.cache.borrow().contains(id)));
+         let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+         next.prefetcher = Some((1, Rc::clone(&pool)));
+         let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+@@ -2255,7 +2208,7 @@ mod tests {
+         let (checkpoint, input, expected) = admission_fixture()?;
+         let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+         for half in [false, true] {
+-            moe.predictor_half = half;
++            moe.policy.predictor_half = half;
+             for dtype in [Dtype::Float16, Dtype::Float32] {
+                 for rows in [1, 2] {
+                     let x = if rows == 1 {
+@@ -2308,7 +2261,7 @@ mod tests {
+         ensure!(moe.forward(&input)?.to_bytes()? == expected);
+         let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+         moe.prefetcher = Some((0, Rc::clone(&pool)));
+-        moe.cache.borrow_mut().invalidate();
++        moe.store.cache.borrow_mut().invalidate();
+         moe.prefetch(&[0, 0, 1, 2, 511], 0)?;
+         ensure!(moe.prefetch(&[0; 33], 4).is_err());
+         ensure!(
+@@ -2382,7 +2335,7 @@ mod tests {
+                 for depth in [0, 2, 4, 8, 10] {
+                     pool.borrow_mut().wait_for_test()?;
+                     pool.borrow_mut().poll();
+-                    next.cache.borrow_mut().invalidate();
++                    next.store.cache.borrow_mut().invalidate();
+                     let x = if rows == 1 {
+                         input.try_clone()?
+                     } else {
+@@ -2421,7 +2374,7 @@ mod tests {
+             }
+             pool.borrow_mut().wait_for_test()?;
+             pool.borrow_mut().poll();
+-            next.cache.borrow_mut().invalidate();
++            next.store.cache.borrow_mut().invalidate();
+             let selected = next.route(&input)?.0.to_u32()?;
+             let before = next.prefetched;
+             next.prefetch(&selected, 4)?;
+@@ -2435,7 +2388,7 @@ mod tests {
+                 },
+                 "persistent admission or minimum-cache fallback was not exercised"
+             );
+-            next.cache.borrow_mut().invalidate();
++            next.store.cache.borrow_mut().invalidate();
+             let wrong = (0..512)
+                 .filter(|id| !selected.contains(id))
+                 .take(8)
+@@ -2447,7 +2400,7 @@ mod tests {
+             let ready = wrong
+                 .iter()
+                 .copied()
+-                .filter(|&id| next.cache.borrow().contains(id))
++                .filter(|&id| next.store.cache.borrow().contains(id))
+                 .collect::<Vec<_>>();
+             ensure!(ready.len() == if slots > 20 { 4 } else { 0 });
+             ensure!(
+@@ -2455,7 +2408,9 @@ mod tests {
+                 "wrong predictions changed real routing"
+             );
+             ensure!(
+-                ready.iter().all(|&id| next.cache.borrow().contains(id)),
++                ready
++                    .iter()
++                    .all(|&id| next.store.cache.borrow().contains(id)),
+                 "unused records did not persist across a real forward"
+             );
+             let submitted = pool
+@@ -2475,7 +2430,7 @@ mod tests {
+                     "cached records were read twice"
+                 );
+             }
+-            next.cache.borrow_mut().invalidate();
++            next.store.cache.borrow_mut().invalidate();
+             next.prefetch(&[0, 511, 0], 4)?;
+             let count = pool
+                 .borrow()
+@@ -2494,17 +2449,17 @@ mod tests {
+             pool.borrow_mut().wait_for_test()?;
+             pool.borrow_mut().poll();
+             ensure!(next.prefetch(&[512], 4).is_err() && next.prefetch(&[], 4).is_err());
+-            next.cache.borrow_mut().invalidate();
+-            let saved = next.records[0].data_offsets;
+-            next.records[0].data_offsets[0] = u64::MAX;
++            next.store.cache.borrow_mut().invalidate();
++            let saved = next.store.records[0].data_offsets;
++            next.store.records[0].data_offsets[0] = u64::MAX;
+             next.prefetch(&[0, 511], 4)?;
+             pool.borrow_mut().wait_for_test()?;
+             ensure!(
+-                !next.cache.borrow_mut().reserve(&[0])?[0].1,
++                !next.store.cache.borrow_mut().reserve(&[0])?[0].1,
+                 "failed prediction left a false hit"
+             );
+-            next.cache.borrow_mut().invalidate();
+-            next.records[0].data_offsets = saved;
++            next.store.cache.borrow_mut().invalidate();
++            next.store.records[0].data_offsets = saved;
+             ensure!(
+                 next.forward(&input)?.to_bytes()? == expected,
+                 "prediction failure recovery differs"
+@@ -2574,9 +2529,9 @@ mod tests {
+                     slots,
+                     overlap,
+                 )?;
+-                moe.readers = readers;
+-                moe.gpu_hot = true;
+-                moe.gpu_hot_wide = true;
++                moe.policy.readers = readers;
++                moe.policy.gpu_hot = true;
++                moe.policy.gpu_hot_wide = true;
+                 for pair in [[0, 1], [0, 1], [1, 0], [0, 0], [1, 2]] {
+                     let x = Array::concatenate(&[&inputs[pair[0]], &inputs[pair[1]]], 0)?;
+                     let output = moe.forward_many(&x)?.to_bytes()?;
+@@ -2627,10 +2582,10 @@ mod tests {
+                     "invalid shape changed cache counters"
+                 );
+                 moe.drain()?;
+-                moe.cache.borrow_mut().invalidate();
++                moe.store.cache.borrow_mut().invalidate();
+                 let expert = moe.route(&inputs[0])?.0.to_u32()?[0] as usize;
+-                let original = moe.records[expert].data_offsets;
+-                moe.records[expert].data_offsets[0] = u64::MAX;
++                let original = moe.store.records[expert].data_offsets;
++                moe.store.records[expert].data_offsets[0] = u64::MAX;
+                 let wide =
+                     Array::concatenate(&[&inputs[0], &inputs[1], &inputs[0], &inputs[2]], 0)?;
+                 ensure!(
+@@ -2639,11 +2594,16 @@ mod tests {
+                 );
+                 let ids = moe.route(&inputs[0])?.0.to_u32()?;
+                 ensure!(
+-                    moe.cache.borrow_mut().reserve(&ids)?.iter().all(|p| !p.1),
++                    moe.store
++                        .cache
++                        .borrow_mut()
++                        .reserve(&ids)?
++                        .iter()
++                        .all(|p| !p.1),
+                     "failed read left valid reservations"
+                 );
+-                moe.cache.borrow_mut().invalidate();
+-                moe.records[expert].data_offsets = original;
++                moe.store.cache.borrow_mut().invalidate();
++                moe.store.records[expert].data_offsets = original;
+                 ensure!(
+                     moe.forward(&inputs[0])?.to_bytes()? == expected[0],
+                     "retry after failed read diverged"
+@@ -2657,11 +2617,11 @@ mod tests {
+                         ensure!(crate::array::disk_profile()?.len() == 5);
+                         let before = moe.read_bytes;
+                         let bank = std::mem::replace(
+-                            &mut moe.banks[0],
++                            &mut moe.store.banks[0],
+                             Array::zeros_dtype(&[1], Dtype::UInt16)?,
+                         );
+                         let rejected = moe.fill_many(&jobs);
+-                        moe.banks[0] = bank;
++                        moe.store.banks[0] = bank;
+                         ensure!(rejected.is_err() && moe.read_bytes == before);
+                         ensure!(
+                             crate::array::disk_profile()?.is_empty()
+diff --git a/native/src/ssd_moe/cold_ready_tests.rs b/native/src/ssd_moe/cold_ready_tests.rs
+index 05aafa68..56eadf69 100644
+--- a/native/src/ssd_moe/cold_ready_tests.rs
++++ b/native/src/ssd_moe/cold_ready_tests.rs
+@@ -57,37 +57,37 @@ fn load(checkpoint: &Checkpoint, capacity: usize) -> Result<SsdMoe> {
+         true,
+     )?;
+     ensure!(
+-        moe.cold_ready && !moe.shared_exl3 && !moe.weighted_epilogue,
++        moe.policy.cold_ready && !moe.policy.shared_exl3 && !moe.policy.weighted_epilogue,
+         "test requires COLD_READY=1, SHARED_EXL3=0, WEIGHTED_EPILOGUE=0"
+     );
+     ensure!(
+-        moe.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
++        moe.policy.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
+         "Cold shared flag not wired"
+     );
+     ensure!(
+-        Some(moe.cold_ready_rows)
++        Some(moe.policy.cold_ready_rows)
+             == crate::cold_ready::parse_max_rows(
+                 std::env::var("MLXL3_SSD_COLD_READY_ROWS").ok().as_deref()
+             )
+-            && moe.cold_priority
++            && moe.policy.cold_priority
+                 == (std::env::var("MLXL3_SSD_COLD_PRIORITY").as_deref() == Ok("1")),
+         "Cold candidate options not wired"
+     );
+-    moe.readers = 4;
+-    moe.gpu_hot = true;
+-    moe.gpu_hot_wide = true;
++    moe.policy.readers = 4;
++    moe.policy.gpu_hot = true;
++    moe.policy.gpu_hot_wide = true;
+     moe.cold_ready_verify_overlap = true;
+     Ok(moe)
+ }
+ 
+ fn reset(moe: &mut SsdMoe) -> Result<()> {
+     moe.drain()?;
+-    moe.cache.borrow_mut().invalidate();
++    moe.store.cache.borrow_mut().invalidate();
+     Ok(())
+ }
+ 
+ fn prime(moe: &mut SsdMoe, ids: &[u32]) -> Result<()> {
+-    let routes = moe.cache.borrow_mut().reserve(ids)?;
++    let routes = moe.store.cache.borrow_mut().reserve(ids)?;
+     ensure!(routes.iter().all(|&(_, hit)| !hit));
+     let jobs = ids
+         .iter()
+@@ -140,7 +140,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+     for capacity in [20, 53] {
+         let mut moe = load(&checkpoint, capacity)?;
+         for gpu_hot in [false, true] {
+-            moe.gpu_hot = gpu_hot;
++            moe.policy.gpu_hot = gpu_hot;
+             for pair in [&[0][..], &[0, 1], &[1, 0], &[0, 0], &[1, 2]] {
+                 reset(&mut moe)?;
+                 let x =
+@@ -175,7 +175,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+                 let output = moe.forward_many(&x)?;
+                 check(&output, &oracle, pair.len())?;
+                 let dynamic = std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("0")
+-                    && missing > moe.readers;
++                    && missing > moe.policy.readers;
+                 ensure!(
+                     crate::array::disk_profile_schedule()
+                         == if dynamic { "dynamic" } else { "static" },
+@@ -193,7 +193,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+                 ensure!(moe.read_bytes - before.1 == missing as u64 * EXPERT_BYTES);
+                 ensure!(
+                     moe.cold_shared_submissions
+-                        == shared_submissions + usize::from(moe.cold_shared),
++                        == shared_submissions + usize::from(moe.policy.cold_shared),
+                     "Cold shared submission path not exercised"
+                 );
+                 mixed += 1;
+@@ -207,7 +207,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+             }
+         }
+         reset(&mut moe)?;
+-        moe.gpu_hot = true;
++        moe.policy.gpu_hot = true;
+         let waves = moe.cold_ready_waves.len();
+         check(&moe.forward(&inputs[0])?, &expected[0], 1)?;
+         ensure!(
+@@ -235,11 +235,11 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+         scaled.to_bytes()? != inputs[0].to_bytes()? && moe.route(&scaled)?.0.to_u32()? == ids,
+         "distinct-activation duplicate fixture is not valid"
+     );
+-    moe.cold_ready = false;
++    moe.policy.cold_ready = false;
+     let second = moe.forward(&scaled)?.to_bytes()?;
+     ensure!(second != expected[0]);
+     reset(&mut moe)?;
+-    moe.cold_ready = true;
++    moe.policy.cold_ready = true;
+     prime(&mut moe, &ids[..5])?;
+     let x = Array::concatenate(&[&inputs[0], &scaled], 0)?;
+     let mut oracle = expected[0].clone();
+@@ -256,7 +256,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
+     );
+ 
+     reset(&mut moe)?;
+-    moe.cold_ready_rows = 2;
++    moe.policy.cold_ready_rows = 2;
+     prime(&mut moe, &ids[..5])?;
+     let x = Array::concatenate(&[&inputs[0], &inputs[1], &inputs[2]], 0)?;
+     let oracle = expected.iter().flatten().copied().collect::<Vec<_>>();
+@@ -351,9 +351,10 @@ fn ready_cold_preparation_preserves_completed_fenced_and_failure_paths() -> Resu
+                 .any(|e| e.to_string().contains("injected Cold preparation failure"))
+         );
+         ensure!(moe.cold_ready_prepared_rest == prepared + 1);
+-        ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
++        ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
+         ensure!(
+-            moe.last
++            moe.store
++                .last
+                 .as_ref()
+                 .context("missing Hot lease")?
+                 .is_available_for_test()?
+@@ -396,9 +397,10 @@ fn ready_cold_failure_drains_consumers_invalidates_reservations_and_recovers() -
+         moe.cold_ready_waves.len() == 1,
+         "failure preceded W1 submission"
+     );
+-    ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
++    ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
+     ensure!(
+-        moe.last
++        moe.store
++            .last
+             .as_ref()
+             .context("missing Hot lease")?
+             .is_available_for_test()?,
+diff --git a/native/src/ssd_moe/cold_ready_wide_tests.rs b/native/src/ssd_moe/cold_ready_wide_tests.rs
+index 74cb5992..146358e1 100644
+--- a/native/src/ssd_moe/cold_ready_wide_tests.rs
++++ b/native/src/ssd_moe/cold_ready_wide_tests.rs
+@@ -53,8 +53,8 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
+     for maximum in [2, 4] {
+         for priority in [false, true] {
+             let mut moe = load(&checkpoint, 53)?;
+-            moe.cold_ready_rows = maximum;
+-            moe.cold_priority = priority;
++            moe.policy.cold_ready_rows = maximum;
++            moe.policy.cold_priority = priority;
+             for &pattern in patterns {
+                 reset(&mut moe)?;
+                 let x = rows(&inputs, pattern)?;
+@@ -101,7 +101,7 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
+     }
+     // An empty resident map uses the stock all-Cold path even with the wide option.
+     let mut moe = load(&checkpoint, 53)?;
+-    moe.cold_ready_rows = 4;
++    moe.policy.cold_ready_rows = 4;
+     for pattern in [&[0, 1, 2][..], &[2, 1, 0, 2]] {
+         reset(&mut moe)?;
+         let before = moe.cold_ready_waves.len();
+@@ -115,8 +115,8 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
+     moe.drain()?;
+     // A small cache must preserve every row through cohort splitting and slot reuse.
+     let mut small = load(&checkpoint, 10)?;
+-    small.cold_ready_rows = 4;
+-    small.unique_cohorts = true;
++    small.policy.cold_ready_rows = 4;
++    small.policy.unique_cohorts = true;
+     small.cold_ready_verify_overlap = false;
+     for pattern in [&[0, 1, 2][..], &[2, 1, 0, 2]] {
+         let x = rows(&inputs, pattern)?;
+@@ -148,7 +148,7 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
+     crate::array::set_default_cache_limit(64 << 20)?;
+     let (checkpoint, inputs, expected) = fixture()?;
+     let mut moe = load(&checkpoint, 53)?;
+-    moe.cold_ready_rows = 4;
++    moe.policy.cold_ready_rows = 4;
+     let ids = moe.route(&inputs[0])?.0.to_u32()?;
+     for count in [3, 4] {
+         let pattern = vec![0; count];
+@@ -169,9 +169,10 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
+                 "injected Cold wave failure"
+             };
+             ensure!(error.chain().any(|e| e.to_string().contains(message)));
+-            ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
++            ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
+             ensure!(
+-                moe.last
++                moe.store
++                    .last
+                     .as_ref()
+                     .context("missing Hot lease")?
+                     .is_available_for_test()?
+@@ -199,7 +200,7 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
+ fn cold_priority_batches_preserve_outputs_and_report_launch_order() -> Result<()> {
+     let (checkpoint, inputs, expected) = fixture()?;
+     let mut moe = load(&checkpoint, 53)?;
+-    moe.cold_priority = true;
++    moe.policy.cold_priority = true;
+     let pattern = [0, 1];
+     let x = rows(&inputs, &pattern)?;
+     let ids = selected(&moe, &x)?;
+diff --git a/native/src/ssd_moe/grouped_micro.rs b/native/src/ssd_moe/grouped_micro.rs
+index 27cde11c..af567211 100644
+--- a/native/src/ssd_moe/grouped_micro.rs
++++ b/native/src/ssd_moe/grouped_micro.rs
+@@ -51,9 +51,9 @@ fn grouped_experts_match_captured_routes_before_timing() -> Result<()> {
+             53,
+             true,
+         )?;
+-        moe.shared_exl3 = false;
+-        moe.gpu_hot = true;
+-        moe.gpu_hot_wide = true;
++        moe.policy.shared_exl3 = false;
++        moe.policy.gpu_hot = true;
++        moe.policy.gpu_hot_wide = true;
+         for rows in [1usize, 2, 4, 8] {
+             let x = Array::concatenate(&(0..rows).map(|i| &inputs[i % 2]).collect::<Vec<_>>(), 0)?;
+             ensure!(
+@@ -67,7 +67,7 @@ fn grouped_experts_match_captured_routes_before_timing() -> Result<()> {
+                 ids.extend(moe.route(&inputs[i % 2])?.0.to_u32()?);
+             }
+             ensure!(ids.len() == rows * 10);
+-            let ready = moe.cache.borrow().resident_slot_map()?;
++            let ready = moe.store.cache.borrow().resident_slot_map()?;
+             let slots = ids.iter().map(|&id| ready[id as usize]).collect::<Vec<_>>();
+             ensure!(slots.iter().all(|&slot| slot < 53));
+             let routed = x
+diff --git a/native/src/ssd_moe/hybrid_tests.rs b/native/src/ssd_moe/hybrid_tests.rs
+index d17ce8b5..e9082fe2 100644
+--- a/native/src/ssd_moe/hybrid_tests.rs
++++ b/native/src/ssd_moe/hybrid_tests.rs
+@@ -20,7 +20,7 @@ pub(super) fn delay(value: &Array) -> Result<Array> {
+ fn prime_half(moe: &mut SsdMoe, input: &Array) -> Result<Vec<u32>> {
+     let ids = moe.route(input)?.0.to_u32()?;
+     ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
+-    let routes = moe.cache.borrow_mut().reserve(&ids[..5])?;
++    let routes = moe.store.cache.borrow_mut().reserve(&ids[..5])?;
+     let jobs = ids[..5]
+         .iter()
+         .zip(routes)
+@@ -40,10 +40,10 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
+     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
+     ensure!(
+-        moe.weighted_epilogue,
++        moe.policy.weighted_epilogue,
+         "weighted epilogue flag was not loaded"
+     );
+-    moe.gpu_hot = true;
++    moe.policy.gpu_hot = true;
+     prime_half(&mut moe, &input)?;
+     crate::weighted_epilogue::reset_kernel_requests_for_test();
+     let actual = moe.forward(&input)?;
+@@ -67,10 +67,10 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
+     moe.drain()?;
+     let mut cold = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
+     ensure!(
+-        cold.weighted_epilogue,
++        cold.policy.weighted_epilogue,
+         "Cold control lost the configured flag"
+     );
+-    cold.gpu_hot = false;
++    cold.policy.gpu_hot = false;
+     ensure!(
+         cold.forward(&input)?.to_bytes()? == expected
+             && crate::weighted_epilogue::kernel_requests_for_test() == 1,
+@@ -86,7 +86,7 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
+ fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
+     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+-    moe.gpu_hot = true;
++    moe.policy.gpu_hot = true;
+     prime_half(&mut moe, &input)?;
+     moe.slow_hot_for_test = true;
+     let actual = moe.forward(&input)?;
+@@ -118,15 +118,15 @@ fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
+ fn early_hot_failure_preserves_ready_keys_and_recovers() -> Result<()> {
+     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+-    moe.gpu_hot = true;
++    moe.policy.gpu_hot = true;
+     let ids = prime_half(&mut moe, &input)?;
+-    let invalid = moe.banks[0].reshape(&[24, -1])?;
+-    let bank = std::mem::replace(&mut moe.banks[0], invalid);
++    let invalid = moe.store.banks[0].reshape(&[24, -1])?;
++    let bank = std::mem::replace(&mut moe.store.banks[0], invalid);
+     let error = moe
+         .forward(&input)
+         .err()
+         .context("invalid hot bank succeeded")?;
+-    moe.banks[0] = bank;
++    moe.store.banks[0] = bank;
+     ensure!(
+         error
+             .to_string()
+@@ -134,8 +134,16 @@ fn early_hot_failure_preserves_ready_keys_and_recovers() -> Result<()> {
+         "{error:#}"
+     );
+     ensure!(moe.read_bytes == 5 * EXPERT_BYTES && moe.misses == 0 && moe.hits == 0);
+-    ensure!(ids[..5].iter().all(|&id| moe.cache.borrow().contains(id)));
+-    ensure!(ids[5..].iter().all(|&id| !moe.cache.borrow().contains(id)));
++    ensure!(
++        ids[..5]
++            .iter()
++            .all(|&id| moe.store.cache.borrow().contains(id))
++    );
++    ensure!(
++        ids[5..]
++            .iter()
++            .all(|&id| !moe.store.cache.borrow().contains(id))
++    );
+     moe.drain()?;
+     let actual = moe.forward(&input)?;
+     ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
+@@ -152,8 +160,8 @@ fn wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows() -> Result<()
+     for wide in [false, true] {
+         for rows in 3..=8 {
+             let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 80, true)?;
+-            moe.gpu_hot = true;
+-            moe.gpu_hot_wide = wide;
++            moe.policy.gpu_hot = true;
++            moe.policy.gpu_hot_wide = wide;
+             prime_half(&mut moe, &input)?;
+             moe.slow_hot_for_test = true;
+             let x = Array::concatenate(&vec![&input; rows], 0)?;
+@@ -190,11 +198,11 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+             for rows in [6, 7, 8] {
+                 let mut moe = SsdMoe::load(&checkpoint, prefix, capacity, true)?;
+                 ensure!(
+-                    moe.unique_cohorts,
++                    moe.policy.unique_cohorts,
+                     "test requires UNIQUE_COHORT=1 through the real loader"
+                 );
+-                moe.gpu_hot = true;
+-                moe.gpu_hot_wide = true;
++                moe.policy.gpu_hot = true;
++                moe.policy.gpu_hot_wide = true;
+                 let ids = prime_half(&mut moe, &input)?;
+                 moe.slow_hot_for_test = capacity == 53 && pending == 4 && rows == 8;
+                 let mut claims = Vec::new();
+@@ -202,7 +210,10 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+                     if claims.len() == pending {
+                         break;
+                     }
+-                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
++                    claims.push((
++                        moe.store.cache.borrow_mut().claim_prefetch(id)?.unwrap(),
++                        id,
++                    ));
+                 }
+                 let x = Array::concatenate(&vec![&input; rows], 0)?;
+                 let output = moe.forward_draft_rows(&x)?;
+@@ -216,20 +227,23 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+                     "window Hot was not submitted before the CPU readback"
+                 );
+                 ensure!(moe.hybrid_submissions == 1 && moe.read_bytes == 10 * EXPERT_BYTES);
+-                ensure!(moe.cache.borrow().available_slots() == capacity - pending);
++                ensure!(moe.store.cache.borrow().available_slots() == capacity - pending);
+                 if moe.slow_hot_for_test {
+                     ensure!(
+                         moe.hot_ready_at_demand == Some(false),
+                         "demand waited for Hot"
+                     );
+                 }
+-                let map = moe.cache.borrow().resident_slot_map()?;
++                let map = moe.store.cache.borrow().resident_slot_map()?;
+                 ensure!(
+                     map.iter()
+                         .all(|&s| claims.iter().all(|&(busy, _)| s != busy as u32))
+                 );
+                 for (slot, id) in claims {
+-                    moe.cache.borrow_mut().publish_prefetch(slot, id, false);
++                    moe.store
++                        .cache
++                        .borrow_mut()
++                        .publish_prefetch(slot, id, false);
+                 }
+                 moe.drain()?;
+                 cases += 1;
+@@ -253,8 +267,8 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+     }
+     let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
+     moe.resident_gate = Some(Array::from_f32(&gate, &[H, 512])?);
+-    moe.gpu_hot = true;
+-    moe.gpu_hot_wide = true;
++    moe.policy.gpu_hot = true;
++    moe.policy.gpu_hot_wide = true;
+     for (dtype, prime_row) in [
+         (Dtype::Float32, 0),
+         (Dtype::Float32, 6),
+@@ -267,7 +281,7 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+             .collect::<Result<Vec<_>>>()?
+             .concat();
+         // F16 deliberately uses the original projection, bypassing the F32 resident gate.
+-        moe.unique_cohorts = false;
++        moe.policy.unique_cohorts = false;
+         let expected = (0..8)
+             .map(|row| moe.forward(&x.slice(0, row, row + 1)?)?.to_bytes())
+             .collect::<Result<Vec<_>>>()?
+@@ -299,8 +313,8 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+                 .map(|begin| (available / 10).min(8 - begin))
+                 .collect::<Vec<_>>();
+             for (unique, sizes, reads) in [(false, old, 2), (true, maximal, 1)] {
+-                *moe.cache.borrow_mut() = ExpertCache::new(53)?;
+-                moe.unique_cohorts = unique;
++                *moe.store.cache.borrow_mut() = ExpertCache::new(53)?;
++                moe.policy.unique_cohorts = unique;
+                 let prime = if prime_row == 8 {
+                     Array::from_f32(&unrelated, &[1, H])?
+                 } else {
+@@ -312,7 +326,10 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+                     if claims.len() == pending {
+                         break;
+                     }
+-                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
++                    claims.push((
++                        moe.store.cache.borrow_mut().claim_prefetch(id)?.unwrap(),
++                        id,
++                    ));
+                 }
+                 moe.cohort_sizes.clear();
+                 moe.route_readbacks = 0;
+@@ -337,44 +354,55 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
+                         );
+                         if prime_row == 0 {
+                             ensure!(
+-                                half[..5].iter().all(|&id| moe.cache.borrow().contains(id)),
++                                half[..5]
++                                    .iter()
++                                    .all(|&id| moe.store.cache.borrow().contains(id)),
+                                 "reused Hot demand was not counted before choosing cold victims"
+                             );
+                         } else if prime_row == 8 {
+                             ensure!(
+-                                half[..5].iter().all(|&id| !moe.cache.borrow().contains(id)),
++                                half[..5]
++                                    .iter()
++                                    .all(|&id| !moe.store.cache.borrow().contains(id)),
+                                 "unselected residents must not be counted as Hot demand"
+                             );
+                         } else if pending == 0 {
+                             ensure!(
+-                                half[..5].iter().any(|&id| !moe.cache.borrow().contains(id)),
++                                half[..5]
++                                    .iter()
++                                    .any(|&id| !moe.store.cache.borrow().contains(id)),
+                                 "the full Cold prefix must force eviction of captured Hot"
+                             );
+                         }
+                     }
+                 }
+                 moe.drain()?;
+-                ensure!(moe.cache.borrow().available_slots() == available);
++                ensure!(moe.store.cache.borrow().available_slots() == available);
+                 for (slot, id) in claims {
+-                    ensure!(!moe.cache.borrow_mut().publish_prefetch(slot, id, false));
++                    ensure!(
++                        !moe.store
++                            .cache
++                            .borrow_mut()
++                            .publish_prefetch(slot, id, false)
++                    );
+                 }
+-                ensure!(moe.cache.borrow().available_slots() == 53);
++                ensure!(moe.store.cache.borrow().available_slots() == 53);
+                 cases += 1;
+             }
+         }
+     }
+     let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
+-    moe.gpu_hot = true;
+-    moe.gpu_hot_wide = true;
++    moe.policy.gpu_hot = true;
++    moe.policy.gpu_hot_wide = true;
+     let ids = prime_half(&mut moe, &input)?;
+     let bad = ids[5] as usize;
+-    let saved = moe.records[bad].data_offsets;
+-    moe.records[bad].data_offsets[0] = u64::MAX;
++    let saved = moe.store.records[bad].data_offsets;
++    moe.store.records[bad].data_offsets[0] = u64::MAX;
+     let x = Array::concatenate(&[&input; 8], 0)?;
+     ensure!(moe.forward_draft_rows(&x).is_err());
+     moe.drain()?;
+-    ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
+-    moe.records[bad].data_offsets = saved;
++    ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
++    moe.store.records[bad].data_offsets = saved;
+     ensure!(moe.forward_draft_rows(&x)?.to_bytes()? == captured.repeat(8));
+     moe.drain()?;
+     println!(
+@@ -408,20 +436,22 @@ fn wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership() -
+                 capacity,
+                 true,
+             )?;
+-            moe.gpu_hot = true;
+-            moe.gpu_hot_wide = true;
+-            moe.unique_cohorts = unique;
++            moe.policy.gpu_hot = true;
++            moe.policy.gpu_hot_wide = true;
++            moe.policy.unique_cohorts = unique;
+             prime_half(&mut moe, &input)?;
+             let mut pending = Vec::new();
+             for id in 0..512 {
+-                if let Some(slot) = moe.cache.borrow_mut().claim_prefetch(id)? {
++                if let Some(slot) = moe.store.cache.borrow_mut().claim_prefetch(id)? {
+                     pending.push((slot, id));
+                     if pending.len() == 4 {
+                         break;
+                     }
+                 }
+             }
+-            ensure!(pending.len() == 4 && moe.cache.borrow().available_slots() == capacity - 4);
++            ensure!(
++                pending.len() == 4 && moe.store.cache.borrow().available_slots() == capacity - 4
++            );
+             let x = Array::concatenate(&vec![&input; rows], 0)?;
+             let output = moe.forward_draft_rows(&x)?;
+             ensure!(
+@@ -432,16 +462,19 @@ fn wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership() -
+                 "unexpected Hot submissions for unique={unique}"
+             );
+             ensure!(moe.route_readbacks == if unique { 1 } else { 2 });
+-            let map = moe.cache.borrow().resident_slot_map()?;
++            let map = moe.store.cache.borrow().resident_slot_map()?;
+             ensure!(
+                 map.iter()
+                     .all(|&slot| pending.iter().all(|&(busy, _)| slot != busy as u32))
+             );
+-            ensure!(moe.cache.borrow().available_slots() == capacity - 4);
++            ensure!(moe.store.cache.borrow().available_slots() == capacity - 4);
+             for (slot, id) in pending {
+-                moe.cache.borrow_mut().publish_prefetch(slot, id, false);
++                moe.store
++                    .cache
++                    .borrow_mut()
++                    .publish_prefetch(slot, id, false);
+             }
+-            ensure!(moe.cache.borrow().available_slots() == capacity);
++            ensure!(moe.store.cache.borrow().available_slots() == capacity);
+             moe.drain()?;
+         }
+     }
+diff --git a/native/src/ssd_moe/prefetch_tests.rs b/native/src/ssd_moe/prefetch_tests.rs
+index dd962246..13932026 100644
+--- a/native/src/ssd_moe/prefetch_tests.rs
++++ b/native/src/ssd_moe/prefetch_tests.rs
+@@ -26,23 +26,23 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
+             true,
+         )?;
+         for (index, moe) in [&mut current, &mut next].into_iter().enumerate() {
+-            for bank in &mut moe.banks {
++            for bank in &mut moe.store.banks {
+                 // An accidental read of an unfilled scale becomes NaN, not a plausible zero.
+                 *bank =
+                     Array::from_bytes(&vec![0xff; bank.byte_len()?], bank.shape(), bank.dtype())?;
+             }
+-            moe.prefetch_pipeline = true;
+-            moe.gpu_hot = true;
+-            moe.gpu_hot_wide = true;
+-            moe.unique_cohorts = true;
++            moe.policy.prefetch_pipeline = true;
++            moe.policy.gpu_hot = true;
++            moe.policy.gpu_hot_wide = true;
++            moe.policy.unique_cohorts = true;
+             moe.prefetcher = Some((index, Rc::clone(&pool)));
+         }
+         for rows in 1..=8 {
+             pool.borrow_mut().wait_for_test()?;
+             current.drain()?;
+             next.drain()?;
+-            current.cache.borrow_mut().invalidate();
+-            next.cache.borrow_mut().invalidate();
++            current.store.cache.borrow_mut().invalidate();
++            next.store.cache.borrow_mut().invalidate();
+             current.cohort_sizes.clear();
+             let values = (0..rows)
+                 .flat_map(|r| {
+@@ -60,7 +60,7 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
+             ensure!(expected.slice(0, 0, 1)?.to_bytes()? == expected_first);
+             let expected_next = next_reference.forward_draft_rows(&x)?;
+             let ids = current.route(&input)?.0.to_u32()?;
+-            let routes = current.cache.borrow_mut().reserve(&ids[..5])?;
++            let routes = current.store.cache.borrow_mut().reserve(&ids[..5])?;
+             current.fill_many(
+                 &ids[..5]
+                     .iter()
+diff --git a/native/src/ssd_moe/routed_index_tests.rs b/native/src/ssd_moe/routed_index_tests.rs
+index ef468beb..994d1f0e 100644
+--- a/native/src/ssd_moe/routed_index_tests.rs
++++ b/native/src/ssd_moe/routed_index_tests.rs
+@@ -3,7 +3,7 @@ use super::*;
+ fn load(checkpoint: &Checkpoint) -> Result<SsdMoe> {
+     let moe = SsdMoe::load(checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
+     ensure!(
+-        moe.routed_index_cache
++        moe.policy.routed_index_cache
+             == (std::env::var("MLXL3_SSD_ROUTED_INDEX_CACHE").as_deref() == Ok("1")),
+         "routed index cache option was not loaded"
+     );
+@@ -58,11 +58,11 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
+                 for seed in [0, 19] {
+                     let (x, expected) = input(rows, seed, dtype, strided)?;
+                     let readbacks = Array::host_readbacks_for_test();
+-                    moe.routed_index_cache = false;
++                    moe.policy.routed_index_cache = false;
+                     let builds = moe.routed_index_builds;
+                     let stock = moe.routed_input(&x)?;
+                     ensure!(moe.routed_index_builds == builds + 1);
+-                    moe.routed_index_cache = true;
++                    moe.policy.routed_index_cache = true;
+                     let populated = moe.routed_indices[rows as usize - 1].is_some();
+                     let builds = moe.routed_index_builds;
+                     let hits = moe.routed_index_hits;
+@@ -108,7 +108,7 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
+     ensure!((moe.routed_index_builds, moe.routed_index_hits) == (before.0 + 2, before.1));
+     pending.push((first, second, expected));
+     let mut other = load(&checkpoint)?;
+-    other.routed_index_cache = true;
++    other.policy.routed_index_cache = true;
+     let (x, expected) = input(2, 93, Dtype::Float16, true)?;
+     let output = other.routed_input(&x)?;
+     ensure!(other.routed_index_builds == 1 && other.routed_index_hits == 0);
+@@ -139,16 +139,16 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
+ fn routed_indices_cache_preserves_real_hot_cold_and_invalid_inputs() -> Result<()> {
+     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+     let mut moe = load(&checkpoint)?;
+-    moe.gpu_hot_wide = true;
+-    moe.unique_cohorts = true;
++    moe.policy.gpu_hot_wide = true;
++    moe.policy.unique_cohorts = true;
+     let mut checked = 0;
+     for enabled in [false, true] {
+-        moe.routed_index_cache = enabled;
++        moe.policy.routed_index_cache = enabled;
+         for hot in [false, true] {
+-            moe.gpu_hot = hot;
++            moe.policy.gpu_hot = hot;
+             for rows in [1, 2, 3, 4, 8] {
+                 moe.drain()?;
+-                moe.cache.borrow_mut().invalidate();
++                moe.store.cache.borrow_mut().invalidate();
+                 let x =
+                     Array::concatenate(&std::iter::repeat_n(&input, rows).collect::<Vec<_>>(), 0)?;
+                 let baseline = expected.repeat(rows);
+diff --git a/native/src/ssd_moe/shared_tests.rs b/native/src/ssd_moe/shared_tests.rs
+index a073f31b..8c4715a7 100644
+--- a/native/src/ssd_moe/shared_tests.rs
++++ b/native/src/ssd_moe/shared_tests.rs
+@@ -117,9 +117,9 @@ fn shared_batches_match_single_row_projections_and_scalar_gates() -> Result<()>
+                     )?;
+                     exact(&moe.shared_projection(&x)?, &join(&downs)?, &[rows, H])?;
+                     let expected = join(&shared)?;
+-                    moe.shared_batch = false;
++                    moe.policy.shared_batch = false;
+                     exact(&moe.shared(&x)?, &expected, &[rows, H])?;
+-                    moe.shared_batch = true;
++                    moe.policy.shared_batch = true;
+                     let before = Array::host_readbacks_for_test();
+                     let actual = moe.shared(&x)?;
+                     ensure!(Array::host_readbacks_for_test() == before);
+@@ -179,9 +179,9 @@ fn shared_batch_component_microbench() -> Result<()> {
+                 .into_iter()
+                 .zip(fixtures.iter_mut().zip(&inputs))
+             {
+-                moe.shared_batch = false;
++                moe.policy.shared_batch = false;
+                 let expected = moe.shared(x)?;
+-                moe.shared_batch = candidate;
++                moe.policy.shared_batch = candidate;
+                 exact(&moe.shared(x)?, &expected, &[rows, H])?;
+                 for _ in 0..8 {
+                     moe.shared(x)?.eval()?;
+@@ -204,7 +204,7 @@ fn shared_batch_component_microbench() -> Result<()> {
+                 [true, false]
+             } {
+                 for (moe, _) in &mut fixtures {
+-                    moe.shared_batch = candidate;
++                    moe.policy.shared_batch = candidate;
+                 }
+                 let started = std::time::Instant::now();
+                 for _ in 0..32 {
+diff --git a/native/src/ssd_prefetch.rs b/native/src/ssd_prefetch.rs
+index 5d0a4c36..3febe732 100644
+--- a/native/src/ssd_prefetch.rs
++++ b/native/src/ssd_prefetch.rs
+@@ -70,8 +70,7 @@ mod gpu {
+ 
+     struct Pending {
+         layer: usize,
+-        expert: u32,
+-        slot: usize,
++        lease: crate::flash_support::SlotLease,
+         cache: std::rc::Rc<std::cell::RefCell<crate::flash_support::ExpertCache>>,
+         _read: crate::array::PreparedRead,
+     }
+@@ -139,11 +138,13 @@ mod gpu {
+             cache: std::rc::Rc<std::cell::RefCell<crate::flash_support::ExpertCache>>,
+             read: crate::array::PreparedRead,
+         ) -> bool {
++            let Some(lease) = cache.borrow().pending_lease(slot, expert) else {
++                return false;
++            };
+             let token = read.token();
+             let pending = Pending {
+                 layer,
+-                expert,
+-                slot,
++                lease,
+                 cache,
+                 _read: read,
+             };
+@@ -169,10 +170,7 @@ mod gpu {
+                     Err(TrySendError::Full(_)) => {}
+                 }
+             }
+-            pending
+-                .cache
+-                .borrow_mut()
+-                .publish_prefetch(slot, expert, false);
++            pending.cache.borrow_mut().finish_lease(lease, false);
+             false
+         }
+ 
+@@ -180,11 +178,10 @@ mod gpu {
+             let Some(pending) = worker.pending.take() else {
+                 return false;
+             };
+-            let published =
+-                pending
+-                    .cache
+-                    .borrow_mut()
+-                    .publish_prefetch(pending.slot, pending.expert, valid);
++            let published = pending
++                .cache
++                .borrow_mut()
++                .finish_lease(pending.lease, valid);
+             if !published {
+                 counters.discarded.fetch_add(1, Ordering::Relaxed);
+             }
+@@ -213,7 +210,7 @@ mod gpu {
+                 if worker
+                     .pending
+                     .as_ref()
+-                    .is_some_and(|p| p.layer == layer && ids.contains(&p.expert))
++                    .is_some_and(|p| p.layer == layer && ids.contains(&p.lease.expert))
+                 {
+                     self.counters.late_needed.fetch_add(1, Ordering::Relaxed);
+                 }
+@@ -234,7 +231,7 @@ mod gpu {
+                 if !worker.pending.as_ref().is_some_and(|p| {
+                     p.layer == layer
+                         && std::rc::Rc::ptr_eq(&p.cache, cache)
+-                        && ids.contains(&p.expert)
++                        && ids.contains(&p.lease.expert)
+                 }) {
+                     continue;
+                 }
+@@ -368,8 +365,7 @@ mod gpu {
+                         thread: None,
+                         pending: Some(Pending {
+                             layer: 3,
+-                            expert: 7,
+-                            slot,
++                            lease: cache.borrow().pending_lease(slot, 7).unwrap(),
+                             cache: Rc::clone(&cache),
+                             _read: read,
+                         }),

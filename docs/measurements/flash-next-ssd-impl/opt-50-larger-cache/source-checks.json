@@ -1,0 +1,26 @@
+[
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "tests/test_flash_larger_cache.py"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "--select",
+      "F,E9",
+      "--stdin-filename",
+      "flash-cache50.py",
+      "-"
+    ],
+    "exit": 0
+  }
+]

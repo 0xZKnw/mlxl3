@@ -1,0 +1,91 @@
+{
+  "status": "complete",
+  "input_tokens": 8192,
+  "scored_tokens": 4088,
+  "window": 1024,
+  "score_first_position": 512,
+  "score_last_position": 1022,
+  "bos_per_window": true,
+  "windows": [
+    {
+      "window": 1,
+      "tokens": 511,
+      "native_nll": 2.063442108908513,
+      "bf16_nll": 1.908326294191547,
+      "kl": 0.10465233799822808,
+      "greedy_matches": 455
+    },
+    {
+      "window": 2,
+      "tokens": 511,
+      "native_nll": 3.1237972548555004,
+      "bf16_nll": 2.9714158189939144,
+      "kl": 0.19203260423344895,
+      "greedy_matches": 408
+    },
+    {
+      "window": 3,
+      "tokens": 511,
+      "native_nll": 3.2277652838243607,
+      "bf16_nll": 3.2640970557837643,
+      "kl": 0.1610406854562576,
+      "greedy_matches": 425
+    },
+    {
+      "window": 4,
+      "tokens": 511,
+      "native_nll": 2.8734186413239224,
+      "bf16_nll": 2.877507208606547,
+      "kl": 0.1445275692046579,
+      "greedy_matches": 420
+    },
+    {
+      "window": 5,
+      "tokens": 511,
+      "native_nll": 3.0647421454758996,
+      "bf16_nll": 3.1436532816488887,
+      "kl": 0.12550483396828674,
+      "greedy_matches": 413
+    },
+    {
+      "window": 6,
+      "tokens": 511,
+      "native_nll": 3.067488303875639,
+      "bf16_nll": 2.9318161320638567,
+      "kl": 0.2067524157954081,
+      "greedy_matches": 402
+    },
+    {
+      "window": 7,
+      "tokens": 511,
+      "native_nll": 2.6671390550853715,
+      "bf16_nll": 2.5787443996429458,
+      "kl": 0.16988051676753851,
+      "greedy_matches": 411
+    },
+    {
+      "window": 8,
+      "tokens": 511,
+      "native_nll": 3.1960250344864543,
+      "bf16_nll": 3.247615112574968,
+      "kl": 0.15489316464244385,
+      "greedy_matches": 431
+    }
+  ],
+  "stage": "done",
+  "native_sha256": "99830cc531f23b4f4d46cc069640076373798a13b7704b1ff0960236c19be5e8",
+  "token_sha256": "e02f2e7b5e2a1e5ae068674dddbdab062024d6967d8e7827d5ee967b2c06fea7",
+  "teacher_mlx_active_bytes_after_clear": 8,
+  "native": {
+    "mean_nll": 2.910477228479458,
+    "perplexity": 18.36556104477144
+  },
+  "bf16": {
+    "mean_nll": 2.8653969129383037,
+    "perplexity": 17.55602003337925
+  },
+  "ppl_change_percent": 4.611187557618468,
+  "mean_kl_bf16_to_native": 0.1574105160082837,
+  "greedy_match_fraction": 0.8231409001956947,
+  "elapsed_s": 253.51932416699128
+}

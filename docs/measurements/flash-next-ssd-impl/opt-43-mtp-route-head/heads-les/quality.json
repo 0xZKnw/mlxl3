@@ -1,0 +1,58 @@
+[
+  {
+    "name": "lookahead-states",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/heads/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_lookahead_preserves_full_logits_states_and_pair_commits",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "4",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    },
+    "timeout_seconds": 360,
+    "expected_tests": 1,
+    "status": "passed",
+    "before": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t81%; charging; 0:59 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   355530.\nPages active:                                 361269.\nPages inactive:                               347316.\nPages speculative:                             13882.\nPages throttled:                                   0.\nPages wired down:                             183053.\nPages purgeable:                                7426.\n\"Translation faults\":                      873592803.\nPages copy-on-write:                        26177072.\nPages zero filled:                        1113239044.\nPages reactivated:                          82855705.\nPages purged:                                9385100.\nFile-backed pages:                            394725.\nAnonymous pages:                              327742.\nPages stored in compressor:                   474991.\nPages occupied by compressor:                 257648.\nDecompressions:                            244653634.\nCompressions:                              293424441.\nPageins:                                   741245114.\nPageouts:                                     106904.\nSwapins:                                     3941009.\nSwapouts:                                    4876049.\nPages tagged:                                 100447.\nPages tagged resident:                         75684.\nPages tagged compressed:                       24763.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3712.\nPages tag-storage free:                         5034.\nPages tag-storage non-tag pageable:            40198.\nPages tag-storage non-tag wired:                  83.\nBytes of compressed tags:                    3764864.\nTagged compressions:                         3948481.\nTagged decompressions:                       3747986.\n",
+      "swap": "vm.swapusage: total = 5120.00M  used = 3623.00M  free = 1497.00M  (encrypted)\n"
+    },
+    "pid": 61192,
+    "maximum_live_swapout_bytes": 0,
+    "maximum_live_swapin_bytes": 2949120,
+    "exit_code": 0,
+    "observed_tests": 1,
+    "after": {
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t81%; charging; 0:59 remaining present: true\n",
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   553431.\nPages active:                                 202022.\nPages inactive:                               260338.\nPages speculative:                               923.\nPages throttled:                                   0.\nPages wired down:                             182940.\nPages purgeable:                                5681.\n\"Translation faults\":                      874419721.\nPages copy-on-write:                        26184665.\nPages zero filled:                        1113906386.\nPages reactivated:                          83113088.\nPages purged:                                9390793.\nFile-backed pages:                            279110.\nAnonymous pages:                              184173.\nPages stored in compressor:                   603458.\nPages occupied by compressor:                 319044.\nDecompressions:                            244964612.\nCompressions:                              293877128.\nPageins:                                   741539341.\nPageouts:                                     107178.\nSwapins:                                     3941189.\nSwapouts:                                    4876049.\nPages tagged:                                  99175.\nPages tagged resident:                         67544.\nPages tagged compressed:                       31631.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3684.\nPages tag-storage free:                         1991.\nPages tag-storage non-tag pageable:            43268.\nPages tag-storage non-tag wired:                  83.\nBytes of compressed tags:                    5072640.\nTagged compressions:                         3958265.\nTagged decompressions:                       3750901.\n",
+      "swap": "vm.swapusage: total = 5120.00M  used = 3623.00M  free = 1497.00M  (encrypted)\n"
+    },
+    "swapout_bytes": 0,
+    "swapin_bytes": 2949120,
+    "system_event_deltas_bytes": {
+      "Pageins": 4820615168,
+      "Compressions": 7416823808,
+      "Decompressions": 5095063552,
+      "Swapins": 2949120,
+      "Swapouts": 0
+    },
+    "system_counter_scope": "whole process including load and warmup, global; not physical SSD I/O or decode-only",
+    "reaped": true,
+    "seconds": 20.913630291994195
+  }
+]

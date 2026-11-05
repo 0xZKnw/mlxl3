@@ -1,0 +1,11 @@
+--- v4/profile_flash.py
++++ v5/profile_flash.py
+@@ -342,7 +342,7 @@
+     budget = record.get("load_headroom_bytes")
+     model = "MLXL3_FLASH_MODEL" in record.get("env", {}) and record["command"][0] != "/bin/sleep"
+     if (
+-        budget is None
++        "load_headroom_bytes" not in record
+         and not model
+         and "minimum_live_free_bytes" not in record
+         and "maximum_compressor_bytes" not in record

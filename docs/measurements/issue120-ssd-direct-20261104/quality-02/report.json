@@ -1,0 +1,201 @@
+{
+  "status": "essential_validated",
+  "parity": true,
+  "all_children_joined": true,
+  "expected_phases": 4,
+  "phases": [
+    {
+      "label": "io",
+      "test": "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+      "marker": "NATIVE_SSD_DIRECT_IO",
+      "timeout_seconds": 60,
+      "expected": {
+        "range_cases": 4,
+        "distinct_live_backings": 4,
+        "exact_record_bytes": 1248012,
+        "partial_eof": true,
+        "post_enqueue_truncation": true,
+        "timeout_retained": true,
+        "stale_generation_rejected": true,
+        "batch_and_service_drop_drained": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 32151,
+      "returncode": 0,
+      "elapsed_seconds": 0.7380510000220966,
+      "evidence": {
+        "batch_and_service_drop_drained": true,
+        "distinct_live_backings": 4,
+        "exact_record_bytes": 1248012,
+        "parity": true,
+        "partial_eof": true,
+        "post_enqueue_truncation": true,
+        "range_cases": 4,
+        "stale_generation_rejected": true,
+        "timeout_retained": true
+      }
+    },
+    {
+      "label": "expert",
+      "test": "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+      "marker": "NATIVE_SSD_DIRECT_EXPERT",
+      "timeout_seconds": 120,
+      "expected": {
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 32153,
+      "returncode": 0,
+      "elapsed_seconds": 1.0882372499909252,
+      "evidence": {
+        "branches": [
+          {
+            "cold_bytes": 12480120,
+            "counters": [
+              0,
+              0,
+              12480120
+            ],
+            "enabled": false,
+            "finite_words": 2560,
+            "hot_bytes": 0
+          },
+          {
+            "cold_bytes": 12480120,
+            "counters": [
+              10,
+              12480120,
+              0
+            ],
+            "enabled": true,
+            "finite_words": 2560,
+            "hot_bytes": 0
+          }
+        ],
+        "independent_route_bytes": "owned IO fixture separately validates exact packed records",
+        "parity": true
+      }
+    },
+    {
+      "label": "model",
+      "test": "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+      "marker": "NATIVE_SSD_DIRECT_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "compared_state_words": 57606144,
+        "compared_logits": 744960,
+        "initial_archive_states": 84,
+        "finite": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest-iofix",
+        "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 32160,
+      "returncode": 0,
+      "elapsed_seconds": 6.643421207991196,
+      "evidence": {
+        "branches": [
+          {
+            "counters": [
+              0,
+              0,
+              1395277416
+            ],
+            "enabled": false,
+            "offset": 3,
+            "rows": 3,
+            "snapshot_position_before_continuation": 2,
+            "trace_rows": 2
+          },
+          {
+            "counters": [
+              1118,
+              1395277416,
+              0
+            ],
+            "enabled": true,
+            "offset": 3,
+            "rows": 3,
+            "snapshot_position_before_continuation": 2,
+            "trace_rows": 2
+          }
+        ],
+        "compared_logits": 744960,
+        "compared_state_words": 57606144,
+        "finite": true,
+        "initial_archive_states": 84,
+        "parity": true
+      }
+    },
+    {
+      "label": "cli4096-short",
+      "marker": "NATIVE_SSD_DIRECT_CLI",
+      "timeout_seconds": 180,
+      "expected": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/quality-02"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 32342,
+      "returncode": 0,
+      "elapsed_seconds": 12.760450750007294,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ],
+  "plan_sha256": "060f080437604f5a7a52b0d23381c02a92076a2e55b8e5cc19ac1623e4b81021"
+}

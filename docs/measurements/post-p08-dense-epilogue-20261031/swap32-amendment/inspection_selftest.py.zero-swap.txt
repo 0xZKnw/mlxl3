@@ -1,0 +1,578 @@
+"""Disposable F02 checks derived from T18a's 17 synthetic inspector cases.
+
+No private reports, model, compiled CLI or inference are required. Synthetic
+fixtures cannot be confused with observations of the future F02 executable.
+"""
+
+import contextlib
+import copy
+import io
+import json
+import runpy
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+FOLDER = Path(__file__).resolve().parent
+
+
+def set_value(value, path, replacement):
+    for key in path[:-1]:
+        value = value[key]
+    value[path[-1]] = replacement
+
+
+def fixture(output, context, mode, budget, arm):
+    cli = output / "synthetic-cli-not-executable"
+    cli.write_bytes(b"F02 SYNTHETIC bytes; never execute")
+    source = output / "synthetic-source.txt"
+    source.write_text("frozen synthetic source")
+    binary = {"path": str(cli), "sha256": context["file_sha"](cli)}
+    model, draft = output / "synthetic-model", output / "synthetic-draft"
+    model.mkdir()
+    draft.mkdir()
+    goldens = {}
+    for label, start, digest in [
+        ("MAIN", 0, "709f2462c272f725"),
+        ("HOLD", 128, "fda94c7e5c47db25"),
+    ]:
+        path = output / f"gold-{label}.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "tokens": list(range(start, start + 128)),
+                    "token_hash": digest,
+                    "cache_context": f"{label} synthetic complete output",
+                }
+            )
+        )
+        goldens[label] = str(path)
+    plan = output / "plan.json"
+    manifest_path = output / "manifest.json"
+    flag = {"A": "0", "C": "1"}[arm]
+    entry = {
+        "name": "SYNTHETIC_SELFTEST_" + output.name,
+        "phase": "bridge17" if budget == 17 else "pilot128",
+        "mode": mode,
+        "arm": arm,
+        "f02_flag": flag,
+        "output": str(output),
+        "expected_report": str(output / "report.json"),
+        "plan": str(plan),
+        "tokens_per_generation": budget,
+        "position_within_mode": 1 if arm == "A" else 2,
+    }
+    manifest = {
+        "experiment": "POSTP08-F02-01",
+        "model": str(model),
+        "dflash_draft": str(draft),
+        "external_golden_files_for_root_validation": goldens,
+        "plans": [copy.deepcopy(entry)],
+    }
+    manifest["plans"] = []
+    order = ["A", "C"] if budget == 17 else ["A", "C", "C", "A"]
+    for position, planned_arm in enumerate(order, 1):
+        planned = copy.deepcopy(entry)
+        planned.update(
+            arm=planned_arm,
+            f02_flag={"A": "0", "C": "1"}[planned_arm],
+            position_within_mode=position,
+        )
+        if position != entry["position_within_mode"]:
+            planned["name"] += "_reserved_" + str(position)
+        manifest["plans"].append(planned)
+    mode_args = {
+        "AR": [],
+        "MTP": ["--mtp"],
+        "DF": ["--dflash-draft", str(draft), "--dflash-mode", "1"],
+    }[mode]
+    command = [
+        sys.executable,
+        str(ROOT / "scripts/benchmark-flash-bridge.py"),
+        str(cli),
+        str(model),
+        str(output),
+        "--cache-gib",
+        "3",
+        "--tokens",
+        str(budget),
+        "--repeats",
+        "1",
+        "--timeout",
+        "180",
+        *mode_args,
+    ]
+    env = {**context["ENV"], "MLXL3_FLASH_DENSE_EPILOGUE": flag}
+    plan_data = [
+        {
+            "name": entry["name"],
+            "command": command,
+            "env": env,
+            "require_quiet": True,
+            "expected_exit": 0,
+            "minimum_available_bytes": 10_500_000_000,
+            "timeout_seconds": 900,
+        }
+    ]
+    plan.write_text(json.dumps(plan_data))
+    manifest_path.write_text(json.dumps(manifest))
+    frozen = [
+        Path(context["__file__"]),
+        ROOT / "scripts/benchmark-flash-bridge.py",
+        ROOT / "docs/measurements/issue58-20261029/pool-speed-driver.py",
+        manifest_path,
+        plan,
+        source,
+        *(Path(value) for value in goldens.values()),
+    ]
+    identity = {
+        "experiment": "POSTP08-F02-01",
+        "sources": {str(p): context["file_sha"](p) for p in frozen},
+        "binaries": {
+            "final_cli": binary,
+            "python_runner": {
+                "path": sys.executable,
+                "sha256": context["file_sha"](sys.executable),
+            },
+        },
+    }
+    report = {
+        "selftest_synthetic_not_measurement": True,
+        "status": "validated",
+        "reaped": True,
+        "reader_joined": True,
+        "engine": str(cli),
+        "binary_sha256": binary["sha256"],
+        "model": str(model),
+        "tokens": budget,
+        "expert_cache_gib": 3,
+        "repeats": 1,
+        "prompts": context["bridge"]["PROMPTS"],
+        "mode": {"AR": "baseline", "MTP": "mtp", "DF": "dflash2"}[mode],
+        "environment": env.copy(),
+        "runtime": {"runtime_executable": str(cli)},
+        "dflash_draft": str(draft) if mode == "DF" else None,
+        "warmup": [],
+        "runs": [],
+    }
+    pool = runpy.run_path(str(ROOT / "docs/measurements/issue58-20261029/pool-speed-driver.py"))
+    for group, repeat in [("warmup", 0), ("runs", 1)]:
+        for label in ("MAIN", "HOLD"):
+            golden = json.loads(Path(goldens[label]).read_text())
+            prompt_tokens = 87 if label == "MAIN" else 82
+            stats = {
+                "generated_tokens": budget,
+                "decode_tokens": budget - 1,
+                "decode_seconds": 2.0,
+                "decode_tps": (budget - 1) / 2.0,
+                "prompt_tokens": prompt_tokens,
+                "prefill_seconds": 1.5,
+                "prefill_tps": prompt_tokens / 1.5,
+                "ttft_seconds": 1.6,
+                "memory": {
+                    "process_footprint_bytes": 512 << 20,
+                    "process_lifetime_peak_bytes": 768 << 20,
+                },
+            }
+            for prefix, active in (("mtp", mode == "MTP"), ("dflash", mode == "DF")):
+                stats.update(
+                    {
+                        prefix + "_proposed_tokens": 2 if active else 0,
+                        prefix + "_accepted_tokens": 1 if active else 0,
+                        prefix + "_blocks": 2 if active else 0,
+                    }
+                )
+            gm = {
+                "mtp_active": mode == "MTP",
+                "mtp_requested": mode == "MTP",
+                "mtp_depth": 1 if mode == "MTP" else 0,
+                "dflash_active": mode == "DF",
+                "dflash_requested": mode == "DF",
+                "dflash_mode": 1 if mode == "DF" else 0,
+                "dflash_proposals": 1 if mode == "DF" else 0,
+                "dflash_draft_path": str(draft) if mode == "DF" else "",
+            }
+            report[group].append(
+                {
+                    "prompt": label,
+                    "repeat": repeat,
+                    "mode": report["mode"],
+                    "stats": stats,
+                    "generation_mode": gm,
+                    "text": golden["cache_context"] if budget == 128 else label,
+                    "token_hash": pool["token_hash"](golden["tokens"][:budget]),
+                }
+            )
+    supervisor = {
+        "status": "completed_expected_outcomes_not_speed",
+        "commands": [
+            {
+                "name": entry["name"],
+                "command": command,
+                "env": env.copy(),
+                "status": "completed_expected_outcome",
+                "exit_code": 0,
+                "reaped": True,
+                "swapouts_bytes": 0,
+                "swapins_bytes": 0,
+                "maximum_live_swapout_bytes": 0,
+                "maximum_live_swapin_bytes": 0,
+                "children_maximum_rss_bytes": 1 << 30,
+            }
+        ],
+    }
+    return entry, manifest, identity, plan_data, report, supervisor, source, cli
+
+
+def main():
+    context = runpy.run_path(str(FOLDER / "benchmark-inspection.py"))
+    inspector = context["inspect"]
+    assert inspector.__globals__["validate"] is context["validate"]
+    assert inspector.__globals__["golden_check"] is context["golden_check"]
+    row = ["warmup", 0]
+    # The first 17 retain T18a's three positives and fourteen rejection scenarios.
+    cases = [
+        ("positive_" + mode, mode, 17, "C", None, [], None, "") for mode in ("AR", "MTP", "DF")
+    ] + [
+        ("incomplete", "AR", 17, "C", "report", ["status"], "incomplete", ""),
+        ("empty_text", "AR", 17, "C", "report", row + ["text"], "", "empty output"),
+        (
+            "wrong_hash",
+            "AR",
+            17,
+            "C",
+            "report",
+            row + ["token_hash"],
+            "0" * 16,
+            "external token oracle",
+        ),
+        (
+            "mtp_null",
+            "MTP",
+            17,
+            "C",
+            "report",
+            row + ["stats", "mtp_proposed_tokens"],
+            None,
+            "invalid MTP counters",
+        ),
+        (
+            "df_null",
+            "DF",
+            17,
+            "C",
+            "report",
+            row + ["stats", "dflash_proposed_tokens"],
+            None,
+            "invalid DFlash counters",
+        ),
+        (
+            "zero_footprint",
+            "AR",
+            17,
+            "C",
+            "report",
+            row + ["stats", "memory", "process_footprint_bytes"],
+            0,
+            "process_footprint_bytes",
+        ),
+        (
+            "peak_limit",
+            "DF",
+            17,
+            "C",
+            "report",
+            row + ["stats", "memory", "process_lifetime_peak_bytes"],
+            12_000_000_000,
+            "process_lifetime_peak_bytes",
+        ),
+        (
+            "nan_duration",
+            "MTP",
+            17,
+            "C",
+            "report",
+            row + ["stats", "decode_seconds"],
+            float("nan"),
+            "invalid timing decode_seconds",
+        ),
+        ("missing_prompt", "AR", 17, "C", "report", ["prompts"], {}, ""),
+        (
+            "mtp_inactive",
+            "MTP",
+            17,
+            "C",
+            "report",
+            row + ["generation_mode", "mtp_active"],
+            False,
+            "engine mode mismatch",
+        ),
+        (
+            "df_inactive",
+            "DF",
+            17,
+            "C",
+            "report",
+            row + ["generation_mode", "dflash_active"],
+            False,
+            "engine mode mismatch",
+        ),
+        ("supervisor_unreaped", "AR", 17, "C", "supervisor", ["commands", 0, "reaped"], False, ""),
+        (
+            "f02_flag_mismatch",
+            "AR",
+            17,
+            "C",
+            "report",
+            ["environment", "MLXL3_FLASH_DENSE_EPILOGUE"],
+            "0",
+            "report F02 flag",
+        ),
+        (
+            "t04_not_disabled",
+            "AR",
+            17,
+            "C",
+            "report",
+            ["environment", "MLXL3_FLASH_SWIGLU_DOWN"],
+            "1",
+            "MLXL3_FLASH_SWIGLU_DOWN",
+        ),
+    ]
+    cases += [
+        ("positive128_" + mode, mode, 128, "C", None, [], None, "") for mode in ("AR", "MTP", "DF")
+    ]
+    cases += [
+        ("positiveA_" + mode, mode, 17, "A", None, [], None, "") for mode in ("AR", "MTP", "DF")
+    ]
+    cases += [
+        ("positiveA128_" + mode, mode, 128, "A", None, [], None, "") for mode in ("AR", "MTP", "DF")
+    ]
+    cases += [
+        (
+            "t18_not_disabled",
+            "AR",
+            17,
+            "C",
+            "report",
+            ["environment", "MLXL3_SSD_DYNAMIC_READERS"],
+            "1",
+            "MLXL3_SSD_DYNAMIC_READERS",
+        ),
+        ("report_binary_hash", "AR", 17, "C", "report", ["binary_sha256"], "0" * 64, ""),
+        ("wrong_mode", "AR", 17, "C", "report", ["mode"], "mtp", ""),
+        ("missing_raw", "AR", 17, "C", "missing_raw", [], None, ""),
+        ("malformed_raw", "AR", 17, "C", "malformed_raw", [], None, ""),
+        (
+            "partial_tokens",
+            "AR",
+            17,
+            "C",
+            "report",
+            row + ["stats", "generated_tokens"],
+            16,
+            "incomplete generation",
+        ),
+        ("partial_rows", "AR", 17, "C", "report", ["runs"], [], ""),
+        (
+            "late_divergence",
+            "AR",
+            128,
+            "C",
+            "report",
+            ["runs", 1, "token_hash"],
+            "0" * 16,
+            "external token oracle",
+        ),
+        (
+            "nan_prefill",
+            "AR",
+            17,
+            "C",
+            "report",
+            row + ["stats", "prefill_seconds"],
+            float("nan"),
+            "prefill duration",
+        ),
+        ("reader_unjoined", "AR", 17, "C", "report", ["reader_joined"], False, ""),
+        ("report_error", "AR", 17, "C", "report", ["error"], "late error", ""),
+        ("supervisor_nonzero", "AR", 17, "C", "supervisor", ["commands", 0, "exit_code"], 1, ""),
+        ("swapout", "AR", 17, "C", "supervisor", ["commands", 0, "swapouts_bytes"], 16384, ""),
+        (
+            "swapin_limit",
+            "AR",
+            17,
+            "C",
+            "supervisor",
+            ["commands", 0, "swapins_bytes"],
+            (256 << 20) + 1,
+            "",
+        ),
+        (
+            "rss_limit",
+            "AR",
+            17,
+            "C",
+            "supervisor",
+            ["commands", 0, "children_maximum_rss_bytes"],
+            (10 << 30) + 1,
+            "",
+        ),
+        ("source_hash", "AR", 17, "C", "source_hash", [], None, "source identity"),
+        ("binary_changed", "AR", 17, "C", "binary_changed", [], None, "binary identity"),
+        (
+            "old_manifest",
+            "AR",
+            17,
+            "C",
+            "manifest",
+            ["experiment"],
+            "ISSUE59-T18A-01",
+            "campaign identity",
+        ),
+        (
+            "old_identity",
+            "AR",
+            17,
+            "C",
+            "identity",
+            ["experiment"],
+            "ISSUE59-T18A-01",
+            "campaign identity",
+        ),
+        (
+            "old_cli",
+            "AR",
+            17,
+            "C",
+            "identity",
+            ["binaries", "final_cli", "sha256"],
+            context["OLD_T18_CLI"],
+            "historical T18 CLI",
+        ),
+        (
+            "plan_flag",
+            "AR",
+            17,
+            "C",
+            "plan",
+            [0, "env", "MLXL3_FLASH_DENSE_EPILOGUE"],
+            "0",
+            "plan F02 flag",
+        ),
+        ("plan_args", "AR", 17, "C", "plan", [0, "command", 6], "4", "bridge command"),
+        ("arm_flag", "AR", 17, "C", "entry", ["arm"], "A", "arm flag"),
+        ("plan_order", "AR", 17, "C", "order", [], None, "arm order"),
+        ("unfrozen_golden", "AR", 17, "C", "unfrozen_golden", [], None, "unfrozen"),
+        ("invalid_golden", "AR", 17, "C", "invalid_golden", [], None, "golden identity"),
+    ]
+    results = []
+    with (
+        tempfile.TemporaryDirectory(prefix="f02-inspection-selftest-") as temporary,
+        contextlib.chdir(temporary),
+    ):
+        for label, mode, budget, arm, target, path, replacement, reason in cases:
+            output = Path(temporary) / label
+            output.mkdir()
+            entry, manifest, identity, plan, report, supervisor, source, cli = fixture(
+                output, context, mode, budget, arm
+            )
+            if target in ("entry", "manifest", "identity", "plan", "report", "supervisor"):
+                set_value(
+                    {
+                        "entry": entry,
+                        "manifest": manifest,
+                        "identity": identity,
+                        "plan": plan,
+                        "report": report,
+                        "supervisor": supervisor,
+                    }[target],
+                    path,
+                    replacement,
+                )
+            elif target == "source_hash":
+                identity["sources"][str(source)] = "0" * 64
+            elif target == "binary_changed":
+                cli.write_bytes(b"different synthetic bytes")
+            elif target == "order":
+                manifest["plans"].reverse()
+            elif target == "unfrozen_golden":
+                del identity["sources"][
+                    manifest["external_golden_files_for_root_validation"]["MAIN"]
+                ]
+            elif target == "invalid_golden":
+                golden_path = Path(manifest["external_golden_files_for_root_validation"]["MAIN"])
+                golden = json.loads(golden_path.read_text())
+                golden["token_hash"] = "0" * 16
+                golden_path.write_text(json.dumps(golden))
+                identity["sources"][str(golden_path)] = context["file_sha"](golden_path)
+            if target == "entry":
+                manifest["plans"][entry["position_within_mode"] - 1] = copy.deepcopy(entry)
+            manifest_path, identity_path = output / "manifest.json", output / "identity.json"
+            manifest_path.write_text(json.dumps(manifest))
+            plan_path = Path(entry["plan"])
+            plan_path.write_text(json.dumps(plan))
+            for changed in (manifest_path, plan_path):
+                identity["sources"][str(changed)] = context["file_sha"](changed)
+            identity_path.write_text(json.dumps(identity))
+            if target != "missing_raw":
+                Path(entry["expected_report"]).write_text(
+                    "{" if target == "malformed_raw" else json.dumps(report)
+                )
+            plan_path.with_name(plan_path.stem + "-result.json").write_text(json.dumps(supervisor))
+            raised = None
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    inspector(entry, manifest_path, identity_path)
+            except (AssertionError, ValueError, KeyError, OSError) as error:
+                raised = error
+            inspected_path = output / "external-inspection-v2.json"
+            inspected = json.loads(inspected_path.read_text())
+            if target:
+                assert raised is not None, label
+                assert reason in str(raised), (label, repr(raised))
+                assert inspected["status"] == "failed_external_inspection", label
+                assert inspected["external_golden"] is False and inspected.get("parity") is not True
+            else:
+                assert raised is None, (label, repr(raised))
+                assert inspected["status"] == "passed_external_oracle_mode_and_memory_not_gain"
+                assert inspected["external_golden"] is True and len(inspected["rows"]) == 4
+                before = inspected_path.read_bytes()
+                try:
+                    inspector(entry, manifest_path, identity_path)
+                except AssertionError:
+                    pass
+                else:
+                    raise AssertionError("existing inspection overwritten")
+                assert inspected_path.read_bytes() == before
+            results.append(
+                {
+                    "case": label,
+                    "mode": mode,
+                    "budget": budget,
+                    "arm": arm,
+                    "expected_rejection": bool(target),
+                    "status": inspected["status"],
+                }
+            )
+        assert Path("opti.md").read_text().count("SYNTHETIC_SELFTEST_") == len(cases)
+    print(
+        json.dumps(
+            {
+                "status": "passed_synthetic_selftests_not_benchmark",
+                "engine_executed": False,
+                "synthetic_fixtures": True,
+                "controller_sha256": context["file_sha"](FOLDER / "benchmark-inspection.py"),
+                "positive_cases": sum(not row["expected_rejection"] for row in results),
+                "negative_cases": sum(row["expected_rejection"] for row in results),
+                "cases": results,
+                "journaling": "temporary cwd only; fixtures removed",
+            },
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

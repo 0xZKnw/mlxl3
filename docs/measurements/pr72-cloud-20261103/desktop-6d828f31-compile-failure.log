@@ -1,0 +1,18 @@
+2026-11-03T09:28:36.0046550Z Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+2026-11-03T09:29:40.9564530Z Desktop preference checks passed: 62 assertions, isolated persistence, appearance, actual startup/manual loading and errors
+2026-11-03T09:30:31.2390670Z Completion notification checks passed: 17 assertions; permission, persistence, background/foreground, cancellation, errors, duplicates
+2026-11-03T09:31:51.1231360Z Logo appearance checks passed: 25, actual artwork, light/dark/blue, transparent corners and negative controls
+2026-11-03T09:33:45.2019720Z /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/mlxl3-check.eUFKeoc9P4/ResponseUICompileGuard.swift:2316:29: error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T09:33:45.2021370Z 2314 |         "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+2026-11-03T09:33:45.2044010Z 2316 |       if !found || snapshot.ink < 40 {
+2026-11-03T09:33:45.2046490Z      |                             |- error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T09:33:45.2048510Z      |                             `- note: 'snapshot' is captured by a main actor-isolated closure. main actor-isolated uses in closure may race against later nonisolated uses
+2026-11-03T09:33:45.2052530Z 2319 |         try saveBitmap(snapshot.bitmap, suffix: "first-miss")
+2026-11-03T09:33:45.2058260Z      |             `- note: access can happen concurrently
+2026-11-03T09:33:45.2077810Z 2332 |           suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
+2026-11-03T09:33:45.2078670Z 2334 |         try saveBitmap(snapshot.bitmap, suffix: "first")
+2026-11-03T09:33:45.2079110Z      |             `- note: access can happen concurrently
+2026-11-03T09:33:45.2079960Z 2337 |         snapshot.ink >= 40 && found,
+2026-11-03T09:33:45.2080340Z      |                  `- note: access can happen concurrently
+2026-11-03T09:33:45.2081010Z 2338 |         "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(text); ink=\(snapshot.ink), height=\(snapshot.height), offset=\(snapshot.offset)"
+2026-11-03T09:33:45.2465240Z ##[error]Process completed with exit code 1.

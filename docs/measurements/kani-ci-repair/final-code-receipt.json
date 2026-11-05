@@ -1,0 +1,34 @@
+{
+  "previous_head": "1f918af9f242b116b73da34de851a5939780b6e5",
+  "required_library_harnesses": 319,
+  "api_compiled_instances": 2,
+  "logical_shards": 5,
+  "maximum_parallel_proof_workers": 4,
+  "per_harness_timeout_seconds": 600,
+  "per_shard_budget_seconds": 2700,
+  "per_process_address_space_bytes": 6442450944,
+  "orchestration_tests_passed": 34,
+  "unchanged_production_cpu_test_passed": 238,
+  "unchanged_production_cpu_ignored": 5,
+  "fill_proof_final_checkout": {
+    "checks": 1247,
+    "failed": 0,
+    "unreachable_assertions": 12,
+    "covers_satisfied": 2,
+    "seconds": 97.51478
+  },
+  "tuning_proof_without_verbose": {
+    "checks": 395,
+    "failed": 0,
+    "unreachable_assertions": 6,
+    "covers_satisfied": 2,
+    "seconds": 130.17685
+  },
+  "source_sha256": {
+    ".github/workflows/rust.yml": "45f29389341811b623c921fd66d6dad72455407f2d12b793674fb9fccb1a237e",
+    "native/src/flash_support.rs": "23a17384fd995c65627f235ff194d26c5e5c8f46ffc492fc06b96daf1387c4bf",
+    "scripts/kani_ci.py": "c008eccdc6ee66f87861a7ad413dd43d91d14b3b0ed4f194c5f4c962610a2026",
+    "tests/test_kani_ci.py": "cd59f91d9df6dc045ec44c53a80fa1158cc4a3f8100d7c8f2555a26a94cc0f0d",
+    "scripts/kani_obligations.json": "51d80886507ec98c008a0bd8f863f380cd1dbaec381a1a7c213f78efae7b76a0"
+  }
+}

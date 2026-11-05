@@ -73,6 +73,17 @@ struct GenerationInspector: View {
                                 }
                             }
                             .disabled(studio.isGenerating || studio.modelContextLimit == nil)
+                            if let advised = studio.recommendedContextLength {
+                                Button(L("Utiliser le contexte conseillé : \(advised.formatted()) tokens",
+                                         "Use recommended context: \(advised.formatted()) tokens")) {
+                                    studio.contextLengthDraft = advised
+                                }
+                                .font(.caption)
+                                .disabled(studio.isGenerating || studio.isTuningMTP)
+                                Text(L("Estimation prudente avec la mémoire du moteur observée, le cache MTP si compatible, 512 Mio pour les caches et au moins 25 % / 4 Gio pour macOS et le calcul. Les autres apps peuvent réduire la marge. Enregistrer pour appliquer.",
+                                       "Conservative estimate using observed engine memory, compatible MTP cache, 512 MiB for caches and at least 25% / 4 GiB for macOS and compute. Other apps may reduce headroom. Save to apply."))
+                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            }
                             if let maximum = studio.modelContextLimit {
                                 Text(L("Maximum du modèle : \(maximum.formatted()) tokens", "Model maximum: \(maximum.formatted()) tokens"))
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)
@@ -90,7 +101,7 @@ struct GenerationInspector: View {
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
                             SliderSetting(
                                 label: L("Température", "Temperature"),
-                                value: $studio.temperature,
+                                value: Binding(get: { studio.samplingTemperature }, set: { studio.temperature = $0 }),
                                 range: 0...1.5,
                                 format: "%.2f"
                             )
@@ -99,13 +110,13 @@ struct GenerationInspector: View {
                                 HStack {
                                     Text("Top K")
                                     Spacer()
-                                    Text("\(studio.topK)").monospacedDigit()
+                                    Text("\(studio.samplingTopK)").monospacedDigit()
                                 }
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(StudioTheme.secondary)
                                 Slider(
                                     value: Binding(
-                                        get: { Double(studio.topK) },
+                                        get: { Double(studio.samplingTopK) },
                                         set: { studio.topK = Int($0.rounded()) }
                                     ),
                                     in: 0...200,
@@ -116,22 +127,65 @@ struct GenerationInspector: View {
                             Divider().overlay(StudioTheme.contrast.opacity(0.08))
                             SliderSetting(
                                 label: L("Répétition", "Repetition"),
-                                value: $studio.repetitionPenalty,
+                                value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 }),
                                 range: 1...1.3,
                                 format: "%.2f"
                             )
-                            if studio.mtpEnabled {
-                                Label(L("MTP est activé : ces paramètres sont verrouillés. Désactive MTP pour les modifier.",
-                                        "MTP is enabled: these settings are locked. Disable MTP to change them."), systemImage: "lock")
+                            if studio.samplingLocked {
+                                let mode = studio.dflash2Applicable ? "DFlash2" : "MTP"
+                                Label(L("\(mode) utilise le mode greedy. Désactive \(mode) pour modifier ces paramètres.",
+                                        "\(mode) uses greedy sampling. Disable \(mode) to change these settings."), systemImage: "lock")
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)
                             }
                         }
-                        .disabled(studio.mtpEnabled)
+                        .disabled(studio.samplingLocked)
 
-                        if studio.mtpAvailable {
+                        if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {
                             SettingCard(title: L("Accélération MTP", "MTP acceleration"), icon: "bolt.fill") {
                                 MTPSettingsContent().id("mtp-tuning")
                             }
+                        }
+
+                        if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {
+                            SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill") {
+                                Toggle(studio.dflash2Available
+                                       ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
+                                       : L("Préférence DFlash2 (inactive pour ce modèle)", "DFlash2 preference (inactive for this model)"), isOn: Binding(
+                                    get: { studio.dflash2Enabled || studio.dflashDownloading },
+                                    set: { studio.setDFlash2Enabled($0) }
+                                )).font(.system(size: 11))
+                                .disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)
+                                    && (!studio.dflash2Available || !studio.engineState.isReady)))
+                                if !studio.dflash2Available {
+                                    Text(L("Préférence DFlash2 conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
+                                           "DFlash2 preference saved; unavailable for this model. You can turn it off here."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                }
+                                MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)
+                                if studio.dflashDownloading {
+                                    ProgressView(value: studio.dflashDownloadTotal > 0 ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
+                                    Text(L("Téléchargement et préparation du draft…", "Downloading and preparing the draft…"))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    Button(L("Annuler la préparation", "Cancel preparation")) { studio.setDFlash2Enabled(false) }
+                                        .buttonStyle(GlassPillButtonStyle())
+                                }
+                                if let error = studio.dflashDownloadError { Text(error).font(.caption).foregroundStyle(.red) }
+                                if studio.selectedModel?.modelType == "qwen4_exp" {
+                                    Button(L("Télécharger le draft compatible", "Download the compatible draft"), action: studio.downloadCompatibleDFlashDraft)
+                                        .buttonStyle(GlassPillButtonStyle())
+                                        .disabled(!studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating || studio.dflashDownloading)
+                                    Text(L("Draft Flash Next : environ 1,2 Go. Chaque token est vérifié par la cible.",
+                                           "Flash Next draft: about 1.2 GB. The target verifies every token."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                } else {
+                                    Text(L("Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                           "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                }
+                                Button(L("Choisir un draft local…", "Choose a local draft…"), action: studio.chooseDFlashDraft)
+                                    .buttonStyle(GlassPillButtonStyle()).disabled(!studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
+                            }
+                            .id("dflash-tuning")
                         }
 
                         if let runtime = studio.runtimeIdentity, !runtime.isEmpty {
@@ -140,7 +194,15 @@ struct GenerationInspector: View {
                                 .textSelection(.enabled)
                         }
 
-                        SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
+                        Button(L("Projets et profils enregistrés", "Projects and saved profiles")) { studio.showWorkspace = true }
+                    if studio.selectedMode != .agent {
+                      SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
+                        TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced)).frame(minHeight: 80)
+                        Text(L("Schéma JSON optionnel. Une réponse non conforme échoue explicitement ; le texte est livré après validation. MCP est désactivé pour cette requête. Vide = texte libre.", "Optional JSON schema. Invalid output fails explicitly; text is delivered after validation. MCP is disabled for this request. Empty = free text.")).font(.caption).foregroundStyle(.secondary)
+                        Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
+                      }
+                    }
+                    SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
                             TextEditor(text: $studio.systemPrompt)
                                 .font(.system(size: 11.5))
                                 .scrollContentBackground(.hidden)
@@ -163,7 +225,15 @@ struct GenerationInspector: View {
                                 }
                         }
 
-                        SettingCard(title: "MCP", icon: "shippingbox") {
+                        if studio.selectedMode == .agent {
+                            SettingCard(title: L("Sandbox native", "Native sandbox"), icon: "lock.shield") {
+                                Text(L("Dossier privé par tâche · réseau bloqué · aucun serveur MCP externe.", "Private task folder · network blocked · no external MCP servers."))
+                                Text(L("5 s par commande · 32 Kio de sortie · outils système macOS.", "5 s per command · 32 KiB captured output · macOS system tools."))
+                                Text(L("\(studio.mcpToolCount) outil connecté", "\(studio.mcpToolCount) connected tool"))
+                                ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in Text(studio.mcpErrors[key] ?? "").foregroundStyle(.red) }
+                            }.font(.caption)
+                        } else {
+                          SettingCard(title: "MCP", icon: "shippingbox") {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(L("\(studio.mcpServerCount) serveur\(studio.mcpServerCount == 1 ? "" : "s") connecté\(studio.mcpServerCount == 1 ? "" : "s")", "\(studio.mcpServerCount) connected server\(studio.mcpServerCount == 1 ? "" : "s")"))
@@ -186,7 +256,7 @@ struct GenerationInspector: View {
                             }
 
                             HStack(spacing: 8) {
-                                Button(action: studio.openMCPConfiguration) {
+                                Button(action: { studio.showMCPManager = true }) {
                                     Label(L("Configurer", "Configure"), systemImage: "doc.text")
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 29)
@@ -206,6 +276,7 @@ struct GenerationInspector: View {
                                 .font(.system(size: 8.5, weight: .medium))
                                 .foregroundStyle(StudioTheme.quiet)
                                 .fixedSize(horizontal: false, vertical: true)
+                          }
                         }
 
                         if let model = studio.selectedModel {
@@ -221,7 +292,9 @@ struct GenerationInspector: View {
                     .padding(.bottom, 20)
                 }
                 .onChange(of: studio.isTuningMTP, initial: true) { _, running in
-                    if running || studio.mtpError != nil || !studio.mtpTuneRows.isEmpty {
+                    if studio.isTuningDFlash || (!running && (studio.dflashDownloadError != nil || !studio.dflashTuneRows.isEmpty)) {
+                        proxy.scrollTo("dflash-tuning", anchor: .top)
+                    } else if running || studio.mtpError != nil || !studio.mtpTuneRows.isEmpty {
                         proxy.scrollTo("mtp-tuning", anchor: .top)
                     }
                 }

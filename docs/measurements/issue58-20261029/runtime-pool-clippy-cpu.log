@@ -1,0 +1,25 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error: variants `Uniform` and `Arc` are never constructed
+  --> native/src/expert_pool.rs:29:5
+   |
+28 | pub(crate) enum SharedCache {
+   |                 ----------- variants in this enum
+29 |     Uniform {
+   |     ^^^^^^^
+...
+34 |     Arc {
+   |     ^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: method `publish` is never used
+   --> native/src/expert_pool.rs:115:19
+    |
+ 41 | impl SharedCache {
+    | ---------------- method in this implementation
+...
+115 |     pub(crate) fn publish(&mut self) {
+    |                   ^^^^^^^
+
+error: could not compile `mlxl3-native` (lib) due to 2 previous errors

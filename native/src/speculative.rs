@@ -1,5 +1,58 @@
 //! Exact target-side acceptance for speculative decoding.
 
+/// Select the first maximum after model-dtype normalization. Negative infinity masks a token.
+pub fn greedy_log_prob_id(probabilities: &[f32]) -> Option<u32> {
+    let mut best = None;
+    for (index, &value) in probabilities.iter().enumerate() {
+        if value.is_nan() || value == f32::INFINITY {
+            return None;
+        }
+        if value.is_finite() && best.is_none_or(|(_, prior)| value > prior) {
+            best = Some((u32::try_from(index).ok()?, value));
+        }
+    }
+    best.map(|(index, _)| index)
+}
+
+#[test]
+fn greedy_probabilities_require_a_finite_winner_and_keep_first_tie() {
+    assert_eq!(
+        greedy_log_prob_id(&[f32::NEG_INFINITY, -0.0, 0.0, -1.0]),
+        Some(1)
+    );
+    for row in [
+        &[][..],
+        &[f32::NEG_INFINITY],
+        &[0., f32::NAN],
+        &[f32::INFINITY, 0.],
+    ] {
+        assert_eq!(greedy_log_prob_id(row), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn normalized_greedy_retains_first_finite_maximum() {
+    let p: [f32; 3] = kani::any();
+    let n = usize::from(kani::any::<u8>() % 4);
+    let row = &p[..n];
+    let result = greedy_log_prob_id(row);
+    assert_eq!(
+        result.is_some(),
+        row.iter().all(|v| !v.is_nan() && *v != f32::INFINITY) && row.iter().any(|v| v.is_finite())
+    );
+    if let Some(index) = result {
+        let i = index as usize;
+        assert!(i < n && row[i].is_finite());
+        for (j, &x) in row.iter().enumerate() {
+            assert!(if j < i { x < row[i] } else { x <= row[i] });
+        }
+        kani::cover!(n == 3 && i == 1 && row[1] == row[2]);
+        kani::cover!(n == 3 && i == 2 && row[0] == f32::NEG_INFINITY);
+    }
+}
+
 /// The accepted draft prefix plus the target token that ends the cycle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GreedyAcceptance {
@@ -48,6 +101,52 @@ pub fn prompt_lookup(
         .rposition(|site| site[..7] == *tail && site[7] == anchor)?;
     let end = start + 8;
     Some(&history[end..end + width.min(history.len() - end)])
+}
+
+/// Request-local copy proposals; target verification remains authoritative.
+pub struct DFlashCopy {
+    history: [u32; LOOKUP_WINDOW],
+    len: usize,
+    enabled: bool,
+}
+
+impl DFlashCopy {
+    pub fn new(prompt: &[u32]) -> Self {
+        let prompt = &prompt[prompt.len().saturating_sub(LOOKUP_WINDOW)..];
+        let mut history = [0; LOOKUP_WINDOW];
+        history[..prompt.len()].copy_from_slice(prompt);
+        Self {
+            history,
+            len: prompt.len(),
+            enabled: true,
+        }
+    }
+
+    pub fn propose(&self, anchor: u32, width: usize) -> Option<&[u32]> {
+        self.enabled
+            .then(|| prompt_lookup(&self.history[..self.len], anchor, width.min(3), |_| true))
+            .flatten()
+    }
+
+    /// Call only after target commit; exclude the pending corrective token.
+    pub fn record(&mut self, anchor: u32, accepted: &[u32], copied: bool) {
+        self.enabled &= !copied || !accepted.is_empty();
+        if accepted.len() >= LOOKUP_WINDOW {
+            self.history
+                .copy_from_slice(&accepted[accepted.len() - LOOKUP_WINDOW..]);
+            self.len = LOOKUP_WINDOW;
+        } else {
+            let retained = self.len.min(LOOKUP_WINDOW - accepted.len() - 1);
+            let excess = self.len - retained;
+            if excess > 0 {
+                self.history.copy_within(excess..self.len, 0);
+            }
+            self.history[retained] = anchor;
+            let end = retained + 1 + accepted.len();
+            self.history[retained + 1..end].copy_from_slice(accepted);
+            self.len = end;
+        }
+    }
 }
 
 /// Scores are positive milli-tokens/second, after quality/acceptance validation.
@@ -103,6 +202,26 @@ pub fn adaptive_proposals(
     bounded_proposals(context_remaining, output_remaining).map(|n| n.min(width))
 }
 
+/// 1 = current adaptive policy, 2 = two proposals, 3 = seven proposals.
+/// Every proposal remains verified by the target; reserve the corrective token.
+pub fn dflash_proposals(
+    mode: usize,
+    context: usize,
+    output: usize,
+    blocks: usize,
+    accepted: usize,
+    proposed: usize,
+) -> Option<usize> {
+    match mode {
+        1 => adaptive_proposals(context, output, blocks, accepted, proposed),
+        2 | 3 => context
+            .min(output)
+            .checked_sub(1)
+            .map(|n| n.min(if mode == 2 { 2 } else { 7 })),
+        _ => None,
+    }
+}
+
 /// Accepts the longest proposal prefix selected by the target.
 ///
 /// `target_tokens[i]` is the target's token after the first `i` proposals.
@@ -124,9 +243,152 @@ pub fn greedy_accept(proposals: &[u32], target_tokens: &[u32]) -> Option<GreedyA
     })
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn dflash_modes_preserve_context_and_output_budgets() {
+    let mode: usize = kani::any();
+    let context: usize = kani::any();
+    let output: usize = kani::any();
+    let width = dflash_proposals(mode, context, output, kani::any(), kani::any(), kani::any());
+    assert_eq!(
+        width.is_some(),
+        (1..=3).contains(&mode) && context > 0 && output > 0
+    );
+    if let Some(width) = width {
+        assert!(width <= 7 && width < context && width < output);
+        if mode == 2 {
+            assert!(width <= 2);
+        }
+    }
+    kani::cover!(mode == 3 && width == Some(7));
+    kani::cover!(mode == 1 && width == Some(2));
+    kani::cover!(width == Some(0));
+    kani::cover!(width.is_none());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dflash_copy_remembers_only_commits_and_stops_after_total_refusal() {
+        let prompt = [1, 2, 3, 4, 5, 6, 7, 8, 91, 92, 93, 1, 2, 3, 4, 5, 6, 7];
+        for width in [0, 1, 2, 3, 5, 7, usize::MAX] {
+            let copy = DFlashCopy::new(&prompt);
+            let expected = if width == 0 {
+                None
+            } else {
+                Some(&[91, 92, 93][..width.min(3)])
+            };
+            assert_eq!(copy.propose(8, width), expected);
+        }
+        let mut copy = DFlashCopy::new(&prompt);
+        copy.record(8, &[91, 92], true);
+        assert_eq!(&copy.history[prompt.len()..copy.len], &[8, 91, 92]);
+        assert!(copy.enabled);
+        copy.record(u32::MAX, &[], false);
+        assert!(copy.enabled, "neural refusal must not disable copies");
+        copy.record(0, &[], true);
+        assert!(!copy.enabled);
+        copy.record(8, &[91, 92, 93], true);
+        assert!(!copy.enabled, "a request never re-enables failed copying");
+        copy.history[..prompt.len()].copy_from_slice(&prompt);
+        copy.len = prompt.len();
+        assert_eq!(copy.propose(8, 3), None);
+    }
+
+    #[test]
+    fn dflash_copy_bounds_prompt_and_committed_history() {
+        for length in [0usize, 1, 8, 9, 1023, 1024, 1025, 2048] {
+            let prompt = (0..length as u32).collect::<Vec<_>>();
+            for accepted in [0, 1, 3, 7, 1023, 1024, 1025] {
+                let prefix = vec![u32::MAX; accepted];
+                let mut copy = DFlashCopy::new(&prompt);
+                assert_eq!(copy.history.len(), LOOKUP_WINDOW);
+                assert_eq!(
+                    copy.history[..copy.len],
+                    prompt[length.saturating_sub(1024)..]
+                );
+                let expected = prompt
+                    .iter()
+                    .copied()
+                    .chain([248_319])
+                    .chain(prefix.iter().copied())
+                    .collect::<Vec<_>>();
+                copy.record(248_319, &prefix, true);
+                assert_eq!(
+                    copy.history[..copy.len],
+                    expected[expected.len().saturating_sub(1024)..]
+                );
+                assert!(copy.len <= 1024);
+                assert_eq!(copy.enabled, accepted > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn dflash_copy_transitions_match_bounded_stream_over_long_sequences() {
+        use std::collections::VecDeque;
+        for mut seed in [0u64, 1, 7, 8, 31, u32::MAX as u64, u64::MAX, 0xc0ffee] {
+            let prompt = (0..1020 + seed as usize % 9)
+                .map(|id| id as u32)
+                .collect::<Vec<_>>();
+            let mut copy = DFlashCopy::new(&prompt);
+            let mut stream: VecDeque<_> = prompt.into_iter().collect();
+            while stream.len() > LOOKUP_WINDOW {
+                stream.pop_front();
+            }
+            let mut stopped = false;
+            for step in 0..512 {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let anchor = (seed >> 32) as u32;
+                let count = if step % 64 == 0 {
+                    1023 + (step / 64) % 3
+                } else {
+                    (seed as usize >> 1) % 8
+                };
+                let copied = seed & 1 != 0;
+                let accepted = (0..count)
+                    .map(|_| {
+                        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                        (seed >> 32) as u32
+                    })
+                    .collect::<Vec<_>>();
+                copy.record(anchor, &accepted, copied);
+                stopped |= copied && accepted.is_empty();
+                for token in std::iter::once(anchor).chain(accepted) {
+                    stream.push_back(token);
+                    if stream.len() > LOOKUP_WINDOW {
+                        stream.pop_front();
+                    }
+                }
+                assert_eq!(copy.len, stream.len());
+                assert!(copy.history[..copy.len].iter().eq(stream.iter()));
+                assert_eq!(copy.enabled, !stopped);
+            }
+        }
+    }
+
+    #[test]
+    fn dflash_modes_bound_every_small_budget_and_reject_unknown_modes() {
+        for mode in 0..=4 {
+            for context in 0..=17 {
+                for output in 0..=17 {
+                    let expected = if (1..=3).contains(&mode) && context > 0 && output > 0 {
+                        Some((context.min(output) - 1).min([0, 5, 2, 7, 0][mode]))
+                    } else {
+                        None
+                    };
+                    assert_eq!(dflash_proposals(mode, context, output, 0, 0, 0), expected);
+                }
+            }
+        }
+        assert_eq!(dflash_proposals(1, 20, 20, 8, 23, 40), Some(2));
+        assert_eq!(
+            dflash_proposals(3, usize::MAX, usize::MAX, 0, 0, 0),
+            Some(7)
+        );
+    }
 
     #[test]
     fn lookup_uses_latest_known_continuation_and_respects_limits() {
@@ -280,11 +542,126 @@ mod tests {
 mod verification {
     use super::*;
 
+    fn dflash_copy_transition<const LEN: usize, const ACCEPTED: usize>()
+    -> (bool, bool, bool, usize, usize) {
+        let prompt: [u32; 20] = kani::any();
+        let prefix: [u32; 7] = kani::any();
+        let len = LEN;
+        let accepted = ACCEPTED;
+        let anchor: u32 = kani::any();
+        let copied: bool = kani::any();
+        let enabled: bool = kani::any();
+        // Every valid index fits in 0..28; include invalid indices through 31.
+        let index = usize::from(kani::any::<u8>() & 31);
+        let mut copy = DFlashCopy::new(&prompt[..len]);
+        copy.enabled = enabled;
+        copy.record(anchor, &prefix[..accepted], copied);
+        assert_eq!(copy.len, len + 1 + accepted);
+        for i in 0..LEN {
+            assert_eq!(copy.history[i], prompt[i]);
+        }
+        assert_eq!(copy.history[LEN], anchor);
+        for i in 0..7 {
+            if i < accepted {
+                assert_eq!(copy.history[LEN + 1 + i], prefix[i]);
+            }
+        }
+        assert_eq!(copy.enabled, enabled && (!copied || accepted > 0));
+        (enabled, copied, copy.enabled, index, copy.len)
+    }
+
+    // Emit only the goals that apply to each constant case. A runtime if on a
+    // const generic leaves an unreachable cover in Kani's reported inventory.
+    macro_rules! copy_prompt_goal {
+        (0, $index:expr, 7, $total:expr) => {
+            kani::cover!($total == 8);
+        };
+        (0, $index:expr, $accepted:tt, $total:expr) => {};
+        ($len:tt, $index:expr, $accepted:tt, $total:expr) => {
+            kani::cover!($index < $len);
+        };
+    }
+    macro_rules! copy_accepted_goals {
+        (0, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($enabled && $copied && !$live);
+            kani::cover!(!$copied && $live);
+        };
+        (3, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($copied && $live);
+            kani::cover!($index > $len && $index < $total);
+        };
+        (7, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!(!$enabled && !$live);
+            kani::cover!($index > $len && $index < $total);
+        };
+        ($accepted:tt, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($index > $len && $index < $total);
+        };
+    }
+    macro_rules! copy_case_proof {
+        ($name:ident, $len:tt, $accepted:tt) => {
+            #[kani::proof]
+            #[kani::unwind(33)]
+            #[kani::solver(kissat)]
+            fn $name() {
+                let (enabled, copied, live, index, total) =
+                    dflash_copy_transition::<$len, $accepted>();
+                let _ = (enabled, copied, live);
+                copy_prompt_goal!($len, index, $accepted, total);
+                copy_accepted_goals!($accepted, enabled, copied, live, index, $len, total);
+                kani::cover!(index == $len);
+                kani::cover!(index == 31 && index >= total);
+            }
+        };
+    }
+    // The complete 21 x 8 domain is split into small proofs, within the same CI
+    // shard. All u32 data and flags stay symbolic; the real 1024-entry buffer is
+    // retained. No symbolic accepted count is dropped by this partition.
+    macro_rules! copy_history_proofs {
+        ($($name:ident: $len:tt),* $(,)?) => {$ (
+            mod $name {
+                use super::*;
+                copy_case_proof!(accepted_0, $len, 0);
+                copy_case_proof!(accepted_1, $len, 1);
+                copy_case_proof!(accepted_2, $len, 2);
+                copy_case_proof!(accepted_3, $len, 3);
+                copy_case_proof!(accepted_4, $len, 4);
+                copy_case_proof!(accepted_5, $len, 5);
+                copy_case_proof!(accepted_6, $len, 6);
+                copy_case_proof!(accepted_7, $len, 7);
+            }
+        )*};
+    }
+
+    copy_history_proofs! {
+        dflash_copy_len_0: 0, dflash_copy_len_1: 1, dflash_copy_len_2: 2,
+        dflash_copy_len_3: 3, dflash_copy_len_4: 4, dflash_copy_len_5: 5,
+        dflash_copy_len_6: 6, dflash_copy_len_7: 7, dflash_copy_len_8: 8,
+        dflash_copy_len_9: 9, dflash_copy_len_10: 10, dflash_copy_len_11: 11,
+        dflash_copy_len_12: 12, dflash_copy_len_13: 13, dflash_copy_len_14: 14,
+        dflash_copy_len_15: 15, dflash_copy_len_16: 16, dflash_copy_len_17: 17,
+        dflash_copy_len_18: 18, dflash_copy_len_19: 19, dflash_copy_len_20: 20,
+    }
+
     #[kani::proof]
     #[kani::unwind(33)]
-    fn lookup_proposes_only_latest_in_bounds_history() {
+    #[kani::solver(kissat)]
+    fn dflash_disabled_copy_never_proposes() {
+        let prompt: [u32; 20] = kani::any();
+        let len = usize::from(kani::any::<u8>()) % 21;
+        let anchor: u32 = kani::any();
+        let width: usize = kani::any();
+        let mut copy = DFlashCopy::new(&prompt[..len]);
+        // The transition harness establishes this state after a total refusal.
+        copy.enabled = false;
+        assert!(copy.propose(anchor, width).is_none());
+        kani::cover!(len == 0 && width == 0);
+        kani::cover!(len == 20 && width == usize::MAX);
+    }
+
+    fn lookup_transition<const LEN: usize>() -> (usize, bool, Option<usize>) {
         let data: [u32; 20] = kani::any();
-        let len = kani::any::<usize>() % 21;
+        let len = LEN;
         let width: usize = kani::any();
         let anchor: u32 = kani::any();
         let allowed: bool = kani::any();
@@ -311,12 +688,59 @@ mod verification {
         assert_eq!(actual, expected);
         if let Some(proposed) = actual {
             assert!(!proposed.is_empty() && proposed.len() <= width && proposed.len() <= 3);
-            kani::cover!(proposed.len() == 3);
-            kani::cover!(width == 3 && proposed.len() == 1);
         }
-        kani::cover!(len >= 9 && width == 3 && actual.is_none());
-        kani::cover!(len < 9 && actual.is_none());
-        kani::cover!(!allowed && len >= 9 && width == 3 && actual.is_none());
+        (width, allowed, actual.map(<[u32]>::len))
+    }
+
+    macro_rules! lookup_goals {
+        (short, $width:expr, $allowed:expr, $size:expr) => {
+            kani::cover!($size.is_none());
+        };
+        (long, $width:expr, $allowed:expr, $size:expr) => {
+            kani::cover!($width == 3 && $size == Some(1));
+            kani::cover!($width == 3 && $size.is_none());
+            kani::cover!(!$allowed && $width == 3 && $size.is_none());
+        };
+        (full, $width:expr, $allowed:expr, $size:expr) => {
+            lookup_goals!(long, $width, $allowed, $size);
+            kani::cover!($size == Some(3));
+        };
+    }
+    // Complete partition of the former symbolic length modulo 21. Width,
+    // history values, anchor and closure decision retain their full domains.
+    macro_rules! lookup_proofs {
+        ($($name:ident: $len:literal, $kind:ident);* $(;)?) => {$(
+            #[kani::proof]
+            #[kani::unwind(33)]
+            fn $name() {
+                let (width, allowed, size) = lookup_transition::<$len>();
+                let _ = (width, allowed);
+                lookup_goals!($kind, width, allowed, size);
+            }
+        )*};
+    }
+    lookup_proofs! {
+        lookup_len_0: 0, short;
+        lookup_len_1: 1, short;
+        lookup_len_2: 2, short;
+        lookup_len_3: 3, short;
+        lookup_len_4: 4, short;
+        lookup_len_5: 5, short;
+        lookup_len_6: 6, short;
+        lookup_len_7: 7, short;
+        lookup_len_8: 8, short;
+        lookup_len_9: 9, long;
+        lookup_len_10: 10, long;
+        lookup_len_11: 11, long;
+        lookup_len_12: 12, long;
+        lookup_len_13: 13, long;
+        lookup_len_14: 14, long;
+        lookup_len_15: 15, long;
+        lookup_len_16: 16, long;
+        lookup_len_17: 17, long;
+        lookup_len_18: 18, long;
+        lookup_len_19: 19, long;
+        lookup_len_20: 20, full;
     }
 
     #[kani::proof]

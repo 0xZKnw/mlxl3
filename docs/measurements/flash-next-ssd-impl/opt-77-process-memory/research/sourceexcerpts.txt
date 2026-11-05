@@ -1,0 +1,281 @@
+## sdk/mach/task_info.h:344-432
+344: #define TASK_VM_INFO            22
+345: #define TASK_VM_INFO_PURGEABLE  23
+346: struct task_vm_info {
+347: 	mach_vm_size_t  virtual_size;       /* virtual memory size (bytes) */
+348: 	integer_t       region_count;       /* number of memory regions */
+349: 	integer_t       page_size;
+350: 	mach_vm_size_t  resident_size;      /* resident memory size (bytes) */
+351: 	mach_vm_size_t  resident_size_peak; /* peak resident size (bytes) */
+352:
+353: 	mach_vm_size_t  device;
+354: 	mach_vm_size_t  device_peak;
+355: 	mach_vm_size_t  internal;
+356: 	mach_vm_size_t  internal_peak;
+357: 	mach_vm_size_t  external;
+358: 	mach_vm_size_t  external_peak;
+359: 	mach_vm_size_t  reusable;
+360: 	mach_vm_size_t  reusable_peak;
+361: 	mach_vm_size_t  purgeable_volatile_pmap;
+362: 	mach_vm_size_t  purgeable_volatile_resident;
+363: 	mach_vm_size_t  purgeable_volatile_virtual;
+364: 	mach_vm_size_t  compressed;
+365: 	mach_vm_size_t  compressed_peak;
+366: 	mach_vm_size_t  compressed_lifetime;
+367:
+368: 	/* added for rev1 */
+369: 	mach_vm_size_t  phys_footprint;
+370:
+371: 	/* added for rev2 */
+372: 	mach_vm_address_t       min_address;
+373: 	mach_vm_address_t       max_address;
+374:
+375: 	/* added for rev3 */
+376: 	int64_t ledger_phys_footprint_peak;
+377: 	int64_t ledger_purgeable_nonvolatile;
+378: 	int64_t ledger_purgeable_novolatile_compressed;
+379: 	int64_t ledger_purgeable_volatile;
+380: 	int64_t ledger_purgeable_volatile_compressed;
+381: 	int64_t ledger_tag_network_nonvolatile;
+382: 	int64_t ledger_tag_network_nonvolatile_compressed;
+383: 	int64_t ledger_tag_network_volatile;
+384: 	int64_t ledger_tag_network_volatile_compressed;
+385: 	int64_t ledger_tag_media_footprint;
+386: 	int64_t ledger_tag_media_footprint_compressed;
+387: 	int64_t ledger_tag_media_nofootprint;
+388: 	int64_t ledger_tag_media_nofootprint_compressed;
+389: 	int64_t ledger_tag_graphics_footprint;
+390: 	int64_t ledger_tag_graphics_footprint_compressed;
+391: 	int64_t ledger_tag_graphics_nofootprint;
+392: 	int64_t ledger_tag_graphics_nofootprint_compressed;
+393: 	int64_t ledger_tag_neural_footprint;
+394: 	int64_t ledger_tag_neural_footprint_compressed;
+395: 	int64_t ledger_tag_neural_nofootprint;
+396: 	int64_t ledger_tag_neural_nofootprint_compressed;
+397:
+398: 	/* added for rev4 */
+399: 	uint64_t limit_bytes_remaining;
+400:
+401: 	/* added for rev5 */
+402: 	integer_t decompressions;
+403:
+404: 	/* added for rev6 */
+405: 	int64_t ledger_swapins;
+406:
+407: 	/* added for rev7 */
+408: 	int64_t ledger_tag_neural_nofootprint_total;
+409: 	int64_t ledger_tag_neural_nofootprint_peak;
+410: };
+411: typedef struct task_vm_info     task_vm_info_data_t;
+412: typedef struct task_vm_info     *task_vm_info_t;
+413: #define TASK_VM_INFO_COUNT      ((mach_msg_type_number_t) \
+414: 	        (sizeof (task_vm_info_data_t) / sizeof (natural_t)))
+415: /*
+416:  * The capacity of task_info_t in mach_types.defs also needs to be adjusted
+417:  */
+418: #define TASK_VM_INFO_REV7_COUNT TASK_VM_INFO_COUNT
+419: #define TASK_VM_INFO_REV6_COUNT /* doesn't include neural total and peak */ \
+420: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV7_COUNT - 4))
+421: #define TASK_VM_INFO_REV5_COUNT /* doesn't include ledger swapins */ \
+422: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV6_COUNT - 2))
+423: #define TASK_VM_INFO_REV4_COUNT /* doesn't include decompressions */ \
+424: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV5_COUNT - 1))
+425: #define TASK_VM_INFO_REV3_COUNT /* doesn't include limit bytes */ \
+426: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV4_COUNT - 2))
+427: #define TASK_VM_INFO_REV2_COUNT /* doesn't include extra ledgers info */ \
+428: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV3_COUNT - 42))
+429: #define TASK_VM_INFO_REV1_COUNT /* doesn't include min and max address */ \
+430: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV2_COUNT - 4))
+431: #define TASK_VM_INFO_REV0_COUNT /* doesn't include phys_footprint */ \
+432: 	((mach_msg_type_number_t) (TASK_VM_INFO_REV1_COUNT - 2))
+
+## sdk/sys/resource.h:401-425
+401: 	uint64_t ri_billed_energy;
+402: 	uint64_t ri_serviced_energy;
+403: 	uint64_t ri_interval_max_phys_footprint;
+404: 	uint64_t ri_runnable_time;
+405: 	uint64_t ri_flags;
+406: 	uint64_t ri_user_ptime;
+407: 	uint64_t ri_system_ptime;
+408: 	uint64_t ri_pinstructions;
+409: 	uint64_t ri_pcycles;
+410: 	uint64_t ri_energy_nj;
+411: 	uint64_t ri_penergy_nj;
+412: 	uint64_t ri_secure_time_in_system;
+413: 	uint64_t ri_secure_ptime_in_system;
+414: 	uint64_t ri_neural_footprint;
+415: 	uint64_t ri_lifetime_max_neural_footprint;
+416: 	uint64_t ri_interval_max_neural_footprint;
+417: 	uint64_t ri_conclave_footprint;
+418: 	uint64_t ri_page_wait_time_mach;
+419: 	uint64_t ri_page_cache_hits;
+420: 	uint64_t ri_reserved[6];
+421: };
+422:
+423: typedef struct rusage_info_v6 rusage_info_current;
+424:
+425: #endif /* __DARWIN_C_LEVEL >= __DARWIN_C_FULL */
+
+## sdk/os/proc.h:46-87
+46:  * @function os_proc_available_memory
+47:  *
+48:  * @abstract
+49:  * Return the number of bytes remaining, at the time of the call, before the
+50:  * current process will hit its current dirty memory limit.
+51:  *
+52:  * @discussion
+53:  * Developers can query this value efficiently whenever it is needed. The return
+54:  * value is only a snapshot at the time of the call. Caching the result is not
+55:  * advised. The result may be instantaneously invalidated by actions taken in
+56:  * another thread or another framework.
+57:  *
+58:  * Memory limits can change during the app life cycle. Make sure to check accordingly.
+59:  *
+60:  * The size returned is not representative of the total memory of the device, it
+61:  * is the current dirty memory limit minus the dirty memory footprint used at the
+62:  * time of the query.
+63:  *
+64:  * This interface allows an app to efficiently consume all available memory resources.
+65:  * Significant memory use, even under the current memory limit, may still cause
+66:  * system-wide performance including the termination of other apps and system
+67:  * processes. Take care to use the minimum amount of memory needed to satisfy the
+68:  * user’s need.
+69:  *
+70:  * If you need more information than just the available memory, you can use task_info().
+71:  * The information returned is equivalent to the task_vm_info.limit_bytes_remaining
+72:  * field. task_info() is a more expensive call, and will return information such
+73:  * as your phys_footprint, which is used to calculate the return of this function.
+74:  *
+75:  * Dirty memory contains data that must be kept in RAM (or the equivalent) even
+76:  * when unused. It is memory that has been modified.
+77:  *
+78:  * @param none
+79:  *
+80:  * @result
+81:  * The remaining bytes. 0 is returned if the calling process is not an app, or
+82:  * the calling process exceeds its memory limit.
+83:  */
+84:
+85: API_UNAVAILABLE(macos) API_AVAILABLE(ios(13.0), tvos(13.0), watchos(6.0))
+86: extern
+87: size_t os_proc_available_memory(void);
+
+## xnu/osfmk/kern/task.c:1225-1244
+1225:  *
+1226:  * phys_footprint
+1227:  *   Physical footprint: This is the sum of:
+1228:  *     + (internal - alternate_accounting)
+1229:  *     + (internal_compressed - alternate_accounting_compressed)
+1230:  *     + iokit_mapped
+1231:  *     + purgeable_nonvolatile
+1232:  *     + purgeable_nonvolatile_compressed
+1233:  *     + page_table
+1234:  *
+1235:  * internal
+1236:  *   The task's anonymous memory, which on iOS is always resident.
+1237:  *
+1238:  * internal_compressed
+1239:  *   Amount of this task's internal memory which is held by the compressor.
+1240:  *   Such memory is no longer actually resident for the task [i.e., resident in its pmap],
+1241:  *   and could be either decompressed back into memory, or paged out to storage, depending
+1242:  *   on our implementation.
+1243:  *
+1244:  * iokit_mapped
+
+## xnu/osfmk/kern/task.c:6044-6054
+6044: 		ledger_get_balance(task->ledger, task_ledgers.external, (ledger_amount_t *) &vm_info->external);
+6045: 		ledger_get_lifetime_max(task->ledger, task_ledgers.external, (ledger_amount_t *) &vm_info->external_peak);
+6046: 		ledger_get_balance(task->ledger, task_ledgers.internal, (ledger_amount_t *) &vm_info->internal);
+6047: 		ledger_get_lifetime_max(task->ledger, task_ledgers.internal, (ledger_amount_t *) &vm_info->internal_peak);
+6048: 		ledger_get_balance(task->ledger, task_ledgers.reusable, (ledger_amount_t *) &vm_info->reusable);
+6049: 		ledger_get_lifetime_max(task->ledger, task_ledgers.reusable, (ledger_amount_t *) &vm_info->reusable_peak);
+6050: 		ledger_get_balance(task->ledger, task_ledgers.internal_compressed, (ledger_amount_t*) &vm_info->compressed);
+6051: 		ledger_get_lifetime_max(task->ledger, task_ledgers.internal_compressed, (ledger_amount_t*) &vm_info->compressed_peak);
+6052: 		ledger_get_entries(task->ledger, task_ledgers.internal_compressed, (ledger_amount_t*) &vm_info->compressed_lifetime, &tmp_amount);
+6053: 		ledger_get_balance(task->ledger, task_ledgers.neural_nofootprint_total, (ledger_amount_t *) &vm_info->ledger_tag_neural_nofootprint_total);
+6054: 		ledger_get_lifetime_max(task->ledger, task_ledgers.neural_nofootprint_total, (ledger_amount_t *) &vm_info->ledger_tag_neural_nofootprint_peak);
+
+## xnu/osfmk/kern/task.c:6214-6234
+6214: 				    memorystatus_available_memory_internal(get_bsdtask_info(task));
+6215: 			} else {
+6216: 				vm_info->limit_bytes_remaining = 0;
+6217: 			}
+6218: 			*task_info_count = TASK_VM_INFO_REV4_COUNT;
+6219: 		}
+6220: 		if (original_task_info_count >= TASK_VM_INFO_REV5_COUNT) {
+6221: 			thread_t thread;
+6222: 			uint64_t total = task->decompressions;
+6223: 			queue_iterate(&task->threads, thread, thread_t, task_threads) {
+6224: 				total += thread->decompressions;
+6225: 			}
+6226: 			vm_info->decompressions = (int32_t) MIN(total, INT32_MAX);
+6227: 			*task_info_count = TASK_VM_INFO_REV5_COUNT;
+6228: 		}
+6229: 		if (original_task_info_count >= TASK_VM_INFO_REV6_COUNT) {
+6230: 			ledger_get_balance(task->ledger, task_ledgers.swapins,
+6231: 			    &vm_info->ledger_swapins);
+6232: 			*task_info_count = TASK_VM_INFO_REV6_COUNT;
+6233: 		}
+6234: 		if (original_task_info_count >= TASK_VM_INFO_REV7_COUNT) {
+
+## xnu/osfmk/vm/vm_compressor.c:5450-5461
+5450: 	c_seg->c_bytes_used -= c_rounded_size;
+5451:
+5452: 	assert(c_seg->c_slots_used);
+5453: 	c_seg->c_slots_used--;
+5454: 	if (dst && c_seg->c_swappedin) {
+5455: 		task_t task = current_task();
+5456: 		if (task) {
+5457: 			ledger_credit(task->ledger, task_ledgers.swapins, PAGE_SIZE);
+5458: 		}
+5459: 	}
+5460:
+5461: 	PACK_C_SIZE(cs, 0); /* mark slot as empty */
+
+## xnu/osfmk/arm64/sptm/pmap/pmap.c:3848-3865
+3848: 		pmap_ledger_debit(pmap, task_ledgers.external, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3849: 	}
+3850:
+3851: 	if (is_altacct) {
+3852: 		assert(is_internal);
+3853: 		pmap_ledger_debit(pmap, task_ledgers.internal, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3854: 		pmap_ledger_debit(pmap, task_ledgers.alternate_accounting, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3855: 		if (is_compressed) {
+3856: 			pmap_ledger_credit(pmap, task_ledgers.internal_compressed, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3857: 			pmap_ledger_credit(pmap, task_ledgers.alternate_accounting_compressed, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3858: 		}
+3859: 	} else if (ppattr_test_reusable(pai)) {
+3860: 		assert(is_internal);
+3861: 		if (is_compressed) {
+3862: 			pmap_ledger_credit(pmap, task_ledgers.internal_compressed, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3863: 			/* was not in footprint, but is now */
+3864: 			pmap_ledger_credit(pmap, task_ledgers.phys_footprint, pt_attr_page_size(pt_attr) * PAGE_RATIO);
+3865: 		}
+
+## xnu/osfmk/kern/bsd_kern.c:1272-1285
+1272: 	ri->ri_secure_ptime_in_system = extra.secure_ptime;
+1273:
+1274: 	ri->ri_phys_footprint = get_task_phys_footprint(task);
+1275: 	ledger_get_balance(task->ledger, task_ledgers.phys_mem,
+1276: 	    (ledger_amount_t *)&ri->ri_resident_size);
+1277: 	ri->ri_wired_size = get_task_wired_mem(task);
+1278:
+1279: 	ledger_get_balance(task->ledger, task_ledgers.neural_nofootprint_total,
+1280: 	    (ledger_amount_t *)&ri->ri_neural_footprint);
+1281: 	ri->ri_pageins = counter_load(&task->pageins);
+1282:
+1283: 	task_unlock(task);
+1284: 	return 0;
+1285: }
+
+## xnu/bsd/kern/kern_resource.c:3406-3415
+3406: 	case RUSAGE_INFO_V0:
+3407: 		proc_getexecutableuuid(p, (unsigned char *)&ru->ri_uuid, sizeof(ru->ri_uuid));
+3408: 		fill_task_rusage(proc_task(p), ru);
+3409: 		ru->ri_proc_start_abstime = p->p_stats->ps_start;
+3410: 	}
+3411: }
+3412:
+3413: int
+3414: proc_get_rusage(proc_t p, int flavor, user_addr_t buffer, __unused int is_zombie)
+3415: {

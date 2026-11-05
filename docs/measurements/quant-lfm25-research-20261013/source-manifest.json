@@ -1,0 +1,47 @@
+{
+  "baseline_commit": "80c55746ed6972e686ac0466235e8159ef4725e2",
+  "branch": "codex/exl3-quant-lfm25",
+  "dirty_at_verification": true,
+  "versions": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.32.0",
+    "numpy": "2.5.2",
+    "pytest": "9.1.1",
+    "ruff": "0.16.5"
+  },
+  "upstream_commits": {
+    "exllamav3": "3a513ac9f91aae777f317ca2341b8e445b62c64e",
+    "qtip": "e90c6688c8dfae326a3a81b5eb032db7c6680ec0",
+    "quip-sharp": "1d8f873e9a2a8b86b12bb1064c312c5689b77d98",
+    "PonyExl3": "8e7fa6b1556f59fc669e25087903b279b9b0346f"
+  },
+  "source_sha256": {
+    ".github/workflows/quantization.yml": "37a4b15e3a8a697467fac221bca44e1e74de24ae0365e260b83c9b72f44ad7af",
+    "docs/measurements/quant-lfm25-research-20261013/profile-baseline.py": "b6004dd7440036b1f0bfecc63f8e1afd0a1cf0a6f597963ed6ca3f0f840e2980",
+    "docs/measurements/quant-lfm25-research-20261013/rejected-k4/identity.json": "b4d103d512c3a60ed920a22f07ceb54ee5e16fcc8f930ac3213f4dde7226b2d4",
+    "docs/measurements/quant-lfm25-research-20261013/rejected-k4/parent-proof.cpp": "266c95b94b1eaf4e0421eb6fe7d082e1affbbec7abc5e72ca8ab60dd3d9e9c54",
+    "docs/measurements/quant-lfm25-research-20261013/rejected-k4/traceback_parent.metal": "ee8584bed22228f2648b4587417431fe07784f91a1fa72f1a35d929a9a0de5b6",
+    "docs/measurements/quant-lfm25-research-20261013/rejected-k4/variant-a.patch": "cb3ba32d4ccf0a58e07bd223e265ca164f8a943c876fe596b90a7d9baed0b3a8",
+    "docs/measurements/quant-lfm25-research-20261013/rejected-k4/variant-b.patch": "ab49dfa05f3a9b5e29e30dbd8e06dc284d2d77455895dc8fc58a698d0194ae1a",
+    "scripts/patches/ponyexl3-mlxl3-conversion.patch": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "scripts/quantize_lfm25_moe.py": "9762f2e2a11db0b1fe1ce10cfd8ab492422003f22374b6adef636ae67f2ed87b",
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "src/mlxl3_quantizer/pack_trellis.metal": "290d2ca09af83e8332412b51136df7bbad6c01be25681639ef255365b6091fa2",
+    "src/mlxl3_quantizer/packing.py": "a32f86c1ab769b24d2d92123df03296fee80754a1eedc811192efa37c49afa0c",
+    "tests/lfm25_profile_contracts.py": "133560469475a27af7702eace7ff46e28a442268e7da60d5d7c027695e915a5e",
+    "tests/test_lfm25_group_profile.py": "fd75e671b513714499d75f8d0e4449f6a54abe45fd047908eb84f4f93d9696ca",
+    "tests/test_quantize_k4_boundaries.py": "e2a2fee7363c13a5a20be94033c126418f41f9f6dc000e4a89bc9bcc17c97231"
+  },
+  "numerical_production_source_restored_exactly": true,
+  "provenance_limits": [
+    "Initial versions of the profile driver were extended in place and not preserved verbatim; final orchestration adds variants and a bounded CLI, and its live output hashes match experiment 06.",
+    "Disposable synthetic source/calibration files were deleted; generator seed, shapes, versions and output hashes are retained.",
+    "No 24B checkpoint weights, full-model runtime or quality results exist for this campaign."
+  ],
+  "environment": {
+    "PYTHONPATH": "src:references/PonyExl3:scripts",
+    "profile": "K4/MCG/2048 rows/sigma0.025/seed139, scratch256MiB/cache512MiB, grouped gate-up8/down4",
+    "GPU_temperature": "not measured",
+    "GPU_scope": "one synthetic workload, no other GPU/build/prover launched by this chat during measured passes"
+  }
+}

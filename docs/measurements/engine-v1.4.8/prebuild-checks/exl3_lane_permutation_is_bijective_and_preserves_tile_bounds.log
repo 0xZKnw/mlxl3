@@ -1,0 +1,159 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.8 (/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:773:17
+    |
+773 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.75s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.8 (/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 7`
+Checking harness contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/1c4ca7b56aac1365/out/mlxl3_native-1c4ca7b56aac1365__RNvNtCs2bfyDTGPcSD_12mlxl3_native9contracts60exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.00436675s
+size of program expression: 670 steps
+slicing removed 325 assignments
+Generated 34 VCC(s), 22 remaining after simplification
+Runtime Postprocess Equation: 5.1875e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000626083s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.625e-06s
+Solving with CaDiCaL 3.0.0
+791 variables, 2506 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.9875e-05s
+Runtime decision procedure: 0.000723s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+792 variables, 2507 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.3792e-05s
+Runtime decision procedure: 7.85e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+793 variables, 2508 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.7666e-05s
+Runtime decision procedure: 7.7291e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+794 variables, 2509 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000813375s
+Runtime decision procedure: 0.00083075s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+795 variables, 2510 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.0001665s
+Runtime decision procedure: 0.000178667s
+
+RESULTS:
+Check 1: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1667:16 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 2: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1667:16 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 3: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1667:29 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 4: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1667:29 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 5: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: mapped / 16 == index / 16"
+	 - Location: native/src/contracts.rs:1667:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 6: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: exl3_lane_source_index(exl3_lane_source_index(mapped)) == index"
+	 - Location: native/src/contracts.rs:1668:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 7: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: mapped == exl3_lane_source_index(other) == index == other"
+	 - Location: native/src/contracts.rs:1672:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 8: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: index == 2 && mapped == 8"
+	 - Location: native/src/contracts.rs:1673:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 9: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: index == u32::MAX && mapped == u32::MAX"
+	 - Location: native/src/contracts.rs:1674:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 10: contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: index > 15 && mapped != index"
+	 - Location: native/src/contracts.rs:1675:5 in function contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds
+
+Check 11: contracts::exl3_lane_source_index.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to shift right with overflow"
+	 - Location: native/src/contracts.rs:1534:21 in function contracts::exl3_lane_source_index
+
+Check 12: contracts::exl3_lane_source_index.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to shift left with overflow"
+	 - Location: native/src/contracts.rs:1534:59 in function contracts::exl3_lane_source_index
+
+
+SUMMARY:
+ ** 0 of 9 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.030614084s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

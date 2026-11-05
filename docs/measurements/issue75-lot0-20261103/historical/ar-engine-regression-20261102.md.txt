@@ -1,0 +1,40 @@
+# Published engine versus local AR — 2 November 2026
+
+No clear regression in this short matched comparison. Published engine
+2.0.2-beta.1 (internal 2.0.2, source `9df28b6d`) was run directly from the
+installed runtime, without replacing the app. Its four files match the
+downloaded GitHub manifest; CLI SHA256 starts `43d02fbc`. Local CLI is
+`181346d9`, source `b9d5cbdc` plus preserved local changes, S/K disabled.
+
+| AR128, tok/s | MAIN | HOLD |
+|---|---:|---:|
+| Local A2, before | 11.1989 | 11.0211 |
+| Published 2.0.2 | 11.1841 | 10.9334 |
+| Local final | 10.9869 | 11.0009 |
+
+Local witness mean versus published: −0.815% / +0.710%. Local witness drift:
+−1.894% / −0.183%. This does not establish a code regression or a stable gain.
+Historical Dynamic+Cold AR on 1 November was 11.4667 / 11.3661; the remaining
+historical gap has not been causally explained by this comparison.
+
+Same M5/24 GB/AC, Flash Next EXL3 2.05 bpw `65c89531`, MAIN/HOLD prompts,
+128 outputs, one warmup and one measured run per prompt, 3 GiB expert cache,
+64 MiB allocator cache, four readers, Dynamic/ColdReady/Hot/Wide/Unique on,
+MLX ops/MB40. The existing guarded driver and suffix anchor were retained.
+No compiler, prover or other inference ran during GPU measurements.
+
+Quality first: published MAIN17 passed the existing bridge oracle, then all
+12 AR128 warmup/measured outputs across the three processes had identical
+nonempty text/token hashes and correct mode/counts. Published/current final
+processes and readers joined; together they added 720896 bytes swapout.
+CLI text parity does not establish internal logits/state parity for the
+published package. Commands, environments, raw outputs and guards are in
+the plans/results, `identity.json`, and `inspection.json`.
+
+Source audit: DFlash configuration restores AR controls and preserves explicit
+overrides; MB34 is outside the one-row AR path. The disabled S dispatch adds
+a CPU domain/OnceLock check. No added AR readback/copy or active DFlash kernel
+was found. The release and wheel dylib file hashes differ, but all file-backed
+Mach-O sections match (13 libmlx, 10 libjaccl); MLX UUID and metallib match too.
+See `source.diff`, `runtime-section-comparison.json`, and `release.json`.
+No new production change or publication was needed for this audit.

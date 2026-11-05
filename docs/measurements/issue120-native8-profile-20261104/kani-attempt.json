@@ -1,0 +1,22 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--manifest-path",
+    "/Users/justin/.codex/worktrees/issue120-native-profile/mix-stq1_0/build/native8/kani/source/Cargo.toml",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "flash_profile::actual_native_profile_lifecycle",
+    "--output-format",
+    "regular"
+  ],
+  "timeout_seconds": 30,
+  "scope": "Actual new observer CPU lifecycle and active helper in disposable source; cfgtest module exposed to Kani, test attribute only disabled, actual assertions unchanged; no clock/Metal stubs",
+  "status": "completed",
+  "returncode": 1,
+  "elapsed_seconds": 2.9034869159804657,
+  "joined": true
+}

@@ -1,0 +1,171 @@
+"""Small adversarial checks of original analysis37 functions, without scoring models."""
+from __future__ import annotations
+
+import ast
+import hashlib
+import json
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+ORIGINAL = ROOT / "build/lfm25-tuning37-analysis-command.py"
+ORIGINAL_SHA256 = "75bd738ddafe3c205a56342dc5a19fabaf2bc5d30e9af14a20de636f7434ade3"
+FUNCTIONS = ("sha", "raw_cache", "cache_prefix", "checked_array", "geometry_difference")
+
+
+def extract_original():
+    source = ORIGINAL.read_text()
+    if hashlib.sha256(ORIGINAL.read_bytes()).hexdigest() != ORIGINAL_SHA256:
+        raise ValueError("Preserve exact original analysis command")
+    tree = ast.parse(source, filename=str(ORIGINAL))
+    nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in FUNCTIONS]
+    if {node.name for node in nodes} != set(FUNCTIONS):
+        raise ValueError("Original functions missing")
+    namespace = {"hashlib": hashlib, "struct": struct, "Path": Path}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(ORIGINAL), "exec"), namespace)
+    provenance = {
+        node.name: {
+            "source_segment_sha256": hashlib.sha256(ast.get_source_segment(source, node).encode()).hexdigest(),
+            "original_line": node.lineno,
+            "compiled_filename": namespace[node.name].__code__.co_filename,
+            "compiled_firstlineno": namespace[node.name].__code__.co_firstlineno,
+        }
+        for node in nodes
+    }
+    return namespace, provenance
+
+
+ORIGINAL_FUNCTIONS, FUNCTION_PROVENANCE = extract_original()
+
+
+def geometry_same(sms_a: int, sms_b: int) -> bool:
+    """One shared key; arbitrary integer num_sms values; no assumptions.
+
+    post: _ == (sms_a == sms_b)
+    """
+    difference = ORIGINAL_FUNCTIONS["geometry_difference"](
+        {"qkv": {"num_sms": sms_a}}, {"qkv": {"num_sms": sms_b}}
+    )
+    return len(difference["changed"]) == 0
+
+
+def main():
+    import numpy as np
+
+    started = time.monotonic()
+    output = ROOT / "build/lfm25-tuning37-analysis-guards.json"
+    if output.exists():
+        raise FileExistsError("Preserve the earlier self-check result")
+    report = {
+        "status": "running",
+        "source_command": str(ORIGINAL),
+        "source_command_sha256": ORIGINAL_SHA256,
+        "selfcheck_command": [sys.executable, str(Path(__file__).resolve())],
+        "selfcheck_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "extraction": "Unmodified original FunctionDef AST nodes, compiled with original filename/line numbers; original top level not executed.",
+        "functions": FUNCTION_PROVENANCE,
+        "tests": [],
+        "scope": "CPU adversarial I/O/NumPy tests only; no model, scorer calls, GPU or quality proof.",
+        "symbolic_scope": "One shared dictionary key; two arbitrary integer num_sms values; no assumptions. Excludes I/O, NumPy, CUDA and model quality.",
+    }
+
+    def save():
+        report["elapsed_seconds"] = time.monotonic() - started
+        output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    def rejects(name, function, *args):
+        try:
+            function(*args)
+        except ValueError as error:
+            report["tests"].append({"case": name, "status": "passed", "error": str(error)})
+            print(json.dumps(report["tests"][-1]), flush=True)
+            return
+        raise AssertionError("Original guard accepted invalid fixture: " + name)
+
+    save()
+    try:
+        ORIGINAL_FUNCTIONS["np"] = np
+        raw_cache = ORIGINAL_FUNCTIONS["raw_cache"]
+        cache_prefix = ORIGINAL_FUNCTIONS["cache_prefix"]
+        checked_array = ORIGINAL_FUNCTIONS["checked_array"]
+        sha = ORIGINAL_FUNCTIONS["sha"]
+        header = b"EX3ATUNE" + struct.pack("<II", 1, 32)
+        record = struct.pack("<QiiiiII", 123, 2, 512, 20, 6, 0, 0)
+        valid = header + record
+        for length in (0, 7, 8, 15, 16, 47):
+            rejects(f"cache_truncated_{length}", raw_cache, valid[:length])
+        for name, data in (
+            ("magic", b"XXXXXXXX" + valid[8:]),
+            ("format", valid[:8] + struct.pack("<II", 2, 32) + record),
+            ("record_size", valid[:8] + struct.pack("<II", 1, 31) + record),
+            ("partial_record", valid + b"x"),
+        ):
+            rejects("cache_bad_" + name, raw_cache, data)
+        for column, name in ((2, "block"), (3, "sms"), (4, "concurrency")):
+            for bad in (0, -1):
+                values = [123, 2, 512, 20, 6, 0, 0]
+                values[column] = bad
+                rejects(f"geometry_{name}_{bad}", raw_cache, header + struct.pack("<QiiiiII", *values))
+        duplicated = raw_cache(valid + record)
+        key = f"{123:016x}"
+        assert duplicated["raw_record_count"] == len(duplicated["raw_records"]) == 2
+        assert duplicated["unique_keys"] == len(duplicated["geometry_map"]) == 1
+        assert duplicated["duplicates"] == {key: [0, 1]}
+        assert duplicated["raw_records"][0]["offset"] == 16
+        assert duplicated["raw_records"][1]["offset"] == 48
+        assert duplicated["raw_records"][0]["record_bytes_sha256"] == duplicated["raw_records"][1]["record_bytes_sha256"]
+        report["tests"].append({"case": "identical_duplicate_records_retained", "status": "passed", "raw_records": 2, "unique_keys": 1, "duplicates": duplicated["duplicates"]})
+        snapshot = {"exists": True, "bytes": len(valid), "sha256": "0" * 64}
+        rejects("prefix_bad_sha", cache_prefix, valid, snapshot, raw_cache(valid)["geometry_map"])
+        with tempfile.TemporaryDirectory(prefix="lfm25-analysis37-guards-") as folder:
+            folder = Path(folder)
+            small = folder / "shape.npy"
+            np.save(small, np.zeros((2, 3), dtype=np.float16))
+            rejects("array_wrong_shape_2x3", checked_array, small, {"sha256": sha(small), "bytes": small.stat().st_size, "dtype": "float16"})
+            sparse = folder / "nonfinite.npy"
+            array = np.lib.format.open_memmap(sparse, mode="w+", dtype=np.float16, shape=(1024, 128000))
+            array[0, 0] = np.nan
+            array.flush()
+            del array
+            stat = sparse.stat()
+            rejects("array_sparse_1024x128000_nan", checked_array, sparse, {"sha256": sha(sparse), "bytes": stat.st_size, "dtype": "float16"})
+            report["sparse_fixture"] = {"shape": [1024, 128000], "dtype": "float16", "logical_bytes": stat.st_size, "allocated_bytes": stat.st_blocks * 512, "nan_position": [0, 0], "disposable_directory_cleaned_on_exit": True}
+        assert geometry_same(16, 16) and not geometry_same(16, 20)
+        assert geometry_same(-1, -1) and not geometry_same(0, -1)
+        report["tests"].append({"case": "geometry_contract_concrete_boundaries", "status": "passed"})
+        command = [
+            "/Users/justin/Documents/mix-stq1_0/build/formal-python/bin/crosshair",
+            "check", str(Path(__file__).resolve()), "--report_all", "--per_condition_timeout=20",
+        ]
+        report["symbolic_command"] = command
+        report["symbolic_process_timeout_seconds"] = 30
+        symbolic_log = ROOT / "build/lfm25-tuning37-analysis-guards-crosshair.log"
+        try:
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=30, check=False)
+            diagnostic = result.stdout + result.stderr
+            symbolic_log.write_text(diagnostic)
+            confirmed = result.returncode == 0 and diagnostic.count("Confirmed over all paths.") == 1
+            report["symbolic"] = {"status": "confirmed_bounded_domain" if confirmed else "not_confirmed", "exit": result.returncode, "log": str(symbolic_log), "diagnostic": diagnostic}
+            if result.returncode and "false when calling" in diagnostic:
+                raise AssertionError("CrossHair returned a counterexample")
+        except subprocess.TimeoutExpired as error:
+            diagnostic = (error.stdout or b"") + (error.stderr or b"")
+            if isinstance(diagnostic, bytes):
+                diagnostic = diagnostic.decode(errors="replace")
+            symbolic_log.write_text(diagnostic)
+            report["symbolic"] = {"status": "timeout_not_verified", "process_timeout_seconds": 30, "log": str(symbolic_log), "diagnostic": diagnostic}
+        report.update(status="complete_tests_only", tests_passed=len(report["tests"]), scores_recomputed=0, gpu_used=False)
+    except BaseException as error:
+        report.update(status="failed", error=f"{type(error).__name__}: {error}")
+        raise
+    finally:
+        save()
+    print(json.dumps({"status": report["status"], "tests_passed": report["tests_passed"], "symbolic": report["symbolic"]["status"], "elapsed_seconds": report["elapsed_seconds"]}), flush=True)
+
+
+if __name__ == "__main__":
+    main()

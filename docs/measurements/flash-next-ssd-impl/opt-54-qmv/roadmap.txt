@@ -1,0 +1,233 @@
+# 🚀 MLXL3 PR #34 : nouvelle roadmap vers les 15 tok/s
+
+Analyse actualisée au 20 octobre 2026
+
+PR #34, commit `33f27dd`
+
+J'ai repris les derniers commits de [MLXL3 PR #34](https://github.com/0xZKnw/mlxl3/pull/34?utm_source=chatgpt.com) et surtout le nouveau profilage 53, qui change plusieurs priorités de notre précédente analyse de Strata.
+
+Les trois commits depuis `c15c63f5` apportent principalement des outils, des mesures et des exports de profilage. Ils ne valident pas encore un nouveau kernel accélérant le décodage.
+
+## 1. Ce que les nouvelles mesures nous apprennent
+
+OFF, MAIN
+
+# 9,48 tok/s
+
+Profilage naturel, cache 3 Gio
+
+MTP, MAIN
+
+# 9,72 tok/s
+
+Profilage naturel, cache 3 Gio
+
+OFF, HOLD
+
+# 9,50 tok/s
+
+Profilage naturel, cache 3 Gio
+
+MTP, HOLD
+
+# 8,81 tok/s
+
+Profilage naturel, cache 3 Gio
+
+Ces valeurs sont descriptives. Le MTP présente une dérive de 7 à 9 % entre répétitions, donc aucun avantage global n'est encore qualifié.
+
+Le plus important est ailleurs :
+
+| Mesure, MTP                                   | MAIN          | HOLD           |
+| --------------------------------------------- | ------------- | -------------- |
+| Frontière route CPU, inclusive                | 52,9 ms/token | 58,4 ms/token  |
+| Lectures d'experts, inclusives                | 28,8 ms/token | 32,0 ms/token  |
+| Vérification cible                            | 97,6 ms/token | 108,0 ms/token |
+| Experts communs entre deux tokens, par couche | 3,84/10       | 3,29/10        |
+| Cohortes entièrement résidentes               | 4,08 %        | 3,24 %         |
+| Acceptation MTP sur 128 sorties               | 75 %          | 61,5 %         |
+
+Les temps de routage et de lecture sont inclus dans celui de la vérification et peuvent se chevaucher. Il serait incorrect de les additionner.
+
+La nouveauté majeure : les fenêtres MTP sont presque toujours confrontées à au moins un expert absent du cache. Cela rend particulièrement intéressant un chemin qui minimise les synchronisations et profite des experts déjà disponibles.
+
+Source : [Rapport complet du profilage 53](https://github.com/0xZKnw/mlxl3/blob/33f27ddfcbd6f281ab54bca9f98f9d76838214ed/docs/flash-next-ssd-profile-53-2026-10-20.md?utm_source=chatgpt.com).
+
+## 2. Nouveau classement, du plus important au moins important
+
+| Rang | Chantier                                           | Pourquoi maintenant ?                                                               |
+| ---- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| P0   | Mesurer le temps GPU réel                          | Le profil 53 manque encore de timings GPU exclusifs                                 |
+| P1   | Optimiser EXL3 QMV et le calcul avant le readback  | La frontière GPU → CPU représente environ 53–58 ms/token, GPU amont inclus          |
+| P2   | Réduire les lectures d'experts et les attentes I/O | 29–32 ms/token dans les appels de lecture, malgré l'overlap                         |
+| P3   | Refaire le pipeline route GPU → CPU → cache        | Le chemin hybride hot/cold mérite mieux que le simple transfert intégral des routes |
+| P4   | Grouped MoE façon Strata                           | 3,3 à 3,8 experts sont communs aux deux tokens                                      |
+| P5   | MTP adaptatif et fenêtres B2/B3/B4                 | L'acceptation chute après les 32 premiers tokens                                    |
+| P6   | Optimiser la chaîne MTP GPU                        | Utile, mais la tête ne pèse qu'environ 4 %                                          |
+| P7   | HC/GDN, Metal 4 GEMM, autres fusions               | Pas prioritaires sans nouveau profil démontrant leur impact                         |
+
+### P0. Obtenir les temps GPU exclusifs
+
+Le profil 53 est une vraie avancée. Mais il révèle aussi une limite : les mesures synchronisées changent énormément le comportement du modèle.
+
+Par exemple, OFF MAIN passe d'environ 3,4 secondes pour 32 pas à 16,6 secondes avec les barrières de profilage.
+
+On voit des coûts importants sur EXL3 QMV, ses transformations Hadamard et les projections, mais on ne peut pas les considérer comme du temps GPU exclusif.
+
+Ce que je ferais maintenant : installer les outils de profilage Metal de Xcode, ou utiliser les compteurs GPU disponibles sur ton système, puis obtenir une chronologie CPU, GPU et I/O sans ajouter une synchronisation après chaque opération.
+
+C'est la manière de savoir si le gain le plus important est caché dans le calcul quantifié, les dépendances du graphe ou les attentes des experts.
+
+### P1. Optimiser EXL3 QMV : ma priorité côté kernels
+
+Les derniers commits n'ont pas remplacé le kernel QMV principal. Le moteur conserve les contraintes de réduction numérique exactes.
+
+Les fichiers à travailler sont :
+
+`native/src/linear.rs`
+
+`native/shaders/_qmv_mapped_tile_kernel.metal`
+
+`native/src/ssd_moe.rs`
+
+Je ferais trois expériences isolées : réduire les accès aux buffers intermédiaires de réduction, optimiser le décodage des codewords EXL3 dans les registres et fusionner certaines transformations d'entrée/sortie Hadamard avec le QMV lorsque l'arrondi exact peut être préservé.
+
+Le but est d'accélérer les calculs GPU que le CPU attend avant de recevoir les routes.
+
+C'est une distinction importante : enlever un `to_u32()` ne fait pas disparaître le calcul GPU qui le précède. Accélérer ce calcul peut, en revanche, raccourcir réellement l'attente.
+
+### P2. SSD : exploiter les nouveaux profils par couche
+
+Données issues de `layers.csv`, trace naturelle MTP, cache 3 Gio
+
+J'ai regardé les relevés par couche. Certains écarts sont énormes :
+
+| Couche | Misses MAIN | Misses HOLD |
+| ------ | ----------- | ----------- |
+| 0      | 882         | 934         |
+| 1      | 797         | 856         |
+| 2      | 783         | 768         |
+| 7      | 757         | 788         |
+| 15     | 116         | 103         |
+| 31     | 182         | 144         |
+
+Les couches 0, 1 et 2 provoquent beaucoup plus de misses que les couches 15 et 31 sur ces traces. Mais attention : cela ne prouve pas que leur donner davantage de slots améliorera automatiquement le hit rate, car leurs distributions d'experts peuvent être beaucoup plus dispersées.
+
+Je recommande de rejouer les routes exactes des nouvelles traces avec différentes répartitions du cache, à budget RAM total constant. Tu as déjà `MLXL3_SSD_LAYER_SLOTS`, donc pas besoin de recréer toute la gestion mémoire.
+
+Il faut mesurer la baisse du nombre d'octets lus, mais surtout la diminution de l'attente critique après overlap GPU/I/O.
+
+Autre changement important : je ne conseillerais plus de commencer avec 6 Gio de cache. Le lot 6 Gio du profil 53 a été interrompu après une pression mémoire et 245 Mo de nouveau swap système observé globalement.
+
+Garde 3 Gio comme référence sûre pour les premières expérimentations. Une capacité intermédiaire pourra être étudiée ensuite.
+
+### P3. Transformer le routage en pipeline hybride
+
+La proposition Strata reste intéressante, mais doit être adaptée.
+
+Avec seulement 3 à 4 % de cohortes MTP complètement résidentes, un chemin optimisé exclusivement pour les cohortes 100 % en cache aurait un impact limité.
+
+Je privilégierais une stratégie qui travaille même lorsque les cohortes mélangent experts chauds et froids.
+
+Routing exact sur GPU
+
+Experts résidents
+
+Calcul sur GPU sans reconstruction CPU inutile
+
+Experts absents
+
+Liste compacte vers CPU, puis lecture SSD
+
+Regroupement et réduction exacte des contributions
+
+Concrètement, un kernel GPU pourrait construire le plan des routes, consulter une table stable `expert_id → slot` et produire une liste compacte des misses.
+
+Il faut ensuite garder des protections strictes contre l'éviction ou la réécriture d'un slot encore utilisé par le GPU.
+
+Le but est de réduire le coût de coordination tout en conservant tes quatre lecteurs SSD et ton overlap existant.
+
+### P4. Grouped MoE de Strata, mais uniquement sur les répétitions
+
+Référence : [moe.metal de Strata](https://github.com/Niko1221/Strata/blob/main/metal/kernels/moe.metal?utm_source=chatgpt.com)
+
+Le nouveau profil confirme qu'une paire MTP de 20 occurrences contient en moyenne :
+
+- MAIN : 3,84 experts partagés, soit environ 16,16 experts distincts.
+- HOLD : 3,29 experts partagés, soit environ 16,71 experts distincts.
+
+Cela représente un plafond théorique de mutualisation de 16 à 19 % des décodages de poids par occurrence si chaque expert commun est déquantifié une seule fois. Ce n'est pas un gain global de 16 à 19 %.
+
+L'ancien regroupement MB2 n'avait pas confirmé d'amélioration. Je ferais donc un kernel beaucoup plus ciblé qui traite les groupes répétés et laisse tous les singletons sur le chemin NT1 actuel.
+
+La meilleure expérience serait de vérifier si ce nouveau kernel réduit vraiment le temps QMV dans les couches où le partage est le plus élevé, tout en restant moins coûteux qu'un regroupement systématique.
+
+### P5. MTP adaptatif : changement de priorité après les dernières mesures
+
+Voici la différence d'acceptation entre le début et la suite du décodage :
+
+MAINHOLD
+
+0 %25 %50 %75 %100 %1–3233–6465–9697–127
+
+Données du profil 53, acceptations MTP mesurées sur des blocs de décodage.
+
+La tête MTP propose très bien au début, puis l'acceptation diminue sensiblement. Résultat : davantage de lignes du modèle cible sont calculées sans être conservées.
+
+Sur trois répétitions, MAIN calcule 435 lignes cible pour 381 pas émis. HOLD en calcule 471 pour les mêmes 381 pas.
+
+Cela renforce une idée : ne pas déclencher MTP systématiquement.
+
+Tu pourrais tester un ordonnanceur adaptatif utilisant le taux d'acceptation récent, le nombre de misses anticipés et le coût observé des fenêtres. Il choisirait entre OFF, MTP1 et, plus tard, DFlash2/DSpark.
+
+Il faudrait conserver les sorties exactes et valider l'ordonnanceur sur des prompts distincts de ceux utilisés pour son réglage.
+
+Les fenêtres B3/B4 ne deviennent intéressantes qu'après avoir diminué le coût de leur vérification et maîtrisé leur mémoire supplémentaire.
+
+### P6. Chaîne MTP GPU
+
+Référence : [Strata mtp_chain.metal](https://github.com/Niko1221/Strata/blob/main/metal/src/engine/msl/mtp_chain.metal?utm_source=chatgpt.com)
+
+Je conserve l'idée de faire davantage de sélection MTP, de calcul de probabilités et de préparation des embeddings directement sur GPU.
+
+Mais le profil 53 confirme que la tête représente seulement 3,96 à 4,20 ms par token émis. Même une suppression théorique de tout ce coût ne suffirait pas à transformer 9,5 tok/s en 15 tok/s.
+
+C'est une optimisation de finition, pas le chantier principal.
+
+## 3. Le budget mathématique pour atteindre 15 tok/s
+
+En prenant 9,5 tok/s comme référence indicative :
+
+Latence actuelle
+
+# 105,3 ms
+
+Par token émis
+
+Latence cible
+
+# 66,7 ms
+
+15 tok/s
+
+Il faut économiser environ 38,6 ms par token, soit 36,7 % de la latence totale.
+
+Temps cible conservé : 63,3 %Temps à supprimer : 36,7 %
+
+Les mesures montrent plusieurs postes importants, mais leur recouvrement empêche d'attribuer précisément les 38,6 ms à économiser. Il est donc trop tôt pour promettre qu'une combinaison donnée suffira.
+
+## 4. Mon plan d'exécution actualisé
+
+Je ferais cinq expérimentations dans cet ordre, chacune isolée sur sa branche :
+
+1. GPU/QMV : obtenir les vrais timings Metal et expérimenter les réductions et la déquantification EXL3. Si le kernel est effectivement dominant, c'est le premier levier à améliorer.
+2. Cache/SSD : rejouer le profil 53 pour optimiser les capacités des 48 couches à 3 Gio, puis mesurer l'attente critique réelle des lectures.
+3. Routing hybride : adapter le `moe_plan` de Strata pour travailler sur les experts résidents pendant la préparation des misses et réduire les synchronisations inutiles.
+4. Grouped MoE : partager le décodage EXL3 seulement sur les experts répétés, avec un fallback NT1 et des oracles numériques stricts.
+5. Spéculation adaptative : mesurer OFF/MTP/DFlash2/DSpark après les gains du backbone, puis choisir dynamiquement les fenêtres rentables.
+
+Chaque essai doit passer les tests d'égalité des logits, routes et états, les annulations/reprises, puis des mesures MAIN/HOLD appariées. Je ne validerais aucun gain inférieur à la variabilité des témoins sans confirmation indépendante.
+
+Ce que je change par rapport à ma précédente roadmap : le simple fast-path GPU pour cohortes entièrement résidentes descend en priorité, puisque ces cohortes ne représentent que 3 à 4 % des cas MTP. J'accorde davantage d'importance au QMV EXL3, aux misses SSD par couche et à une exécution hybride capable de profiter des 68 % d'occurrences qui touchent déjà le cache.
+
+C'est, à ce stade, la combinaison qui me paraît la plus crédible pour chercher les 15 tok/s sur ton M5 24 Go, sans sacrifier l'exactitude des sorties ni faire exploser la mémoire.

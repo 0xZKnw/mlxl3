@@ -1,0 +1,70 @@
+{
+  "status": "inconclusive_drift",
+  "confirmed_gain": false,
+  "baseline": "B",
+  "candidate": "Q",
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 8.375730062118645,
+      "candidate_tps": 8.57848855171151,
+      "gain_percent": 2.4207858668928717
+    },
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 8.757149589382362,
+      "candidate_tps": 8.943085788337282,
+      "gain_percent": 2.123250231791851
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 8.47362841108976,
+      "candidate_tps": 8.298943203188818,
+      "gain_percent": -2.061516028627408
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 8.600585887825149,
+      "candidate_tps": 8.725013966677745,
+      "gain_percent": 1.4467395649025994
+    }
+  ],
+  "drift": {
+    "MAIN": {
+      "control_percent": 4.553866044331856,
+      "gain_spread_points": 0.29753563510102055
+    },
+    "HOLD": {
+      "control_percent": 1.4982658027490992,
+      "gain_spread_points": 3.5082555935300075
+    }
+  },
+  "memory_status": "passed_postflight30s_zero_new_swapout",
+  "memory_pairs": [
+    {
+      "prompt": "MAIN",
+      "baseline_peak_bytes": 8875465544,
+      "candidate_peak_bytes": 8385452488,
+      "saved_peak_bytes": 490013056
+    },
+    {
+      "prompt": "MAIN",
+      "baseline_peak_bytes": 8875400032,
+      "candidate_peak_bytes": 8388631032,
+      "saved_peak_bytes": 486769000
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_peak_bytes": 8873024328,
+      "candidate_peak_bytes": 8385403360,
+      "saved_peak_bytes": 487620968
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_peak_bytes": 8873204624,
+      "candidate_peak_bytes": 8386419144,
+      "saved_peak_bytes": 486785480
+    }
+  ],
+  "qualified_memory_reduction": true
+}

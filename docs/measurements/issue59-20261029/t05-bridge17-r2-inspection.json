@@ -1,0 +1,293 @@
+{
+  "status": "validated_bridge_only_not_speed",
+  "inspected_at_utc": "2026-10-29T21:21:24.626316+00:00",
+  "plan": "docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan.json",
+  "plan_sha256": "574660a51d58eb47b62899dd126075e6f7498b1cb87b43c047fb8012d83325dc",
+  "supervisor_result": "docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan-result.json",
+  "supervisor_result_sha256": "f4227118887e079462874f2923e6432ff9e41dd4a3c6f1cfe4267a4a1272bff5",
+  "supervisor_status": "completed_expected_outcomes_not_speed",
+  "identity": "docs/measurements/issue59-20261029/t05-identity-v3-bridge-r2.json",
+  "identity_sha256": "fcaae6127a2b957477ebe220d339931e54c4629b93145e898234bd9ac10b0a83",
+  "identity_sources_checked": 123,
+  "identity_binary_files_checked": 6,
+  "anchor": "docs/measurements/issue59-20261029/t05-gpu-anchor-w1.json",
+  "anchor_sha256": "dc4d14c509fd23afdae67eab7d2b47588d0d44543653af6fa1df0b50a895bd5b",
+  "order": [
+    "MAIN-A",
+    "MAIN-C",
+    "HOLD-A",
+    "HOLD-C"
+  ],
+  "process_count": 4,
+  "warmup_generations": 4,
+  "measured_generations": 4,
+  "tokens_per_generation": 17,
+  "decode_tokens_per_generation": 16,
+  "maximum_swapout_cumulative_bytes": 0,
+  "maximum_swapin_cumulative_bytes": 48218112,
+  "maximum_process_peak_bytes": 7126161408,
+  "environment_identical_except_weighted_epilogue": true,
+  "processes": [
+    {
+      "name": "t05-17-MAIN-1-A-r2-headroom",
+      "prompt": "MAIN",
+      "arm": "A",
+      "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/runs/t05-17-MAIN-1-A/report.json",
+      "report_sha256": "0de2166199c0c6ba50c447af30bd2cee08dba98fedc6a673720a8cf449c8fb69",
+      "config_sha256": "138a319c2a79f28f978d99cef097cb5727b4493eed30e0b9bfe2ecfcadeaf72a",
+      "golden": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+      "golden_sha256": "076a73c6c69c521bfae1eb86d74e7f506e4d47a74e5a83d9650014c9513c349c",
+      "binary_sha256": "a60eb4ada3a948110fc057d9551032b6d03598ab404201145f5a5410f26f8e75",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "external_prefix_hash_and_text_validated": true,
+      "headroom_before_bytes": 8609955840,
+      "maximum_rss_children_bytes": 3652075520,
+      "swapouts_cumulative_bytes": 0,
+      "swapins_cumulative_bytes": 48218112,
+      "quiet_checks": 14,
+      "samples": [
+        {
+          "phase": "warmup",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 87,
+          "cached_prompt_tokens": 0,
+          "token_hash": "4b46ba2824c9f47c",
+          "text_characters": 84,
+          "text_utf8_sha256": "d417b62396aab7dff98fb4bbe1bdaa51dea2d3e547f5f598e456e4fb22406c96",
+          "stats": {
+            "decode_seconds": 1.7298847080000002,
+            "decode_tps": 9.249171303732918,
+            "prefill_seconds": 9.793203834,
+            "prefill_tps": 8.883711753037735,
+            "ttft_seconds": 9.804623708
+          },
+          "memory": {
+            "process_footprint_bytes": 7126063080,
+            "process_lifetime_peak_bytes": 7126063080
+          }
+        },
+        {
+          "phase": "measured",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 87,
+          "cached_prompt_tokens": 0,
+          "token_hash": "4b46ba2824c9f47c",
+          "text_characters": 84,
+          "text_utf8_sha256": "d417b62396aab7dff98fb4bbe1bdaa51dea2d3e547f5f598e456e4fb22406c96",
+          "stats": {
+            "decode_seconds": 1.5739340419999994,
+            "decode_tps": 10.165610230825674,
+            "prefill_seconds": 8.949890458,
+            "prefill_tps": 9.720789367006574,
+            "ttft_seconds": 8.9502725
+          },
+          "memory": {
+            "process_footprint_bytes": 7126161408,
+            "process_lifetime_peak_bytes": 7126161408
+          }
+        }
+      ]
+    },
+    {
+      "name": "t05-17-MAIN-2-C-r2-headroom",
+      "prompt": "MAIN",
+      "arm": "C",
+      "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/runs/t05-17-MAIN-2-C/report.json",
+      "report_sha256": "b44c12960362049030cb19ecde4ca87fa8f9ab9dedd21fdc29627edf59bad688",
+      "config_sha256": "0c077b616df16c00485bb9efdf9e38918fb8f7747c6a2654606a86b07015dcb1",
+      "golden": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+      "golden_sha256": "076a73c6c69c521bfae1eb86d74e7f506e4d47a74e5a83d9650014c9513c349c",
+      "binary_sha256": "2fb12d79eed089b603b5ceceb6ce59d996923cfe7e3d0d744b6c1f672209baab",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "external_prefix_hash_and_text_validated": true,
+      "headroom_before_bytes": 13687750656,
+      "maximum_rss_children_bytes": 5335564288,
+      "swapouts_cumulative_bytes": 0,
+      "swapins_cumulative_bytes": 48218112,
+      "quiet_checks": 15,
+      "samples": [
+        {
+          "phase": "warmup",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 87,
+          "cached_prompt_tokens": 0,
+          "token_hash": "4b46ba2824c9f47c",
+          "text_characters": 84,
+          "text_utf8_sha256": "d417b62396aab7dff98fb4bbe1bdaa51dea2d3e547f5f598e456e4fb22406c96",
+          "stats": {
+            "decode_seconds": 1.5800332909999995,
+            "decode_tps": 10.126368913324375,
+            "prefill_seconds": 11.588791791,
+            "prefill_tps": 7.507253695554811,
+            "ttft_seconds": 11.590200376
+          },
+          "memory": {
+            "process_footprint_bytes": 7115298744,
+            "process_lifetime_peak_bytes": 7115298744
+          }
+        },
+        {
+          "phase": "measured",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 87,
+          "cached_prompt_tokens": 0,
+          "token_hash": "4b46ba2824c9f47c",
+          "text_characters": 84,
+          "text_utf8_sha256": "d417b62396aab7dff98fb4bbe1bdaa51dea2d3e547f5f598e456e4fb22406c96",
+          "stats": {
+            "decode_seconds": 1.5210079170000004,
+            "decode_tps": 10.519340380264435,
+            "prefill_seconds": 8.47339125,
+            "prefill_tps": 10.267435721205485,
+            "ttft_seconds": 8.474054125
+          },
+          "memory": {
+            "process_footprint_bytes": 7115347896,
+            "process_lifetime_peak_bytes": 7115364280
+          }
+        }
+      ]
+    },
+    {
+      "name": "t05-17-HOLD-1-A-r2-headroom",
+      "prompt": "HOLD",
+      "arm": "A",
+      "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/runs/t05-17-HOLD-1-A/report.json",
+      "report_sha256": "4ac7c8188f2bfcfade829b7939fa6916e17e7efb6cc705e1518a6521129ebbec",
+      "config_sha256": "52786fc5ab76d44b1450ba19568e4791fe50d3c2d011e4786db1688d19164639",
+      "golden": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json",
+      "golden_sha256": "a02eedf4eaeb62290329f87fad2e40026239671db1901f97c2499ed62a77fae4",
+      "binary_sha256": "a60eb4ada3a948110fc057d9551032b6d03598ab404201145f5a5410f26f8e75",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "external_prefix_hash_and_text_validated": true,
+      "headroom_before_bytes": 13741473792,
+      "maximum_rss_children_bytes": 5936480256,
+      "swapouts_cumulative_bytes": 0,
+      "swapins_cumulative_bytes": 48218112,
+      "quiet_checks": 13,
+      "samples": [
+        {
+          "phase": "warmup",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 82,
+          "cached_prompt_tokens": 0,
+          "token_hash": "bf1f7927af918558",
+          "text_characters": 69,
+          "text_utf8_sha256": "5e95bb8f57a64b9423d5c6c081e872c426fcb4fee2e6319f17a1a2175163834a",
+          "stats": {
+            "decode_seconds": 1.593414417,
+            "decode_tps": 10.041330007622243,
+            "prefill_seconds": 8.698432042,
+            "prefill_tps": 9.426986335475931,
+            "ttft_seconds": 8.699968625
+          },
+          "memory": {
+            "process_footprint_bytes": 7120148432,
+            "process_lifetime_peak_bytes": 7120148432
+          }
+        },
+        {
+          "phase": "measured",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 82,
+          "cached_prompt_tokens": 0,
+          "token_hash": "bf1f7927af918558",
+          "text_characters": 69,
+          "text_utf8_sha256": "5e95bb8f57a64b9423d5c6c081e872c426fcb4fee2e6319f17a1a2175163834a",
+          "stats": {
+            "decode_seconds": 1.5261513329999996,
+            "decode_tps": 10.483888231810104,
+            "prefill_seconds": 8.218067208,
+            "prefill_tps": 9.978015258889082,
+            "ttft_seconds": 8.218786917
+          },
+          "memory": {
+            "process_footprint_bytes": 7120148456,
+            "process_lifetime_peak_bytes": 7120148456
+          }
+        }
+      ]
+    },
+    {
+      "name": "t05-17-HOLD-2-C-r2-headroom",
+      "prompt": "HOLD",
+      "arm": "C",
+      "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/runs/t05-17-HOLD-2-C/report.json",
+      "report_sha256": "66f0895af1adace76db8a3f900ba621b3b8256362ba4d595252be56faecf95a1",
+      "config_sha256": "b559c54fbd5e18fc34e2daf0a8a95f5d0b972f5a24b136c4d2ead476ad4d452a",
+      "golden": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json",
+      "golden_sha256": "a02eedf4eaeb62290329f87fad2e40026239671db1901f97c2499ed62a77fae4",
+      "binary_sha256": "2fb12d79eed089b603b5ceceb6ce59d996923cfe7e3d0d744b6c1f672209baab",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "external_prefix_hash_and_text_validated": true,
+      "headroom_before_bytes": 13504954368,
+      "maximum_rss_children_bytes": 5936480256,
+      "swapouts_cumulative_bytes": 0,
+      "swapins_cumulative_bytes": 48218112,
+      "quiet_checks": 13,
+      "samples": [
+        {
+          "phase": "warmup",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 82,
+          "cached_prompt_tokens": 0,
+          "token_hash": "bf1f7927af918558",
+          "text_characters": 69,
+          "text_utf8_sha256": "5e95bb8f57a64b9423d5c6c081e872c426fcb4fee2e6319f17a1a2175163834a",
+          "stats": {
+            "decode_seconds": 1.5418443750000002,
+            "decode_tps": 10.377182197781796,
+            "prefill_seconds": 8.523313834,
+            "prefill_tps": 9.620671208057267,
+            "ttft_seconds": 8.525077583
+          },
+          "memory": {
+            "process_footprint_bytes": 7112513488,
+            "process_lifetime_peak_bytes": 7112513488
+          }
+        },
+        {
+          "phase": "measured",
+          "generated_tokens": 17,
+          "decode_tokens": 16,
+          "prompt_tokens": 82,
+          "cached_prompt_tokens": 0,
+          "token_hash": "bf1f7927af918558",
+          "text_characters": 69,
+          "text_utf8_sha256": "5e95bb8f57a64b9423d5c6c081e872c426fcb4fee2e6319f17a1a2175163834a",
+          "stats": {
+            "decode_seconds": 1.550262415999999,
+            "decode_tps": 10.320833321421379,
+            "prefill_seconds": 7.782523833,
+            "prefill_tps": 10.536427739841654,
+            "ttft_seconds": 7.783070793
+          },
+          "memory": {
+            "process_footprint_bytes": 7112775656,
+            "process_lifetime_peak_bytes": 7112775656
+          }
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "17-token bridge quality validation, not a speed qualification or gain claim",
+    "external token-prefix hash and nonempty text-prefix parity, not per-position numerical logits/state proof",
+    "runtime CLI unchanged by capture-only test correction; separate native quality evidence remains separate"
+  ]
+}

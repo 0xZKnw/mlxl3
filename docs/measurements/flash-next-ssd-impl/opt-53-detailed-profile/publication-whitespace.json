@@ -1,0 +1,39 @@
+{
+  "initial_command": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "initial_exit": 2,
+  "diagnostics": 103921,
+  "files": [
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/acceptance-by-position.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/layers.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/output-steps.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/phases.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/system-timeline.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/exports/workers.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-HOLD/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-MAIN/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-HOLD/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-MAIN/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-HOLD/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-MAIN/profile/components.csv",
+    "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-OFF-c3-HOLD/profile/components.csv"
+  ],
+  "cause": "standard csv CRLF record endings, no numeric difference or source whitespace fault",
+  "full_output": "not retained: repeats existing CSV records; all affected files and check are reproducible",
+  "verification_command": [
+    "git",
+    "-c",
+    "core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "verification_exit": 0,
+  "csv_bytes_unchanged": true,
+  "remaining_checks": "blank-at-eol,blank-at-eof,space-before-tab kept; source Ruff/Rustfmt passed"
+}

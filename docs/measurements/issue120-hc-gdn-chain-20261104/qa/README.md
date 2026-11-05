@@ -1,0 +1,13 @@
+# HC→GDN CPU policy qualification
+
+Three CPU tests pass without default features; two manifest-policy tests pass. Kani checks the actual production helpers: eligibility43checks/8covers over arbitrary booleans and complete u32 shapes; strict defaultOFF/hardware flag240checks/7covers over absence and valid UTF8 strings up to4bytes. Unwind10, no assumptions or stubs. Seven standard fmt/align/UTF8 guards are unreachable, no functional assertion; all15covers are satisfied.
+
+Rust/cargo1.98.1, Kani0.68.0 and CBMC6.11.0. Exact commands, timings, bounds and joins are retained in report.json; summary.json enumerates obligations and versions. New required names are registered in scripts/kani_obligations.json and its exact inventory regression. Existing PR/main workflows discover and run them; this receipt makes no remote CI success claim.
+
+The standalone mutation copies the real three helper bodies and compiles the actual policy test module. Removing only !trace makes the trace rejection test fail101; original passes0 and the same original binary passes0 again. No worktree helper or qualified binary was mutated. Sources and logs are retained; compiled mutation binaries remain private.
+
+These are CPU guard contracts, not a proof of Metal, queue lifetime, OS, dtype math, owner identity, frame publication or rollback. F16/F32 numerical paths and actual joint command counts still require separate physical fixtures. GPU runtime was being implemented independently while these helpers remained frozen. No model, GPU, speed measurement or full matrix was run by this owner. All owned child processes were joined.
+
+Read-only runtimev1 review found no functional defect in the inspected ownership/status/rollback arrangement: encode/finish/Pending remain private, Metal::command retains Pending until wait+Completed, finish checks Completed again before publishing the next frame, encode errors do not commit, and the layer restores its prior state on later residual errors. PLE retains its body rollback. Source bindings, grids and arithmetic were moved unchanged; this is source inspection, not numerical parity or a GPU proof.
+
+The reviewed source inventory now matches250files after exactly five marker changes: the new configuration read, three GDN finish calls and its added shape use, and the new physical-test finish/model reads. Initial mismatch checks are preserved; --inventory only emitted the candidate JSON until the explicit reviewed update. inventory-reviewed.log.gz records the passing check. No runtime source, frozen binary, compilation, proof or test was changed/launched during the subsequent exclusive GPU window.

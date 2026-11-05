@@ -1,0 +1,256 @@
+{
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "stages": {
+    "pilot128": {
+      "order_per_mode": "ACCA",
+      "modes": [
+        "MTP",
+        "DF"
+      ],
+      "processes": 8,
+      "per_mode": {
+        "processes": 4,
+        "prompts_per_process": 2,
+        "warmups": 8,
+        "measured_generations": 8
+      },
+      "total_warmups": 16,
+      "total_measured_generations": 16,
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "purpose": "separate AR/MTP/DFlash pilot, no cross-mode gain addition or 17-token substitution"
+    }
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth_in_existing_script": 1,
+    "dflash_mode": 1,
+    "reuse_prompt_cache_in_existing_script": false,
+    "uses_compare_option": false,
+    "uses_pool_driver": false
+  },
+  "experiment": "ISSUE59-T18A-01",
+  "status": "prepared_not_executed",
+  "common_environment_source": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/common-env.json",
+  "same_future_engine_for_both_arms": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/engine/prototype-engine",
+  "arms": {
+    "A": {
+      "MLXL3_SSD_DYNAMIC_READERS": "0"
+    },
+    "C": {
+      "MLXL3_SSD_DYNAMIC_READERS": "1"
+    }
+  },
+  "plans": [
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-1-A-plan.json",
+      "name": "t18a-w2-pilot128-MTP-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "0",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-2-C-plan.json",
+      "name": "t18a-w2-pilot128-MTP-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "1",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-3-C-plan.json",
+      "name": "t18a-w2-pilot128-MTP-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "1",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-4-A-plan.json",
+      "name": "t18a-w2-pilot128-MTP-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "0",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-1-A-plan.json",
+      "name": "t18a-w2-pilot128-DF-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "0",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-2-C-plan.json",
+      "name": "t18a-w2-pilot128-DF-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "1",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-3-C-plan.json",
+      "name": "t18a-w2-pilot128-DF-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "1",
+      "campaign": "T18A-w2-post-system-update"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-4-A-plan.json",
+      "name": "t18a-w2-pilot128-DF-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t18a_flag": "0",
+      "campaign": "T18A-w2-post-system-update"
+    }
+  ],
+  "launch_conditions": [
+    "quality before throughput; inspect each process before next",
+    "T18A-w1 cumulative zero Swapout; no silent reanchor",
+    "AC quiet one GPU model; model headroom10.8GB; component2GB; native peak<12GB",
+    "T17/T04/T05=0 cache3GiB/readers4/40ops40MB/lookahead0",
+    "dynamic only workers>1 and jobs>workers; fallback Static",
+    "no measured results copied from T04; plans/schema/oracles only reused"
+  ],
+  "admission_revision": "ISSUE59-T18A-ADMISSION108 before first full model or throughput; prior refusal and r1 preserved",
+  "campaign": "T18A-w2-post-system-update",
+  "prior_campaign_excluded_from_timing": "T18A-w1"
+}

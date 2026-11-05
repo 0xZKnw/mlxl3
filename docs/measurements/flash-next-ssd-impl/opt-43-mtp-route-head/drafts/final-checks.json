@@ -1,0 +1,141 @@
+[
+  {
+    "name": "final-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 64619,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.30493487500643823
+  },
+  {
+    "name": "final-fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 64622,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2597834589978447
+  },
+  {
+    "name": "final-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 64627,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.5303341669932706
+  },
+  {
+    "name": "final-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 64690,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 45.90863941599673
+  },
+  {
+    "name": "final-release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 64887,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.08257004199549556
+  },
+  {
+    "name": "kani-draft-contracts",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "expert_cohorts_never_exceed_live_slot_capacity",
+      "--harness",
+      "wide_draft_commit_accepts_only_exact_finite_prefixes"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 64890,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.0914562920079334
+  },
+  {
+    "name": "final-kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_draft_verification_checks_tokens_shapes_and_commit"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 64993,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 3.8395597499911673
+  },
+  {
+    "name": "crosshair-availability",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "scripts/check_flash_drafts.py",
+      "--analysis_kind=asserts",
+      "--per_condition_timeout=5"
+    ],
+    "timeout_seconds": 30,
+    "status": "unverified",
+    "pid": 65059,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 0.024155292005161755
+  }
+]

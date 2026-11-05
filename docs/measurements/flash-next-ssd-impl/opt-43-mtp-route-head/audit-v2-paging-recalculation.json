@@ -1,0 +1,108 @@
+{
+  "status": "offline_recalculation_only",
+  "scope": "global VM counters over complete old arms; not physical SSD bytes or decode-only measurements",
+  "source_commit": "615b254df577ca502bf99e994548b7231502de4f",
+  "audit_sha256": "9d450f3a307848552f749c608902c1c1ac30b50ffb103287f846b8ce5dab9012",
+  "comparisons": [
+    {
+      "mode": "baseline",
+      "phase": "screen",
+      "prompt": "MAIN",
+      "LFU": {
+        "Pageins": 69140381696,
+        "Compressions": 4899110912,
+        "Decompressions": 4836392960,
+        "Swapins": 3670016,
+        "Swapouts": 0
+      },
+      "LES16": {
+        "Pageins": 114883674112,
+        "Compressions": 4451876864,
+        "Decompressions": 4759126016,
+        "Swapins": 65536,
+        "Swapouts": 0
+      },
+      "pagein_ratio": 1.6616002297633599
+    },
+    {
+      "mode": "baseline",
+      "phase": "screen",
+      "prompt": "HOLD",
+      "LFU": {
+        "Pageins": 66566275072,
+        "Compressions": 4448681984,
+        "Decompressions": 4351672320,
+        "Swapins": 196608,
+        "Swapouts": 0
+      },
+      "LES16": {
+        "Pageins": 117335654400,
+        "Compressions": 4813193216,
+        "Decompressions": 4607426560,
+        "Swapins": 589824,
+        "Swapouts": 0
+      },
+      "pagein_ratio": 1.7626892037009187
+    },
+    {
+      "mode": "baseline",
+      "phase": "confirm-les",
+      "prompt": "MAIN",
+      "LFU": {
+        "Pageins": 85406466048,
+        "Compressions": 5427462144,
+        "Decompressions": 4194631680,
+        "Swapins": 5128192,
+        "Swapouts": 0
+      },
+      "LES16": {
+        "Pageins": 151351033856,
+        "Compressions": 5858000896,
+        "Decompressions": 5662244864,
+        "Swapins": 18071552,
+        "Swapouts": 0
+      },
+      "pagein_ratio": 1.7721261733384208
+    },
+    {
+      "mode": "mtp",
+      "phase": "screen",
+      "prompt": "MAIN",
+      "LFU": {
+        "Pageins": 69140856832,
+        "Compressions": 8123826176,
+        "Decompressions": 8335474688,
+        "Swapins": 262144,
+        "Swapouts": 0
+      },
+      "LES16": {
+        "Pageins": 114336301056,
+        "Compressions": 10223173632,
+        "Decompressions": 9310879744,
+        "Swapins": 1048576,
+        "Swapouts": 0
+      },
+      "pagein_ratio": 1.6536720297496008
+    },
+    {
+      "mode": "mtp",
+      "phase": "screen",
+      "prompt": "HOLD",
+      "LFU": {
+        "Pageins": 71760773120,
+        "Compressions": 8147124224,
+        "Decompressions": 8045805568,
+        "Swapins": 262144,
+        "Swapouts": 0
+      },
+      "LES16": {
+        "Pageins": 116759248896,
+        "Compressions": 7138754560,
+        "Decompressions": 6945439744,
+        "Swapins": 1114112,
+        "Swapouts": 0
+      },
+      "pagein_ratio": 1.6270623046487045
+    }
+  ]
+}

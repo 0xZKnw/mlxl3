@@ -1,0 +1,51 @@
+{
+  "model": "qwen-moe",
+  "mode": "serial",
+  "status": "completed",
+  "command": [
+    "/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0/build/issue75/r5-cli",
+    "forward",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "--tokens",
+    "1,2"
+  ],
+  "binary_sha256": "065915db5218de92973d01692e19e623d44a4746e91c52be8de266308732df39",
+  "source": "a7eb377cd46326760e295d9b79ad1c2d63622a3b",
+  "swap_policy": "observe_only",
+  "options": {
+    "MLXL3_ALLOCATOR_CACHE_MIB": "64"
+  },
+  "limits": {
+    "rss": 10737418240,
+    "footprint": 14000000000,
+    "deadline_s": 180
+  },
+  "anchor_sha256": "422394dfa095d5239c62546d3bf9f1781843ac95d9e4e73eb9efd71c4073464a",
+  "runner_sha256": "814bf436417da09de586ed01e673d3cfb5b48488fad0ac4eac71dd763d633912",
+  "reaped": true,
+  "swapout_bytes": 219152384,
+  "swapin_bytes": 2686976,
+  "available_before": 13336576000,
+  "quiet_checks": 24,
+  "max_footprint_bytes": 12404607520,
+  "max_rss_bytes": 1376550912,
+  "children_maximum_rss_bytes": 1398620160,
+  "outputs": [
+    {
+      "token": 1,
+      "logits": 248320,
+      "logits_sha256": "7dba420bfec8ebf167ca27c335e846e6a0561966d549ed4497ddba739d7681d4",
+      "states": {}
+    },
+    {
+      "token": 2,
+      "logits": 248320,
+      "logits_sha256": "c0513484c3977a3fecc21d0624b03761002c2d2e47910ab37d7de629a82d7a89",
+      "states": {}
+    }
+  ],
+  "exit_code": 0,
+  "elapsed_s": 5.867,
+  "stdout_sha256": "ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

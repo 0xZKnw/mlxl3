@@ -96,12 +96,12 @@ enum MCPPreferenceCheck {
         try check(!first.dflash2Enabled, "DFlash2 must default off")
         try check(!first.dflash2Available, "DFlash2 exposed for an unrelated model")
         first.enableDFlashGreedy()
-        try check(first.temperature == 0 && first.topK == 1 && first.repetitionPenalty == 1,
-                  "DFlash2 preset is not greedy")
+        try check(first.temperature == 0.2 && first.topK == 80 && first.repetitionPenalty == 1.05 && !first.samplingLocked,
+                  "Unsupported DFlash2 must preserve ordinary sampling")
         try check(!instance().dflash2Enabled, "DFlash2 with no draft must not survive relaunch")
         preferences.set("/local/draft", forKey: "studio.dflashDraftPath")
         first.enableDFlashGreedy()
-        try check(!instance().dflash2Enabled, "Legacy DFlash2 must remain disabled on relaunch in v1.2")
+        try check(instance().dflash2Enabled, "Configured DFlash2 must survive relaunch")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
         let samplingBeforeMTP = instance()
@@ -114,6 +114,9 @@ enum MCPPreferenceCheck {
                   && mtpRelaunch.topK == samplingBeforeMTP.topK
                   && mtpRelaunch.repetitionPenalty == samplingBeforeMTP.repetitionPenalty,
                   "Global legacy MTP changed sampling before selecting a target")
+        try check(mtpRelaunch.temperature == 0.2 && mtpRelaunch.topK == 80 && mtpRelaunch.repetitionPenalty == 1.05
+                    && !mtpRelaunch.samplingLocked,
+                  "MTP preference on an unknown model must preserve ordinary sampling")
         preferences.set(false, forKey: "studio.mtpEnabled")
         first.models = [LocalModel(name: "qwen3.6-35b-a3b", path: "/models/Qwen3.6-35B-A3B-EXL3",
                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,

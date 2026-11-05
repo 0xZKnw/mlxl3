@@ -1,0 +1,11 @@
+# Contre-revue statique K1 après merge
+
+Patch gelé `9782c74c49613acc520a38975376eefac5a52217941cfc254909702521dd358b`, base `9c8474ca`. Les dix SHA du manifeste concordent ; les lignes de définition et usage de lane_order/lane_indices de main sont toutes inchangées, notamment `lane_indices=None` sur Flash référence. **Aucun blocage de transposition identifié**. Aucun build/test/preuve/GPU par cette revue.
+
+Le delta de production reste limité aux deux sites H128 masqués dans `linear.rs` (1445/1640), à `hot_activation::apply` dans `ssd_moe.rs:369`, aux deux accesseurs en lecture et aux gardes CPU de forme. Les autres modifications sont les modules/tests/microbenchmarks/contrats CPU/CI et diagnostics sous cfg(test) ; aucun fichier ou hunk LFM, F01, F05, F06 ou prélecture pondérée.
+
+Les frontières de scheduling ne changent pas : `prepare_resident_hot` 529–550 retient le graphe complet dans self.last et soumet le Hot avant les readbacks 582/783. UNIQUE construit le Hot avant l’union CPU ; en cas de split, `hot.output.eval()` ligne629 termine tous ses lecteurs avant éviction ultérieure. Le snapshot exclut les pending, reserve exclut les experts routés et slots pending de ses victimes ; les nouveaux kernels lisent le même Array UInt32 snapshot. Ils ne font aucune mutation de cache ni nouveau readback.
+
+Les slots residents sont masked et groups=None ; shared EXL3/new slots sont unmasked et conservent exactement le chemin H128/swiglu historique. La branche Cold H128 teste le même slot pour les huit threads du groupe avant toute lecture de values ou barrière ; ses trois barrières Hot restent uniformes. Domaine borné : Half/UInt32, 1…80 routes, repeat1/2, 5/20 blocs de128, capacité1…512. L’activation garde les trois arrondis Half successifs et écrit Cold+0 sans lire GU. Les buffers noncontigus passent par l’option de contiguïté déjà présente en FFI.
+
+La validité ne garantit pas le gain : le Hadamard natif MLX peut réutiliser/donner un buffer, le kernel custom produit une sortie. Ce coût doit être distingué du calcul Cold évité dans les micros puis le vrai DFlash. Aucune régression causale ni gain en tok/s déduit statiquement. L’égalité Hot/Cold, les bords Half/nonfinis et les états/logits/bridge doivent être vérifiés sur le nouveau binaire post-merge, sans confondre les résultats historiques W avec ce nouvel artefact.

@@ -1,0 +1,213 @@
+--- a/native/src/router.rs
++++ b/native/src/router.rs
+@@ -42,6 +42,14 @@
+         && values.dtype() == Dtype::Float16
+     {
+         return top8_simd(values, normalize);
++    }
++    if values.shape().len() == 2
++        && values.shape()[1] == 512
++        && (1..=2).contains(&values.shape()[0])
++        && top_k == 10
++        && matches!(values.dtype(), Dtype::Float16 | Dtype::Float32)
++    {
++        return top10_simd(values, normalize);
+     }
+     topk_legacy(values, top_k, normalize)
+ }
+@@ -212,6 +220,45 @@
+     )?;
+     let scores = out.pop().context("missing SIMD scores")?;
+     let indices = out.pop().context("missing SIMD indices")?;
++    Ok((indices, scores))
++}
++
++// Same selection contract as the legacy rank kernel, with bounded SIMD merges.
++fn top10_simd(values: &Array, normalize: bool) -> Result<(Array, Array)> {
++    ensure!(
++        values.shape().len() == 2
++            && (1..=2).contains(&values.shape()[0])
++            && values.shape()[1] == 512
++            && matches!(values.dtype(), Dtype::Float16 | Dtype::Float32),
++        "SIMD top10 requires one or two floating-point rows of 512 experts"
++    );
++    let rows = values.shape()[0];
++    let arithmetic = if values.dtype() == Dtype::Float32 {
++        "float"
++    } else {
++        "half"
++    };
++    let mut out = array::metal_kernel(
++        &format!(
++            "mlxl3_flash_top10_simd_{arithmetic}_n{}",
++            u8::from(normalize)
++        ),
++        &["values"],
++        &["indices", "scores"],
++        &format!(
++            "#define ARITH {arithmetic}\n#define NORMALIZE {}\n",
++            u8::from(normalize)
++        ),
++        include_str!("../shaders/flash_top10.metal"),
++        &[values],
++        &[vec![rows, 10], vec![rows, 10]],
++        &[Dtype::UInt32, values.dtype()],
++        [512, rows, 1],
++        [512, 1, 1],
++    )?;
++    ensure!(out.len() == 2, "invalid top10 output count");
++    let scores = out.pop().context("missing top10 scores")?;
++    let indices = out.pop().context("missing top10 indices")?;
+     Ok((indices, scores))
+ }
+ 
+@@ -449,6 +496,149 @@
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "physical Apple GPU; Flash top10/512 exact selection and score order"]
++    fn flash_top10_matches_legacy_cpu_and_boundaries() -> Result<()> {
++        let mut comparisons = 0;
++        for rows in [1, 2] {
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for fixture in 0..12 {
++                    let values = (0..rows * 512)
++                        .map(|i| match fixture {
++                            0 => 1.0,
++                            1 => {
++                                if i % 2 == 0 {
++                                    0.0
++                                } else {
++                                    -0.0
++                                }
++                            }
++                            2 => [
++                                f32::INFINITY,
++                                f32::NEG_INFINITY,
++                                f32::from_bits(0x7fc12345),
++                                f32::from_bits(0xffc12345),
++                                1.0,
++                                -1.0,
++                                0.0,
++                                -0.0,
++                            ][i as usize % 8],
++                            3 => 0.2 + ((i * 7) % 127) as f32 * 0.000001,
++                            4 => [
++                                f32::from_bits(1),
++                                f32::from_bits(0x80000001),
++                                0.0,
++                                -0.0,
++                                1.0e-5,
++                                -1.0e-5,
++                            ][i as usize % 6],
++                            5 => -1.0 - (i % 101) as f32,
++                            6 => 65504.0,
++                            _ => {
++                                (((i as u32)
++                                    .wrapping_mul(1664525)
++                                    .wrapping_add(fixture * 1013904223u32.wrapping_div(12)))
++                                    % 8192) as f32
++                                    / 4096.0
++                                    - 1.0
++                            }
++                        })
++                        .collect::<Vec<_>>();
++                    let input = Array::from_f32(&values, &[rows, 512])?.astype(dtype)?;
++                    let host = input.to_f32()?;
++                    let mut cpu_ids = Vec::new();
++                    for row in host.chunks_exact(512) {
++                        let mut ids = (0..512u32).collect::<Vec<_>>();
++                        ids.sort_by(|&a, &b| {
++                            let (x, y) = (row[a as usize], row[b as usize]);
++                            match (x.is_nan(), y.is_nan()) {
++                                (true, true) => std::cmp::Ordering::Equal,
++                                (true, false) => std::cmp::Ordering::Greater,
++                                (false, true) => std::cmp::Ordering::Less,
++                                (false, false) => x.partial_cmp(&y).unwrap(),
++                            }
++                            .then(a.cmp(&b))
++                        });
++                        cpu_ids.extend_from_slice(&ids[502..]);
++                    }
++                    let transposed = input.transpose(&[1, 0])?;
++                    let copy = Array::from_bytes(&transposed.to_bytes()?, &[512, rows], dtype)?;
++                    let strided = copy.transpose(&[1, 0])?;
++                    for normalize in [false, true] {
++                        let old = topk_legacy(&input, 10, normalize)?;
++                        for x in [&input, &strided] {
++                            let new = topk(x, 10, normalize)?;
++                            assert_eq!(new.0.shape(), [rows, 10]);
++                            assert_eq!(new.1.shape(), [rows, 10]);
++                            assert_eq!(new.1.dtype(), dtype);
++                            assert_eq!(
++                                new.0.to_u32()?,
++                                cpu_ids,
++                                "CPU IDs {rows}/{dtype:?}/{fixture}"
++                            );
++                            assert_eq!(new.0.to_bytes()?, old.0.to_bytes()?);
++                            assert_eq!(
++                                new.1.to_bytes()?,
++                                old.1.to_bytes()?,
++                                "scores {rows}/{dtype:?}/{fixture}/{normalize}"
++                            );
++                            let scores = new.1.to_f32()?;
++                            assert_eq!(scores.len(), rows as usize * 10);
++                            if fixture != 1 && fixture != 2 {
++                                assert!(scores.iter().all(|v| v.is_finite()));
++                            }
++                            if !normalize && fixture != 2 {
++                                for (index, (&id, score)) in cpu_ids.iter().zip(&scores).enumerate()
++                                {
++                                    assert_eq!(
++                                        score.to_bits(),
++                                        host[index / 10 * 512 + id as usize].to_bits()
++                                    );
++                                }
++                            }
++                        }
++                        comparisons += 1;
++                    }
++                }
++            }
++        }
++        assert_eq!(comparisons, 96);
++        for (rows, experts, k) in [(3, 512, 10), (1, 512, 9), (1, 256, 10)] {
++            let x = Array::from_f32(&vec![1.0; rows * experts], &[rows as i32, experts as i32])?;
++            assert_eq!(
++                topk(&x, k, true)?.0.to_bytes()?,
++                topk_legacy(&x, k, true)?.0.to_bytes()?
++            );
++        }
++        for shape in [vec![512], vec![0, 512], vec![1, 513]] {
++            assert!(top10_simd(&Array::zeros(&shape)?, true).is_err());
++        }
++        let x = Array::zeros_dtype(&[1, 512], Dtype::UInt32)?;
++        assert!(topk(&x, 10, true).is_err());
++        let x = Array::zeros(&[1, 512])?;
++        assert!(topk(&x, 0, false).is_err());
++        assert!(topk(&x, 513, false).is_err());
++        eprintln!(
++            "Flash top10: 96 combinations, 192 contiguous/strided comparisons, CPU IDs and legacy score bits exact"
++        );
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_top10_matches_legacy() {
++        let value = f32::from(kani::any::<i8>()) / 128.0;
++        let normalize = kani::any::<bool>();
++        let x = Array::from_f32(&[value; 512], &[1, 512]).unwrap();
++        let a = topk(&x, 10, normalize).unwrap();
++        let b = topk_legacy(&x, 10, normalize).unwrap();
++        kani::cover!(normalize);
++        kani::cover!(!normalize);
++        assert_eq!(a.0.to_u32().unwrap().len(), 10);
++        assert_eq!(a.0.to_bytes().unwrap(), b.0.to_bytes().unwrap());
++        assert_eq!(a.1.to_bytes().unwrap(), b.1.to_bytes().unwrap());
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; Flash router must preserve FP32 rank differences"]
+     fn float_router_preserves_precision_ties_and_boundaries() -> Result<()> {

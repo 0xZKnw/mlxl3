@@ -1,0 +1,33 @@
+import hashlib,json,os,re,runpy,subprocess,tempfile,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-68-shared-expert');dest=base/'invalid-control'
+identity=json.loads((base/'identity-v1.json').read_text());api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+assert all(json.loads((base/m/'campaign-result.json').read_text())['status']=='passed_speed_and_postflight30s' for m in ['OFF','MTP','B2','ADAPT'])
+for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256']
+cli=next(row['path'] for row in identity['artifacts'] if row['path'].endswith('mlxl3-rs'))
+model=Path('/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531')
+def snapshot():return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+result={'status':'incomplete','parity':False,'checks':[],'before':snapshot()}
+assert result['before']['vm_bytes']['Swapouts']==0
+try:
+ with tempfile.TemporaryDirectory(prefix='flash-shared-invalid-') as temp:
+  template=json.loads((base/'B2/screen/run.json').read_text())[0]['env']
+  matrix=[]
+  for name,value in [('two','2'),('true','true'),('empty',''),('space',' 1'),('negative','-1'),('nonunicode',os.fsdecode(b'\xff'))]:
+   matrix.append({'name':name,'command':['/usr/bin/time','-l',cli,'--registry',str(Path(temp)/(name+'.json')),'bridge',str(model),'--context-length','4096'],'env':{**template,'MLXL3_SSD_SHARED_BATCH':value},'expected_exit':1,'timeout_seconds':30})
+  plan=dest/'run.json';plan.write_text(json.dumps(matrix,indent=2)+'\n');api['run_sampler'](plan,{'Swapins':0,'Swapouts':0})
+ raw=json.loads((dest/'run-result.json').read_text());assert len(raw['commands'])==6 and raw['status']=='completed_expected_outcomes_not_speed'
+ for row in raw['commands']:
+  log=(dest/(row['name']+'.log')).read_text();assert row['reaped'] and row['status']=='completed_expected_outcome' and row['swapouts_bytes']==0
+  expected='unicode' if row['name']=='nonunicode' else 'MLXL3_SSD_SHARED_BATCH must be 0 or 1'
+  assert expected in log and '"type":"ready"' not in log and '"type":"complete"' not in log
+  peak=int(re.search(r'(\d+)\s+peak memory footprint',log)[1]);assert 0<peak<=12_000_000_000
+  result['checks'].append({'name':row['name'],'expected_error':expected,'peak_physical_bytes':peak,'reaped':True,'before_ready':True})
+ result['after']=snapshot();assert result['after']['vm_bytes']['Swapouts']==0 and result['after']['vm_bytes']['Swapins']<=256<<20
+ assert result['after']['power'].splitlines()[0]==result['before']['power'].splitlines()[0]
+ for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256']
+ result.update(status='passed_six_real_cli_rejections',parity=True)
+except BaseException as error:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+finally:
+ (dest/'checks.json').write_text(json.dumps(result,indent=2)+'\n');print({k:v for k,v in result.items() if k not in ['before','after']},flush=True)

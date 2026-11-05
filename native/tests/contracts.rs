@@ -114,6 +114,44 @@ fn checkpoint_round_trip_and_lazy_payload_read() {
 }
 
 #[test]
+fn flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail() {
+    let root = tempfile::tempdir().unwrap();
+    let model = make_checkpoint(root.path(), "flash");
+    let sidecar = model.join("ngram_embedding.safetensors");
+    write_safetensors(
+        &sidecar,
+        &json!({"ple.head_bias": {
+            "dtype":"F16", "shape":[1], "data_offsets":[0,2]
+        }}),
+        &[0, 0],
+    );
+    assert!(
+        !checkpoint::inspect(&model)
+            .unwrap()
+            .tensors
+            .contains_key("ple.head_bias")
+    );
+    write_json(
+        &model.join("config.json"),
+        &json!({"model_type":"qwen4_exp"}),
+    );
+    assert!(
+        checkpoint::inspect(&model)
+            .unwrap()
+            .tensors
+            .contains_key("ple.head_bias")
+    );
+    write_safetensors(
+        &model.join("mtp_hyper_connection_mixer_patch.safetensors"),
+        &json!({"ple.head_bias": {
+            "dtype":"F16", "shape":[1], "data_offsets":[0,2]
+        }}),
+        &[0, 0],
+    );
+    assert!(checkpoint::inspect(&model).is_err());
+}
+
+#[test]
 fn safetensors_accepts_scalars_and_zero_sized_tensors() {
     let root = tempfile::tempdir().unwrap();
     let file = root.path().join("scalar.safetensors");
@@ -128,6 +166,50 @@ fn safetensors_accepts_scalars_and_zero_sized_tensors() {
     let header = checkpoint::read_header(&file).unwrap();
     assert!(header["empty"].read_bytes().unwrap().is_empty());
     assert_eq!(header["scalar"].read_u16().unwrap(), [42]);
+}
+
+#[test]
+fn inspected_tensor_source_rejects_hostile_offsets_and_truncation() {
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("source.safetensors");
+    write_safetensors(
+        &file,
+        &json!({"t": {"dtype": "U8", "shape": [2], "data_offsets": [0, 2]}}),
+        &[7, 9],
+    );
+    let tensor = checkpoint::read_header(&file).unwrap().remove("t").unwrap();
+    assert_eq!(tensor.read_bytes().unwrap(), [7, 9]);
+    for payload in [0, tensor.payload_offset, u64::MAX] {
+        for offsets in [
+            [0, 2],
+            [2, 0],
+            [u64::MAX, 2],
+            [0, u64::MAX],
+            [u64::MAX, u64::MAX],
+        ] {
+            let mut invalid = tensor.clone();
+            invalid.payload_offset = payload;
+            invalid.data_offsets = offsets;
+            if payload == tensor.payload_offset && offsets == [0, 2] {
+                continue;
+            }
+            if offsets == [0, 2] && payload == 0 {
+                continue;
+            }
+            assert!(
+                invalid.source().is_err(),
+                "accepted payload={payload}, offsets={offsets:?}"
+            );
+            assert!(invalid.read_bytes().is_err());
+        }
+    }
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_len(tensor.payload_offset + 1)
+        .unwrap();
+    assert!(tensor.source().is_err() && tensor.read_bytes().is_err());
 }
 
 #[test]
@@ -505,7 +587,7 @@ fn cli_codec_recovers_after_invalid_request() {
         .unwrap();
     writeln!(
         child.stdin.take().unwrap(),
-        "not json\n{{\"op\":\"{unavailable}\"}}\n{{\"op\":\"permutation\"}}"
+        "not json\n{{\"op\":\"{unavailable}\"}}\n{{\"op\":\"mlx-router\",\"data\":[]}}\n{{\"op\":\"permutation\"}}"
     )
     .unwrap();
     let output = child.wait_with_output().unwrap();
@@ -515,13 +597,73 @@ fn cli_codec_recovers_after_invalid_request() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(responses.len(), 3);
+    assert_eq!(responses.len(), 4);
     assert!(responses[0]["error"].is_string());
     assert!(responses[1]["error"].is_string());
     assert_eq!(
         responses[1]["error"],
         format!("unknown or unavailable codec operation {unavailable}")
     );
-    assert!(responses[2]["data"].is_array());
+    let router_error = if cfg!(feature = "mlx") {
+        "invalid router rows"
+    } else {
+        "unknown or unavailable codec operation mlx-router"
+    };
+    assert_eq!(responses[2]["error"], router_error);
+    assert!(responses[3]["data"].is_array());
     assert!(!root.path().join("models.json").exists());
+}
+
+#[test]
+fn real_checkpoint_tiles_match_independent_exl3_reference() {
+    use mlxl3_native::codec::{Codebook, decode_codeword, unpack};
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct Fixture {
+        shape: [usize; 3],
+        k: usize,
+        mode: u32,
+        tiles: [Tile; 3],
+    }
+
+    #[derive(Deserialize)]
+    struct Tile {
+        tile: usize,
+        packed: Vec<u16>,
+        states: Vec<u16>,
+        f16_bits: Vec<u16>,
+    }
+
+    for name in ["flash", "qwen-dense", "qwen-moe", "lfm-moe"] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("docs/native-coverage/baselines/exl3")
+            .join(format!("{name}.json"));
+        let fixture: Fixture = serde_json::from_reader(fs::File::open(path).unwrap()).unwrap();
+        let [rows, cols, words] = fixture.shape;
+        assert_eq!(words, fixture.k * 16);
+        let mode = Codebook::try_from(fixture.mode).unwrap();
+        for (tile, expected_index) in
+            fixture
+                .tiles
+                .into_iter()
+                .zip([0, rows * cols / 2, rows * cols - 1])
+        {
+            assert_eq!(tile.tile, expected_index);
+            assert_eq!(tile.packed.len(), words);
+            assert_eq!(tile.states.len(), 256);
+            assert_eq!(tile.f16_bits.len(), 256);
+            let states = unpack(&tile.packed, fixture.k).unwrap();
+            assert_eq!(states, tile.states, "{name} tile {expected_index}");
+            for (state, expected_bits) in states.into_iter().zip(tile.f16_bits) {
+                let weight = decode_codeword(state, mode);
+                assert!(weight.is_finite());
+                assert_eq!(
+                    weight.to_bits(),
+                    expected_bits,
+                    "{name} tile {expected_index}"
+                );
+            }
+        }
+    }
 }

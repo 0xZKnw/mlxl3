@@ -1,0 +1,29 @@
+{
+  "status": "validated_cpu_supervision_only",
+  "base_head": "bae6723d",
+  "ci_job": "https://github.com/0xZKnw/mlxl3/actions/runs/41997784225/job/127147306720",
+  "ci_head": "8c13e9229b6cc6400dc93e2c1e1c0062c4770f6d",
+  "ci_checkout_merge": "7de8ac53bb9cdb926b04531a20d2805832c84ed6",
+  "root_cause": "cleanup can raise before the only reaped assignment, then the outer finally publishes an incomplete row; the guard masks the cleanup exception with KeyError",
+  "ci_initial_cleanup_exception": "not retained in CI stdout; exact triggering race cannot be attributed from existing logs",
+  "deterministic_regression": "actual production finally, real child reaped between poll and group signal; ESRCH initially raised and skipped report; 12 errors across 4 initial regression tests before correction",
+  "focused_tests": 4,
+  "focused_subtests": 16,
+  "full_guard_seconds": 24.460597667,
+  "full_guard_integration_cases": 18,
+  "native_validator_regressions": 76,
+  "gpu_or_model_executed": false,
+  "formal_verification": "CrossHair attempt unavailable: No module named crosshair",
+  "source_sha256": {
+    "tests/test_flash_draft_supervisor.py": "923d73a8797db610003c89bd1f1cd827951f921a94a645ffb5b2c4b734611993",
+    ".github/workflows/rust.yml": "c0269ff84de5f34cd9faa1982a08dfaf93d695f9b080ce2cfd7686a30b64e2b3",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts/quality-supervisor.txt": "6df180b99fd30ef19cc965b35917ec922cad591b9098bf6892050588e0af2446",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts/guards-supervisor.txt": "ada1551898aada755733ba32827746db561f3321613698fcbd2fc06a726355fc",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality/quality-supervisor.txt": "d0c1c3fd09916aa7875a3b428e1bdeb5d4f0f7d271d126103caede0cb637e6d5",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality/guards-supervisor.txt": "cc872fa26bbe10d3161bb9b56bf2d04733718fc02346388482cdf22f6065db27",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-3g-quality/quality-supervisor.txt": "d8d903a045bc62e505c499842a33fc2fc5c3acef7f2c3d1151e43e711d9600c4",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-3g-quality/guards-supervisor.txt": "a39f812c1b444248ddab30ded8c3861967c57f83641b5861e467372c5255d46d",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/quality-supervisor.txt": "935800f8bfa1a842740023ab8795022e9ef27255480fcd4bd25ce099a5f8f2c2",
+    "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/guards-supervisor.txt": "38a89d47c44eec8dc6acb31189a6eae9972ac1d4663aef12525083933d566c23"
+  }
+}

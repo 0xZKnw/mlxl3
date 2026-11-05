@@ -1,0 +1,33 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: unused variable: `m5`
+  --> native/src/flash_support.rs:31:5
+   |
+31 |     m5: bool,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_m5`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning (run `cargo fix --lib -p mlxl3-native --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.43s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+running 1 test
+test flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5 ... FAILED
+
+failures:
+
+---- flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5 stdout ----
+
+thread 'flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5' (2828366) panicked at native/src/flash_support.rs:640:25:
+assertion `left == right` failed
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::tests::slot_tiles_change_only_the_two_flash_shapes_on_m5
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 82 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

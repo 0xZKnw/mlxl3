@@ -1,0 +1,193 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 16b5d13e..793144c8 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -41,6 +41,7 @@ jobs:
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness flash_route_batch_preserves_scalar_fallback_domain
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..349f2052 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,45 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_route_batch_eligible(shape: &[i32], fp32: bool) -> bool {
++    matches!(shape, [rows, 2560] if fp32 && (2..=8).contains(rows))
++}
++
++#[cfg(test)]
++#[test]
++fn flash_route_batch_rejects_every_other_shape_and_precision() {
++    for rows in [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, i32::MAX] {
++        for columns in [-1, 0, 2559, 2560, 2561, i32::MAX] {
++            for fp32 in [false, true] {
++                assert_eq!(
++                    flash_route_batch_eligible(&[rows, columns], fp32),
++                    fp32 && (2..=8).contains(&rows) && columns == 2560
++                );
++            }
++        }
++    }
++    for shape in [vec![], vec![2560], vec![1, 2, 2560], vec![1, 1, 2, 2560]] {
++        assert!(!flash_route_batch_eligible(&shape, true));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(5)]
++fn flash_route_batch_preserves_scalar_fallback_domain() {
++    let dimensions: [i32; 4] = kani::any();
++    let rank: usize = kani::any();
++    let fp32: bool = kani::any();
++    kani::assume(rank <= 4);
++    let actual = flash_route_batch_eligible(&dimensions[..rank], fp32);
++    let expected =
++        rank == 2 && fp32 && dimensions[0] >= 2 && dimensions[0] <= 8 && dimensions[1] == 2560;
++    assert_eq!(actual, expected);
++    kani::cover!(actual && dimensions[0] == 2);
++    kani::cover!(actual && dimensions[0] == 8);
++    kani::cover!(!actual && rank == 2 && dimensions[0] == 1 && dimensions[1] == 2560);
++    kani::cover!(!actual && rank == 2 && !fp32 && dimensions[0] == 2 && dimensions[1] == 2560);
++    kani::cover!(!actual && rank == 4);
++}
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..30e25076 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -46,6 +46,11 @@ pub struct SsdMoe {
+     readers: usize,
+     gpu_hot: bool,
+     gpu_hot_wide: bool,
++    batch_routes: bool,
++    #[cfg(test)]
++    route_batch_calls: std::cell::Cell<usize>,
++    #[cfg(test)]
++    route_gate_calls: std::cell::Cell<usize>,
+     unique_cohorts: bool,
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
+@@ -117,6 +122,9 @@ impl SsdMoe {
+         let gpu_hot_wide =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_GPU_HOT_WIDE", "0")?)
+                 .context("MLXL3_SSD_GPU_HOT_WIDE must be 0 or 1")?;
++        let batch_routes =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_BATCH_ROUTES", "0")?)
++                .context("MLXL3_SSD_BATCH_ROUTES must be 0 or 1")?;
+         let unique_cohorts =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_UNIQUE_COHORT", "0")?)
+                 .context("MLXL3_SSD_UNIQUE_COHORT must be 0 or 1")?;
+@@ -230,6 +238,11 @@ impl SsdMoe {
+         Ok(Self {
+             gpu_hot,
+             gpu_hot_wide,
++            batch_routes,
++            #[cfg(test)]
++            route_batch_calls: std::cell::Cell::new(0),
++            #[cfg(test)]
++            route_gate_calls: std::cell::Cell::new(0),
+             unique_cohorts,
+             shared_exl3,
+             stable_expert_kernels,
+@@ -390,6 +403,8 @@ impl SsdMoe {
+     }
+ 
+     fn gate_logits(&self, x: &Array) -> Result<Array> {
++        #[cfg(test)]
++        self.route_gate_calls.set(self.route_gate_calls.get() + 1);
+         match &self.resident_gate {
+             Some(weight) if x.dtype() == Dtype::Float32 => x.matmul(weight),
+             _ => self.gate.forward(x),
+@@ -409,6 +424,44 @@ impl SsdMoe {
+             router::topk(&probabilities, 10, true)
+         }
+     }
++    fn gate_logits_rows(&self, x: &Array) -> Result<Array> {
++        // Preserve every scalar GEMV and its input stride before grouping the reductions.
++        let logits = (0..x.shape()[0])
++            .map(|row| self.gate_logits(&x.slice(0, row, row + 1)?))
++            .collect::<Result<Vec<_>>>()?;
++        Array::concatenate(&logits.iter().collect::<Vec<_>>(), 0)
++    }
++
++    fn route_rows(&self, x: &Array) -> Result<(Array, Array)> {
++        ensure!(
++            matches!(x.shape(), [rows, H] if (1..=8).contains(rows))
++                && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
++            "invalid streamed MoE route rows"
++        );
++        if self.batch_routes
++            && crate::flash_support::flash_route_batch_eligible(
++                x.shape(),
++                x.dtype() == Dtype::Float32,
++            )
++        {
++            let logits = self.gate_logits_rows(x)?;
++            ensure!(
++                logits.shape() == [x.shape()[0], 512] && logits.dtype() == Dtype::Float32,
++                "batch routes require exact FP32 gate logits"
++            );
++            #[cfg(test)]
++            self.route_batch_calls.set(self.route_batch_calls.get() + 1);
++            return router::topk(&logits.softmax_precise()?, 10, true);
++        }
++        let pairs = (0..x.shape()[0])
++            .map(|row| self.route(&x.slice(0, row, row + 1)?))
++            .collect::<Result<Vec<_>>>()?;
++        Ok((
++            Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?,
++            Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?,
++        ))
++    }
++
+     fn predict(&self, x: &Array) -> Result<Array> {
+         let x = if self.predictor_half {
+             x.astype(Dtype::Float16)?
+@@ -573,11 +626,7 @@ impl SsdMoe {
+         #[cfg(test)]
+         let submissions_before = self.hybrid_submissions;
+         let rows = x.shape()[0];
+-        let pairs = (0..rows)
+-            .map(|row| self.route(&x.slice(0, row, row + 1)?))
+-            .collect::<Result<Vec<_>>>()?;
+-        let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+-        let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++        let (selected, weights) = self.route_rows(x)?;
+         let mut hot = self.prepare_resident_hot(x, &selected)?;
+         #[cfg(test)]
+         self.window_hot_before_readback
+@@ -749,13 +798,7 @@ impl SsdMoe {
+                 prepared.hot,
+             ),
+             None => {
+-                let pairs = (0..rows)
+-                    .map(|row| self.route(&x.slice(0, row, row + 1)?))
+-                    .collect::<Result<Vec<_>>>()?;
+-                let selected =
+-                    Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+-                let weights =
+-                    Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                let (selected, weights) = self.route_rows(x)?;
+                 let hot = if hybrid {
+                     self.prepare_resident_hot(x, &selected)?
+                 } else {
+@@ -1200,6 +1243,10 @@ impl SsdMoe {
+     }
+ }
+ 
++#[cfg(test)]
++#[path = "ssd_moe/batch_route_tests.rs"]
++mod batch_route_tests;
++
+ #[cfg(test)]
+ #[path = "ssd_moe/hybrid_tests.rs"]
+ mod hybrid_tests;

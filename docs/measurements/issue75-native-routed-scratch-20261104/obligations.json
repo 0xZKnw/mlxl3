@@ -1,0 +1,68 @@
+[
+  {
+    "name": "flash_expert_scratch::native_routed_scratch_flag_is_default_off_and_strict...",
+    "totals": [
+      [
+        "0",
+        "226",
+        "7"
+      ]
+    ],
+    "covers": [
+      [
+        "3",
+        "3"
+      ]
+    ],
+    "unreachable": [
+      "6: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "29: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "30: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "31: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "55: core::str::validations::run_utf8_validation.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation",
+      "56: core::str::validations::run_utf8_validation.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation",
+      "71: core::str::validations::run_utf8_validation.assertion.18\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:238:21 in function core::str::validations::run_utf8_validation"
+    ]
+  },
+  {
+    "name": "flash_expert_scratch::native_routed_scratch_prefix_capacities_use_wide_arithmetic...",
+    "totals": [
+      [
+        "0",
+        "31",
+        ""
+      ]
+    ],
+    "covers": [
+      [
+        "2",
+        "2"
+      ]
+    ],
+    "unreachable": []
+  },
+  {
+    "name": "flash_expert_scratch::native_routed_scratch_selection_preserves_all_fallbacks...",
+    "totals": [
+      [
+        "0",
+        "320",
+        "6"
+      ]
+    ],
+    "covers": [
+      [
+        "4",
+        "4"
+      ]
+    ],
+    "unreachable": [
+      "3: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "38: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"Cannot compute offset of a ZST\"\n\t - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "40: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with a divisor of zero\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "41: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with overflow\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "45: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "46: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide with overflow\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ]
+  }
+]

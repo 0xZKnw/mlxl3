@@ -1,0 +1,41 @@
+{
+  "model": "qwen-dense",
+  "mode": "frozen",
+  "status": "interrupted_or_failed",
+  "command": [
+    "/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0/build/issue75/r5-libtest",
+    "qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "binary_sha256": "2f7df9f74c96815a8c6f9ebf1d001e40094dd78b2afca79761cd7f39b7f0e748",
+  "source": "a7eb377cd46326760e295d9b79ad1c2d63622a3b",
+  "options": {
+    "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_QWEN_REFERENCE_DIR": "/Users/justin/Documents/mix-stq1_0/build/qwen38-norm-reference"
+  },
+  "limits": {
+    "rss": 10737418240,
+    "footprint": 12000000000,
+    "swapout": 33554432,
+    "swapin": 268435456,
+    "deadline_s": 180
+  },
+  "anchor_sha256": "8e6cef781e5c9c7eaa59cf48ad61049de0dcbdf495becaf8fb94ec9361cb6893",
+  "runner_sha256": "78f36f018a4d5edd4ec9655c6fb215dfbf8ca559c138524aadfe0d9692cf1f94",
+  "reaped": true,
+  "swapout_bytes": 523632640,
+  "swapin_bytes": 8093696,
+  "available_before": 11430379520,
+  "quiet_checks": 42,
+  "max_footprint_bytes": 9700103544,
+  "max_rss_bytes": 2582347776,
+  "error": "AssertionError: cumulative swap guard",
+  "exit_code": -15,
+  "elapsed_s": 11.585,
+  "stdout_sha256": "a55914db5f72d44ea635ea94f1657a53f54473cc75687b5e466a90b95bb89f6c",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

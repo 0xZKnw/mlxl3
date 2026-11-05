@@ -1,0 +1,353 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+      "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+      "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+      "bytes": 9547344,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+    "MLXL3_NATIVE_HC_UP_MIX": "1",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+    "MLXL3_NATIVE_HC_WORKSPACE": "1"
+  },
+  "phases": [
+    {
+      "name": "model",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+        "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "pid": 78905,
+      "seconds": 10.152637792023597,
+      "evidence": {
+        "case_count": 16,
+        "cases": [
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 248044,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 248044,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 248044,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 248044,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 1,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 1,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 1,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 1,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 42,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 42,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 42,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 42,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 7,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": false,
+            "down_uses": 0,
+            "parity": true,
+            "token": 7,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 7,
+            "up": false,
+            "up_uses": 0,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "cross_layer_triples": 34,
+            "down": true,
+            "down_uses": 96,
+            "parity": true,
+            "token": 7,
+            "up": true,
+            "up_uses": 97,
+            "workspace_uses": 97
+          }
+        ],
+        "compared_logits": 7946240,
+        "compared_state_words": 460849152,
+        "context": 4096,
+        "continuation_workspace_off": true,
+        "explicit_legacy_continuation": true,
+        "initial_archive_states": 84,
+        "initial_cross_layer_enabled": true,
+        "parity": true,
+        "reference_workspace_off": true,
+        "workspace_enabled": true
+      }
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-w-up-main32"
+      ],
+      "pid": 79002,
+      "seconds": 11.30955816700589,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    },
+    {
+      "name": "MAIN32",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-w-up-main32/candidate",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 79009,
+      "seconds": 37.20767866700771,
+      "evidence": {
+        "status": "exploratory_previous_control_screen",
+        "parity": true,
+        "all_children_joined": true,
+        "gain_established": false,
+        "outputs_checked": 6,
+        "previous_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-hc-main32/performance/3-closing-A2/report.json",
+        "first_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json",
+        "first_control_decode_tps": 6.561890387484125,
+        "candidate_vs_first_control_percent": 3.033849103951547,
+        "metrics": {
+          "decode_tps": {
+            "reference": 6.614966436247115,
+            "candidate": 6.760968240207095,
+            "single_sample_percent": 2.2071435337895906
+          },
+          "decode_seconds": {
+            "reference": 4.68634275,
+            "candidate": 4.585142082999999,
+            "single_sample_percent": -2.1594806952607293
+          },
+          "ttft_seconds": {
+            "reference": 13.101635917000001,
+            "candidate": 12.900842125,
+            "single_sample_percent": -1.5325856501588575
+          },
+          "elapsed_seconds": {
+            "reference": 17.787992542,
+            "candidate": 17.4859985,
+            "single_sample_percent": -1.6977409974000657
+          }
+        },
+        "metal_allocated_bytes": [
+          6608617472,
+          6613647360
+        ],
+        "logical_workspace_ledger_bytes": 4221440,
+        "limits": [
+          "previous dated A, not adjacent contemporaneous control",
+          "one warmup and one measured response each; no drift estimate",
+          "MAIN only; no established/sustained gain"
+        ]
+      }
+    }
+  ]
+}

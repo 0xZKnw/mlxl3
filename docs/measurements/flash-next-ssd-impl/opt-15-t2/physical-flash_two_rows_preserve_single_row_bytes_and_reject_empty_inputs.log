@@ -1,0 +1,14 @@
+
+running 1 test
+test linear::tests::flash_two_rows_preserve_single_row_bytes_and_reject_empty_inputs ... T2 projection exact: model.language_model.layers.0.mlp.shared_expert.gate_proj
+T2 projection exact: model.language_model.layers.0.mlp.shared_expert.down_proj
+T2 projection exact: model.language_model.layers.0.linear_attn.in_proj_qkv
+T2 projection exact: model.language_model.layers.0.linear_attn.in_proj_z
+T2 projection exact: model.language_model.layers.0.linear_attn.out_proj
+T2 projection exact: model.language_model.layers.3.self_attn.q_proj
+T2 projection exact: model.language_model.layers.3.self_attn.o_proj
+T2 projection exact: lm_head
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 165 filtered out; finished in 1.59s
+

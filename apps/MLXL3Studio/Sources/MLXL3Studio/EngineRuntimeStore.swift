@@ -14,6 +14,7 @@ enum EngineRuntimeStore {
 
   struct Manifest: Codable, Sendable {
     let schema: Int
+    let backend: String?
     let version: String
     let bridgeProtocol: Int
     let architecture: String
@@ -22,20 +23,35 @@ enum EngineRuntimeStore {
     let files: [String: FileRecord]
 
     enum CodingKeys: String, CodingKey {
-      case schema, version, architecture, files
+      case schema, backend, version, architecture, files
       case bridgeProtocol = "bridge_protocol"
       case minimumMacOS = "minimum_macos"
       case minimumAppVersion = "minimum_app_version"
+    }
+
+    var runtimeFiles: Set<String> {
+      schema == 2 ? Set(["mlxl3"]) : EngineRuntimeStore.runtimeFiles
+    }
+
+    func validateRuntimeInfo(_ payload: [String: Any]?) throws {
+      guard payload?["bridge_protocol"] as? Int == protocolVersion,
+        payload?["version"] as? String == version,
+        payload?["mlx_enabled"] as? Bool == (schema == 1),
+        schema == 1 || (payload?["backend"] as? String == "metal"
+          && payload?["chat_enabled"] as? Bool == true
+          && payload?["architecture"] as? String == "aarch64")
+      else { throw EngineError.incompatible }
     }
 
     func validate(
       appVersion: String, expectedVersion: String? = nil,
       osVersion: String = EngineRuntimeStore.osVersion
     ) throws {
-      guard schema == 1, bridgeProtocol == protocolVersion, architecture == "arm64",
+      guard ((schema == 1 && backend == nil) || (schema == 2 && backend == "metal")), bridgeProtocol == protocolVersion, architecture == "arm64",
         let incoming = SemanticVersion(version), version.split(separator: ".").count == 3,
         version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
         let minimumApp = SemanticVersion(minimumAppVersion),
+        schema != 2 || minimumApp >= SemanticVersion("2.0.0")!,
         let app = SemanticVersion(appVersion), app >= minimumApp,
         let minimumOS = SemanticVersion(minimumMacOS),
         let os = SemanticVersion(osVersion), os >= minimumOS,
@@ -91,7 +107,7 @@ enum EngineRuntimeStore {
     do {
       let pointer = try readPointer(root.appendingPathComponent("current.json"))
       guard let incoming = SemanticVersion(pointer.version),
-        let bundled = SemanticVersion(bundledVersion), incoming >= bundled
+        let bundled = SemanticVersion(bundledVersion), incoming > bundled
       else { return nil }
       let directory = root.appendingPathComponent("v" + pointer.version, isDirectory: true)
       guard
@@ -108,7 +124,8 @@ enum EngineRuntimeStore {
   /// back to the bundled runtime without another download.
   @discardableResult
   static func reject(_ executable: URL, root: URL = root) -> Bool {
-    guard let active = resolve(appVersion: "999.0.0", root: root, bundledVersion: "1.2.0"),
+    // Ignore bundle preference only when disabling this exact failing managed path.
+    guard let active = resolve(appVersion: "999.0.0", root: root, bundledVersion: "0.0.0"),
       active.standardizedFileURL == executable.standardizedFileURL
     else { return false }
     do {
@@ -148,6 +165,11 @@ enum EngineRuntimeStore {
     }
     let manifest = try readManifest(directory)
     try manifest.validate(appVersion: appVersion, expectedVersion: expectedVersion)
+    if manifest.schema == 2 {
+      let names = Set(try FileManager.default.contentsOfDirectory(atPath: directory.path))
+      guard names.subtracting(manifest.runtimeFiles.union(["engine.json", "disabled"])).isEmpty
+      else { throw EngineError.invalidArchive }
+    }
     for (name, record) in manifest.files {
       let file = directory.appendingPathComponent(name)
       try requireRegularFile(file, maximum: maximumFileBytes)
@@ -166,25 +188,26 @@ enum EngineRuntimeStore {
     else { throw EngineError.invalidArchive }
   }
 
-  /// Avoid archive extraction entirely: read the five exact members to
+  /// Avoid archive extraction entirely: read the manifest-selected exact members to
   /// stdout, then write them to paths we construct. Links, duplicates, extra
   /// files and traversal names are rejected before any member is materialized.
   static func stage(archive: URL, directory: URL, releaseVersion: String, appVersion: String) throws
   {
-    let allowed = runtimeFiles.union(["engine.json"])
     let listing = try UpdateManager.runProcess(
       "/usr/bin/tar", arguments: ["-tzf", archive.path], outputLimit: 64 * 1_024)
     guard let text = String(data: listing, encoding: .utf8) else {
       throw EngineError.invalidArchive
     }
     let members = text.split(separator: "\n").map(String.init)
-    guard members.count == allowed.count, Set(members) == allowed else {
+    guard members.count >= 2, members.count <= 5,
+      members.filter({ $0 == "engine.json" }).count == 1,
+      Set(members).isSubset(of: runtimeFiles.union(["engine.json"])) else {
       throw EngineError.invalidArchive
     }
     let verbose = try UpdateManager.runProcess(
       "/usr/bin/tar", arguments: ["-tvzf", archive.path], outputLimit: 64 * 1_024)
     guard let types = String(data: verbose, encoding: .utf8),
-      types.split(separator: "\n").count == allowed.count,
+      types.split(separator: "\n").count == members.count,
       types.split(separator: "\n").allSatisfy({ $0.hasPrefix("-") })
     else { throw EngineError.invalidArchive }
     let manifestData = try UpdateManager.runProcess(
@@ -192,9 +215,13 @@ enum EngineRuntimeStore {
     guard manifestData.count <= 64 * 1_024 else { throw EngineError.invalidArchive }
     let manifest = try JSONDecoder().decode(Manifest.self, from: manifestData)
     try manifest.validate(appVersion: appVersion, expectedVersion: releaseVersion)
+    let allowed = manifest.runtimeFiles.union(["engine.json"])
+    guard members.count == allowed.count, Set(members) == allowed else {
+      throw EngineError.invalidArchive
+    }
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
     try manifestData.write(to: directory.appendingPathComponent("engine.json"), options: .atomic)
-    for name in runtimeFiles.sorted() {
+    for name in manifest.runtimeFiles.sorted() {
       let data = try UpdateManager.runProcess(
         "/usr/bin/tar", arguments: ["-xOzf", archive.path, name],
         outputLimit: manifest.files[name]!.size)
@@ -223,20 +250,24 @@ enum EngineRuntimeStore {
     try stage(
       archive: archive, directory: stageURL, releaseVersion: release.version, appVersion: appVersion
     )
-    for name in ["mlxl3", "libmlx.dylib", "libjaccl.dylib"] {
+    let manifest = try readManifest(stageURL)
+    for name in manifest.runtimeFiles.sorted() where name != "mlx.metallib" {
       let file = stageURL.appendingPathComponent(name)
       _ = try UpdateManager.runProcess(
-        "/usr/bin/lipo", arguments: ["-verify_arch", "arm64", file.path])
+        "/usr/bin/lipo", arguments: [file.path, "-verify_arch", "arm64"])
       _ = try UpdateManager.runProcess(
         "/usr/bin/codesign", arguments: ["--verify", "--strict", file.path])
     }
     let executable = stageURL.appendingPathComponent("mlxl3")
     let info = try UpdateManager.runProcess(executable.path, arguments: ["runtime-info"])
     let payload = try JSONSerialization.jsonObject(with: info) as? [String: Any]
-    guard payload?["bridge_protocol"] as? Int == protocolVersion,
-      payload?["version"] as? String == release.version,
-      payload?["mlx_enabled"] as? Bool == true
-    else { throw EngineError.incompatible }
+    try manifest.validateRuntimeInfo(payload)
+    if manifest.schema == 2 {
+      let linked = try UpdateManager.runProcess("/usr/bin/otool", arguments: ["-L", executable.path])
+      guard let text = String(data: linked, encoding: .utf8),
+        !["libmlx.", "libjaccl.", "mlx.metallib"].contains(where: { text.lowercased().contains($0) })
+      else { throw EngineError.incompatible }
+    }
     _ = try UpdateManager.runProcess(executable.path, arguments: ["list", "--json"])
     let destination = root.appendingPathComponent("v" + release.version, isDirectory: true)
     if FileManager.default.fileExists(atPath: destination.path) {

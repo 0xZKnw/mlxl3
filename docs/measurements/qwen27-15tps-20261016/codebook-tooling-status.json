@@ -1,0 +1,66 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "format",
+      "--check",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "tests/test_smallm_reuse.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.012952917022630572
+  },
+  {
+    "name": "lint",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "tests/test_smallm_reuse.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.011782666086219251
+  },
+  {
+    "name": "compile",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "py_compile",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "tests/test_smallm_reuse.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.030143167008645833
+  },
+  {
+    "name": "focused-tests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_benchmark.py"
+    ],
+    "exit_code": 0,
+    "seconds": 5.3047475420171395
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "--analysis_kind=asserts"
+    ],
+    "exit_code": 1,
+    "seconds": 0.018670667079277337
+  }
+]

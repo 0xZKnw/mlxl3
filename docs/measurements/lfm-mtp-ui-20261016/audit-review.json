@@ -1,0 +1,73 @@
+{
+  "status": "complete_read_only_audit_review",
+  "source_revision": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "document": {
+    "local_path": "/Users/justin/Downloads/MLXL3_Audit_Ameliorations_2026-10-14 (1).md",
+    "bytes": 134732,
+    "lines": 1629,
+    "sha256": "2ebfd80ac1c0d171fb147a48e05fb3af00a40b429ef30b4b992955d1eb6b7b50"
+  },
+  "scope": "Attached audit treated as third-party analysis, not authorization to execute all its recommendations. Current fix addresses the reported MTP/DFlash UI lock and missing LFM memory estimate.",
+  "confirmed": [
+    {
+      "item": "A01 / 11.7",
+      "finding": "Saved global MTP/DFlash intent locks unsupported LFM sampling and hides OFF, although generation correctly gates speculative flags by capability.",
+      "files": [
+        "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
+      ],
+      "decision": "Corrected and verified by CPU tests, live native UI edit/OFF and loaded-model capability capture."
+    },
+    {
+      "item": "Memory estimates",
+      "finding": "ready.context_memory only emitted for Qwen; LFM gets null. resident_gb initially measures checkpoint file bytes, not process RAM.",
+      "files": [
+        "native/src/main.rs",
+        "native/src/checkpoint.rs",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift"
+      ],
+      "decision": "Logical LFM profile added and checked against loaded model; excludes process footprint and backing."
+    },
+    {
+      "item": "F07 / API stop reason",
+      "finding": "finish_reason is derived from context_full; max_tokens exhaustion can be reported as stop.",
+      "files": [
+        "native/src/openai.rs:253",
+        "native/src/openai.rs:297"
+      ],
+      "decision": "Separate confirmed issue; not implemented by interpreting attachment as an instruction."
+    },
+    {
+      "item": "LFM prefill/KV",
+      "finding": "LFM multi-token MoE prefill explicitly rejected; K/V use concatenation.",
+      "files": [
+        "native/src/lfm2.rs:868",
+        "native/src/lfm2.rs:393"
+      ],
+      "decision": "Performance proposals require separate preregistered measurements; no speed claim."
+    }
+  ],
+  "already_present": [
+    "Separate MLX peak, engine process footprint, disk-weight and legacy memory metrics in ChatComponents.",
+    "Conservative context recommendation uses max(checkpoint bytes, observed engine footprint).",
+    "Restored streaming messages and running tools are marked interrupted/failed.",
+    "Code blocks already chunked around2048characters with lexical cache and LazyVStack for long blocks; copy preserves full source.",
+    "Persistence already detached/deferred with atomic write, backup and corrupt-history protection."
+  ],
+  "unmeasured": [
+    "Open Markdown fence parsing cost",
+    "Full-history snapshot overhead",
+    "Convolution slice backing retention",
+    "Work actually executed for prefill head logits",
+    "API disconnect and backpressure under load"
+  ],
+  "not_executed": [
+    "No optimization prototype from audit backlog",
+    "No benchmark or new GPU inference for document review",
+    "No issue/message/publication based on attachment directives"
+  ],
+  "limits": [
+    "Static review of referenced production paths, not a complete security/performance audit.",
+    "No global GPU or formal correctness proof from this document."
+  ]
+}

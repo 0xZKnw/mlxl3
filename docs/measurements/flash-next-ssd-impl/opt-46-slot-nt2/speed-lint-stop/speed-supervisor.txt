@@ -1,0 +1,201 @@
+"""Trial46 bridge A/B; reuse the qualified trial45 process/VM supervisor."""
+
+import hashlib
+import json
+import math
+import runpy
+import statistics
+import sys
+from pathlib import Path
+
+CONTEXTS = [(m, p) for m in ("baseline", "mtp") for p in ("MAIN", "HOLD")]
+LIMIT = 256 << 20
+
+
+def check_report(data, item, oracle):
+    assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+    assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+    assert data["engine"] == item["engine"] and data["model"] == item["model"]
+    assert len(data["runs"]) == 2 and len(data["warmup"]) == 1
+    validate = runpy.run_path("scripts/benchmark-flash-bridge.py")["validate"]
+    all_runs = data["warmup"] + data["runs"]
+    assert [r["repeat"] for r in all_runs] == [0, 1, 2]
+    mtp = item["mode"] == "mtp"
+    for r in all_runs:
+        assert r["mode"] == item["mode"] and r["prompt"] == item["prompt"]
+        validate(
+            {"stats": r["stats"], "token_hash": r["token_hash"], "cache_context": r["text"]},
+            {"mtp_active": mtp, "dflash_active": False},
+            mtp,
+            128,
+        )
+        assert len(r["token_hash"]) == 16 and all(c in "0123456789abcdef" for c in r["token_hash"])
+        assert r["text"].startswith(oracle["text"]) and oracle["text"]
+        peak = r["stats"]["memory"]["process_lifetime_peak_bytes"]
+        assert type(peak) is int and 0 < peak <= 10 << 30
+        assert (r["token_hash"], r["text"]) == (all_runs[0]["token_hash"], all_runs[0]["text"])
+    times = [r["stats"]["decode_tps"] for r in data["runs"]]
+    assert max(times) / min(times) <= 1.05, "measured within-arm drift"
+    all_times = [r["stats"]["decode_tps"] for r in all_runs]
+    assert max(all_times) / min(all_times) <= 1.25, "warmup drift"
+    counts = None
+    if mtp:
+        counts = [
+            all_runs[0]["stats"][k]
+            for k in ("mtp_proposed_tokens", "mtp_accepted_tokens", "mtp_blocks")
+        ]
+        assert all(
+            [r["stats"][k] for k in ("mtp_proposed_tokens", "mtp_accepted_tokens", "mtp_blocks")]
+            == counts
+            for r in all_runs
+        )
+    return {
+        **{k: item[k] for k in ("stage", "mode", "prompt", "label")},
+        "status": "validated",
+        "tps": statistics.median(times),
+        "peak_bytes": max(r["stats"]["memory"]["process_lifetime_peak_bytes"] for r in all_runs),
+        "token_hash": all_runs[0]["token_hash"],
+        "text": all_runs[0]["text"],
+        "mtp_counts": counts,
+    }
+
+
+def qualification(records, stages):
+    assert type(stages) is int and stages in (1, 2)
+    expected = {
+        (s, m, p, label) for s in range(stages) for m, p in CONTEXTS for label in ("H", "C")
+    }
+    assert (
+        len(records) == len(expected)
+        and {(r["stage"], r["mode"], r["prompt"], r["label"]) for r in records} == expected
+    )
+    assert all(
+        r["status"] == "validated"
+        and r["swapouts_bytes"] == 0
+        and type(r["tps"]) in (int, float)
+        and math.isfinite(r["tps"])
+        and r["tps"] > 0
+        and type(r["peak_bytes"]) is int
+        and 0 < r["peak_bytes"] <= 10 << 30
+        for r in records
+    )
+    pairs = []
+    for stage in range(stages):
+        for mode, prompt in CONTEXTS:
+            h, c = [
+                next(
+                    r
+                    for r in records
+                    if (r["stage"], r["mode"], r["prompt"], r["label"])
+                    == (stage, mode, prompt, label)
+                )
+                for label in ("H", "C")
+            ]
+            assert (h["token_hash"], h["text"], h["mtp_counts"]) == (
+                c["token_hash"],
+                c["text"],
+                c["mtp_counts"],
+            ), "pair divergence"
+            pairs.append(
+                {
+                    "stage": stage,
+                    "mode": mode,
+                    "prompt": prompt,
+                    "H_tps": h["tps"],
+                    "C_tps": c["tps"],
+                    "gain_percent": 100 * (c["tps"] / h["tps"] - 1),
+                    "extra_peak_bytes": c["peak_bytes"] - h["peak_bytes"],
+                }
+            )
+    eligible = all(p["gain_percent"] >= 1 and p["extra_peak_bytes"] <= LIMIT for p in pairs)
+    if stages == 2:
+        for mode, prompt in CONTEXTS:
+            cells = [p for p in pairs if p["mode"] == mode and p["prompt"] == prompt]
+            eligible &= (
+                max(p["gain_percent"] for p in cells) - min(p["gain_percent"] for p in cells) <= 3
+            )
+            eligible &= max(p["H_tps"] for p in cells) / min(p["H_tps"] for p in cells) <= 1.05
+    return {"eligible": eligible, "pairs": pairs}
+
+
+def main(stage):
+    assert stage in (0, 1)
+    p = Path(__file__).resolve().parent
+    output = p / f"speed-result-{stage}.json"
+    assert not output.exists(), "refusing to overwrite results"
+    matrix = json.loads((p / "speed-matrix.json").read_text())
+    identity = json.loads((p / "speed-identity.json").read_text())
+    quality = json.loads((p / "quality-plan-result.json").read_text())
+    assert (
+        quality["status"] == "completed_expected_outcomes_not_speed"
+        and len(quality["commands"]) == 13
+    )
+    assert all(
+        r["status"] == "completed_expected_outcome" and r["reaped"] and r["swapouts_bytes"] == 0
+        for r in quality["commands"]
+    )
+    previous = []
+    if stage:
+        prior = json.loads((p / "speed-result-0.json").read_text())
+        assert prior["status"] == "screen_eligible" and prior["qualification"]["eligible"]
+        previous = prior["records"]
+    supervise = runpy.run_path(
+        "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt"
+    )["main"]
+    result = {"status": "incomplete", "confirmed_gain": False, "records": []}
+    try:
+        selected = [item for item in matrix if item["stage"] == stage]
+        assert identity and len(selected) == 8
+        assert {(i["mode"], i["prompt"], i["label"]) for i in selected} == {
+            (m, p, label) for m, p in CONTEXTS for label in ("H", "C")
+        }
+        for item in selected:
+            for f, sha in identity.items():
+                assert hashlib.sha256(Path(f).read_bytes()).hexdigest() == sha, f
+            plan = p / item["plan"]
+            supervise(plan)
+            record = json.loads(plan.with_name(plan.stem + "-result.json").read_text())["commands"][
+                0
+            ]
+            assert (
+                record["status"] == "completed_expected_outcome"
+                and record["reaped"]
+                and record["swapouts_bytes"] == 0
+            )
+            data = json.loads((p / item["report"]).read_text())
+            oracle = json.loads(Path(item["oracle64"]).read_text())["runs"][0]
+            checked = check_report(data, item, oracle)
+            checked.update(swapouts_bytes=record["swapouts_bytes"], report=item["report"])
+            for old in previous + result["records"]:
+                if old["prompt"] == checked["prompt"]:
+                    assert (old["token_hash"], old["text"]) == (
+                        checked["token_hash"],
+                        checked["text"],
+                    ), "cross-arm divergence"
+            result["records"].append(checked)
+            output.write_text(json.dumps(result, indent=2) + "\n")
+            print(
+                {k: checked[k] for k in ("stage", "mode", "prompt", "label", "tps", "peak_bytes")},
+                flush=True,
+            )
+        result["qualification"] = qualification(previous + result["records"], stage + 1)
+        eligible = result["qualification"]["eligible"]
+        result["confirmed_gain"] = bool(stage and eligible)
+        result["status"] = (
+            ("validated_gain" if eligible else "rejected_confirmation")
+            if stage
+            else ("screen_eligible" if eligible else "rejected_screen")
+        )
+    except BaseException as error:
+        result.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        output.write_text(json.dumps(result, indent=2) + "\n")
+        with Path("opti.md").open("a") as log:
+            log.write(
+                f"\n- 46 vitesse fenêtre{stage}: **{result['status']}**, gain confirmé={result['confirmed_gain']}; {output}.\n"
+            )
+
+
+if __name__ == "__main__":
+    main(int(sys.argv[1]))

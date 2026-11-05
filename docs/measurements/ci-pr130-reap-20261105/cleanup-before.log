@@ -1,0 +1,201 @@
+.
+======================================================================
+ERROR: test_child_exit_between_poll_and_group_signal_is_reaped (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 54, in test_child_exit_between_poll_and_group_signal_is_reaped
+    record = self.run_cleanup(source, child, vanished, Path(tmp))
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts/quality-supervisor.txt", line 344, in <module>
+    os.killpg(child.pid, signal.SIGTERM)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 52, in vanished
+    raise ProcessLookupError("child exited before group signal")
+ProcessLookupError: child exited before group signal
+
+======================================================================
+ERROR: test_child_exit_between_poll_and_group_signal_is_reaped (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 54, in test_child_exit_between_poll_and_group_signal_is_reaped
+    record = self.run_cleanup(source, child, vanished, Path(tmp))
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality/quality-supervisor.txt", line 354, in <module>
+    os.killpg(child.pid, signal.SIGTERM)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 52, in vanished
+    raise ProcessLookupError("child exited before group signal")
+ProcessLookupError: child exited before group signal
+
+======================================================================
+ERROR: test_child_exit_between_poll_and_group_signal_is_reaped (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-3g-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 54, in test_child_exit_between_poll_and_group_signal_is_reaped
+    record = self.run_cleanup(source, child, vanished, Path(tmp))
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-3g-quality/quality-supervisor.txt", line 354, in <module>
+    os.killpg(child.pid, signal.SIGTERM)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 52, in vanished
+    raise ProcessLookupError("child exited before group signal")
+ProcessLookupError: child exited before group signal
+
+======================================================================
+ERROR: test_child_exit_between_poll_and_group_signal_is_reaped (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts4-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 54, in test_child_exit_between_poll_and_group_signal_is_reaped
+    record = self.run_cleanup(source, child, vanished, Path(tmp))
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/quality-supervisor.txt", line 354, in <module>
+    os.killpg(child.pid, signal.SIGTERM)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 52, in vanished
+    raise ProcessLookupError("child exited before group signal")
+ProcessLookupError: child exited before group signal
+
+======================================================================
+ERROR: test_cleanup_error_publishes_explicit_false_without_passing (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 72, in test_cleanup_error_publishes_explicit_false_without_passing
+    report = json.loads((Path(tmp) / "quality.json").read_text())[0]
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1256, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1242, in open
+    return io.open(self, mode, buffering, encoding, errors, newline,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1110, in _opener
+    return self._accessor.open(self, flags, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/tmpkrb44kvr/quality.json'
+
+======================================================================
+ERROR: test_cleanup_error_publishes_explicit_false_without_passing (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 72, in test_cleanup_error_publishes_explicit_false_without_passing
+    report = json.loads((Path(tmp) / "quality.json").read_text())[0]
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1256, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1242, in open
+    return io.open(self, mode, buffering, encoding, errors, newline,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1110, in _opener
+    return self._accessor.open(self, flags, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/tmpdw73skkx/quality.json'
+
+======================================================================
+ERROR: test_cleanup_error_publishes_explicit_false_without_passing (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-3g-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 72, in test_cleanup_error_publishes_explicit_false_without_passing
+    report = json.loads((Path(tmp) / "quality.json").read_text())[0]
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1256, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1242, in open
+    return io.open(self, mode, buffering, encoding, errors, newline,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1110, in _opener
+    return self._accessor.open(self, flags, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/tmpqimha3hi/quality.json'
+
+======================================================================
+ERROR: test_cleanup_error_publishes_explicit_false_without_passing (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts4-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 72, in test_cleanup_error_publishes_explicit_false_without_passing
+    report = json.loads((Path(tmp) / "quality.json").read_text())[0]
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1256, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1242, in open
+    return io.open(self, mode, buffering, encoding, errors, newline,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1110, in _opener
+    return self._accessor.open(self, flags, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/tmp51k1sss5/quality.json'
+
+======================================================================
+ERROR: test_unresponsive_child_has_two_bounded_waits_and_never_passes (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts/quality-supervisor.txt", line 346, in <module>
+    child.wait(timeout=5)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 92, in wait
+    raise subprocess.TimeoutExpired("fixture", timeout)
+subprocess.TimeoutExpired: Command 'fixture' timed out after 5 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 98, in test_unresponsive_child_has_two_bounded_waits_and_never_passes
+    self.run_cleanup(source, child, lambda *_: None, Path(tmp), status="passed")
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts/quality-supervisor.txt", line 349, in <module>
+    child.wait()
+TypeError: wait() missing 1 required positional argument: 'timeout'
+
+======================================================================
+ERROR: test_unresponsive_child_has_two_bounded_waits_and_never_passes (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality/quality-supervisor.txt", line 356, in <module>
+    child.wait(timeout=5)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 92, in wait
+    raise subprocess.TimeoutExpired("fixture", timeout)
+subprocess.TimeoutExpired: Command 'fixture' timed out after 5 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 98, in test_unresponsive_child_has_two_bounded_waits_and_never_passes
+    self.run_cleanup(source, child, lambda *_: None, Path(tmp), status="passed")
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality/quality-supervisor.txt", line 359, in <module>
+    child.wait()
+TypeError: wait() missing 1 required positional argument: 'timeout'
+
+======================================================================
+ERROR: test_unresponsive_child_has_two_bounded_waits_and_never_passes (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts3-3g-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-3g-quality/quality-supervisor.txt", line 356, in <module>
+    child.wait(timeout=5)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 92, in wait
+    raise subprocess.TimeoutExpired("fixture", timeout)
+subprocess.TimeoutExpired: Command 'fixture' timed out after 5 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 98, in test_unresponsive_child_has_two_bounded_waits_and_never_passes
+    self.run_cleanup(source, child, lambda *_: None, Path(tmp), status="passed")
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-3g-quality/quality-supervisor.txt", line 359, in <module>
+    child.wait()
+TypeError: wait() missing 1 required positional argument: 'timeout'
+
+======================================================================
+ERROR: test_unresponsive_child_has_two_bounded_waits_and_never_passes (test_flash_draft_supervisor.DraftSupervisorCleanupTest) (source='drafts4-quality')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/quality-supervisor.txt", line 356, in <module>
+    child.wait(timeout=5)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 92, in wait
+    raise subprocess.TimeoutExpired("fixture", timeout)
+subprocess.TimeoutExpired: Command 'fixture' timed out after 5 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 98, in test_unresponsive_child_has_two_bounded_waits_and_never_passes
+    self.run_cleanup(source, child, lambda *_: None, Path(tmp), status="passed")
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/tests/test_flash_draft_supervisor.py", line 42, in run_cleanup
+    exec(cleanup_source(source), context)
+  File "/Users/justin/.codex/worktrees/pr132-coverage-fix/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/quality-supervisor.txt", line 359, in <module>
+    child.wait()
+TypeError: wait() missing 1 required positional argument: 'timeout'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.056s
+
+FAILED (errors=12)

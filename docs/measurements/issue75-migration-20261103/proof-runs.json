@@ -1,0 +1,86 @@
+{
+  "affected": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "stale_prefetch_completion_preserves_new_reservation",
+      "--harness",
+      "native_prepare_grid_contains_complete_hadamard_groups",
+      "--harness",
+      "admission_and_shrink_respect_memory_bounds"
+    ],
+    "timeout_s": 150,
+    "seconds": 18.19908891597879,
+    "status": "completed",
+    "exit": 0,
+    "summaries": [
+      "** 0 of 111 failed",
+      "** 2 of 2 cover properties satisfied",
+      "** 0 of 1214 failed (17 unreachable)",
+      "** 2 of 2 cover properties satisfied",
+      "** 0 of 61 failed",
+      "** 3 of 3 cover properties satisfied",
+      "Complete - 3 successfully verified harnesses, 0 failures, 3 total."
+    ]
+  },
+  "fill": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "failed_fill_invalidates_ready_keys_without_releasing_pending_slots"
+    ],
+    "timeout_s": 90,
+    "seconds": 72.91836654100916,
+    "status": "completed",
+    "exit": 0,
+    "summaries": [
+      "** 0 of 1247 failed (12 unreachable)",
+      "** 2 of 2 cover properties satisfied",
+      "Complete - 1 successfully verified harnesses, 0 failures, 1 total."
+    ]
+  },
+  "completion": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pending_publish_rejects_stale_failed_and_duplicate_records"
+    ],
+    "timeout_s": 90,
+    "seconds": 5.816683874989394,
+    "status": "completed",
+    "exit": 0,
+    "summaries": [
+      "** 0 of 798 failed (7 unreachable)",
+      "** 5 of 5 cover properties satisfied",
+      "Complete - 1 successfully verified harnesses, 0 failures, 1 total."
+    ]
+  },
+  "full": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "-Z",
+      "stubbing",
+      "--jobs",
+      "1",
+      "--output-format",
+      "terse"
+    ],
+    "timeout_s": 180,
+    "seconds": 1.689555000019027,
+    "status": "failed",
+    "exit": 1,
+    "summaries": []
+  }
+}

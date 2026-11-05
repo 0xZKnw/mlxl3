@@ -1,0 +1,27 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.85s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-e6d055582b363ce4)
+
+running 19 tests
+test flash_support::tests::available_memory_accepts_older_complete_revisions ... ok
+test flash_support::tests::available_memory_query_returns_a_positive_snapshot ... ok
+test flash_support::tests::available_memory_rejects_truncated_and_oversized_snapshots ... ok
+test flash_support::tests::disk_ranges_reject_empty_overflow_and_out_of_bounds ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... ok
+test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+test flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand ... ok
+test flash_support::tests::predictions_protect_victims_without_inventing_frequency_or_blocking_demand ... ok
+test flash_support::tests::publication_clock_exhaustion_frees_pending_without_a_false_hit ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+test flash_support::tests::les_admission_retains_recent_unused_records_without_inventing_frequency ... ok
+test flash_support::tests::predictive_victims_replay_symbolic_case_and_all_protection_masks ... ok
+test flash_support::tests::speculative_admission_preserves_actual_cohort_space_and_failed_reservations ... ok
+test flash_support::tests::persistent_prefetch_sequences_preserve_cache_invariants ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+test flash_support::tests::free_slots_precede_evictions_through_failed_and_duplicate_publications ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.41s
+

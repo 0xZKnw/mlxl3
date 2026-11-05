@@ -1,0 +1,198 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+      "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+      "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+      "bytes": 9547344,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+    "MLXL3_NATIVE_HC_UP_MIX": "0",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+    "MLXL3_NATIVE_HC_WORKSPACE": "1"
+  },
+  "phases": [
+    {
+      "name": "model",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+        "gpu::hc::workspace_tests::physical_workspace_preserves_model_states_logits_hidden_and_prefix",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "pid": 78318,
+      "seconds": 6.007929749990581,
+      "evidence": {
+        "actual_workspace_uses": 388,
+        "compared_hidden_words": 40960,
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "initial_archive_states": 84,
+        "initial_cross_layer_enabled": true,
+        "initial_workspace_enabled": true,
+        "parity": true,
+        "retained_prefix": true,
+        "steps": [
+          {
+            "continuation_cross_layer_triples": 0,
+            "continuation_workspace_uses": 0,
+            "control_cross_layer_triples": 34,
+            "control_workspace_uses": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 1,
+            "token": 248044,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "continuation_workspace_uses": 0,
+            "control_cross_layer_triples": 34,
+            "control_workspace_uses": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 2,
+            "token": 1,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "continuation_workspace_uses": 0,
+            "control_cross_layer_triples": 34,
+            "control_workspace_uses": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 3,
+            "token": 42,
+            "workspace_uses": 97
+          },
+          {
+            "continuation_cross_layer_triples": 0,
+            "continuation_workspace_uses": 0,
+            "control_cross_layer_triples": 34,
+            "control_workspace_uses": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 4,
+            "token": 7,
+            "workspace_uses": 97
+          }
+        ]
+      }
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-workspace-main32"
+      ],
+      "pid": 78407,
+      "seconds": 11.666300999990199,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    },
+    {
+      "name": "MAIN32",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-workspace-main32/candidate",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "300"
+      ],
+      "pid": 78423,
+      "seconds": 37.87976179100224,
+      "evidence": {
+        "status": "exploratory_previous_control_screen",
+        "parity": true,
+        "all_children_joined": true,
+        "gain_established": false,
+        "outputs_checked": 4,
+        "previous_control": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json",
+        "metrics": {
+          "decode_tps": {
+            "reference": 6.561890387484125,
+            "candidate": 6.696875093580052,
+            "single_sample_percent": 2.0571008981404404
+          },
+          "decode_seconds": {
+            "reference": 4.724248375,
+            "candidate": 4.629024667000001,
+            "single_sample_percent": -2.0156372070509243
+          },
+          "ttft_seconds": {
+            "reference": 13.4188145,
+            "candidate": 13.106371749,
+            "single_sample_percent": -2.328393100597681
+          },
+          "elapsed_seconds": {
+            "reference": 18.143075667,
+            "candidate": 17.735411542,
+            "single_sample_percent": -2.246940554525112
+          }
+        },
+        "metal_allocated_bytes": [
+          6608617472,
+          6618415104
+        ],
+        "logical_workspace_ledger_bytes": 8194560,
+        "limits": [
+          "previous dated A, not adjacent contemporaneous control",
+          "one warmup and one measured response each; no drift estimate",
+          "MAIN only; no established/sustained gain"
+        ]
+      }
+    }
+  ]
+}

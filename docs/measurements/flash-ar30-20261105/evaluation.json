@@ -1,0 +1,154 @@
+{
+  "status": "complete_numeric_and_short_screen_evaluation",
+  "new_defaults": "all_four_OFF",
+  "target_11_12_reached": false,
+  "campaigns": {
+    "speed": [
+      {
+        "name": "control-start",
+        "tok_s": 7.582778717401473,
+        "seconds": 31.90819337501307,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "kernels",
+        "tok_s": 8.854881067521605,
+        "seconds": 43.20023129199399,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "host",
+        "tok_s": 7.243154034714211,
+        "seconds": 45.34968250000384,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "combined",
+        "tok_s": 5.543504394255463,
+        "seconds": 39.70423179201316,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "control-end",
+        "tok_s": 8.361276460784955,
+        "seconds": 31.336941624991596,
+        "outputs": 2,
+        "joined": true
+      }
+    ],
+    "confirm-01": [
+      {
+        "name": "old-start",
+        "tok_s": 9.83960908081233,
+        "seconds": 25.939406624995172,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "new-off",
+        "tok_s": 9.672806402524163,
+        "seconds": 26.518627707991982,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "kernels-A",
+        "tok_s": 8.940462217570618,
+        "seconds": 28.66419033301645,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "kernels-B",
+        "tok_s": 8.741836576557851,
+        "seconds": 28.52483466701233,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "old-end",
+        "tok_s": 9.628187108869787,
+        "seconds": 26.493421124992892,
+        "outputs": 2,
+        "joined": true
+      }
+    ],
+    "split-01": [
+      {
+        "name": "control-start",
+        "tok_s": 10.40929895017919,
+        "seconds": 25.098297624994302,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "router",
+        "tok_s": 10.323522401348606,
+        "seconds": 25.103195832984056,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "scratch",
+        "tok_s": 10.35591094517898,
+        "seconds": 25.13664266699925,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "greedy",
+        "tok_s": 10.24736787728449,
+        "seconds": 25.447498875000747,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "cooperative",
+        "tok_s": 9.38432626358283,
+        "seconds": 27.43408375000581,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "control-end",
+        "tok_s": 10.253031450885238,
+        "seconds": 25.481755750020966,
+        "outputs": 2,
+        "joined": true
+      }
+    ],
+    "compose-01": [
+      {
+        "name": "compatible",
+        "tok_s": 9.911237539908683,
+        "seconds": 41.89424437499838,
+        "outputs": 2,
+        "joined": true
+      },
+      {
+        "name": "control-end",
+        "tok_s": 9.345470622821193,
+        "seconds": 44.83664058300201,
+        "outputs": 2,
+        "joined": true
+      }
+    ]
+  },
+  "outputs_checked": 36,
+  "decision": {
+    "C01": "rejected_measured_regression_8_to_10_percent",
+    "C02": "numerically_qualified_no_speed_gain_established",
+    "C03": "numerically_qualified_no_speed_gain_established",
+    "C04": "numerically_qualified_no_speed_gain_established",
+    "compatible_C02_C03_C04": "nonconclusive_drifting_controls"
+  },
+  "limits": [
+    "All runs MAIN32; no sustained or long-context throughput qualification.",
+    "GPU/CPU overlap in intrusive native8 is not an additive millisecond budget.",
+    "No temperature/frequency/interference cause established."
+  ]
+}

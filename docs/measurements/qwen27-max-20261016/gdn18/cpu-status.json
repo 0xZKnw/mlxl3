@@ -1,0 +1,156 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format-apply",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 60,
+      "pid": 11456,
+      "seconds": 0.40462958299999996,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "format-check",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 60,
+      "pid": 11460,
+      "seconds": 0.238040458,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "guard-test",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "contracts::fused_gdn_rejects_unqualified_geometry",
+        "--",
+        "--exact"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 180,
+      "pid": 11463,
+      "seconds": 6.765384458,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "kani-guard",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "fused_gdn_prepare_recurrence_has_bounded_launch_and_storage"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 90,
+      "pid": 11579,
+      "seconds": 1.867913292,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "kani-array",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--features",
+        "mlx",
+        "--harness",
+        "fused_gdn_real_array_api_preserves_output_shapes"
+      ],
+      "required": false,
+      "status": "failed",
+      "error": "RuntimeError('child exited 1')"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 240,
+      "pid": 11703,
+      "seconds": 3.125654583000001,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 300,
+      "pid": 11747,
+      "seconds": 49.051249958,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "required": true,
+      "status": "process_complete",
+      "parity": false,
+      "timeout_seconds": 240,
+      "pid": 12198,
+      "seconds": 0.12490591699999243,
+      "exit_code": 0,
+      "reaped": true
+    }
+  ],
+  "scope": "CPU/build/proofs only; no GPU benchmarks",
+  "engine_sha256": "a9985109091e09e169b2786ee473b87ad0ab703d19e17273fdbab39147469ac9"
+}

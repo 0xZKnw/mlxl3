@@ -1,0 +1,38 @@
+[
+  {
+    "harness": "unique_expert_prefix_is_bounded_for_eighty_routes",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "unique_expert_prefix_is_bounded_for_eighty_routes",
+      "--output-format",
+      "terse"
+    ],
+    "exit": -15,
+    "reason": "timeout_180s",
+    "seconds": 180.0044066249975,
+    "peak_group_rss_bytes": 2573533184,
+    "reaped": true
+  },
+  {
+    "harness": "unique_expert_prefix_matches_independent_twenty_route_oracle",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "unique_expert_prefix_matches_independent_twenty_route_oracle",
+      "--output-format",
+      "terse"
+    ],
+    "exit": 0,
+    "reason": null,
+    "seconds": 134.01041408398305,
+    "peak_group_rss_bytes": 1904508928,
+    "reaped": true
+  }
+]

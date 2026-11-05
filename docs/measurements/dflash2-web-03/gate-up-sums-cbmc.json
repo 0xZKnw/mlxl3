@@ -1,0 +1,20 @@
+{
+  "status": "unverified_source_language_unsupported",
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "build/dflash2-web-03/gate-up-sums/cbmc/shared_sums.cpp",
+    "--cpp11",
+    "--64",
+    "-D__METAL_VERSION__=400",
+    "-I/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/gate-up-sums/cbmc/include",
+    "--unwinding-assertions",
+    "--unwind",
+    "33"
+  ],
+  "exit": 6,
+  "seconds": 0.019763417,
+  "diagnostic": "CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos\nIn file included from build/dflash2-web-03/gate-up-sums/cbmc/shared_sums.cpp:4:\nfile /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/native/shaders/dflash_q4_mpp.h line 4: /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/native/shaders/dflash_q4_mpp.h:4:10: fatal error: 'metal_stdlib' file not found\n    4 | #include <metal_stdlib>\n      |          ^~~~~~~~~~~~~~\n1 error generated.\nGCC preprocessing failed\nPARSING ERROR\n",
+  "real_header": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/native/shaders/dflash_q4_mpp.h",
+  "real_framework_headers": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers",
+  "esbmc_available": false
+}

@@ -1,0 +1,61 @@
+{
+  "status": "validated_precap_gain_vs_old_adaptive",
+  "means_tps": {
+    "MAIN": {
+      "H": 10.891345563486311,
+      "C": 11.366680825108745
+    },
+    "HOLD": {
+      "H": 9.94686281676594,
+      "C": 10.856438000859011
+    }
+  },
+  "qualification": {
+    "status": "validated_gain",
+    "confirmed_gain": true,
+    "baseline": "H",
+    "candidate": "C",
+    "pairs": [
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.969865020757723,
+        "candidate_tps": 11.375660361316257,
+        "gain_percent": 3.6991826224904933
+      },
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.8128261062149,
+        "candidate_tps": 11.357701288901232,
+        "gain_percent": 5.03915606645291
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 10.032978247820916,
+        "candidate_tps": 10.826402150548954,
+        "gain_percent": 7.908159303548423
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 9.860747385710965,
+        "candidate_tps": 10.88647385116907,
+        "gain_percent": 10.40211685114727
+      }
+    ],
+    "drift": {
+      "MAIN": {
+        "control_percent": 1.4523392219593978,
+        "gain_spread_points": 1.3399734439624167
+      },
+      "HOLD": {
+        "control_percent": 1.7466309131854096,
+        "gain_spread_points": 2.4939575475988462
+      }
+    },
+    "memory_status": "requires_campaign_postflight_before_publication"
+  },
+  "peak_physical_bytes": 7950457240,
+  "responses_including_warmup": 16,
+  "new_swapout_bytes": 0,
+  "mtp_b2_after": "not_measured_yet",
+  "source_identity": "identity-v2.json"
+}

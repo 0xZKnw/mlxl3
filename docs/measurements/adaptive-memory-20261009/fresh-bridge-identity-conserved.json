@@ -1,0 +1,44 @@
+{
+  "actual_binary": "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs",
+  "actual_binary_sha256": "a636ba64b2e37b7ffd5d31eb7765ae3d3b3f2157365c985be84d4f6bfc7a1072",
+  "candidate_wrapper": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/adaptive-memory/packed-bridge",
+  "wrapper_source": "#!/bin/sh\nexport MLXL3_EMBEDDINGS_PACKED=1\nexec /Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs \"$@\"\n",
+  "wrapper_sha256": "3256aba861bad04390988297875a984148ff8e18854c39286e91d6c980b72184",
+  "common_environment": {
+    "MLXL3_ALLOCATOR_CACHE_MIB": "0"
+  },
+  "baseline_environment": {
+    "MLXL3_EMBEDDINGS_PACKED": null,
+    "MLXL3_MTP_ADAPTIVE": null,
+    "MLXL3_KV_CACHE_8BIT_FROM": null
+  },
+  "candidate_environment": {
+    "MLXL3_EMBEDDINGS_PACKED": "1"
+  },
+  "syntax_check": [
+    "/bin/sh",
+    "-n",
+    "build/adaptive-memory/packed-bridge"
+  ],
+  "status": "failed",
+  "power_start": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t55%; discharging; 7:58 remaining present: true\n",
+  "command": [
+    "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python",
+    "benchmarks/benchmark_idle_memory.py",
+    "--baseline",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs",
+    "--candidate",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/build/adaptive-memory/packed-bridge",
+    "--model",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--head",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--output",
+    "docs/measurements/adaptive-memory-20261009/embedding-fresh-ab.json",
+    "--order",
+    "AB",
+    "--short-only"
+  ],
+  "exit_code": 1,
+  "power_end": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t54%; discharging; 7:48 remaining present: true\n"
+}

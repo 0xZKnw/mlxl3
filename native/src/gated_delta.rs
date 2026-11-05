@@ -269,6 +269,10 @@ pub struct RecurrentTape {
 }
 
 impl RecurrentTape {
+    pub(crate) fn buffers(&self) -> [&Array; 4] {
+        [&self.initial, &self.keys, &self.delta, &self.decay]
+    }
+
     pub fn replay(&self, retained: i32) -> Result<Array> {
         let retained = crate::contracts::gdn_tape_prefix(self.time, retained)
             .context("invalid GDN tape commit prefix")?;
@@ -599,7 +603,7 @@ mod tests {
                 .collect::<Vec<_>>();
             Array::from_f16_bits(&bits, shape)
         };
-        for (kh, hv, dv) in [(2, 4, 16), (16, 32, 128)] {
+        for (kh, hv, dv) in [(2, 4, 16), (16, 32, 128), (16, 48, 128)] {
             let a_log = Array::from_f32(
                 &(0..hv).map(|i| -4.0 + i as f32 / 32.).collect::<Vec<_>>(),
                 &[hv],

@@ -17,6 +17,10 @@ pub struct AffineLinear {
 }
 
 impl AffineLinear {
+    pub(crate) fn weight_arrays(&self) -> [&Array; 3] {
+        [&self.weight, &self.scales, &self.biases]
+    }
+
     pub fn load(
         checkpoint: &Checkpoint,
         prefix: &str,

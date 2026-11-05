@@ -1,0 +1,2481 @@
+{
+  "status": "complete",
+  "publication": false,
+  "stage": "done",
+  "windows": {
+    "window1": {
+      "positions": 1024,
+      "vocabulary": 128000,
+      "source_token_offset": 0,
+      "input_u32le_sha256": "bdafc8c2a7c8ef0322c186013d1b99f7bff96c45fc91f47e9125e9c98fd62061",
+      "label_u32le_sha256": "f2633161f617e1cc0996f49b99d26fd9915345fe34513868afc08fb5d75f0de7",
+      "arrays": {
+        "mlx": {
+          "path": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-8192/teacher-00.npy",
+          "sha256": "edadd42ad0f887e80eca2f73b4d8eb91db8b18c26a39128ccaf95d50a33097fb",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "source_f16": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/diagnostic23-source-window1.npy",
+          "sha256": "99c1eec9c4a05f646c7138e17e170183f70ee21460fbaf2a1ab23a492eebd38b",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "v2_cuda": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/diagnostic23-cuda-window1.npy",
+          "sha256": "d4c667ec6a41a5afb336235c6fd4d1912dc36ac599fd13daee41daa13a9301a2",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "v2_native": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-diagnostic23-native/window1.npy",
+          "sha256": "4bb14f8967a6009463978e24e4aaec8f76b4ff4b2f6bec29af44270136ed9ee3",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "tf_prefill": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35/prefill-window1.npy",
+          "sha256": "7108d666effde3c4595b28c87c26c53c4df141c6f1e85b6f689872401792d037",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "tf_decode": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35/decode-window1.npy",
+          "sha256": "2dabb37aca99e270508c1bfa320c99cb4b856faf892da2f3bb59af64fd8e19b3",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        }
+      },
+      "comparisons": {
+        "mlx_to_tf_prefill": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4417474596731985,
+          "reference_nll": 2.4360479758100624,
+          "actual_ppl": 11.49310694615621,
+          "reference_ppl": 11.427788486151284,
+          "mean_kl_reference_to_actual": 0.03198348027033615,
+          "top1_matches": 962,
+          "top1_fraction": 0.939453125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0022254638095975,
+              "reference_nll": 3.0749294201384645,
+              "mean_kl_reference_to_actual": 0.05374582546314316,
+              "top1_matches": 114
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.038598996804181,
+              "reference_nll": 3.0126814418885752,
+              "mean_kl_reference_to_actual": 0.02319477766935388,
+              "top1_matches": 119
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.7244638010549775,
+              "reference_nll": 2.7283511858847342,
+              "mean_kl_reference_to_actual": 0.020945772568736545,
+              "top1_matches": 123
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0540810970185914,
+              "reference_nll": 2.039795794245146,
+              "mean_kl_reference_to_actual": 0.029523540960321202,
+              "top1_matches": 120
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.611966550450919,
+              "reference_nll": 2.5779132542279597,
+              "mean_kl_reference_to_actual": 0.02188199794158398,
+              "top1_matches": 120
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.331313344446805,
+              "reference_nll": 1.3007505826463714,
+              "mean_kl_reference_to_actual": 0.014677823598190837,
+              "top1_matches": 121
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.620870478738971,
+              "reference_nll": 2.6146137968095977,
+              "mean_kl_reference_to_actual": 0.0336907740977605,
+              "top1_matches": 123
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.150459945061539,
+              "reference_nll": 2.139348330639651,
+              "mean_kl_reference_to_actual": 0.05820732986359858,
+              "top1_matches": 122
+            }
+          ]
+        },
+        "mlx_to_tf_decode": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.435045389870903,
+          "reference_nll": 2.4360479758100624,
+          "actual_ppl": 11.416336887664434,
+          "reference_ppl": 11.427788486151284,
+          "mean_kl_reference_to_actual": 0.028693473978274917,
+          "top1_matches": 958,
+          "top1_fraction": 0.935546875,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.021459642270812,
+              "reference_nll": 3.0749294201384645,
+              "mean_kl_reference_to_actual": 0.03627045727706886,
+              "top1_matches": 120
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.012343745074549,
+              "reference_nll": 3.0126814418885752,
+              "mean_kl_reference_to_actual": 0.018033719578725408,
+              "top1_matches": 116
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.763314070225547,
+              "reference_nll": 2.7283511858847342,
+              "mean_kl_reference_to_actual": 0.019899018606089253,
+              "top1_matches": 123
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0304540951641257,
+              "reference_nll": 2.039795794245146,
+              "mean_kl_reference_to_actual": 0.02759398405846043,
+              "top1_matches": 118
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.6082612742331337,
+              "reference_nll": 2.5779132542279597,
+              "mean_kl_reference_to_actual": 0.03846666411517927,
+              "top1_matches": 114
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3196120395550106,
+              "reference_nll": 1.3007505826463714,
+              "mean_kl_reference_to_actual": 0.010168008010670197,
+              "top1_matches": 123
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.5820582465614543,
+              "reference_nll": 2.6146137968095977,
+              "mean_kl_reference_to_actual": 0.03298263148958596,
+              "top1_matches": 123
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.1428600058825773,
+              "reference_nll": 2.139348330639651,
+              "mean_kl_reference_to_actual": 0.04613330869041986,
+              "top1_matches": 121
+            }
+          ]
+        },
+        "tf_prefill_to_tf_decode": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.435045389870903,
+          "reference_nll": 2.4417474596731985,
+          "actual_ppl": 11.416336887664434,
+          "reference_ppl": 11.49310694615621,
+          "mean_kl_reference_to_actual": 0.021077054526691244,
+          "top1_matches": 967,
+          "top1_fraction": 0.9443359375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.021459642270812,
+              "reference_nll": 3.0022254638095975,
+              "mean_kl_reference_to_actual": 0.025915799383535706,
+              "top1_matches": 116
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.012343745074549,
+              "reference_nll": 3.038598996804181,
+              "mean_kl_reference_to_actual": 0.019643961293413014,
+              "top1_matches": 118
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.763314070225547,
+              "reference_nll": 2.7244638010549775,
+              "mean_kl_reference_to_actual": 0.01430380357321125,
+              "top1_matches": 123
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0304540951641257,
+              "reference_nll": 2.0540810970185914,
+              "mean_kl_reference_to_actual": 0.017039808571519238,
+              "top1_matches": 121
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.6082612742331337,
+              "reference_nll": 2.611966550450919,
+              "mean_kl_reference_to_actual": 0.030810449090577192,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3196120395550106,
+              "reference_nll": 1.331313344446805,
+              "mean_kl_reference_to_actual": 0.009193261240223327,
+              "top1_matches": 126
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.5820582465614543,
+              "reference_nll": 2.620870478738971,
+              "mean_kl_reference_to_actual": 0.03187987968705893,
+              "top1_matches": 126
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.1428600058825773,
+              "reference_nll": 2.150459945061539,
+              "mean_kl_reference_to_actual": 0.019829473373991373,
+              "top1_matches": 121
+            }
+          ]
+        },
+        "tf_decode_to_tf_prefill": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4417474596731985,
+          "reference_nll": 2.435045389870903,
+          "actual_ppl": 11.49310694615621,
+          "reference_ppl": 11.416336887664434,
+          "mean_kl_reference_to_actual": 0.022381798511533095,
+          "top1_matches": 967,
+          "top1_fraction": 0.9443359375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0022254638095975,
+              "reference_nll": 3.021459642270812,
+              "mean_kl_reference_to_actual": 0.026663931937990926,
+              "top1_matches": 116
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.038598996804181,
+              "reference_nll": 3.012343745074549,
+              "mean_kl_reference_to_actual": 0.01913658218741569,
+              "top1_matches": 118
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.7244638010549775,
+              "reference_nll": 2.763314070225547,
+              "mean_kl_reference_to_actual": 0.014994102938651548,
+              "top1_matches": 123
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0540810970185914,
+              "reference_nll": 2.0304540951641257,
+              "mean_kl_reference_to_actual": 0.017400075765934952,
+              "top1_matches": 121
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.611966550450919,
+              "reference_nll": 2.6082612742331337,
+              "mean_kl_reference_to_actual": 0.04326309005930891,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.331313344446805,
+              "reference_nll": 1.3196120395550106,
+              "mean_kl_reference_to_actual": 0.009233656878356165,
+              "top1_matches": 126
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.620870478738971,
+              "reference_nll": 2.5820582465614543,
+              "mean_kl_reference_to_actual": 0.02879412787606451,
+              "top1_matches": 126
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.150459945061539,
+              "reference_nll": 2.1428600058825773,
+              "mean_kl_reference_to_actual": 0.019568820448542062,
+              "top1_matches": 121
+            }
+          ]
+        },
+        "tf_prefill_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4496906203549904,
+          "reference_nll": 2.4417474596731985,
+          "actual_ppl": 11.584762075165694,
+          "reference_ppl": 11.49310694615621,
+          "mean_kl_reference_to_actual": 0.024237707595456216,
+          "top1_matches": 957,
+          "top1_fraction": 0.9345703125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0431411425271158,
+              "reference_nll": 3.0022254638095975,
+              "mean_kl_reference_to_actual": 0.02912341953465016,
+              "top1_matches": 117
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.048049952023041,
+              "reference_nll": 3.038598996804181,
+              "mean_kl_reference_to_actual": 0.020514518179383778,
+              "top1_matches": 117
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.7149809605525026,
+              "reference_nll": 2.7244638010549775,
+              "mean_kl_reference_to_actual": 0.012277662582536939,
+              "top1_matches": 122
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0653513646023245,
+              "reference_nll": 2.0540810970185914,
+              "mean_kl_reference_to_actual": 0.03770071105833418,
+              "top1_matches": 116
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.605430232789456,
+              "reference_nll": 2.611966550450919,
+              "mean_kl_reference_to_actual": 0.03316761809398555,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3351497264488157,
+              "reference_nll": 1.331313344446805,
+              "mean_kl_reference_to_actual": 0.016975796318937347,
+              "top1_matches": 123
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.602338049255356,
+              "reference_nll": 2.620870478738971,
+              "mean_kl_reference_to_actual": 0.023332063410107514,
+              "top1_matches": 126
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.183083534641299,
+              "reference_nll": 2.150459945061539,
+              "mean_kl_reference_to_actual": 0.02080987158571443,
+              "top1_matches": 120
+            }
+          ]
+        },
+        "tf_prefill_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4552377022478704,
+          "reference_nll": 2.4417474596731985,
+          "actual_ppl": 11.649202261365264,
+          "reference_ppl": 11.49310694615621,
+          "mean_kl_reference_to_actual": 0.07280858366247717,
+          "top1_matches": 904,
+          "top1_fraction": 0.8828125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0481842992017256,
+              "reference_nll": 3.0022254638095975,
+              "mean_kl_reference_to_actual": 0.09734207268720141,
+              "top1_matches": 109
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.035216169161159,
+              "reference_nll": 3.038598996804181,
+              "mean_kl_reference_to_actual": 0.11566545665806006,
+              "top1_matches": 100
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6841174298546866,
+              "reference_nll": 2.7244638010549775,
+              "mean_kl_reference_to_actual": 0.06032727514265513,
+              "top1_matches": 111
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.047103694039885,
+              "reference_nll": 2.0540810970185914,
+              "mean_kl_reference_to_actual": 0.07752137800688241,
+              "top1_matches": 113
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.6610951379017296,
+              "reference_nll": 2.611966550450919,
+              "mean_kl_reference_to_actual": 0.07559913933109996,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3494766438475945,
+              "reference_nll": 1.331313344446805,
+              "mean_kl_reference_to_actual": 0.029949478023896824,
+              "top1_matches": 121
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.6294385899565214,
+              "reference_nll": 2.620870478738971,
+              "mean_kl_reference_to_actual": 0.07470521239455778,
+              "top1_matches": 117
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.187269654019668,
+              "reference_nll": 2.150459945061539,
+              "mean_kl_reference_to_actual": 0.05135865705546326,
+              "top1_matches": 117
+            }
+          ]
+        },
+        "tf_prefill_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4498515642439016,
+          "reference_nll": 2.4417474596731985,
+          "actual_ppl": 11.586626721873902,
+          "reference_ppl": 11.49310694615621,
+          "mean_kl_reference_to_actual": 0.06653130457671227,
+          "top1_matches": 916,
+          "top1_fraction": 0.89453125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0856987582597126,
+              "reference_nll": 3.0022254638095975,
+              "mean_kl_reference_to_actual": 0.08256550656271591,
+              "top1_matches": 109
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.025327542757227,
+              "reference_nll": 3.038598996804181,
+              "mean_kl_reference_to_actual": 0.10955917320490119,
+              "top1_matches": 106
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6874528760804344,
+              "reference_nll": 2.7244638010549775,
+              "mean_kl_reference_to_actual": 0.06094566255064023,
+              "top1_matches": 116
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.044830476525951,
+              "reference_nll": 2.0540810970185914,
+              "mean_kl_reference_to_actual": 0.06369415538117872,
+              "top1_matches": 112
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.64318795737135,
+              "reference_nll": 2.611966550450919,
+              "mean_kl_reference_to_actual": 0.06250738720398546,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3341366272256385,
+              "reference_nll": 1.331313344446805,
+              "mean_kl_reference_to_actual": 0.03344647431198096,
+              "top1_matches": 120
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.612313177105052,
+              "reference_nll": 2.620870478738971,
+              "mean_kl_reference_to_actual": 0.06731029686863155,
+              "top1_matches": 118
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.165865098625825,
+              "reference_nll": 2.150459945061539,
+              "mean_kl_reference_to_actual": 0.05222178052966362,
+              "top1_matches": 119
+            }
+          ]
+        },
+        "tf_decode_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4496906203549904,
+          "reference_nll": 2.435045389870903,
+          "actual_ppl": 11.584762075165694,
+          "reference_ppl": 11.416336887664434,
+          "mean_kl_reference_to_actual": 0.025079413810068688,
+          "top1_matches": 952,
+          "top1_fraction": 0.9296875,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0431411425271158,
+              "reference_nll": 3.021459642270812,
+              "mean_kl_reference_to_actual": 0.03019436689408801,
+              "top1_matches": 117
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.048049952023041,
+              "reference_nll": 3.012343745074549,
+              "mean_kl_reference_to_actual": 0.019116463721188554,
+              "top1_matches": 114
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.7149809605525026,
+              "reference_nll": 2.763314070225547,
+              "mean_kl_reference_to_actual": 0.017779000236713822,
+              "top1_matches": 120
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0653513646023245,
+              "reference_nll": 2.0304540951641257,
+              "mean_kl_reference_to_actual": 0.03860481902652154,
+              "top1_matches": 118
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.605430232789456,
+              "reference_nll": 2.6082612742331337,
+              "mean_kl_reference_to_actual": 0.02603705972601374,
+              "top1_matches": 115
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3351497264488157,
+              "reference_nll": 1.3196120395550106,
+              "mean_kl_reference_to_actual": 0.014152394042310388,
+              "top1_matches": 121
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.602338049255356,
+              "reference_nll": 2.5820582465614543,
+              "mean_kl_reference_to_actual": 0.03082337712853124,
+              "top1_matches": 126
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.183083534641299,
+              "reference_nll": 2.1428600058825773,
+              "mean_kl_reference_to_actual": 0.023927829705182264,
+              "top1_matches": 121
+            }
+          ]
+        },
+        "tf_decode_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4552377022478704,
+          "reference_nll": 2.435045389870903,
+          "actual_ppl": 11.649202261365264,
+          "reference_ppl": 11.416336887664434,
+          "mean_kl_reference_to_actual": 0.06719159227022845,
+          "top1_matches": 906,
+          "top1_fraction": 0.884765625,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0481842992017256,
+              "reference_nll": 3.021459642270812,
+              "mean_kl_reference_to_actual": 0.09042066428502597,
+              "top1_matches": 112
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.035216169161159,
+              "reference_nll": 3.012343745074549,
+              "mean_kl_reference_to_actual": 0.10345328668730756,
+              "top1_matches": 107
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6841174298546866,
+              "reference_nll": 2.763314070225547,
+              "mean_kl_reference_to_actual": 0.056486355629723276,
+              "top1_matches": 112
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.047103694039885,
+              "reference_nll": 2.0304540951641257,
+              "mean_kl_reference_to_actual": 0.07316230142004224,
+              "top1_matches": 113
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.6610951379017296,
+              "reference_nll": 2.6082612742331337,
+              "mean_kl_reference_to_actual": 0.06252444360700674,
+              "top1_matches": 114
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3494766438475945,
+              "reference_nll": 1.3196120395550106,
+              "mean_kl_reference_to_actual": 0.026844411083482036,
+              "top1_matches": 120
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.6294385899565214,
+              "reference_nll": 2.5820582465614543,
+              "mean_kl_reference_to_actual": 0.07175175222653096,
+              "top1_matches": 117
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.187269654019668,
+              "reference_nll": 2.1428600058825773,
+              "mean_kl_reference_to_actual": 0.052889523222709234,
+              "top1_matches": 111
+            }
+          ]
+        },
+        "tf_decode_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4498515642439016,
+          "reference_nll": 2.435045389870903,
+          "actual_ppl": 11.586626721873902,
+          "reference_ppl": 11.416336887664434,
+          "mean_kl_reference_to_actual": 0.0638581430350826,
+          "top1_matches": 920,
+          "top1_fraction": 0.8984375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0856987582597126,
+              "reference_nll": 3.021459642270812,
+              "mean_kl_reference_to_actual": 0.07723876531976714,
+              "top1_matches": 114
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.025327542757227,
+              "reference_nll": 3.012343745074549,
+              "mean_kl_reference_to_actual": 0.09672510015076054,
+              "top1_matches": 111
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6874528760804344,
+              "reference_nll": 2.763314070225547,
+              "mean_kl_reference_to_actual": 0.05863127253069725,
+              "top1_matches": 115
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.044830476525951,
+              "reference_nll": 2.0304540951641257,
+              "mean_kl_reference_to_actual": 0.056046104755603385,
+              "top1_matches": 115
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.64318795737135,
+              "reference_nll": 2.6082612742331337,
+              "mean_kl_reference_to_actual": 0.07790309601259206,
+              "top1_matches": 113
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3341366272256385,
+              "reference_nll": 1.3196120395550106,
+              "mean_kl_reference_to_actual": 0.029931467331413466,
+              "top1_matches": 119
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.612313177105052,
+              "reference_nll": 2.5820582465614543,
+              "mean_kl_reference_to_actual": 0.06175598001084521,
+              "top1_matches": 118
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.165865098625825,
+              "reference_nll": 2.1428600058825773,
+              "mean_kl_reference_to_actual": 0.05263335816898141,
+              "top1_matches": 115
+            }
+          ]
+        },
+        "mlx_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4496906203549904,
+          "reference_nll": 2.4360479758100624,
+          "actual_ppl": 11.584762075165694,
+          "reference_ppl": 11.427788486151284,
+          "mean_kl_reference_to_actual": 0.029743887541132653,
+          "top1_matches": 948,
+          "top1_fraction": 0.92578125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0431411425271158,
+              "reference_nll": 3.0749294201384645,
+              "mean_kl_reference_to_actual": 0.03539255447725181,
+              "top1_matches": 118
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.048049952023041,
+              "reference_nll": 3.0126814418885752,
+              "mean_kl_reference_to_actual": 0.021149667344898048,
+              "top1_matches": 117
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.7149809605525026,
+              "reference_nll": 2.7283511858847342,
+              "mean_kl_reference_to_actual": 0.018494911753257622,
+              "top1_matches": 121
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.0653513646023245,
+              "reference_nll": 2.039795794245146,
+              "mean_kl_reference_to_actual": 0.03804726597705497,
+              "top1_matches": 116
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.605430232789456,
+              "reference_nll": 2.5779132542279597,
+              "mean_kl_reference_to_actual": 0.04193439137658321,
+              "top1_matches": 112
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3351497264488157,
+              "reference_nll": 1.3007505826463714,
+              "mean_kl_reference_to_actual": 0.013834724165226443,
+              "top1_matches": 122
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.602338049255356,
+              "reference_nll": 2.6146137968095977,
+              "mean_kl_reference_to_actual": 0.02908422084076043,
+              "top1_matches": 122
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.183083534641299,
+              "reference_nll": 2.139348330639651,
+              "mean_kl_reference_to_actual": 0.04001336439402866,
+              "top1_matches": 120
+            }
+          ]
+        },
+        "mlx_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4552377022478704,
+          "reference_nll": 2.4360479758100624,
+          "actual_ppl": 11.649202261365264,
+          "reference_ppl": 11.427788486151284,
+          "mean_kl_reference_to_actual": 0.07189789101013916,
+          "top1_matches": 906,
+          "top1_fraction": 0.884765625,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0481842992017256,
+              "reference_nll": 3.0749294201384645,
+              "mean_kl_reference_to_actual": 0.07754920310176075,
+              "top1_matches": 114
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.035216169161159,
+              "reference_nll": 3.0126814418885752,
+              "mean_kl_reference_to_actual": 0.11212044395776515,
+              "top1_matches": 102
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6841174298546866,
+              "reference_nll": 2.7283511858847342,
+              "mean_kl_reference_to_actual": 0.05690831767544479,
+              "top1_matches": 111
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.047103694039885,
+              "reference_nll": 2.039795794245146,
+              "mean_kl_reference_to_actual": 0.06660630952348351,
+              "top1_matches": 116
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.6610951379017296,
+              "reference_nll": 2.5779132542279597,
+              "mean_kl_reference_to_actual": 0.07776290015155025,
+              "top1_matches": 114
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3494766438475945,
+              "reference_nll": 1.3007505826463714,
+              "mean_kl_reference_to_actual": 0.026339705509566956,
+              "top1_matches": 118
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.6294385899565214,
+              "reference_nll": 2.6146137968095977,
+              "mean_kl_reference_to_actual": 0.07540662044593527,
+              "top1_matches": 117
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.187269654019668,
+              "reference_nll": 2.139348330639651,
+              "mean_kl_reference_to_actual": 0.08248962771560683,
+              "top1_matches": 114
+            }
+          ]
+        },
+        "mlx_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 2.4498515642439016,
+          "reference_nll": 2.4360479758100624,
+          "actual_ppl": 11.586626721873902,
+          "reference_ppl": 11.427788486151284,
+          "mean_kl_reference_to_actual": 0.06577057793059396,
+          "top1_matches": 918,
+          "top1_fraction": 0.896484375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 3.0856987582597126,
+              "reference_nll": 3.0749294201384645,
+              "mean_kl_reference_to_actual": 0.07013279731328816,
+              "top1_matches": 114
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.025327542757227,
+              "reference_nll": 3.0126814418885752,
+              "mean_kl_reference_to_actual": 0.10469404043265147,
+              "top1_matches": 108
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 2.6874528760804344,
+              "reference_nll": 2.7283511858847342,
+              "mean_kl_reference_to_actual": 0.05833484866656539,
+              "top1_matches": 114
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 2.044830476525951,
+              "reference_nll": 2.039795794245146,
+              "mean_kl_reference_to_actual": 0.061708759115487545,
+              "top1_matches": 115
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 2.64318795737135,
+              "reference_nll": 2.5779132542279597,
+              "mean_kl_reference_to_actual": 0.05977946303361117,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 1.3341366272256385,
+              "reference_nll": 1.3007505826463714,
+              "mean_kl_reference_to_actual": 0.029683232691851195,
+              "top1_matches": 117
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 2.612313177105052,
+              "reference_nll": 2.6146137968095977,
+              "mean_kl_reference_to_actual": 0.0693025818271427,
+              "top1_matches": 118
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 2.165865098625825,
+              "reference_nll": 2.139348330639651,
+              "mean_kl_reference_to_actual": 0.07252890036415366,
+              "top1_matches": 116
+            }
+          ]
+        }
+      },
+      "historical_reproduction": {
+        "source_f16": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 0.0,
+            "reference_nll": 0.0,
+            "mean_kl_reference_to_actual": 0.0
+          },
+          "passed": true
+        },
+        "v2_cuda": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 8.881784197001252e-16,
+            "reference_nll": 0.0,
+            "mean_kl_reference_to_actual": 2.7755575615628914e-17
+          },
+          "passed": true
+        },
+        "v2_native": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 0.0,
+            "reference_nll": 0.0,
+            "mean_kl_reference_to_actual": 0.0
+          },
+          "passed": true
+        }
+      }
+    },
+    "window5": {
+      "positions": 1024,
+      "vocabulary": 128000,
+      "source_token_offset": 4096,
+      "input_u32le_sha256": "23b146a0a8b43a1b0495f9fc9bd6882e7ed628be7cd7c7aa4751082dade7f7a4",
+      "label_u32le_sha256": "fc6a8005dfb5c81438814101c9dc72c75520fac24cd992b3fd4bb502e013bf84",
+      "arrays": {
+        "mlx": {
+          "path": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-8192/teacher-04.npy",
+          "sha256": "171fb435133b7c081ec34cb67ba1042d8d06b2ca0ce2defefca0c7a2c1c8ea70",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "source_f16": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/diagnostic23-source-window5.npy",
+          "sha256": "069e3cf6c53e90eb047e24cd735fc01fa32776f4b7c4b279a1d5520028c756fc",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "v2_cuda": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/diagnostic23-cuda-window5.npy",
+          "sha256": "71d258db615c0c8e136b820724a15b39bfe8f59fea31a699f753ec8f20e43fb6",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "v2_native": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-diagnostic23-native/window5.npy",
+          "sha256": "8a9fc810386e636758b4d1676da9fcd2c6f82b09ea6ce5d71672346ddc0414c8",
+          "bytes": 262144128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float16",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "tf_prefill": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35/prefill-window5.npy",
+          "sha256": "16d56adfd014870608ca972915f47fd8d8f9d7977ea761b74e689c3bf7f31719",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        },
+        "tf_decode": {
+          "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35/decode-window5.npy",
+          "sha256": "65ce27ff3b0795cd170a653af447b83ac4394e0ff8a52cd4c2ae6f6914e92bb5",
+          "bytes": 524288128,
+          "shape": [
+            1024,
+            128000
+          ],
+          "dtype": "float32",
+          "finite_values_checked": 131072000,
+          "sha_verified": true
+        }
+      },
+      "comparisons": {
+        "mlx_to_tf_prefill": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.072620996802146,
+          "reference_nll": 4.16012233736411,
+          "actual_ppl": 58.7106415115913,
+          "reference_ppl": 64.07936142060659,
+          "mean_kl_reference_to_actual": 0.08264666259491252,
+          "top1_matches": 871,
+          "top1_fraction": 0.8505859375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.984636858426122,
+              "reference_nll": 4.891872629855396,
+              "mean_kl_reference_to_actual": 0.06764116284737934,
+              "top1_matches": 106
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.772318815665541,
+              "reference_nll": 3.83052756253894,
+              "mean_kl_reference_to_actual": 0.05582063935814959,
+              "top1_matches": 112
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.335517930668862,
+              "reference_nll": 4.411558525392507,
+              "mean_kl_reference_to_actual": 0.14080652442756025,
+              "top1_matches": 105
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.089915631835626,
+              "reference_nll": 4.256253253109698,
+              "mean_kl_reference_to_actual": 0.07560198052937658,
+              "top1_matches": 110
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.343390426048096,
+              "reference_nll": 4.469516869481211,
+              "mean_kl_reference_to_actual": 0.08659879773972708,
+              "top1_matches": 109
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.5671102043549596,
+              "reference_nll": 3.700790294685107,
+              "mean_kl_reference_to_actual": 0.09193463728194873,
+              "top1_matches": 113
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.814270912992743,
+              "reference_nll": 3.91212112921548,
+              "mean_kl_reference_to_actual": 0.08190757387690108,
+              "top1_matches": 105
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.673807194425228,
+              "reference_nll": 3.808338434634561,
+              "mean_kl_reference_to_actual": 0.06086198469825732,
+              "top1_matches": 111
+            }
+          ]
+        },
+        "mlx_to_tf_decode": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.045725905289474,
+          "reference_nll": 4.16012233736411,
+          "actual_ppl": 57.152658396857824,
+          "reference_ppl": 64.07936142060659,
+          "mean_kl_reference_to_actual": 0.15875308072987773,
+          "top1_matches": 823,
+          "top1_fraction": 0.8037109375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.984504462119568,
+              "reference_nll": 4.891872629855396,
+              "mean_kl_reference_to_actual": 0.08994389786749603,
+              "top1_matches": 113
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.8245323428018403,
+              "reference_nll": 3.83052756253894,
+              "mean_kl_reference_to_actual": 0.08840766383268245,
+              "top1_matches": 102
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.292830634057207,
+              "reference_nll": 4.411558525392507,
+              "mean_kl_reference_to_actual": 0.23373676757777342,
+              "top1_matches": 96
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.113446987654123,
+              "reference_nll": 4.256253253109698,
+              "mean_kl_reference_to_actual": 0.1749529042600866,
+              "top1_matches": 102
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.198653468553405,
+              "reference_nll": 4.469516869481211,
+              "mean_kl_reference_to_actual": 0.17401676950206552,
+              "top1_matches": 103
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.583062401704591,
+              "reference_nll": 3.700790294685107,
+              "mean_kl_reference_to_actual": 0.18445804204691182,
+              "top1_matches": 105
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.7394299141912892,
+              "reference_nll": 3.91212112921548,
+              "mean_kl_reference_to_actual": 0.17961270813980035,
+              "top1_matches": 100
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.629347031233774,
+              "reference_nll": 3.808338434634561,
+              "mean_kl_reference_to_actual": 0.14489589261220523,
+              "top1_matches": 102
+            }
+          ]
+        },
+        "tf_prefill_to_tf_decode": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.045725905289474,
+          "reference_nll": 4.072620996802146,
+          "actual_ppl": 57.152658396857824,
+          "reference_ppl": 58.7106415115913,
+          "mean_kl_reference_to_actual": 0.1016472889670676,
+          "top1_matches": 856,
+          "top1_fraction": 0.8359375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.984504462119568,
+              "reference_nll": 4.984636858426122,
+              "mean_kl_reference_to_actual": 0.09833094201974275,
+              "top1_matches": 104
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.8245323428018403,
+              "reference_nll": 3.772318815665541,
+              "mean_kl_reference_to_actual": 0.09314932875902521,
+              "top1_matches": 106
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.292830634057207,
+              "reference_nll": 4.335517930668862,
+              "mean_kl_reference_to_actual": 0.1290029289724101,
+              "top1_matches": 103
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.113446987654123,
+              "reference_nll": 4.089915631835626,
+              "mean_kl_reference_to_actual": 0.10119549071338946,
+              "top1_matches": 108
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.198653468553405,
+              "reference_nll": 4.343390426048096,
+              "mean_kl_reference_to_actual": 0.09761015156029068,
+              "top1_matches": 109
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.583062401704591,
+              "reference_nll": 3.5671102043549596,
+              "mean_kl_reference_to_actual": 0.13502414643703356,
+              "top1_matches": 104
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.7394299141912892,
+              "reference_nll": 3.814270912992743,
+              "mean_kl_reference_to_actual": 0.08527557286536112,
+              "top1_matches": 113
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.629347031233774,
+              "reference_nll": 3.673807194425228,
+              "mean_kl_reference_to_actual": 0.07358975040928828,
+              "top1_matches": 109
+            }
+          ]
+        },
+        "tf_decode_to_tf_prefill": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.072620996802146,
+          "reference_nll": 4.045725905289474,
+          "actual_ppl": 58.7106415115913,
+          "reference_ppl": 57.152658396857824,
+          "mean_kl_reference_to_actual": 0.10219186682113,
+          "top1_matches": 856,
+          "top1_fraction": 0.8359375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.984636858426122,
+              "reference_nll": 4.984504462119568,
+              "mean_kl_reference_to_actual": 0.09744197046064712,
+              "top1_matches": 104
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.772318815665541,
+              "reference_nll": 3.8245323428018403,
+              "mean_kl_reference_to_actual": 0.09599317355181833,
+              "top1_matches": 106
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.335517930668862,
+              "reference_nll": 4.292830634057207,
+              "mean_kl_reference_to_actual": 0.12489492016257878,
+              "top1_matches": 103
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.089915631835626,
+              "reference_nll": 4.113446987654123,
+              "mean_kl_reference_to_actual": 0.1027126139866544,
+              "top1_matches": 108
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.343390426048096,
+              "reference_nll": 4.198653468553405,
+              "mean_kl_reference_to_actual": 0.09221677937529718,
+              "top1_matches": 109
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.5671102043549596,
+              "reference_nll": 3.583062401704591,
+              "mean_kl_reference_to_actual": 0.14229112203058497,
+              "top1_matches": 104
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.814270912992743,
+              "reference_nll": 3.7394299141912892,
+              "mean_kl_reference_to_actual": 0.08548871546540193,
+              "top1_matches": 113
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.673807194425228,
+              "reference_nll": 3.629347031233774,
+              "mean_kl_reference_to_actual": 0.07649563953605847,
+              "top1_matches": 109
+            }
+          ]
+        },
+        "tf_prefill_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.129647154462925,
+          "reference_nll": 4.072620996802146,
+          "actual_ppl": 62.15598760226837,
+          "reference_ppl": 58.7106415115913,
+          "mean_kl_reference_to_actual": 0.06242145151176122,
+          "top1_matches": 881,
+          "top1_fraction": 0.8603515625,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.980427284560677,
+              "reference_nll": 4.984636858426122,
+              "mean_kl_reference_to_actual": 0.06003023039302316,
+              "top1_matches": 113
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.8581733789485786,
+              "reference_nll": 3.772318815665541,
+              "mean_kl_reference_to_actual": 0.08088639609911615,
+              "top1_matches": 109
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.374361753345543,
+              "reference_nll": 4.335517930668862,
+              "mean_kl_reference_to_actual": 0.11200545747488233,
+              "top1_matches": 103
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.172124241008367,
+              "reference_nll": 4.089915631835626,
+              "mean_kl_reference_to_actual": 0.055734290160640944,
+              "top1_matches": 109
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.391694444206133,
+              "reference_nll": 4.343390426048096,
+              "mean_kl_reference_to_actual": 0.061543243032048785,
+              "top1_matches": 112
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.6326408135115464,
+              "reference_nll": 3.5671102043549596,
+              "mean_kl_reference_to_actual": 0.04471517475438489,
+              "top1_matches": 109
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.898009917781624,
+              "reference_nll": 3.814270912992743,
+              "mean_kl_reference_to_actual": 0.043659750572562384,
+              "top1_matches": 114
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.7297454023409315,
+              "reference_nll": 3.673807194425228,
+              "mean_kl_reference_to_actual": 0.040797069607431076,
+              "top1_matches": 112
+            }
+          ]
+        },
+        "tf_prefill_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.768372705450115,
+          "reference_nll": 4.072620996802146,
+          "actual_ppl": 43.3095300987324,
+          "reference_ppl": 58.7106415115913,
+          "mean_kl_reference_to_actual": 0.373837313927539,
+          "top1_matches": 748,
+          "top1_fraction": 0.73046875,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.064022210635267,
+              "reference_nll": 4.984636858426122,
+              "mean_kl_reference_to_actual": 0.15507732015267328,
+              "top1_matches": 99
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.5630866993450305,
+              "reference_nll": 3.772318815665541,
+              "mean_kl_reference_to_actual": 0.21517832079375282,
+              "top1_matches": 108
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.801826059953738,
+              "reference_nll": 4.335517930668862,
+              "mean_kl_reference_to_actual": 0.5554081505571883,
+              "top1_matches": 81
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7340179659084676,
+              "reference_nll": 4.089915631835626,
+              "mean_kl_reference_to_actual": 0.3357954600007812,
+              "top1_matches": 99
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9820627108535374,
+              "reference_nll": 4.343390426048096,
+              "mean_kl_reference_to_actual": 0.4291908557364875,
+              "top1_matches": 83
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.198405974870024,
+              "reference_nll": 3.5671102043549596,
+              "mean_kl_reference_to_actual": 0.3907744637962439,
+              "top1_matches": 93
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.503089887623328,
+              "reference_nll": 3.814270912992743,
+              "mean_kl_reference_to_actual": 0.4726806686521033,
+              "top1_matches": 95
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3004701344114897,
+              "reference_nll": 3.673807194425228,
+              "mean_kl_reference_to_actual": 0.4365932717310821,
+              "top1_matches": 90
+            }
+          ]
+        },
+        "tf_prefill_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.7730626886571432,
+          "reference_nll": 4.072620996802146,
+          "actual_ppl": 43.513128130079664,
+          "reference_ppl": 58.7106415115913,
+          "mean_kl_reference_to_actual": 0.379109876539843,
+          "top1_matches": 732,
+          "top1_fraction": 0.71484375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.052339856330983,
+              "reference_nll": 4.984636858426122,
+              "mean_kl_reference_to_actual": 0.15635730404282133,
+              "top1_matches": 99
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.6067429722942084,
+              "reference_nll": 3.772318815665541,
+              "mean_kl_reference_to_actual": 0.22966704845241998,
+              "top1_matches": 106
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.826569743880474,
+              "reference_nll": 4.335517930668862,
+              "mean_kl_reference_to_actual": 0.552202932537992,
+              "top1_matches": 79
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7486657547472624,
+              "reference_nll": 4.089915631835626,
+              "mean_kl_reference_to_actual": 0.33971808157204364,
+              "top1_matches": 100
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9484812916596725,
+              "reference_nll": 4.343390426048096,
+              "mean_kl_reference_to_actual": 0.4258072097512694,
+              "top1_matches": 82
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.1859550700067176,
+              "reference_nll": 3.5671102043549596,
+              "mean_kl_reference_to_actual": 0.40628888029924143,
+              "top1_matches": 85
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.4811356337351427,
+              "reference_nll": 3.814270912992743,
+              "mean_kl_reference_to_actual": 0.48067367528117166,
+              "top1_matches": 92
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3346111866026913,
+              "reference_nll": 3.673807194425228,
+              "mean_kl_reference_to_actual": 0.44216388038178367,
+              "top1_matches": 89
+            }
+          ]
+        },
+        "tf_decode_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.129647154462925,
+          "reference_nll": 4.045725905289474,
+          "actual_ppl": 62.15598760226837,
+          "reference_ppl": 57.152658396857824,
+          "mean_kl_reference_to_actual": 0.11850290412165922,
+          "top1_matches": 848,
+          "top1_fraction": 0.828125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.980427284560677,
+              "reference_nll": 4.984504462119568,
+              "mean_kl_reference_to_actual": 0.09223731281246185,
+              "top1_matches": 109
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.8581733789485786,
+              "reference_nll": 3.8245323428018403,
+              "mean_kl_reference_to_actual": 0.07153996062126079,
+              "top1_matches": 111
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.374361753345543,
+              "reference_nll": 4.292830634057207,
+              "mean_kl_reference_to_actual": 0.17776440601479243,
+              "top1_matches": 99
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.172124241008367,
+              "reference_nll": 4.113446987654123,
+              "mean_kl_reference_to_actual": 0.12360826735050356,
+              "top1_matches": 102
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.391694444206133,
+              "reference_nll": 4.198653468553405,
+              "mean_kl_reference_to_actual": 0.11413173574286643,
+              "top1_matches": 108
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.6326408135115464,
+              "reference_nll": 3.583062401704591,
+              "mean_kl_reference_to_actual": 0.15882907564508514,
+              "top1_matches": 106
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.898009917781624,
+              "reference_nll": 3.7394299141912892,
+              "mean_kl_reference_to_actual": 0.11671021168848499,
+              "top1_matches": 109
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.7297454023409315,
+              "reference_nll": 3.629347031233774,
+              "mean_kl_reference_to_actual": 0.09320226309781754,
+              "top1_matches": 104
+            }
+          ]
+        },
+        "tf_decode_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.768372705450115,
+          "reference_nll": 4.045725905289474,
+          "actual_ppl": 43.3095300987324,
+          "reference_ppl": 57.152658396857824,
+          "mean_kl_reference_to_actual": 0.2932214032579419,
+          "top1_matches": 782,
+          "top1_fraction": 0.763671875,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.064022210635267,
+              "reference_nll": 4.984504462119568,
+              "mean_kl_reference_to_actual": 0.18124234025392016,
+              "top1_matches": 100
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.5630866993450305,
+              "reference_nll": 3.8245323428018403,
+              "mean_kl_reference_to_actual": 0.26436717737928606,
+              "top1_matches": 105
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.801826059953738,
+              "reference_nll": 4.292830634057207,
+              "mean_kl_reference_to_actual": 0.45081426913883516,
+              "top1_matches": 87
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7340179659084676,
+              "reference_nll": 4.113446987654123,
+              "mean_kl_reference_to_actual": 0.26101324754817834,
+              "top1_matches": 102
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9820627108535374,
+              "reference_nll": 4.198653468553405,
+              "mean_kl_reference_to_actual": 0.30097194370413777,
+              "top1_matches": 92
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.198405974870024,
+              "reference_nll": 3.583062401704591,
+              "mean_kl_reference_to_actual": 0.30474268718657754,
+              "top1_matches": 98
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.503089887623328,
+              "reference_nll": 3.7394299141912892,
+              "mean_kl_reference_to_actual": 0.3126659580901066,
+              "top1_matches": 99
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3004701344114897,
+              "reference_nll": 3.629347031233774,
+              "mean_kl_reference_to_actual": 0.26995360276249464,
+              "top1_matches": 99
+            }
+          ]
+        },
+        "tf_decode_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.7730626886571432,
+          "reference_nll": 4.045725905289474,
+          "actual_ppl": 43.513128130079664,
+          "reference_ppl": 57.152658396857824,
+          "mean_kl_reference_to_actual": 0.29866360238006473,
+          "top1_matches": 764,
+          "top1_fraction": 0.74609375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.052339856330983,
+              "reference_nll": 4.984504462119568,
+              "mean_kl_reference_to_actual": 0.18265602492811203,
+              "top1_matches": 102
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.6067429722942084,
+              "reference_nll": 3.8245323428018403,
+              "mean_kl_reference_to_actual": 0.2947090567291477,
+              "top1_matches": 100
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.826569743880474,
+              "reference_nll": 4.292830634057207,
+              "mean_kl_reference_to_actual": 0.44971851951160496,
+              "top1_matches": 86
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7486657547472624,
+              "reference_nll": 4.113446987654123,
+              "mean_kl_reference_to_actual": 0.2560117609459983,
+              "top1_matches": 101
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9484812916596725,
+              "reference_nll": 4.198653468553405,
+              "mean_kl_reference_to_actual": 0.30442947890069694,
+              "top1_matches": 90
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.1859550700067176,
+              "reference_nll": 3.583062401704591,
+              "mean_kl_reference_to_actual": 0.3114843307406198,
+              "top1_matches": 91
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.4811356337351427,
+              "reference_nll": 3.7394299141912892,
+              "mean_kl_reference_to_actual": 0.31872421862163636,
+              "top1_matches": 96
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3346111866026913,
+              "reference_nll": 3.629347031233774,
+              "mean_kl_reference_to_actual": 0.2715754286627044,
+              "top1_matches": 98
+            }
+          ]
+        },
+        "mlx_to_source_f16": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 4.129647154462925,
+          "reference_nll": 4.16012233736411,
+          "actual_ppl": 62.15598760226837,
+          "reference_ppl": 64.07936142060659,
+          "mean_kl_reference_to_actual": 0.05988124431502736,
+          "top1_matches": 899,
+          "top1_fraction": 0.8779296875,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 4.980427284560677,
+              "reference_nll": 4.891872629855396,
+              "mean_kl_reference_to_actual": 0.06115241911806553,
+              "top1_matches": 110
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.8581733789485786,
+              "reference_nll": 3.83052756253894,
+              "mean_kl_reference_to_actual": 0.06826416449229801,
+              "top1_matches": 108
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 4.374361753345543,
+              "reference_nll": 4.411558525392507,
+              "mean_kl_reference_to_actual": 0.0787581434533928,
+              "top1_matches": 112
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 4.172124241008367,
+              "reference_nll": 4.256253253109698,
+              "mean_kl_reference_to_actual": 0.04986729199672667,
+              "top1_matches": 118
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 4.391694444206133,
+              "reference_nll": 4.469516869481211,
+              "mean_kl_reference_to_actual": 0.0587199712855452,
+              "top1_matches": 116
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.6326408135115464,
+              "reference_nll": 3.700790294685107,
+              "mean_kl_reference_to_actual": 0.05831223624170652,
+              "top1_matches": 114
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.898009917781624,
+              "reference_nll": 3.91212112921548,
+              "mean_kl_reference_to_actual": 0.05643193112470469,
+              "top1_matches": 113
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.7297454023409315,
+              "reference_nll": 3.808338434634561,
+              "mean_kl_reference_to_actual": 0.04754379680777857,
+              "top1_matches": 108
+            }
+          ]
+        },
+        "mlx_to_v2_cuda": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.768372705450115,
+          "reference_nll": 4.16012233736411,
+          "actual_ppl": 43.3095300987324,
+          "reference_ppl": 64.07936142060659,
+          "mean_kl_reference_to_actual": 0.5197751079397274,
+          "top1_matches": 719,
+          "top1_fraction": 0.7021484375,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.064022210635267,
+              "reference_nll": 4.891872629855396,
+              "mean_kl_reference_to_actual": 0.14876019950626895,
+              "top1_matches": 104
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.5630866993450305,
+              "reference_nll": 3.83052756253894,
+              "mean_kl_reference_to_actual": 0.2625072020071854,
+              "top1_matches": 101
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.801826059953738,
+              "reference_nll": 4.411558525392507,
+              "mean_kl_reference_to_actual": 0.7808069741900435,
+              "top1_matches": 82
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7340179659084676,
+              "reference_nll": 4.256253253109698,
+              "mean_kl_reference_to_actual": 0.5039545325881305,
+              "top1_matches": 92
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9820627108535374,
+              "reference_nll": 4.469516869481211,
+              "mean_kl_reference_to_actual": 0.6194367742304877,
+              "top1_matches": 75
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.198405974870024,
+              "reference_nll": 3.700790294685107,
+              "mean_kl_reference_to_actual": 0.5561457433374989,
+              "top1_matches": 91
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.503089887623328,
+              "reference_nll": 3.91212112921548,
+              "mean_kl_reference_to_actual": 0.6697695308268558,
+              "top1_matches": 89
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3004701344114897,
+              "reference_nll": 3.808338434634561,
+              "mean_kl_reference_to_actual": 0.6168199068313448,
+              "top1_matches": 85
+            }
+          ]
+        },
+        "mlx_to_v2_native": {
+          "positions": 1024,
+          "vocabulary": 128000,
+          "actual_nll": 3.7730626886571432,
+          "reference_nll": 4.16012233736411,
+          "actual_ppl": 43.513128130079664,
+          "reference_ppl": 64.07936142060659,
+          "mean_kl_reference_to_actual": 0.5265056418210282,
+          "top1_matches": 701,
+          "top1_fraction": 0.6845703125,
+          "segments": [
+            {
+              "first": 0,
+              "last": 127,
+              "positions": 128,
+              "actual_nll": 5.052339856330983,
+              "reference_nll": 4.891872629855396,
+              "mean_kl_reference_to_actual": 0.1507688907821943,
+              "top1_matches": 105
+            },
+            {
+              "first": 128,
+              "last": 255,
+              "positions": 128,
+              "actual_nll": 3.6067429722942084,
+              "reference_nll": 3.83052756253894,
+              "mean_kl_reference_to_actual": 0.27752672755074337,
+              "top1_matches": 99
+            },
+            {
+              "first": 256,
+              "last": 383,
+              "positions": 128,
+              "actual_nll": 3.826569743880474,
+              "reference_nll": 4.411558525392507,
+              "mean_kl_reference_to_actual": 0.778488040037111,
+              "top1_matches": 79
+            },
+            {
+              "first": 384,
+              "last": 511,
+              "positions": 128,
+              "actual_nll": 3.7486657547472624,
+              "reference_nll": 4.256253253109698,
+              "mean_kl_reference_to_actual": 0.5089666716015405,
+              "top1_matches": 91
+            },
+            {
+              "first": 512,
+              "last": 639,
+              "positions": 128,
+              "actual_nll": 3.9484812916596725,
+              "reference_nll": 4.469516869481211,
+              "mean_kl_reference_to_actual": 0.6255730305699464,
+              "top1_matches": 73
+            },
+            {
+              "first": 640,
+              "last": 767,
+              "positions": 128,
+              "actual_nll": 3.1859550700067176,
+              "reference_nll": 3.700790294685107,
+              "mean_kl_reference_to_actual": 0.5701817594119056,
+              "top1_matches": 82
+            },
+            {
+              "first": 768,
+              "last": 895,
+              "positions": 128,
+              "actual_nll": 3.4811356337351427,
+              "reference_nll": 3.91212112921548,
+              "mean_kl_reference_to_actual": 0.6760089337930962,
+              "top1_matches": 86
+            },
+            {
+              "first": 896,
+              "last": 1023,
+              "positions": 128,
+              "actual_nll": 3.3346111866026913,
+              "reference_nll": 3.808338434634561,
+              "mean_kl_reference_to_actual": 0.6245310808216886,
+              "top1_matches": 86
+            }
+          ]
+        }
+      },
+      "historical_reproduction": {
+        "source_f16": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 0.0,
+            "reference_nll": 0.0,
+            "mean_kl_reference_to_actual": 0.0
+          },
+          "passed": true
+        },
+        "v2_cuda": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 4.440892098500626e-15,
+            "reference_nll": 2.6645352591003757e-15,
+            "mean_kl_reference_to_actual": 3.3306690738754696e-16
+          },
+          "passed": true
+        },
+        "v2_native": {
+          "tolerance_absolute": 1e-06,
+          "errors": {
+            "actual_nll": 0.0,
+            "reference_nll": 0.0,
+            "mean_kl_reference_to_actual": 0.0
+          },
+          "passed": true
+        }
+      }
+    }
+  },
+  "protocol": "1024 imposed inputs per window, all positions scored, no added BOS, full vocabulary128000, KL reference to actual in nats, F64 scorer",
+  "provenance": {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35-analysis-command.py"
+    ],
+    "working_directory": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0",
+    "python": "3.12.14 (main, Aug 12 2026, 13:57:54) [Clang 21.0.0 (clang-2100.1.1.101)]",
+    "platform": "macOS-27.2-arm64-arm-64bit",
+    "numpy": "2.5.2",
+    "environment": {
+      "PYTHONPATH": "scripts:benchmarks",
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1"
+    },
+    "analysis_script_sha256": "762c7e0e7011e2edba966dba904572b6a332a7ae78c4599e10f41ee30e147d98",
+    "scorer_file": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/benchmarks/eval_lfm25_quality.py",
+    "scorer_sha256": "42914c7fa5cb02706404ff1ad11f34ce4240be14ef49302c2e31d8df8e024edc",
+    "reports": {
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-reference35-cloud.json": "f61d7e333ae686a7152341bb2039aa3a1e42b2671473b432d1287ba06df415dc",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/v2-quality.json": "a7d954b9aa2a1454963558eb52da22047e2b049d4d3d211a62020064ca91d8a3",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/diagnostic23-source-cloud.json": "eb5075a17ef4c6bc7ebab217b38f3734d47167f4d4c26a51531358566be35f0b",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/diagnostic23-cloud.json": "328ac39c5af44d9065b49997a1c6d893e288faed575cab22a5a1e3f68e53df2d",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/diagnostic23-native.json": "e9031490db96cc69dc7dee0da9d238a0dbb14c688594a64453a0bcaa95431136",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/diagnostic23-source-comparison.json": "714c04b21e5481a307f3411bff7e6653174f10a1bce9184c6736ff76e334a295",
+      "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/docs/measurements/quant-lfm25-v2-20261015/diagnostic23-comparison.json": "cc3c82026fe58e0b68301666d7ddcd81e6a103c6bcd0600a616a6e0e4c74ccc0"
+    },
+    "plan_file": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/diagnostic23-input.json",
+    "plan_file_sha256": "f67fb3ab43718f16e286bda6cad8763b491f25fa02ec93b213f43728008b2660",
+    "labels_file": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-v3-quality-ids/main-8192.json",
+    "labels_file_sha256": "f0e7457606a8b6a0926f45402dce67671886ec933c546f71902307312285645b",
+    "full_ids_u32le_sha256": "50b57d40e5f664a8c77fb5448eb35968f176f3839461b801c2a3a56f65926724"
+  },
+  "elapsed_seconds": 43.75797087501269,
+  "total_comparisons": 26,
+  "compared_positions": 26624,
+  "historical_arrays_verified": 8,
+  "new_arrays_verified": 4,
+  "historical_reproduction_passed": true
+}

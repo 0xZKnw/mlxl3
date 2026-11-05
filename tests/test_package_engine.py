@@ -3,6 +3,10 @@
 import hashlib
 import importlib.util
 import json
+import plistlib
+import shutil
+import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -50,6 +54,7 @@ def test_archive_reproducible_and_hashes_match(runtime, tmp_path):
         assert manifest["architecture"] == "arm64"
         assert "Powered by MTPLX" in manifest["notices"]["MTPLX"]
         assert "Apache License" in manifest["notices"]["Apache-2.0"]
+        assert "Copyright 2026 Theinruj Toranavikrai" in manifest["notices"]["PonyExl3"]
         for name in engine.FILES:
             member = archive.getmember(name)
             assert member.isfile() and member.mtime == 0 and member.uid == member.gid == 0
@@ -94,12 +99,12 @@ def test_changed_runtime_preserves_previous_archive(runtime, tmp_path, monkeypat
     real_manifest = engine.manifest
     calls = 0
 
-    def changed(path, version):
+    def changed(path, version, backend="mlx"):
         nonlocal calls
         calls += 1
         if calls == 2:
             (path / "mlxl3").write_bytes(b"modified during package")
-        return real_manifest(path, version)
+        return real_manifest(path, version, backend)
 
     monkeypatch.setattr(engine, "manifest", changed)
     with pytest.raises(ValueError, match="changed"):
@@ -115,3 +120,185 @@ def test_manifest_symlink_is_rejected(runtime, tmp_path):
     with pytest.raises(ValueError, match="linked"):
         engine.package(runtime, tmp_path / "dist", "1.2.0")
     assert protected.read_bytes() == b"keep"
+
+
+@pytest.fixture
+def cli_project(tmp_path):
+    root = tmp_path / "copied-project"
+    script = root / "scripts/package_engine.py"
+    script.parent.mkdir(parents=True)
+    shutil.copyfile(Path(engine.__file__), script)
+    (root / "Cargo.toml").write_text('[package]\nname = "engine-fixture"\nversion = "1.4.5"\n')
+    info = root / "apps/MLXL3Studio/Resources/Info.plist"
+    info.parent.mkdir(parents=True)
+    info.write_bytes(plistlib.dumps({"CFBundleShortVersionString": "1.4.4"}))
+    notices = root / "LICENSES"
+    notices.mkdir()
+    for name in ("MTPLX-NOTICE.txt", "Apache-2.0.txt"):
+        shutil.copyfile(
+            Path(engine.__file__).resolve().parents[1] / "LICENSES" / name, notices / name
+        )
+    notice = root / "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE"
+    notice.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        Path(engine.__file__).resolve().parents[1] / "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
+        notice,
+    )
+    return root
+
+
+def run_package_cli(root, *arguments):
+    return subprocess.run(
+        [sys.executable, str(root / "scripts/package_engine.py"), *map(str, arguments)],
+        cwd=root.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+
+
+def test_cli_default_uses_engine_cargo_version_and_verifiable_archive(cli_project, runtime):
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, runtime, output)
+    assert result.returncode == 0, result.stderr
+    archive_path = output / "MLXL3-Engine-v1.4.5-arm64.tar.gz"
+    assert result.stdout.strip() == str(archive_path)
+    assert list(output.iterdir()) == [archive_path]
+    with tarfile.open(archive_path) as archive:
+        payload = json.load(archive.extractfile("engine.json"))
+        assert payload["version"] == "1.4.5"
+        assert payload == json.loads((runtime / "engine.json").read_text())
+        assert set(archive.getnames()) == {"engine.json", *engine.FILES}
+        for name in engine.FILES:
+            data = archive.extractfile(name).read()
+            assert data == (runtime / name).read_bytes()
+            assert payload["files"][name] == {
+                "size": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+
+
+@pytest.mark.parametrize("cargo", [None, b"[broken", b'[package]\nversion = "../bad"\n'])
+def test_cli_explicit_version_does_not_read_cargo_or_desktop(cli_project, runtime, cargo):
+    path = cli_project / "Cargo.toml"
+    if cargo is None:
+        path.unlink()
+    else:
+        path.write_bytes(cargo)
+    (cli_project / "apps/MLXL3Studio/Resources/Info.plist").unlink()
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, runtime, output, "--version", "2.3.4")
+    assert result.returncode == 0, result.stderr
+    archive_path = output / "MLXL3-Engine-v2.3.4-arm64.tar.gz"
+    assert result.stdout.strip() == str(archive_path)
+    with tarfile.open(archive_path) as archive:
+        assert json.load(archive.extractfile("engine.json"))["version"] == "2.3.4"
+
+
+@pytest.mark.parametrize(
+    "cargo",
+    [
+        None,
+        b"[broken",
+        b"\xff",
+        b"",
+        b"[package]\nname='fixture'\n",
+        b"package=[]\n",
+        b"[package]\nversion=145\n",
+        b"[package]\nversion=[]\n",
+        b"[package]\nversion='../1.4.5'\n",
+        b"[package]\nversion='1.4'\n",
+        b"[package]\nversion='01.4.5'\n",
+        b"[package]\nversion=''\n",
+    ],
+)
+def test_cli_bad_cargo_never_publishes(cli_project, runtime, cargo):
+    path = cli_project / "Cargo.toml"
+    if cargo is None:
+        path.unlink()
+    else:
+        path.write_bytes(cargo)
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, runtime, output)
+    assert result.returncode != 0
+    assert result.stderr
+    assert not output.exists()
+    assert not (runtime / "engine.json").exists()
+
+
+@pytest.mark.parametrize("version", ["", "v1.4.5", "../1.4.5", "1.4.5-beta"])
+def test_cli_invalid_override_never_reads_default_or_publishes(cli_project, runtime, version):
+    (cli_project / "Cargo.toml").unlink()
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, runtime, output, "--version", version)
+    assert result.returncode != 0
+    assert "invalid engine version" in result.stderr
+    assert not output.exists()
+    assert not (runtime / "engine.json").exists()
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [[], ["runtime"], ["runtime", "dist", "--version"], ["runtime", "dist", "--unknown"]],
+)
+def test_cli_argument_errors_never_publish(cli_project, arguments):
+    result = run_package_cli(cli_project, *arguments)
+    assert result.returncode == 2
+    assert "usage:" in result.stderr and "error:" in result.stderr
+    assert not (cli_project / "dist").exists()
+    assert not (cli_project.parent / "dist").exists()
+
+
+def test_cli_incomplete_runtime_never_publishes(cli_project, runtime):
+    (runtime / "mlxl3").unlink()
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, runtime, output)
+    assert result.returncode != 0
+    assert "missing or linked engine file" in result.stderr
+    assert not output.exists()
+    assert not (runtime / "engine.json").exists()
+
+
+@pytest.fixture
+def native_runtime(tmp_path):
+    runtime = tmp_path / "native"
+    runtime.mkdir()
+    (runtime / "mlxl3").write_bytes(b"native engine fixture")
+    return runtime
+
+
+def test_native_archive_is_reproducible_and_contains_only_embedded_runtime(
+    native_runtime, tmp_path
+):
+    one = engine.package(native_runtime, tmp_path / "one", "2.0.2", "metal")
+    two = engine.package(native_runtime, tmp_path / "two", "2.0.2", "metal")
+    assert one.read_bytes() == two.read_bytes()
+    with tarfile.open(one) as archive:
+        assert archive.getnames() == ["engine.json", "mlxl3"]
+        data = json.load(archive.extractfile("engine.json"))
+        assert data["schema"] == 2 and data["backend"] == "metal"
+        assert data["minimum_app_version"] == "2.0.0"
+        assert set(data["files"]) == {"mlxl3"}
+        assert (
+            data["files"]["mlxl3"]["sha256"] == hashlib.sha256(b"native engine fixture").hexdigest()
+        )
+
+
+@pytest.mark.parametrize("extra", ["libmlx.dylib", "libjaccl.dylib", "mlx.metallib", "other"])
+def test_native_runtime_rejects_unlisted_files_before_publication(native_runtime, tmp_path, extra):
+    (native_runtime / extra).write_bytes(b"unexpected")
+    with pytest.raises(ValueError, match="unexpected file"):
+        engine.package(native_runtime, tmp_path / "dist", "2.0.2", "metal")
+    assert not (tmp_path / "dist").exists()
+
+
+def test_native_cli_requires_explicit_backend_and_rejects_unknown(cli_project, native_runtime):
+    output = cli_project / "dist"
+    result = run_package_cli(cli_project, native_runtime, output, "--backend", "metal")
+    assert result.returncode == 0, result.stderr
+    with tarfile.open(output / "MLXL3-Engine-v1.4.5-arm64.tar.gz") as archive:
+        assert json.load(archive.extractfile("engine.json"))["backend"] == "metal"
+    other = cli_project / "bad"
+    result = run_package_cli(cli_project, native_runtime, other, "--backend", "unknown")
+    assert result.returncode == 2 and not other.exists()

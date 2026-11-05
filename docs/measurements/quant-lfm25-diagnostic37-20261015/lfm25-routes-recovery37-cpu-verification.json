@@ -1,0 +1,71 @@
+{
+  "status": "complete_cpu_validation",
+  "gpu_started_by_agent": false,
+  "changed_sources": [
+    "scripts/diagnose_lfm25_routes_modal.py",
+    "tests/test_lfm25_routes.py"
+  ],
+  "unmodified_numerical_worker": "scripts/diagnose_lfm25_routes.py",
+  "source_files": {
+    "scripts/diagnose_lfm25_routes_modal.py": {
+      "bytes": 6995,
+      "sha256": "6bf5b9d41504a8bd8bb0d176768eac6bc2dd64c4ed406d6a8c737257e9cb333e"
+    },
+    "tests/test_lfm25_routes.py": {
+      "bytes": 30402,
+      "sha256": "1b4d5e8f6bcf2dee1ed7919a0e283c6ba83ebbabbe6cc49e18a34ee256464d81"
+    },
+    "scripts/diagnose_lfm25_routes.py": {
+      "bytes": 22754,
+      "sha256": "8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1"
+    },
+    "scripts/diagnose_lfm25_tuning.py": {
+      "bytes": 11188,
+      "sha256": "f21d4bdd85831b66e6b1629dd613794969b07a2d046e334d6ae2eae86ab099cb"
+    }
+  },
+  "tests": {
+    "command": "PYTHONPATH=scripts:benchmarks:build/torch-check/lib/python3.12/site-packages /Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q tests/test_lfm25_routes.py tests/test_lfm25_tuning.py tests/test_lfm25_tuning_modal.py",
+    "passed": 171,
+    "skipped": 0,
+    "warnings": 3,
+    "elapsed_seconds": 1.61,
+    "log": "build/lfm25-routes-recovery37-tests.log"
+  },
+  "regression_before_fix": "build/lfm25-routes-recovery37-red.log",
+  "checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "compileall": "passed",
+    "diff_check": "passed",
+    "actual_sdk_image_dependency_order": "passed",
+    "actual_sdk_pin_env_hardware_timeout": "passed",
+    "actual_modal_cli_help_no_credentials_no_rpc": "passed"
+  },
+  "source_verification": {
+    "changed_paths": "Configuration, cache SHA/bytes/prefix I/O guards and reporting, covered by CPU regression tests; no pure numerical function changed. Existing CrossHair checked_position/cold_stage/cache_name contracts unchanged. No formal proof of filesystem, subprocess, CUDA, cloud execution or numeric parity claimed.",
+    "rerun_formal": false
+  },
+  "runtime_bounds": {
+    "child_seconds": 540,
+    "function_seconds": 660,
+    "retries": 0,
+    "gpu": "H100!",
+    "cpu": 8,
+    "memory_mib": 98304,
+    "max_containers": 1,
+    "scaledown_seconds": 2
+  },
+  "recovery": {
+    "data": "/data/diagnostic37-routes-recovery",
+    "cache_path": "/data/diagnostic37-fixed-tune-trace/cache-a-recovery.bin",
+    "cache_bytes": 176,
+    "cache_sha256": "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65",
+    "local_output": "build/lfm25-tuning37-routes-recovery-cloud.json"
+  },
+  "unverified": [
+    "GPU recovery not executed by agent",
+    "Numerical recovery parity pending capture and subsequent CPU analysis",
+    "Current changed commit GitHub CI not inspected"
+  ]
+}

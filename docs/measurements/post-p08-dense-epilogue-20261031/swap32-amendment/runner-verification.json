@@ -1,0 +1,88 @@
+{
+  "status": "cpu_checks_passed_crosshair_unavailable_no_GPU_execution",
+  "checks": [
+    {
+      "name": "runner-format-r3",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.00894887499998731,
+      "log": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/runner-format-r3.log"
+    },
+    {
+      "name": "runner-lint-r3",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.008717917000467423,
+      "log": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/runner-lint-r3.log"
+    },
+    {
+      "name": "runner-pycompile-r3",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.02232779199948709,
+      "log": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/runner-pycompile-r3.log"
+    },
+    {
+      "name": "runner-selftest-r3",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.3122212500002206,
+      "log": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/runner-selftest-r3.log"
+    },
+    {
+      "name": "runner-crosshair",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "crosshair",
+        "check",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py",
+        "--analysis_kind=asserts",
+        "--per_condition_timeout=1"
+      ],
+      "exit_code": 1,
+      "seconds": 0.016401916000177152,
+      "log": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/runner-crosshair.log"
+    }
+  ],
+  "source_sha256": {
+    "docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py": "f0d9272206178e611845d47e65d4762e5f898d73b5f6bf69d0b24d72c7f78f3a",
+    "docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py": "065685d5ebf53436a6e5d75159cda0cb973a95f52bd6bdc23ed7fac970cf579e"
+  },
+  "formal_limit": "CrossHair absence is not a proof; tests use disposable CPU fixtures, no GPU/engine/model",
+  "tests_passed": 48,
+  "tests_failed": 0,
+  "tests_ignored": 0,
+  "mutation": "Disposable copy of actual check_vm accepts cap+1; independent overshoot-rejection assertion detects it; production unchanged",
+  "first_failure": "runner-checks-r1.txt: 42 pass/4 disposable-fixture path-routing failures before child creation; fixed in fixture only",
+  "anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8",
+  "limits": [
+    "No formal proof: CrossHair module unavailable; exit1 diagnostic retained",
+    "Integration uses real supervisor and CPU subprocesses; VM/power/quiet/parser are deterministic substitutes",
+    "Existing monitor polls at most every2s; observed violations abort and preserve actual maxima, not an OS-level swap quota",
+    "No GPU/model, native build, installed app, CI run, or benchmark result qualified by these checks"
+  ]
+}

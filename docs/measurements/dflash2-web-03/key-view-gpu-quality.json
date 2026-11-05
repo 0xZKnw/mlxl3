@@ -1,0 +1,114 @@
+{
+  "status": "validated_physical_quality",
+  "identity": "key-view-identity.json",
+  "checks": [
+    {
+      "name": "cache-collision",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-lib",
+        "--ignored",
+        "--exact",
+        "array::tests::metal_cache_full_key_and_eviction_preserve_outputs",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "MTL_DEBUG_LAYER": "1",
+        "MTL_SHADER_VALIDATION": "1",
+        "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+        "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+      },
+      "status": "validated",
+      "parity": true,
+      "gpu_timing": false,
+      "log": "docs/measurements/dflash2-web-03/key-view-cache-collision.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 18.797682542004623,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "target-states",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-lib",
+        "--ignored",
+        "--exact",
+        "qwen35::tests::dflash_capture_verification_and_commits_match_serial_states",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "status": "validated",
+      "parity": true,
+      "gpu_timing": false,
+      "log": "docs/measurements/dflash2-web-03/key-view-target-states.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 35.764853750006296,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "copy-adversarial",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "status": "validated",
+      "parity": true,
+      "gpu_timing": false,
+      "log": "docs/measurements/dflash2-web-03/key-view-copy-adversarial.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 8.79260158300167,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "bridge-copy",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "status": "validated",
+      "parity": true,
+      "gpu_timing": false,
+      "log": "docs/measurements/dflash2-web-03/key-view-bridge-copy.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 45.14002925000386,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "tune-copy",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "status": "validated",
+      "parity": true,
+      "gpu_timing": false,
+      "log": "docs/measurements/dflash2-web-03/key-view-tune-copy.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 22.662437958002556,
+      "nonempty_test_result": true
+    }
+  ],
+  "parity": true,
+  "prior_failure": "key-view-gpu-quality-fixture-failure.json",
+  "stock_alignment": "stock-alignment-result.json"
+}

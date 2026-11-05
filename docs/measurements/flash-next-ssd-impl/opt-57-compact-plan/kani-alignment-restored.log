@@ -1,0 +1,208 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.36s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 4`
+Checking harness flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/877f915cb48ac8df/out/mlxl3_native-877f915cb48ac8df__RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification65indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 660 column 15 function std::option::Option::<usize>::is_some_and::<{closure@native/src/flash_support.rs:149:68: 149:73}> thread 0
+Runtime Symex: 0.00569225s
+size of program expression: 700 steps
+slicing removed 354 assignments
+Generated 29 VCC(s), 17 remaining after simplification
+Runtime Postprocess Equation: 6.5125e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00132796s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 4.708e-06s
+Solving with CaDiCaL 3.0.0
+2558 variables, 7176 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 8.225e-05s
+Runtime decision procedure: 0.00146183s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2559 variables, 7177 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 6.9417e-05s
+Runtime decision procedure: 9.6708e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2560 variables, 7178 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000438417s
+Runtime decision procedure: 0.00046325s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2561 variables, 7179 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0112418s
+Runtime decision procedure: 0.0112761s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2562 variables, 7180 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 3.4667e-05s
+Runtime decision procedure: 7.0833e-05s
+
+RESULTS:
+Check 1: core::num::<impl usize>::checked_add.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:942:31 in function core::num::<impl usize>::checked_add
+
+Check 2: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1363:13 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 3: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1363:13 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 4: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:1363:32 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 5: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: valid == offset % 4 == 0 && offset as u128 + 12 <= bytes as u128"
+	 - Location: native/src/flash_support.rs:1361:9 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 6: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid && offset > 0"
+	 - Location: native/src/flash_support.rs:1365:9 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 7: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:1366:31 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 8: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid && offset as u128 + 12 == bytes as u128"
+	 - Location: native/src/flash_support.rs:1366:9 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 9: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_support.rs:1367:42 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 10: flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: !valid && offset == usize::MAX - 3"
+	 - Location: native/src/flash_support.rs:1367:9 in function flash_support::verification::indirect_grid_requires_alignment_and_complete_nonwrapping_triplet
+
+Check 11: core::num::<impl usize>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 12: core::num::<impl usize>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 13: std::option::Option::<usize>::is_some_and::<{closure@native/src/flash_support.rs:149:68: 149:73}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:660:15 in function std::option::Option::<usize>::is_some_and::<{closure@native/src/flash_support.rs:149:68: 149:73}>
+
+Check 14: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 15: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 16: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 17: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 18: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 19: flash_support::indirect_grid_fits::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:149:81 in function flash_support::indirect_grid_fits::{closure#0}
+
+Check 20: core::num::<impl usize>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+
+SUMMARY:
+ ** 0 of 17 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04235967s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

@@ -1,0 +1,53 @@
+{
+  "id": "DFLASH2-2026-10-08-GATE-UP",
+  "status": "completed_rejected",
+  "baseline_source_sha256": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+  "source_archive": "build/dflash2-web-03/gate-up/baseline/dflash.rs",
+  "candidate": "test-only packed row concatenation",
+  "quality": {
+    "layers": 6,
+    "inputs": 3,
+    "expected_pair_shape": [
+      8,
+      12288
+    ],
+    "exact": true,
+    "finite": true
+  },
+  "micro": {
+    "orders": [
+      "ABBA",
+      "BAAB"
+    ],
+    "warmup_traversals_per_variant": 200,
+    "samples": 7,
+    "traversals_per_sample": 1000,
+    "layers_per_traversal": 6,
+    "minimum_gain_percent": 3,
+    "maximum_same_variant_drift_percent": 1
+  },
+  "production_changed": false,
+  "gpu_timing_started": false,
+  "micro_initial": {
+    "orders": [
+      "ABBA",
+      "BAAB"
+    ],
+    "warmup_traversals_per_variant": 20,
+    "samples": 7,
+    "traversals_per_sample": 20,
+    "layers_per_traversal": 6,
+    "minimum_gain_percent": 3,
+    "maximum_same_variant_drift_percent": 1
+  },
+  "micro_revision_before_measurement": "Increase amortization before any GPU run: twenty traversals are too short to support a sub-one-percent drift criterion given host dispatch and timer overhead. No measurement observed; one fixed ABBA/BAAB campaign retained.",
+  "preregistered_or_initial_status": "preregistered",
+  "final_result": "gate-up-decision.json",
+  "before_first_gpu_protocol_revision": {
+    "opti_entry": "GATE-UP précision du protocole avant tout contrôle GPU ou mesure",
+    "warmup": 200,
+    "samples": 7,
+    "traversals_per_sample": 1000,
+    "historical_initial_protocol_preserved": true
+  }
+}

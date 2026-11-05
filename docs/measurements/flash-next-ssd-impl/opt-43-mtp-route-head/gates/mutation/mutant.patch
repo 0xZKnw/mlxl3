@@ -1,0 +1,125 @@
+diff --git a/native/src/lfm2.rs b/native/src/lfm2.rs
+index a8932a5f..0a1d548f 100644
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -207,6 +207,34 @@ impl Projection {
+         }
+     }
+ 
++    pub(crate) fn forward_pair(&self, x: &Array) -> Result<[Array; 2]> {
++        ensure!(
++            x.shape() == [2, self.logical_input]
++                && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
++            "paired projection expects two floating-point rows"
++        );
++        if let ProjectionWeights::Dense(weight) = &self.weights
++            && weight.dtype() == Dtype::Float16
++            && x.dtype() == Dtype::Float32
++        {
++            // Share MLX's promotion while keeping both original mono-row GEMVs.
++            let project = |row| -> Result<Array> {
++                let weight = weight.transpose(&[1, 0])?.astype(Dtype::Float32)?;
++                let value = x.slice(0, row, row + 1)?.matmul(&weight)?;
++                match &self.bias {
++                    Some(bias) => value.add(bias),
++                    None => Ok(value),
++                }
++            };
++            Ok([project(0)?, project(1)?])
++        } else {
++            Ok([
++                self.forward(&x.slice(0, 0, 1)?)?,
++                self.forward(&x.slice(0, 1, 2)?)?,
++            ])
++        }
++    }
++
+     pub(crate) fn forward_flash_hc(&self, x: &Array) -> Result<Array> {
+         let ProjectionWeights::Dense(weight) = &self.weights else {
+             return self.forward(x);
+@@ -1040,6 +1068,85 @@ mod flash_hc_tests {
+         Ok(values)
+     }
+ 
++    #[test]
++    #[ignore = "physical Apple GPU; paired projection promotion and fallback contracts"]
++    fn paired_projection_matches_scalar_cpu_and_rejects_invalid_rows() -> Result<()> {
++        let k = 16;
++        let n = 5;
++        let weights = (0..k * n)
++            .map(|i| ((i * 7 % 15) - 7) as f32 / 16.)
++            .collect::<Vec<_>>();
++        let values = (0..2 * k)
++            .map(|i| ((i * 11 % 31) - 15) as f32 / 32.)
++            .collect::<Vec<_>>();
++        let x = Array::from_f32(&values, &[2, k])?;
++        let strided = Array::from_f32(
++            &(0..k as usize)
++                .flat_map(|col| [values[col], values[k as usize + col]])
++                .collect::<Vec<_>>(),
++            &[k, 2],
++        )?
++        .transpose(&[1, 0])?;
++        let mut checked = 0;
++        for weight_dtype in [Dtype::Float16, Dtype::Float32] {
++            let mut p = projection(Array::from_f32(&weights, &[n, k])?.astype(weight_dtype)?);
++            for bias in [false, true] {
++                p.bias = if bias {
++                    Some(Array::from_f32(&vec![1.; n as usize], &[n])?.astype(Dtype::Float16)?)
++                } else {
++                    None
++                };
++                for dtype in [Dtype::Float16, Dtype::Float32] {
++                    for input in [x.astype(dtype)?, strided.astype(dtype)?] {
++                        let before = Array::explicit_casts_for_test();
++                        let pair = p.forward_pair(&input)?;
++                        let expected_casts =
++                            u64::from(weight_dtype == Dtype::Float16 && dtype == Dtype::Float32);
++                        ensure!(Array::explicit_casts_for_test() - before == expected_casts);
++                        for (row, actual) in pair.iter().enumerate() {
++                            let expected =
++                                p.forward(&input.slice(0, row as i32, row as i32 + 1)?)?;
++                            let output = actual.to_f32()?;
++                            ensure!(
++                                actual.shape() == [1, n]
++                                    && output.len() == n as usize
++                                    && output.iter().all(|v| v.is_finite())
++                            );
++                            ensure!(
++                                actual.dtype() == expected.dtype()
++                                    && actual.to_bytes()? == expected.to_bytes()?
++                            );
++                            for (out, &v) in output.iter().enumerate() {
++                                let cpu = (0..k as usize)
++                                    .map(|col| {
++                                        f64::from(weights[out * k as usize + col])
++                                            * f64::from(values[row * k as usize + col])
++                                    })
++                                    .sum::<f64>()
++                                    + f64::from(u8::from(bias));
++                                ensure!(v == cpu as f32, "dyadic CPU oracle differs");
++                            }
++                            checked += output.len();
++                        }
++                    }
++                }
++            }
++            for invalid in [
++                Array::zeros(&[1, k])?,
++                Array::zeros(&[3, k])?,
++                Array::zeros(&[2, k - 1])?,
++                Array::zeros(&[2, 1, k])?,
++                Array::zeros_dtype(&[2, k], Dtype::UInt32)?,
++            ] {
++                ensure!(p.forward_pair(&invalid).is_err());
++            }
++            let zero = p.forward_pair(&Array::zeros(&[2, k])?)?;
++            ensure!(zero.iter().all(|v| v.shape() == [1, n]));
++        }
++        ensure!(checked == 160);
++        Ok(())
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; exact mixed HC GEMV and fallback contracts"]
+     fn mixed_gemv_matches_mlx_cpu_and_fallbacks() -> Result<()> {

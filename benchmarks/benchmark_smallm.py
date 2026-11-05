@@ -174,7 +174,7 @@ def assert_exact(left, right):
         )
 
 
-def qmv(mx, shape, rows, mb=None, nt=None):
+def qmv(mx, shape, rows, mb=None, nt=None, source=None, codebook_table=None):
     dims, widths, k, cb = (shape[key] for key in ("input", "widths", "k", "cb"))
     cols = sum(widths)
     dispatch = layout(max(2, rows), len(widths) > 1, cols, dims, k)
@@ -210,16 +210,26 @@ def qmv(mx, shape, rows, mb=None, nt=None):
     }
     mapped = len(widths) > 1
     filename = "_qmv_mapped_tile_kernel.metal" if mapped else "_qmv_tile_kernel.metal"
-    source = (ROOT / "native/shaders" / filename).read_text()
+    source = (ROOT / "native/shaders" / filename).read_text() if source is None else source
+    if not source.strip():
+        raise ValueError("empty QMV source")
+    if codebook_table is not None and (
+        codebook_table.shape != (65536,) or codebook_table.dtype != mx.float16 or cb != 2
+    ):
+        raise ValueError("Mul1 requires a complete FP16 codebook table")
+    source_key = hashlib.sha256(source.encode()).hexdigest()[:16]
+    if codebook_table is not None:
+        source_key += "_table"
     header = (
         f"inline float mlxl3_decode_codeword(uint x,int cb) {{x &= 0xffffu; {CODEBOOKS[cb]}}}\n"
     )
     header += "\n".join(f"#define {key} {value}" for key, value in defs.items()) + "\n"
     kernel = mx.fast.metal_kernel(
-        name=f"smallm_{dims}_{cols}_{k}_{cb}_{rows}_{mb}_{nt}_{sg}_{splits}",
-        input_names=["xhat", "trellis", "tile_map", "tile_sub"]
-        if mapped
-        else ["xhat", "trellis", "svh"],
+        name=f"smallm_{dims}_{cols}_{k}_{cb}_{rows}_{mb}_{nt}_{sg}_{splits}_{source_key}",
+        input_names=(
+            ["xhat", "trellis", "tile_map", "tile_sub"] if mapped else ["xhat", "trellis", "svh"]
+        )
+        + (["codebook_table"] if codebook_table is not None else []),
         output_names=["yhat"],
         source=source,
         header=header,
@@ -227,9 +237,12 @@ def qmv(mx, shape, rows, mb=None, nt=None):
 
     def call(xhat, weights, tile_sub):
         return kernel(
-            inputs=[xhat, weights, mx.array([0], mx.uint32), tile_sub]
-            if mapped
-            else [xhat, weights, mx.ones((cols,), mx.float16)],
+            inputs=(
+                [xhat, weights, mx.array([0], mx.uint32), tile_sub]
+                if mapped
+                else [xhat, weights, mx.ones((cols,), mx.float16)]
+            )
+            + ([codebook_table] if codebook_table is not None else []),
             output_shapes=[(rows, splits, cols)],
             output_dtypes=[mx.float32],
             grid=(cols // 16 // nt * sg * 32, (rows + mb - 1) // mb, splits),

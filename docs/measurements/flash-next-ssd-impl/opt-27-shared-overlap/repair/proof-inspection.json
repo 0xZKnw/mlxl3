@@ -1,0 +1,10 @@
+{
+  "rust_scope": "actual SsdMoe::forward_many with overlap OFF/ON, 20 slots, symbolic 1/2 rows and independent i8/128 uniform input, no assume, four branch covers",
+  "status": "unverified",
+  "reason": "error: internal compiler error: Kani unexpectedly panicked at panicked at kani-compiler/src/intrinsics.rs:243:17:",
+  "obligations_checked": 0,
+  "covers_checked": 0,
+  "limits": "Compiler failed before model checking; filesystem, MLX, Metal, asynchronous completion and I/O concurrency not proved. No C/C++ implementation change.",
+  "checked_source": "repair/source.patch",
+  "repeat_reason": "new regression and pre-reservation preparation; compiler ICE unchanged before obligations"
+}

@@ -1,0 +1,17 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error: the loop variable `id` is used to index `map`
+   --> native/src/linear_half_output_tests.rs:153:43
+    |
+153 | ...                   for id in 0..3 {
+    |                                 ^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+    |
+153 -                                 for id in 0..3 {
+153 +                                 for (id, <item>) in map.iter_mut().enumerate().take(3) {
+    |
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

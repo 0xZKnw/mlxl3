@@ -1,0 +1,26 @@
+[
+  {
+    "phase": "close B and retire helper",
+    "error": "UTF8 stdin decoding SyntaxError before any Python mutation",
+    "result": "no mutation or GPU launch; corrected ASCII controller"
+  },
+  {
+    "phase": "first draft strict Clippy build",
+    "command": "cargo clippy --locked --all-targets --features mlx,chat -- -D warnings",
+    "exit_code": 101,
+    "error": "E0308 flash_draft.rs:261 delta.add(base) expected borrowed Array; no GPU test launched",
+    "source_sha256": "3511a0e8e3a6bef23b8024d39f6b7a38a5d4ad9613571bdafb3ac605e3a64a1c"
+  },
+  {
+    "phase": "Clippy corrected first borrowing issue",
+    "error": "type_complexity on top16 return tuple",
+    "exit_code": 101,
+    "log": "clippy-corrected.log",
+    "decision": "name existing tuple Top16Rows; clippy-typealias.log passed"
+  },
+  {
+    "phase": "add CLI failure tests",
+    "error": "apply_patch context did not match Ruff formatted test; no test changes applied",
+    "decision": "read final lines then append tests"
+  }
+]

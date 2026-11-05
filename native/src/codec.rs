@@ -137,6 +137,16 @@ pub fn permutation() -> [usize; 256] {
     out
 }
 
+// The emitted bytes are fixed by EXL3's reference accumulation order.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn reference_reduction_header(enabled: bool) -> &'static str {
+    if enabled {
+        include_str!("../shaders/flash_reference_reduction.h")
+    } else {
+        ""
+    }
+}
+
 pub fn permutation_inverse() -> [usize; 256] {
     let mut out = [0; 256];
     for (index, value) in permutation().into_iter().enumerate() {
@@ -207,6 +217,61 @@ mod tests {
         }
     }
     #[test]
+    fn static_reference_header_preserves_legacy_bytes_and_every_position() {
+        let positions = permutation().map(|p| p.to_string()).join(",");
+        let legacy = format!(
+            "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
+        );
+        let header = reference_reduction_header(true);
+        assert_eq!(header, legacy);
+        assert!(reference_reduction_header(false).is_empty());
+        let values = header
+            .split_once('{')
+            .unwrap()
+            .1
+            .strip_suffix("};\n")
+            .unwrap()
+            .split(',')
+            .map(|n| n.parse::<usize>().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(values.len(), 256);
+        for row in 0..16 {
+            for col in 0..16 {
+                let lane = (row % 8) / 2 + (col % 8) * 4;
+                let index = lane * 8 + (col / 8) * 4 + (row / 8) * 2 + row % 2;
+                assert_eq!(values[index], row * 16 + col);
+            }
+        }
+        for _ in 0..256 {
+            assert!(std::ptr::eq(header, reference_reduction_header(true)));
+        }
+    }
+
+    #[test]
+    #[ignore = "CPU microbenchmark only; run release separately from GPU measurements"]
+    fn reference_header_cpu_microbench() {
+        use std::{hint::black_box, time::Instant};
+        let iterations = 50_000;
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let positions = permutation().map(|p| p.to_string()).join(",");
+            black_box(format!(
+                "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
+            ));
+        }
+        let legacy = start.elapsed();
+        let start = Instant::now();
+        for _ in 0..iterations {
+            black_box(reference_reduction_header(black_box(true)));
+        }
+        println!(
+            "{{\"iterations\":{iterations},\"legacy_seconds\":{},\"static_seconds\":{}}}",
+            legacy.as_secs_f64(),
+            start.elapsed().as_secs_f64()
+        );
+    }
+
+    #[test]
     fn codebooks_are_finite_exhaustively() {
         for mode in [Codebook::Default, Codebook::Mcg, Codebook::Mul1] {
             for word in 0..=u16::MAX {
@@ -219,6 +284,22 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    fn reference_header_is_static_and_exactly_gated() {
+        let enabled: bool = kani::any();
+        let header = reference_reduction_header(enabled);
+        assert_eq!(header.is_empty(), !enabled);
+        if enabled {
+            let bytes = header.as_bytes();
+            assert_eq!(bytes.len(), 1006);
+            assert_eq!(bytes[0], b'\n');
+            assert_eq!(bytes[1], b'#');
+            assert_eq!(bytes[bytes.len() - 1], b'\n');
+        }
+        kani::cover!(enabled);
+        kani::cover!(!enabled);
+    }
 
     #[kani::proof]
     fn bitrate_validation_accepts_exactly_one_through_eight() {

@@ -1,0 +1,31 @@
+desktop-and-protocol	Run scripts/check-e2e.sh	﻿2026-10-15T14:40:48.9806920Z ##[group]Run scripts/check-e2e.sh
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9807270Z ^[[36;1mscripts/check-e2e.sh^[[0m
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9850150Z shell: /bin/bash -e {0}
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9850640Z env:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9850850Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9851210Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9851740Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9852200Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9852600Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9853050Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:48.9853370Z ##[endgroup]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5534890Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5535700Z ==================================== ERRORS ====================================
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5536240Z ________________ ERROR collecting tests/test_lfm25_settings.py _________________
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5537070Z ImportError while importing test module '/Users/runner/work/mlxl3/mlxl3/tests/test_lfm25_settings.py'.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5537710Z Hint: make sure your test modules/packages have valid Python names.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5538220Z Traceback:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5538760Z /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5539400Z     return _bootstrap._gcd_import(name[level:], package, level)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5539770Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5540070Z tests/test_lfm25_settings.py:10: in <module>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5540410Z     import torch
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5540720Z E   ModuleNotFoundError: No module named 'torch'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5541130Z =========================== short test summary info ============================
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5541810Z SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5542640Z SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5543470Z SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5544150Z ERROR tests/test_lfm25_settings.py
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5544630Z !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.5545980Z 3 skipped, 1 error in 2.07s
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-15T14:40:51.7075670Z ##[error]Process completed with exit code 2.

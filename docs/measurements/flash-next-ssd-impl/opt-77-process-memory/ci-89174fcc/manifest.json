@@ -1,0 +1,73 @@
+{
+  "inspection": "remote_read_only_no_CI_rerun_or_cancellation_no_local_proof_build_test_GPU",
+  "first_log_fetch": {
+    "command": "gh api repos/0xZKnw/mlxl3/actions/jobs/120430259721/logs",
+    "exit": 1,
+    "diagnostic": "the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway"
+  },
+  "completed_log_fetch": {
+    "command": "gh api --allow-escape-sequences repos/0xZKnw/mlxl3/actions/jobs/120430259721/logs",
+    "exit": 0
+  },
+  "snapshot_note": "statuses in run.json/jobs.json are the fetched snapshot, not a prediction of final Flash status",
+  "files": {
+    "analysis.json": {
+      "sha256": "a337bb5202b5a592be731e899f373913bbf153c0abf839129c8126f4ebf45231",
+      "bytes": 19836
+    },
+    "commit-files.json": {
+      "sha256": "a9a7ebf9f25f5133dbfa716c7e0d7f94eaf886d003b73b30a0b579cb6a127dfb",
+      "bytes": 14048
+    },
+    "global-kani-annotations.json": {
+      "sha256": "4538102de6275147fa6997fd0a126f5ae41203a47dc1d1247ea525130b959d30",
+      "bytes": 790
+    },
+    "global-kani-check-run.json": {
+      "sha256": "051e83cb6607ebaa0877bcfa9a3ac231bcc50586d6a1592db02f9c83e7d1cad2",
+      "bytes": 3452
+    },
+    "global-kani-job.json": {
+      "sha256": "a5d5054be201c01c27d865ad41e1e180b1f1cbab9b2ab6dbfd6bacd76a964442",
+      "bytes": 1696
+    },
+    "global-kani.log": {
+      "sha256": "b445fd33ca5ce4cc0c4d2a7232c4031d963d2ffa41f64f8a21901264c0385214",
+      "bytes": 93381
+    },
+    "jobs.json": {
+      "sha256": "841930ad80cd7143639821c992158036f965e8d53e3999e1decec418c3718b2c",
+      "bytes": 12283
+    },
+    "native-linux.log": {
+      "sha256": "8e1fc039e0526951fed5ff6696e163adaf341729eb1b305b014e5d50e4b40c21",
+      "bytes": 104656
+    },
+    "native-macos.log": {
+      "sha256": "d75071cb831d802243c93fffa05507da0127136450b08dac07e712ad59d51fce",
+      "bytes": 127114
+    },
+    "native-validation.json": {
+      "sha256": "2b8f947e6d6ecd7d47484f6b0c9ad832de12afcff02f288490e9659ed7338d73",
+      "bytes": 4514
+    },
+    "report.md": {
+      "sha256": "4fb769607597d2c4fc8ea3985c26715b18856f5a42d45753b43f50c8fa489a6c",
+      "bytes": 7762
+    },
+    "run.json": {
+      "sha256": "f97b47806b3e2d41fe248cd1e9a62b6d577184470b308dad99d3ae99505a3b8e",
+      "bytes": 12646
+    },
+    "workflow-89174fcc.yml": {
+      "sha256": "14388c6e88e925593b167cfda8fd304a70ebf8353ac06b1873b2d6bf971dd3e2",
+      "bytes": 23202
+    },
+    "workflow-content.json": {
+      "sha256": "daddaecc4806ff35909565b55c76bb8bf4b561f3ab9cb4f1be4c89118313cb89",
+      "bytes": 32976
+    }
+  },
+  "native_logs_read": true,
+  "new_tests_or_runs": false
+}

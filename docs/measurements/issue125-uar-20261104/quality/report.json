@@ -1,0 +1,288 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "moe",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen/native-libtest",
+        "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": "1",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0"
+      },
+      "pid": 85059,
+      "seconds": 8.186038416984957,
+      "evidence": {
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "deferred_producer_failure_recovery": true,
+        "encode_failure_no_commit": true,
+        "export_fallback": true,
+        "initial_archive_states": 84,
+        "late_failure_layer": 20,
+        "moe_deferred": true,
+        "parity": true,
+        "recovery": true,
+        "retained_prefix": true,
+        "steps": [
+          {
+            "candidate_commands": 136,
+            "control_commands": 170,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 248044,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 1,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 42,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 7,
+            "triples": 34
+          }
+        ]
+      }
+    },
+    {
+      "name": "gdn-composed",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen/native-libtest",
+        "gpu::gdn::gdn_uar_tests::physical_private_gdn_epilogues_preserve_model_states_and_actual_paths",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": "1",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "1",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "1",
+        "MLXL3_SSD_DYNAMIC_READERS": "1",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "1"
+      },
+      "pid": 85153,
+      "seconds": 6.143924292002339,
+      "evidence": {
+        "case_count": 8,
+        "cases": [
+          {
+            "cross_layer_triples": 34,
+            "half": false,
+            "half_uses": 0,
+            "norm": false,
+            "norm_uses": 0,
+            "parity": true,
+            "token": 248044
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": true,
+            "half_uses": 36,
+            "norm": false,
+            "norm_uses": 0,
+            "parity": true,
+            "token": 248044
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": false,
+            "half_uses": 0,
+            "norm": true,
+            "norm_uses": 36,
+            "parity": true,
+            "token": 248044
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": true,
+            "half_uses": 36,
+            "norm": true,
+            "norm_uses": 36,
+            "parity": true,
+            "token": 248044
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": false,
+            "half_uses": 0,
+            "norm": false,
+            "norm_uses": 0,
+            "parity": true,
+            "token": 1
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": true,
+            "half_uses": 36,
+            "norm": false,
+            "norm_uses": 0,
+            "parity": true,
+            "token": 1
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": false,
+            "half_uses": 0,
+            "norm": true,
+            "norm_uses": 36,
+            "parity": true,
+            "token": 1
+          },
+          {
+            "cross_layer_triples": 34,
+            "half": true,
+            "half_uses": 36,
+            "norm": true,
+            "norm_uses": 36,
+            "parity": true,
+            "token": 1
+          }
+        ],
+        "compared_hidden_words": 81920,
+        "compared_logits": 3973120,
+        "compared_state_words": 230424576,
+        "context": 4096,
+        "dynamic_read_submissions": 1631,
+        "explicit_legacy_continuation": true,
+        "half_stream_fallback": true,
+        "initial_archive_states": 84,
+        "norm_gate_component_values": 6144,
+        "parity": true,
+        "public_f32_fallback": true,
+        "t17_known_subnormal": true,
+        "trace_fallback": true
+      }
+    },
+    {
+      "name": "residency",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen/native-libtest",
+        "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "1",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "1"
+      },
+      "pid": 85250,
+      "seconds": 4.982019332994241,
+      "evidence": {
+        "branches": [
+          {
+            "counters": [
+              0,
+              0,
+              1395277416
+            ],
+            "enabled": false,
+            "fixed_residency_requested": true,
+            "fixed_weight_bytes": 3272810112,
+            "initial_direct_enabled": true,
+            "offset": 3,
+            "residency_bytes": 0,
+            "residency_count": 0,
+            "residency_idle_resume": true,
+            "rows": 3,
+            "snapshot_position_before_continuation": 2,
+            "trace_rows": 2
+          },
+          {
+            "counters": [
+              1118,
+              1395277416,
+              0
+            ],
+            "enabled": true,
+            "fixed_residency_requested": true,
+            "fixed_weight_bytes": 3272810112,
+            "initial_direct_enabled": true,
+            "offset": 3,
+            "residency_bytes": 3272810112,
+            "residency_count": 1644,
+            "residency_idle_resume": true,
+            "rows": 3,
+            "snapshot_position_before_continuation": 2,
+            "trace_rows": 2
+          }
+        ],
+        "compared_logits": 744960,
+        "compared_state_words": 57606144,
+        "finite": true,
+        "initial_archive_states": 84,
+        "parity": true
+      }
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/docs/measurements/issue125-uar-20261104/quality"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": "1",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "1",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "1",
+        "MLXL3_SSD_DYNAMIC_READERS": "1",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "1"
+      },
+      "pid": 85427,
+      "seconds": 10.19112404200132,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}

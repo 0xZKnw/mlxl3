@@ -1,0 +1,163 @@
+{
+  "status": "validated_local_finite_domain",
+  "source_base": "894c7964ff3579b69dd08b8b06259054c568c030",
+  "source_files_sha256": {
+    "native/ffi/mlx_bridge.cpp": "400fa21fe69401b602968230a0b18910647316bdcf8f3a93142d5e8a272bd206",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "423b23256eaf19e436b730190c8b961b1e3c66efe8628136d913c9ab12c0e1bf",
+    "native/shaders/_qmv_tile_kernel.metal": "0e3b30f93888c7a9de64282cdbe506d7d9fb15e38b91e68b819cc9215bca0eed",
+    "native/shaders/flash_rope.metal": "3da88069cd73a5fbd290da5c4c2922d3d832662c3bdd19e2575691ce4fe39957",
+    "native/src/array.rs": "4db87d10fddb4bb47a0a5cc8cef7940aa59160a54e4e7950ac4a4554c2bc9cf8",
+    "native/src/flash_support.rs": "c29032f4f5c524ba076f4da6c592a7cbf38064ac42b6eee303730e65d4a9d517",
+    "native/src/linear.rs": "e67c64a6c8966e5e467ce1df431d95fb8487655642d7b2e629a7260ea8096432",
+    "native/src/qwen4.rs": "ceb33b35599656950b0e1535d2efb1f23a001cfecdb4256ed505b471ff513e72",
+    "native/src/ssd_moe.rs": "7137379b463ec7f6460358295c9059942b219f0184d353b8992ea93f7291448c",
+    "scripts/check-flash-reference.py": "1e87774ebeb3a8fa0f089b9674a40635794f44e66c849de28a24851db10fe39d",
+    "tests/test_flash_reference.py": "22965f64e4f8cab47bbc443698edf638e226226dfb46ee83b3288182f576042d"
+  },
+  "binary_sha256": "7f9ed619c1924d4412869ce4dfd9da3cc1e9b2540078a5a831a9d763c7b4304b",
+  "runtime": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "894c7964ff35-dirty",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.3.0"
+  },
+  "checkpoint_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "checkpoint_quantization": "2.05bpw_h4_ng4",
+  "mlx": "0.32.2",
+  "mlx_vlm": "0.7.3",
+  "pony_commit": "8e7fa6b1556f59fc669e25087903b279b9b0346f",
+  "hardware": "Apple M5, 24 GiB",
+  "fixtures": {
+    "original": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "reference_sha256": "37e05327f9fddf059ec08ad7dacb00be1bc6cc789b3f5ac67e88092739858c20",
+      "numeric_files": 2655,
+      "numeric_bytes": 80668160,
+      "numeric_census_sha256": "c3c187f484e3dae621bcae7d0b1ccce4f9e344cb66fb1ebccb50c39795f11750",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    },
+    "held": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "reference_sha256": "8276927ac53f89009e64bef2e9900228d515f43f45ef73533ffc9ac8bb394491",
+      "numeric_files": 5841,
+      "numeric_bytes": 177469952,
+      "numeric_census_sha256": "ec94bcf56a9d81b7de19bc23b3bc8a25a1cef87517e46be5b45b0cfff051edd8",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        78768,
+        11,
+        220,
+        96748,
+        729,
+        687,
+        281,
+        2007,
+        248044,
+        248319
+      ]
+    },
+    "norm_hc": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "reference_sha256": "726e7e2a4c677d838a34a5faf655350b591be1f2e8154b3da964a19b65af789e",
+      "numeric_files": 104,
+      "numeric_bytes": 3887200,
+      "numeric_census_sha256": "8cc74cb6f415bb2f9fde5fd04eebc81ee1b6893ff2c7a4356cf813b0e4364247",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": null,
+      "tokens": null
+    },
+    "projections": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "reference_sha256": "2ec20a82189f4b5cdb301cccbc39e5604912f4a2e0bcd9f3fb26bd18f216e078",
+      "numeric_files": 40,
+      "numeric_bytes": 2486016,
+      "numeric_census_sha256": "a00cd6fb015f5fb33d5b53301bd898937e1d863de1df17bde8e1708f632dbc38",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": null,
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    },
+    "attention": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "reference_sha256": "40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec",
+      "numeric_files": 240,
+      "numeric_bytes": 4519840,
+      "numeric_census_sha256": "2f90c1187a841ea152e40e2f8172a03a427e4b881bfbbc7960eb13e13932ad6f",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    }
+  },
+  "numerical": {
+    "positions": 16,
+    "full_logits_values": 3973120,
+    "gdn_states": 32,
+    "values_per_state": 786432,
+    "full_logits_and_gdn_states_comparison": "FP32 bytes including signed zeros; finite, nonempty, counts checked",
+    "sorted_route_cohorts": 768,
+    "argmax": 16,
+    "component_outputs": 4608,
+    "component_contract": "HC mixed and attention byte equality; HC gate and MoE relative RMSE < 0.005",
+    "norms": 40,
+    "projections": 20,
+    "hc_writes": 6,
+    "isolated_attention_stages": 200
+  },
+  "checks": {
+    "gpu_targeted": 11,
+    "cpu_library": 39,
+    "cpu_contracts": 15,
+    "cpu_ignored": 3,
+    "python": 39,
+    "format_lint_build": "passed",
+    "bridge": "bridge/report.json",
+    "cli": "cli.json"
+  },
+  "verification": {
+    "kani_reference_partition": {
+      "status": "passed_bounded_model_check",
+      "domain": "all u32 input and output tiles, unwind 26",
+      "obligations": 37,
+      "covers_satisfied": 3,
+      "unreachable": 0,
+      "log": "kani-partition.log"
+    },
+    "cache": "unproved, previous exploration interrupted",
+    "cbmc": "unproved: actual C++ preprocessing succeeds, libc++ parser incompatibility",
+    "crosshair": "unconfirmed, 8 seconds per condition, 2 token-parser conditions"
+  },
+  "limits": [
+    "Finite text-domain validation only",
+    "QSA beyond 2048 tokens not physically checked",
+    "Multimodal unsupported in this text port",
+    "MTP pending",
+    "Corrected speed comparison not measured",
+    "Hosted CI for new SHA pending",
+    "No full proof of GPU, concurrency, I/O or numerical inference"
+  ],
+  "negative_results": "opti.md and retained logs in this directory"
+}

@@ -1,0 +1,20 @@
+
+running 5 tests
+test ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending ... SSD_GPU_HOT_SCHEDULE {"events":[["routes_cpu",0.214422291],["demand_begin",0.214426375],["demand_end",0.214763833]],"hits":5,"misses":5,"read_bytes":12480120,"ready_at_demand":false,"ready_at_routes":false,"submissions":1}
+ok
+test ssd_moe::hybrid_tests::early_hot_failure_preserves_ready_keys_and_recovers ... SSD_GPU_HOT_EARLY_FAILURE parity=byte_exact ready_keys=5 recovery=true
+ok
+test ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback ... SSD_UNIQUE_WINDOW cases=24 rows=6..8 capacities=20,24,53 fallback=6+2/4+4 readbacks=1 hot_before_readback=true hot_survives_eviction=true cold_cache_hits_recomputed=true pending=excluded io_recovery=true parity=byte_exact
+ok
+test ssd_moe::hybrid_tests::wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows ... SSD_GPU_HOT_WIDE rows=3..8 variants=2 cases=12 parity=byte_exact asynchronous=true
+ok
+test ssd_moe::hybrid_tests::wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership ... Error: pending slots did not split the cohort
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::hybrid_tests::wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 245 filtered out; finished in 7.97s
+

@@ -1,5 +1,73 @@
 # Third-party notices
 
+## Flash attention on Metal
+
+The one- and two-pass attention reductions in `native/shaders/flash_qsa.metal`
+follow Apple MLX 0.32.2. The sparse index kernel dispatch in
+`native/src/gpu/qsa.rs` follows the device and matrix capability selection in
+that version. See the [vector attention source](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/sdpa_vector.h),
+[device capabilities](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp)
+and [MLX license](https://github.com/ml-explore/mlx/blob/v0.32.2/LICENSE).
+
+## Experimental DEC-ONE arrival and exact dense finish
+
+`native/shaders/flash_dec_one_finish.metal` adapts the device-fence and last-group
+arrival protocol from [TurboEXL3](https://github.com/davidtai/turboexl3/blob/087c75724863e71710d4615453d3d131d8f7accb/src/kernels/dense/dec_gemv_arrive.metal),
+Copyright (c) 2026 David Tai. Its canonical reduction and Hadamard finish reuse
+the MLX 0.32.2 adaptation credited in `flash_dense_epilogue.metal`,
+Copyright © 2023-2024 Apple Inc. Both contributions are MIT licensed:
+
+The optional native AR20 kernels in `native/shaders/exl3.metal`,
+`ar20_trellis.metal` and `_qmv_tile_kernel.metal` also adapt TurboEXL3's
+packed-byte MUL1 sum, eight-codeword window staging, K-tile preloading and
+register/SIMD Hadamard mechanisms from revision
+[`c3bb0e260091709f8ad64c84d1fd02808b12dfd1`](https://github.com/davidtai/turboexl3/tree/c3bb0e260091709f8ad64c84d1fd02808b12dfd1),
+especially `src/kernels/lane/helpers.metal`, `decode/gemv_core.metal` and
+`decb/had128.metal`. Copyright (c) 2026 David Tai; MIT licensed under the
+terms below. The native adaptations preserve MLXL3's original Half
+rounding points, accumulator chains and reduction order; they do not import
+TurboEXL3's deferred affine map or numerical tolerances.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Flash Next architecture and SSD integration
+
+`native/src/qwen4.rs` and its independent verification script follow Qwen's
+released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
+architecture, including HyperConnections, sparse attention and PLE.
+`native/shaders/flash_rope.metal` adapts the text half-split MRoPE body from
+MLX-VLM `models/rope_utils.py` under the same MIT license:
+<https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
+Copyright © 2025 Prince Canuma. The MIT license is provided in
+`LICENSES/MLX-VLM-MIT.txt`. Existing EXL3 kernels retain their PonyExl3
+attribution and Apache-2.0 license.
+
+The SSD design was compared with the user's `localqwen3.8flash` project and
+Sushi <https://github.com/beamivalice/sushi> at
+`eaaca12c5508e6a24a01671384a9a41089370058` (HC, QSA, EXL3 and n-gram kernels).
+Sushi kernel source has not been copied; its compiled bank/n-gram format and
+optional approximate expert selection are not used by this implementation.
+
+MLXL3 is an independent implementation that adapts algorithms and kernel
+structures from the following projects.
+
+
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 
@@ -30,6 +98,30 @@ from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
 and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small
 EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
 
+## OpenBMB LES
+
+Source: <https://github.com/OpenBMB/llama.cpp-omni>, revision
+`a64932ec615e1463158129feaf2f0752d0c07a2e`, especially
+`docs/les/lookahead-expert-scheduling.md`, `src/models/qwen35moe.cpp`, and
+`src/llama-moe-slot.cpp`. Cross-layer routing prediction and expert loading
+overlapped with current-layer computation informed MLXL3's independent
+experimental Rust implementation. It uses the existing EXL3 banks and
+checked readers, preserving actual routing and reduction order. OpenBMB's
+quantization and DSpark results are separate from MLXL3 measurements.
+
+## Strata
+
+Sources: <https://github.com/Niko1221/Strata>, revision
+`cbfd5b926b794b356195d3cb600191b0c3567540`, and the distinct MLX project
+<https://github.com/yibie/strata-mlx>, revision
+`295c96594dd79cbd080052da8740b1a8e44d7d76`.
+Their GPU expert planning, grouped weight reuse, streamed-cache scheduling
+and host/GPU overlap informed the independently implemented Flash Next
+resident-routing experiment. The comparison of implemented and outstanding
+mechanisms is recorded in `docs/flash-next-ssd-strata-56-2026-10-20.md`.
+MLXL3 preserves its EXL3 arithmetic and routing contract; Strata's source
+and performance results are references, not bundled kernels or local timings.
+
 ## TensorFold
 
 Source: <https://github.com/ashhart/TensorFold>, revision
@@ -52,13 +144,32 @@ upstream throughput is not an MLXL3 measurement.
 
 ## IncoAI Splash
 
-Source: <https://github.com/inco-ai/splash>.
+Source: <https://github.com/incoai/splash>.
 
 MLXL3 reads Splash's public DFlash 2 draft package ABI and uses its published
 geometry as a compatibility reference. Runtime kernels remain independently
 benchmarked MLXL3 implementations and may differ from Splash. Splash is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
+
+`native/shaders/flash_draft_ring.h` adapts the split attention and fixed-order
+reduction from `runtime/metal/kernels/decode/draft.metal` at revision
+`1482f6bbc2abf12375332725302019594150b6cb`. MLXL3 changes its bindings to
+immutable MLX inputs, separate partial buffers, one lane and variable query
+counts. `native/src/flash_draft_budget.rs` adapts that revision's single-lane
+VerifyBudget cost/acceptance model to Rust, with bounded labels and verified
+prefix updates. Upstream performance figures do not describe these ports.
+
+## SGLang DFlash2 and DSpark
+
+The experimental Flash Next draft tests in `native/src/flash_draft.rs` and
+the independent NumPy oracle in `scripts/check_flash_drafts.py` implement
+the DFlash2 and vanilla DSpark equations documented by SGLang, revision
+`e00930c5489053f26d86b179cee0d087f846acbb`:
+<https://github.com/sgl-project/sglang/tree/e00930c5489053f26d86b179cee0d087f846acbb/python/sglang/srt/models>.
+SGLang is licensed under Apache-2.0 (`LICENSES/Apache-2.0.txt`).
+The locally downloaded IncoAI DFlash2 and shadowpa0327 DSpark checkpoints
+are not bundled; their respective model cards document their weight licenses.
 
 ## ExLlamaV3
 
@@ -144,6 +255,24 @@ SOFTWARE.
 
 ## MLX and MLX LM
 
+The Flash router in `native/shaders/flash_gate.metal` follows the GEMV and
+softmax reduction order in Apple's MLX 0.32.2 Metal backend. It compiles
+independently using the Metal SDK. The reference implementations are in
+[`gemv.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/gemv.h)
+and [`softmax.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/softmax.h).
+
+The scalar shared-expert switch and weighted expert reduction in
+`native/shaders/flash_moe.metal` follow the arithmetic order in Apple's
+[`dot.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/dot.h)
+and [strided reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_col.h).
+
+The direct Flash hyper-connection uses the shared GEMV body and the last-axis sum
+order from Apple's [Metal row reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_row.h).
+Its sigmoid follows the [unary operator](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/unary_ops.h).
+
+The direct GDN uses the previously qualified MLXL3 Flash convolution and packed
+Gated DeltaNet bodies. The normalization follows Apple's [Metal RMS kernel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/rms_norm.metal).
+
 Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
 <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 
@@ -152,7 +281,9 @@ The packed Gated DeltaNet Metal kernel in
 behavior during the native Rust migration. MLX LM is licensed under the MIT
 License. The dense verification gate in `native/src/lfm2.rs` reproduces MLX's
 GEMV reduction geometry so multi-row verification remains bit-exact; MLX is
-also licensed under the MIT License.
+also licensed under the MIT License. The mixed HC GEMV in
+`native/shaders/flash_hc_gemv.metal` adapts the same MLX 0.32.2 GEMV
+geometry and accumulation order, with FP16 weight loads and FP32 outputs.
 
 Copyright © 2023 Apple Inc.
 
@@ -173,3 +304,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The native Flash QSA single-pass kernel specializes the vector SDPA implementation from [MLX 0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/scaled_dot_product_attention/sdpa_vector.h), Copyright © 2024 Apple Inc., under the MIT license above.
+
+The FP16 vocabulary reduction in `native/shaders/flash_logsumexp.metal` specializes Apple's looped [MLX 0.32.2 logsumexp kernel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/logsumexp.h), Copyright © 2025 Apple Inc., under the MIT license above.
+
+## Native Metal trellis conversion
+
+The native tile search in `native/shaders/quantize_tiles.metal` adapts
+PonyExl3's Metal reference at 8e7fa6b1556f59fc669e25087903b279b9b0346f,
+Copyright 2026 Theinruj Toranavikrai, under Apache-2.0. The port preserves
+the two tail-biting passes, FP16 costs and predecessor tie order. The engine
+manifest includes PonyExl3's NOTICE and the Apache-2.0 license text.

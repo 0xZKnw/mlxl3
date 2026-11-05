@@ -1,0 +1,52 @@
+{
+  "status": "cpu_complete_gpu_pending",
+  "rust": {
+    "passed": 179,
+    "ignored": 85
+  },
+  "python_passed": 442,
+  "kani": {
+    "lane-default-kani": {
+      "SUCCESS": 197,
+      "SATISFIED": 6,
+      "UNREACHABLE": 7,
+      "FAILURE": 0
+    },
+    "exl3_lane_order_preserves_shape_and_large_m_fallback": {
+      "SUCCESS": 68,
+      "SATISFIED": 6,
+      "UNREACHABLE": 0,
+      "FAILURE": 0
+    },
+    "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds": {
+      "SUCCESS": 9,
+      "SATISFIED": 3,
+      "UNREACHABLE": 0,
+      "FAILURE": 0
+    },
+    "exl3_lane_layout_key_distinguishes_options": {
+      "SUCCESS": 2,
+      "SATISFIED": 2,
+      "UNREACHABLE": 0,
+      "FAILURE": 0
+    }
+  },
+  "numerical_sources_unchanged": [
+    "native/src/qwen35.rs",
+    "native/src/lib.rs",
+    "native/shaders/_qmv_tile_kernel.metal",
+    "native/shaders/_qmv_mapped_tile_kernel.metal"
+  ],
+  "failure_reproduced": "regression-before.log; 101; one failing assertion false vs true",
+  "sources": {
+    "native/src/contracts.rs": "37a1e9bd8046169ef66eef67822bc3abc89678ad19bbb7f0d045cef55e31aaf7",
+    "native/src/linear.rs": "26e4e090e25559f955742451a0ce17c2990fbf2baa6283e82cc2f05b1e824c11",
+    "native/src/mtp_tune.rs": "569ee44f9fd94bf4b692ad86c91eb66c9348411bc0fe71780e6e1e3191064742",
+    "native/src/qwen35.rs": "5b440a0be31009f2ad53e102c20531f12cb6587b7fcb7945446d05300662ff3c",
+    "native/src/lib.rs": "0f14cad9235c92feeb45e814cdafa90c8aa25e8350354d86dd909f7bcc82136c",
+    "native/shaders/_qmv_tile_kernel.metal": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef",
+    "Cargo.toml": "3dac7137e647acb9cb182c68eb37797f091745835190595471b414c7b21de2e5",
+    "Cargo.lock": "761d8be3485207533bbd1d36a0df2a9363618d72628c79ad6b5e7c85a2cddd0d"
+  }
+}

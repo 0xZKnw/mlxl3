@@ -1,0 +1,729 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index d3cc92c5..9206eb62 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -3,6 +3,7 @@
+ #include <array>
+ #include <atomic>
+ #include <cerrno>
++#include <chrono>
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
+@@ -38,6 +39,8 @@ namespace {
+ thread_local std::array<char, 2048> last_error{};
+ thread_local bool disk_profile_enabled = false;
+ thread_local std::vector<mlxl3::DiskTiming> disk_profile;
++thread_local bool readback_profile_enabled = false;
++thread_local std::array<uint64_t, 8> readback_profile{};
+ template<class F> int protect(F&& f) noexcept {
+   last_error[0] = 0;
+   try { f(); return 0; }
+@@ -435,17 +438,49 @@ int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
+ }
+ int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
+   return protect([&] {
++    using Clock = std::chrono::steady_clock;
++    const bool profiling = readback_profile_enabled;
++    if (profiling) readback_profile.fill(0);
++    const auto now = [&] { return profiling ? Clock::now() : Clock::time_point{}; };
++    const auto ns = [](Clock::time_point start, Clock::time_point end) {
++      return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
++    };
++    const auto start = now();
+     auto& source = arr(p);
+     if (source.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
+     if (count && !out) throw std::invalid_argument("null byte output");
++    const bool ready = profiling && source.is_available();
++    const auto read = [&](mx::array& value, bool direct, uint64_t build_ns) {
++      const auto wait_start = now();
++      value.eval();
++      const auto* data = count ? value.data<uint8_t>() : nullptr;
++      const auto copy_start = now();
++      if (count) std::memcpy(out, data, count);
++      const auto end = now();
++      if (profiling)
++        readback_profile = {1, ns(wait_start, copy_start), ns(copy_start, end), build_ns,
++                            uint64_t(count), uint64_t(ready), uint64_t(direct), ns(start, end)};
++    };
+     // A new Contiguous primitive would wait behind unrelated work submitted later.
+     if (source.status() != mx::array::Status::unscheduled && source.flags().row_contiguous) {
+-      source.eval();
+-      if (count) std::memcpy(out, source.data<uint8_t>(), count);
++      read(source, true, 0);
+       return;
+     }
++    const auto build_start = now();
+     auto a = mx::contiguous(source);
+-    a.eval(); if (count) std::memcpy(out, a.data<uint8_t>(), count);
++    const auto build_end = now();
++    read(a, false, profiling ? ns(build_start, build_end) : 0);
++  });
++}
++void mlxl3_readback_profile_enable(bool enabled) noexcept {
++  readback_profile_enabled = enabled;
++  readback_profile.fill(0);
++}
++int mlxl3_readback_profile_copy(uint64_t* output, size_t count) noexcept {
++  return protect([&] {
++    if (!output || count != readback_profile.size())
++      throw std::invalid_argument("invalid readback profile destination");
++    std::copy(readback_profile.begin(), readback_profile.end(), output);
+   });
+ }
+ // Opcodes stay private to array.rs; every operation returns a fresh owned handle.
+diff --git a/native/src/array.rs b/native/src/array.rs
+index bf0d4e51..87402f98 100644
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -65,6 +65,10 @@ impl Dtype {
+ }
+ 
+ unsafe extern "C" {
++    #[cfg(test)]
++    fn mlxl3_readback_profile_enable(enabled: bool);
++    #[cfg(test)]
++    fn mlxl3_readback_profile_copy(output: *mut u64, count: usize) -> i32;
+     #[cfg(test)]
+     fn mlxl3_disk_profile_enable(enabled: bool);
+     #[cfg(test)]
+@@ -249,6 +253,10 @@ unsafe extern "C" {
+     ) -> i32;
+ }
+ 
++#[cfg(test)]
++pub(crate) fn readback_profile_enable(enabled: bool) {
++    unsafe { mlxl3_readback_profile_enable(enabled) }
++}
+ #[cfg(test)]
+ pub(crate) fn disk_profile_enable(enabled: bool) {
+     unsafe { mlxl3_disk_profile_enable(enabled) };
+@@ -749,9 +757,25 @@ impl Array {
+         converted.into_iter().collect()
+     }
+     pub fn eval(&self) -> Result<()> {
+-        checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
++        #[cfg(test)]
++        let profile = crate::flash_profile::span("host_eval_inclusive");
++        #[cfg(test)]
++        let ready = profile
++            .as_ref()
++            .map(|_| self.is_available_for_test())
++            .transpose()?;
++        let result = checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) });
++        #[cfg(test)]
++        if let Some(profile) = profile {
++            profile.data(
++                serde_json::json!({"ready_before":ready,"shape":self.shape,"ok":result.is_ok()}),
++            );
++        }
++        result
+     }
+     pub fn async_eval(&self) -> Result<()> {
++        #[cfg(test)]
++        let _profile = crate::flash_profile::span("host_async_submit");
+         checked(unsafe { mlxl3_array_async_eval(self.handle.as_ptr()) })
+     }
+ 
+@@ -957,6 +981,8 @@ impl Array {
+     }
+     /// Submit graphs together; reading an output still waits for completion.
+     pub fn async_eval_all(inputs: &[&Self]) -> Result<()> {
++        #[cfg(test)]
++        let _profile = crate::flash_profile::span("host_async_submit_all");
+         let pointers: Vec<_> = inputs.iter().map(|value| value.handle.as_ptr()).collect();
+         checked(unsafe { mlxl3_arrays_async_eval(pointers.as_ptr(), pointers.len()) })
+     }
+@@ -964,12 +990,21 @@ impl Array {
+         Self::output(|out| unsafe { mlxl3_array_clone(self.handle.as_ptr(), out) })
+     }
+     pub fn to_bytes(&self) -> Result<Vec<u8>> {
++        #[cfg(test)]
++        let profile = crate::flash_profile::span("host_readback");
+         let mut bytes = vec![0; bytes_for(&self.shape, self.dtype)?];
+         #[cfg(test)]
+         HOST_READBACKS.set(HOST_READBACKS.get().saturating_add(1));
+         checked(unsafe {
+             mlxl3_array_copy_bytes(self.handle.as_ptr(), bytes.as_mut_ptr(), bytes.len())
+         })?;
++        #[cfg(test)]
++        if let Some(profile) = profile {
++            let mut sample = [0; 8];
++            checked(unsafe { mlxl3_readback_profile_copy(sample.as_mut_ptr(), sample.len()) })?;
++            let sample = crate::flash_profile::validate_readback_sample(sample, bytes.len())?;
++            profile.data(serde_json::json!({"sample":sample,"shape":self.shape,"dtype":format!("{:?}",self.dtype)}));
++        }
+         Ok(bytes)
+     }
+     #[cfg(test)]
+diff --git a/native/src/flash_profile.rs b/native/src/flash_profile.rs
+index cec2b961..e0e1dfe4 100644
+--- a/native/src/flash_profile.rs
++++ b/native/src/flash_profile.rs
+@@ -17,11 +17,101 @@ struct Trace {
+     fenced: bool,
+     stack: Vec<usize>,
+     events: Vec<Event>,
++    signatures: Vec<KernelSignature>,
++}
++#[derive(PartialEq)]
++struct KernelSignature {
++    stable: bool,
++    name: String,
++    header: String,
++    source: String,
++}
++fn intern_signature(
++    signatures: &mut Vec<KernelSignature>,
++    stable: bool,
++    name: &str,
++    header: &str,
++    source: &str,
++) -> (usize, bool) {
++    if let Some(index) = signatures.iter().position(|key| {
++        key.stable == stable && key.name == name && key.header == header && key.source == source
++    }) {
++        return (index, false);
++    }
++    let index = signatures.len();
++    signatures.push(KernelSignature {
++        stable,
++        name: name.into(),
++        header: header.into(),
++        source: source.into(),
++    });
++    (index, true)
++}
++
++// A request builds a lazy graph; only a GPU capture establishes actual dispatches.
++pub(crate) fn kernel_signature(stable: bool, name: &str, header: &str, source: &str) {
++    let key = TRACE.with_borrow_mut(|trace| {
++        trace
++            .as_mut()
++            .map(|trace| intern_signature(&mut trace.signatures, stable, name, header, source))
++    });
++    if let Some((index, fresh)) = key {
++        if fresh {
++            span("expert_kernel_signature")
++                .expect("active trace")
++                .data(serde_json::json!({"id":index,"stable":stable,"key":[name,header,source]}));
++        }
++        span("expert_kernel_request")
++            .expect("active trace")
++            .data(serde_json::json!({"signature":index}));
++    }
+ }
+ thread_local! {
+     static TRACE: RefCell<Option<Trace>> = const { RefCell::new(None) };
+ }
+ pub(crate) struct Span(usize);
++
++#[derive(Debug, PartialEq, Serialize)]
++pub(crate) struct ReadbackSample {
++    pub(crate) wait_ns: u64,
++    pub(crate) copy_ns: u64,
++    pub(crate) contiguous_build_ns: u64,
++    pub(crate) bytes: u64,
++    pub(crate) ready_before: bool,
++    pub(crate) direct: bool,
++    pub(crate) total_ns: u64,
++}
++pub(crate) fn validate_readback_sample(raw: [u64; 8], bytes: usize) -> Result<ReadbackSample> {
++    ensure!(
++        raw[0] == 1 && raw[5] <= 1 && raw[6] <= 1,
++        "invalid readback sample flags"
++    );
++    ensure!(
++        u64::try_from(bytes).ok() == Some(raw[4]),
++        "readback sample byte count differs"
++    );
++    let measured = raw[1]
++        .checked_add(raw[2])
++        .and_then(|sum| sum.checked_add(raw[3]));
++    ensure!(
++        measured.is_some_and(|sum| sum <= raw[7]),
++        "invalid readback sample durations"
++    );
++    ensure!(
++        raw[6] == 0 || raw[3] == 0,
++        "direct readback unexpectedly built a copy"
++    );
++    Ok(ReadbackSample {
++        wait_ns: raw[1],
++        copy_ns: raw[2],
++        contiguous_build_ns: raw[3],
++        bytes: raw[4],
++        ready_before: raw[5] == 1,
++        direct: raw[6] == 1,
++        total_ns: raw[7],
++    })
++}
++
+ pub(crate) fn start(fenced: bool) -> Result<()> {
+     TRACE.with_borrow_mut(|trace| {
+         ensure!(trace.is_none(), "profile already active");
+@@ -30,7 +120,10 @@ pub(crate) fn start(fenced: bool) -> Result<()> {
+             fenced,
+             stack: Vec::new(),
+             events: Vec::new(),
++            signatures: Vec::new(),
+         });
++        #[cfg(feature = "mlx")]
++        crate::array::readback_profile_enable(true);
+         Ok(())
+     })
+ }
+@@ -85,9 +178,143 @@ pub(crate) fn finish() -> Result<Vec<Event>> {
+             trace.as_ref().is_some_and(|t| t.stack.is_empty()),
+             "profile inactive or spans open"
+         );
+-        Ok(trace.take().expect("validated trace").events)
++        let events = trace.take().expect("validated trace").events;
++        #[cfg(feature = "mlx")]
++        crate::array::readback_profile_enable(false);
++        Ok(events)
+     })
+ }
++
++#[test]
++fn signatures_are_unique_but_every_request_is_counted() -> Result<()> {
++    kernel_signature(false, "disabled", "", "");
++    start(false)?;
++    let source = "source".repeat(2048);
++    let root = span("root").unwrap();
++    let keys = [
++        (false, "name", "header", source.as_str()),
++        (true, "name", "header", source.as_str()),
++        (false, "other", "header", source.as_str()),
++        (false, "name", "other", source.as_str()),
++        (false, "name", "header", "other"),
++    ];
++    for &(stable, name, header, source) in &keys {
++        kernel_signature(stable, name, header, source);
++    }
++    for _ in 0..500 {
++        kernel_signature(false, "name", "header", &source);
++    }
++    drop(root);
++    let events = finish()?;
++    let signatures = events
++        .iter()
++        .filter(|e| e.name == "expert_kernel_signature")
++        .collect::<Vec<_>>();
++    let requests = events
++        .iter()
++        .filter(|e| e.name == "expert_kernel_request")
++        .collect::<Vec<_>>();
++    assert_eq!(signatures.len(), keys.len());
++    assert_eq!(requests.len(), 505);
++    for (index, event) in signatures.iter().enumerate() {
++        assert_eq!(event.data["id"], index);
++        assert_eq!(event.data["stable"], keys[index].0);
++        assert_eq!(
++            event.data["key"],
++            serde_json::json!([keys[index].1, keys[index].2, keys[index].3])
++        );
++    }
++    for (index, event) in requests.iter().enumerate() {
++        assert_eq!(event.data["signature"], if index < 5 { index } else { 0 });
++    }
++    assert!(serde_json::to_vec(&events)?.len() < 100 * source.len());
++    start(false)?;
++    kernel_signature(false, "name", "header", &source);
++    let events = finish()?;
++    assert_eq!(events[0].data["id"], 0);
++    Ok(())
++}
++
++#[test]
++fn readback_sample_rejects_incomplete_corrupt_and_overflowing_records() -> Result<()> {
++    assert_eq!(
++        validate_readback_sample([1, 10, 5, 0, 40, 0, 1, 16], 40)?.bytes,
++        40
++    );
++    assert!(!validate_readback_sample([1, 11, 5, 3, 40, 1, 0, 20], 40)?.direct);
++    assert!(validate_readback_sample([1, 0, 0, 0, 0, 1, 1, 0], 0).is_ok());
++    for raw in [
++        [0, 10, 5, 0, 40, 0, 1, 16],
++        [1, 10, 5, 0, 40, 2, 1, 16],
++        [1, 10, 5, 0, 40, 0, 2, 16],
++        [1, 10, 5, 0, 41, 0, 1, 16],
++        [1, 10, 5, 0, 40, 0, 1, 14],
++        [1, 10, 5, 1, 40, 0, 1, 16],
++        [1, u64::MAX, 1, 0, 40, 0, 1, u64::MAX],
++        [1, 0, u64::MAX, 1, 40, 0, 0, u64::MAX],
++    ] {
++        assert!(
++            validate_readback_sample(raw, 40).is_err(),
++            "accepted {raw:?}"
++        );
++    }
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn readback_profile_accepts_exactly_valid_bounded_durations() {
++    let raw: [u64; 8] = kani::any();
++    let bytes: usize = kani::any();
++    let result = validate_readback_sample(raw, bytes);
++    let total = u128::from(raw[1]) + u128::from(raw[2]) + u128::from(raw[3]);
++    let expected = raw[0] == 1
++        && raw[5] <= 1
++        && raw[6] <= 1
++        && u128::from(raw[4]) == bytes as u128
++        && total <= u128::from(raw[7])
++        && (raw[6] == 0 || raw[3] == 0);
++    assert_eq!(result.is_ok(), expected);
++    if let Ok(sample) = result {
++        assert_eq!(sample.bytes as u128, bytes as u128);
++        assert_eq!(sample.wait_ns, raw[1]);
++        assert_eq!(sample.copy_ns, raw[2]);
++        assert_eq!(sample.ready_before, raw[5] == 1);
++        kani::cover!(bytes == 0 && sample.direct);
++        kani::cover!(bytes == 40 && !sample.ready_before && sample.direct);
++        kani::cover!(!sample.direct && sample.contiguous_build_ns > 0);
++    }
++    kani::cover!(!expected && total > u128::from(u64::MAX));
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(8)]
++fn signature_interning_preserves_identity_for_three_requests() {
++    let names = ["n", "m"];
++    let headers = ["h", "j"];
++    let sources = ["s", "t"];
++    let mut keys = [(false, "", "", ""); 3];
++    for key in &mut keys {
++        *key = (
++            kani::any(),
++            names[usize::from(kani::any::<bool>())],
++            headers[usize::from(kani::any::<bool>())],
++            sources[usize::from(kani::any::<bool>())],
++        );
++    }
++    let mut signatures = Vec::new();
++    let mut ids = [0; 3];
++    for i in 0..3 {
++        ids[i] = intern_signature(&mut signatures, keys[i].0, keys[i].1, keys[i].2, keys[i].3).0;
++        assert!(ids[i] < signatures.len() && signatures.len() <= i + 1);
++        for j in 0..=i {
++            assert_eq!(ids[i] == ids[j], keys[i] == keys[j]);
++        }
++    }
++    kani::cover!(ids[0] == ids[1] && ids[1] == ids[2]);
++    kani::cover!(ids[0] != ids[1] && ids[1] != ids[2] && ids[0] != ids[2]);
++}
+ #[cfg(feature = "mlx")]
+ pub(crate) fn stage(name: &str, value: &crate::array::Array) -> Result<()> {
+     let fenced = TRACE.with_borrow(|trace| trace.as_ref().is_some_and(|t| t.fenced));
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 8b057b1b..32aac499 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1549,14 +1549,12 @@ fn expert_mapped_layout(
+             format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {stride}\n")
+         });
+         #[cfg(test)]
+-        if let Some(profile) = crate::flash_profile::span("expert_kernel_signature") {
+-            profile.data(serde_json::json!({
+-                "stable": stable_shapes,
+-                "key": [group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+-                    grouped_header.as_deref().unwrap_or(&header).to_owned(),
+-                    stable_source.as_deref().unwrap_or(kernel_source).to_owned()],
+-            }));
+-        }
++        crate::flash_profile::kernel_signature(
++            stable_shapes,
++            &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
++            grouped_header.as_deref().unwrap_or(&header),
++            stable_source.as_deref().unwrap_or(kernel_source),
++        );
+         Ok(array::metal_kernel(
+             &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+             &["xhat", "trellis", "tile_map", "tile_sub"],
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a8f1fbb7..b32a717c 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -351,6 +351,8 @@ impl SsdMoe {
+             .reshape(&[n * 2, H])?;
+         let suh = slots.gather_scales(&self.banks[2])?.reshape(&[n * 2, H])?;
+         let svh = slots.gather_scales(&self.banks[3])?.reshape(&[n * 2, I])?;
++        #[cfg(test)]
++        let gu_build = crate::flash_profile::span("expert_gate_up_build");
+         let gu = linear::expert_slots(
+             &expanded,
+             &self.banks[0],
+@@ -365,13 +367,21 @@ impl SsdMoe {
+         )?
+         .reshape(&[n, 2, I])?;
+         #[cfg(test)]
++        drop(gu_build);
++        #[cfg(test)]
+         crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
++        #[cfg(test)]
++        let activation_build = crate::flash_profile::span("expert_swiglu_build");
+         let activated = gu
+             .slice(1, 0, 1)?
+             .reshape(&[n, I])?
+             .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)?;
+         #[cfg(test)]
++        drop(activation_build);
++        #[cfg(test)]
+         crate::flash_profile::stage("expert_swiglu_completion", &activated)?;
++        #[cfg(test)]
++        let down_build = crate::flash_profile::span("expert_down_build");
+         let down = linear::expert_slots(
+             &activated,
+             &self.banks[1],
+@@ -385,6 +395,8 @@ impl SsdMoe {
+             self.stable_expert_kernels,
+         )?;
+         #[cfg(test)]
++        drop(down_build);
++        #[cfg(test)]
+         crate::flash_profile::stage("expert_down_completion", &down)?;
+         Ok(down)
+     }
+@@ -397,6 +409,8 @@ impl SsdMoe {
+     }
+ 
+     pub(crate) fn route(&self, x: &Array) -> Result<(Array, Array)> {
++        #[cfg(test)]
++        let _profile = crate::flash_profile::span("router_projection_and_topk_build");
+         ensure!(
+             x.shape() == [1, H] && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
+             "streamed MoE expects one exact route row"
+@@ -531,6 +545,8 @@ impl SsdMoe {
+ 
+     fn prepare_resident_hot(&mut self, x: &Array, selected: &Array) -> Result<Option<ResidentHot>> {
+         if let Some(last) = self.last.take() {
++            #[cfg(test)]
++            let _profile = crate::flash_profile::span("hot_previous_bank_users_wait");
+             last.eval()?;
+         }
+         let map = self.cache.borrow().resident_slot_map()?;
+@@ -1052,6 +1068,8 @@ impl SsdMoe {
+     }
+ 
+     fn shared_projection(&self, x: &Array) -> Result<Array> {
++        #[cfg(test)]
++        let _profile = crate::flash_profile::span("shared_projection_build");
+         let gate = self.shared_gate.forward(x)?.astype(Dtype::Float16)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("shared_gate_projection", &gate)?;
+@@ -1068,6 +1086,8 @@ impl SsdMoe {
+     }
+ 
+     fn shared(&self, x: &Array) -> Result<Array> {
++        #[cfg(test)]
++        let _profile = crate::flash_profile::span("shared_expert_build");
+         ensure!(
+             x.shape().len() == 2
+                 && (1..=8).contains(&x.shape()[0])
+diff --git a/scripts/profile_flash.py b/scripts/profile_flash.py
+index 153ed993..d1fc6010 100644
+--- a/scripts/profile_flash.py
++++ b/scripts/profile_flash.py
+@@ -39,12 +39,44 @@ def distribution(values):
+     }
+ 
+ 
++def readback_sample(event):
++    data = event["data"]
++    sample = data["sample"]
++    fields = ("wait_ns", "copy_ns", "contiguous_build_ns", "bytes", "total_ns")
++    assert all(integer(sample[k]) < 1 << 64 for k in fields)
++    assert type(sample["ready_before"]) is bool and type(sample["direct"]) is bool
++    assert sum(sample[k] for k in fields[:3]) <= sample["total_ns"]
++    assert not sample["direct"] or sample["contiguous_build_ns"] == 0
++    sizes = {
++        "Bool": 1,
++        "UInt8": 1,
++        "Int8": 1,
++        "UInt16": 2,
++        "Int16": 2,
++        "UInt32": 4,
++        "Int32": 4,
++        "UInt64": 8,
++        "Int64": 8,
++        "Float16": 2,
++        "BFloat16": 2,
++        "Float32": 4,
++        "Float64": 8,
++        "Complex64": 8,
++    }
++    assert data["dtype"] in sizes and isinstance(data["shape"], list)
++    count = math.prod(integer(n) for n in data["shape"])
++    assert count * sizes[data["dtype"]] == sample["bytes"]
++    assert sample["total_ns"] <= event["end_ns"] - event["start_ns"]
++    return {**sample, "dtype": data["dtype"], "shape": data["shape"]}
++
++
+ def validate_events(events):
+     assert isinstance(events, list) and events, "empty trace"
+     children = [0] * len(events)
+     paths, layers, ends = [], [], {}
+     groups = defaultdict(lambda: {"wall": [], "self": []})
+     routes, batches, jobs = [], [], []
++    signatures, signature_keys, requests, readbacks = {}, set(), [], []
+     for i, event in enumerate(events):
+         name = event["name"]
+         assert isinstance(name, str) and name
+@@ -67,6 +99,29 @@ def validate_events(events):
+         paths.append(path)
+         layers.append(layer)
+         data = event["data"]
++        if name == "expert_kernel_signature" and "id" in data:
++            identity = integer(data["id"])
++            key = data["key"]
++            assert identity == len(signatures) and type(data["stable"]) is bool
++            assert isinstance(key, list) and len(key) == 3 and all(type(k) is str for k in key)
++            assert key[0] and key[2]
++            full = (data["stable"], *key)
++            assert full not in signature_keys, "duplicate kernel identity"
++            signature_keys.add(full)
++            signatures[identity] = {
++                "id": identity,
++                "name": key[0],
++                "stable": data["stable"],
++                "key_sha256": hashlib.sha256(json.dumps(full).encode()).hexdigest(),
++                "header_bytes": len(key[1].encode()),
++                "source_bytes": len(key[2].encode()),
++            }
++        if name == "expert_kernel_request":
++            identity = integer(data["signature"])
++            assert identity in signatures, "unknown kernel signature"
++            requests.append({"layer": layer, "signature": identity})
++        if name == "host_readback":
++            readbacks.append({"layer": layer, **readback_sample(event)})
+         if name == "moe_forward_rows":
+             assert isinstance(data, dict)
+             rows, cap = integer(data["rows"]), integer(data["capacity"])
+@@ -130,6 +185,7 @@ def validate_events(events):
+         groups[key]["wall"].append(duration)
+         groups[key]["self"].append(duration - children[i])
+     assert routes, "trace has no actual routed experts"
++    assert not signatures or requests, "kernel dictionary without requests"
+     components = [
+         {
+             "layer": layer,
+@@ -145,6 +201,9 @@ def validate_events(events):
+         "routes": routes,
+         "disk_batches": batches,
+         "disk_jobs": jobs,
++        "kernel_signatures": list(signatures.values()),
++        "kernel_requests": requests,
++        "readbacks": readbacks,
+         "limits": "nested host wall/self intervals; not exclusive GPU; per-job read intervals overlap across workers",
+     }
+ 
+diff --git a/tests/test_flash_profile.py b/tests/test_flash_profile.py
+index 5bb2f60c..371728d9 100644
+--- a/tests/test_flash_profile.py
++++ b/tests/test_flash_profile.py
+@@ -60,6 +60,102 @@ def test_worker_overlap_and_nested_times_are_not_added_as_exclusive_gpu():
+     assert "not exclusive GPU" in out["limits"]
+ 
+ 
++def rich_trace():
++    return trace() + [
++        event(
++            "expert_kernel_signature",
++            2,
++            901,
++            902,
++            {"id": 0, "stable": False, "key": ["name", "header", "source"]},
++        ),
++        event("expert_kernel_request", 2, 903, 904, {"signature": 0}),
++        event("expert_kernel_request", 2, 905, 906, {"signature": 0}),
++        event(
++            "host_readback",
++            2,
++            910,
++            990,
++            {
++                "shape": [10],
++                "dtype": "UInt32",
++                "sample": {
++                    "wait_ns": 10,
++                    "copy_ns": 5,
++                    "contiguous_build_ns": 0,
++                    "bytes": 40,
++                    "ready_before": False,
++                    "direct": True,
++                    "total_ns": 40,
++                },
++            },
++        ),
++    ]
++
++
++def test_readback_components_and_kernel_requests_preserve_distinct_meanings():
++    out = API["validate_events"](rich_trace())
++    assert len(out["kernel_signatures"]) == 1 and len(out["kernel_requests"]) == 2
++    assert out["kernel_signatures"][0]["source_bytes"] == 6
++    sample = out["readbacks"][0]
++    assert sample["layer"] == 0 and sample["bytes"] == 40 and sample["wait_ns"] == 10
++    assert sample["copy_ns"] == 5 and sample["ready_before"] is False
++
++
++@pytest.mark.parametrize(
++    "fault",
++    [
++        "unknown_signature",
++        "bool_identity",
++        "repeated_identity",
++        "duplicate_key",
++        "no_requests",
++        "overflow",
++        "backwards_sample",
++        "copy_on_direct",
++        "wrong_bytes",
++        "wrong_shape",
++        "invalid_dtype",
++        "integer_flag",
++        "outside_host_interval",
++        "missing_sample",
++    ],
++)
++def test_rich_profile_rejects_corrupt_or_incomplete_records(fault):
++    rows = rich_trace()
++    sample = rows[-1]["data"]["sample"]
++    if fault == "unknown_signature":
++        rows[5]["data"]["signature"] = 1
++    elif fault == "bool_identity":
++        rows[4]["data"]["id"] = False
++    elif fault == "repeated_identity":
++        rows[5] = event("expert_kernel_signature", 2, 903, 904, rows[4]["data"].copy())
++    elif fault == "duplicate_key":
++        rows[5] = event("expert_kernel_signature", 2, 903, 904, {**rows[4]["data"], "id": 1})
++    elif fault == "no_requests":
++        rows = [r for r in rows if r["name"] != "expert_kernel_request"]
++    elif fault == "overflow":
++        sample["total_ns"] = 1 << 64
++    elif fault == "backwards_sample":
++        sample["total_ns"] = 14
++    elif fault == "copy_on_direct":
++        sample["contiguous_build_ns"] = 1
++    elif fault == "wrong_bytes":
++        sample["bytes"] = 44
++    elif fault == "wrong_shape":
++        rows[-1]["data"]["shape"] = [True]
++    elif fault == "invalid_dtype":
++        rows[-1]["data"]["dtype"] = "unknown"
++    elif fault == "integer_flag":
++        sample["ready_before"] = 0
++    elif fault == "outside_host_interval":
++        sample["total_ns"] = 81
++    elif fault == "missing_sample":
++        del rows[-1]["data"]["sample"]["copy_ns"]
++    with pytest.raises((AssertionError, KeyError)):
++        API["validate_events"](rows)
++
++
+ @pytest.mark.parametrize("width", range(1, 9))
+ def test_real_multi_token_routes_reuse_experts_between_rows(width):
+     rows = trace()

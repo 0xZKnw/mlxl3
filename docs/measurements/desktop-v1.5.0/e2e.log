@@ -1,0 +1,499 @@
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 22%]
+...................................................sssssss.ssss......... [ 30%]
+...............................ssssssssssssssssssssssssssssssssss....... [ 37%]
+.......................................sssssssssss.................ssss. [ 45%]
+........................................................................ [ 53%]
+................................ssssssss.s.ss........................... [ 60%]
+........................................................................ [ 68%]
+........................................................................ [ 75%]
+.....................sssssssssssssssssssssssssssssssssss..............ss [ 83%]
+........................................................................ [ 91%]
+........................................................................ [ 98%]
+............                                                             [100%]
+=============================== warnings summary ===============================
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[timeout]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[incomplete]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[truncated]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[invalidlist]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[badshape]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[missing]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[complete]
+  /Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_functions.py:1965: UserWarning: The diagnose function is executing locally and will not have access to the mounted Volume or NetworkFileSystem data
+    warnings.warn(
+
+tests/test_lfm25_tuning.py::test_real_archived_source_imports_through_sdk_without_importing_cuda
+tests/test_lfm25_tuning_modal.py::test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk[None]
+  /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/scripts/diagnose_lfm25_tuning.py:87: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    original = inspect.unwrap(namespace["diagnose"].get_raw_f())
+
+tests/test_lfm25_tuning_modal.py::test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount
+  /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/tests/test_lfm25_tuning_modal.py:468: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    functions.append(inspect.unwrap(function.get_raw_f()))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+SKIPPED [7] tests/test_lfm25_group_profile.py:150: could not import 'ponyexl3.ref.layer': No module named 'ponyexl3'
+SKIPPED [4] tests/test_lfm25_group_profile.py:208: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [7] tests/test_lfm25_moe_conversion.py:124: could not import 'ponyexl3.cli.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:137: could not import 'ponyexl3.convert.driver': No module named 'ponyexl3'
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:207: requires a physical Apple GPU
+SKIPPED [4] tests/test_lfm25_moe_conversion.py:261: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:371: requires a physical Apple GPU
+SKIPPED [8] tests/test_lfm25_moe_conversion.py:398: requires a physical Apple GPU
+SKIPPED [3] tests/test_lfm25_moe_conversion.py:457: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:510: requires a physical Apple GPU
+SKIPPED [5] tests/test_lfm25_moe_conversion.py:539: requires a physical Apple GPU
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:555: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_reference.py:121: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_reference.py:144: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:153: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:168: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:196: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_reference.py:236: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:51: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_trace.py:67: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:76: could not import 'torch': No module named 'torch'
+SKIPPED [3] tests/test_lfm25_v3_calibration.py:181: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_v3_calibration.py:244: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:12: physical Apple GPU required
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:34: physical Apple GPU required
+SKIPPED [8] tests/test_quantize_packing.py:12: requires a physical Apple GPU
+SKIPPED [6] tests/test_quantize_packing.py:32: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:46: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:54: requires a physical Apple GPU
+SKIPPED [1] tests/test_quantize_packing.py:62: requires a physical Apple GPU
+SKIPPED [2] tests/test_quantize_packing_benchmark.py:69: physical Apple GPU
+840 passed, 115 skipped, 10 warnings in 97.48s (0:01:37)
+Building for debugging...
+[Planning deferred tasks]
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources/Entitlements.plist' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/MLXL3Studio.xcent' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/MLXL3Studio.xcent.der' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/AppDelegate.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/AppDelegate.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/AppSettingsView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/AppSettingsView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/CLICommand.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/CLICommand.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatAttachment.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatAttachment.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatComponents.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatComponents.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatTimelineCheck.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ChatTimelineCheck.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationStore.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationStore.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Domain.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Domain.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DownloadProgressCard.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DownloadProgressCard.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/EngineRuntimeStore.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/EngineRuntimeStore.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/GenerationInspector.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/GenerationInspector.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Localization.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Localization.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPConfiguration.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPConfiguration.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPManager.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPManager.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPManagerView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPManagerView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPPreferenceCheck.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MCPPreferenceCheck.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Bridge.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Bridge.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio Swift Compilation Finished' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio Swift Compilation Requirements Finished' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio-OutputFileMap.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio-dependency-scan.dia' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.LinkFileList' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.SwiftFileList' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.abi.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.swiftdoc' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.swiftmodule' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.swiftsourceinfo' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3StudioApp.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3StudioApp.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio_const_extract_protocols.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio_dependency_info.dat' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio_lto.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MTPTuning.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MTPTuning.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MTPTuningControls.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MTPTuningControls.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MarkdownResponseView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MarkdownResponseView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MenuBarPanel.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MenuBarPanel.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MessageActionsView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MessageActionsView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MessageCopyButton.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MessageCopyButton.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelDownloadProgress.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelDownloadProgress.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelLibrary.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelLibrary.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelManager.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ModelManager.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/GeneratedModuleMaps/SwiftMath-Swift.h' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Theme.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Theme.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/UIPreview.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/GeneratedModuleMaps/SwiftMath.modulemap' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/UIPreview.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/UpdateManager.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/UpdateManager.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/VoiceController.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTBezierPath.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/VoiceController.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/WorkspaceFeatures.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/WorkspaceFeatures.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTBezierPath.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/WorkspaceManagerView.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/WorkspaceManagerView.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTColor.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/MLXL3Studio' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTColor.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTConfig.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTConfig.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFont.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFont.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontManager.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontManager.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontMathTable.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontMathTable.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontMathTableV2.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontMathTableV2.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontV2.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTFontV2.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTLabel.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTLabel.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathAtomFactory.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathAtomFactory.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathImage.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathImage.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathList.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathList.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListBuilder.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListBuilder.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListDisplay.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListDisplay.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListIndex.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathListIndex.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathUILabel.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTMathUILabel.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTTypesetter.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTTypesetter.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTUnicode.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MTUnicode.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MathFont.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MathFont.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MathImage.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/MathImage.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/RWLock.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/RWLock.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath Swift Compilation Finished' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath Swift Compilation Requirements Finished' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath-OutputFileMap.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath-Swift.h' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath-dependency-scan.dia' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.LinkFileList' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.SwiftFileList' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.abi.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.swiftdoc' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.swiftmodule' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath.swiftsourceinfo' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMathResources.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMathResources.swiftconstvalues' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath_const_extract_protocols.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath_dependency_info.dat' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/Objects-normal/arm64/SwiftMath_lto.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/SwiftMath-t.build/SwiftMath.modulemap' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.o' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/arm64-apple-macos.abi.json' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/arm64-apple-macos.swiftdoc' is located outside of the allowed root paths.
+
+warning: Stale file '/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/arm64-apple-macos.swiftmodule' is located outside of the allowed root paths.
+
+[23 / 38]
+[24 / 39] SwiftMath
+[34 / 150]
+[41 / 150]
+[48 / 150]
+[49 / 150]
+[55 / 150]
+[58 / 150]
+[65 / 150]
+[70 / 150]
+[71 / 150]
+[81 / 150]
+[84 / 150]
+[86 / 150]
+[87 / 150]
+[94 / 150]
+[95 / 150]
+[101 / 150]
+[102 / 150]
+[105 / 150]
+[107 / 150]
+[115 / 150]
+[119 / 150]
+[122 / 150]
+[123 / 150]
+[124 / 150]
+[135 / 150] SwiftMath
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[144 / 151] SwiftMath
+[144 / 151] MLXL3Studio-product
+[155 / 286] SwiftMath
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[160 / 286]
+[169 / 286]
+[171 / 286]
+[177 / 286]
+[180 / 286]
+[188 / 286]
+[193 / 286]
+[194 / 286]
+[207 / 286]
+[209 / 286]
+[213 / 286]
+[217 / 286]
+[218 / 286]
+[221 / 286]
+[222 / 286]
+[229 / 286]
+[231 / 286]
+[237 / 286]
+[238 / 286]
+[240 / 286]
+[241 / 286]
+[243 / 286]
+[254 / 286]
+[256 / 286]
+[259 / 286]
+[260 / 286]
+[264 / 286]
+[266 / 286]
+[267 / 286]
+[268 / 286]
+[270 / 286]
+[281 / 286] MLXL3Studio-product
+[282 / 286] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[284 / 286] MLXL3Studio-product
+Build complete! (39,89 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Speculative sampling checks passed: 821 assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+Installer boundaries passed: signed Mach-O engine activation and disposable app replacement/backup
+App updater preflight passed: 15 signed independent-version, compatibility and integrity cases
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Workspace checks passed: 219, including deterministic retrieval, persistence, branching, profiles, MCP validation and bridge journeys
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 54.335 ms; independent UUID 0.119 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+SwiftUICore/EnvironmentObject.swift:93: Fatal error: No ObservableObject of type StudioModel found. A View.environmentObject(_:) for StudioModel may be missing as an ancestor of this view.

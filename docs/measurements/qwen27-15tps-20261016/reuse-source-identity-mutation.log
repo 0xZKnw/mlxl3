@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_qmv_kernel_identity_includes_actual_source_and_rejects_empty_body ____
+
+    def test_qmv_kernel_identity_includes_actual_source_and_rejects_empty_body():
+        calls = []
+        mx = SimpleNamespace(fast=SimpleNamespace(metal_kernel=lambda **kw: calls.append(kw)))
+        shape = {"input": 5120, "widths": [17408, 17408], "k": 2, "cb": 2}
+        stock = (ROOT / "native/shaders/_qmv_mapped_tile_kernel.metal").read_text()
+        BENCH.qmv(mx, shape, 2)
+        BENCH.qmv(mx, shape, 2, source=stock)
+        BENCH.qmv(mx, shape, 2, source=SCREEN.shared_decode(stock))
+>       assert calls[0]["name"] == calls[1]["name"] != calls[2]["name"]
+E       AssertionError: assert 'smallm_5120_34816_2_2_2_2_2_4_1' != 'smallm_5120_34816_2_2_2_2_2_4_1'
+
+tests/test_smallm_reuse.py:34: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_smallm_reuse.py::test_qmv_kernel_identity_includes_actual_source_and_rejects_empty_body
+1 failed in 0.04s

@@ -1,0 +1,213 @@
+{
+  "trial": "14B",
+  "registered_at": "2026-10-12T13:53:01.123127+00:00",
+  "schedule": [
+    {
+      "name": "1-MAIN-baseline-H",
+      "pair": "1-MAIN-baseline",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "1-MAIN-baseline-C",
+      "pair": "1-MAIN-baseline",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "1-HOLD-baseline-H",
+      "pair": "1-HOLD-baseline",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "1-HOLD-baseline-C",
+      "pair": "1-HOLD-baseline",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "1-MAIN-mtp-H",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "1-MAIN-mtp-C",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "1-HOLD-mtp-H",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "1-HOLD-mtp-C",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-HOLD-mtp-C",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-HOLD-mtp-H",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "2-MAIN-mtp-C",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-MAIN-mtp-H",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "2-HOLD-baseline-C",
+      "pair": "2-HOLD-baseline",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "2-HOLD-baseline-H",
+      "pair": "2-HOLD-baseline",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "2-MAIN-baseline-C",
+      "pair": "2-MAIN-baseline",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "2-MAIN-baseline-H",
+      "pair": "2-MAIN-baseline",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "3-MAIN-baseline-H",
+      "pair": "3-MAIN-baseline",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "3-MAIN-baseline-C",
+      "pair": "3-MAIN-baseline",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "3-HOLD-baseline-H",
+      "pair": "3-HOLD-baseline",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "H"
+    },
+    {
+      "name": "3-HOLD-baseline-C",
+      "pair": "3-HOLD-baseline",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "engine": "C"
+    },
+    {
+      "name": "3-MAIN-mtp-H",
+      "pair": "3-MAIN-mtp",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "3-MAIN-mtp-C",
+      "pair": "3-MAIN-mtp",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "3-HOLD-mtp-H",
+      "pair": "3-HOLD-mtp",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "3-HOLD-mtp-C",
+      "pair": "3-HOLD-mtp",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    }
+  ],
+  "tokens": 64,
+  "decode_tokens": 63,
+  "warmup_per_process": 1,
+  "measured_per_process": 1,
+  "cache_gib": 5,
+  "slots": 89,
+  "allocator_cache_mib": 512,
+  "context": 4096,
+  "overlap": 1,
+  "readers_env": "absent; H serial and C default4",
+  "quality": "same byte-exact native binary/fixtures as14; pilot must pass checks-02.json before launch",
+  "performance_criterion": "In every cell: all three paired C/H gains >=1%; min(C) >= max(H)*1.01. Publish every raw range; no absolute stability claim.",
+  "memory_criterion": "No arm with >256 MiB system swapouts; each candidate peak <= paired H peak+256 MiB",
+  "failure_decision": "No third repeat of this reader idea; archive/revert prototype and proceed T2",
+  "earlier_campaign": "14 remains non-conclusive; no pooling of old/new data"
+}

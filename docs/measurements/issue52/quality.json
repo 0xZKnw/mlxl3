@@ -1,0 +1,143 @@
+{
+  "status": "passed",
+  "binary_sha256": "7519009a550dbaecea4230c2b45a0d9007bd0a4b493a73d2c42a1d974ba0bf4d",
+  "environment": {
+    "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+    "MLXL3_SSD_GPU_HOT": "1",
+    "MLXL3_SSD_GPU_HOT_WIDE": "1",
+    "MLXL3_FLASH_MULTI_TOKEN": "1",
+    "MLXL3_SSD_UNIQUE_COHORT": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+    "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+    "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+    "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06"
+  },
+  "before": {
+    "platform": "macOS-27.2-arm64-arm-64bit",
+    "pmset batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true",
+    "pmset therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "vm_stat vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   141360.\nPages active:                                 514951.\nPages inactive:                               496080.\nPages speculative:                             19423.\nPages throttled:                                   0.\nPages wired down:                             169934.\nPages purgeable:                                4834.\n\"Translation faults\":                      947788783.\nPages copy-on-write:                        43325687.\nPages zero filled:                        1005908443.\nPages reactivated:                          79841040.\nPages purged:                               11163674.\nFile-backed pages:                            489074.\nAnonymous pages:                              541380.\nPages stored in compressor:                   299359.\nPages occupied by compressor:                 176950.\nDecompressions:                            159435705.\nCompressions:                              183606158.\nPageins:                                  1139266685.\nPageouts:                                     194946.\nSwapins:                                      195181.\nSwapouts:                                     424617.\nPages tagged:                                 128154.\nPages tagged resident:                        108289.\nPages tagged compressed:                       19865.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4739.\nPages tag-storage free:                         1053.\nPages tag-storage non-tag pageable:            43251.\nPages tag-storage non-tag wired:                  76.\nBytes of compressed tags:                    2976320.\nTagged compressions:                         4720560.\nTagged decompressions:                       4530410."
+  },
+  "runs": [
+    {
+      "name": "mlx-unit",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 18.240927124992595
+    },
+    {
+      "name": "pair",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 900,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 12.801876625002478
+    },
+    {
+      "name": "qsa-oracle",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "qwen4::tests::flash_qsa_stages_match_upstream",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 900,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 0.9976386669877684
+    },
+    {
+      "name": "prefix",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 900,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 27.52256374999706
+    },
+    {
+      "name": "runtime",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "qwen4::draft::runtime::tests::splash_runtime_preserves_serial_tokens_and_states",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 900,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 507.7145434999984
+    },
+    {
+      "name": "precap-long",
+      "command": [
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/target/release/deps/mlxl3_native-a762275d1a770dd8",
+        "qwen4::draft::runtime::tests::pre_draft_long_generation_preserves_serial_tokens_and_states",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 900,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 115.88670649999403
+    },
+    {
+      "name": "bridge",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_dflash2.py",
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/engine",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+        "--timeout",
+        "840",
+        "--skip-tune",
+        "--output",
+        "/Users/justin/Documents/Codex/2026-10-26/rega/work/mlxl3/build/issue52/bridge-quality.json"
+      ],
+      "timeout": 870,
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 310.4996617919969
+    }
+  ],
+  "after": {
+    "platform": "macOS-27.2-arm64-arm-64bit",
+    "pmset batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true",
+    "pmset therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "vm_stat vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   481509.\nPages active:                                 264635.\nPages inactive:                               280284.\nPages speculative:                               345.\nPages throttled:                                   0.\nPages wired down:                             173673.\nPages purgeable:                                  50.\n\"Translation faults\":                      957816460.\nPages copy-on-write:                        43492850.\nPages zero filled:                        1020291551.\nPages reactivated:                          81359915.\nPages purged:                               11311477.\nFile-backed pages:                            386471.\nAnonymous pages:                              158793.\nPages stored in compressor:                   556287.\nPages occupied by compressor:                 318252.\nDecompressions:                            162643284.\nCompressions:                              187382465.\nPageins:                                  1202890899.\nPageouts:                                     207083.\nSwapins:                                      197547.\nSwapouts:                                     424617.\nPages tagged:                                 105870.\nPages tagged resident:                         70512.\nPages tagged compressed:                       35358.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4376.\nPages tag-storage free:                         2126.\nPages tag-storage non-tag pageable:            42463.\nPages tag-storage non-tag wired:                  77.\nBytes of compressed tags:                    5336576.\nTagged compressions:                         4823569.\nTagged decompressions:                       4617073."
+  }
+}

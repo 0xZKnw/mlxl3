@@ -327,7 +327,7 @@ fn expert_segmented_qmm(
     cb: Codebook,
 ) -> Result<Array> {
     ensure!(
-        array::is_m5_gpu()?
+        array::supports_exl3_tensor_ops()?
             && k != 7
             && input % 16 == 0
             && output % 32 == 0
@@ -842,7 +842,7 @@ impl Exl3SwitchGlu {
         if matches!(self.activation, GluActivation::Gelu) {
             return self.forward_gelu(x, &selected, scores, rows);
         }
-        if rows >= 64 && self.experts <= 256 && self.k != 7 && array::is_m5_gpu()? {
+        if rows >= 64 && self.experts <= 256 && self.k != 7 && array::supports_exl3_tensor_ops()? {
             return self.forward_segmented(x, &selected, scores, rows);
         }
         let x_gu = routed_inputs_small(x, &self.gu_suh, &selected, rows, self.top_k, self.input)?;

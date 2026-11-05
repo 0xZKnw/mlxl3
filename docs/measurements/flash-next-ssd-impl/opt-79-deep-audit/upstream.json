@@ -1,0 +1,87 @@
+{
+  "checked_utc": "2026-10-23 20:06:54 UTC",
+  "local_head": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+  "pr_title": "MLXL3 v2 — Flash Next SSD, DFlash2 et optimisations du moteur",
+  "upstreams": [
+    {
+      "project": "splash-main",
+      "sha": "3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+      "date": "2026-10-23T10:51:44Z",
+      "title": "Merge pull request #558 from cresslank/update-pillow-certifi",
+      "url": "https://github.com/incoai/splash/commit/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9"
+    },
+    {
+      "project": "strata-main",
+      "sha": "7ddc17a38fe7f31637e895ecfba58c2cd43d65ec",
+      "date": "2026-10-23T12:37:21Z",
+      "title": "tests: the old-launcher test expects the 0.2.3.1 version line",
+      "url": "https://github.com/Niko1221/Strata/commit/7ddc17a38fe7f31637e895ecfba58c2cd43d65ec"
+    }
+  ],
+  "strata_delta": [
+    {
+      "sha": "0edd96ccf625ab686f33a18dad34b0250184ec42",
+      "title": "setup: BUILD.json archs / vision_archs are read as a list or as the ';'-separated string the packaging writes (setup stopped on the released Windows CUDA package: int(';'), #3810)"
+    },
+    {
+      "sha": "f5f205bee0a097961d6b367620aa6b7a07078db1",
+      "title": "setup: the HIP ready-made-engine checks read gfx names with arch_names, not arch_numbers (an installed AMD engine was never recognised); tests for archs as a list and as a string"
+    },
+    {
+      "sha": "7b3e2eaa0b69ff212a6aa5752d9020bce9ddc1e1",
+      "title": "Control 0.1.48.1 / Terminal 0.2.3.1: version bump for the Control-only hotfix of #3810 (app stays 0.2.3, engine packages stay 0.1.48); release notes"
+    },
+    {
+      "sha": "7ddc17a38fe7f31637e895ecfba58c2cd43d65ec",
+      "title": "tests: the old-launcher test expects the 0.2.3.1 version line"
+    }
+  ],
+  "open_prs": [
+    {
+      "key": "splash569",
+      "title": "Decode zero-point formats with fewer chains on Apple9's register tile",
+      "state": "open",
+      "merged": false,
+      "sha": "2c12b35eb036fd3462dcbe1216d12985d238ed28",
+      "url": "https://github.com/incoai/splash/pull/569",
+      "body": "**Base:** `incoai/splash` `main` (3135ab45). Measured on 1.4.0 (1482f6bb) before rebasing. None of upstream's changes since then touch the files this PR changes.\n\n**Branch:** `ghisguth/apple9-zero-points` (2c12b35e)\n\n---\n\nI have been working on the Apple7/8 decode tile in paperniuk's M1/M2 fork for a while. Most of what we changed there is for the F32 tile, and the Apple9 bf16 tile doesn't have those problems. But two ideas looked like they could carry over (paperniuk/splash#15, paperniuk/splash#19 and paperniuk/splash#21 there, tested on an M1 Max too), so I tried them on my MacBook Air M4 (10-core GPU, 32 GB), which runs upstream's Apple9 register tile for decode. Both help. The first one helps at every lane count, the second mostly with three and four lanes. I used Claude Code to author it and tested it by hand.\n\n### What changed\nThree commits. They change only what Apple9 runs. Apple10 runs this tile on narrow grids, and it decodes these formats as before. So do the MoE expert kernels.\n- **Q4_0, Q5_0 and PQ2_0 take their zero point as a min.** Apple9 decodes them through `ZeroAsMin<F>`, a view with m = −zero·d. This is exact, the zero points are powers of two. A group of 32 inputs then enters the MMA as 128 + code in one chain, closed against the table's sum with b = −(128 + zero)·d, the way Q4_1 and Q5_1 already work. Before, each half of the group was a chain of its own, seeded from the table, with a seed load per lane and a coefficient per half. The operand is upstream's existing one-add `128 + code`, so there is no new operand code.\n- **Q6_K and Q3_K take their zero point in the operand.** Apple9 decodes them through `Centered<F>`, whose operand is code − zero (−32..31 and −4..3): upstream's 128 + code, then one bf16 subtraction, exact. The 16-input chains start from zero and read no seeds. The subtraction is per weight pair and shared by the lanes, the saved seed load is per chain and lane, so the gain grows with lanes.\n- How it is wired: `Apple9View<F>` names the type Apple9 decodes F as, and `gguf_apple9_view()` in `metal/abi/Gguf.h` names the same formats for the host. A static_assert keeps the two in sync. Apple9 gets `gguf_decode_sg9_<fmt>_*` instances for these five formats. A fused segment in such a format carries `GGUF_DECODE_APPLE9_VIEW` in its `fmt`. `Linear::addGgufRegister` picks both when `family_ == Apple9`.\n- `gguf-projection` also runs the register decode suite through a `Linear` of the other family for these formats. So an Apple9 GPU still tests the seeded chains Apple10 runs, and an Apple10 GPU tests Apple9's views.\n- Outputs are not bit-exact, because the terms of a group are summed in another order. They stay within the fp64 bound `gguf-projection` checks. Apple10's outputs don't change.\n\nI kept it to Apple9 on purpose, since that is what I can measure. M5 runs the same tile on narrow grids and I have no M5, so this PR doesn't touch what it runs. The first idea may help there too, and then it would be simpler: a few lines in `Shape<F>` instead of the views, covering the fused and MoE kernels as well. If someone with an M5 can measure it, I am happy to do that version as a follow-up.\n\n### Results (MacBook Air M4, 10-core GPU)\nKernel time, `gguf-projection-benchmark`, at 1 / 2 / 3 / 4 lanes, the policy's config, ABBA order. The Air is fanless and throttles, so each run waits for a cooldown. Δ: − is faster. An A/A run of the same build is within 0.2%, 0.5% at one lane.\n\n| Format, shape | Before (ms) | After (ms) | Δ (%) |\n|---|---|---|---|\n| q40 17408×5120 gate/up | 1.154 / 2.068 / 3.040 / 3.945 | 1.112 / 1.979 / 2.812 / 3.818 | −3.6 / −4.3 / −7.5 / −3.2 |\n| q40 5120×17408 down +res | 0.580 / 1.032 / 1.521 / 1.973 | 0.560 / 0.983 / 1.398 / 1.908 | −3.4 / −4.8 / −8.1 / −3.3 |\n| q50 17408×5120 gate/up | 1.354 / 2.240 / 3.201 / 4.214 | 1.306 / 2.155 / 3.078 / 4.111 | −3.6 / −3.8 / −3.9 / −2.4 |\n| q50 5120×17408 down +res | 0.684 / 1.121 / 1.602 / 2.120 | 0.656 / 1.080 / 1.540 / 2.054 | −4.1 / −3.6 / −3.9 / −3.1 |\n| pq20 17408×5120 gate/up | 1.139 / 2.028 / 2.987 / 3.843 | 1.102 / 1.941 / 2.790 / 3.753 | −3.3 / −4.3 / −6.6 / −2.3 |\n| pq20 5120×17408 down +res | 0.571 / 1.025 / 1.491 / 1.926 | 0.552 / 0.991 / 1.420 / 1.915 | −3.3 / −3.3 / −4.7 / −0.6 |\n| q6k 17408×5120 gate/up | 1.495 / 2.186 / 3.178 / 4.210 | 1.496 / 2.143 / 3.085 / 3.988 | +0.0 / −2.0 / −2.9 / −5.3 |\n| q6k 5120×6144 out +res | 0.284 / 0.399 / 0.579 / 0.760 | 0.285 / 0.392 / 0.557 / 0.722 | +0.3 / −1.9 / −3.8 / −5.0 |\n| q6k 248320×5120 output | 10.21 / 17.08 / 24.86 / 32.59 | 10.34 / 17.05 / 23.81 / 30.83 | +1.3 / −0.2 / −4.2 / −5.4 |\n| q3k 17408×5120 gate/up | 1.329 / 2.229 / 3.220 / 4.241 | 1.328 / 2.228 / 3.147 / 4.107 | −0.1 / −0.0 / −2.3 / −3.2 |\n| q4k, q41, af4g64 (unchanged code) | | | within ±0.3 |\n\nThe q6k output layer is 1 GB and drifts 2–5% within a session on the Air, so its one-lane +1.3% is noise.\n\nEnd to end, decode only: `backend-benchmark --scenario decode --samples 3 --ane-ffn-share 0`, main against the branch, each build's own binary, ABBA. GPU time per decode step in ms at 1 / 2 / 3 / 4 lanes. Output tokens and acceptance are the same on both builds.\n\n| Model (ABBA passes) | main (ms/step) | branch (ms/step) | Δ (%) |\n|---|---|---|---|\n| unsloth Qwen3.8-27B Q4_0 (3) | 272.7 / 457.1 / 665.5 / 884.8 | 263.0 / 449.4 / 643.7 / 858.7 | **−3.6 / −1.7 / −3.3 / −3.0** |\n| prism-ml Ternary-Bonsai-2-27B PQ2_0 (2) | 225.9 / 404.0 / 579.6 / 784.3 | 220.8 / 394.2 / 566.1 / 766.7 | **−2.3 / −2.4 / −2.3 / −2.2** |\n\n- **The end-to-end gain is about what the kernels predict.** Q4_0 is 83% of the Q4_0 file's bytes and PQ2_0 99% of Bonsai's. The rest of a decode step (attention, GDN, norms, the draft) doesn't change.\n- **The Q6_K/Q3_K part shows mostly at three and four lanes.** In the Q4_0 file Q6_K is just the output layer (6.5%), so nearly all of that file's gain is the first commit. UD-Q5/Q6 files, 43–60% Q6_K, should gain more at four lanes. They don't fit on a 32 GB Air with the draft model, so I couldn't measure them.\n- **Prefill doesn't change.** The register tile runs only in decode.\n\n### Testing\n- `make check` passes on the M4 Air on the rebased branch.\n- `gguf-projection` passes on the M4 Air after each commit, and with and without `MTL_SHADER_VALIDATION` on the rebased branch: all 43 formats on Apple9, and the five formats through Apple10's `Linear` too.\n- `make test-performance-real` on main and the branch with MLX 4-bit, Q4_0, PQ2_0 (Bonsai) and UD-IQ3_XXS: the same output tokens and draft acceptance on every model.\n- Kernel A/B and end-to-end runs above. Not tested on an Apple10 GPU.\n\n"
+    },
+    {
+      "key": "strata3882",
+      "title": "[Engine] Port the DFlash2 drafter onto the serve solo stream",
+      "state": "open",
+      "merged": false,
+      "sha": "41f6b7949fc93e923e018364a01d40db4c413b8e",
+      "url": "https://github.com/Niko1221/Strata/pull/3882",
+      "body": "## Problem and result\n\n`--draft dflash2` is accepted on the CLI run but the served engine refuses it: the guard in `main()` names `--serve` as a reason to fall back to the MTP. On the card this fork runs, that guard is the only thing blocking the drafter in serve mode — the drafter itself, its taps and its graphs already work there.\n\nAfter the change, the served solo stream drafts with DFlash2. Batch slots keep the MTP. Behaviour on the CLI path is unchanged, and the change is opt-in: it only takes effect when `--draft dflash2` is passed.\n\n## Related discussion\n\nNone — no issue was opened and no maintainer agreement on scope was sought before writing this. CONTRIBUTING asks for scope agreement on features; this is one, so a maintainer may reasonably return it to draft or ask for an issue first.\n\n## Approach\n\n- The `why` guard drops `o.serve`: the block it sits in is already the serve path, so `o.serve` there was self-refusing. `multi_gpu` (layer split) stays refused.\n- Taps are registered on the verifier **before** `init()`, so the window graphs bake the tap copy in; binding or preparing the drafter falls back to the MTP with a plain line rather than failing the start.\n- Per request, `df2_req` is true only for the solo stream when the prompt read reaches the drafter's 2048-row ring. A prompt read through the batched/lent path has no taps, so that request keeps the MTP. This keeps the batch slots on the code path that already works.\n\n## Validation\n\n**Passed:**\n- `python3 -m pytest tests/terminal/test_drafting.py -q` → `40 passed` on the submitted revision (`41f6b794`), Linux, Python 3.13. These are the mock/unit tests; they do not execute a GPU.\n- HIP build for `gfx1201` (`build-hip/strata`) compiled and the served engine ran with `--draft dflash2`: the start line reports the drafter on, and the engine served a real request with DFlash2 drafts — `drafts accepted 177 of 291` on a 48445-token prompt, 256 tokens generated in 2824 ms. Run on the AMD RX 9700, single card.\n\n**Failed:**\n- The paired A/B against the MTP is **invalid as a performance measurement**. The MTP arm did not run on its own server: the test server from the DFlash2 arm was not killed (the `kill` hit the `setsid nohup` wrapper, not the child), so it still held the port and served the second request — at 58.9 tok/s on the same server, not on an MTP one. The `83.2 tok/s` figure that appears in the original PR body came from a *different* run at a different machine load, so it is not comparable to `90.6 tok/s`.\n- I am therefore withdrawing the performance claim. The only defensible statement is that the drafter runs and produces drafts on the served solo stream; whether it beats the MTP on this card is not established.\n\n**Not run:**\n- CUDA, SYCL and Metal builds. The guard change is backend-agnostic, but compilation on those backends is unverified.\n- No repeated runs, no run-to-run variability, no second prompt shape. One run each arm. CONTRIBUTING requires before/after on the same hardware and workload with every changed setting identified; that was not met.\n- Upstream's own card table lists rdna4 / RX 9700 as slower with DFlash2 on every prompt. That was not disproved here — one run under differing load does not disprove it.\n\n## Limits\n\n- Solo stream only. Batch slots keep the MTP.\n- No ordering barrier between the verify stream and the drafter's stream on the prompt read. On a single card `set_commit_async(!multi_gpu)` is active, and `commit()` does not synchronize the verify stream when the next stage is absent; the tap copy is queued on the verify stream and the drafter runs on its own. The drafter can therefore read `tap_dev_` before the window graph has written it. Output correctness is not at risk — every draft is verified against the model, and a stale draft is rejected, not emitted — but the acceptance rate is not guaranteed, and a stream event or an explicit sync before `df2.context()` would be the fix.\n- The drafter needs the prompt's last 2048 rows. Short prompts and resumed reads fall back to the MTP.\n- One card only; a layer split is still refused.\n\n## Disclosure\n\nPrepared by Gnarl, the Operator's agent, at his instruction, on this account. AI-assisted work; every changed line here is understood and is his own reading of the diff, and the numbers above are measured, not estimated. The one number that was not measured as claimed (the MTP comparison) is withdrawn above rather than left standing.\n\nThe commit is authored and committed under this account rather than the agent's own address, because attribution resolves the commit author email to a GitHub account and the agent's address is not linked to one. The agent's internal address and its infrastructure hosts are kept out of this body.\n"
+    },
+    {
+      "key": "strata3299",
+      "title": "Metal: run Gyro (trellis TQ2_T/TQK6/TQK7) models on Apple Silicon",
+      "state": "open",
+      "merged": false,
+      "sha": "dd0c130fe9a4370f148f30b25cd546434c5182c5",
+      "url": "https://github.com/Niko1221/Strata/pull/3299",
+      "body": "Gyro-M now runs on the Metal engine. Until now Metal refused Gyro files at load (\"no trellis kernels\").\n\n**This PR builds on #3231** (Mac conversation cache). Its first 4 commits are that PR; the 5 Gyro commits follow.\n\n## What's in it\n\n- **Kernels.** TQ2_T (the type Gyro-M uses for gate, up and down), TQK6 and TQK7 (Gyro-S): decode GEMV, the v2 prompt expert GEMMs, and the Hadamard rotation. The CPU reference is `src/kernels/cpu/tq_cpu.cpp`.\n- **Engine.**\n  - `native_expert_supported` accepts types 144-146.\n  - The Hadamard rotations are wired into the decode window and the prompt chain.\n  - The trellis gate/up tile uses 16 lanes, because 80 units per row do not split evenly across 32.\n- **Single-GGUF Gyro.** The PLE table (`per_layer_token_embd`, ~54 GB, contiguous) sits inside the model file. It is now excluded from the wrapped GPU buffers: only the head and tail ranges are wrapped (37.6 of 92 GB), with no read-ahead on the table. The table is still read with direct I/O. Files with a separate PLE shard (IQ3_S) keep the old path; `STRATA_METAL_WRAP_PLE=1` forces it.\n- **Tests.** `metal/tests/tq_parity`: 81/81 PASS (rel L2 ~1e-7 against the exact dot; the Hadamard rotation is bit-identical to `hadamard_rotate`). `moe_mm_parity` PASS. `docs/GYRO.md` updated.\n\n## Measured (M5 Max, 128 GB)\n\n| | IQ3_S | Gyro-M |\n|---|---|---|\n| Engine footprint | ~61-65 GB RSS | 23-26 GB + 37.6 GB weights mapped |\n| 20k prompt decode, prose / edit | 84 / 121 tok/s | 73-79 / 110 tok/s |\n| Per-layer expert GEMV (top-10) | 57.6 us, 405 GB/s | 65-67 us, 190-194 GB/s |\n| Agent coding task (3 parts), one agent | 7.4 min | 8.1 min |\n| Same task, quality gates (tsc, build, full tests) | all pass | all pass |\n\n- **Two engines on one Mac.** Because the mapped weights are shared, two Gyro-M engines fit in 128 GB (2 x 24 GB + 37.6 GB). Running one agent each did 1.28x the work of a single engine; per-engine decode drops to 56-69 tok/s on the shared GPU.\n- **Where decode could get faster.** It is ALU-bound on the trellis hash/lookup; an int8 LUT is the obvious next step.\n\n## Not covered\n\n- TQK6/TQK7 have not run on a full model (no Gyro-S file).\n- `STRATA_METAL_STREAM=1` is encoded for trellis but untested.\n- The kernel source path is compiled in; `STRATA_METAL_KERNELS` overrides it.\n"
+    }
+  ],
+  "ci88": [
+    {
+      "id": 40016235001,
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "conclusion": null,
+      "head_sha": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40016235001"
+    },
+    {
+      "id": 40016234941,
+      "name": "Regression checks",
+      "status": "in_progress",
+      "conclusion": null,
+      "head_sha": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40016234941"
+    }
+  ],
+  "limits": "Read-only primary GitHub metadata, no new GPU measurements; open PRs are not integrated."
+}

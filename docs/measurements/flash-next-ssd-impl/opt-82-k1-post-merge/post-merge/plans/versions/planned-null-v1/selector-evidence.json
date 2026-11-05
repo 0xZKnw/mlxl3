@@ -1,0 +1,180 @@
+[
+  {
+    "native_test": "linear::hot_transform::tests::hot_h128_matches_native_half_roundings_masks_and_layouts",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/linear/hot_transform_tests.rs",
+    "source_sha256": "6aa9df42fb96b0edc328d51d2553267430affc1ffbd00a7ec10bec71ec8b6a97",
+    "function_line": 145,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_HOT_H128 cases=3144 edges=240 fallbacks=10 hot=byte_exact cold=positive_zero readbacks=none layouts=contiguous,transpose,offset",
+        "evidence": "println interpolation, counts3144/240/10 checked by source guards"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "ssd_moe::hot_activation::tests::masked_hot_swiglu_matches_real_mlx_nodes_and_cold_positive_zero",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/ssd_moe/hot_activation.rs",
+    "source_sha256": "6921707c4ac2a38e528425400640a4b728fa540e8a9df67b0d2b3946e58a1daf",
+    "function_line": 164,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_HOT_ACTIVATION cases=960 nonfinite_cases=2 id_boundary_cases=1 routes=1..80 masks=6 strides=2 hot=byte_exact cold=positive_zero readbacks=unchanged",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "ssd_moe::hot_activation::tests::hot_swiglu_fallbacks_and_invalid_layouts_keep_contract",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/ssd_moe/hot_activation.rs",
+    "source_sha256": "6921707c4ac2a38e528425400640a4b728fa540e8a9df67b0d2b3946e58a1daf",
+    "function_line": 196,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_HOT_ACTIVATION_FALLBACK cases=28 invalid=10 parity=byte_exact historical_unmasked_and_nonhalf=true",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/linear.rs",
+    "source_sha256": "a68e19ebc730995c5ef2d772c10f50a5b930160d67b1998884906faf8fbeee84",
+    "function_line": 1773,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_MASKED_SLOT_SHAPES cases=528 masks=all_cold,mixed,all_hot parity=byte_exact",
+        "evidence": "println interpolation, masked_checked528 asserted"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/flash_draft.rs",
+    "source_sha256": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803",
+    "function_line": 1871,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_DRAFT_PREFIX ",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "\"prefix_cases\":36",
+        "evidence": "serde_json compact serialization, cases36 asserted"
+      },
+      {
+        "text": "\"target_logits_and_states\":\"byte_exact\"",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "qwen4::tests::flash_mtp_head_matches_reference_and_cache_only",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/qwen4.rs",
+    "source_sha256": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "function_line": 3215,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/qwen4.rs",
+    "source_sha256": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "function_line": 3011,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "MTP session budget=1,",
+        "evidence": "println interpolation over asserted test budgets1/2/3/17"
+      },
+      {
+        "text": "MTP session budget=2,",
+        "evidence": "println interpolation over asserted test budgets1/2/3/17"
+      },
+      {
+        "text": "MTP session budget=3,",
+        "evidence": "println interpolation over asserted test budgets1/2/3/17"
+      },
+      {
+        "text": "MTP session budget=17,",
+        "evidence": "println interpolation over asserted test budgets1/2/3/17"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "linear::hot_transform::tests::hot_h128_component_aa_abba_on_pinned_b2_masks",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/linear/hot_transform_tests.rs",
+    "source_sha256": "6aa9df42fb96b0edc328d51d2553267430affc1ffbd00a7ec10bec71ec8b6a97",
+    "function_line": 299,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_HOT_H128_MICRO fixtures=8 geometries=4 samples=704 calls_per_sample=32 parity=byte_exact wall_only=true",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  },
+  {
+    "native_test": "ssd_moe::hot_activation::bench::masked_hot_activation_component_aa_abba",
+    "source": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/native/src/ssd_moe/hot_activation_bench.rs",
+    "source_sha256": "5c870b3d440146b61567f4843ea36cae0f1d42979caa02b37503ee08e02ed2cf",
+    "function_line": 126,
+    "unique_fn_in_source": true,
+    "required_text": [
+      {
+        "text": "FLASH_HOT_ACTIVATION_BENCH fixtures=8 samples=192 calls=32 calibration=AA blocks=5ABBA full_chain=byte_exact finite=true scope=component_wall",
+        "evidence": "literal in selected source"
+      },
+      {
+        "text": "test result: ok. 1 passed; 0 failed;",
+        "source": "Rust libtest standard summary, runner checks one exact test; not a user println"
+      }
+    ],
+    "libtest_list_executed": false
+  }
+]

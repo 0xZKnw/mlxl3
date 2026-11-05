@@ -1,0 +1,19 @@
+
+running 1 test
+test qwen4::draft::splash_tests::splash_ring_matches_chronological_cache_after_multiple_wraps ... Error: MLX: [metal::Device] Unable to build metal library from source
+In file included from mlx/backend/metal/kernels/utils.h:474:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MetalPerformancePrimitives.h:10:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MPPTensorOpsMatMul2d.h:411:
+/System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/__impl/MPPTensorOpsMatMul2dImpl.h:4412:5: error: static_assert failed due to requirement '__tensor_ops_detail::__is_same_v<const bfloat, unsigned char> || __tensor_ops_detail::__is_same_v<const bfloat, signed char> || __tensor_ops_detail::__is_same_v<const bfloat, metal::uint2b_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::int2b_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::uint4b_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::int4b_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::metal_fp4_e2m1_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::metal_fp8_e4m3_format> || __tensor_ops_detail::__is_same_v<const bfloat, metal::metal_fp8_e5m2_format> || __tensor_ops_detail::__is_same_v<const bfloat, float> || __tensor_ops_detail::__is_same_v<const bfloat, bfloat> || __tensor_ops_detail::__is_same_v<const bfloat, half>' "cooperative tensor source data type can only be one of uint8_t/int8_t/uint2b_format/int2b_format/uint4b_format/int4b_format/float/half/bfloat/metal_fp8_e4m3_format/metal_fp8_e5m2_format/metal_fp4_e2m1_format"
+    static_assert(__tensor_ops_detail::__is_same_v<right_element_type, uint8_t> ||
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/__impl/MPPTensorOpsMatMul2dImpl.h:5223:1: note: in instantiation of template class 'mpp::tensor_ops::__mutmul2d_detail::__operand_layout<{32, 128, 64, false, true, false, 0}, mpp::tensor_ops::__mutmul2d_detail::__matmul2d_cooperative_operand_inde
+FAILED
+
+failures:
+
+failures:
+    qwen4::draft::splash_tests::splash_ring_matches_chronological_cache_after_multiple_wraps
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.36s
+

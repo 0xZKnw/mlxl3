@@ -1,0 +1,259 @@
+{
+  "status": "complete_local_cpu",
+  "scope": "F01-F06/F08 plus F09 consumed token usage, startup child lifecycle, IPv6 listen authority, physical HTTP write timeout",
+  "owned_files": {
+    "native/src/openai.rs": {
+      "sha256": "1a24e0e039cb9f7f8db7eb587cc37cf71e061d2379b8c35714e7ed4d3e7a8fd9",
+      "bytes": 50052
+    },
+    "native/src/openai_io.rs": {
+      "sha256": "69decd8670a1076637769f41c8c5cb812725c3c9f40822e2aaa533fbcd402e79",
+      "bytes": 6468
+    },
+    "native/src/openai_tests.rs": {
+      "sha256": "2c44d1f8d6d44fe496a8e7089bc7c52f065b0b834af8c0c2c1d49ef85966de6e",
+      "bytes": 43673
+    },
+    "tests/openai_transport.rs": {
+      "sha256": "d056af535e7a2f040e4419fede6a7fa613bff5c0ec3e2864efbcdac30b4f9c07",
+      "bytes": 68
+    }
+  },
+  "tests": {
+    "command": "cargo test --locked --no-default-features --test openai_transport",
+    "passed": 33,
+    "failed": 0,
+    "ignored": 0,
+    "seconds": 0.52,
+    "log": "final33-tests.log",
+    "coverage": [
+      "3explicit terminal reasons streaming/nonstreaming",
+      "strict malformed token counts incl null/bool/missing/zero/negative/overbudget; zero completion valid",
+      "generation admission before slow body,429 Retry-After1",
+      "oversize/failed/slow body and slow headers",
+      "disconnect before first delta, partial JSON read and stale delta drainage, next clean request",
+      "uncooperative bridge invalidation/503, partial command write poisoning, continuous stale event deadline",
+      "producer backpressure and output caps separated",
+      "real TCP client does not read until serve_connection has errored TimedOut; next request clean",
+      "duplex stalled writer wake, trickle cannot reset phase, flush resets next phase",
+      "Origin/Host duplicate/malformed/null/foreign, bearer/preflight/capability matrix",
+      "loopback IPv6 unbracketed/bracketed parse and nonloopback key requirement",
+      "startup timeout/malformed ready/error/missing stdin -> killed/reaped",
+      "shutdown after ready reaps child and joins stderr; real SIGTERM during load in isolated copy of test process",
+      "large bridge error truncation validUTF8 beforeHTTP/SSE"
+    ]
+  },
+  "clippy": {
+    "command": "cargo clippy --locked --no-default-features --test openai_transport -- -D warnings",
+    "status": "passed",
+    "log": "final33-clippy.log"
+  },
+  "mutations": {
+    "disconnect": {
+      "status": "detected",
+      "test": "tcp_disconnect_before_first_delta_drains_then_next_request_is_clean",
+      "cause": "500 ms close detection assertion, before 10 s event timeout",
+      "exit_code": 101,
+      "restored_byteexact": true
+    },
+    "backpressure": {
+      "status": "detected",
+      "test": "backpressure_and_output_limit_are_bounded_and_do_not_signal_next_request",
+      "cause": "1 s admission-release assertion; output cap1MiB exceeds100KiB stream",
+      "exit_code": 101,
+      "restored_byteexact": true
+    },
+    "socket_deadline": {
+      "status": "detected",
+      "test": "a_real_nonreading_tcp_client_is_closed_before_it_resumes_reading",
+      "mutation": "check_deadline ignores timer",
+      "cause": "real Hyper serve_connection remains alive beyond3s without reading TCP",
+      "exit_code": 101,
+      "restored_byteexact": true,
+      "log": "mutation-socket-deadline.log"
+    }
+  },
+  "kani": {
+    "usage": {
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--no-default-features",
+        "--tests",
+        "--harness",
+        "validated_usage_respects_budget_without_total_overflow",
+        "--jobs",
+        "1",
+        "--output-format",
+        "regular"
+      ],
+      "status": "finished",
+      "exit_code": 0,
+      "elapsed_seconds": 2.7707772090000002,
+      "timeout_seconds": 30,
+      "scope": "real TokenUsage constructor + total_tokens; all u64 prompt/completion + Option<u64> budget; no assumptions; not JSON parsing/I/O/concurrency",
+      "result": "successful bounded model check on real CPU production functions",
+      "successful_safety_assertion_checks": 65,
+      "cover_satisfied": 3,
+      "cover_total": 3,
+      "failed": 0,
+      "log": "kani-usage.log"
+    },
+    "origin": {
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--no-default-features",
+        "--tests",
+        "--harness",
+        "origin_suffix_cannot_escape_loopback_authority",
+        "--jobs",
+        "1",
+        "--output-format",
+        "terse"
+      ],
+      "status": "timeout",
+      "exit_code": -9,
+      "elapsed_seconds": 30.006924583,
+      "timeout_seconds": 30,
+      "scope": "real production Origin parser; arbitrary two suffix bytes on http://localhost; no assumptions; unwind64; not I/O/concurrency proof"
+    }
+  },
+  "negative_evidence": [
+    "f01-zero-selected.log selects0tests; not validation",
+    "adversarial-first/second/third failed due interrupted Python print truncating fake JSON; fake now retries os.write like Rust write_all; production correctly rejected malformed line",
+    "final-clippy.log contains7diagnostics fixed before passing repass",
+    "kani-origin.log initial unsupported --test syntax; corrected --tests attempt reached CBMC then30s timeout",
+    "lifecycle-io-first.log32passed/1failed: TCP oracle saw earlier Bodyabort; fixed test separates producer2s from socket150ms deadline, then its disabled-socket-timeout mutation fails",
+    "initial Kani invocation used unsupported --test; preserved diagnostic, corrected --tests attempt compiled and timed out30s, remains unproved"
+  ],
+  "limits": [
+    "No actual model or GPU loaded by API fixtures",
+    "Kani constructor/total proof covers all u64 counters and optional u64 budget with no assumptions; it does not prove JSON parser, Hyper/Tokio I/O, subprocess, signal handling, concurrency or full generation",
+    "Origin two-byte symbolic suffix harness reached CBMC but timed out30s; no result claimed",
+    "HTTP1 pipelined bytes can delay EOF observation; global event/generation deadlines and stalled-write transport timer remain bounded",
+    "Transport timer arms at first socket Pending and remains until completed flush; it is a stalled write-phase deadline, not absolute connection lifetime or total connection-count limit",
+    "Repository full suite, shipped MLX-feature build and exact commit GitHub CI are parent integration work, not implied by this CPU target",
+    "No app replacement/release/commit/push by this subtask"
+  ],
+  "logs": {
+    "adversarial-first.log": {
+      "bytes": 2676,
+      "sha256": "f74c015bc714930384888929335701cc7e96a47d02cb5948438beec8f8e6fafa"
+    },
+    "adversarial-fourth.log": {
+      "bytes": 2528,
+      "sha256": "58985ee92993ffd6ca2a2439ebb72a870ec821497acd6341c723a4cb90a83ecd"
+    },
+    "adversarial-second.log": {
+      "bytes": 2371,
+      "sha256": "a4a3d9c59ac8a0e7656aea908b3dad332f1a2d80aab355b2bed890da3c591773"
+    },
+    "adversarial-third.log": {
+      "bytes": 3213,
+      "sha256": "d91fcf26f53b78b59f6362a0f0a1b086354582de618b7d9b9b424dabba430fe5"
+    },
+    "backpressure-diagnostic.log": {
+      "bytes": 1210,
+      "sha256": "57db1412da8933e7097e2d3d1fcdad6f0dbf103e100c20234652eca554a8fe86"
+    },
+    "backpressure-line-diagnostic.log": {
+      "bytes": 2230,
+      "sha256": "8ee6bb9781d8b07e2cac3757b064a52f57d95fc08b8ced385c643ad033e62802"
+    },
+    "error-bound-red.log": {
+      "bytes": 890,
+      "sha256": "53710549674e67a9eee6ecfe2e05e05faa55a4ae1ca9394888df1c654fb7477c"
+    },
+    "f01-first-environment.log": {
+      "bytes": 33,
+      "sha256": "c5dba78689722453def022320455e59350e9d2e77673f0113b6683a0c02c123b"
+    },
+    "f01-red.log": {
+      "bytes": 926,
+      "sha256": "765ddd724accad44b963f05da5b8d7f4a74259feb1e15c5321f50aab05ace211"
+    },
+    "f01-zero-selected.log": {
+      "bytes": 368,
+      "sha256": "671f15978ffa84aa0e31997137ea93f7a9128042f0877ee4d4eb024002b27211"
+    },
+    "f09-red.log": {
+      "bytes": 961,
+      "sha256": "ff5b4360617c6b5f7d4c851e2284822d8f6dd4be1845d33fb1380f866406f0d5"
+    },
+    "final-clippy-after-fix.log": {
+      "bytes": 166,
+      "sha256": "6028d8de746c0f24a251ce3e5b15fa99c83865e45cd55da30492103d55924508"
+    },
+    "final-clippy.log": {
+      "bytes": 6070,
+      "sha256": "75ad3af2ffe23bdc7df8cd2599101a9e694e4da2efa7e6851108a16f99c02911"
+    },
+    "final-tests-after-lint.log": {
+      "bytes": 2528,
+      "sha256": "fa3dfe51adc818a69ffc4dc3ae22fd7adadb35f2536f0e8442cd659be19083a6"
+    },
+    "final-tests.log": {
+      "bytes": 2528,
+      "sha256": "153fe10bdec66f45648b03d64995b352599634633f0dc3a6f6983cabc525fd0c"
+    },
+    "final33-clippy.log": {
+      "bytes": 166,
+      "sha256": "a68c51fa43c55d38cd495d183d2a1223d244dda2b5c810ac240a8e23e5e2fa95"
+    },
+    "final33-tests.log": {
+      "bytes": 3435,
+      "sha256": "6fb69fd745552645881d29d8a8b9560f97d207c80976cf5f486a1e31159d4713"
+    },
+    "first-compile.log": {
+      "bytes": 688,
+      "sha256": "082203195557e7a5f123e093ddbe2a906fb8dbd3614625928800be9c504dba0c"
+    },
+    "kani-origin-tests.log": {
+      "bytes": 12985,
+      "sha256": "d6710cdd4c9223ff823d040348f98ed2b22d3818578dfdae5aa2e2ad3f64fd3f"
+    },
+    "kani-origin.log": {
+      "bytes": 423,
+      "sha256": "15c20fefcca5f9b2f3038c6646f9351b870bd3f14318e19a3c69edbb0a711a8e"
+    },
+    "kani-usage.log": {
+      "bytes": 41219,
+      "sha256": "b3a613aff0a131d59e3b4824f13910ba7bbb09b53a5df1cce8a68a5a811074d7"
+    },
+    "lifecycle-io-first.log": {
+      "bytes": 4056,
+      "sha256": "858a281701fe6d9c4ca749f09204b2460133acf53a07563797ab0e1c1910ae78"
+    },
+    "mutation-backpressure.log": {
+      "bytes": 1659,
+      "sha256": "967e4a9ebf6f65b7319793417d25db71fcb6e5ac0093f340af5b40ecac97cc53"
+    },
+    "mutation-disconnect.log": {
+      "bytes": 1208,
+      "sha256": "6511ccea85a5af2686fc534abcb32df09d0aa22d9bd4ff5eb7581be45790bf9f"
+    },
+    "mutation-socket-deadline.log": {
+      "bytes": 1179,
+      "sha256": "b2b5c1d3d984d8220e452397e541acd2813bf11f56298c7e9b65aeae05824107"
+    },
+    "tcp-second.log": {
+      "bytes": 475,
+      "sha256": "ee24d19339e3b8f64ee6fee446e303fa6e8db29788c182f73951b69a784264e5"
+    }
+  },
+  "updated_utc": "2026-10-16T00:55:09.789133+00:00",
+  "format": {
+    "command": "rustfmt --edition2024 --config skip_children=true --check native/src/openai.rs native/src/openai_io.rs native/src/openai_tests.rs tests/openai_transport.rs",
+    "status": "passed"
+  },
+  "regressions_red": {
+    "terminal_reason": "oldimplementation reports stop instead of length, f01-red.log",
+    "consumed_usage": "stats:null falsely200 instead of502, f09-red.log",
+    "bounded_error": "12055-byte error exceeds5000-byte oracle, error-bound-red.log"
+  },
+  "ci": {
+    "reviewed": ".github/workflows/rust.yml existing PR/push cargo test --features chat autodiscovers openai_transport.rs",
+    "root_notified": "Kani --lib does not run integration harness; add explicit --tests --harness validated_usage_respects_budget_without_total_overflow when root owns CI"
+  }
+}

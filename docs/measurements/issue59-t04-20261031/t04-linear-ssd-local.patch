@@ -1,0 +1,155 @@
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1206,6 +1206,10 @@
+ }
+ 
+ impl ExpertSlots {
++    pub(crate) fn supports_swiglu_down_boundary(&self) -> bool {
++        !self.masked && self.groups.is_none()
++    }
++
+     pub(crate) fn new(ids: &[u32], capacity: i32) -> Result<Self> {
+         ensure!(
+             crate::flash_support::slots_fit(ids, capacity),
+@@ -1316,6 +1320,61 @@
+             &[vec![self.indices.shape()[0],shape[1],shape[2]]], &[Dtype::Float16], [count,1,1], [128,1,1],
+         )?.remove(0))
+     }
++}
++
++pub(crate) fn expert_slots_swiglu_down(
++    gu: &Array,
++    trellis: &Array,
++    suh: &Array,
++    svh: &Array,
++    selected: &ExpertSlots,
++    stable_shapes: bool,
++) -> Result<Array> {
++    let rows = selected.indices().shape().first().copied().unwrap_or(0);
++    ensure!(
++        selected.supports_swiglu_down_boundary()
++            && (1..=80).contains(&rows)
++            && (1..=512).contains(&selected.capacity)
++            && selected.indices().shape() == [rows]
++            && selected.indices().dtype() == Dtype::UInt32
++            && gu.shape() == [rows, 2, 640]
++            && matches!(gu.dtype(), Dtype::Float16 | Dtype::Float32)
++            && suh.shape() == [rows, 640]
++            && suh.dtype() == Dtype::Float16
++            && svh.shape() == [rows, 2560]
++            && svh.dtype() == Dtype::Float16
++            && trellis.shape() == [selected.capacity, 1, 40, 160, 32]
++            && matches!(trellis.dtype(), Dtype::UInt16 | Dtype::Int16),
++        "T04 requires bounded unmasked, ungrouped Flash down inputs"
++    );
++    let scaled = gu
++        .slice(1, 0, 1)?
++        .reshape(&[rows, 640])?
++        .swiglu_scaled(&gu.slice(1, 1, 2)?.reshape(&[rows, 640])?, suh)?;
++    let xhat = scaled
++        .reshape(&[rows, 5, 128])?
++        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++        .reshape(&[rows, 640])?;
++    expert_mapped_layout(
++        &xhat,
++        trellis,
++        None,
++        Some(svh),
++        selected.indices(),
++        2560,
++        1,
++        0,
++        2,
++        Codebook::Mul1,
++        true,
++        false,
++        true,
++        false,
++        None,
++        stable_shapes,
++    )
++    // The pretransformed input is F16; retain the original GU/SwiGLU output dtype.
++    .and_then(|output| output.astype(gu.dtype()))
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -49,6 +49,9 @@
+     unique_cohorts: bool,
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
++    pub(crate) swiglu_down_boundary: bool,
++    #[cfg(test)]
++    pub(crate) swiglu_down_calls: std::cell::Cell<usize>,
+     shared_batch: bool,
+     weighted_epilogue: bool,
+     pub(crate) prefetch_pipeline: bool,
+@@ -132,6 +135,9 @@
+         let shared_batch =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
++        let swiglu_down_boundary =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_FLASH_SWIGLU_DOWN", "0")?)
++                .context("MLXL3_FLASH_SWIGLU_DOWN must be 0 or 1")?;
+         let weighted_epilogue =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_WEIGHTED_EPILOGUE", "0")?)
+                 .context("MLXL3_SSD_WEIGHTED_EPILOGUE must be 0 or 1")?;
+@@ -237,6 +243,9 @@
+             unique_cohorts,
+             shared_exl3,
+             stable_expert_kernels,
++            swiglu_down_boundary,
++            #[cfg(test)]
++            swiglu_down_calls: std::cell::Cell::new(0),
+             shared_batch,
+             weighted_epilogue,
+             prefetch_pipeline,
+@@ -375,6 +384,21 @@
+         drop(gu_build);
+         #[cfg(test)]
+         crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
++        if self.swiglu_down_boundary && slots.supports_swiglu_down_boundary() {
++            #[cfg(test)]
++            self.swiglu_down_calls.set(self.swiglu_down_calls.get() + 1);
++            let down = linear::expert_slots_swiglu_down(
++                &gu,
++                &self.banks[1],
++                &slots.gather_scales(&self.banks[4])?.reshape(&[n, I])?,
++                &slots.gather_scales(&self.banks[5])?.reshape(&[n, H])?,
++                slots,
++                self.stable_expert_kernels,
++            )?;
++            #[cfg(test)]
++            crate::flash_profile::stage("expert_down_completion", &down)?;
++            return Ok(down);
++        }
+         #[cfg(test)]
+         let activation_build = crate::flash_profile::span("expert_swiglu_build");
+         let activated = gu
+@@ -1275,6 +1299,10 @@
+ #[cfg(test)]
+ #[path = "ssd_moe/prefetch_tests.rs"]
+ mod prefetch_tests;
++
++#[cfg(test)]
++#[path = "ssd_moe/swiglu_down_tests.rs"]
++mod swiglu_down_tests;
+ 
+ #[cfg(test)]
+ mod tests {
+@@ -2232,6 +2260,14 @@
+                     counters == (moe.hits, moe.misses, moe.read_bytes),
+                     "invalid shape changed cache counters"
+                 );
++                if !moe.swiglu_down_boundary {
++                    ensure!(moe.swiglu_down_calls.get() == 0, "T04 ran while disabled");
++                } else if !moe.shared_exl3 {
++                    ensure!(
++                        moe.swiglu_down_calls.get() > 0,
++                        "T04 unmasked, ungrouped path was not exercised"
++                    );
++                }
+                 moe.drain()?;
+                 moe.cache.borrow_mut().invalidate();
+                 let expert = moe.route(&inputs[0])?.0.to_u32()?[0] as usize;

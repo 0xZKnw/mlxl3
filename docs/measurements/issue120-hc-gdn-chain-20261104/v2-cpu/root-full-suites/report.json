@@ -1,0 +1,87 @@
+{
+  "status": "passed",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "status": "passed",
+      "joined": true,
+      "pid": 44610,
+      "exit_code": 0,
+      "seconds": 0.6266239169926848,
+      "pgid_empty": true
+    },
+    {
+      "name": "inventory",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "status": "passed",
+      "joined": true,
+      "pid": 44652,
+      "exit_code": 0,
+      "seconds": 0.5763869170041289,
+      "pgid_empty": true
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "joined": true,
+      "pid": 44656,
+      "exit_code": 0,
+      "seconds": 12.2775103750173,
+      "pgid_empty": true
+    },
+    {
+      "name": "test-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "joined": true,
+      "pid": 44724,
+      "exit_code": 0,
+      "seconds": 38.63155433401698,
+      "pgid_empty": true
+    },
+    {
+      "name": "test-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "joined": true,
+      "pid": 45534,
+      "exit_code": 0,
+      "seconds": 47.87243204200058,
+      "pgid_empty": true
+    }
+  ],
+  "reused": "unchanged no-default CPU336/8 and Kani283checks15covers from final-cpu/qa; executable GPU source is recompiled and qualified separately"
+}

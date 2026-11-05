@@ -1,0 +1,220 @@
+{
+  "status": "non_conclusive",
+  "campaign_status": "complete",
+  "parity": true,
+  "decision": "No BAAB: preregistered per-prompt within-algorithm drift limit exceeded by MTP document (-5.3184%). Observed MTP faster on both prompts, no qualified speed gain or universal algorithm ranking. Preserve paired raw measurements without rerunning until green.",
+  "selected_profiles": {
+    "A": "MTPstock depth1",
+    "B": "DFlash mode1 Auto2/5"
+  },
+  "summary": {
+    "short": {
+      "decode_tps": {
+        "A": 70.51926875299827,
+        "B": 61.27698942590632,
+        "change_percent": -13.106033982660936
+      },
+      "prefill_tps": {
+        "A": 212.87514882437785,
+        "B": 197.01591562624427,
+        "change_percent": -7.450016258693237
+      },
+      "ttft_seconds": {
+        "A": 0.12729968749999998,
+        "B": 0.13754501025000002,
+        "change_percent": 8.048191595128639
+      },
+      "elapsed_seconds": {
+        "A": 1.92839760375,
+        "B": 2.2102169062500003,
+        "change_percent": 14.614169917654385
+      }
+    },
+    "document": {
+      "decode_tps": {
+        "A": 56.63574282556262,
+        "B": 42.55183915081324,
+        "change_percent": -24.867518235132245
+      },
+      "prefill_tps": {
+        "A": 490.54281228271805,
+        "B": 449.8387165123639,
+        "change_percent": -8.297766219616909
+      },
+      "ttft_seconds": {
+        "A": 5.763521885499999,
+        "B": 6.2891893955,
+        "change_percent": 9.120595365873196
+      },
+      "elapsed_seconds": {
+        "A": 8.009590145499999,
+        "B": 9.27445523925,
+        "change_percent": 15.791882865075646
+      }
+    }
+  },
+  "decode_control_drift_percent": {
+    "short": {
+      "A": -1.6803085265918782,
+      "B": 0.30701977755118737
+    },
+    "document": {
+      "A": -5.31842024202348,
+      "B": -2.7377313459441943
+    }
+  },
+  "within_drift_limit": false,
+  "baab_started": false,
+  "details": {
+    "short": {
+      "A": {
+        "algorithm": "MTPstock1",
+        "counters": {
+          "mtp_accepted_tokens": 57,
+          "mtp_proposed_tokens": 69,
+          "mtp_blocks": 69
+        },
+        "prompt_tokens": [
+          27
+        ],
+        "allocated_mlx_peak_bytes": 12707552564.0,
+        "process_footprint_bytes": 13166980564.0
+      },
+      "B": {
+        "algorithm": "DFlashAuto2/5",
+        "counters": {
+          "dflash_accepted_tokens": 91,
+          "dflash_proposed_tokens": 136,
+          "dflash_blocks": 35
+        },
+        "prompt_tokens": [
+          27
+        ],
+        "allocated_mlx_peak_bytes": 12732062136.0,
+        "process_footprint_bytes": 13243149756.0
+      }
+    },
+    "document": {
+      "A": {
+        "algorithm": "MTPstock1",
+        "counters": {
+          "mtp_accepted_tokens": 52,
+          "mtp_proposed_tokens": 74,
+          "mtp_blocks": 74
+        },
+        "prompt_tokens": [
+          2825
+        ],
+        "allocated_mlx_peak_bytes": 13185054152.0,
+        "process_footprint_bytes": 14858194412.0
+      },
+      "B": {
+        "algorithm": "DFlashAuto2/5",
+        "counters": {
+          "dflash_accepted_tokens": 80,
+          "dflash_proposed_tokens": 147,
+          "dflash_blocks": 47
+        },
+        "prompt_tokens": [
+          2825
+        ],
+        "allocated_mlx_peak_bytes": 13211879824.0,
+        "process_footprint_bytes": 15604100780.0
+      }
+    }
+  },
+  "conditions": [
+    {
+      "index": 0,
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1791484025.483777,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t29%; discharging; 2:46 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 5120.00M  used = 3911.44M  free = 1208.56M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "index": 1,
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1791484064.773521,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t27%; discharging; 2:16 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 6144.00M  used = 5075.94M  free = 1068.06M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "index": 2,
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1791484105.26416,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t26%; discharging; 2:06 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 6144.00M  used = 5067.94M  free = 1076.06M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "index": 3,
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1791484147.362448,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t25%; discharging; 1:56 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 6144.00M  used = 5310.12M  free = 833.88M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    }
+  ],
+  "results": "compare-final-143-abba/results.json",
+  "plan": "comparison-final-143-plan.json",
+  "version": "1.4.3",
+  "binary_sha256": "74ba7a825174d314c822715f25ef5f12a15647f86868f1c89b8ac49f8d61be16"
+}

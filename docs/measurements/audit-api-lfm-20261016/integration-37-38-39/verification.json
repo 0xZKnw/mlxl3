@@ -1,0 +1,293 @@
+{
+  "status": "local_validation_passed_artifacts_ci_pending",
+  "source_tested": "fecec2386d3ac8f5cb7e9ebdc8667b117b3d76a8",
+  "reference_engine_desktop_source": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+  "identity": {
+    "pull_requests": {
+      "37": {
+        "title": "Add routed MoE calibration and validated H100 EXL3 conversion",
+        "baseRefName": "main",
+        "headRefName": "codex/lfm25-calibration-v2",
+        "headRefOid": "975c6c20e1fe943e0f93c22fe3a58471ba917dac",
+        "merged": {
+          "mergeCommit": {
+            "oid": "79fae4c66b05856d09a20915899fba1fd7245973"
+          },
+          "mergedAt": "2026-10-16T12:57:18Z",
+          "state": "MERGED",
+          "url": "https://github.com/0xZKnw/mlxl3/pull/37"
+        }
+      },
+      "38": {
+        "title": "Calibrate LFM2.5 EXL3 gates against BF16 and audit routing drift",
+        "baseRefName": "codex/lfm25-calibration-v2",
+        "headRefName": "codex/lfm25-calibration-v3",
+        "headRefOid": "bacb69c3c4e3c46b6f1ccb8d1b02a15cdc8f0305",
+        "merged": {
+          "baseRefName": "main",
+          "mergeCommit": {
+            "oid": "446a9845c126f93aa7ff621388c2f4ab65573246"
+          },
+          "mergedAt": "2026-10-16T12:57:39Z",
+          "state": "MERGED",
+          "url": "https://github.com/0xZKnw/mlxl3/pull/38"
+        }
+      }
+    },
+    "combined_source": "fecec2386d3ac8f5cb7e9ebdc8667b117b3d76a8",
+    "tracked_clean": true,
+    "pony_commit": "8e7fa6b1556f59fc669e25087903b279b9b0346f",
+    "pony_patch_sha256": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "model_weights_changed": false,
+    "new_cloud_workload": false,
+    "installed_app_replaced": false
+  },
+  "source_equivalence": {
+    "reference": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+    "merge_heads": [
+      "975c6c20e1fe943e0f93c22fe3a58471ba917dac",
+      "bacb69c3c4e3c46b6f1ccb8d1b02a15cdc8f0305"
+    ],
+    "paths": [
+      {
+        "path": "native",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "Cargo.toml",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "Cargo.lock",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "build.rs",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "apps/MLXL3Studio",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "scripts/build-macos-app.sh",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "scripts/build-macos-dmg.sh",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "scripts/package_engine.py",
+        "byte_identical_in_index_and_worktree": true
+      },
+      {
+        "path": "scripts/check-desktop.sh",
+        "byte_identical_in_index_and_worktree": true
+      }
+    ],
+    "status": "passed"
+  },
+  "python": {
+    "command": "MLXL3_SKIP_METAL_CHECK=1 PYTHONPATH=src:references/PonyExl3:scripts:<existing-Torch-CPU-site-packages> /Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q tests",
+    "passed": 1267,
+    "skipped": 64,
+    "seconds": 91.58,
+    "skip_reasons": {
+      "explicit_physical_Metal_opt_out": 63,
+      "Ling_model_absent": 1
+    },
+    "warnings": "12 SDK local-execution/deprecation warnings; pinned Modal1.5.5"
+  },
+  "python_format_lint_compile": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "benchmarks/eval_lfm25_candidate.py",
+        "benchmarks/eval_lfm25_quality.py",
+        "scripts/capture_lfm25_router.py",
+        "scripts/convert_lfm25_settings.py",
+        "scripts/diagnose_lfm25_reference.py",
+        "scripts/diagnose_lfm25_reference_modal.py",
+        "scripts/diagnose_lfm25_routes.py",
+        "scripts/diagnose_lfm25_routes_modal.py",
+        "scripts/diagnose_lfm25_tuning.py",
+        "scripts/diagnose_lfm25_tuning_modal.py",
+        "scripts/evaluate_lfm25_router.py",
+        "scripts/exl3_moe_calibration.py",
+        "scripts/generate_lfm25_trace.py",
+        "scripts/lfm25_router_plan.py",
+        "scripts/pilot_lfm25_calibration.py",
+        "scripts/pilot_lfm25_settings.py",
+        "scripts/quantize_lfm25_modal.py",
+        "scripts/quantize_lfm25_moe.py",
+        "scripts/quantize_lfm25_settings_modal.py",
+        "scripts/quantize_lfm25_v3_modal.py",
+        "scripts/recalibrate_lfm25_router.py",
+        "scripts/recalibrate_lfm25_router_modal.py",
+        "tests/exl3_moe_calibration_contracts.py",
+        "tests/lfm25_calibration_contracts.py",
+        "tests/lfm25_modal_contracts.py",
+        "tests/test_capture_lfm25_router.py",
+        "tests/test_evaluate_lfm25_router.py",
+        "tests/test_exl3_moe_calibration.py",
+        "tests/test_lfm25_candidate.py",
+        "tests/test_lfm25_compact_operation.py",
+        "tests/test_lfm25_modal.py",
+        "tests/test_lfm25_moe_conversion.py",
+        "tests/test_lfm25_quality.py",
+        "tests/test_lfm25_reference.py",
+        "tests/test_lfm25_routes.py",
+        "tests/test_lfm25_settings.py",
+        "tests/test_lfm25_trace.py",
+        "tests/test_lfm25_tuning.py",
+        "tests/test_lfm25_tuning_modal.py",
+        "tests/test_lfm25_v3_calibration.py",
+        "tests/test_recalibrate_lfm25_router.py",
+        "tests/test_recalibrate_lfm25_router_modal.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "benchmarks/eval_lfm25_candidate.py",
+        "benchmarks/eval_lfm25_quality.py",
+        "scripts/capture_lfm25_router.py",
+        "scripts/convert_lfm25_settings.py",
+        "scripts/diagnose_lfm25_reference.py",
+        "scripts/diagnose_lfm25_reference_modal.py",
+        "scripts/diagnose_lfm25_routes.py",
+        "scripts/diagnose_lfm25_routes_modal.py",
+        "scripts/diagnose_lfm25_tuning.py",
+        "scripts/diagnose_lfm25_tuning_modal.py",
+        "scripts/evaluate_lfm25_router.py",
+        "scripts/exl3_moe_calibration.py",
+        "scripts/generate_lfm25_trace.py",
+        "scripts/lfm25_router_plan.py",
+        "scripts/pilot_lfm25_calibration.py",
+        "scripts/pilot_lfm25_settings.py",
+        "scripts/quantize_lfm25_modal.py",
+        "scripts/quantize_lfm25_moe.py",
+        "scripts/quantize_lfm25_settings_modal.py",
+        "scripts/quantize_lfm25_v3_modal.py",
+        "scripts/recalibrate_lfm25_router.py",
+        "scripts/recalibrate_lfm25_router_modal.py",
+        "tests/exl3_moe_calibration_contracts.py",
+        "tests/lfm25_calibration_contracts.py",
+        "tests/lfm25_modal_contracts.py",
+        "tests/test_capture_lfm25_router.py",
+        "tests/test_evaluate_lfm25_router.py",
+        "tests/test_exl3_moe_calibration.py",
+        "tests/test_lfm25_candidate.py",
+        "tests/test_lfm25_compact_operation.py",
+        "tests/test_lfm25_modal.py",
+        "tests/test_lfm25_moe_conversion.py",
+        "tests/test_lfm25_quality.py",
+        "tests/test_lfm25_reference.py",
+        "tests/test_lfm25_routes.py",
+        "tests/test_lfm25_settings.py",
+        "tests/test_lfm25_trace.py",
+        "tests/test_lfm25_tuning.py",
+        "tests/test_lfm25_tuning_modal.py",
+        "tests/test_lfm25_v3_calibration.py",
+        "tests/test_recalibrate_lfm25_router.py",
+        "tests/test_recalibrate_lfm25_router_modal.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "compileall",
+        "-q",
+        "benchmarks/eval_lfm25_candidate.py",
+        "benchmarks/eval_lfm25_quality.py",
+        "scripts/capture_lfm25_router.py",
+        "scripts/convert_lfm25_settings.py",
+        "scripts/diagnose_lfm25_reference.py",
+        "scripts/diagnose_lfm25_reference_modal.py",
+        "scripts/diagnose_lfm25_routes.py",
+        "scripts/diagnose_lfm25_routes_modal.py",
+        "scripts/diagnose_lfm25_tuning.py",
+        "scripts/diagnose_lfm25_tuning_modal.py",
+        "scripts/evaluate_lfm25_router.py",
+        "scripts/exl3_moe_calibration.py",
+        "scripts/generate_lfm25_trace.py",
+        "scripts/lfm25_router_plan.py",
+        "scripts/pilot_lfm25_calibration.py",
+        "scripts/pilot_lfm25_settings.py",
+        "scripts/quantize_lfm25_modal.py",
+        "scripts/quantize_lfm25_moe.py",
+        "scripts/quantize_lfm25_settings_modal.py",
+        "scripts/quantize_lfm25_v3_modal.py",
+        "scripts/recalibrate_lfm25_router.py",
+        "scripts/recalibrate_lfm25_router_modal.py",
+        "tests/exl3_moe_calibration_contracts.py",
+        "tests/lfm25_calibration_contracts.py",
+        "tests/lfm25_modal_contracts.py",
+        "tests/test_capture_lfm25_router.py",
+        "tests/test_evaluate_lfm25_router.py",
+        "tests/test_exl3_moe_calibration.py",
+        "tests/test_lfm25_candidate.py",
+        "tests/test_lfm25_compact_operation.py",
+        "tests/test_lfm25_modal.py",
+        "tests/test_lfm25_moe_conversion.py",
+        "tests/test_lfm25_quality.py",
+        "tests/test_lfm25_reference.py",
+        "tests/test_lfm25_routes.py",
+        "tests/test_lfm25_settings.py",
+        "tests/test_lfm25_trace.py",
+        "tests/test_lfm25_tuning.py",
+        "tests/test_lfm25_tuning_modal.py",
+        "tests/test_lfm25_v3_calibration.py",
+        "tests/test_recalibrate_lfm25_router.py",
+        "tests/test_recalibrate_lfm25_router_modal.py"
+      ],
+      "returncode": 0
+    }
+  ],
+  "crosshair": {
+    "status": "completed_with_unconfirmed_conditions",
+    "confirmed": 29,
+    "unconfirmed": 7,
+    "failed_targets": [],
+    "per_condition_timeout_seconds": 20,
+    "scope": "symbolic counterexample search of real scalar functions; no tensor/I/O/GPU proof",
+    "first_attempt_import_failures_preserved": true
+  },
+  "desktop": {
+    "command": "MLXL3_TEST_PYTHON=<existing-venv> MLXL3_SKIP_METAL_CHECK=1 MLXL3_MACOS_SDK=MacOSX26.5.sdk SDKROOT=MacOSX26.5.sdk MLXL3_HOME=<disposable> /usr/bin/caffeinate -i /bin/zsh scripts/check-desktop.sh",
+    "status": "complete",
+    "exit_code": 0,
+    "joined": true,
+    "whole_suite_seconds": null,
+    "sampling_assertions": 821,
+    "sampling_states": 180,
+    "memory_oracle_cases": 240,
+    "lifecycle_assertions": 114,
+    "response_preparation_cases": 63,
+    "latex_formulas": 9,
+    "latex_styles": 2,
+    "no_formal_Swift_proof": true,
+    "log_sha256": "667c6c6bb249b961f01e3b15f99ed86a18003ff51d23bf9037a8ad2e1dacf947"
+  },
+  "limitations": [
+    "No new quantization, H100 workload, HF checkpoint or KL/PPL claim",
+    "K03 remains off by default; speed not qualified",
+    "Seven CrossHair string conditions unconfirmed at20s each",
+    "Full historical Kani not proved; PR38 runner shutdown archived",
+    "63 explicitly skipped physical Metal tests and missing Ling model not counted as executed",
+    "Installed app and user checkout preserved"
+  ],
+  "model_weights_changed": false,
+  "publication": false
+}

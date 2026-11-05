@@ -1,0 +1,162 @@
+{
+  "status": "non_conclusive_confirmation_drift",
+  "parity": true,
+  "summary": {
+    "short": {
+      "A": 55.89136716007819,
+      "B": 55.15020495764878,
+      "change_percent": -1.3260763514813423
+    },
+    "document": {
+      "A": 80.37015086390403,
+      "B": 88.00807907019914,
+      "change_percent": 9.503438931238172
+    }
+  },
+  "drifts": {
+    "short": {
+      "A": {
+        "tps": [
+          54.68261744750645,
+          57.100116872649934
+        ],
+        "percent": 4.4209650854116544
+      },
+      "B": {
+        "tps": [
+          57.05667286580165,
+          53.243737049495905
+        ],
+        "percent": -6.6827167179443485
+      }
+    },
+    "document": {
+      "A": {
+        "tps": [
+          80.21567292019299,
+          80.52462880761507
+        ],
+        "percent": 0.3851565114082689
+      },
+      "B": {
+        "tps": [
+          88.41816551795517,
+          87.59799262244312
+        ],
+        "percent": -0.9276067770773944
+      }
+    }
+  },
+  "lookup_blocks_per_measured_run": {
+    "short": {
+      "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "document": {
+      "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        48,
+        48,
+        48,
+        48,
+        48,
+        48,
+        48,
+        48
+      ]
+    }
+  },
+  "generated_tokens_per_run": {
+    "short": {
+      "A": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ],
+      "B": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ]
+    },
+    "document": {
+      "A": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ],
+      "B": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ]
+    }
+  },
+  "quality": {
+    "short": {
+      "warmup_and_measured_generations": 20,
+      "unique_token_text_history_signatures": 1,
+      "generated_tokens": 256,
+      "nonempty": true
+    },
+    "document": {
+      "warmup_and_measured_generations": 20,
+      "unique_token_text_history_signatures": 1,
+      "generated_tokens": 256,
+      "nonempty": true
+    }
+  },
+  "within_drift_limit": false,
+  "external_workloads": [],
+  "seconds": 432.3338443750399,
+  "binary_sha256": "ad0bef499cd1850795d5ad9c8a54055d91299e9564fa55ebeb898e7ffde03c64",
+  "decision": "keep physically validated copy opt-in only; no conditional control/default promotion; no further timing or protocol variation",
+  "interpretation": "Code-copy signal is positive in both campaigns; full preregistered confirmation fails because French controls drift. No general speedup or superiority over MTP established."
+}

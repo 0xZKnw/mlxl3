@@ -1,0 +1,22 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.09s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-17c30b72058e9f82)
+
+running 1 test
+test flash_cache_profile::shared::shared_pool_preserves_labels_floors_batches_errors_and_layer_aging ... FAILED
+
+failures:
+
+---- flash_cache_profile::shared::shared_pool_preserves_labels_floors_batches_errors_and_layer_aging stdout ----
+
+thread 'flash_cache_profile::shared::shared_pool_preserves_labels_floors_batches_errors_and_layer_aging' (5881778) panicked at native/src/flash_cache_profile/shared.rs:264:9:
+assertion failed: !values[0].1 && values[1].1 && !values[2].1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_cache_profile::shared::shared_pool_preserves_labels_floors_batches_errors_and_layer_aging
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 164 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

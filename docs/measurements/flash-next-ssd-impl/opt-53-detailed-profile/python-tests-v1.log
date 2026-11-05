@@ -1,0 +1,193 @@
+..............FFF.......                                                 [100%]
+=================================== FAILURES ===================================
+____________________ test_trace_rejects_corruption[failed] _____________________
+
+fault = 'failed'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "empty",
+            "negative",
+            "backward",
+            "parent",
+            "nesting",
+            "siblings",
+            "booltime",
+            "routes",
+            "rowdup",
+            "slot",
+            "hits",
+            "short",
+            "bytes",
+            "failed",
+            "worker",
+            "job",
+            "busyworker",
+        ],
+    )
+    def test_trace_rejects_corruption(fault):
+        rows = trace()
+        if fault == "empty":
+            rows = []
+        elif fault == "negative":
+            rows[0]["start_ns"] = -1
+        elif fault == "backward":
+            rows[0]["end_ns"] = -1
+        elif fault == "parent":
+            rows[1]["parent"] = 1
+        elif fault == "nesting":
+            rows[2]["end_ns"] = 1001
+        elif fault == "siblings":
+            rows.append(event("overlap", 0, 500, 800))
+        elif fault == "booltime":
+            rows[0]["start_ns"] = False
+        elif fault == "routes":
+            rows[2]["data"]["ids"] = []
+        elif fault == "rowdup":
+            rows[2]["data"]["ids"][0] = 1
+        elif fault == "slot":
+            rows[2]["data"]["slots_hit"][0][0] = 53
+        elif fault == "hits":
+            rows[2]["data"]["hot_rows"] = 1
+        elif fault == "short":
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"].pop()
+        else:
+            field = {"bytes": 4, "failed": 5, "worker": 1, "job": 0, "busyworker": 2}[fault]
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"][
+                4 if fault == "busyworker" else 0
+            ][field] = 0
+>       with pytest.raises((AssertionError, ValueError, TypeError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, ValueError, TypeError)
+
+tests/test_flash_profile.py:117: Failed
+____________________ test_trace_rejects_corruption[worker] _____________________
+
+fault = 'worker'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "empty",
+            "negative",
+            "backward",
+            "parent",
+            "nesting",
+            "siblings",
+            "booltime",
+            "routes",
+            "rowdup",
+            "slot",
+            "hits",
+            "short",
+            "bytes",
+            "failed",
+            "worker",
+            "job",
+            "busyworker",
+        ],
+    )
+    def test_trace_rejects_corruption(fault):
+        rows = trace()
+        if fault == "empty":
+            rows = []
+        elif fault == "negative":
+            rows[0]["start_ns"] = -1
+        elif fault == "backward":
+            rows[0]["end_ns"] = -1
+        elif fault == "parent":
+            rows[1]["parent"] = 1
+        elif fault == "nesting":
+            rows[2]["end_ns"] = 1001
+        elif fault == "siblings":
+            rows.append(event("overlap", 0, 500, 800))
+        elif fault == "booltime":
+            rows[0]["start_ns"] = False
+        elif fault == "routes":
+            rows[2]["data"]["ids"] = []
+        elif fault == "rowdup":
+            rows[2]["data"]["ids"][0] = 1
+        elif fault == "slot":
+            rows[2]["data"]["slots_hit"][0][0] = 53
+        elif fault == "hits":
+            rows[2]["data"]["hot_rows"] = 1
+        elif fault == "short":
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"].pop()
+        else:
+            field = {"bytes": 4, "failed": 5, "worker": 1, "job": 0, "busyworker": 2}[fault]
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"][
+                4 if fault == "busyworker" else 0
+            ][field] = 0
+>       with pytest.raises((AssertionError, ValueError, TypeError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, ValueError, TypeError)
+
+tests/test_flash_profile.py:117: Failed
+______________________ test_trace_rejects_corruption[job] ______________________
+
+fault = 'job'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "empty",
+            "negative",
+            "backward",
+            "parent",
+            "nesting",
+            "siblings",
+            "booltime",
+            "routes",
+            "rowdup",
+            "slot",
+            "hits",
+            "short",
+            "bytes",
+            "failed",
+            "worker",
+            "job",
+            "busyworker",
+        ],
+    )
+    def test_trace_rejects_corruption(fault):
+        rows = trace()
+        if fault == "empty":
+            rows = []
+        elif fault == "negative":
+            rows[0]["start_ns"] = -1
+        elif fault == "backward":
+            rows[0]["end_ns"] = -1
+        elif fault == "parent":
+            rows[1]["parent"] = 1
+        elif fault == "nesting":
+            rows[2]["end_ns"] = 1001
+        elif fault == "siblings":
+            rows.append(event("overlap", 0, 500, 800))
+        elif fault == "booltime":
+            rows[0]["start_ns"] = False
+        elif fault == "routes":
+            rows[2]["data"]["ids"] = []
+        elif fault == "rowdup":
+            rows[2]["data"]["ids"][0] = 1
+        elif fault == "slot":
+            rows[2]["data"]["slots_hit"][0][0] = 53
+        elif fault == "hits":
+            rows[2]["data"]["hot_rows"] = 1
+        elif fault == "short":
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"].pop()
+        else:
+            field = {"bytes": 4, "failed": 5, "worker": 1, "job": 0, "busyworker": 2}[fault]
+            rows[3]["data"]["timings_job_worker_start_end_bytes_failed"][
+                4 if fault == "busyworker" else 0
+            ][field] = 0
+>       with pytest.raises((AssertionError, ValueError, TypeError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, ValueError, TypeError)
+
+tests/test_flash_profile.py:117: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_trace_rejects_corruption[failed] - F...
+FAILED tests/test_flash_profile.py::test_trace_rejects_corruption[worker] - F...
+FAILED tests/test_flash_profile.py::test_trace_rejects_corruption[job] - Fail...
+3 failed, 21 passed in 0.05s

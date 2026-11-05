@@ -1,0 +1,51 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_cli_sigterm_preserves_progress_and_reaps_native_child[silent] ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-6/test_cli_sigterm_preserves_pro0')
+behavior = 'silent'
+
+    @pytest.mark.parametrize("behavior", ["silent", "request_silent"])
+    def test_cli_sigterm_preserves_progress_and_reaps_native_child(tmp_path, behavior):
+        import signal
+        import subprocess
+        import time
+    
+        engine, output = tmp_path / "engine", tmp_path / "report.json"
+        write_bridge(engine, behavior)
+        script = Path(__file__).resolve().parents[1] / "scripts/check_dflash2.py"
+        process = None
+        child_pid = None
+        with (tmp_path / "cli.log").open("w") as log:
+            try:
+                process = subprocess.Popen(
+                    [sys.executable, str(script), str(engine), "model", "draft", "--timeout", "30", "--skip-tune", "--output", str(output)],
+                    stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
+                )
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    marker = engine.with_suffix(".pid")
+                    if marker.exists() and output.exists():
+                        child_pid = int(marker.read_text())
+                        try:
+                            progress = json.loads(output.read_text())
+                        except json.JSONDecodeError:
+                            continue
+                        if behavior == "silent" or progress.get("active_request"):
+                            break
+                    time.sleep(0.01)
+                else:
+                    raise AssertionError("checker never persisted the interrupted phase")
+                process.send_signal(signal.SIGTERM)
+                assert process.wait(timeout=8) != 0
+                report = json.loads(output.read_text())
+>               assert report["status"] == "failed" and report["parity"] is None
+E               AssertionError: assert ('running' == 'failed'
+E                 
+E                 - failed
+E                 + running)
+
+tests/test_dflash2_check.py:204: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_dflash2_check.py::test_cli_sigterm_preserves_progress_and_reaps_native_child[silent]
+1 failed in 0.50s

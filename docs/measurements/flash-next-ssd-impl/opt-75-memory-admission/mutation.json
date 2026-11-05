@@ -1,0 +1,55 @@
+{
+  "status": "detected_and_restored",
+  "runs": [
+    {
+      "name": "normal",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "source_sha256": "d5bfe266bb630b9ba2c1a1be180846b9788307673b7d00b5eaea3ae033397777",
+      "reaped": true
+    },
+    {
+      "name": "mutant",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "source_sha256": "18095c83c3658df5f2f77881be20c13a45183641747a6479181edf3e641fea85",
+      "reaped": true
+    },
+    {
+      "name": "restored",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "source_sha256": "d5bfe266bb630b9ba2c1a1be180846b9788307673b7d00b5eaea3ae033397777",
+      "reaped": true
+    }
+  ],
+  "production_source_unchanged": true,
+  "scratch_removed": true
+}

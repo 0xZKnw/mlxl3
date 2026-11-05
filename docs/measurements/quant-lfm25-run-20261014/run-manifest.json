@@ -1,0 +1,78 @@
+{
+  "stage": "quantization-in-progress",
+  "source_repo": "LiquidAI/LFM2.5-24B-A2B",
+  "source_revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+  "code_revision": "d97c9aebc087f81155d0060c4fc6add33763b91d",
+  "pony_revision": "8e7fa6b1556f59fc669e25087903b279b9b0346f",
+  "code_worktree": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0",
+  "python": "3.12.14 (main, Aug 12 2026, 13:57:54) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "python_executable": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+  "packages": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.32.0",
+    "numpy": "2.5.2",
+    "safetensors": "0.8.0",
+    "transformers": "5.16.1",
+    "huggingface-hub": "1.29.0"
+  },
+  "sha256": {
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "src/mlxl3_quantizer/packing.py": "a32f86c1ab769b24d2d92123df03296fee80754a1eedc811192efa37c49afa0c",
+    "scripts/quantize_lfm25_moe.py": "9762f2e2a11db0b1fe1ce10cfd8ab492422003f22374b6adef636ae67f2ed87b",
+    "scripts/quantize_ling.py": "4b8e88b7455c3fcd850d123c643415239c7768561b03dbab836baf20ea8cafed",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "60838fa50342266d04ca318232e888c0ac4e7a7342f258d11e5556a09a4cc822",
+    "references/PonyExl3/ponyexl3/convert/calibration_data/wikitext2.txt": "242e15775956d6a424c770547f0759140f72f30a2f28508d15ee96947fec3b00",
+    "scripts/patches/ponyexl3-mlxl3-conversion.patch": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "target/release/mlxl3-rs": "a253210c5f67404edf507f169c3fd11cdd67806853ddff6c18401f270c75b81e"
+  },
+  "options": {
+    "bits": 4,
+    "codebook": "mcg",
+    "search_backend": "metal",
+    "calibration_rows": 2048,
+    "calibration_seq_len": 1024,
+    "calibration_max_seqs": null,
+    "sigma_reg": 0.025,
+    "buf_size_rows": 128,
+    "ldlq_feedback_rows": 16,
+    "max_workers": 1,
+    "resume": true
+  },
+  "paths": {
+    "source": "/Users/justin/Documents/mix-stq1_0/models/source/LFM2.5-24B-A2B",
+    "output": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw",
+    "work": "/Users/justin/Documents/mix-stq1_0/build/lfm25-24b-4bpw"
+  },
+  "conditions": {
+    "utc": "2026-10-14T13:10:15Z\n",
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t44%; discharging; 4:13 remaining present: true\n",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+    "disk": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   926Gi   605Gi   273Gi    69%    2.5M  2.9G    0%   /System/Volumes/Data\n",
+    "memory": "25769803776\n",
+    "hardware": "Mac17,2\n"
+  },
+  "quality": "Recipe unchanged; full-checkpoint quality not yet measured",
+  "launchctl_label": null,
+  "launch_command": "conversion-launch-command.txt",
+  "initial_launchd_pid": 63897,
+  "download_pid": 63695,
+  "idle_sleep_protection": "launchd-owned caffeinate assertion observed in pmset",
+  "launcher_initial_attempt": "launchctl submit kept alive on failure; replaced before conversion started",
+  "launch_configuration": "quantization-job.plist",
+  "launcher_keep_alive": false,
+  "active_launchd_pid": 64103,
+  "hardware": "Apple M5 / 24 GiB",
+  "evidence": {
+    "launch_configuration": "quantization-job.plist",
+    "stage": "job-stage.txt",
+    "source_checksums": "source-checksums.log",
+    "conversion_log": "conversion.log",
+    "process_exit": "pipeline-exit-code.txt"
+  },
+  "active_controller_pid": 64347,
+  "launcher": "Codex subprocess, start_new_session=True, caffeinate -i",
+  "conversion_python_pid": 64354,
+  "calibration_complete": true,
+  "calibration_captures": 7402,
+  "last_observed_utc": "2026-10-14T13:27:49.464925+00:00"
+}

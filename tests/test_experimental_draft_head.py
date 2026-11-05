@@ -124,7 +124,7 @@ def test_pruning_command_rows_failures_and_transaction(tmp_path, monkeypatch):
     assert not (tmp_path / "huge-ids").exists()
 
 
-def scalar_inner(packed, k, mcg):
+def scalar_inner(packed, k, mcg, mul1=False):
     # Independent scalar codec, circular concatenated words and explicit
     # lane ownership; no vectorized indexing/permutation from the converter.
     result = np.zeros((packed.shape[0] * 16, packed.shape[1] * 16), np.float16)
@@ -149,6 +149,14 @@ def scalar_inner(packed, k, mcg):
                         bits = 0x3B603B60 ^ (bits & 0x8FFF8FFF)
                         halves = np.array([bits & 65535, bits >> 16], dtype=np.uint16)
                         value = halves.view(np.float16).astype(np.float32).sum().astype(np.float16)
+                        if mul1:
+
+                            def half(bits):
+                                return struct.unpack("<e", struct.pack("<H", bits))[0]
+
+                            hashed = (word * 0x83DCD12D) & 0xFFFFFFFF
+                            total = 0x6400 + sum((hashed >> (8 * i)) & 255 for i in range(4))
+                            value = np.float16(half(total) * half(0x1EEE) + half(0xC931))
                         row = (lane % 4) * 2 + (ri % 2) + (8 if ri >= 2 else 0)
                         col = lane // 4 + 8 * cg
                         result[tr * 16 + row, tc * 16 + col] = value
@@ -170,6 +178,19 @@ def test_codec_matches_scalar_all_bitrates(k, mcg):
     assert np.array_equal(draft.decode_inner(packed.view(np.int16), k, mcg), expected)
 
 
+@pytest.mark.parametrize("k", range(1, 9))
+def test_mul1_codec_matches_independent_scalar_windows(k):
+    rng = np.random.default_rng(1016 + k)
+    packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+    expected = scalar_inner(packed, k, False, mul1=True)
+    for values in (packed, packed.view(np.int16)):
+        actual = draft.decode_inner(values, k, False, mul1=True)
+        assert np.isfinite(actual).all() and actual.size == 1536
+        np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+    with pytest.raises(ValueError, match="codebook"):
+        draft.decode_inner(packed, k, True, mul1=True)
+
+
 def hadamard():
     # Sylvester matrix definition, independent of the iterative butterfly.
     return np.array(
@@ -177,7 +198,8 @@ def hadamard():
     ) / np.sqrt(np.float32(128))
 
 
-def test_rotations_scales_orientation_and_chunks():
+@pytest.mark.parametrize("mul1", [False, True])
+def test_rotations_scales_orientation_and_chunks(mul1):
     packed = (
         ((np.arange(8 * 16 * 96, dtype=np.uint32) * 1729 + 391) % 65536)
         .astype(np.uint16)
@@ -185,14 +207,16 @@ def test_rotations_scales_orientation_and_chunks():
     )
     su = np.linspace(-1.2, 0.9, 128, dtype=np.float16)
     sv = np.linspace(0.2, 1.1, 256, dtype=np.float16)
-    inner = scalar_inner(packed, 6, True).astype(np.float32)
+    inner = scalar_inner(packed, 6, not mul1, mul1=mul1).astype(np.float32)
     rotation = hadamard()
     out_rotation = np.kron(np.eye(2, dtype=np.float32), rotation)
     expected = (rotation @ inner @ out_rotation).T * su.astype(np.float32) * sv[:, None]
-    full = draft.effective_weight(packed, 6, True, su, sv)
+    full = draft.effective_weight(packed, 6, not mul1, su, sv, mul1=mul1)
     np.testing.assert_allclose(full, expected, rtol=5e-5, atol=2e-5)
     chunks = [
-        draft.effective_weight(packed[:, i : i + 8], 6, True, su, sv[i * 16 : (i + 8) * 16])
+        draft.effective_weight(
+            packed[:, i : i + 8], 6, not mul1, su, sv[i * 16 : (i + 8) * 16], mul1=mul1
+        )
         for i in (0, 8)
     ]
     assert np.array_equal(np.concatenate(chunks), full)
@@ -230,9 +254,13 @@ def test_chunk_boundaries_and_failures():
         draft.rotate128(np.zeros((2, 127)))
     with pytest.raises(ValueError):
         draft.effective_weight(np.zeros((8, 8, 96), np.uint16), 6, True, np.ones(127), np.ones(128))
+    for mcg, mul1 in [(True, True), (1, False), (False, 0), (None, False)]:
+        with pytest.raises(ValueError, match="codebook"):
+            draft.decode_inner(np.zeros((8, 8, 96), np.uint16), 6, mcg, mul1)
 
 
-def test_exporter_real_artifact_chunks_and_no_overwrite(tmp_path, monkeypatch):
+@pytest.mark.parametrize("codebook", ["mcg", "mul1"])
+def test_exporter_real_artifact_chunks_and_no_overwrite(tmp_path, monkeypatch, codebook):
     mx = pytest.importorskip("mlx.core")
     from safetensors import SafetensorError
 
@@ -250,7 +278,7 @@ def test_exporter_real_artifact_chunks_and_no_overwrite(tmp_path, monkeypatch):
         ("trellis", packed, "I16"),
         ("suh", su, "F16"),
         ("svh", sv, "F16"),
-        ("mcg", np.array(1, np.int32), "I32"),
+        (codebook, np.array(1, np.int32), "I32"),
     ]:
         start = len(data)
         data.extend(array.tobytes())
@@ -279,7 +307,12 @@ def test_exporter_real_artifact_chunks_and_no_overwrite(tmp_path, monkeypatch):
             "mode": "affine",
         }
         expected = mx.quantize(
-            mx.array(draft.effective_weight(packed, 6, True, su, sv), dtype=mx.float16),
+            mx.array(
+                draft.effective_weight(
+                    packed, 6, codebook == "mcg", su, sv, mul1=codebook == "mul1"
+                ),
+                dtype=mx.float16,
+            ),
             group_size=64,
             bits=4,
         )

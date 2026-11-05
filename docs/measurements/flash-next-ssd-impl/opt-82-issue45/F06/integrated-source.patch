@@ -1,0 +1,516 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 16b5d13e..a3c0c80d 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -41,6 +41,7 @@ jobs:
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness flash_top10_early_exit_is_confined_to_requested_flash_geometry
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..745e353b 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,47 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++/// Only the Flash legacy top-10 may skip ranks already known to be losers.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_top10_early_exit(experts: i32, top_k: usize, requested: bool) -> bool {
++    requested && experts == 512 && top_k == 10
++}
++
++#[cfg(test)]
++#[test]
++fn flash_top10_early_exit_never_changes_other_router_domains() {
++    for experts in [-1, 0, 1, 256, 511, 512, 513, 1024, i32::MAX] {
++        for top_k in [0, 1, 8, 9, 10, 11, 512, usize::MAX] {
++            assert!(!flash_top10_early_exit(experts, top_k, false));
++            if experts == 512 && top_k == 10 {
++                assert!(flash_top10_early_exit(experts, top_k, true));
++            } else {
++                assert!(!flash_top10_early_exit(experts, top_k, true));
++            }
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn flash_top10_early_exit_is_confined_to_requested_flash_geometry() {
++    let experts: i32 = kani::any();
++    let top_k: usize = kani::any();
++    let requested: bool = kani::any();
++    let enabled = flash_top10_early_exit(experts, top_k, requested);
++    if enabled {
++        assert!(requested);
++        assert_eq!(experts, 512);
++        assert_eq!(top_k, 10);
++    }
++    if !requested || experts != 512 || top_k != 10 {
++        assert!(!enabled);
++    } else {
++        assert!(enabled);
++    }
++    kani::cover!(enabled);
++    kani::cover!(requested && experts == 512 && top_k == 9 && !enabled);
++    kani::cover!(requested && experts == 511 && top_k == 10 && !enabled);
++    kani::cover!(!requested && experts == 512 && top_k == 10 && !enabled);
++}
+diff --git a/native/src/router.rs b/native/src/router.rs
+index b0926f30..82392b39 100644
+--- a/native/src/router.rs
++++ b/native/src/router.rs
+@@ -46,7 +46,28 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
+     topk_legacy(values, top_k, normalize)
+ }
+ 
++pub(crate) fn flash_top10(
++    values: &Array,
++    normalize: bool,
++    early_exit: bool,
++) -> Result<(Array, Array)> {
++    ensure!(
++        values.shape().len() == 2 && values.shape()[1] == 512,
++        "Flash top-10 requires rows of 512 experts"
++    );
++    topk_legacy_mode(values, 10, normalize, early_exit)
++}
++
+ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Array)> {
++    topk_legacy_mode(values, top_k, normalize, false)
++}
++
++fn topk_legacy_mode(
++    values: &Array,
++    top_k: usize,
++    normalize: bool,
++    early_exit: bool,
++) -> Result<(Array, Array)> {
+     let [rows, experts]: [i32; 2] = values
+         .shape()
+         .try_into()
+@@ -69,6 +90,12 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+         "half"
+     };
+     let score = if normalize { "score / sum" } else { "score" };
++    let early_exit = crate::flash_support::flash_top10_early_exit(experts, top_k, early_exit);
++    let stop_counting = if early_exit {
++        "\n                if (above >= int(TOP_K)) break;"
++    } else {
++        ""
++    };
+     let source = format!(
+         r#"
+             constexpr uint EXPERTS = {experts}u;
+@@ -90,7 +117,7 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+ 
+             int above = 0;
+             for (uint other = 0u; other < EXPERTS; ++other) {{
+-                above += sort_keys[other] > key ? 1 : 0;
++                above += sort_keys[other] > key ? 1 : 0;{stop_counting}
+             }}
+             if (above < int(TOP_K)) {{
+                 uint slot = TOP_K - 1u - uint(above);
+@@ -113,9 +140,10 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+     );
+     let mut outputs = array::metal_kernel(
+         &format!(
+-            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3",
++            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3{}",
+             u8::from(normalize),
+-            u8::from(values.dtype() == Dtype::Float32)
++            u8::from(values.dtype() == Dtype::Float32),
++            if early_exit { "_early_exit" } else { "" }
+         ),
+         &["selection", "values"],
+         &["indices", "scores"],
+@@ -616,3 +644,26 @@ mod tests {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++#[path = "router/flash_top10_tests.rs"]
++mod flash_top10_tests;
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(513)]
++fn actual_flash_top10_early_exit_preserves_a_symbolic_input() {
++    let bits: u32 = kani::any();
++    let value = f32::from_bits(bits);
++    let mut values = vec![1.; 512];
++    values[0] = value;
++    let input = Array::from_f32(&values, &[1, 512]).unwrap();
++    let old = flash_top10(&input, true, false).unwrap();
++    let new = flash_top10(&input, true, true).unwrap();
++    assert_eq!(new.0.to_u32().unwrap().len(), 10);
++    assert_eq!(new.0.to_u32().unwrap(), old.0.to_u32().unwrap());
++    assert_eq!(new.1.to_bytes().unwrap(), old.1.to_bytes().unwrap());
++    kani::cover!(bits == 0x8000_0000);
++    kani::cover!(bits == 0x7fc0_0000);
++    kani::cover!(bits == 0x4000_0000);
++}
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..70fdfe64 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -50,6 +50,7 @@ pub struct SsdMoe {
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
+     shared_batch: bool,
++    top10_early_exit: bool,
+     pub(crate) prefetch_pipeline: bool,
+     #[cfg(test)]
+     cohort_sizes: Vec<usize>,
+@@ -131,6 +132,9 @@ impl SsdMoe {
+         let shared_batch =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
++        let top10_early_exit =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_TOP10_EARLY_EXIT", "0")?)
++                .context("MLXL3_SSD_TOP10_EARLY_EXIT must be 0 or 1")?;
+         let prefetch_pipeline =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
+                 .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
+@@ -234,6 +238,7 @@ impl SsdMoe {
+             shared_exl3,
+             stable_expert_kernels,
+             shared_batch,
++            top10_early_exit,
+             prefetch_pipeline,
+             #[cfg(test)]
+             cohort_sizes: Vec::new(),
+@@ -403,10 +408,11 @@ impl SsdMoe {
+         );
+         let probabilities = self.gate_logits(x)?.softmax_precise()?;
+         if x.dtype() == Dtype::Float16 {
+-            let (indices, scores) = router::topk(&probabilities, 10, false)?;
++            let (indices, scores) =
++                router::flash_top10(&probabilities, false, self.top10_early_exit)?;
+             Ok((indices, scores.div(&scores.sum(1, true)?)?))
+         } else {
+-            router::topk(&probabilities, 10, true)
++            router::flash_top10(&probabilities, true, self.top10_early_exit)
+         }
+     }
+     fn predict(&self, x: &Array) -> Result<Array> {
+@@ -2281,3 +2287,7 @@ mod tests {
+ #[cfg(test)]
+ #[path = "ssd_moe/grouped_micro.rs"]
+ mod grouped_micro;
++
++#[cfg(test)]
++#[path = "ssd_moe/top10_early_exit_tests.rs"]
++mod top10_early_exit_tests;
+diff --git a/native/src/router/flash_top10_tests.rs b/native/src/router/flash_top10_tests.rs
+new file mode 100644
+index 00000000..aae2e544
+--- /dev/null
++++ b/native/src/router/flash_top10_tests.rs
+@@ -0,0 +1,194 @@
++use super::*;
++use std::cmp::Ordering;
++
++fn expected_ids(values: &[f32; 512]) -> Vec<u32> {
++    let mut ids = (0..512u32).collect::<Vec<_>>();
++    ids.sort_by(|&a, &b| {
++        let (a_value, b_value) = (values[a as usize], values[b as usize]);
++        let order = match (a_value.is_nan(), b_value.is_nan()) {
++            (true, false) => Ordering::Greater,
++            (false, true) => Ordering::Less,
++            (true, true) => Ordering::Equal,
++            (false, false) => a_value
++                .partial_cmp(&b_value)
++                .expect("finite/inf comparison"),
++        };
++        order.then(a.cmp(&b))
++    });
++    ids[502..].to_vec()
++}
++
++fn values_for(rows: i32, fixture: usize) -> Vec<f32> {
++    (0..rows * 512)
++        .map(|i| {
++            let column = i % 512;
++            match fixture {
++                0 => 1.,
++                1 => (column + 1) as f32 / 1024.,
++                2 => (512 - column) as f32 / 1024.,
++                3 => {
++                    if i % 2 == 0 {
++                        0.
++                    } else {
++                        -0.
++                    }
++                }
++                4 => [
++                    f32::NAN,
++                    -f32::NAN,
++                    f32::INFINITY,
++                    f32::NEG_INFINITY,
++                    1.,
++                    -1.,
++                    0.,
++                    -0.,
++                ][i as usize % 8],
++                5 => ((i * 179 + 71) % 1009) as f32 / 257. - 2.,
++                6 => [
++                    f32::from_bits(1),
++                    -f32::from_bits(1),
++                    f32::from_bits(0x3380_0000),
++                    -f32::from_bits(0x3380_0000),
++                    65504.,
++                    -65504.,
++                    f32::MAX,
++                    -f32::MAX,
++                ][i as usize % 8],
++                7 => f32::from_bits(0x3f80_0000 + ((i * 53) % 19) as u32),
++                _ => unreachable!(),
++            }
++        })
++        .collect()
++}
++
++#[test]
++#[ignore = "physical Apple GPU; 82F06 exact legacy Flash top-10 component"]
++fn flash_top10_early_exit_matches_independent_ranks_and_legacy_scores() -> Result<()> {
++    let mut cases = 0;
++    for rows in [1, 2, 4, 8] {
++        for dtype in [Dtype::Float16, Dtype::Float32] {
++            for strided in [false, true] {
++                for fixture in 0..8 {
++                    let values = values_for(rows, fixture);
++                    let input = if strided {
++                        let mut columns = vec![0.; values.len()];
++                        for row in 0..rows as usize {
++                            for column in 0..512 {
++                                columns[column * rows as usize + row] = values[row * 512 + column];
++                            }
++                        }
++                        Array::from_f32(&columns, &[512, rows])?
++                            .astype(dtype)?
++                            .transpose(&[1, 0])?
++                    } else {
++                        Array::from_f32(&values, &[rows, 512])?.astype(dtype)?
++                    };
++                    // Sort the values actually represented by each input dtype.
++                    let represented = input.to_f32()?;
++                    ensure!(represented.len() == rows as usize * 512);
++                    let expected = represented
++                        .as_chunks::<512>()
++                        .0
++                        .iter()
++                        .flat_map(expected_ids)
++                        .collect::<Vec<_>>();
++                    for normalize in [false, true] {
++                        let legacy = topk_legacy(&input, 10, normalize)?;
++                        let disabled = flash_top10(&input, normalize, false)?;
++                        let enabled = flash_top10(&input, normalize, true)?;
++                        ensure!(crate::flash_support::flash_top10_early_exit(512, 10, true));
++                        for actual in [&legacy, &disabled, &enabled] {
++                            ensure!(
++                                actual.0.shape() == [rows, 10] && actual.0.dtype() == Dtype::UInt32
++                            );
++                            ensure!(actual.1.shape() == [rows, 10] && actual.1.dtype() == dtype);
++                            ensure!(
++                                actual.0.to_u32()? == expected,
++                                "independent rank oracle rows={rows} fixture={fixture}"
++                            );
++                            ensure!(
++                                actual.1.to_bytes()?.len()
++                                    == rows as usize
++                                        * 10
++                                        * if dtype == Dtype::Float16 { 2 } else { 4 }
++                            );
++                        }
++                        ensure!(
++                            enabled.1.to_bytes()? == legacy.1.to_bytes()?,
++                            "score bits rows={rows} fixture={fixture} normalize={normalize}"
++                        );
++                        ensure!(disabled.1.to_bytes()? == legacy.1.to_bytes()?);
++                        if !normalize {
++                            let actual = enabled.1.to_f32()?;
++                            for row in 0..rows as usize {
++                                for column in 0..10 {
++                                    let reference = represented
++                                        [row * 512 + expected[row * 10 + column] as usize];
++                                    let score = actual[row * 10 + column];
++                                    if reference.is_nan() {
++                                        ensure!(score.is_nan());
++                                    } else {
++                                        ensure!(
++                                            score.to_bits() == reference.to_bits(),
++                                            "raw score bits, including signed zero"
++                                        );
++                                    }
++                                }
++                            }
++                        }
++                        if matches!(fixture, 0..=2 | 7) {
++                            ensure!(enabled.1.to_f32()?.iter().all(|v| v.is_finite()));
++                        }
++                        cases += 1;
++                    }
++                }
++            }
++        }
++    }
++    ensure!(cases == 256);
++    println!(
++        "FLASH_TOP10_EARLY_EXIT cases={cases} independent_ranks=true scores=byte_exact ties=true nan=true signed_zero=true strides=true"
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; 82F06 metadata rejection and unchanged generic routers"]
++fn flash_top10_early_exit_rejects_invalid_metadata_and_preserves_other_domains() -> Result<()> {
++    for shape in [vec![512], vec![1, 511], vec![1, 513], vec![1, 1, 512]] {
++        let count = shape.iter().product::<i32>() as usize;
++        let input = Array::from_f32(&vec![1.; count], &shape)?;
++        ensure!(flash_top10(&input, true, true).is_err());
++    }
++    let invalid_dtype = Array::from_u32(&[1; 512], &[1, 512])?;
++    ensure!(flash_top10(&invalid_dtype, true, true).is_err());
++    let mut fallbacks = 0;
++    for (experts, top_k) in [
++        (17, 10),
++        (256, 8),
++        (511, 10),
++        (512, 9),
++        (512, 11),
++        (513, 10),
++    ] {
++        let values = (0..experts)
++            .map(|i| ((i * 53) % 409) as f32 / 1000.)
++            .collect::<Vec<_>>();
++        let input = Array::from_f32(&values, &[1, experts])?;
++        ensure!(!crate::flash_support::flash_top10_early_exit(
++            experts, top_k, true
++        ));
++        let legacy = topk_legacy(&input, top_k, true)?;
++        let requested = topk_legacy_mode(&input, top_k, true, true)?;
++        ensure!(legacy.0.to_u32()? == requested.0.to_u32()?);
++        ensure!(legacy.1.to_bytes()? == requested.1.to_bytes()?);
++        fallbacks += 1;
++    }
++    let valid = Array::from_f32(&[1.; 512], &[1, 512])?;
++    ensure!(flash_top10(&valid, true, true)?.0.to_u32()? == (502..512).collect::<Vec<_>>());
++    ensure!(fallbacks == 6);
++    println!(
++        "FLASH_TOP10_EARLY_EXIT_ERRORS fallbacks={fallbacks} invalid_metadata=true recovery=true"
++    );
++    Ok(())
++}
+diff --git a/native/src/ssd_moe/top10_early_exit_tests.rs b/native/src/ssd_moe/top10_early_exit_tests.rs
+new file mode 100644
+index 00000000..fa80d5b0
+--- /dev/null
++++ b/native/src/ssd_moe/top10_early_exit_tests.rs
+@@ -0,0 +1,99 @@
++use super::*;
++use std::path::Path;
++
++#[test]
++#[ignore = "physical Flash checkpoint; 82F06 all 48 gates on two captured inputs"]
++fn top10_early_exit_preserves_real_routes_and_normalization() -> Result<()> {
++    let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
++    let root = Path::new(&root);
++    let reference: serde_json::Value =
++        serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
++    ensure!(reference["status"] == "complete" && reference["mode"] == "eval");
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let mut cases = 0;
++    for layer in 0..48 {
++        let mut moe = SsdMoe::load(
++            &checkpoint,
++            &format!("model.language_model.layers.{layer}.mlp"),
++            20,
++            true,
++        )?;
++        for step in 0..2 {
++            let components = reference["steps"][step]["components"]
++                .as_array()
++                .context("missing components")?;
++            ensure!(components.len() == 48);
++            let entry = &components[layer]["mlp"]["input"];
++            ensure!(entry["count"] == H);
++            let bytes = std::fs::read(
++                root.join(entry["file"].as_str().context("missing captured input")?),
++            )?;
++            ensure!(bytes.len() == H as usize * 4);
++            let input = Array::from_bytes(&bytes, &[1, H], Dtype::Float32)?;
++            ensure!(input.to_f32()?.iter().all(|v| v.is_finite()));
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for strided in [false, true] {
++                    let x = if strided {
++                        let interleaved = input
++                            .to_f32()?
++                            .into_iter()
++                            .flat_map(|value| [value, value * 0.5])
++                            .collect::<Vec<_>>();
++                        Array::from_f32(&interleaved, &[H, 2])?
++                            .astype(dtype)?
++                            .transpose(&[1, 0])?
++                            .slice(0, 0, 1)?
++                    } else {
++                        input.astype(dtype)?
++                    };
++                    let probabilities = moe.gate_logits(&x)?.softmax_precise()?;
++                    ensure!(
++                        probabilities.shape() == [1, 512]
++                            && probabilities.to_f32()?.iter().all(|v| v.is_finite())
++                    );
++                    let old = if dtype == Dtype::Float16 {
++                        let (ids, scores) = router::topk(&probabilities, 10, false)?;
++                        let normalized = scores.div(&scores.sum(1, true)?)?;
++                        (ids, normalized)
++                    } else {
++                        router::topk(&probabilities, 10, true)?
++                    };
++                    for enabled in [false, true] {
++                        moe.top10_early_exit = enabled;
++                        let actual = moe.route(&x)?;
++                        ensure!(actual.0.shape() == [1, 10] && actual.1.shape() == [1, 10]);
++                        ensure!(actual.0.to_u32()? == old.0.to_u32()?);
++                        ensure!(actual.1.to_bytes()? == old.1.to_bytes()?);
++                        ensure!(actual.1.to_f32()?.iter().all(|v| v.is_finite()));
++                    }
++                    cases += 1;
++                }
++            }
++        }
++        moe.drain()?;
++    }
++    ensure!(cases == 384);
++    println!(
++        "SSD_TOP10_EARLY_EXIT cases={cases} layers=48 inputs=2 f16_f32=true strides=true ids_scores=byte_exact"
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Flash checkpoint; environment fixed before process start; run default, flag0 and flag1 separately"]
++fn top10_early_exit_flag_reaches_production_loader() -> Result<()> {
++    let (checkpoint, input, _) = super::tests::admission_fixture()?;
++    let expected = match std::env::var("MLXL3_SSD_TOP10_EARLY_EXIT") {
++        Ok(value) => {
++            crate::flash_support::parse_gpu_hot_wide(&value).context("invalid test flag")?
++        }
++        Err(std::env::VarError::NotPresent) => false,
++        Err(error) => return Err(error.into()),
++    };
++    let moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 20, true)?;
++    ensure!(moe.top10_early_exit == expected);
++    let routed = moe.route(&input)?;
++    ensure!(routed.0.to_u32()?.len() == 10 && routed.1.to_f32()?.len() == 10);
++    println!("SSD_TOP10_EARLY_EXIT_LOADER configured={expected} environment_mutated=false");
++    Ok(())
++}

@@ -1,0 +1,125 @@
+{
+  "status": "validated_short_screen",
+  "parity": true,
+  "protocol": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/docs/measurements/issue75-native-ar-round2-20261104/performance-protocol.json",
+  "runs": [
+    {
+      "index": 1,
+      "variant": "reference",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/1-reference",
+        "--cache-gib",
+        "3",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--timeout",
+        "300"
+      ],
+      "status": "validated",
+      "output": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/1-reference",
+      "exit_code": 0,
+      "seconds": 82.27642149999156,
+      "joined": true,
+      "median_decode_tps": {
+        "MAIN": 5.940528554216437,
+        "HOLD": 5.99034920964486
+      },
+      "parity": true
+    },
+    {
+      "index": 2,
+      "variant": "ensemble",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/2-ensemble",
+        "--cache-gib",
+        "3",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--timeout",
+        "300"
+      ],
+      "status": "validated",
+      "output": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/2-ensemble",
+      "exit_code": 0,
+      "seconds": 76.78244233300211,
+      "joined": true,
+      "median_decode_tps": {
+        "MAIN": 5.668174721120092,
+        "HOLD": 6.051717391568707
+      },
+      "parity": true
+    },
+    {
+      "index": 3,
+      "variant": "ensemble",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/3-ensemble",
+        "--cache-gib",
+        "3",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--timeout",
+        "300"
+      ],
+      "status": "validated",
+      "output": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/3-ensemble",
+      "exit_code": 0,
+      "seconds": 79.93464374999166,
+      "joined": true,
+      "median_decode_tps": {
+        "MAIN": 6.054855329473399,
+        "HOLD": 5.8205112068398766
+      },
+      "parity": true
+    },
+    {
+      "index": 4,
+      "variant": "reference",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/4-reference",
+        "--cache-gib",
+        "3",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--timeout",
+        "300"
+      ],
+      "status": "validated",
+      "output": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/4-reference",
+      "exit_code": 0,
+      "seconds": 83.5205960420135,
+      "joined": true,
+      "median_decode_tps": {
+        "MAIN": 5.813627344096155,
+        "HOLD": 5.9092428937783845
+      },
+      "parity": true
+    }
+  ],
+  "started_utc": "2026-11-04T12:14:15.018887+00:00",
+  "finished_utc": "2026-11-04T12:19:37.537755+00:00"
+}

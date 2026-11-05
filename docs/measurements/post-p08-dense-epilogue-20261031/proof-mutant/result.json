@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/kani",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/proof-mutant/proof_mutant.rs",
+    "--harness",
+    "dense_epilogue_geometry_bounds_real_launch_and_addresses",
+    "-Z",
+    "concrete-playback",
+    "--concrete-playback",
+    "print"
+  ],
+  "production_sha256_before": "d9aec0acabf00ca79d8a91e5c0d9262311025ae7fed2dd1629055224be260c96",
+  "mutation": "B2 geometry accepts width2559 instead of2560",
+  "expected": "functional is_some equivalence assertion fails; compilation success required",
+  "timeout_seconds": 120,
+  "status": "expected_functional_counterexample",
+  "exit_code": 1,
+  "seconds": 9.785434500000001,
+  "reaped": true,
+  "production_sha256_after": "d9aec0acabf00ca79d8a91e5c0d9262311025ae7fed2dd1629055224be260c96",
+  "functional_detection": true,
+  "failed_property": "layout.is_some() == expected",
+  "counterexample": "rows2, partials[2,2,2559], scale[2560], partial_f32=true,scale_f16=true",
+  "original_source_after_format_sha256": "d9aec0acabf00ca79d8a91e5c0d9262311025ae7fed2dd1629055224be260c96"
+}

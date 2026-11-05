@@ -1,0 +1,11 @@
+--- a/native/src/ssd_moe/hot_activation.rs
++++ b/native/src/ssd_moe/hot_activation.rs
+@@ -19,7 +19,7 @@
+ uint i = thread_position_in_grid.x;
+ if (i >= uint(gu_shape[0]) * 640u) return;
+ uint row = i / 640u;
+-if (slots[row] >= CAPACITY) { activated[i] = half(0); return; }
++if (false) { activated[i] = half(0); return; }
+ uint col = i % 640u;
+ half gate = gu[row * 1280u + col];
+ half up = gu[row * 1280u + 640u + col];

@@ -1,0 +1,226 @@
+{
+  "status": "validated_external_golden_full_internal_parity",
+  "cases": {
+    "uniform": {
+      "prefill": {
+        "spans_inclusive_nonadditive": {
+          "shared_pool_previous_consumers_wait": {
+            "count": 4176,
+            "total_wall_ms": 2.133556,
+            "wall_ms_per_token": 0.024523632183908045,
+            "maximum_call_microseconds": 32.625
+          },
+          "hot_previous_bank_users_wait": {
+            "count": 0,
+            "total_wall_ms": 0.0,
+            "wall_ms_per_token": 0.0,
+            "maximum_call_microseconds": 0.0
+          },
+          "route_readback_inclusive": {
+            "count": 4176,
+            "total_wall_ms": 3115.527386,
+            "wall_ms_per_token": 35.810659609195405,
+            "maximum_call_microseconds": 6305.916
+          },
+          "disk_read_batch": {
+            "count": 3721,
+            "total_wall_ms": 2642.934314,
+            "wall_ms_per_token": 30.378555333333335,
+            "maximum_call_microseconds": 3388.375
+          },
+          "fill_prepare_and_read": {
+            "count": 3721,
+            "total_wall_ms": 2654.241533,
+            "wall_ms_per_token": 30.50852336781609,
+            "maximum_call_microseconds": 3392.542
+          },
+          "expert_calculate_build": {
+            "count": 7897,
+            "total_wall_ms": 186.498059,
+            "wall_ms_per_token": 2.1436558505747128,
+            "maximum_call_microseconds": 1086.958
+          },
+          "gpu_resident_hot_prepare": {
+            "count": 4176,
+            "total_wall_ms": 1612.203708,
+            "wall_ms_per_token": 18.531077103448276,
+            "maximum_call_microseconds": 1281.834
+          }
+        },
+        "actual_rows": [
+          1
+        ],
+        "physical_capacities": [
+          2544
+        ],
+        "route_calls": 4176,
+        "misses": 13056
+      },
+      "decode": {
+        "spans_inclusive_nonadditive": {
+          "shared_pool_previous_consumers_wait": {
+            "count": 768,
+            "total_wall_ms": 0.388261,
+            "wall_ms_per_token": 0.0242663125,
+            "maximum_call_microseconds": 9.084
+          },
+          "hot_previous_bank_users_wait": {
+            "count": 0,
+            "total_wall_ms": 0.0,
+            "wall_ms_per_token": 0.0,
+            "maximum_call_microseconds": 0.0
+          },
+          "route_readback_inclusive": {
+            "count": 768,
+            "total_wall_ms": 555.688032,
+            "wall_ms_per_token": 34.730502,
+            "maximum_call_microseconds": 1583.833
+          },
+          "disk_read_batch": {
+            "count": 692,
+            "total_wall_ms": 462.501926,
+            "wall_ms_per_token": 28.906370375,
+            "maximum_call_microseconds": 3300.792
+          },
+          "fill_prepare_and_read": {
+            "count": 692,
+            "total_wall_ms": 464.534821,
+            "wall_ms_per_token": 29.0334263125,
+            "maximum_call_microseconds": 3303.708
+          },
+          "expert_calculate_build": {
+            "count": 1460,
+            "total_wall_ms": 33.896546,
+            "wall_ms_per_token": 2.118534125,
+            "maximum_call_microseconds": 57.875
+          },
+          "gpu_resident_hot_prepare": {
+            "count": 768,
+            "total_wall_ms": 299.214969,
+            "wall_ms_per_token": 18.7009355625,
+            "maximum_call_microseconds": 585.542
+          }
+        },
+        "actual_rows": [
+          1
+        ],
+        "physical_capacities": [
+          2544
+        ],
+        "route_calls": 768,
+        "misses": 2324
+      }
+    },
+    "arc": {
+      "prefill": {
+        "spans_inclusive_nonadditive": {
+          "shared_pool_previous_consumers_wait": {
+            "count": 4176,
+            "total_wall_ms": 1.560248,
+            "wall_ms_per_token": 0.017933885057471264,
+            "maximum_call_microseconds": 10.75
+          },
+          "hot_previous_bank_users_wait": {
+            "count": 0,
+            "total_wall_ms": 0.0,
+            "wall_ms_per_token": 0.0,
+            "maximum_call_microseconds": 0.0
+          },
+          "route_readback_inclusive": {
+            "count": 4176,
+            "total_wall_ms": 3071.969347,
+            "wall_ms_per_token": 35.309992494252874,
+            "maximum_call_microseconds": 6038.0
+          },
+          "disk_read_batch": {
+            "count": 3774,
+            "total_wall_ms": 2722.059086,
+            "wall_ms_per_token": 31.28803547126437,
+            "maximum_call_microseconds": 4577.625
+          },
+          "fill_prepare_and_read": {
+            "count": 3774,
+            "total_wall_ms": 2732.985533,
+            "wall_ms_per_token": 31.413626816091956,
+            "maximum_call_microseconds": 4579.75
+          },
+          "expert_calculate_build": {
+            "count": 7950,
+            "total_wall_ms": 182.631371,
+            "wall_ms_per_token": 2.0992111609195403,
+            "maximum_call_microseconds": 138.792
+          },
+          "gpu_resident_hot_prepare": {
+            "count": 4176,
+            "total_wall_ms": 1588.255354,
+            "wall_ms_per_token": 18.255808666666667,
+            "maximum_call_microseconds": 723.5
+          }
+        },
+        "actual_rows": [
+          1
+        ],
+        "physical_capacities": [
+          2544
+        ],
+        "route_calls": 4176,
+        "misses": 13960
+      },
+      "decode": {
+        "spans_inclusive_nonadditive": {
+          "shared_pool_previous_consumers_wait": {
+            "count": 768,
+            "total_wall_ms": 0.29966,
+            "wall_ms_per_token": 0.01872875,
+            "maximum_call_microseconds": 13.709
+          },
+          "hot_previous_bank_users_wait": {
+            "count": 0,
+            "total_wall_ms": 0.0,
+            "wall_ms_per_token": 0.0,
+            "maximum_call_microseconds": 0.0
+          },
+          "route_readback_inclusive": {
+            "count": 768,
+            "total_wall_ms": 559.775925,
+            "wall_ms_per_token": 34.9859953125,
+            "maximum_call_microseconds": 1848.791
+          },
+          "disk_read_batch": {
+            "count": 710,
+            "total_wall_ms": 482.952286,
+            "wall_ms_per_token": 30.184517875,
+            "maximum_call_microseconds": 2887.667
+          },
+          "fill_prepare_and_read": {
+            "count": 710,
+            "total_wall_ms": 485.006016,
+            "wall_ms_per_token": 30.312876,
+            "maximum_call_microseconds": 2890.833
+          },
+          "expert_calculate_build": {
+            "count": 1478,
+            "total_wall_ms": 34.478755,
+            "wall_ms_per_token": 2.1549221875,
+            "maximum_call_microseconds": 223.75
+          },
+          "gpu_resident_hot_prepare": {
+            "count": 768,
+            "total_wall_ms": 296.725085,
+            "wall_ms_per_token": 18.5453178125,
+            "maximum_call_microseconds": 915.0
+          }
+        },
+        "actual_rows": [
+          1
+        ],
+        "physical_capacities": [
+          2544
+        ],
+        "route_calls": 768,
+        "misses": 2547
+      }
+    }
+  },
+  "limits": "host wall scopes are inclusive/nonadditive; no exclusive GPU idle or physical SSD claim; AR prefill MoE rows=1 despite API chunk8"
+}

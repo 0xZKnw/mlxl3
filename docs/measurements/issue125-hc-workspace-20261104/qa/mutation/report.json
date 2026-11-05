@@ -1,0 +1,33 @@
+{
+  "status": "mutation_detected_original_restored",
+  "source_sha256": "9720c6febcf9be19866fc2bf807bcfc1930d2b71d0f903dd3406a58dd57964f2",
+  "exact_source_prefix_sha256": "545479d92175386cc3990007ac14226678482a167dc2268b0d36de0fb67a72f7",
+  "scope": "exact actual Key/State source prefix; standalone deterministic helper test only, not Metal lease/worker/model proof",
+  "checks": [
+    {
+      "name": "original",
+      "exit_code": 0,
+      "command": [
+        "build/hc-workspace/qa/mutation/original",
+        "--nocapture"
+      ]
+    },
+    {
+      "name": "ignore-busy-mutant",
+      "exit_code": 101,
+      "command": [
+        "build/hc-workspace/qa/mutation/ignore-busy-mutant",
+        "--nocapture"
+      ]
+    },
+    {
+      "name": "original-restored",
+      "exit_code": 0,
+      "command": [
+        "build/hc-workspace/qa/mutation/original-restored",
+        "--nocapture"
+      ]
+    }
+  ],
+  "all_children_joined": true
+}

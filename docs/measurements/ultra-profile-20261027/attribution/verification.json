@@ -1,0 +1,105 @@
+{
+  "checks": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "docs/measurements/ultra-profile-20261027/attribution/analyze.py"
+      ],
+      "exit": 0,
+      "elapsed_s": 0.03143474998068996,
+      "stdout": "1 file already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "docs/measurements/ultra-profile-20261027/attribution/analyze.py"
+      ],
+      "exit": 0,
+      "elapsed_s": 0.010773249989142641,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "docs/measurements/ultra-profile-20261027/attribution/analyze.py"
+      ],
+      "exit": 0,
+      "elapsed_s": 0.022232500021345913,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "docs/measurements/ultra-profile-20261027/attribution/analyze.py",
+        "--self-check"
+      ],
+      "exit": 0,
+      "elapsed_s": 0.030201499990653247,
+      "stdout": "3375 union +3375 intersection finite lattice checks; 3 invalid interval cases; valid XML references and5 corrupt/empty XML cases passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "crosshair",
+        "check",
+        "docs/measurements/ultra-profile-20261027/attribution/analyze.py",
+        "--analysis_kind",
+        "asserts"
+      ],
+      "exit": 1,
+      "elapsed_s": 0.016083333001006395,
+      "stdout": "",
+      "stderr": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python: No module named crosshair\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_flash_profile_export.py",
+        "tests/test_flash_profile.py",
+        "tests/test_flash_slotstream_supervisor.py"
+      ],
+      "exit": 0,
+      "elapsed_s": 2.9320290830219164,
+      "stdout": "........................................................................ [ 31%]\n........................................................................ [ 62%]\n........................................................................ [ 93%]\n..............                                                           [100%]\n230 passed in 2.72s\n",
+      "stderr": ""
+    }
+  ],
+  "mutation": {
+    "change": "merge union extent max -> min",
+    "exit": 1,
+    "caught": true,
+    "stderr": "Traceback (most recent call last):\n  File \"/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/tmpvzhj3sfo/mutant.py\", line 119, in <module>\n    assert m.overlap(x, y) == len(oracle & set(range(x, y)))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  "native_source_sha_checks": {
+    "native/src/flash_profile.rs": true,
+    "native/src/linear.rs": true,
+    "native/src/ssd_moe.rs": true,
+    "native/src/array.rs": true,
+    "native/ffi/mlx_bridge.cpp": true,
+    "native/src/qwen4/profile.rs": true,
+    "native/src/qwen4.rs": true,
+    "native/src/flash_draft_runtime.rs": true,
+    "native/src/main.rs": true,
+    "native/src/flash_support.rs": true
+  },
+  "binary_sha256": "d4bb73099490a6908db442fac5337c44feefeab2910746af69aed5ec844c87b2",
+  "analysis_sha256": "e969f3b12cbeb892508dc32236fe21fc44bba2525ad30b43880f46a20c2c0e64",
+  "ci": {
+    "local_yaml_and_wiring": "passed",
+    "remote": "uncommitted local tree; not run remotely"
+  },
+  "proof": "finite exhaustive interval checks and sampled/integration tests; CrossHair absent, no source proof"
+}

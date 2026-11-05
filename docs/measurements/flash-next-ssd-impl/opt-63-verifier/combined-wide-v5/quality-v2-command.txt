@@ -1,0 +1,50 @@
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 - <<'PY'
+import json, runpy, subprocess, time
+from pathlib import Path
+p=Path('docs/measurements/flash-next-ssd-impl/opt-63-verifier')
+plan=p/'combined-wide-v5/quality-v2/run.json'
+api=runpy.run_path('scripts/profile_flash.py')
+parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)), 'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+start=json.loads((p/'combined-wide-v5/origin.json').read_text()); baseline={k:start['vm_bytes'][k] for k in ('Swapins','Swapouts')}
+origin=p/'combined-wide-v5/origin.json'; assert origin.exists()
+result={'status':'incomplete','parity':False,'original_vm_baseline':baseline,'source_identity':'identity-v5.json','source_commit':'ba7068fb'}
+identity=json.loads((p/'identity-v5.json').read_text())
+import hashlib
+for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+def watch(seconds,path):
+ records=[]
+ try:
+  deadline=time.monotonic()+seconds
+  while True:
+   row=take(); records.append(row)
+   assert row['power'].splitlines()[0]==start['power'].splitlines()[0]
+   assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   for key in baseline:
+    assert 0<=row['vm_bytes'][key]-baseline[key]<=256<<20
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'], 'new Swapout'
+   if time.monotonic()>=deadline: break
+   time.sleep(min(2,deadline-time.monotonic()))
+ finally:
+  path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+try:
+ watch(20,p/'combined-wide-v5/quality-v2/preflight.json')
+ print('63C preflight20s passed; quality starts',flush=True)
+ api['run_sampler'](plan,baseline)
+ raw=json.loads(plan.with_name('run-result.json').read_text())
+ assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==2
+ assert all(r['reaped'] and r['status']=='completed_expected_outcome' and r['swapouts_bytes']==0 for r in raw['commands'])
+ result.update(status='passed_quality_pending_postflight',parity=True)
+except BaseException as e:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(e)); raise
+finally:
+ try:
+  watch(30,p/'combined-wide-v5/quality-v2/postflight.json')
+  if result['parity']: result['status']='passed_quality_and_postflight30s'
+ except BaseException as e:
+  result.update(status='failed_postflight',parity=False,postflight_error=repr(e)); raise
+ finally:
+  (p/'combined-wide-v5/quality-v2/campaign-result.json').write_text(json.dumps(result,indent=2)+'\n')
+  print(result,flush=True)
+PY

@@ -1,0 +1,136 @@
+{
+  "status": "validated",
+  "parity": true,
+  "runs": [
+    {
+      "name": "R2-qwen",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "readers": 2,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "expected_tests": 11,
+      "exit": 0,
+      "seconds": 47.515542165999996,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/R2-qwen.log"
+    },
+    {
+      "name": "R2-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--exact"
+      ],
+      "readers": 2,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "expected_tests": 1,
+      "exit": 0,
+      "seconds": 5.120600082999999,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/R2-held.log"
+    },
+    {
+      "name": "R4-qwen",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "readers": 4,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "expected_tests": 11,
+      "exit": 0,
+      "seconds": 42.858796958999996,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/R4-qwen.log"
+    },
+    {
+      "name": "R4-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--exact"
+      ],
+      "readers": 4,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "expected_tests": 1,
+      "exit": 0,
+      "seconds": 5.148322417000003,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/R4-held.log"
+    },
+    {
+      "name": "R1-original",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--exact"
+      ],
+      "readers": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "expected_tests": 1,
+      "exit": 0,
+      "seconds": 4.0069338339999945,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/R1-original.log"
+    },
+    {
+      "name": "disk-cohorts",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "readers": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "expected_tests": 3,
+      "exit": 0,
+      "seconds": 1.5008731669999946,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/disk-cohorts.log"
+    },
+    {
+      "name": "slot-oracle",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec",
+        "linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--exact"
+      ],
+      "readers": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "expected_tests": 1,
+      "exit": 0,
+      "seconds": 0.3162606249999982,
+      "passed": true,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/slot-oracle.log"
+    }
+  ],
+  "scope": "29 physical tests: R2/R4 full 11 Qwen checks plus held target; R1 target, 90 cold/hot/small-cache paired cohorts plus failure/recovery, real owned/alias bank reads, slot oracle. Numerical comparisons bit-identical. No timing claim."
+}

@@ -1,0 +1,199 @@
+{
+  "status": "CPU_checked_component_oracles_passed_full_AR_failed",
+  "time_utc": "2026-11-04T09:49:43.820974+00:00",
+  "source_commit": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "base": "717b92312e1c12a1a31386608dffcd78e3c0f916 (main17c plus qualified default NT2)",
+  "old_HC_source": "e37c5b6d30d6871692797fd5c79a3b07e24bc97e",
+  "source_sha256": {
+    "native/src/gpu.rs": "b3746a25331a4e1b9d4395b40ed579dc2585460283f9605b73dde0cf1ce18323",
+    "native/src/gpu/hc.rs": "4832339a12964b2b15bc6984c285c8b5601de0d8adb07325963aee28b2f89f0a",
+    "native/src/gpu/gdn.rs": "57495fa007372a90295b3fc63d263baeda2eeb76000e0483a9d8a1834e4dd95c",
+    "native/src/gpu/flash.rs": "a5082e5872c0061d03a058ef2590ab5e8bb1408f8f5e077f26518a4d283f68bf",
+    "native/src/flash_support.rs": "5e532bf0d3b5f22bd23322182d082d6a941694ed63af0b46cee72bd8926f13ff",
+    "native/src/contracts.rs": "b1183df2df6b5f94695d456a94cdc4ed6b6a8333975c3bd5d2ca40b11f9f1169",
+    "native/src/direct_bridge.rs": "22c85e9bd3c71cb20c8887886c0d2ef3aec3750467b737c087b70d7ef4221d3d",
+    "native/src/native_prompt_cache.rs": "ccf3b756a9ddd1b38567978c4d02c469489d427e4b2321bcf6f8c66a28534a45",
+    "native/src/flash_draft_budget.rs": "de9ba6834ee3a2771275eb884962d5940eb4b8f48f7561794ddd3c53f8dc194d",
+    "native/src/gpu/memory.rs": "6259dd00d1940e68a27bada934b9ba6d89bcbe9471af0d27671a3d850fd4e752",
+    "tests/physical_flash_ar_bridge.py": "165924d90fa8dde1cc59fea34414c41ed643f6adf863fdf728b3686248ca1970",
+    "tests/openai_transport.rs": "3d20c56161588dab55f5c988575216811ca09dc9b56ace0e3fae85ee29a6bb93",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9"
+  },
+  "artifacts": {
+    "direct-cli": {
+      "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/mlxl3-rs",
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/direct-cli",
+      "sha256": "1e282c471a8e525191d69d5e2b1c7b11b21923dd3d747654d5c0d5f99a8608c4",
+      "bytes": 10101792
+    },
+    "native-libtest": {
+      "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/deps/mlxl3_native-bd13435986c206bf",
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+      "sha256": "7bde83431cd09e871ff86266d4f0add5061ed9b6303e24de63cce46d87f2aea8",
+      "bytes": 9056672
+    },
+    "budget-fixture": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+      "sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+      "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+      "behavior": "fixture invokes new CLI via explicit MLXL3_FLASH_TEST_CLI; no cached old production engine",
+      "current_test_body_sha256": "df16efe3efadc26c4aac31bd21ed4cbe00d5333101f02b9c464522d749e65dcb",
+      "body_identity": "current source function byte-identical to fixture sourcecb93"
+    }
+  },
+  "checks": {
+    "CPU_full": {
+      "passed": 332,
+      "ignored": 9
+    },
+    "direct_full": {
+      "passed": 341,
+      "ignored": 41
+    },
+    "compat_full": {
+      "passed": 377,
+      "ignored": 259
+    },
+    "strict_clippy": "four configurations pass (CPU/chat,direct/chat,direct/nochat,direct+mlx/chat)",
+    "format": "passed",
+    "inventory": "246 files, 2 direct inventory checks passed",
+    "python": "6 passed;44 Linux-specific proof-policy skips remain unexecuted",
+    "current_Kani": {
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--harness",
+        "flash_support::hc_chain_flag_defaults_off_and_accepts_only_exact_literals",
+        "--output-format",
+        "terse"
+      ],
+      "status": "timeout",
+      "scope": "actual package source; no Metal/concurrency proof",
+      "elapsed_seconds": 90.00707374999183,
+      "joined": true
+    },
+    "current_Kani_inspection": "actual package compilation succeeded9.97s; reached checking HC flag harness, then90.007s timeout; no obligations verdict. Unsupported caller_location/foreign declarations warned; no reachable verdict. Old GPU ICE15.78s and parser187/97s interruptions retained separately, not relabeled current result.",
+    "physical": {
+      "initial": "not run at source receipt creation",
+      "latest": "2phases passed;fullARfailed counterassertionprefix2 before remaining numeric checks;3phasesnotrun",
+      "report": "physical-result.json",
+      "all_owned_process_groups_empty": true
+    },
+    "performance": "not measured"
+  },
+  "integration": "current local source/frozen artifacts only; HC default0, NT2 default1; no app replacement/merge/release",
+  "frozen_HC_oracle": {
+    "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+    "manifest_sha256": "726e7e2a4c677d838a34a5faf655350b591be1f2e8154b3da964a19b65af789e",
+    "status": "available, complete,6writes, exact prior qualified manifest hash; all referenced file sizes checked",
+    "output_words": 61440,
+    "input_file_count": 24,
+    "files": {
+      "hc-0-streams.f32": {
+        "bytes": 40960,
+        "sha256": "d6f8f0e44f01e47ffcec9dc6a87888e823dcc913e4826f1df1b5a2cff5ef2614"
+      },
+      "hc-0-branch.f32": {
+        "bytes": 10240,
+        "sha256": "4bb66e97159d9d93e9edc062067c00d2039bd25b46ae8bc8ee262e97f306c9f5"
+      },
+      "hc-0-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-0-output.f32": {
+        "bytes": 40960,
+        "sha256": "f9ce0b73c12e074a3bfda00ac5861374e61b9e68560e5db8cc376c67e6900ac3"
+      },
+      "hc-1-streams.f32": {
+        "bytes": 40960,
+        "sha256": "da8ecf61e2477ba1aec29a15fdb5832534402b681739f0fc0e9476ab63ef986c"
+      },
+      "hc-1-branch.f32": {
+        "bytes": 10240,
+        "sha256": "4bb66e97159d9d93e9edc062067c00d2039bd25b46ae8bc8ee262e97f306c9f5"
+      },
+      "hc-1-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-1-output.f32": {
+        "bytes": 40960,
+        "sha256": "5592372198c278df742335471db7832df24bed69c9ac1308ea9e52ce4e6d7c86"
+      },
+      "hc-2-streams.f32": {
+        "bytes": 40960,
+        "sha256": "8f6c09ad85edb85169f2940bad4a2d7045a67d8f7d8fbfebdffda615353a9b7b"
+      },
+      "hc-2-branch.f32": {
+        "bytes": 10240,
+        "sha256": "4bb66e97159d9d93e9edc062067c00d2039bd25b46ae8bc8ee262e97f306c9f5"
+      },
+      "hc-2-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-2-output.f32": {
+        "bytes": 40960,
+        "sha256": "328fa3579738baba12a8f16e562cd0a337f7956b35ec6cdf8da1c87e4e5bd677"
+      },
+      "hc-3-streams.f32": {
+        "bytes": 40960,
+        "sha256": "d6f8f0e44f01e47ffcec9dc6a87888e823dcc913e4826f1df1b5a2cff5ef2614"
+      },
+      "hc-3-branch.f32": {
+        "bytes": 10240,
+        "sha256": "e4103dcb768598a7a3060e316318e3a16702b4a9053685349c64445ecae7adbe"
+      },
+      "hc-3-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-3-output.f32": {
+        "bytes": 40960,
+        "sha256": "a18dec55ff749d32a09b5c5ee7563bdb954319d5ab3a676367959efa6a5ba798"
+      },
+      "hc-4-streams.f32": {
+        "bytes": 40960,
+        "sha256": "da8ecf61e2477ba1aec29a15fdb5832534402b681739f0fc0e9476ab63ef986c"
+      },
+      "hc-4-branch.f32": {
+        "bytes": 10240,
+        "sha256": "e4103dcb768598a7a3060e316318e3a16702b4a9053685349c64445ecae7adbe"
+      },
+      "hc-4-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-4-output.f32": {
+        "bytes": 40960,
+        "sha256": "8d12af190fa9128b9efe1f8743780d4981173c46ff94b4c94f81422023a2d3c2"
+      },
+      "hc-5-streams.f32": {
+        "bytes": 40960,
+        "sha256": "8f6c09ad85edb85169f2940bad4a2d7045a67d8f7d8fbfebdffda615353a9b7b"
+      },
+      "hc-5-branch.f32": {
+        "bytes": 10240,
+        "sha256": "e4103dcb768598a7a3060e316318e3a16702b4a9053685349c64445ecae7adbe"
+      },
+      "hc-5-gate.f32": {
+        "bytes": 16,
+        "sha256": "d9e5cff99f0363f7b9f8f158689c20675a83f98704c4f1fe36dab35d0fd37161"
+      },
+      "hc-5-output.f32": {
+        "bytes": 40960,
+        "sha256": "e58c897b176b4ba862110279f7b4ceee56d98258a25a8ae2128a003d6c8f1bbe"
+      }
+    }
+  },
+  "latest_corrected_fixture_result": "quality-summary.json; old source receipt and originalfailed test status remain historical"
+}

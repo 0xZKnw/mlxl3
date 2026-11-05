@@ -1,0 +1,81 @@
+{
+  "quality": [
+    {
+      "name": "qwen",
+      "status": "passed",
+      "tests": 12,
+      "swapout_bytes": 1168244736,
+      "reaped": true
+    },
+    {
+      "name": "held",
+      "status": "passed",
+      "tests": 1,
+      "swapout_bytes": 0,
+      "reaped": true
+    },
+    {
+      "name": "ssd",
+      "status": "passed",
+      "tests": 3,
+      "swapout_bytes": 0,
+      "reaped": true
+    },
+    {
+      "name": "bridge",
+      "status": "passed",
+      "tests": null,
+      "swapout_bytes": 0,
+      "reaped": true
+    },
+    {
+      "name": "micro",
+      "status": "passed",
+      "tests": 1,
+      "swapout_bytes": 0,
+      "reaped": true
+    }
+  ],
+  "micro": [
+    {
+      "shape": [
+        10240,
+        320
+      ],
+      "T1_twice_median_ms": 0.31258725,
+      "T2_median_ms": 0.27128515625,
+      "time_reduction_percent": 13.21298093572274,
+      "pairs": 5
+    },
+    {
+      "shape": [
+        320,
+        10240
+      ],
+      "T1_twice_median_ms": 0.41995053125,
+      "T2_median_ms": 0.32258203125,
+      "time_reduction_percent": 23.185707066539152,
+      "pairs": 5
+    },
+    {
+      "shape": [
+        10240,
+        4
+      ],
+      "T1_twice_median_ms": 0.29618228125,
+      "T2_median_ms": 0.26165887499999996,
+      "time_reduction_percent": 11.656134899190585,
+      "pairs": 5
+    }
+  ],
+  "bridge_final": {
+    "status": "validated",
+    "budgets": [
+      1,
+      2,
+      3,
+      17
+    ],
+    "cancel_checked": true
+  }
+}

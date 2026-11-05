@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-34/reproduction/mlxl3_native-28585053ede733ec",
+    "ssd_moe::tests::completed_prefetches_compute_while_other_experts_are_read",
+    "--exact",
+    "--ignored",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+    "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+    "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+    "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+    "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+    "MLXL3_SSD_CACHE_GIB": "5",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "4"
+  },
+  "status": "reproduced",
+  "before": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   278557.\nPages active:                                 411451.\nPages inactive:                               377424.\nPages speculative:                             40457.\nPages throttled:                                   0.\nPages wired down:                             210249.\nPages purgeable:                               15384.\n\"Translation faults\":                      588323740.\nPages copy-on-write:                        18028580.\nPages zero filled:                         748971416.\nPages reactivated:                          53700887.\nPages purged:                                5046997.\nFile-backed pages:                            396293.\nAnonymous pages:                              433039.\nPages stored in compressor:                   333070.\nPages occupied by compressor:                 200560.\nDecompressions:                            162683460.\nCompressions:                              202424685.\nPageins:                                   181123463.\nPageouts:                                      56270.\nSwapins:                                     3827320.\nSwapouts:                                    4655769.\nPages tagged:                                  93273.\nPages tagged resident:                         79550.\nPages tagged compressed:                       13723.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3730.\nPages tag-storage free:                         5850.\nPages tag-storage non-tag pageable:            39412.\nPages tag-storage non-tag wired:                  82.\nBytes of compressed tags:                    2025280.\nTagged compressions:                         2406697.\nTagged decompressions:                       2255684.\n",
+  "exit_code": 101,
+  "reaped": true,
+  "seconds": 1.371280832994671,
+  "after": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   269455.\nPages active:                                 417241.\nPages inactive:                               393083.\nPages speculative:                             40627.\nPages throttled:                                   0.\nPages wired down:                             197777.\nPages purgeable:                               20850.\n\"Translation faults\":                      588391949.\nPages copy-on-write:                        18029964.\nPages zero filled:                         749032275.\nPages reactivated:                          53700902.\nPages purged:                                5046997.\nFile-backed pages:                            408301.\nAnonymous pages:                              442650.\nPages stored in compressor:                   332984.\nPages occupied by compressor:                 200515.\nDecompressions:                            162683547.\nCompressions:                              202424685.\nPageins:                                   181135150.\nPageouts:                                      56270.\nSwapins:                                     3827320.\nSwapouts:                                    4655769.\nPages tagged:                                  93331.\nPages tagged resident:                         79610.\nPages tagged compressed:                       13721.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3731.\nPages tag-storage free:                         5832.\nPages tag-storage non-tag pageable:            39431.\nPages tag-storage non-tag wired:                  80.\nBytes of compressed tags:                    2024832.\nTagged compressions:                         2406697.\nTagged decompressions:                       2255686.\n",
+  "swapout_bytes": 0
+}

@@ -1,0 +1,197 @@
+import hashlib
+import json
+import os
+import runpy
+import shutil
+import signal
+import subprocess
+from pathlib import Path
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+p = w / "docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path"
+out = p / "mutation"
+out.mkdir(exist_ok=True)
+assert not (out / "result.json").exists()
+ident = json.loads((p / "identity.json").read_text())
+for f, h in ident["files"].items():
+    if f == "native/src/ssd_moe.rs":
+        current = (w / f).read_text().split("#[cfg(test)]\nmod tests", 1)[0]
+        previous = (
+            (p / "source/native__src__ssd_moe.rs.txt")
+            .read_text()
+            .split("#[cfg(test)]\nmod tests", 1)[0]
+        )
+        assert current == previous, "only the error regression test may change here"
+    else:
+        assert hashlib.sha256((w / f).read_bytes()).hexdigest() == h
+ident["files"] = {f: hashlib.sha256((w / f).read_bytes()).hexdigest() for f in ident["files"]}
+files = [w / "native/src/linear.rs", w / "native/src/ssd_moe.rs"]
+original = {f: f.read_text() for f in files}
+result = {
+    "status": "running",
+    "tests": [],
+    "restored": False,
+    "restored_source_hashes": ident["files"],
+}
+child = None
+try:
+    linear = original[files[0]]
+    start = linear.index("pub(crate) fn expert_slots(")
+    boundary = linear.index(") -> Result<Array> {", start) + len(") -> Result<Array> {")
+    files[0].write_text(
+        linear[:boundary]
+        + "\n    selected.indices().to_u32()?; // deliberate regression\n"
+        + linear[boundary:]
+    )
+    moe = original[files[1]]
+    begin = moe.index("        let prediction = (|| -> Result<Option<Array>>")
+    end = moe.index("        let mut filled = BTreeSet::new();", begin)
+    previous = (p / "source-initial/native__src__ssd_moe.rs.txt").read_text()
+    pb = previous.index(
+        "        let prediction = if depth > 0", previous.index("        let hot_output =")
+    )
+    pe = previous.index("        let mut filled = BTreeSet::new();", pb)
+    moe = moe[:begin] + previous[pb:pe] + moe[end:]
+    old = "            prediction.async_eval()?;"
+    assert moe.count(old) == 1
+    files[1].write_text(
+        moe.replace(
+            old, old + "\n            prediction.eval()?; // deliberate early wait regression"
+        )
+    )
+    for f in files:
+        (out / (f.name + ".mutant.txt")).write_text(f.read_text())
+    result["mutated_source_hashes"] = {
+        str(f.relative_to(w)): hashlib.sha256(f.read_bytes()).hexdigest() for f in files
+    }
+    env = {
+        **os.environ,
+        "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+        "CARGO_TARGET_DIR": str(root / "target"),
+        "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+    }
+    command = [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run",
+    ]
+    result["build_command"] = command
+    with (out / "build.log").open("w") as log:
+        child = subprocess.Popen(
+            command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+        )
+        result["build_pid"] = child.pid
+        assert child.wait(timeout=300) == 0, "mutant did not compile"
+    binary = root / "build/flash-opt-41/mutant-tests"
+    shutil.copy2(root / "target/release/deps/mlxl3_native-28585053ede733ec", binary)
+    result["binary"] = str(binary)
+    result["binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+except (Exception, KeyboardInterrupt) as error:
+    result.update(status="failed", error=repr(error))
+    raise
+finally:
+    if child is not None:
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        child.wait(timeout=10)
+    for f, text in original.items():
+        f.write_text(text)
+    result["restored"] = all(f.read_text() == text for f, text in original.items())
+    (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+
+bench = runpy.run_path(str(p / "bench-supervisor.txt"))
+parse_vm = runpy.run_path(str(w / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+matrix = json.loads((p / "quality-matrix.json").read_text())
+env = next(r["env"] for r in matrix if r["name"] == "ssd")
+checks = [
+    (
+        "linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes",
+        "validated slots were read back from MLX",
+    ),
+    (
+        "ssd_moe::tests::demanded_reads_start_before_the_optional_prediction_finishes",
+        "demand waited for optional prediction",
+    ),
+    (
+        "ssd_moe::tests::failed_prediction_invalidates_reserved_routes_and_recovers",
+        "failed prediction left unfilled routes cached",
+    ),
+]
+good = Path(next(f for f in ident["binaries"] if "mlxl3_native" in f))
+try:
+    for variant, test_binary, code in [("mutant", binary, 101)]:
+        for name, expected in checks:
+            r = {
+                "name": name,
+                "variant": variant,
+                "command": [
+                    str(test_binary),
+                    name,
+                    "--exact",
+                    "--ignored",
+                    "--test-threads=1",
+                    "--nocapture",
+                ],
+                "before": bench["snapshot"](parse_vm),
+                "status": "running",
+            }
+            result["tests"].append(r)
+            child = None
+            try:
+                assert r["before"]["pmset -g batt"].splitlines()[0] == "Now drawing from 'AC Power'"
+                log_path = out / (variant + "-" + name.split("::")[-1] + ".log")
+                with log_path.open("w") as log:
+                    child = subprocess.Popen(
+                        r["command"],
+                        env={**os.environ, **env},
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    r["pid"] = child.pid
+                    r["exit_code"] = bench["monitor"](child, r, parse_vm)
+                text = log_path.read_text()
+                assert r["exit_code"] == code
+                if variant == "mutant":
+                    assert expected in text and "test result: FAILED. 0 passed; 1 failed;" in text
+                else:
+                    assert "test result: ok. 1 passed; 0 failed;" in text
+                r["after"] = bench["snapshot"](parse_vm)
+                r["swapout_bytes"] = (
+                    r["after"]["vm_bytes"]["Swapouts"] - r["before"]["vm_bytes"]["Swapouts"]
+                )
+                assert 0 <= r["swapout_bytes"] <= 256 << 20
+                r["status"] = (
+                    "expected_regression_detected" if variant == "mutant" else "restored_passed"
+                )
+            except (Exception, KeyboardInterrupt) as error:
+                r.update(status="failed", error=repr(error))
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait(timeout=10)
+                r["reaped"] = child is None or child.poll() is not None
+                (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+                print(variant, name, r["status"], flush=True)
+    for f, h in ident["files"].items():
+        assert hashlib.sha256((w / f).read_bytes()).hexdigest() == h
+    result["status"] = "expected_regressions_detected_source_restored"
+finally:
+    if result["status"] != "expected_regressions_detected_source_restored":
+        result["status"] = "failed"
+    (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    with (w / "opti.md").open("a") as journal:
+        journal.write(
+            "\n- **41 mutations "
+            + result["status"]
+            + "** : anciensreadbacksdeslots etattenteprédictiveprécoce réintroduitsdélibérémentdansbinaireisolé, sourcefinalerestauréebitàbitavanttests ; mutation/result.json etlogs.\n"
+        )

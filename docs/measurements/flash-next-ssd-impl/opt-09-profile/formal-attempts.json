@@ -1,0 +1,46 @@
+[
+  {
+    "name": "kani-physical",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "physical_profile_preserves_real_path"
+    ],
+    "exit": 1,
+    "timeout": false,
+    "elapsed_seconds": 8.489484041987453,
+    "limit_seconds": 60,
+    "log": "kani-physical.log"
+  },
+  {
+    "name": "kani-cpu",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pair_commit_preserves_exact_valid_prefix_without_overflow",
+      "--harness",
+      "tensor_source_interval_is_ordered_and_cannot_wrap",
+      "--harness",
+      "reference_partition",
+      "--harness",
+      "mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "--harness",
+      "mtp_all_depths_commit_target_prefix_within_budgets",
+      "--harness",
+      "greedy_acceptance_is_the_maximal_matching_prefix"
+    ],
+    "exit": 0,
+    "timeout": false,
+    "elapsed_seconds": 6.296791750006378,
+    "limit_seconds": 120,
+    "log": "kani-cpu.log"
+  }
+]

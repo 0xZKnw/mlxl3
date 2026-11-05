@@ -1,0 +1,83 @@
+# Short AR candidates S/K — 2 November 2026
+
+Neither candidate is enabled by default. S is correct within the tested
+domains but slowed HOLD in this pilot. K remains an isolated, opt-in backend
+experiment: it improves its rebuilt OFF reference, without demonstrating an
+advantage over the normal wheel runtime. No S+K composition was run.
+
+| AR128, tok/s | MAIN | HOLD |
+|---|---:|---:|
+| A1 normal wheel | 10.8945 | 11.0236 |
+| S top10 SIMD | 11.0944 | 10.3531 |
+| K0 rebuilt MLX, OFF | 10.0640 | 10.6187 |
+| K rebuilt MLX, ON | 10.9530 | 11.1033 |
+| A2 normal wheel | 11.1989 | 11.0211 |
+
+S versus witness mean: +0.43% / −6.07%; witness drift +2.79% / −0.02%.
+K versus K0: +8.83% / +4.56%, but K0 was not repeated/bracketed and the host
+build differs from the wheel. These are small pilot results, not stable gains.
+All 20 warmup/measured outputs are identical to historical AR128 text/hashes.
+Five processes/readers joined; total new swapout 720896 bytes. Full request
+times, source/binary hashes and raw reports are in `speed-inspection.json`,
+`identity.json`, and each `speed-*/report.json`.
+
+Protocol: M5 standard/24 GB/AC, Rust1.98.1, MLX0.32.2, Flash Next EXL3 2.05 bpw
+`65c89531`; MAIN87/HOLD82 input tokens, 128 outputs/127 decode tokens, one
+warmup plus one measurement per prompt/process. Cache3 GiB, allocator64 MiB,
+four readers, Dynamic/ColdReady/Hot/Wide/Unique on, MLX ops/MB40, AR only.
+GPU alone, existing suffix anchor32 MiB swapout/256 MiB swapin, admission
+10.5 GB recoverable, RSS10 GiB/footprint12 GB, 300-second process guard.
+
+S reuses archived shader28 byte-for-byte, restricted to one row/512 experts/
+top10/F16 or F32. `MLXL3_FLASH_TOP10_SIMD=0|1` defaults OFF. No added host
+readback, same tie order/score arithmetic. K patches MLX0.32.2 source
+`1f8e74e3f12f31365464a6867c6579f0e9b29d85` (`mlx.patch`), grouping existing
+per-primitive reference sets in the command-buffer completion handler.
+`MLXL3_MLX_KEEPALIVE_BATCH=0|1` defaults OFF. Donation exclusions, hazards,
+temporaries, events and commit boundaries are unchanged. Per-operation set
+allocations and metal-cpp std::function copies remain: no allocation-free
+Window/replay mechanism was implemented. K changes only an isolated build;
+the installed wheel and app are unchanged.
+
+Verification inspected:
+
+- `cargo fmt --all --check`; strict Clippy `--features mlx,chat --all-targets
+  -- -D warnings`; release CLI (`--bin mlxl3-rs`) and libtest builds passed.
+- One CPU domain test; S physical test48 combinations/96 comparisons against
+  independent CPU IDs and legacy score bytes, errors/fallbacks/nonfinite
+  cases, and actual dispatcher/no-readback assertions passed.
+- Audit caught an ineffective original strided fixture. It was replaced
+  with a sentinel-interleaved `[512,2]` view and the single physical test
+  rerun successfully (0.73 s, no swapout). Only test code changed; old evidence
+  remains in `router-pre-stride-fix.rs`. Final test build is `libtest-stride`;
+  `stride-identity.json` pins it. No throughput rerun was needed.
+- Five useful K0/K readback/parent-lifetime component selections passed.
+  Cache-clear itself passed but exercised no primitive and failed the required
+  K activation marker: retained as a failed guard, not K coverage.
+- Four model selections passed: S/K0/K external five-step 248320-logit,
+  48-route and coupled GDN-state oracle; S also all-state pair/commit/prefix/
+  continuation/reset/error parity. No full136-state cross-backend K proof.
+- Three real bridges MAIN17, six warmup/measured responses, exact nonempty
+  output/hash `4b46ba2824c9f47c`; all processes/readers joined.
+- Kani real CPU domain/index bounds:19 obligations and3 covers passed,
+  unrestricted symbolic integer/bool domains, no assumptions. This proves
+  CPU bounds, not the Metal algorithm. Actual MLX Kani attempt and final
+  retry failed before obligations on the known compiler ICE. CBMC on actual
+  MLX C++ failed parsing Apple libc++ headers. No GPU/C++ proof claimed.
+- `tests/test_kani_ci.py`:44 skipped on macOS (Linux runner only). Existing
+  PR/main CI and Kani inventory were inspected; no remote run exists for this
+  uncommitted state. Broad suites were not repeated, per the short-test request.
+
+Operational failures retained: wrong initial Cargo target `cli` (corrected to
+`mlxl3-rs`); Python symlink identity mismatch before bridge launch (corrected);
+initial diagnostic analysis used system Python3.9 rather than venv3.12.
+No throughput samples were taken from these failures.
+
+Separate SSD diagnostic: MAIN32, one warmup/one trace, exact output/internal
+states. 858 Cold batches; 852 split W1/W2, 590 still incomplete after W1
+submission. Host initial wait14.975 ms/token, final join5.582 ms/token; sum
+last-minus-penultimate read completion2.784 ms/token. Without a correlated
+GPU timeline this is not removable idle time or a predicted gain. No SSD
+read-splitting candidate was included in this campaign. The follow-up has
+its own preregistration. All commands/options and limits are in saved plans,
+logs, proof-results, diagnostic-inspection and final-build-results.

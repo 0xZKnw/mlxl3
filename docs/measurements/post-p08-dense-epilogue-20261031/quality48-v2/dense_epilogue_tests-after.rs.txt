@@ -1,0 +1,937 @@
+//! Physical F02 tests: stock MLX is the oracle, never a transcription of the shader.
+use super::Exl3Linear;
+use crate::{
+    array::{Array, Dtype, MetalCapture, synchronize},
+    codec::Codebook,
+    dense_epilogue::{
+        apply, kernel_requests_for_test, last_rows_for_test, reset_kernel_requests_for_test,
+    },
+};
+use anyhow::{Context, Result, ensure};
+use half::f16;
+use serde_json::{Value, json};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Instant,
+};
+
+const WIDTH: usize = 2560;
+const CAPTURE_LIMIT: u64 = 3 * 1024 * 1024 * 1024 / 2;
+
+fn hadamard_scale() -> f32 {
+    1.0 / 128.0_f32.sqrt()
+}
+
+fn stock(parts: &Array, svh: &Array, rows: i32) -> Result<Array> {
+    parts
+        .sum(if rows == 1 { 0 } else { 1 }, false)?
+        .astype(Dtype::Float16)?
+        .reshape(&[rows, WIDTH as i32 / 128, 128])?
+        .hadamard_transform(Some(hadamard_scale()))?
+        .reshape(&[rows, WIDTH as i32])?
+        .mul(svh)
+}
+
+fn compare(
+    actual: &Array,
+    expected: &Array,
+    rows: i32,
+    width: i32,
+    dtype: Dtype,
+    finite: bool,
+) -> Result<Vec<u8>> {
+    let count = usize::try_from(rows)?
+        .checked_mul(usize::try_from(width)?)
+        .context("output count overflow")?;
+    ensure!(count > 0);
+    for value in [actual, expected] {
+        ensure!(
+            value.shape() == [rows, width] && value.dtype() == dtype,
+            "wrong F02 output metadata"
+        );
+        let values = value.to_f32()?;
+        ensure!(values.len() == count, "empty/incomplete F02 output");
+        if finite {
+            ensure!(
+                values.iter().all(|v| v.is_finite()),
+                "nonfinite finite-fixture result"
+            );
+        }
+    }
+    let actual_bytes = actual.to_bytes()?;
+    let expected_bytes = expected.to_bytes()?;
+    let size = match dtype {
+        Dtype::Float16 => 2,
+        Dtype::Float32 => 4,
+        _ => anyhow::bail!("unsupported test output dtype"),
+    };
+    ensure!(actual_bytes.len() == count * size && expected_bytes.len() == actual_bytes.len());
+    if finite {
+        if actual_bytes != expected_bytes {
+            let index = actual_bytes
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .zip(expected_bytes.as_chunks::<2>().0.iter())
+                .position(|(a, b)| a != b)
+                .context("missing mismatch index")?;
+            eprintln!(
+                "F02_FIRST_MISMATCH rows={rows} width={width} dtype={dtype:?} halfword={index} actual={:?} expected={:?}",
+                &actual_bytes[index * 2..index * 2 + 2],
+                &expected_bytes[index * 2..index * 2 + 2]
+            );
+        }
+        ensure!(
+            actual_bytes == expected_bytes,
+            "F02 differs bytewise from stock/independent oracle"
+        );
+    } else {
+        ensure!(dtype == Dtype::Float16);
+        let mut nonfinite = 0;
+        for (a, b) in actual_bytes
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .zip(expected_bytes.as_chunks::<2>().0.iter())
+        {
+            let a = u16::from_ne_bytes(*a);
+            let b = u16::from_ne_bytes(*b);
+            if !f16::from_bits(b).is_finite() {
+                nonfinite += 1;
+            }
+            ensure!(
+                a == b || (f16::from_bits(a).is_nan() && f16::from_bits(b).is_nan()),
+                "nonfinite class/sign or finite bytes differ"
+            );
+        }
+        ensure!(nonfinite > 0, "nonfinite fixture was vacuous");
+    }
+    Ok(actual_bytes)
+}
+
+fn check_parts(parts: &Array, svh: &Array, rows: i32, finite: bool) -> Result<Vec<u8>> {
+    let before = [parts.to_bytes()?, svh.to_bytes()?];
+    reset_kernel_requests_for_test();
+    let readbacks = Array::host_readbacks_for_test();
+    let actual = apply(parts, svh, rows)?.context("eligible F02 unexpectedly fell back")?;
+    ensure!(
+        Array::host_readbacks_for_test() == readbacks,
+        "production F02 read back to host"
+    );
+    ensure!(
+        kernel_requests_for_test() == 1 && last_rows_for_test() == rows as usize,
+        "F02 request path not reached once"
+    );
+    let reference = stock(parts, svh, rows)?;
+    let bytes = compare(
+        &actual,
+        &reference,
+        rows,
+        WIDTH as i32,
+        Dtype::Float16,
+        finite,
+    )?;
+    ensure!(
+        [parts.to_bytes()?, svh.to_bytes()?] == before,
+        "F02 changed an input alias"
+    );
+    Ok(bytes)
+}
+
+fn scales() -> Result<Array> {
+    let choices = [
+        0.5,
+        -1.5,
+        2.0,
+        0.25,
+        -0.75,
+        f16::from_bits(0x3c01).to_f32(),
+        0.0,
+        -0.0,
+    ];
+    let bits = (0..WIDTH)
+        .map(|i| f16::from_f32(choices[i % choices.len()]).to_bits())
+        .collect::<Vec<_>>();
+    Array::from_f16_bits(&bits, &[WIDTH as i32])
+}
+
+fn parts_fixture(rows: i32, scenario: usize) -> Result<Array> {
+    let count = rows as usize * 2 * WIDTH;
+    let anchors = [
+        0.0,
+        -0.0,
+        0.5,
+        -0.5,
+        f32::from_bits(0x3f80_1000),
+        f32::from_bits(0x3f80_1001),
+        -f32::from_bits(0x3f80_1001),
+        f32::from_bits(0x3f80_0fff),
+        f32::from_bits(0x3f80_1001),
+        f16::from_bits(0x0400).to_f32(),
+        -f16::from_bits(0x0400).to_f32(),
+        f16::from_bits(1).to_f32(),
+        -f16::from_bits(1).to_f32(),
+        1.0 / 3.0,
+        -2.5003,
+        7.001,
+    ];
+    let mut values = Vec::with_capacity(count);
+    for row in 0..rows as usize {
+        for plane in 0..2 {
+            for column in 0..WIDTH {
+                let index = column + row * 19;
+                let a = anchors[index % anchors.len()];
+                let value = match scenario {
+                    0 => {
+                        if plane == 0 {
+                            a
+                        } else {
+                            anchors[(index * 7 + 5) % anchors.len()] * 0.125
+                        }
+                    }
+                    1 => {
+                        if plane == 0 {
+                            if column % 2 == 0 { 65504.0 } else { -65504.0 }
+                        } else {
+                            (if column % 2 == 0 { -65504.0 } else { 65504.0 })
+                                + ((index % 7) as f32 - 3.0) * 0.00390625
+                        }
+                    }
+                    2 => {
+                        if plane == 0 {
+                            f32::from_bits(0x3300_0000 + (index % 7) as u32)
+                                * if index % 2 == 0 { 1.0 } else { -1.0 }
+                        } else {
+                            a * f16::from_bits(1).to_f32()
+                        }
+                    }
+                    3 => {
+                        if (column / 128 + row) % 2 == 0 {
+                            -0.0
+                        } else {
+                            0.0
+                        }
+                    }
+                    _ => anyhow::bail!("unknown finite scenario"),
+                };
+                values.push(value);
+            }
+        }
+    }
+    let shape = if rows == 1 {
+        vec![2, WIDTH as i32]
+    } else {
+        vec![rows, 2, WIDTH as i32]
+    };
+    Array::from_f32(&values, &shape)
+}
+
+#[test]
+#[ignore = "physical Apple GPU; exact F02 partials/half boundaries/nonfinite/strides, run alone"]
+fn dense_epilogue_s2_matches_stock_partials_and_literals() -> Result<()> {
+    let svh = scales()?;
+    let mut finite_cases = 0;
+    for rows in [1, 2] {
+        for scenario in 0..4 {
+            check_parts(&parts_fixture(rows, scenario)?, &svh, rows, true)?;
+            finite_cases += 1;
+        }
+        let shape = if rows == 1 {
+            vec![WIDTH as i32, 2]
+        } else {
+            vec![rows, WIDTH as i32, 2]
+        };
+        let values = (0..rows as usize * 2 * WIDTH)
+            .map(|i| ((i * 37 % 257) as f32 - 128.0) / 64.0)
+            .collect::<Vec<_>>();
+        let source = Array::from_f32(&values, &shape)?;
+        let strided = source.transpose(if rows == 1 { &[1, 0] } else { &[0, 2, 1] })?;
+        let scale_source = Array::from_f16_bits(
+            &(0..2 * WIDTH)
+                .map(|i| f16::from_f32(if i % 2 == 0 { 0.75 } else { -1.25 }).to_bits())
+                .collect::<Vec<_>>(),
+            &[WIDTH as i32, 2],
+        )?;
+        let scale_view = scale_source.slice(1, 0, 1)?.reshape(&[WIDTH as i32])?;
+        check_parts(&strided, &scale_view, rows, true)?;
+        finite_cases += 1;
+
+        // Independent normal-number oracle: constant vectors have only their DC coefficient.
+        let mut values = Vec::new();
+        for row in 0..rows {
+            values.extend(std::iter::repeat_n((row + 1) as f32, WIDTH));
+            values.extend(std::iter::repeat_n(0.0, WIDTH));
+        }
+        let shape = if rows == 1 {
+            vec![2, WIDTH as i32]
+        } else {
+            vec![rows, 2, WIDTH as i32]
+        };
+        let parts = Array::from_f32(&values, &shape)?;
+        let half_scale =
+            Array::from_f16_bits(&vec![f16::from_f32(0.5).to_bits(); WIDTH], &[WIDTH as i32])?;
+        let actual = check_parts(&parts, &half_scale, rows, true)?;
+        let expected = (0..rows as usize * WIDTH)
+            .flat_map(|i| {
+                let value = if i % 128 == 0 {
+                    f16::from_f32((i / WIDTH + 1) as f32 * 128.0 * hadamard_scale()).to_f32() * 0.5
+                } else {
+                    0.0
+                };
+                f16::from_f32(value).to_bits().to_ne_bytes()
+            })
+            .collect::<Vec<_>>();
+        ensure!(
+            actual == expected,
+            "constant-vector independent oracle differs"
+        );
+        finite_cases += 1;
+
+        for (label, value, other) in [
+            ("nan", f32::from_bits(0x7fc0_1234), 0.0),
+            ("positive_inf", f32::INFINITY, 0.0),
+            ("negative_inf", f32::NEG_INFINITY, 0.0),
+            ("opposed_infinity", f32::INFINITY, f32::NEG_INFINITY),
+        ] {
+            let mut values = vec![0.25; rows as usize * 2 * WIDTH];
+            values[3] = value;
+            values[WIDTH + 3] = other;
+            let parts = Array::from_f32(&values, &shape)?;
+            check_parts(&parts, &svh, rows, false)
+                .with_context(|| format!("nonfinite case {label} B{rows}"))?;
+        }
+        let nonfinite_scales = (0..WIDTH)
+            .map(|i| [0x7c00, 0xfc00, 0x7e01][i % 3])
+            .collect::<Vec<_>>();
+        let nonfinite_scales = Array::from_f16_bits(&nonfinite_scales, &[WIDTH as i32])?;
+        check_parts(&parts_fixture(rows, 0)?, &nonfinite_scales, rows, false)?;
+    }
+    println!(
+        "F02_PARTIALS finite_cases={finite_cases} nonfinite_cases=10 rows=1,2 status=exact_finite_and_nonfinite_classification_not_global_proof"
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; F02 metadata refusal before kernel request and recovery, run alone"]
+fn dense_epilogue_refuses_unsupported_metadata_and_recovers() -> Result<()> {
+    let parts = parts_fixture(1, 0)?;
+    let svh = scales()?;
+    let wrong_parts = [
+        (parts.reshape(&[2 * WIDTH as i32])?, 1),
+        (parts.reshape(&[1, 2, WIDTH as i32])?, 1),
+        (parts_fixture(2, 0)?, 1),
+        (parts.try_clone()?, 2),
+        (
+            Array::zeros_dtype(&[3, 2, WIDTH as i32], Dtype::Float32)?,
+            3,
+        ),
+        (
+            Array::zeros_dtype(&[2, WIDTH as i32 - 1], Dtype::Float32)?,
+            1,
+        ),
+        (parts.astype(Dtype::Float16)?, 1),
+        (Array::zeros_dtype(&[2, WIDTH as i32], Dtype::Int32)?, 1),
+    ];
+    let mut refused = 0;
+    for (value, rows) in &wrong_parts {
+        reset_kernel_requests_for_test();
+        let readbacks = Array::host_readbacks_for_test();
+        ensure!(
+            apply(value, &svh, *rows)?.is_none(),
+            "unsupported parts accepted"
+        );
+        ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+        refused += 1;
+    }
+    for rows in [0, -1, 3, i32::MAX] {
+        reset_kernel_requests_for_test();
+        let readbacks = Array::host_readbacks_for_test();
+        ensure!(apply(&parts, &svh, rows)?.is_none());
+        ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+        refused += 1;
+    }
+    for value in [
+        svh.reshape(&[1, WIDTH as i32])?,
+        svh.astype(Dtype::Float32)?,
+        Array::zeros_dtype(&[WIDTH as i32 - 1], Dtype::Float16)?,
+    ] {
+        reset_kernel_requests_for_test();
+        let readbacks = Array::host_readbacks_for_test();
+        ensure!(
+            apply(&parts, &value, 1)?.is_none(),
+            "unsupported scale accepted"
+        );
+        ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+        refused += 1;
+    }
+    check_parts(&parts, &svh, 1, true)?;
+    check_parts(&parts_fixture(2, 1)?, &svh, 2, true)?;
+    println!("F02_REFUSALS refused={refused} recoveries=2 kernel_requests_before_refusal=0");
+    Ok(())
+}
+
+struct Case {
+    name: &'static str,
+    prefix: &'static str,
+    width: i32,
+    output: i32,
+    dtype: Dtype,
+    linear: Exl3Linear,
+    input: Array,
+    oracle: Array,
+    qkv: bool,
+}
+
+fn fixture(root: &Path, value: &Value, width: i32) -> Result<Array> {
+    ensure!(value["count"] == width, "fixture cardinality differs");
+    let shape = value["shape"].as_array().context("missing fixture shape")?;
+    let product = shape
+        .iter()
+        .try_fold(1u64, |n, d| n.checked_mul(d.as_u64()?))
+        .context("invalid fixture shape")?;
+    ensure!(product == width as u64);
+    let bytes = fs::read(root.join(value["file"].as_str().context("missing fixture filename")?))?;
+    ensure!(
+        bytes.len() == width as usize * 4,
+        "fixture file byte count differs"
+    );
+    let array = Array::from_bytes(&bytes, &[1, width], Dtype::Float32)?;
+    let values = array.to_f32()?;
+    ensure!(
+        values.len() == width as usize
+            && values.iter().all(|v| v.is_finite())
+            && values.iter().any(|v| *v != 0.0),
+        "empty/nonfinite/vacuous independent fixture"
+    );
+    Ok(array)
+}
+
+fn cases(expected_loaded_flag: bool) -> Result<Vec<Case>> {
+    let root = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?);
+    let attention_root = PathBuf::from(std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?);
+    let projections: Value = serde_json::from_reader(fs::File::open(root.join("reference.json"))?)?;
+    let attention: Value =
+        serde_json::from_reader(fs::File::open(attention_root.join("reference.json"))?)?;
+    ensure!(
+        projections["status"] == "complete"
+            && projections["projections"]
+                .as_array()
+                .is_some_and(|v| v.len() == 20)
+            && attention["status"] == "complete"
+            && attention["mode"] == "eval"
+    );
+    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    ensure!(checkpoint.model_type == "qwen4_exp");
+    let out = &projections["projections"][8];
+    let qkv = &projections["projections"][4];
+    for (entry, prefix, width, output) in [
+        (
+            out,
+            "model.language_model.layers.0.linear_attn.out_proj",
+            6144,
+            2560,
+        ),
+        (
+            qkv,
+            "model.language_model.layers.0.linear_attn.in_proj_qkv",
+            2560,
+            10240,
+        ),
+    ] {
+        ensure!(
+            entry["prefix"] == prefix
+                && entry["dtype"] == "mlx.core.float16"
+                && entry["input_width"] == width
+                && entry["output_width"] == output
+        );
+    }
+    let qsa = &attention["attention"]["15"][0]["stages"];
+    let mut result = Vec::new();
+    for (name, prefix, source_root, input, oracle, width, output, qkv) in [
+        (
+            "gdn0-out",
+            "model.language_model.layers.0.linear_attn.out_proj",
+            &root,
+            &out["input"],
+            &out["output"],
+            6144,
+            2560,
+            false,
+        ),
+        (
+            "qsa15-out",
+            "model.language_model.layers.15.self_attn.o_proj",
+            &attention_root,
+            &qsa["gated"],
+            &qsa["out"],
+            6144,
+            2560,
+            false,
+        ),
+        (
+            "gdn0-qkv",
+            "model.language_model.layers.0.linear_attn.in_proj_qkv",
+            &root,
+            &qkv["input"],
+            &qkv["output"],
+            2560,
+            10240,
+            true,
+        ),
+    ] {
+        let input_shape = if name == "qsa15-out" {
+            json!([1, 1, width])
+        } else {
+            json!([1, width])
+        };
+        let output_shape = if name == "qsa15-out" {
+            json!([1, 1, output])
+        } else {
+            json!([1, output])
+        };
+        ensure!(
+            input["shape"] == input_shape && oracle["shape"] == output_shape,
+            "wrong independent fixture layout for {name}"
+        );
+        let input_f32 = fixture(source_root, input, width)?;
+        let input = input_f32.astype(Dtype::Float16)?;
+        ensure!(
+            input.astype(Dtype::Float32)?.to_bytes()? == input_f32.to_bytes()?,
+            "fixture input lost F16 representability"
+        );
+        let oracle = fixture(source_root, oracle, output)?;
+        let mut linear = Exl3Linear::from_checkpoint(&checkpoint, prefix)?;
+        ensure!(
+            linear.dense_epilogue == expected_loaded_flag,
+            "F02 option was not loaded from the environment"
+        );
+        ensure!(
+            linear.reference_accumulation
+                && linear.k == 4
+                && linear.cb == Codebook::Mul1
+                && linear.simdgroups == 4
+                && linear.bias.is_none()
+        );
+        // Exercise the existing batch dispatcher, as enabled in the runtime baseline.
+        linear.flash_batch = true;
+        input.eval()?;
+        result.push(Case {
+            name,
+            prefix,
+            width,
+            output,
+            dtype: if qkv { Dtype::Float16 } else { Dtype::Float32 },
+            linear,
+            input,
+            oracle,
+            qkv,
+        });
+    }
+    Ok(result)
+}
+
+fn forward(case: &mut Case, input: &Array, enabled: bool) -> Result<Array> {
+    case.linear.dense_epilogue = enabled;
+    case.linear.forward(input)?.astype(case.dtype)
+}
+
+fn input_rows(case: &Case, rows: i32, dtype: Dtype) -> Result<Array> {
+    let source = case.input.to_f32()?;
+    let mut values = Vec::new();
+    for row in 0..rows {
+        values.extend(source.iter().enumerate().map(|(i, &v)| {
+            let value = if row == 0 {
+                v
+            } else {
+                -v * 0.5 + ((i + row as usize) % 13) as f32 / 512.0
+            };
+            if dtype == Dtype::Float32 {
+                value + 0.000123
+            } else {
+                f16::from_f32(value).to_f32()
+            }
+        }));
+    }
+    if dtype == Dtype::Float32 {
+        ensure!(
+            values.iter().any(|&v| f16::from_f32(v).to_f32() != v),
+            "F32 fixture failed to exercise its cast"
+        );
+    }
+    Array::from_f32(&values, &[rows, case.width])?.astype(dtype)
+}
+
+fn serial_stock(case: &mut Case, input: &Array, rows: i32) -> Result<Array> {
+    let mut outputs = Vec::new();
+    for row in 0..rows {
+        outputs.push(forward(case, &input.slice(0, row, row + 1)?, false)?);
+    }
+    Array::concatenate(&outputs.iter().collect::<Vec<_>>(), 0)
+}
+
+#[test]
+#[ignore = "physical Apple GPU, env F02=1 and independent projection/attention fixtures; run alone"]
+fn complete_flash_projections_match_independent_fixtures_and_batch_fallback() -> Result<()> {
+    ensure!(
+        std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"),
+        "this test verifies real environment flag loading"
+    );
+    let mut checks = 0;
+    for mut case in cases(true)? {
+        let input = case.input.try_clone()?;
+        reset_kernel_requests_for_test();
+        let actual = forward(&mut case, &input, true)?;
+        ensure!(kernel_requests_for_test() == usize::from(!case.qkv));
+        compare(
+            &actual.astype(Dtype::Float32)?,
+            &case.oracle,
+            1,
+            case.output,
+            Dtype::Float32,
+            true,
+        )?;
+        checks += 1;
+        for rows in [1, 2, 3] {
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                let input = input_rows(&case, rows, dtype)?;
+                let serial = serial_stock(&mut case, &input, rows)?;
+                reset_kernel_requests_for_test();
+                let baseline = forward(&mut case, &input, false)?;
+                ensure!(kernel_requests_for_test() == 0);
+                compare(&baseline, &serial, rows, case.output, case.dtype, true)?;
+                reset_kernel_requests_for_test();
+                let readbacks = Array::host_readbacks_for_test();
+                let candidate = forward(&mut case, &input, true)?;
+                ensure!(Array::host_readbacks_for_test() == readbacks);
+                let expected_requests = usize::from(!case.qkv && rows <= 2);
+                ensure!(
+                    kernel_requests_for_test() == expected_requests,
+                    "wrong F02/fallback request count for {} B{rows} {dtype:?}",
+                    case.name
+                );
+                if expected_requests != 0 {
+                    ensure!(last_rows_for_test() == rows as usize);
+                }
+                compare(&candidate, &serial, rows, case.output, case.dtype, true)?;
+                checks += 1;
+            }
+        }
+    }
+    println!(
+        "F02_PROJECTIONS checks={checks} independent_B1=3 batch_B1_B2_B3=18 flag_loaded=1 status=exact_outputs_real_requests_and_fallbacks"
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU, Flash checkpoint and F02=1; all48 out weights versus explicit stock; run alone"]
+fn all_flash_out_weights_match_explicit_stock_b1_b2() -> Result<()> {
+    ensure!(
+        std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"),
+        "all48 quality must exercise the loaded F02 option"
+    );
+    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    ensure!(checkpoint.model_type == "qwen4_exp");
+    let mut checked = 0usize;
+    let mut gdn_weights = 0usize;
+    let mut qsa_weights = 0usize;
+    for layer in 0..48 {
+        let qsa = layer % 4 == 3;
+        let suffix = if qsa {
+            "self_attn.o_proj"
+        } else {
+            "linear_attn.out_proj"
+        };
+        let prefix = format!("model.language_model.layers.{layer}.{suffix}");
+        // Keep only one projection's weights resident, not a full Flash model.
+        let mut linear = Exl3Linear::from_checkpoint(&checkpoint, &prefix)?;
+        ensure!(linear.dense_epilogue, "{prefix}: flag was not loaded");
+        ensure!(
+            linear.rows == 6144
+                && linear.cols == WIDTH as i32
+                && linear.reference_accumulation
+                && linear.k == 4
+                && linear.cb == Codebook::Mul1
+                && linear.simdgroups == 4
+                && linear.bias.is_none()
+                && linear.svh.dtype() == Dtype::Float16
+                && linear.splits(linear.rows / 16, linear.cols / 16) == 2,
+            "{prefix}: an advertised target does not satisfy the F02 contract"
+        );
+        if qsa {
+            qsa_weights += 1;
+        } else {
+            gdn_weights += 1;
+        }
+        for rows in [1, 2] {
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                let values = (0..rows)
+                    .flat_map(|row| {
+                        (0..6144).map(move |column| {
+                            let value =
+                                ((layer * 71 + row * 37 + column * 13) % 997) as f32 / 1024.0 - 0.5;
+                            if dtype == Dtype::Float32 {
+                                value + 0.000123
+                            } else {
+                                value
+                            }
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                if dtype == Dtype::Float32 {
+                    ensure!(values.iter().any(|&v| f16::from_f32(v).to_f32() != v));
+                }
+                let input = Array::from_f32(&values, &[rows, 6144])?.astype(dtype)?;
+                input.eval()?;
+
+                // Both controls explicitly bypass F02; env1 alone is not an oracle.
+                linear.dense_epilogue = false;
+                linear.flash_batch = false;
+                reset_kernel_requests_for_test();
+                let mut single_rows = Vec::new();
+                for row in 0..rows {
+                    single_rows.push(linear.forward(&input.slice(0, row, row + 1)?)?);
+                }
+                let expected = Array::concatenate(&single_rows.iter().collect::<Vec<_>>(), 0)?;
+                expected.eval()?;
+                ensure!(
+                    kernel_requests_for_test() == 0,
+                    "{prefix}: oracle reached F02"
+                );
+                if rows == 2 {
+                    ensure!(
+                        expected.slice(0, 0, 1)?.to_bytes()?
+                            != expected.slice(0, 1, 2)?.to_bytes()?,
+                        "{prefix}: vacuous two-row oracle"
+                    );
+                }
+                linear.dense_epilogue = true;
+                linear.flash_batch = true;
+                reset_kernel_requests_for_test();
+                let readbacks = Array::host_readbacks_for_test();
+                let actual = linear.forward(&input)?;
+                ensure!(Array::host_readbacks_for_test() == readbacks);
+                ensure!(
+                    kernel_requests_for_test() == 1 && last_rows_for_test() == rows as usize,
+                    "{prefix}/B{rows}/{dtype:?}: fused path not reached once"
+                );
+                compare(&actual, &expected, rows, WIDTH as i32, dtype, true)
+                    .with_context(|| format!("{prefix}/B{rows}/{dtype:?}"))?;
+
+                linear.dense_epilogue = false;
+                reset_kernel_requests_for_test();
+                let recovered = linear.forward(&input)?;
+                ensure!(
+                    kernel_requests_for_test() == 0,
+                    "{prefix}: OFF recovery used F02"
+                );
+                compare(&recovered, &expected, rows, WIDTH as i32, dtype, true)?;
+                checked += 1;
+            }
+        }
+    }
+    ensure!(gdn_weights == 36 && qsa_weights == 12 && checked == 192);
+    println!(
+        "F02_ALL48 weights=48 gdn=36 qsa=12 cases=192 rows=1,2 dtypes=F16,F32 stock_explicit_off=1 kernel_requests_per_on=1 status=byte_exact_stock_projection_oracle_not_external_B2"
+    );
+    Ok(())
+}
+
+fn exclusive_report(path: &Path, value: &Value) -> Result<()> {
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    serde_json::to_writer_pretty(file, value)?;
+    Ok(())
+}
+
+fn update_report(path: &Path, value: &Value) -> Result<()> {
+    fs::write(path, serde_json::to_vec_pretty(value)?)?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; env F02=1, fixtures and fresh MLXL3_F02_MICRO_OUTPUT; run alone after quality"]
+fn microbench_complete_projections_alternating_b1_b2() -> Result<()> {
+    ensure!(std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"));
+    let path = PathBuf::from(std::env::var("MLXL3_F02_MICRO_OUTPUT")?);
+    let mut report = json!({"status":"incomplete", "parity":false, "warmups_per_arm":3, "rounds":12, "forwards_per_sample":32, "samples":[], "limits":"whole projection construction/submit/completion wall; not exclusive GPU time or model throughput"});
+    exclusive_report(&path, &report)?;
+    let mut samples = Vec::new();
+    let result = (|| -> Result<()> {
+        for mut case in cases(true)?.into_iter().filter(|case| !case.qkv) {
+            for rows in [1, 2] {
+                let input = input_rows(&case, rows, Dtype::Float16)?;
+                input.eval()?;
+                let expected = serial_stock(&mut case, &input, rows)?;
+                expected.eval()?;
+                compare(
+                    &expected.slice(0, 0, 1)?.astype(Dtype::Float32)?,
+                    &case.oracle,
+                    1,
+                    case.output,
+                    Dtype::Float32,
+                    true,
+                )?;
+                for enabled in [false, true] {
+                    for _ in 0..3 {
+                        let output = forward(&mut case, &input, enabled)?;
+                        output.eval()?;
+                        compare(&output, &expected, rows, case.output, case.dtype, true)?;
+                    }
+                }
+                synchronize()?;
+                for round in 0..12 {
+                    let order = if round % 2 == 0 {
+                        [false, true]
+                    } else {
+                        [true, false]
+                    };
+                    for (position, enabled) in order.into_iter().enumerate() {
+                        reset_kernel_requests_for_test();
+                        let readbacks = Array::host_readbacks_for_test();
+                        let started = Instant::now();
+                        let mut last = None;
+                        for _ in 0..32 {
+                            drop(last.take());
+                            let output = forward(&mut case, &input, enabled)?;
+                            output.eval()?;
+                            last = Some(output);
+                        }
+                        let elapsed = started.elapsed().as_nanos();
+                        ensure!(elapsed > 0 && Array::host_readbacks_for_test() == readbacks);
+                        ensure!(kernel_requests_for_test() == if enabled { 32 } else { 0 });
+                        let output = last.context("no micro output")?;
+                        compare(&output, &expected, rows, case.output, case.dtype, true)?;
+                        samples.push(json!({"case":case.name, "prefix":case.prefix, "rows":rows, "round":round, "position":position, "arm":if enabled {"ON"}else{"OFF"}, "elapsed_ns":u64::try_from(elapsed)?, "forwards":32, "kernel_requests":kernel_requests_for_test(), "compared_values":rows as usize*case.output as usize, "parity":true}));
+                        report["samples"] = json!(samples);
+                        update_report(&path, &report)?;
+                    }
+                }
+            }
+        }
+        ensure!(samples.len() == 96, "missing micro samples");
+        Ok(())
+    })();
+    report["samples"] = json!(samples);
+    match result {
+        Ok(()) => {
+            report["status"] = json!("complete_projection_micro_not_model_gain");
+            report["parity"] = json!(true);
+        }
+        Err(error) => {
+            report["status"] = json!("failed_or_interrupted");
+            report["error"] = json!(format!("{error:#}"));
+            update_report(&path, &report)?;
+            return Err(error);
+        }
+    }
+    update_report(&path, &report)?;
+    println!(
+        "F02_MICRO samples=96 forwards_per_sample=32 rows=1,2 status=complete_projection_micro_not_model_gain"
+    );
+    Ok(())
+}
+
+fn directory_bytes(root: &Path) -> Result<u64> {
+    ensure!(root.is_dir());
+    let mut pending = vec![root.to_path_buf()];
+    let mut bytes = 0u64;
+    let mut entries = 0usize;
+    while let Some(path) = pending.pop() {
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            entries += 1;
+            ensure!(entries <= 100_000, "capture tree exceeds entry bound");
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else {
+                ensure!(kind.is_file(), "unsupported capture link or special file");
+                bytes = bytes
+                    .checked_add(entry.metadata()?.len())
+                    .context("capture size overflow")?;
+                ensure!(bytes < CAPTURE_LIMIT, "capture budget exceeds 1.5 GiB");
+            }
+        }
+    }
+    Ok(bytes)
+}
+
+#[test]
+#[ignore = "physical Apple GPU; MTL capture, fixtures, fresh MLXL3_F02_CAPTURE_OUTPUT, shared budget root; run alone"]
+fn captures_complete_projection_chains_stock_or_fused() -> Result<()> {
+    ensure!(std::env::var("MTL_CAPTURE_ENABLED").as_deref() == Ok("1"));
+    let enabled = match std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() {
+        Ok("0") => false,
+        Ok("1") => true,
+        _ => anyhow::bail!("capture requires explicit F02 0 or1"),
+    };
+    let directory = PathBuf::from(std::env::var("MLXL3_F02_CAPTURE_OUTPUT")?);
+    let budget = PathBuf::from(std::env::var("MLXL3_F02_CAPTURE_BUDGET_ROOT")?);
+    ensure!(directory.is_dir() && fs::read_dir(&directory)?.next().is_none());
+    ensure!(
+        directory
+            .canonicalize()?
+            .starts_with(budget.canonicalize()?),
+        "capture output outside shared budget root"
+    );
+    directory_bytes(&budget)?;
+    let path = directory.join("metadata.json");
+    let mut report = json!({"status":"incomplete", "parity":false, "enabled":enabled, "shared_budget_bytes":CAPTURE_LIMIT, "captures":[]});
+    exclusive_report(&path, &report)?;
+    let mut records = Vec::new();
+    let result = (|| -> Result<()> {
+        for mut case in cases(enabled)? {
+            let input = case.input.try_clone()?;
+            forward(&mut case, &input, enabled)?.eval()?;
+            synchronize()?;
+            let capture_path = directory.join(format!("{}.gputrace", case.name));
+            ensure!(!capture_path.exists());
+            reset_kernel_requests_for_test();
+            let capture = MetalCapture::start(&capture_path)?;
+            // Capture only new buffers: MLX may already own an empty pre-capture buffer.
+            synchronize()?;
+            let actual = forward(&mut case, &input, enabled)?;
+            actual.eval()?;
+            capture.finish()?;
+            let requests = kernel_requests_for_test();
+            ensure!(requests == usize::from(enabled && !case.qkv));
+            compare(
+                &actual.astype(Dtype::Float32)?,
+                &case.oracle,
+                1,
+                case.output,
+                Dtype::Float32,
+                true,
+            )?;
+            let capture_bytes = directory_bytes(&capture_path)?;
+            ensure!(capture_bytes > 0, "empty F02 capture");
+            let total_bytes = directory_bytes(&budget)?;
+            records.push(json!({"name":case.name, "prefix":case.prefix, "path":capture_path, "capture_bytes":capture_bytes, "shared_total_bytes":total_bytes, "kernel_requests":requests, "compared_f32_values":case.output, "parity":"byte_exact_independent_fixture", "dispatches":"pending_physical_inspection", "gpu_time":"not_measured_by_test"}));
+            report["captures"] = json!(records);
+            update_report(&path, &report)?;
+        }
+        ensure!(records.len() == 3);
+        Ok(())
+    })();
+    report["captures"] = json!(records);
+    match result {
+        Ok(()) => {
+            report["status"] = json!("captured_exact_dispatch_inspection_pending");
+            report["parity"] = json!(true);
+        }
+        Err(error) => {
+            report["status"] = json!("failed_or_interrupted");
+            report["error"] = json!(format!("{error:#}"));
+            update_report(&path, &report)?;
+            return Err(error);
+        }
+    }
+    update_report(&path, &report)?;
+    println!("F02_CAPTURE captures=3 enabled={enabled} status=exact_dispatch_inspection_pending");
+    Ok(())
+}

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "actual_cold_ready_refinement_entry",
+    "--jobs",
+    "1"
+  ],
+  "rss_cap_process_group_bytes": 536870912,
+  "timeout_seconds": 30,
+  "poll_seconds": 0.1,
+  "proof_verified": false,
+  "status": "interrupted",
+  "reason": "RLIMIT_AS refused before spawn; use bounded process-group RSS monitoring",
+  "pid": 12801,
+  "max_observed_group_rss_bytes": 541671424,
+  "error": "MemoryError('512MiB process-group RSS limit')",
+  "reaped": true,
+  "seconds": 3.7025060830055736
+}

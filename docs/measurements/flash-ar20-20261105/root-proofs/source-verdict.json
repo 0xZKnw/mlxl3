@@ -1,0 +1,78 @@
+{
+  "status": "passed_cpu_guards_source_equivalent",
+  "versions": {
+    "kani": "0.68.0",
+    "cbmc": "6.11.0"
+  },
+  "raw_log": "build/ar20/proof-fast/guards.log",
+  "raw_log_sha256": "0a4b598b1c0dd1cc5ab82cc0662e24220dbc0f3902115c2b484d56f2e481dd53",
+  "archived_log": "docs/measurements/flash-ar20-20261105/archive/logs/build/ar20/proof-fast/guards.log.gz",
+  "proofs": [
+    {
+      "harness": "flash_support::ar20_head_gates_require_all_actual_runtime_and_capability_guards",
+      "status": "passed",
+      "reported_assertions": 1,
+      "failed": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3,
+      "solver_seconds": 0.03776346
+    },
+    {
+      "harness": "gpu_wait_policy::gpu_spin_budget_never_exceeds_either_production_limit",
+      "status": "passed",
+      "reported_assertions": 1,
+      "failed": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4,
+      "solver_seconds": 0.02367675
+    }
+  ],
+  "reported_assertions_total": 2,
+  "covers_total": 7,
+  "source_head_fast": "99916b9c2fff93d2b438b373d167d256d278f8de",
+  "functions": [
+    {
+      "name": "ar20_head_gates_eligible",
+      "path": "native/src/flash_support.rs",
+      "sha256": "1bfa4b8c7a200dbfbb3d1753c62efd00245913bc1b18a39f697f7f927dc4a2b9",
+      "matches_fast_proof_source": true,
+      "matches_common_frozen_source": true
+    },
+    {
+      "name": "ar20_head_gates_require_all_actual_runtime_and_capability_guards",
+      "path": "native/src/flash_support.rs",
+      "sha256": "624b7cbb7eda2b82aad3b35ab509a3b30b413dfd4795af6263e5299ccd7fca5d",
+      "matches_fast_proof_source": true,
+      "matches_common_frozen_source": true
+    },
+    {
+      "name": "ar10_whole_gdn_eligible",
+      "path": "native/src/flash_support.rs",
+      "sha256": "dca6440babcaddb8732f124d4df80bc56825f585fcdaccb3875417f5c924a87d",
+      "matches_fast_proof_source": true,
+      "matches_common_frozen_source": true
+    },
+    {
+      "name": "may_spin",
+      "path": "native/src/gpu_wait_policy.rs",
+      "sha256": "4a09470cc1260a2d51e4393e9204d5fa7880f30ebcf3e318950b0e3736eb16f9",
+      "matches_fast_proof_source": true,
+      "matches_common_frozen_source": true
+    },
+    {
+      "name": "gpu_spin_budget_never_exceeds_either_production_limit",
+      "path": "native/src/gpu_wait_policy.rs",
+      "sha256": "4602c3bc3a7174fadd0e9a72dbb8a31e909fcb688230787c89e77ac003d6991c",
+      "matches_fast_proof_source": true,
+      "matches_common_frozen_source": true
+    }
+  ],
+  "domains": {
+    "B01": "four independent symbolic booleans and two symbolic u32 values, no assumptions, exact whole/private/nontrace/SIMD32/TG>=512 guard",
+    "B10": "symbolic bool,u128 elapsed_ns,u32 polls, no assumptions, exactly enabled && elapsed<50000 && polls<4096"
+  },
+  "argv": null,
+  "argv_note": "Full invocation argv is not serialized in the raw guards.log; not reconstructed from memory. Harness names and versions are present.",
+  "process_group_join_receipt": null,
+  "scope": "Existing bounded CPU guard checks only; no prover rerun, no Metal/wall-clock/concurrency/end-to-end proof. Terse log reports two assertions, not three; former opti count3 is not supported by this raw log."
+}

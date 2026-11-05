@@ -1,0 +1,153 @@
+{
+  "status": "validated",
+  "mode": "mtp",
+  "engine": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs",
+  "binary_sha256": "bd89a7d6fa49bec7587df603d62f9e767cac70525fffa0d2cb8c34fd8d57686e",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "tokens": 64,
+  "repeats": 1,
+  "expert_cache_gib": 5.0,
+  "prompts": {
+    "HOLD": "Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple."
+  },
+  "runs": [
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "repeat": 1,
+      "token_hash": "c2d954f130ed2a98",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 146,
+        "decode_seconds": 8.766064958,
+        "decode_tokens": 63,
+        "decode_tps": 7.18680506040576,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 20.44838275,
+        "end_to_end_ttft_seconds": 11.682311666999999,
+        "evaluated_prompt_tokens": 82,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 9447028960,
+          "mlx_cache_bytes": 269758236,
+          "mlx_peak_bytes": 9693472412,
+          "process_footprint_bytes": 10151141512,
+          "process_lifetime_peak_bytes": 10151370888
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 27,
+        "mtp_blocks": 35,
+        "mtp_depth_blocks": [
+          0,
+          35,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 35,
+        "prefill_seconds": 11.681649542,
+        "prefill_tps": 7.019556587892713,
+        "prepare_seconds": 0.000288625,
+        "prompt_tokens": 82,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 11.682307458999999
+      }
+    }
+  ],
+  "warmup": [
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "repeat": 0,
+      "token_hash": "c2d954f130ed2a98",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 146,
+        "decode_seconds": 8.846425500000002,
+        "decode_tokens": 63,
+        "decode_tps": 7.121520437831075,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.893244041,
+        "elapsed_seconds": 22.279158458,
+        "end_to_end_ttft_seconds": 13.432893959000001,
+        "evaluated_prompt_tokens": 82,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 9447028960,
+          "mlx_cache_bytes": 269692700,
+          "mlx_peak_bytes": 9693537948,
+          "process_footprint_bytes": 10151108744,
+          "process_lifetime_peak_bytes": 10151125128
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 27,
+        "mtp_blocks": 35,
+        "mtp_depth_blocks": [
+          0,
+          35,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 35,
+        "prefill_seconds": 12.535713875,
+        "prefill_tps": 6.5413107556269905,
+        "prepare_seconds": 0.00247775,
+        "prompt_tokens": 82,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 13.432721292
+      }
+    }
+  ],
+  "runtime": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": null,
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_supported": false,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "61902be23c3e0c23:1.4.3:bdc3889b6f3f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+    "load_seconds": 1.34466625,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "model_context_limit": 262144,
+    "modules": 74041,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 1,
+    "mtp_supported": true,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "61902be23c3e0c23:1.4.3:bdc3889b6f3f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0",
+    "resident_gb": 62.815131785,
+    "runtime_commit": "bdc3889b6f3f-dirty",
+    "runtime_executable": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.3",
+    "type": "ready"
+  },
+  "median_decode_tps": {
+    "HOLD": 7.18680506040576
+  }
+}

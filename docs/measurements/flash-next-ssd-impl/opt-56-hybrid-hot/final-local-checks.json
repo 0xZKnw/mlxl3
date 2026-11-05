@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "rust_fmt": true,
+  "ruff_format": "3 files passed",
+  "ruff_check": "3 files passed",
+  "focused_python": "45 passed in5.26s",
+  "yaml": "PR and push triggers checked",
+  "diff_check": "passed with cr-at-eol for historical stdlib CSV",
+  "speed_identity_files_verified": 118,
+  "rust_cpu": {
+    "passed": 112,
+    "ignored": 4
+  },
+  "rust_mlx_chat_release": {
+    "passed": 134,
+    "ignored": 134
+  },
+  "formal_limits": [
+    "KaniCPU20slot/unwind513 timeout120s",
+    "KaniMLX actual path ICE intrinsics.rs243",
+    "CBMC6.11 actual FFI Apple libc++ parse failure",
+    "CrossHair absent",
+    "Metal/GPU/concurrency not proved"
+  ]
+}

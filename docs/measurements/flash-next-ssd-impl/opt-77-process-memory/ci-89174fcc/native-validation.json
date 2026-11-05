@@ -1,0 +1,123 @@
+{
+  "linux": {
+    "log_sha256": "8e1fc039e0526951fed5ff6696e163adaf341729eb1b305b014e5d50e4b40c21",
+    "checkout_sha_printed": true,
+    "analyzer_results": [
+      "2026-10-23T13:12:10.5741496Z 220 passed in 0.55s"
+    ],
+    "ruff_success": true,
+    "error_annotations": []
+  },
+  "macos": {
+    "log_sha256": "d75071cb831d802243c93fffa05507da0127136450b08dac07e712ad59d51fce",
+    "checkout_sha_printed": true,
+    "analyzer_results": [
+      "2026-10-23T13:12:18.6014480Z 220 passed in 0.60s"
+    ],
+    "ruff_success": true,
+    "error_annotations": [],
+    "cpp_command": [
+      "2026-10-23T13:12:21.3363660Z ##[group]Run c++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined native/tests/process_memory.cpp -o build/ci/process-memory"
+    ],
+    "release_build_finished": [
+      "2026-10-23T13:14:11.0974530Z     Finished `release` profile [optimized] target(s) in 1m 37s"
+    ],
+    "exact_rust_tests": {
+      "memory_stats_decode_keeps_zero_valid_and_preserves_all_fields": {
+        "name_line": "2026-10-23T13:14:54.6986580Z test array::tests::memory_stats_decode_keeps_zero_valid_and_preserves_all_fields ... ok",
+        "result_line": "2026-10-23T13:14:54.6995700Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 272 filtered out; finished in 0.00s"
+      },
+      "memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work": {
+        "name_line": "2026-10-23T13:15:10.0635580Z test array::tests::memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work ... ok",
+        "result_line": "2026-10-23T13:15:10.0636750Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 272 filtered out; finished in 0.00s"
+      }
+    }
+  },
+  "metadata_steps": [
+    {
+      "job": 120430259174,
+      "name": "native (ubuntu-latest)",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Check process memory report analyzer (CPU only)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-23T13:12:09Z",
+          "completed_at": "2026-10-23T13:12:10Z"
+        },
+        {
+          "name": "Check process-memory encoding against the Apple SDK without a GPU",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 16,
+          "started_at": "2026-10-23T13:12:12Z",
+          "completed_at": "2026-10-23T13:12:12Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-10-23T13:12:12Z",
+          "completed_at": "2026-10-23T13:12:12Z"
+        }
+      ]
+    },
+    {
+      "job": 120430259562,
+      "name": "native (macos-26)",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Check process memory report analyzer (CPU only)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-23T13:12:17Z",
+          "completed_at": "2026-10-23T13:12:18Z"
+        },
+        {
+          "name": "Check process-memory encoding against the Apple SDK without a GPU",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-23T13:12:21Z",
+          "completed_at": "2026-10-23T13:12:22Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-23T13:12:22Z",
+          "completed_at": "2026-10-23T13:15:10Z"
+        }
+      ]
+    }
+  ],
+  "commit": {
+    "sha": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+    "parents": [
+      "250488c11f1cde97aba92b823ebbe4b06339f48d"
+    ],
+    "changed_files": 95,
+    "source_files": [
+      ".github/workflows/rust.yml",
+      "native/ffi/mlx_bridge.cpp",
+      "native/ffi/process_memory.h",
+      "native/src/array.rs",
+      "native/src/main.rs",
+      "native/tests/process_memory.cpp",
+      "scripts/analyze_flash_process_memory.py",
+      "tests/test_flash_process_memory.py"
+    ],
+    "no_changed_72_native_files": true
+  },
+  "limitations": [
+    "SDK fixture is silent; exit0 established by success metadata and bash-e continuation, not a printed32 count",
+    "Hosted checks do not substitute for physical Apple memory component or model parity",
+    "Global Kani remains incomplete; Flash last snapshot in_progress"
+  ]
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "ruff-02",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "scripts/benchmark-flash-bridge.py",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 0,
+    "seconds": 0.085083583,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/ruff-02.log"
+  },
+  {
+    "name": "format",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "scripts/benchmark-flash-bridge.py",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 0,
+    "seconds": 0.04611287500000001,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/format.log"
+  },
+  {
+    "name": "focused",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 0,
+    "seconds": 5.187045833999999,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/focused.log"
+  },
+  {
+    "name": "mutant-selection",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mutant-selector/tests/test_flash_benchmark.py",
+      "-k",
+      "one_prompt"
+    ],
+    "exit": 1,
+    "seconds": 0.3022795829999998,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/mutant-selection.log"
+  },
+  {
+    "name": "python",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 81.723633459,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/python.log"
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/localqwen3.8flash/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "scripts/benchmark-flash-bridge.py",
+      "--analysis_kind=asserts",
+      "--per_condition_timeout=5"
+    ],
+    "exit": 0,
+    "seconds": 0.14312208300000862,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/adjacent/crosshair.log"
+  }
+]

@@ -1,0 +1,229 @@
+{
+  "status": "complete_local_review",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "unchanged_from_previous_full_review": [
+    ".github/workflows/rust.yml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "apps/MLXL3Studio/Resources/Info.plist",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift",
+    "benchmarks/compare_native.py",
+    "native/shaders/dflash_conv.metal",
+    "native/src/dflash.rs",
+    "native/src/hub.rs",
+    "native/src/qwen35.rs",
+    "tests/fake-desktop-engine.py",
+    "tests/mtp-tuning-check.swift",
+    "tests/studio-hardening-check.swift",
+    "tests/test_compare_native.py",
+    "scripts/check_dflash2.py",
+    "tests/test_dflash2_check.py",
+    "docs/dflash2-stable-validation.md"
+  ],
+  "changed_since_previous_review": [
+    {
+      "path": "README.md",
+      "sha256": "fee320a782d79a86dd27469e68a5ae0eac24b73c1a1f396d2b11fa0baf205f09",
+      "prior_sha256": "51debf142425c2c34a2d3aae8d797b3651e08aedb08321b5d53790d7e738b167"
+    },
+    {
+      "path": "native/src/main.rs",
+      "sha256": "d92ede7f989069b61edc531935260293d516e7ef0d6cf094b8c4783ba4112c7d",
+      "prior_sha256": "d476622dea3db71553064a3d2beb7a4371e5e6a2b17172aa0654f57ed65990b8"
+    },
+    {
+      "path": "native/src/mtp_tune.rs",
+      "sha256": "d49124a57c9d2225109558346a26b223b0647d7f232aad413a1e2202c5953d30",
+      "prior_sha256": "7ad88d179518d974eb7e3af9403db34e0491d127ce0dea15d044cb26cbeda1e6"
+    },
+    {
+      "path": "native/src/speculative.rs",
+      "sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+      "prior_sha256": "b4bb062290b673227df5eacde0f755a6d003dfb006ecffcc14a792f346eec793"
+    },
+    {
+      "path": "opti.md",
+      "sha256": "526a1c9e03c3f5752c4ac5bec8b6fc077b0177eac055931e2bed8abc2255f5ac",
+      "prior_sha256": "db428b9b3cac8948de768e99cffc28fe53ea5ab1e19c655ff83c95092caf6ee1"
+    }
+  ],
+  "current_source_review": "Reviewed DFlashCopy fixed window/overflow/one-strike; exact matcher nonempty latest match; advance accepts/commits/appends captures before recording; shared chat and Tune configure; fixed/dense excluded; same runtime key with policy; strict independent finite/nonempty GPU/cache oracles and adversarial budget cases. Retired GPU transfer APIs/flags absent. README and report reviewed; complete prior review hashes compared.",
+  "diff_check": 0,
+  "ci": "Existing PR/push Kani0.68.0 30min and macOS MLX0.32.2 plus Desktop/protocol workflows cover affected checks; base4jobs passed, local uncommitted candidate has no remote run. Full Kani time in CI unverified.",
+  "files": {
+    ".github/workflows/rust.yml": {
+      "bytes": 5152,
+      "sha256": "4553379bc9655b396b94200d925640882b0c4ed19afd6649f486825fcc33f335"
+    },
+    "Cargo.lock": {
+      "bytes": 43139,
+      "sha256": "d6152886353571b01a83c86863dce1a53631f4c5a329fc55343b0ee9b37f128b"
+    },
+    "Cargo.toml": {
+      "bytes": 1434,
+      "sha256": "8be1962d98cf99417a930f294de09c631bd960ddb5341aff814076444e01e486"
+    },
+    "README.md": {
+      "bytes": 25468,
+      "sha256": "fee320a782d79a86dd27469e68a5ae0eac24b73c1a1f396d2b11fa0baf205f09"
+    },
+    "apps/MLXL3Studio/Resources/Info.plist": {
+      "bytes": 958,
+      "sha256": "cea68843bf7a0e56a3514b918a73120b4512e6d96d4de7c2dd00b8a4255bd215"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": {
+      "bytes": 19705,
+      "sha256": "a09e65f3e29765cefc09c4cb464fdcf50f02f927f0d8f16c9dc41c33641b0cbd"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": {
+      "bytes": 20428,
+      "sha256": "51562b65fc58cecf175076f7fcd6f85fd859f61fa5f23c6b418173bd4e81d304"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift": {
+      "bytes": 8412,
+      "sha256": "b2c63cc2d5be7b10457178afac5db16b0eb073cb25cd53719968437630f92f47"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": {
+      "bytes": 16836,
+      "sha256": "e456d6aec7070361eabf2b1985b7b83e1edb47cf9c01f34c49c117d7969af30b"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift": {
+      "bytes": 4790,
+      "sha256": "acf9fd671ded10b5b78e0b4c9da2b743bfb76d29ae0a1ebc4ce443534977f96f"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": {
+      "bytes": 6403,
+      "sha256": "508c775b967d69c18d9771af7859583241c36e1e1702d6f29323f69f59348f3e"
+    },
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": {
+      "bytes": 69606,
+      "sha256": "22f492fa4f7c04d0305fda340485f00097a0ce1734aa27075990fe26004850a1"
+    },
+    "benchmarks/compare_native.py": {
+      "bytes": 15944,
+      "sha256": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb"
+    },
+    "native/shaders/dflash_conv.metal": {
+      "bytes": 1020,
+      "sha256": "d200efaab5c07399a36df60c3d8a6901f5eff84219983fe81edc16baa541f0d0"
+    },
+    "native/src/dflash.rs": {
+      "bytes": 82003,
+      "sha256": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8"
+    },
+    "native/src/hub.rs": {
+      "bytes": 43576,
+      "sha256": "21704aef61ca8d6e515d819cdda9f1ef8f21d331b5067b1987a313df607f8d57"
+    },
+    "native/src/main.rs": {
+      "bytes": 163390,
+      "sha256": "d92ede7f989069b61edc531935260293d516e7ef0d6cf094b8c4783ba4112c7d"
+    },
+    "native/src/mtp_tune.rs": {
+      "bytes": 13229,
+      "sha256": "d49124a57c9d2225109558346a26b223b0647d7f232aad413a1e2202c5953d30"
+    },
+    "native/src/qwen35.rs": {
+      "bytes": 128509,
+      "sha256": "b2df6d002b84ec3dcb18dd6cbcf38ff1bb22203112078064c1709960e1d8faf0"
+    },
+    "native/src/speculative.rs": {
+      "bytes": 29134,
+      "sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc"
+    },
+    "opti.md": {
+      "bytes": 1201296,
+      "sha256": "526a1c9e03c3f5752c4ac5bec8b6fc077b0177eac055931e2bed8abc2255f5ac"
+    },
+    "tests/fake-desktop-engine.py": {
+      "bytes": 13101,
+      "sha256": "35dc136fc714ae4c9eb0209b99184acad8b544ec1cd44c55c73f29d296d7e606"
+    },
+    "tests/mtp-tuning-check.swift": {
+      "bytes": 4465,
+      "sha256": "cdbd09b981789533c2ea78cc610b06b5d7a377b1c9bf99092fd1584c63cb4d33"
+    },
+    "tests/studio-hardening-check.swift": {
+      "bytes": 32385,
+      "sha256": "81d67836c329ee54748ac8ff9f536ca752dd4c9d64761766215f9f63662980b4"
+    },
+    "tests/test_compare_native.py": {
+      "bytes": 15056,
+      "sha256": "e4d1ada31640a0212dad602b72d0e96952a08a0c47de5c8ba45198f8317a46b9"
+    },
+    "scripts/check_dflash2.py": {
+      "bytes": 8645,
+      "sha256": "086f91335d6923e28118151a978cce877179bebdcc27406dab845691a7716bce"
+    },
+    "tests/test_dflash2_check.py": {
+      "bytes": 4957,
+      "sha256": "a62763c75a400504f64619aa01d2b5943a814fef42dfa47d038e9d0393254b98"
+    },
+    "docs/dflash2-stable-validation.md": {
+      "bytes": 15429,
+      "sha256": "50aa6938c178ed0dc3a63a45436cdd2a8c44036b983303358cc3cc537d9fbb04"
+    }
+  },
+  "report_links_checked": [
+    "measurements/dflash2-web-02/source-manifest.json",
+    "dflash2-stable-validation.md",
+    "measurements/dflash2-web-02/draft-head-search.json",
+    "measurements/dflash2-web-02/device-identity.json",
+    "measurements/dflash2-web-02/device-local-checks-final.json",
+    "measurements/dflash2-web-02/device-gpu-quality.json",
+    "measurements/dflash2-web-02/device-mutation.json",
+    "measurements/dflash2-web-02/device-abba-decision.json",
+    "measurements/dflash2-web-02/device-cooldown-plan.json",
+    "measurements/dflash2-web-02/device-cooldown-decision.json",
+    "measurements/dflash2-web-02/device-retirement.json",
+    "measurements/dflash2-web-02/engine-index.json",
+    "measurements/dflash2-web-02/engine-source-manifest.json",
+    "measurements/dflash2-web-02/single-gpu-quality.json",
+    "measurements/dflash2-web-02/single-identity.json",
+    "measurements/dflash2-web-02/single-local-checks.json",
+    "measurements/dflash2-web-02/single-mutation.json",
+    "measurements/dflash2-web-02/single-formal-checks.json",
+    "measurements/dflash2-web-02/single-formal-checks-corrected.json",
+    "measurements/dflash2-web-02/single-abba-decision.json",
+    "measurements/dflash2-web-02/single-retirement.json",
+    "measurements/dflash2-web-02/copy-stream-checks.json",
+    "measurements/dflash2-web-02/copy-gpu-quality.json",
+    "measurements/dflash2-web-02/copy-gpu-quality-fixture-failure.json",
+    "measurements/dflash2-web-02/copy-fixed-checks.json",
+    "measurements/dflash2-web-02/copy-boundary-checks.json",
+    "measurements/dflash2-web-02/copy-mutation.json",
+    "measurements/dflash2-web-02/copy-formal-checks.json",
+    "measurements/dflash2-web-02/copy-partition-formal.json",
+    "measurements/dflash2-web-02/copy-field-formal.json",
+    "measurements/dflash2-web-02/copy-identity.json",
+    "measurements/dflash2-web-02/copy-package-checks.json",
+    "measurements/dflash2-web-02/copy-prompt.txt",
+    "measurements/dflash2-web-02/copy-speed-plan.json",
+    "measurements/dflash2-web-02/copy-abba-interference.json",
+    "measurements/dflash2-web-02/copy-speed-isolated-plan.json",
+    "measurements/dflash2-web-02/copy-abba-isolated-decision.json",
+    "measurements/dflash2-web-02/copy-baab-decision.json",
+    "measurements/dflash2-web-02/copy-code-control-plan.json",
+    "measurements/dflash2-web-02/copy-default-conditional-plan.json",
+    "measurements/dflash2-web-02/copy-final-formal.json",
+    "measurements/dflash2-web-02/copy-final-zero.json",
+    "measurements/dflash2-web-02/copy-field-formal.json",
+    "dflash2-stable-validation.md"
+  ],
+  "performance": "ABBA qualified +10.3124% copy, BAAB +9.5034% but FR control drift4.421/-6.683%; non-conclusive overall, opt-in OFF",
+  "source_identity": "copy-source-final.json",
+  "report_sha256": "09320ba2dab924f138d599cd03cca696bbd41849621e5cf32b975ca85afa6f42",
+  "artifact_validation": "copy-source-final.json",
+  "exact_final_zero_check": "copy-final-zero.json",
+  "metadata_check": "copy-final-metadata-check.json",
+  "all_current_trials_closed": true,
+  "full_kani_suite_complete": false,
+  "installed": false,
+  "published": false
+}

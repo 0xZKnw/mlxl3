@@ -1,0 +1,132 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_quiet_guard_refuses_compiler_and_saves_failure[before] __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-52/test_quiet_guard_refuses_compi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a6f7b00>
+phase = 'before'
+
+    @pytest.mark.parametrize("phase", ["before", "during"])
+    def test_quiet_guard_refuses_compiler_and_saves_failure(tmp_path, monkeypatch, phase):
+        module = runpy.run_path(str(SCRIPT))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "launched"
+        plan = tmp_path / "quiet.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "quiet",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            f"from pathlib import Path; Path({str(marker)!r}).touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                        "require_quiet": True,
+                    }
+                ]
+            )
+        )
+        calls = 0
+    
+        def process_snapshot(command, **kwargs):
+            nonlocal calls
+            assert command == ["ps", "-axo", "pid,ppid,comm"]
+            calls += 1
+            return "PID PPID COMM\n1 0 /sbin/launchd\n" + (
+                "42 1 /usr/bin/swift-frontend\n" if phase == "before" or calls > 1 else ""
+            )
+    
+        def monitor(process, record, parse_vm):
+            parse_vm("")
+            return process.wait(timeout=5)
+    
+        snapshot = {
+            "pmset -g batt": "Now drawing from 'AC Power'\n",
+            "vm_bytes": {"Swapins": 0, "Swapouts": 0},
+        }
+        previous = {"snapshot": lambda _: snapshot, "monitor": monitor}
+        module["main"].__globals__["runpy"] = SimpleNamespace(
+            run_path=lambda path: (
+                previous
+                if path.endswith("bench-supervisor.txt")
+                else {"parse_vm": lambda _: snapshot["vm_bytes"]}
+            )
+        )
+        monkeypatch.setattr(subprocess, "check_output", process_snapshot)
+>       with pytest.raises(RuntimeError, match="concurrent build"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/tests/test_flash_slotstream_supervisor.py:208: Failed
+----------------------------- Captured stdout call -----------------------------
+{'name': 'quiet', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.020979459004593082, 'swapouts_bytes': 0}
+_________ test_quiet_guard_refuses_compiler_and_saves_failure[during] __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-52/test_quiet_guard_refuses_compi1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a6f49b0>
+phase = 'during'
+
+    @pytest.mark.parametrize("phase", ["before", "during"])
+    def test_quiet_guard_refuses_compiler_and_saves_failure(tmp_path, monkeypatch, phase):
+        module = runpy.run_path(str(SCRIPT))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "launched"
+        plan = tmp_path / "quiet.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "quiet",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            f"from pathlib import Path; Path({str(marker)!r}).touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                        "require_quiet": True,
+                    }
+                ]
+            )
+        )
+        calls = 0
+    
+        def process_snapshot(command, **kwargs):
+            nonlocal calls
+            assert command == ["ps", "-axo", "pid,ppid,comm"]
+            calls += 1
+            return "PID PPID COMM\n1 0 /sbin/launchd\n" + (
+                "42 1 /usr/bin/swift-frontend\n" if phase == "before" or calls > 1 else ""
+            )
+    
+        def monitor(process, record, parse_vm):
+            parse_vm("")
+            return process.wait(timeout=5)
+    
+        snapshot = {
+            "pmset -g batt": "Now drawing from 'AC Power'\n",
+            "vm_bytes": {"Swapins": 0, "Swapouts": 0},
+        }
+        previous = {"snapshot": lambda _: snapshot, "monitor": monitor}
+        module["main"].__globals__["runpy"] = SimpleNamespace(
+            run_path=lambda path: (
+                previous
+                if path.endswith("bench-supervisor.txt")
+                else {"parse_vm": lambda _: snapshot["vm_bytes"]}
+            )
+        )
+        monkeypatch.setattr(subprocess, "check_output", process_snapshot)
+>       with pytest.raises(RuntimeError, match="concurrent build"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/tests/test_flash_slotstream_supervisor.py:208: Failed
+----------------------------- Captured stdout call -----------------------------
+{'name': 'quiet', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.020201207997160964, 'swapouts_bytes': 0}
+=========================== short test summary info ============================
+FAILED tests/test_flash_slotstream_supervisor.py::test_quiet_guard_refuses_compiler_and_saves_failure[before]
+FAILED tests/test_flash_slotstream_supervisor.py::test_quiet_guard_refuses_compiler_and_saves_failure[during]
+2 failed in 0.07s

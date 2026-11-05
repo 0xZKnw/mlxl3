@@ -1,0 +1,37 @@
+[
+  {
+    "name": "final-kani-worker",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "actual_worker_pool_bounds_and_empty_poll"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "unverified",
+    "seconds": 1.261207542003831,
+    "reaped": true
+  },
+  {
+    "name": "final-kani-mlx",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_lookahead_model_path_checks_tokens_and_output_shape"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "unverified",
+    "seconds": 3.813014708997798,
+    "reaped": true
+  }
+]

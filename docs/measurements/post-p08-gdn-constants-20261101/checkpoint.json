@@ -1,0 +1,46 @@
+{
+  "experiment": "POSTP08-GDN-CONST-01",
+  "status": "component_qualification_complete_retained_for_composition",
+  "source_base": "7978fceac30d991a8c06d72114fc932b2443f555 plus preexistingdirty",
+  "candidate_flag": "MLXL3_FLASH_PREPARED_CONV",
+  "default": "0",
+  "F02_flag": "0",
+  "scope": "Gdn immutable conv only, noepsilon/kernel/arithmeticalorderchange",
+  "same_original_swap_anchor": "../post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "maximum_new_swapout_bytes": 33554432,
+  "new_anchor": false,
+  "code_review": "R2 borrows Some coefficient, stock temporary only None; actual arithmetic unchanged; wrapper allocation avoided with no claimed isolated speed contribution",
+  "ci": "Existing PR/main pinnedmlx0.32.2 all-targetClippy and actualMLXbuild compile changedcode/ignoredtests; physicalmodelrequired tests explicitlocally; no remoteCI forunpublishedcode",
+  "proof": "ActualGdn::prepare_conv attempted underKani0.68; compilerICEintrinsics243 before obligations, NOTverified; no CPUrewrite/stub",
+  "quality": "R2 component exact; targeted 1 passed; micro 1 passed; ordinary MLX 202 passed 187 ignored",
+  "performance": "positive small B2/4/8 component signals; B1 variable; model gain not measured",
+  "integration": "local experimental flag default 0; no installed app change",
+  "identity": "identity-v2.json",
+  "reports": [
+    {
+      "plan": "gdnconst-quality-v2-plan.json",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "maximum_live_swapout_bytes": 15400960,
+      "maximum_live_swapin_bytes": 5767168
+    },
+    {
+      "plan": "gdnconst-micro-v2-plan.json",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "maximum_live_swapout_bytes": 15400960,
+      "maximum_live_swapin_bytes": 5767168
+    },
+    {
+      "plan": "ordinary-mlx-v2-plan.json",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "maximum_live_swapout_bytes": 15400960,
+      "maximum_live_swapin_bytes": 5767168
+    }
+  ],
+  "model_validation": "not run; component admission observed 8751562752 B, full model minimum 10500000000 B",
+  "capture": "deferred optional diagnostic; no capture code added",
+  "policy": "POSTP08-POLICY-02; no minimum gain required for retention; bounded combined-model pilot after composition quality",
+  "pending": "composition numerical/bridge validation and model pilot, prospectively registered when scheduled; no running process"
+}

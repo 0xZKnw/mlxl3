@@ -1,0 +1,11 @@
+--- native/src/flash_draft_runtime.rs
++++ native/src/flash_draft_runtime.rs
+@@ -307,7 +307,7 @@
+                 for row in 0..part.len() {
+                     ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                     session.draft.append(
+-                        &captured.slice(0, row as i32, row as i32 + 1)?,
++                        &captured.slice(0, 0, 1)?,
+                         start + row as i32,
+                     )?;
+                 }

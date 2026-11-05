@@ -1,0 +1,19 @@
+{
+  "status": "unverified_no_matching_harness",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--features",
+    "mlx,chat",
+    "--tests",
+    "--harness",
+    "metal_cache_rejects_null_key_metadata_before_gpu_dispatch"
+  ],
+  "log": "docs/measurements/dflash2-web-03/key-view-kani-ffi-filter.log",
+  "exit": 1,
+  "timeout": false,
+  "seconds": 1.5633496250375174,
+  "preregistered_or_initial_status": "inspection_required",
+  "final_result": "key-view-formal-summary.json"
+}

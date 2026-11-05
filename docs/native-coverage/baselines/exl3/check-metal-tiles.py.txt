@@ -1,0 +1,103 @@
+"""Replay frozen checkpoint tiles on the direct Metal codec and QMV, on a physical Mac."""
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+import numpy as np
+
+vendor = Path("apps/MLXL3Studio/Vendor/PonyExl3")
+sys.path.insert(0, str(vendor.resolve()))
+from ponyexl3.ref.perm import kernel_order_to_row_major
+
+base = Path("docs/native-coverage/baselines/exl3")
+cli = Path(sys.argv[1]).resolve()
+receipt = Path(sys.argv[2])
+assert not receipt.exists()
+names = ("flash", "qwen-dense", "qwen-moe", "lfm-moe")
+requests = [{"op": "metal-decode", "k": 0, "data": []}]
+expected = []
+for name in names:
+    fix = json.loads((base / (name + ".json")).read_bytes())
+    assert len(fix["tiles"]) == 3
+    for tile in fix["tiles"]:
+        args = dict(data=tile["packed"], k=fix["k"], mode=fix["mode"])
+        requests.append(dict(op="metal-decode", **args))
+        expected.append(
+            (name, tile["tile"], "decode", dict(states=tile["states"], values=tile["f16_bits"]))
+        )
+        matrix = kernel_order_to_row_major(np.array(tile["f16_bits"], dtype="<u2"))
+        assert matrix.shape == (16, 16) and np.isfinite(matrix.view("<f2")).all()
+        for i in range(16):
+            x = [0] * 16
+            x[i] = 0x3C00
+            requests.append(dict(op="metal-qmv", x=x, cols=16, **args))
+            expected.append((name, tile["tile"], f"qmv row {i}", matrix[i].tolist()))
+env = {**os.environ, "DYLD_PRINT_LIBRARIES": "1"}
+links = subprocess.check_output(["otool", "-L", str(cli)], text=True, timeout=10).splitlines()[1:]
+
+
+def mlx_image(line):
+    return any(
+        lib in line.lower()
+        for lib in ("/libmlx", "/mlx.framework", "/mlx.metallib", "/site-packages/mlx/")
+    )
+
+
+assert links and not any(map(mlx_image, links))
+result = subprocess.run(
+    [str(cli), "codec"],
+    input="".join(json.dumps(v) + "\n" for v in requests),
+    env=env,
+    text=True,
+    capture_output=True,
+    check=True,
+    timeout=60,
+)
+images = [line for line in result.stderr.splitlines() if line.startswith("dyld[")]
+assert (
+    images
+    and any("/Metal.framework/" in line for line in images)
+    and not any(map(mlx_image, images))
+)
+rows = [json.loads(line) for line in result.stdout.splitlines()]
+assert len(rows) == len(requests) == 205 and rows[0] == {"error": "K must be in 1..=8, got 0"}
+for actual, (name, tile, op, oracle) in zip(rows[1:], expected, strict=True):
+    assert actual == {"data": oracle}, (name, tile, op, actual)
+with cli.open("rb") as fh:
+    cli_hash = hashlib.file_digest(fh, "sha256").hexdigest()
+receipt.write_text(
+    json.dumps(
+        dict(
+            status="passed",
+            source=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+            binary_sha256=cli_hash,
+            command="mlxl3-rs codec",
+            build="cargo build --locked --features chat (default direct-metal)",
+            os=subprocess.check_output(["sw_vers", "-buildVersion"], text=True).strip(),
+            chip=subprocess.check_output(
+                ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
+            ).strip(),
+            models=names,
+            tiles=12,
+            states_u16_exact=3072,
+            weights_f16_bits_exact=3072,
+            qmv_basis_rows_exact=192,
+            qmv_f16_bits_exact=3072,
+            invalid_request_recovered=True,
+            dyld_images=len(images),
+            metal_framework_loaded=True,
+            mlx_library_loaded=False,
+            linked_libraries=[line.strip() for line in links],
+            permutation_sha256=hashlib.sha256(
+                (vendor / "ponyexl3/ref/perm.py").read_bytes()
+            ).hexdigest(),
+            stdout_sha256=hashlib.sha256(result.stdout.encode()).hexdigest(),
+        ),
+        indent=2,
+    )
+    + "\n"
+)

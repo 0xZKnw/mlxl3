@@ -1,0 +1,189 @@
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -100,6 +100,23 @@
+     logical_output: i32,
+ }
+ 
++#[derive(Clone, Copy)]
++pub(crate) enum FlashHcEpilogue {
++    None,
++    Silu,
++    Gate,
++}
++
++impl FlashHcEpilogue {
++    fn apply(self, value: Array) -> Result<Array> {
++        match self {
++            Self::None => Ok(value),
++            Self::Silu => value.qwen4_hc_activate(),
++            Self::Gate => value.qwen4_hc_gate(),
++        }
++    }
++}
++
+ impl Projection {
+     pub(crate) fn is_exl3(&self) -> bool {
+         matches!(self.weights, ProjectionWeights::Exl3(_))
+@@ -207,34 +224,34 @@
+         }
+     }
+ 
+-    pub(crate) fn forward_flash_hc(&self, x: &Array) -> Result<Array> {
++    pub(crate) fn forward_flash_hc(&self, x: &Array, epilogue: FlashHcEpilogue) -> Result<Array> {
+         let ProjectionWeights::Dense(weight) = &self.weights else {
+-            return self.forward(x);
++            return epilogue.apply(self.forward(x)?);
+         };
+         let (bm, bn) = match (self.logical_input, self.logical_output) {
+             (10240, 320 | 4) => (1, 8),
+             (320, 10240) => (8, 1),
+-            _ => return self.forward(x),
++            _ => return epilogue.apply(self.forward(x)?),
+         };
+         if self.bias.is_some()
+             || x.dtype() != Dtype::Float32
+             || !matches!(x.shape(), [1, k] | [1, 1, k] if *k == self.logical_input)
+         {
+-            return self.forward(x);
++            return epilogue.apply(self.forward(x)?);
+         }
+         // Read half weights directly while retaining MLX 0.32.2's FP32 GEMV order.
+         let mut shape = x.shape().to_vec();
+         *shape.last_mut().expect("validated HC rank") = self.logical_output;
+         Ok(array::metal_kernel(
+             &format!(
+-                "mlxl3_flash_hc_gemv_{}_{}",
+-                self.logical_input, self.logical_output
++                "mlxl3_flash_hc_gemv_{}_{}_e{}",
++                self.logical_input, self.logical_output, epilogue as i32
+             ),
+             &["x", "weight"],
+             &["out"],
+             &format!(
+-                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n",
+-                self.logical_input, self.logical_output
++                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n#define EPILOGUE {}\n",
++                self.logical_input, self.logical_output, epilogue as i32
+             ),
+             include_str!("../shaders/flash_hc_gemv.metal"),
+             &[x, weight],
+@@ -1020,7 +1037,7 @@
+ 
+     fn check(p: &Projection, x: &Array) -> Result<Vec<f32>> {
+         let expected = p.forward(x)?;
+-        let actual = p.forward_flash_hc(x)?;
++        let actual = p.forward_flash_hc(x, FlashHcEpilogue::None)?;
+         let values = actual.astype(Dtype::Float32)?.to_f32()?;
+         ensure!(
+             actual.shape() == expected.shape()
+@@ -1037,6 +1054,20 @@
+             x.shape(),
+             x.dtype()
+         );
++        for epilogue in [FlashHcEpilogue::Silu, FlashHcEpilogue::Gate] {
++            let reference = epilogue.apply(expected.try_clone()?)?;
++            let fused = p.forward_flash_hc(x, epilogue)?;
++            let finite = fused.astype(Dtype::Float32)?.to_f32()?;
++            ensure!(
++                fused.shape() == reference.shape()
++                    && fused.dtype() == reference.dtype()
++                    && finite.len() == values.len()
++                    && finite.iter().all(|v| v.is_finite())
++                    && fused.to_bytes()? == reference.to_bytes()?,
++                "HC epilogue differs: {}→{}, input {:?}/{:?}, epilogue {}",
++                p.logical_input, p.logical_output, x.shape(), x.dtype(), epilogue as i32
++            );
++        }
+         Ok(values)
+     }
+ 
+@@ -1069,7 +1100,7 @@
+             check(&p, &Array::zeros(&[1, k])?)?;
+             check(&p, &input.reshape(&[1, k])?.broadcast_to(&[2, k])?)?;
+             ensure!(
+-                p.forward_flash_hc(&Array::zeros(&[1, k - 1])?).is_err(),
++                p.forward_flash_hc(&Array::zeros(&[1, k - 1])?, FlashHcEpilogue::None).is_err(),
+                 "wrong width accepted"
+             );
+ 
+@@ -1088,6 +1119,14 @@
+                 Some(Array::from_f32(&vec![0.25; n as usize], &[n])?.astype(Dtype::Float16)?);
+             check(&biased, &input)?;
+         }
++        let mut diagonal = vec![0f32; 320 * 10240];
++        for i in 0..320 {
++            diagonal[i * 10240 + i] = 1.;
++        }
++        let p = projection(Array::from_f32(&diagonal, &[320, 10240])?.astype(Dtype::Float16)?);
++        let extremes = [-104., -20., -4., -1., -0., 0., f32::MIN_POSITIVE, 1., 4., 20., 104.];
++        let input = (0..10240).map(|i| extremes[i % extremes.len()]).collect::<Vec<_>>();
++        check(&p, &Array::from_f32(&input, &[1, 10240])?)?;
+         let p = projection(Array::from_f32(&vec![0.25; 96 * 8], &[8, 96])?.astype(Dtype::Float16)?);
+         check(&p, &Array::from_f32(&vec![0.5; 96], &[1, 96])?)?;
+         ensure!(checked == 21128, "coverage changed");
+@@ -1165,7 +1204,7 @@
+             check(&p, &x)?;
+             for _ in 0..8 {
+                 p.forward(&x)?.eval()?;
+-                p.forward_flash_hc(&x)?.eval()?;
++                p.forward_flash_hc(&x, FlashHcEpilogue::None)?.eval()?;
+             }
+             for repeat in 0..5 {
+                 let mut seconds = [0.; 2];
+@@ -1175,7 +1214,7 @@
+                         if arm == 0 {
+                             p.forward(&x)?.eval()?;
+                         } else {
+-                            p.forward_flash_hc(&x)?.eval()?;
++                            p.forward_flash_hc(&x, FlashHcEpilogue::None)?.eval()?;
+                         }
+                     }
+                     seconds[arm] = start.elapsed().as_secs_f64();
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -5,7 +5,7 @@
+     checkpoint::{Checkpoint, TensorInfo},
+     codec::{self, Codebook},
+     flash_support, gated_delta,
+-    lfm2::{Projection, half_weight},
++    lfm2::{FlashHcEpilogue, Projection, half_weight},
+     linear::checkpoint_array,
+     ssd_moe::SsdMoe,
+ };
+@@ -108,16 +108,15 @@
+         let weights = self.up.forward_flash_hc(
+             &self
+                 .down
+-                .forward_flash_hc(&normalized)?
+-                .qwen4_hc_activate()?,
++                .forward_flash_hc(&normalized, FlashHcEpilogue::Silu)?,
++            FlashHcEpilogue::None,
+         )?;
+         let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[1, H])?;
+         let injection = self
+             .inject
+             .as_ref()
+             .map(|p| {
+-                p.forward_flash_hc(&normalized)?
+-                    .qwen4_hc_gate()?
++                p.forward_flash_hc(&normalized, FlashHcEpilogue::Gate)?
+                     .reshape(&[1, HC])
+             })
+             .transpose()?;
+--- a/native/shaders/flash_hc_gemv.metal
++++ b/native/shaders/flash_hc_gemv.metal
+@@ -37,5 +37,14 @@
+ }
+ #endif
+ if (group_n == 0 && lane == 0) {
++#if EPILOGUE != 0
++    // MLX sigmoid uses abs/exp and a sign branch; preserve that rounding.
++    for (uint m = 0; m < 4; ++m) {
++        float v = result[m] * 0.25f;
++        float y = 1.0f / (1.0f + metal::exp(metal::abs(v)));
++        float sigmoid = v < 0.0f ? y : 1.0f - y;
++        result[m] = EPILOGUE == 1 ? v * sigmoid : 2.0f * sigmoid;
++    }
++#endif
+     for (uint m = 0; m < 4; ++m) out[output + m] = result[m];
+ }

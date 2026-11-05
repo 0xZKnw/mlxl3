@@ -1,0 +1,67 @@
+[
+  {
+    "name": "t05-kani-address",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "weighted_geometry_bounds_every_symbolic_address"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 90,
+    "expected_exit": 0,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  },
+  {
+    "name": "t05-kani-eighty",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "weighted_geometry_checks_all_eighty_canonical_rows"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 180,
+    "expected_exit": 0,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  },
+  {
+    "name": "t05-kani-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_weighted_epilogue_literal_entry"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 90,
+    "expected_exit": 1,
+    "required_text": [
+      "intrinsics.rs:243"
+    ]
+  }
+]

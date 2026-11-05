@@ -1,0 +1,56 @@
+
+running 1 test
+test qwen4::tests::flash_light_profile_preserves_natural_decode ... Flash Next: loading layer 1/48, 89 exact expert slots
+Flash Next: loading layer 2/48, 89 exact expert slots
+Flash Next: loading layer 3/48, 89 exact expert slots
+Flash Next: loading layer 4/48, 89 exact expert slots
+Flash Next: loading layer 5/48, 89 exact expert slots
+Flash Next: loading layer 6/48, 89 exact expert slots
+Flash Next: loading layer 7/48, 89 exact expert slots
+Flash Next: loading layer 8/48, 89 exact expert slots
+Flash Next: loading layer 9/48, 89 exact expert slots
+Flash Next: loading layer 10/48, 89 exact expert slots
+Flash Next: loading layer 11/48, 89 exact expert slots
+Flash Next: loading layer 12/48, 89 exact expert slots
+Flash Next: loading layer 13/48, 89 exact expert slots
+Flash Next: loading layer 14/48, 89 exact expert slots
+Flash Next: loading layer 15/48, 89 exact expert slots
+Flash Next: loading layer 16/48, 89 exact expert slots
+Flash Next: loading layer 17/48, 89 exact expert slots
+Flash Next: loading layer 18/48, 89 exact expert slots
+Flash Next: loading layer 19/48, 89 exact expert slots
+Flash Next: loading layer 20/48, 89 exact expert slots
+Flash Next: loading layer 21/48, 89 exact expert slots
+Flash Next: loading layer 22/48, 89 exact expert slots
+Flash Next: loading layer 23/48, 89 exact expert slots
+Flash Next: loading layer 24/48, 89 exact expert slots
+Flash Next: loading layer 25/48, 89 exact expert slots
+Flash Next: loading layer 26/48, 89 exact expert slots
+Flash Next: loading layer 27/48, 89 exact expert slots
+Flash Next: loading layer 28/48, 89 exact expert slots
+Flash Next: loading layer 29/48, 89 exact expert slots
+Flash Next: loading layer 30/48, 89 exact expert slots
+Flash Next: loading layer 31/48, 89 exact expert slots
+Flash Next: loading layer 32/48, 89 exact expert slots
+Flash Next: loading layer 33/48, 89 exact expert slots
+Flash Next: loading layer 34/48, 89 exact expert slots
+Flash Next: loading layer 35/48, 89 exact expert slots
+Flash Next: loading layer 36/48, 89 exact expert slots
+Flash Next: loading layer 37/48, 89 exact expert slots
+Flash Next: loading layer 38/48, 89 exact expert slots
+Flash Next: loading layer 39/48, 89 exact expert slots
+Flash Next: loading layer 40/48, 89 exact expert slots
+Flash Next: loading layer 41/48, 89 exact expert slots
+Flash Next: loading layer 42/48, 89 exact expert slots
+Flash Next: loading layer 43/48, 89 exact expert slots
+Flash Next: loading layer 44/48, 89 exact expert slots
+Flash Next: loading layer 45/48, 89 exact expert slots
+Flash Next: loading layer 46/48, 89 exact expert slots
+Flash Next: loading layer 47/48, 89 exact expert slots
+Flash Next: loading layer 48/48, 89 exact expert slots
+SSD_LIGHT_PROFILE {"candidate_scanned_hot_admitted_imported_overlap_rows":[51824,51824,33456,6422,2837,20552],"decode_seconds":6.272133375,"hits":25936,"limits":"test clocks; one prompt/mode per process; no full-state copies; external H20 hash/text oracle required; not release throughput","logit_count":248320,"logits_finite":true,"lookahead_depth":4,"memory":{"mlx_active_bytes":9456405520,"mlx_cache_bytes":171323576,"mlx_peak_bytes":9601595752,"process_footprint_bytes":10153975824,"process_lifetime_peak_bytes":10153975824},"misses":7184,"mtp":true,"mtp_accepted_tokens":28,"mtp_blocks":34,"mtp_head_verify_repair_total_seconds":[0.25983820900000004,5.880619167000001,0.03401104000000001,6.272122379000001],"mtp_proposed_tokens":34,"phase":"warmup","prefetch":{"completed":6422,"discarded":3585,"failed":0,"late_needed":0,"read_bytes":8014733064,"submitted":6422,"used":2837},"prompt":"MAIN","prompt_tokens":87,"route_fill_import_seconds":[3.485529151,0.8956577180000002,0.06333717900000001],"status":"completed_diagnostic_awaiting_external_oracle","text":"Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'","tokens":[63611,222460,177571,644,52543,13,436,82458,59006,25,328,42498,2295,644,52543,11,9462,632,48388,157526,11,3847,632,6297,55223,52,49103,614,3424,43626,35160,303,330,3533,40366,324,515,13180,933,15424,293,27684,79653,5861,36,1149,7305,44454,220851,9462,48388,157526,13,45440,222460,202585,5992,86333,35098,13,23261,60460,293,6],"total_read_bytes":12704762160}
+SSD_LIGHT_PROFILE {"candidate_scanned_hot_admitted_imported_overlap_rows":[51792,51792,33181,6418,2887,20637],"decode_seconds":6.239058416,"hits":25734,"limits":"test clocks; one prompt/mode per process; no full-state copies; external H20 hash/text oracle required; not release throughput","logit_count":248320,"logits_finite":true,"lookahead_depth":4,"memory":{"mlx_active_bytes":9456405520,"mlx_cache_bytes":171885376,"mlx_peak_bytes":9601595752,"process_footprint_bytes":10154614824,"process_lifetime_peak_bytes":10154614824},"misses":7386,"mtp":true,"mtp_accepted_tokens":28,"mtp_blocks":34,"mtp_head_verify_repair_total_seconds":[0.267992913,5.841258544,0.033879,6.239046833999998],"mtp_proposed_tokens":34,"phase":"measured","prefetch":{"completed":6418,"discarded":3531,"failed":0,"late_needed":0,"read_bytes":8009741016,"submitted":6418,"used":2887},"prompt":"MAIN","prompt_tokens":87,"route_fill_import_seconds":[3.4788575870000007,0.921195771,0.06341944499999998],"status":"completed_diagnostic_awaiting_external_oracle","text":"Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'","tokens":[63611,222460,177571,644,52543,13,436,82458,59006,25,328,42498,2295,644,52543,11,9462,632,48388,157526,11,3847,632,6297,55223,52,49103,614,3424,43626,35160,303,330,3533,40366,324,515,13180,933,15424,293,27684,79653,5861,36,1149,7305,44454,220851,9462,48388,157526,13,45440,222460,202585,5992,86333,35098,13,23261,60460,293,6],"total_read_bytes":12862011672}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 176 filtered out; finished in 32.73s
+

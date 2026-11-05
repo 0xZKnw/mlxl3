@@ -1,0 +1,53 @@
+{
+  "status": "inconclusive_drift",
+  "confirmed_gain": false,
+  "baseline": "Q",
+  "candidate": "R",
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 8.317400903832086,
+      "candidate_tps": 8.468245994544649,
+      "gain_percent": 1.8136085113206857
+    },
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 9.017820500087252,
+      "candidate_tps": 9.02569443710944,
+      "gain_percent": 0.08731529998975418
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 7.95058287045512,
+      "candidate_tps": 8.479318091903723,
+      "gain_percent": 6.650269924402874
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 8.458736530679683,
+      "candidate_tps": 7.986626258243492,
+      "gain_percent": -5.581333225403773
+    }
+  ],
+  "drift": {
+    "MAIN": {
+      "control_percent": 8.421135452692452,
+      "gain_spread_points": 1.7262932113309315
+    },
+    "HOLD": {
+      "control_percent": 6.3914013413141735,
+      "gain_spread_points": 12.231603149806647
+    }
+  },
+  "memory_status": "passed_postflight30s_zero_new_swapout",
+  "peak_range_bytes": {
+    "Q": [
+      8381176240,
+      8386337200
+    ],
+    "R": [
+      8421104096,
+      8426904104
+    ]
+  }
+}

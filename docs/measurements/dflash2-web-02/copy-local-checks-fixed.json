@@ -1,0 +1,80 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-format-fixed",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.23816645803162828
+    },
+    {
+      "name": "copy-fmt-fixed",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.1773712090216577
+    },
+    {
+      "name": "copy-cpu-fixed",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 1.3705397919984534
+    },
+    {
+      "name": "copy-clippy-fixed",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.0510839160415344
+    },
+    {
+      "name": "copy-full-fixed",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 35.594338416995015
+    },
+    {
+      "name": "copy-build-fixed",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 0.12972595903556794
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "status": "passed_on_39A",
+  "commands": [
+    {
+      "name": "cache-admission-audit",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition",
+        "2024",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39/audit-c38/cache-admission-audit.rs",
+        "--extern",
+        "mlxl3_native=/Users/justin/Documents/mix-stq1_0/target/debug/deps/libmlxl3_native-801d26388bcc8880.rlib",
+        "-L",
+        "dependency=/Users/justin/Documents/mix-stq1_0/target/debug/deps",
+        "-o",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39a/cache-admission-audit"
+      ],
+      "exit_code": 0,
+      "joined": true
+    },
+    {
+      "name": "cache-admission-audit",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39a/cache-admission-audit"
+      ],
+      "exit_code": 0,
+      "joined": true
+    },
+    {
+      "name": "cache-free-audit",
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition",
+        "2024",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39/audit-c38/cache-free-audit.rs",
+        "--extern",
+        "mlxl3_native=/Users/justin/Documents/mix-stq1_0/target/debug/deps/libmlxl3_native-801d26388bcc8880.rlib",
+        "-L",
+        "dependency=/Users/justin/Documents/mix-stq1_0/target/debug/deps",
+        "-o",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39a/cache-free-audit"
+      ],
+      "exit_code": 0,
+      "joined": true
+    },
+    {
+      "name": "cache-free-audit",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39a/cache-free-audit"
+      ],
+      "exit_code": 0,
+      "joined": true
+    }
+  ],
+  "library_sha256": "c180953f8c133404adcff2cb0bf263ff896475a38be2c45a47787b1797a6425f",
+  "source_sha256": "69852e6d998f656be0341c201649196cf5ab4e3ef199b1fdb5e55f143792be94",
+  "old_expected_failures": "../opt-39-les-gpu-review/"
+}

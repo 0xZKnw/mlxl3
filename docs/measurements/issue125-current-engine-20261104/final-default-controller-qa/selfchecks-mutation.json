@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "controller_sha256": "d97cf7f32bec2662cfe7e5fde8f17bc52a2ebefeaaf16c3fded705a061660547",
+  "results": [
+    {
+      "kind": "original",
+      "code": 0,
+      "stdout": "{\"status\": \"passed\", \"valid_kinds\": 6, \"invalid_rejected\": 114, \"scope\": \"actual imported validate/strict helpers; synthetic parser data, no GPU/process validation\"}\n",
+      "stderr": ""
+    },
+    {
+      "kind": "mutant",
+      "code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/Users/justin/.codex/worktrees/issue125-hc-workspace/mix-stq1_0/build/hc-workspace/current-engine/final-defaults/selfcheck.py\", line 136, in <module>\n    raise AssertionError(\"invalid \" + kind + \" evidence accepted\")\nAssertionError: invalid prefix evidence accepted\n"
+    },
+    {
+      "kind": "restored",
+      "code": 0,
+      "stdout": "{\"status\": \"passed\", \"valid_kinds\": 6, \"invalid_rejected\": 114, \"scope\": \"actual imported validate/strict helpers; synthetic parser data, no GPU/process validation\"}\n",
+      "stderr": ""
+    }
+  ],
+  "mutation_scope": "actual Python strict marker guard, disposable source; no GPU/OS proof",
+  "previous_failure": "selfcheck added noncontractual workspace_uses field to L2; corrected to actual_extra_submissions, original failed logs retained",
+  "CrossHair": "prior actual helper attempt: module absent, not retried or proved"
+}

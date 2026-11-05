@@ -1,0 +1,146 @@
+{
+  "status": "deferred_unrun_by_user_full_AR_priority",
+  "source_commit": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+  "binaries": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+      "sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+      "bytes": 10067776
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/native-libtest",
+      "sha256": "dff71d103a476177a513e85c9d93d787c03adb2e8b3c1374e18bac758ba75ca4",
+      "bytes": 9009360
+    },
+    "stock-oracle": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+      "sha256": "405b025f5c6ecb7c6ca08b18a25b75ff98e7260d3272cc283887ab9b9764284d",
+      "bytes": 2297696
+    }
+  },
+  "environment_policy": "clear inherited MLXL3_ and DYLD_ settings,then apply fixed map",
+  "environment": {
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+    "MLXL3_FLASH_MTP_SESSION_ORACLE": "/Users/justin/.codex/worktrees/issue75-native-flash-mtp/mix-stq1_0/build/issue75mtp/stock-session.json",
+    "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+  },
+  "phases": [
+    {
+      "label": "target",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 240,
+      "success_marker": "1 passed; 0 failed",
+      "scope": "84 states,28803072 finite F32 words,496640 half logits,reset/prefill continuation"
+    },
+    {
+      "label": "mtp-head",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/native-libtest",
+        "gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 240,
+      "success_marker": "1 passed; 0 failed",
+      "scope": "10 independent oracle steps,2771840 values,cache-only extension"
+    },
+    {
+      "label": "mtp-session",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/native-libtest",
+        "gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 240,
+      "success_marker": "1 passed; 0 failed",
+      "scope": "budgets1/2/3/17,stock transcripts,hidden/headKV/next logits,cancel/EOF rollback"
+    },
+    {
+      "label": "dflash-session",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/native-libtest",
+        "native_draft::speculative_session_preserves_ordinary_tokens_states_and_failure_recovery",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 240,
+      "success_marker": "1 passed; 0 failed",
+      "scope": "budgets1/2/3/17,accepted/rejected proposals,AR hidden/next logits,cancel/failure recovery"
+    },
+    {
+      "label": "bridge-mtp",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/scripts/check-mtp-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "--tokens",
+        "2,17",
+        "--context",
+        "256",
+        "--mode",
+        "mtp",
+        "--prompt-file",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-bridge/mix-stq1_0/build/issue75bridge/prompt.txt"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 600,
+      "final_json_status": "validated",
+      "scope": "AR/speculative transitions,invalid requests,two cancellation phases,recovery,reuse_prompt_cache=false"
+    },
+    {
+      "label": "bridge-dflash",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/scripts/check-mtp-bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+        "--tokens",
+        "2",
+        "--context",
+        "256",
+        "--mode",
+        "dflash",
+        "--prompt-file",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-bridge/mix-stq1_0/build/issue75bridge/prompt.txt"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 600,
+      "final_json_status": "validated",
+      "scope": "AR/speculative transitions,invalid requests,two cancellation phases,recovery,reuse_prompt_cache=false"
+    }
+  ],
+  "timings": "quality elapsed time only; no throughput claim",
+  "coordination": "Root grants exclusive GPU only after all CPU/proof children exit; sequential models; no rebuild needed."
+}

@@ -1,0 +1,189 @@
+import copy
+import json
+from pathlib import Path
+
+import pytest
+from campaign19_check import METRICS, check
+
+REFERENCE = Path(
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/"
+    "docs/measurements/qwen27-20261016/final-bridge-d1-default-abba/results.json"
+)
+
+
+@pytest.fixture
+def reference():
+    return json.loads(REFERENCE.read_text())
+
+
+@pytest.fixture
+def campaign(reference):
+    data = copy.deepcopy(reference)
+    data["protocol"]["candidate_mtp_head"] = data["protocol"]["mtp_head"]
+    for current in data["passes"]:
+        prefix = current["ready"]["mtp_tuning_key"].rsplit(":smallm-v2=", 1)[0]
+        current["ready"]["mtp_tuning_key"] = (
+            prefix + f":lanelayout-v1={int(current['label'] == 'B')}:smallm-v2=1"
+        )
+        current["mtp_head"] = data["protocol"]["mtp_head"]
+    return data
+
+
+def test_historical_fixture_adapted_to_layout_keys_passes_without_mutation(campaign, reference):
+    before = copy.deepcopy(campaign)
+    result = check(campaign, reference, "ABBA")
+    assert result["passed"] and result["parity"]
+    assert set(result["prompts"]) == {"short", "document"}
+    assert all(p["gain_percent"] > 3 for p in result["prompts"].values())
+    assert campaign == before
+
+
+def test_baab_order(campaign, reference):
+    campaign["passes"] = [campaign["passes"][i] for i in (1, 0, 3, 2)]
+    campaign["protocol"]["order"] = "BAAB"
+    for index, current in enumerate(campaign["passes"]):
+        current["index"] = index
+    assert check(campaign, reference, "BAAB")["passed"]
+
+
+def alter(data, case):
+    first = data["passes"][0]
+    sample = first["prompts"]["short"]["runs"][0]
+    if case == "missing_pass":
+        data["passes"].pop()
+    elif case == "parity":
+        data["parity"] = False
+    elif case == "incomplete":
+        data["status"] = "running"
+    elif case == "nan":
+        sample["stats"]["decode_tps"] = float("nan")
+    elif case == "infinity":
+        first["ready_seconds"] = float("inf")
+    elif case == "zero":
+        sample["stats"]["decode_seconds"] = 0
+    elif case == "exit":
+        first["exit_code"] = 1
+    elif case == "process_status":
+        first["status"] = "running"
+    elif case == "hash":
+        sample["token_hash"] = "different"
+    elif case == "empty_hash":
+        sample["history_sha256"] = ""
+    elif case == "count":
+        sample["stats"]["generated_tokens"] = 129
+    elif case == "counter":
+        sample["stats"]["mtp_accepted_tokens"] += 1
+    elif case == "depth":
+        sample["stats"]["mtp_depth_blocks"][1] += 1
+    elif case == "layout_key":
+        first["ready"]["mtp_tuning_key"] = first["ready"]["mtp_tuning_key"].replace(
+            "lanelayout-v1=0", "lanelayout-v1=1"
+        )
+    elif case == "smallm_key":
+        first["ready"]["mtp_tuning_key"] = first["ready"]["mtp_tuning_key"].replace(
+            "smallm-v2=1", "smallm-v2=0"
+        )
+    elif case == "duplicate_key":
+        first["ready"]["mtp_tuning_key"] += ":lookup=0"
+    elif case == "cache":
+        sample["stats"]["cached_prompt_tokens"] = 1
+    elif case == "mcp":
+        first["ready"]["mcp_tools"] = 1
+    elif case == "warmup":
+        del first["prompts"]["short"]["warmup"]
+    elif case == "extra_run":
+        first["prompts"]["short"]["runs"].append(copy.deepcopy(sample))
+    elif case == "missing_prompt":
+        del first["prompts"]["document"]
+    elif case == "median":
+        first["prompts"]["short"]["medians"]["decode_tps"] += 1
+    elif case == "binary":
+        data["binaries"]["B"]["sha256"] = "f" * 64
+    elif case == "protocol":
+        data["protocol"]["warmup_tokens"] = 63
+    elif case == "wrong_order":
+        first["index"] = 1
+    elif case == "head":
+        first["mtp_head"] = "/other/head"
+    else:
+        raise AssertionError(case)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_pass",
+        "parity",
+        "incomplete",
+        "nan",
+        "infinity",
+        "zero",
+        "exit",
+        "process_status",
+        "hash",
+        "empty_hash",
+        "count",
+        "counter",
+        "depth",
+        "layout_key",
+        "smallm_key",
+        "duplicate_key",
+        "cache",
+        "mcp",
+        "warmup",
+        "extra_run",
+        "missing_prompt",
+        "median",
+        "binary",
+        "protocol",
+        "wrong_order",
+        "head",
+    ],
+)
+def test_corruptions_are_rejected(campaign, reference, case):
+    alter(campaign, case)
+    with pytest.raises(ValueError):
+        check(campaign, reference, "ABBA")
+
+
+@pytest.mark.parametrize("case", ["missing_pass", "empty_hash", "nan"])
+def test_bad_reference_is_rejected(campaign, reference, case):
+    alter(reference, case)
+    if case == "missing_pass":
+        reference["parity"] = False
+    with pytest.raises(ValueError):
+        check(campaign, reference, "ABBA")
+
+
+def set_tps(current, name, value):
+    stats = current["prompts"][name]["runs"][0]["stats"]
+    stats["decode_tps"] = value
+    current["prompts"][name]["medians"]["decode_tps"] = value
+
+
+def test_no_gain_does_not_pass(campaign, reference):
+    for current in campaign["passes"]:
+        for name in ("short", "document"):
+            set_tps(current, name, 10.0)
+    result = check(campaign, reference, "ABBA")
+    assert result["parity"] and not result["passed"]
+    assert all(p["gain_percent"] == 0 for p in result["prompts"].values())
+
+
+def test_drift_can_reject_positive_median_gain(campaign, reference):
+    for index, current in enumerate(campaign["passes"]):
+        for name in ("short", "document"):
+            set_tps(current, name, [10, 12, 13, 10][index])
+    result = check(campaign, reference, "ABBA")
+    assert not result["passed"]
+    assert all(p["gain_percent"] > 3 for p in result["prompts"].values())
+    assert all(p["drift_percent"]["B"] > 3 for p in result["prompts"].values())
+
+
+def test_all_positive_timing_fields_are_required(campaign, reference):
+    assert len(METRICS) == 6
+    for metric in METRICS:
+        bad = copy.deepcopy(campaign)
+        del bad["passes"][0]["prompts"]["short"]["warmup"]["stats"][metric]
+        with pytest.raises(ValueError):
+            check(bad, reference, "ABBA")

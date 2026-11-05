@@ -1,0 +1,97 @@
+{
+  "native/ffi/mlx_bridge.cpp": {
+    "recorded": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a",
+    "actual": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a",
+    "matches": true
+  },
+  "native/ffi/process_memory.h": {
+    "recorded": "77642e257aba9ec2f7b8addd3232155dadc3367d66d8c1b4f407b751286c6dfd",
+    "actual": "77642e257aba9ec2f7b8addd3232155dadc3367d66d8c1b4f407b751286c6dfd",
+    "matches": true
+  },
+  "native/src/array.rs": {
+    "recorded": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "actual": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "matches": true
+  },
+  "native/src/main.rs": {
+    "recorded": "4cf39e7804554cd93307ae93b0f60fdc6fb3c5beba0a24e9d80b6713c018ab1d",
+    "actual": "4cf39e7804554cd93307ae93b0f60fdc6fb3c5beba0a24e9d80b6713c018ab1d",
+    "matches": true
+  },
+  "native/tests/process_memory.cpp": {
+    "recorded": "7f54860f43d7bf1d3ff5024f5f1835ce11328f575d96f86ebf02c2fa6ebef119",
+    "actual": "7f54860f43d7bf1d3ff5024f5f1835ce11328f575d96f86ebf02c2fa6ebef119",
+    "matches": true
+  },
+  "analyzer": {
+    "scripts/analyze_flash_process_memory.py": {
+      "recorded": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41",
+      "actual": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41",
+      "matches": true
+    },
+    "tests/test_flash_process_memory.py": {
+      "recorded": "d9870957de14d2c21002814a567630f9bc0c1e8cd3265ea5ed85e3e8a9d1d593",
+      "actual": "d9870957de14d2c21002814a567630f9bc0c1e8cd3265ea5ed85e3e8a9d1d593",
+      "matches": true
+    }
+  },
+  "evidence": {
+    "files": 63,
+    "bytes": 880069,
+    "largest": [
+      {
+        "file": "fresh-controls-v1/vm-curve.json",
+        "bytes": 268736
+      },
+      {
+        "file": "fresh-controls-v1/system-samples.json",
+        "bytes": 237776
+      },
+      {
+        "file": "kani.json",
+        "bytes": 63349
+      },
+      {
+        "file": "fresh-controls-v1/run-result.json",
+        "bytes": 49423
+      },
+      {
+        "file": "kani.log",
+        "bytes": 47941
+      },
+      {
+        "file": "tests.log",
+        "bytes": 37873
+      },
+      {
+        "file": "tests-process.json",
+        "bytes": 13988
+      },
+      {
+        "file": "research/review.md",
+        "bytes": 12652
+      }
+    ]
+  },
+  "source_whitespace": {
+    "native/ffi/process_memory.h": [],
+    "native/tests/process_memory.cpp": [],
+    "scripts/analyze_flash_process_memory.py": [],
+    "tests/test_flash_process_memory.py": []
+  },
+  "workflow": {
+    "sha256": "7a9e1c665d6d80d9e30735920fdba4e1dd1e2631ba527139dcb11cc8e0cbbbd8",
+    "77_only_sha256": "14388c6e88e925593b167cfda8fd304a70ebf8353ac06b1873b2d6bf971dd3e2",
+    "77_only_patch_sha256": "51faf3683cc56345a81ef94e08310327b7987ff2c42bb13a53605f307743f7b0",
+    "proof_log_workflow_sha256": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+    "change_since_cpu_summary": "Python77B step added after native77 CPU summary; native77 hunks unchanged"
+  },
+  "evidence_after_77B_copy": {
+    "files": 84,
+    "bytes": 899506,
+    "copy_manifest_sha256": "315c96d9e9c04b6d809377a8dd3ccb1f349ca6102bb27b28993308933db5ad50"
+  },
+  "native_sources_still_match": true,
+  "no_commit_stage_push": true
+}

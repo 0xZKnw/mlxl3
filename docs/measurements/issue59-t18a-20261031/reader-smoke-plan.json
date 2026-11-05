@@ -1,0 +1,75 @@
+[
+  {
+    "name": "t18a-reader-asan-build",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-reader-asan"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  },
+  {
+    "name": "t18a-reader-asan-run",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-reader-asan"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": [
+      "308 disk reader cases passed"
+    ]
+  },
+  {
+    "name": "t18a-reader-tsan-build",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=thread",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-reader-tsan"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  },
+  {
+    "name": "t18a-reader-tsan-run",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-reader-tsan"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": [
+      "308 disk reader cases passed"
+    ]
+  }
+]

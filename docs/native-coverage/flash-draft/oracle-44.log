@@ -1,0 +1,98 @@
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: methods `checkpoint_path`, `forward_captured`, `draft_embedding`, and `draft_logits` are never used
+   --> native/src/gpu/flash.rs:226:19
+    |
+ 96 | impl<'a> FlashNext<'a> {
+    | ---------------------- methods in this implementation
+...
+226 |     pub(crate) fn checkpoint_path(&self) -> &std::path::Path {
+    |                   ^^^^^^^^^^^^^^^
+...
+299 |     pub(crate) fn forward_captured(
+    |                   ^^^^^^^^^^^^^^^^
+...
+337 |     pub(crate) fn draft_embedding(&self, token: u32) -> Result<Vec<f32>> {
+    |                   ^^^^^^^^^^^^^^^
+...
+345 |     pub(crate) fn draft_logits(&self, rows: &crate::native_bf16::Matrix) -> Result<Vec<Vec<f32>>> {
+    |                   ^^^^^^^^^^^^
+
+warning: method `row` is never used
+  --> native/src/native_bf16.rs:56:12
+   |
+19 | impl Matrix {
+   | ----------- method in this implementation
+...
+56 |     pub fn row(&self, index: usize) -> Result<Self> {
+   |            ^^^
+
+warning: method `affine4_weights` is never used
+   --> native/src/native_bf16.rs:202:12
+    |
+201 | impl Matrix {
+    | ----------- method in this implementation
+202 |     pub fn affine4_weights(&mut self) -> Result<()> {
+    |            ^^^^^^^^^^^^^^^
+
+warning: method `quantize` is never used
+  --> native/src/native_draft.rs:32:8
+   |
+17 | impl Draft {
+   | ---------- method in this implementation
+...
+32 |     fn quantize(&mut self) -> Result<()> {
+   |        ^^^^^^^^
+
+warning: methods `proposals` and `select_logits` are never used
+   --> native/src/native_draft.rs:402:12
+    |
+401 | impl Draft {
+    | ---------- methods in this implementation
+402 |     pub fn proposals(
+    |            ^^^^^^^^^
+...
+424 |     fn select_logits(
+    |        ^^^^^^^^^^^^^
+
+warning: `mlxl3-native` (lib test) generated 7 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/issue75draft/cargo-target/debug/deps/mlxl3_native-0abbe8b89444eaa3)
+
+running 1 test
+native draft hidden 10240 values, max_abs=0.75, relative_rmse=0.013115491230803106
+native draft layer-0 10240 values, max_abs=32, relative_rmse=0.0013432241001938294
+native draft layer-1 10240 values, max_abs=128, relative_rmse=0.003071333748104352
+native draft layer-2 10240 values, max_abs=128, relative_rmse=0.004775205430728963
+native draft layer-3 10240 values, max_abs=512, relative_rmse=0.005804491061741561
+native draft layer-4 10240 values, max_abs=1536, relative_rmse=0.015490397420796696
+native draft keys-0 5120 values, max_abs=0.015625, relative_rmse=0.00036723720841031377
+native draft values-0 5120 values, max_abs=0.03125, relative_rmse=0.0003450577634041703
+native draft keys-1 5120 values, max_abs=0.03125, relative_rmse=0.0005696370536875155
+native draft values-1 5120 values, max_abs=0.0625, relative_rmse=0.0006002704680484277
+native draft keys-2 5120 values, max_abs=0.03125, relative_rmse=0.0003343620610791021
+native draft values-2 5120 values, max_abs=0.0625, relative_rmse=0.000493939320523593
+native draft keys-3 5120 values, max_abs=0.03125, relative_rmse=0.0004613635501305182
+native draft values-3 5120 values, max_abs=0.0625, relative_rmse=0.00040226336845634126
+native draft keys-4 5120 values, max_abs=0.015625, relative_rmse=0.00036272129971581904
+native draft values-4 5120 values, max_abs=0.0625, relative_rmse=0.0005477712954813011
+test native_draft::native_backbone_matches_independent_numpy_layers_and_kv ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 246 filtered out; finished in 13.41s
+

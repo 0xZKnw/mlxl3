@@ -1,0 +1,82 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error[E0425]: cannot find function `draft_commit_offset` in module `crate::flash_support`
+    --> native/src/flash_draft.rs:1011:44
+     |
+1011 |         let offset = crate::flash_support::draft_commit_offset(
+     |                                            ^^^^^^^^^^^^^^^^^^^
+     |
+    ::: native/src/flash_support.rs:148:1
+     |
+ 148 | pub(crate) fn pair_commit_offset(base: i32, current: i32, retained: i32) -> Option<i32> {
+     | --------------------------------------------------------------------------------------- similarly named function `pair_commit_offset` defined here
+     |
+note: found an item that was configured out
+    --> native/src/flash_support.rs:371:15
+     |
+ 370 | #[cfg(any(test, kani))]
+     |          ------------ the item is gated here
+ 371 | pub(crate) fn draft_commit_offset(
+     |               ^^^^^^^^^^^^^^^^^^^
+help: a function with a similar name exists
+     |
+1011 -         let offset = crate::flash_support::draft_commit_offset(
+1011 +         let offset = crate::flash_support::pair_commit_offset(
+     |
+
+error[E0277]: `&&[i32]` is not an iterator
+    --> native/src/array.rs:1079:14
+     |
+1079 |             .zip(&shape)
+     |              ^^^ `&&[i32]` is not an iterator
+     |
+     = help: the trait `Iterator` is not implemented for `&&[i32]`
+     = help: the following other types implement trait `IntoIterator`:
+               &[T; N]
+               &[T]
+               &mut [T; N]
+               &mut [T]
+               [T; N]
+     = note: required for `&&[i32]` to implement `IntoIterator`
+
+error[E0599]: `Zip<Zip<std::slice::Iter<'_, i32>, std::slice::Iter<'_, i32>>, &&[i32]>` is not an iterator
+    --> native/src/array.rs:1080:14
+     |
+1076 |           let stop = start
+     |  ____________________-
+1077 | |             .iter()
+1078 | |             .zip(update.shape())
+1079 | |             .zip(&shape)
+1080 | |             .map(|((&a, n), &limit)| {
+     | |             -^^^ `Zip<Zip<std::slice::Iter<'_, i32>, std::slice::Iter<'_, i32>>, &&[i32]>` is not an iterator
+     | |_____________|
+     |
+     |
+     = note: the following trait bounds were not satisfied:
+             `&&[i32]: Iterator`
+             which is required by `Zip<Zip<std::slice::Iter<'_, i32>, std::slice::Iter<'_, i32>>, &&[i32]>: Iterator`
+             `Zip<Zip<std::slice::Iter<'_, i32>, std::slice::Iter<'_, i32>>, &&[i32]>: Iterator`
+             which is required by `&mut Zip<Zip<std::slice::Iter<'_, i32>, std::slice::Iter<'_, i32>>, &&[i32]>: Iterator`
+
+error[E0599]: no method named `forward_draft_rows` found for struct `SsdMoe` in the current scope
+    --> native/src/flash_draft.rs:1125:40
+     |
+1125 |                 let values = layer.moe.forward_draft_rows(&inputs)?;
+     |                                        ^^^^^^^^^^^^^^^^^^
+     |
+    ::: native/src/ssd_moe.rs:18:1
+     |
+  18 | pub struct SsdMoe {
+     | ----------------- method `forward_draft_rows` not found for this struct
+     |
+help: there is a method `forward_many` with a similar name
+     |
+1125 -                 let values = layer.moe.forward_draft_rows(&inputs)?;
+1125 +                 let values = layer.moe.forward_many(&inputs)?;
+     |
+
+Some errors have detailed explanations: E0277, E0425, E0599.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `mlxl3-native` (lib) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+Some errors have detailed explanations: E0277, E0599.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

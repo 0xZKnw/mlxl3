@@ -1,0 +1,44 @@
+{
+  "unchanged_guard_asts": [
+    "require_battery",
+    "passes_speed",
+    "compare"
+  ],
+  "reference": "27/repair/speed-supervisor.txt; guards inherited25/24 with14 boundary tests",
+  "battery_reserve_cases": [
+    {
+      "percent": 0,
+      "result": "KeyboardInterrupt"
+    },
+    {
+      "percent": 5,
+      "result": "KeyboardInterrupt"
+    },
+    {
+      "percent": 6,
+      "result": "ok"
+    },
+    {
+      "percent": 100,
+      "result": "ok"
+    },
+    {
+      "percent": 101,
+      "result": "ValueError"
+    },
+    {
+      "percent": -1,
+      "result": "ValueError"
+    },
+    {
+      "malformed": "",
+      "result": "ValueError"
+    },
+    {
+      "malformed": "Now drawing from 'Battery Power'\nno percentage",
+      "result": "ValueError"
+    }
+  ],
+  "crosshair_available": null,
+  "speed_started": false
+}

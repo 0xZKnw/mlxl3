@@ -1,0 +1,220 @@
+{
+  "status": "prepared_not_executed",
+  "protocols": [
+    "72T",
+    "73T",
+    "77B"
+  ],
+  "cli": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-process-memory/v1/mlxl3-rs",
+  "cli_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "driver": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+  "driver_sha256": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac",
+  "source_identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/plans-v3-source-identity.json",
+  "cwd_required": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "current_parent_owned_phase": "bridge-packed-v3; do not relaunch or alter",
+  "no_model_or_script_executed_by_preparation": true,
+  "no_executable_code_modified": true,
+  "global_policy": {
+    "monitor": "stock43/45/49 via existing77observer",
+    "swapins_limit_bytes_per_phase": 268435456,
+    "swapouts_limit_bytes_per_phase": 268435456,
+    "old_zero_swapout_anchor_bytes": 157155328,
+    "old_failed_incident_bytes": 49479680,
+    "old_packed_v2_remains": "failed34/43; not retrospectively qualified",
+    "zero_global_swapout_required_for_new_stock_phases": false
+  },
+  "model_policy77B_preserved": {
+    "lifetime_physical_peak_limit_bytes": 12000000000,
+    "compressed_current_and_peak_limit_bytes": 536870912,
+    "compressed_lifetime_delta_limit_bytes": 1073741824,
+    "ledger_swapins_logical_delta_limit_bytes": 0,
+    "decompressions_less_than": 2147483647,
+    "state": "experimental compression caps already failed on fresh controls; remain failed, not raised"
+  },
+  "classification": {
+    "numeric_quality": "Bridge43 complete with strict output parity independently of memory qualification",
+    "memory_qualification": "not qualified while77B limits fail; unknown/invalid values never become zero",
+    "speed": "diagnostic descriptive TPS only; no promoted gain or15tok/s claim",
+    "observer_limit": "Stock driver enqueues plan items serially and does not apply the pure own-memory analyzer between them; parent must inspect each completed phase and preserve violations before any dependent launch."
+  },
+  "unchanged_settings": {
+    "cache_gib": 3,
+    "slots_per_layer": 53,
+    "allocator_mib": 64,
+    "context_length": 4096,
+    "readers": 4,
+    "multi_token63": 1,
+    "gpu_hot": 1,
+    "gpu_hot_wide": 1,
+    "unique_cohort": 1,
+    "shared_exl3": 0,
+    "stable_expert_kernels": 0,
+    "shared_batch": 0,
+    "q4": 1,
+    "ring": 1
+  },
+  "quality_gate_before_packed_speed": {
+    "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v3/checks.json",
+    "required_status": "complete",
+    "parity": true,
+    "checks": 43,
+    "requests_complete": 43,
+    "active_request": null,
+    "process_and_sampler_reaped": true,
+    "parent_must_inspect": true
+  },
+  "plans": [
+    {
+      "kind": "bridge43",
+      "candidate": "late",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/identity.json",
+      "plan_sha256": "640e5e2b7cd4caeda2b4d549e6dbec3120c937b6179fd8613c3664d0cc0db53c",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-late-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "bridge43",
+      "candidate": "bounded",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/identity.json",
+      "plan_sha256": "b008f49d96f9fe7497c796580a66b1e224e8b911bfa4c3294e6eb78627b2f254",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-bounded-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "bridge43",
+      "candidate": "unused",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/identity.json",
+      "plan_sha256": "3e0ae97a7293607ad214bdcfc8f0f37cbd91b263277fd912caa302d16454a4b6",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "bridge43",
+      "candidate": "lfu",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/identity.json",
+      "plan_sha256": "ce8d3ee83c807b29588f81f79b3a8a38d4d71675b4c98b342c5328fad7546705",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-lfu-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "bridge43",
+      "candidate": "weighted",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/identity.json",
+      "plan_sha256": "ee7854d6cd45d0fdf273a55c5faa5f6e095fda2b7039bf2ebb512bb9aa3ffe54",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "bridge43",
+      "candidate": "early-shared",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/identity.json",
+      "plan_sha256": "ac34a3d6433fc34b5bbecc09e3b21ed5669425b23a0e83435b495fac1e4f938f",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 1,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-early-shared-v3/checks.json"
+      ]
+    },
+    {
+      "kind": "packed_B2_HC_screen",
+      "candidate": "packed",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run.json",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/identity.json",
+      "plan_sha256": "b11a797ab1496ef4ccb8f42707c606fbeab78ebe575f881fd9427775f81d70f9",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run.json"
+      ],
+      "launch_authorization": "parent handoff required; not launched by agent",
+      "model_children": 4,
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-0-H/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-1-C/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-0-H/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-1-C/report.json"
+      ]
+    }
+  ],
+  "source_identity_sha256": "5a1ab2bf70eb1155250fa748cf7b06396f721ed6e0812e8d844d3dd1860427f9",
+  "plan_count": 7
+}

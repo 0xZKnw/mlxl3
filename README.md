@@ -30,6 +30,105 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## Desktop 1.5.0
+
+Desktop **1.5.0, build 30** adds conversation editing, regeneration and branches;
+projects and saved profiles; local text/PDF retrieval with citations; a graphical
+MCP manager with project permissions; validated JSON output; on-device dictation,
+reply speech and Markdown export. The new panels have opaque dark backgrounds.
+OCR is excluded. The bundle includes **engine 1.5.0**; the independent engine
+release channel remains at 1.4.8.
+
+Apple Silicon and **macOS 26.2+** are required. Existing history migrates to
+format 2, which older Desktop versions cannot read: keep a separate copy of
+format 1 before updating if you need to roll back. No new speed or memory gain
+is claimed. See the [release notes](docs/release-v1.5.0.md) and
+[verification, test counts and limits](docs/desktop-v1.5.0-verification.md).
+
+## Desktop 1.4.8
+
+Desktop **1.4.8, build 29** adds a continuous 120 ms token fade and smooth
+scroll following that pauses while reading earlier messages. Reduce Motion is
+respected. Equal-opacity text is drawn in groups, and fully opaque lines use
+the direct drawing path.
+
+The bundle reuses the published **engine 1.4.8 byte for byte**. No engine code
+or model weights change in this Desktop release. The app version also matches
+the runtime so older updaters accept the bundle. Measurements, CPU/memory costs
+and validation limits are in the [Desktop changelog](docs/release-v1.4.8.md);
+the independent [engine release](docs/release-engine-v1.4.8.md) is unchanged.
+
+## Desktop 1.4.6 and engine 1.4.6
+
+Desktop **1.4.6, build 28** bundles engine **1.4.6**. It fixes arm64 verification
+with LLVM lipo in recent Xcode versions and removes the MTPLX settings footer.
+The app updater supports independent app and engine versions. Version 1.4.4 was withdrawn
+from the stable channel because Desktop 1.4.3 rejected its bundled engine version.
+LFM models without MTP no
+longer inherit a sampling lock, and their context-memory estimate is available.
+The local HTTP API now reports explicit stop causes, rejects concurrent work,
+recovers disconnected requests and bounds transport waits. It also exposes
+readiness and capabilities. Standard `\dots` and `\boxed{…}` math commands
+also render correctly instead of falling back to raw LaTeX.
+
+The numerically qualified LFM V2 microblock path remains an explicit experimental
+opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability criteria for a
+release speedup; the default remains canonical. The unsuccessful capacity-cache
+prototype was removed. Model weights are unchanged.
+
+[Desktop changelog](docs/release-v1.4.6.md) ·
+[Engine changelog](docs/release-engine-v1.4.6.md) ·
+[Audit decisions and verification](docs/measurements/audit-api-lfm-20261016/lfm-final.md).
+
+## DFlash2 in v1.4.3
+
+In **Generation → DFlash2**, one switch downloads, verifies and loads the
+matching Q4 draft for **Qwen3.6-35B-A3B** (~457 MiB) or **Qwen3.8-27B**
+(~1.18 GiB). Greedy settings apply automatically. The selection persists across
+relaunches; model changes select the matching draft, and OFF releases it.
+Desktop 1.4.3 provides this setup and tuning flow.
+
+**Tune DFlash2** compares ordinary decoding, Auto (2/5 proposals), fixed 2 and
+fixed 7. It checks target-token parity, uses local code and French prompts in reversed
+measurement order, and saves the result per target, draft, runtime, context
+and Mac. Ordinary decoding wins when no eligible mode exceeds it by 3%.
+An interrupted or invalid test preserves the previous setting. MTP and DFlash2
+use the same tuning controls and cannot be enabled together.
+
+The native downloader pins each draft revision and verifies every file's size
+and SHA-256. It excludes Splash's target weights. To prepare the matching draft
+from the CLI:
+
+```sh
+target/release/mlxl3-rs dflash-draft --target /path/to/EXL3-target
+```
+
+[Validation, measurements and checkpoint research](docs/dflash2-stable-validation.md).
+
+The engine also provides an optional context-copy path for **35B Auto**:
+set `MLXL3_DFLASH_CONTEXT_COPY=1` in the engine's environment. It proposes
+matching text from the recent context and still verifies every token with the
+target. Chat and Tune share this policy, with separate tuning profiles for ON
+and OFF. It remains **OFF by default**: the copy-code benchmark showed a positive
+signal, but its confirmation failed the control-drift limit. Fixed modes and
+27B keep their existing path. [Upstream research, tests and measurement limits](docs/dflash2-web-optimisations-2026-10-08.md).
+
+The engine also avoids key copies on Metal kernel-cache hits. See the
+[exact 35B optimization results and verification limits](docs/dflash2-exact-optimisations-2026-10-08.md)
+for the CPU microtest, unchanged output checks and rejected GPU prototypes.
+
+## Desktop and engine v1.4.3
+
+Desktop **1.4.3, build 25** bundles engine **1.4.3**. It includes the DFlash2
+setup and Tune above, optional memory saving, a context recommendation to apply
+manually, bounded prefill checkpoints and conditional lossless cache compaction.
+Tune keeps the conversation visible and shows progress, cancellation and results
+in the toolbar. Adaptive MTP, packed embeddings and additional dense execution
+paths remain optional and off by default. No new global speedup is claimed.
+
+[Desktop changelog](docs/release-v1.4.3.md) ·
+[Engine changelog](docs/release-engine-v1.4.3.md).
+
 ## Desktop and engine v1.4.2
 
 Desktop **1.4.2, build 24** includes engine **1.4.2**, fixes Send/Tune becoming
@@ -87,8 +186,8 @@ MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
 from a pinned revision with full SHA-256 verification. Version 1 uses one
 proposal per verification block in greedy mode (temperature 0 / top-k 1,
 repetition penalty 1); other settings use ordinary decoding. Proposed tokens
-are delivered only after target verification. DFlash is retained as a CLI
-experiment and is disabled in Desktop on relaunch.
+are delivered only after target verification. This describes v1.2.0; the next
+build also offers the DFlash2 path described above.
 
 The app and engine have independent GitHub release channels: `vX.Y.Z` for
 DMGs and `engine-vX.Y.Z` for `MLXL3-Engine-vX.Y.Z-arm64.tar.gz`. Engine updates
@@ -110,6 +209,13 @@ newer**. Development and performance validation currently happen on M5. M1–M4
 use compatible Metal paths where M5 TensorOps are unavailable, but they have not
 received the same physical performance campaign.
 
+Optional kernels also depend on the running macOS version: EXL3 cooperative-input
+TensorOps require M5 **and macOS 26.3+**; macOS 26.2 uses the portable EXL3 path.
+The packed Q4 DFlash drafts for Qwen3.6/3.8 require **macOS 26.4+** and fail
+explicitly on earlier versions; ordinary generation and native MTP remain
+available for supported models. Flash Next's raw draft/MLX affine-Q4 path is
+separate. See the [support matrix and hardware validation procedure](docs/apple-silicon-stability-20261030.md).
+
 The native loader currently accepts these `config.json` model types:
 
 | Family | Config type | Current scope |
@@ -130,8 +236,18 @@ unsupported; ordinary dense K=7 projections remain supported.
 These are physical-engine measurements, not estimates. Results from different
 rows use different workloads and must not be combined.
 
+The current source build batches dense Qwen27B MLP verification at widths
+**2 and 4** on supported M5/EXL3 shapes. Width 3 uses the serial MLP after its
+isolated batching regression. `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH=0` restores
+the previous dispatch; grouped MB3 remains opt-in. Tune uses a new calibration
+key for this policy. See the [October 16 protocol and limits](docs/qwen27-optimization-20261016.md).
+
+The local source build also provides MLXL3_EXL3_LANE_ORDER=1 for the measured dense Qwen27B path. This opt-in setting is off by default and separates Tune profiles. It is validated on the M5 standard with the original EXL3 checkpoint and MTP head; the installed desktop app is unchanged.
+
 | Model and workload | Decode | Prefill / TTFT | Notes |
 | --- | ---: | ---: | --- |
+| Qwen3.8-27B EXL3, MTP1, French 130 tokens / code 256 tokens | **11.08 / 10.94 tok/s** ABBA medians | See October 16 report | MacBook Pro (M5), 24 GB, AC; +20.7% / +21.4% versus serial MLP; local source build |
+| Qwen3.8-27B EXL3, MTP1, optional activation layout | **13.65 / 13.38 tok/s** combined ABBA/BAAB medians | [October 16 research and validation](docs/qwen27-max-optimisations-20261016.md) | M5 standard,24GB,battery; +24.4% / +24.3% versus paired layout-off controls; local source build, opt-in |
 | Qwen3.6-35B-A3B EXL3 2.49 bpw, greedy, 48 generated tokens | **47.545 tok/s** latest median | Captured prefill 0.153–0.154 s | Apple M5, three alternating runs |
 | Same target with experimental lossless DFlash2 | **74.645 tok/s** steady-state confirmation | Draft-context setup 0.006–0.007 s | **+43.8%** paired after the shared MoE route-preparation gain, five useful head rows/proposals per block, 86.7% accepted, exact sequences |
 | Ling 3.0 Tiny EXL3 4 bpw, 84-token prompt / 128-token generation | **102.873 tok/s** best control median | **105.524 tok/s**, 796.23 ms TTFT | M5, battery-powered diagnostic campaign |
@@ -143,7 +259,7 @@ costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The targ
 sequence and all **80 recurrent/KV state arrays** were compared with ordinary
 greedy execution for retained widths 1 through 8. Desktop v1.1.0–v1.1.3 exposed
 this path for Qwen3.6-35B-A3B; v1.2.0 replaces it with MTP. The historical
-DFlash CLI experiment requires separate draft weights; the benchmark rate is not a guarantee
+DFlash campaign required separate draft weights; the benchmark rate is not a guarantee
 of in-app speed or of performance on another Mac.
 
 Peak MLX allocation is not the model file size, process RSS or total macOS
@@ -178,8 +294,8 @@ are rejected. The DMG contains neither target nor MTP weights.
 MTP applies greedy settings and checks every proposal against the target.
 The first request can take longer while Metal compiles kernels. A prefix
 checkpoint retains both target state and MTP KV when the conversation's
-encoded prefix and chunk boundary match. DFlash remains available to CLI
-experiments; its former Desktop toggle has been replaced.
+encoded prefix and chunk boundary match. DFlash2 has its own switch and
+matching draft in the next build.
 
 #### Experimental compact draft preparation
 
@@ -456,7 +572,19 @@ differential tests against reference operations and imposed-token model runs.
 Passing either class of check is not a proof that the entire application has no
 bugs.
 
-To reproduce the current Qwen DFlash2 end-to-end campaign, place the target and
+To check the production DFlash2 bridge on either supported target, run:
+
+```sh
+python scripts/check_dflash2.py target/release/mlxl3-rs /path/to/EXL3-target \
+  /path/to/DFlash2-draft --output /tmp/dflash2-check.json
+```
+
+It checks all policies, budgets, cancellation/recovery, prompt reuse, ON/OFF
+and Tune with a bounded wait and an isolated registry. The report certifies
+parity only after every check completes. GPU speed comparisons run separately
+through `benchmarks/compare_native.py --dflash-mode 1 --dflash-draft ...`.
+
+To reproduce the historical Qwen3.6 DFlash2 campaign, place the target and
 draft package at the paths named by the ignored test, then run:
 
 ```bash
@@ -479,6 +607,7 @@ These kernels accelerate conversion without changing the calibration recipe or
 float32 error metric.
 
 - [LFM local conversion guide](docs/lfm26-local-quantization.md)
+- [LFM2.5-24B-A2B MoE conversion, kernels and validation](docs/lfm25-moe-quantization.md)
 - [Ling local conversion guide](docs/ling-local-quantization.md)
 - [Metal quantization measurements](docs/metal-quantization-optimization.md)
 - [CUDA-to-Metal kernel inventory](docs/kernel-port.md)
@@ -501,8 +630,11 @@ Local model weights, build products and benchmark artifacts are not committed.
 
 - Apple Silicon/macOS only for native inference and Desktop.
 - No multimodal Gemma input.
-- DFlash2 is opt-in, greedy-only and validated for Qwen3.6-35B-A3B on M5;
+- DFlash2 is opt-in and greedy-only for Qwen3.6-35B-A3B and Qwen3.8-27B;
   the separate draft weights are not bundled.
+- Apple GPU validation reports an inherited alignment violation in the 35B
+  DFlash2 Q4/MPP path; it remains open despite passing normal numerical checks.
+  [Reproducer and scope](docs/dflash2-exact-optimisations-2026-10-08.md).
 - Performance on M1–M4 is not inferred from M5 measurements.
 - The release is not notarized.
 - MCP processes are trusted external tools, not a sandbox.
@@ -514,3 +646,49 @@ Local model weights, build products and benchmark artifacts are not committed.
 MLXL3 is released under the [MIT License](LICENSE). Components and algorithms
 adapted from upstream projects retain their respective notices in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `LICENSES/`.
+
+## Flash Next 2.05 bpw with SSD streaming
+
+The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
+`2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
+GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
+when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
+Explicit cache environment settings remain available.
+Cold expert records now use up to four concurrent SSD readers, writing directly
+into the existing banks. `MLXL3_SSD_READERS=1` selects sequential reads (valid range: 1–4).
+On the M5 at a fixed 5 GiB expert budget, twelve paired comparisons measured
+5.5–10.4% faster decoding with exact outputs and no new system swap writes.
+Median decode was 7.29/7.05 tok/s OFF and 7.13/6.89 tok/s with MTP1 on two prompts.
+See the [reader protocol, full results and earlier inconclusive campaign](docs/flash-ssd-readers-2026-10-12.md).
+On the 24 GiB M5 with other applications open, the automatic budget reduced
+measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
+Outputs remained exact; system swap writes were zero in those runs, but this
+is not a guarantee against future system-wide swap or a throughput improvement.
+See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
+The corrected path matches the independent inference reference bit for bit on
+16 checked positions, including full logits and recurrent states. The first
+M5 baseline measured about 7 tokens/s before this correction. The built-in
+MTP head now supports depth-one greedy decoding through Desktop and the bridge,
+with exact target verification and rollback. Numerical and bridge checks pass.
+With an effective automatic cache of 5.24 GiB, median decode was
+6.93/6.96 tok/s without MTP and 6.96/6.76 tok/s with MTP1 on two fixed prompts
+(three runs of 64 tokens each, 63 decode tokens, alternating modes on one binary).
+These are separate throughput measurements of RAM-stage binary `938e2aa7`;
+prior measurements at 8 GiB remain in the linked report. No consistent MTP
+speedup is established, so MTP stays OFF by default.
+An exact two-token grouped MTP prototype was subsequently tested and withdrawn:
+its independent confirmation included a 2.29% paired gain, below the predeclared
+3% retention threshold. The validated four-reader engine is retained.
+See the [complete trials, rejected prototype and restoration checks](docs/flash-mtp-pairs-2026-10-12.md).
+
+## Native conversion feedback (issue 75)
+
+The advanced converter's explicit `native` backend now supports direct and
+per-layer LDLQ conversion through `MLXL3_NATIVE_ENGINE`. The standalone engine
+owns trellis search and FP32 compensation, preserving M5 NAX/TF32 arithmetic;
+large products split rows/columns without changing their reduction dimension.
+Fourteen synthetic CLI comparisons reproduce 64,000 checkpoint words exactly.
+See the [intermediate products, failures, verification and remaining scope](docs/native-coverage/converter-feedback/verification.md).
+Raw source capture, grouped expert scale policy, automatic Studio conversion
+and the MLX-free converter bundle remain under implementation. No conversion
+throughput gain or complete-model qualification is claimed.

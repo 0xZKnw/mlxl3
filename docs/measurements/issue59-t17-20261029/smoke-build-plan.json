@@ -1,0 +1,77 @@
+[
+  {
+    "name": "t17-fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 60,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t17-fmt-check",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 60,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t17-check-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "check",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 180,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t17-build-smoke-libtest",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 300,
+    "expected_exit": 0,
+    "required_text": []
+  }
+]

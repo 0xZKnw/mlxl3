@@ -1,0 +1,34 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "test",
+    "--locked",
+    "--features",
+    "chat",
+    "--lib",
+    "flash_profile::native_allocations_belong_only_to_the_innermost_active_scope",
+    "--",
+    "--exact",
+    "--test-threads=1"
+  ],
+  "timeout_seconds_each": 40,
+  "original_sha256": "f21796effbae405f2ec0fccd652cf1e3475c8159041193d1829de1a55b5c396f",
+  "mutant_sha256": "72e51442b698c68ed904acfbfcbcc81fe45456d6a280a31bf08ae58b1e3720eb",
+  "runs": [
+    {
+      "label": "doublecount-mutant",
+      "returncode": 101,
+      "elapsed_seconds": 2.783530708984472,
+      "joined": true
+    },
+    {
+      "label": "restored-original",
+      "returncode": 0,
+      "elapsed_seconds": 2.369411082996521,
+      "joined": true
+    }
+  ],
+  "status": "mutation_detected_original_restored_passed",
+  "restored_sha256": "f21796effbae405f2ec0fccd652cf1e3475c8159041193d1829de1a55b5c396f",
+  "all_children_joined": true
+}

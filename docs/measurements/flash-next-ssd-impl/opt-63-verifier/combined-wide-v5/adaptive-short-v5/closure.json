@@ -1,0 +1,61 @@
+{
+  "status": "63C_closed",
+  "source_commit": "ba7068fbbc9b60bbf0fecfdf16117135e4d39100",
+  "source_identity": "../../identity-v5.json",
+  "binary_sha256": "b49cc73c6ea18ab83cc43878be3b64d9d06773cbb3a212ff5f44c22df49de4e1",
+  "adaptive_qualification": {
+    "status": "validated_gain",
+    "confirmed_gain": true,
+    "baseline": "H",
+    "candidate": "C",
+    "pairs": [
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.722294229918571,
+        "candidate_tps": 11.01266267605058,
+        "gain_percent": 2.7080813108242285
+      },
+      {
+        "prompt": "MAIN",
+        "baseline_tps": 10.723744457982585,
+        "candidate_tps": 10.898928496946684,
+        "gain_percent": 1.633608854169366
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 9.659287979222178,
+        "candidate_tps": 9.76729058411052,
+        "gain_percent": 1.1181218027732864
+      },
+      {
+        "prompt": "HOLD",
+        "baseline_tps": 9.427947150528711,
+        "candidate_tps": 9.738380920871801,
+        "gain_percent": 3.292697396226729
+      }
+    ],
+    "drift": {
+      "MAIN": {
+        "control_percent": 0.013525352251275713,
+        "gain_spread_points": 1.0744724566548625
+      },
+      "HOLD": {
+        "control_percent": 2.4537773175838495,
+        "gain_spread_points": 2.1745755934534428
+      }
+    },
+    "memory_status": "passed_postflight30s_zero_new_swapout_in_short_adaptive_campaign"
+  },
+  "adaptive_processes": 8,
+  "adaptive_responses_including_warmup": 16,
+  "adaptive_peak_bytes": 8287033872,
+  "short_campaign_new_swapins_bytes": 851968,
+  "new_swapouts_bytes_since_original_63C": 0,
+  "cumulative_swapins_bytes_since_original_63C": 366362624,
+  "postflight_samples": 16,
+  "postflight_seconds": 30.005260944366455,
+  "prior_interruption_preserved": "../speed-result.json",
+  "fixed_wide_gain": "not_qualified; four fixed pairs did not pass, entire first campaign also failed cumulative incoming guard",
+  "scope": "WIDE1 versus WIDE0 with 63=1; not DFlash versus MTP and not additive with prior experiments",
+  "next": "Research64R closed; actual current verifier decomposition needed before next kernel campaign; no cache expansion or prototype64 run"
+}

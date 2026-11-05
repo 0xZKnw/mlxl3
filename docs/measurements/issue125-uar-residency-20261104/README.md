@@ -1,0 +1,18 @@
+# Fixed-weight residency candidate — source only
+
+Baseline: research commit `5ebf9121`, carrying PR129's accepted L1 and four previous options OFF. `MLXL3_NATIVE_FIXED_RESIDENCY=0|1` is snapshotted at Metal creation, defaults OFF and requires exact Apple M5. The new path uses the existing fixed-weight backing enumeration only; ordinary ledger calls do not retain new buffer handles. Aliases are deduplicated by the existing backing identity set. SSD slots, transient matrices, recurrent state and prefix snapshots are excluded.
+
+The optional owner holds the set (+1 `new` reference), queue and cloned fixed buffers. It commits and requests residency once, attaches to the queue, then removes the queue attachment and ends residency before its set/buffer handles are released. Membership is not cleared while older committed command buffers may still reference the set. Idle cleanup first drains the existing queue, drops the owner, then clears state. The first subsequent valid prefill re-enrolls once. Payloads were already admitted; a pure guard additionally limits the fixed payload to the existing explicit request limit (when present) and device recommendation. No bank capacity, request budget, shader or arithmetic changes.
+
+The actual Xcode27.2 SDK headers were inspected: `MTLDevice.h:1325–1330`, `MTLResidencySet.h:31–34,67–89,125–136`, `MTLCommandQueue.h:58–76` under `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Metal.framework/Headers`. These APIs start at macOS15. Runtime class/selector checks and nil creation fall back without enrollment. The project already uses objc0.2/metal0.33; no C++ bridge or dependency was added. StrongPtr's actual implementation was read to verify +1 adoption/release.
+
+Primary references: [Apple residency sets](https://developer.apple.com/documentation/metal/simplifying-gpu-resource-management-with-residency-sets?language=objc), [queue attachment](https://developer.apple.com/documentation/metal/mtlcommandqueue/addresidencyset(_:)), [TensorFold Flash owner](https://github.com/ashhart/TensorFold/blob/a26fdae91e0b120fc1e2f3cb8fa3e4095b779f1c/zig/src/native/flashnext_residency.zig). No throughput benefit is predicted, especially for warmed AR.
+
+Prepared checks, **not executed here**:
+
+- CPU: `fixed_residency_requires_capability_nonempty_payload_and_existing_limit`, including strict flag/default/hardware behavior, zero/exact/overflow-adjacent payload limits and unavailable capability.
+- Actual-source Kani: `fixed_residency_policy::fixed_residency_enrollment_requires_capability_and_admitted_nonempty_bytes`, arbitrary booleans/u64, no assumptions or loops, six covers. This checks only eligibility, not Objective-C/Metal ownership or OS concurrency.
+- Physical reuse of `gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation` under `MLXL3_NATIVE_FIXED_RESIDENCY=1`, depth0. The existing independent 84-state/logit/hidden/continuation comparisons remain. Additional conditional assertions select controlOFF/candidateON, require actual SDK `allocationCount>0` and exact fixed ledger payload bytes, then clear residency, restore the retained prefix, compare continuation and re-enroll/clear again. With the flag absent, no extra replay runs. No new ignored test or model fixture was added.
+- Root common gate may read cfg(test) `FlashNext::fixed_residency_diagnostics() -> [u64;2]` (actual SDK allocation count, fixed payload bytes).
+
+Only selected-file rustfmt and `git diff --check` ran in this source window. No compilation, Kani, model, GPU, benchmark, push or publication. Root owns the common build and indispensable physical/numerical gate. All negative/default histories stay intact.

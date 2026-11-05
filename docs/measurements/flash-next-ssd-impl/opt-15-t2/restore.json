@@ -1,0 +1,56 @@
+[
+  {
+    "name": "restore-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.3719159159809351
+  },
+  {
+    "name": "restore-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 32.259167917014565
+  },
+  {
+    "name": "restore-test-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 29.78084941598354
+  },
+  {
+    "name": "restored-binary-identity",
+    "expected": {
+      "/Users/justin/Documents/mix-stq1_0/target/release/mlxl3-rs": "bd89a7d6fa49bec7587df603d62f9e767cac70525fffa0d2cb8c34fd8d57686e",
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec": "b564c6dd57064db5acb6d7c086844ba669792d5d0870cc345fc715e02c0a427e"
+    },
+    "actual": {
+      "/Users/justin/Documents/mix-stq1_0/target/release/mlxl3-rs": "4fa70acbca6d6b5bfab82c9e9839bcf21a2cef031277ee5bea921c2696476aaa",
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec": "b564c6dd57064db5acb6d7c086844ba669792d5d0870cc345fc715e02c0a427e"
+    },
+    "status": "failed"
+  }
+]

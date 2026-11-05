@@ -1,0 +1,138 @@
+"""Two P13 physical gates; adapted from round2 essential_helper.py, never auto-starts."""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+HERE = Path('/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/quality-01')
+REPORT = HERE / 'report.json'
+PLAN = Path('/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/plan.json')
+
+
+def save(report):
+    temporary = REPORT.with_suffix('.tmp')
+    temporary.write_text(json.dumps(report, indent=2) + '\n')
+    temporary.replace(REPORT)
+
+
+def journal(text):
+    with (ROOT / 'opti.md').open('a') as sink:
+        sink.write('\nI120-P13 QUALITY ' + text + '\n')
+
+
+def members(pgid):
+    rows = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,pid='], text=True, timeout=5)
+    return [int(row.split()[1]) for row in rows.splitlines() if row.split() and int(row.split()[0]) == pgid]
+
+
+def stop(child):
+    if child is None:
+        return True
+    for sig, seconds in [(signal.SIGTERM, 5), (signal.SIGKILL, 15)]:
+        try:
+            os.killpg(child.pid, sig)
+        except ProcessLookupError:
+            pass
+        try:
+            child.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            continue
+        if not members(child.pid):
+            return True
+    child.wait(timeout=15)
+    return not members(child.pid)
+
+
+def exact_fields(actual, expected):
+    assert isinstance(actual, dict)
+    for key, value in expected.items():
+        assert key in actual and type(actual[key]) is type(value), key
+        if isinstance(value, list):
+            assert len(actual[key]) == len(value) and all(type(a) is type(b) and a == b for a, b in zip(actual[key], value, strict=True)), key
+        else:
+            assert actual[key] == value, (key, actual[key], value)
+
+
+def validate(log, phase):
+    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in log, 'exactly one physical test must pass'
+    images=[line.lower() for line in log.splitlines() if line.startswith('dyld[')]
+    assert images and not any(k in log.lower() for k in ['/libmlx','/libjaccl','/site-packages/mlx/']), 'native image evidence missing or MLX loaded'
+    marker=phase['marker']+' '
+    payloads=[json.loads(line.split(marker,1)[1]) for line in log.splitlines() if marker in line]
+    assert len(payloads)==1, 'missing/duplicate evidence marker'
+    actual=payloads[0]
+    exact_fields(actual,phase['expected'])
+    if phase['label']=='component':
+        cases=actual['cases']
+        assert len(cases)==2 and all(type(c['half']) is bool for c in cases) and [c['half'] for c in cases]==[False,True]
+        for case in cases:
+            exact_fields(case, {'control_commands':2,'joined_commands':1,'control_waits':2,'joined_waits':1,'actual_pairs':1,'trace_fallback':True,'uncommitted_rejected':True,'recovery':True})
+    else:
+        steps=actual['steps']
+        assert len(steps)==4 and [s['token'] for s in steps]==[248044,1,42,7]
+        for i,step in enumerate(steps):
+            exact_fields(step, {'actual_pairs':36,'legacy_continuation_pairs':0,'snapshot_position':i+1})
+            assert all(type(step[key]) is int and step[key]>0 for key in ('joined_commands','control_commands','joined_waits','control_waits'))
+            assert step['joined_commands']+36==step['control_commands'] and step['joined_waits']+36==step['control_waits']
+    return actual
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run-after-root-grant', action='store_true')
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error('GPU execution requires an explicit root grant and --run-after-root-grant')
+    plan = json.loads(PLAN.read_text())
+    assert plan['status'] == 'frozen_ready', 'artifact freeze not bound yet'
+    with REPORT.open('x') as sink:
+        report = {'status': 'started', 'parity': False, 'all_children_joined': False, 'expected_phases': 2, 'phases': [], 'plan_sha256': hashlib.sha256(PLAN.read_bytes()).hexdigest()}
+        json.dump(report, sink)
+    env = {key: value for key, value in os.environ.items() if not key.startswith(('MLXL3_', 'DYLD_'))}
+    env.update(plan['environment'])
+    child = None
+    try:
+        for name, item in plan['artifacts'].items():
+            assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest() == item['sha256'], 'artifact changed: ' + name
+        for phase in plan['phases']:
+            record = {**phase, 'status': 'running', 'parity': False, 'joined': False, 'pgid_empty': False}
+            report['phases'].append(record)
+            save(report)
+            journal(phase['label'] + ' STARTED, exclusive root GPU grant, no speed measurement')
+            started = time.monotonic()
+            child = None
+            try:
+                with (HERE / (phase['label'] + '.log')).open('xb') as log:
+                    child = subprocess.Popen(phase['command'], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                    record['pid'] = child.pid
+                    save(report)
+                    code = child.wait(timeout=phase['timeout_seconds'])
+                assert code == 0, 'child exit ' + str(code)
+                assert not members(child.pid), 'owned process group retained children'
+                evidence = validate((HERE / (phase['label'] + '.log')).read_text(), phase)
+                record.update(status='validated', parity=True, joined=True, pgid_empty=True, returncode=code, elapsed_seconds=time.monotonic()-started, evidence=evidence)
+                save(report)
+                journal(phase['label'] + ' VALIDATED ' + json.dumps(evidence, sort_keys=True))
+                print(phase['label'] + ' validated', flush=True)
+            except BaseException:
+                joined = stop(child)
+                record.update(status='failed', parity=False, joined=joined, pgid_empty=joined, elapsed_seconds=time.monotonic()-started)
+                raise
+        assert len(report['phases']) == 2 and all(p['parity'] is True and p['joined'] and p['pgid_empty'] for p in report['phases'])
+        report.update(status='essential_validated', parity=True, all_children_joined=True)
+        journal('2/2 VALIDATED, all owned processes joined/PGIDs empty; normal test scopes drop/join native readers; no speed measurement')
+    except BaseException as error:
+        report.update(status='failed', parity=False, error=repr(error), all_children_joined=all(p.get('joined') is True for p in report['phases']))
+        journal('FAILED ' + repr(error) + ', no speed qualification')
+        raise
+    finally:
+        save(report)
+
+
+if __name__ == '__main__':
+    main()

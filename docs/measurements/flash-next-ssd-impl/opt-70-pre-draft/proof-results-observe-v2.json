@@ -1,0 +1,25 @@
+[
+  {
+    "label": "observe-v2",
+    "harness": "pre_draft_observation_is_atomic_and_checked",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pre_draft_observation_is_atomic_and_checked",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/observe-v2.json"
+    ],
+    "exit": 0,
+    "reason": null,
+    "seconds": 3.091486541999984,
+    "peak_group_rss_bytes": 415088640,
+    "reaped": true
+  }
+]

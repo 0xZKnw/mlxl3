@@ -1,0 +1,25 @@
+   Compiling mlxl3-native v2.0.1 (/workspace/mlxl3)
+error: failed to run custom build command for `mlxl3-native v2.0.1 (/workspace/mlxl3)`
+
+Caused by:
+  process didn't exit successfully: `/workspace/mlxl3/target/debug/build/mlxl3-native-59132b8f17361846/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=.git/HEAD
+  cargo:rerun-if-changed=.git/index
+  cargo:rerun-if-changed=.git/packed-refs
+  cargo:rerun-if-changed=.git/refs/heads/work
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=f3f2c1d5e564-dirty
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+
+  --- stderr
+
+  thread 'main' (26606) panicked at build.rs:67:5:
+  assertion `left == right` failed: feature mlx requires macOS
+    left: "linux"
+   right: "macos"
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

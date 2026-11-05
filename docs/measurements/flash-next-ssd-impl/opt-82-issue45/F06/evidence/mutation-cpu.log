@@ -1,0 +1,22 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.20s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+running 1 test
+test flash_support::flash_top10_early_exit_never_changes_other_router_domains ... FAILED
+
+failures:
+
+---- flash_support::flash_top10_early_exit_never_changes_other_router_domains stdout ----
+
+thread 'flash_support::flash_top10_early_exit_never_changes_other_router_domains' (2023129) panicked at native/src/flash_support.rs:2512:17:
+assertion failed: !flash_top10_early_exit(experts, top_k, true)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::flash_top10_early_exit_never_changes_other_router_domains
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 114 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

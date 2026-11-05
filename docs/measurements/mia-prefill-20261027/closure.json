@@ -1,0 +1,32 @@
+{
+  "status": "rejected_removed",
+  "kept_gain": "HEADONLY unchanged",
+  "retained_source_manifest": "docs/measurements/issue54-prefill-20261027/headonly/final/source.json",
+  "retained_sources_verified": true,
+  "frozen_baseline_binaries_verified": true,
+  "restored_to_HEAD": {
+    "native/src/contracts.rs": "dcd7890c05ffe118e1a42b566a44d77eab996f4119f2508f32ab2b57ea8c3daf",
+    "native/src/linear.rs": "703ab78021e99536ad135fd37fa97891fe32c29469494097b5f46a2d604b05a4",
+    "native/src/ssd_moe.rs": "b98ee6844956343e9169f56f627e241d60e4aaa5e9286707203395c6c3390491"
+  },
+  "completed_gpu_groups": {
+    "quality-r2": {
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 2
+    },
+    "quality-v2": {
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    "speed-v2": {
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    }
+  },
+  "negative_wrapper_failure_preserved": true,
+  "model_speed_tests": "not launched; component screen failed",
+  "kani_cpu": "106obligations0failed3covers; removed prototype only",
+  "kani_mlx": "ICE before obligations",
+  "app_replaced": false,
+  "published": false
+}

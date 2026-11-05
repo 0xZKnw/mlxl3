@@ -1,0 +1,95 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-O1",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mutant",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mutant/test"
+    ],
+    "exit": 0,
+    "seconds": 0.446191417,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/mutant-build.log"
+  },
+  {
+    "name": "mutant-alias",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mutant/test"
+    ],
+    "exit": -6,
+    "seconds": 0.235922291,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/mutant-alias.log"
+  },
+  {
+    "name": "mutant-budget",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mutant/tests/test_flash_benchmark.py",
+      "-k",
+      "fixed_cache"
+    ],
+    "exit": 1,
+    "seconds": 0.33646712499999987,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/mutant-budget.log"
+  },
+  {
+    "name": "cbmc",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "--function",
+      "proof",
+      "--std",
+      "c++17",
+      "-I",
+      "native/ffi",
+      "--unwind",
+      "17",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check"
+    ],
+    "exit": 64,
+    "seconds": 0.005289040999999939,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cbmc.log"
+  },
+  {
+    "name": "ruff-fixed",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "scripts/benchmark-flash-bridge.py",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 0,
+    "seconds": 0.03730016699999994,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/ruff-fixed.log"
+  },
+  {
+    "name": "python-focused",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 0,
+    "seconds": 2.622315875,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/python-focused.log"
+  }
+]

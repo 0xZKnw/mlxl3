@@ -1,0 +1,34 @@
+{
+  "status": "completed_no_qualified_gain",
+  "parity_complete": true,
+  "arms": 16,
+  "generations128": 48,
+  "measured_generations128": 32,
+  "new_swapout_bytes": 0,
+  "global_swapin_bytes": 284999680,
+  "maximum_process_peak_bytes": 8977865664,
+  "adaptive_over_fixed": [
+    {
+      "prompt": "MAIN",
+      "ratios_adaptive_over_fixed": [
+        0.7185125343769622,
+        1.5068877226124107
+      ],
+      "geometric_mean": 1.0405372249928264,
+      "all_pairs_nonnegative": false,
+      "limits": "MAIN adaptive arm has warmup/measurement drift; no causal regression inferred"
+    },
+    {
+      "prompt": "HOLD",
+      "ratios_adaptive_over_fixed": [
+        1.1518977478809016,
+        1.183767253277029
+      ],
+      "geometric_mean": 1.1677237828634692,
+      "all_pairs_nonnegative": true,
+      "limits": "MAIN adaptive arm has warmup/measurement drift; no causal regression inferred"
+    }
+  ],
+  "all_prompt_scheduler_gain": false,
+  "limits": "test prototype, not installed app; draft additional peaks also exceed preregistered1.5GiB vsOFF; no15tok/s"
+}

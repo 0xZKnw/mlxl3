@@ -1,0 +1,70 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 3.2082882919930853,
+      "joined": true
+    },
+    {
+      "name": "hc_workspace_reserve_is_exact_or_rejects_overflow",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_workspace_reserve_is_exact_or_rejects_overflow"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 8.136992334009847,
+      "joined": true
+    },
+    {
+      "name": "hc_workspace_flag_preserves_off_default_and_bounded_literals",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_workspace_flag_preserves_off_default_and_bounded_literals"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 21.223175999999512,
+      "joined": true
+    },
+    {
+      "name": "hc_workspace_actual_admission_sum_is_checked_and_includes_every_buffer",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "hc_workspace_actual_admission_sum_is_checked_and_includes_every_buffer"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 22.679393166006776,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true
+}

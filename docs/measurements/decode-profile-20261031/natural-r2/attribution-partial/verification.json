@@ -1,0 +1,71 @@
+{
+  "status": "passed_sampled_and_finite_checks_not_formal_proof",
+  "scope": "new analysis adapters only; no native build/GPU/model",
+  "commands": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "3 files already formatted\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "..........                                                               [100%]\n10 passed in 0.09s\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/analyze-partial.py",
+        "--self-check"
+      ],
+      "exit": 0,
+      "output": "3375 union +3375 intersection finite lattice checks; 3 invalid interval cases; valid XML references and5 corrupt/empty XML cases passed\n"
+    }
+  ],
+  "crosshair": "Previously documented absent in same .venv by controller qualification, unchanged; no reinstall or proof claim.",
+  "source_sha256": {
+    "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/analyze-partial.py": "8d41fb27e3959d05e52b0bcf63190786b2245dc6d1c05f3c79e0dcf1ecb84456",
+    "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/async-analysis.py": "3cb783f2617b0b05fd897864c0d098c463cc626c67156494c84e60b60ea3713c",
+    "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/test_analysis_contracts.py": "8adac49dcf0c23516ad89837e392c71c0b4f30a8b5457d1f72166db9674ab54b"
+  }
+}

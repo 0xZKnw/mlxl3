@@ -1,0 +1,480 @@
+"""Six final P13 default/AR gates; adapted from round2 essential_helper.py, never auto-starts."""
+
+import argparse
+import gzip
+import hashlib
+import json
+import math
+import os
+import runpy
+import signal
+import subprocess
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
+
+ROOT = Path("/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0")
+HERE = Path(
+    "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/quality-default"
+)
+REPORT = HERE / "report.json"
+PLAN = HERE / "plan.json"
+
+
+def save(report):
+    temporary = REPORT.with_suffix(".tmp")
+    temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    temporary.replace(REPORT)
+
+
+def journal(text):
+    with (ROOT / "opti.md").open("a") as sink:
+        sink.write("\nI125-L1 DEFAULT FINAL " + text + "\n")
+
+
+def members(pgid):
+    rows = subprocess.check_output(["/bin/ps", "-axo", "pgid=,pid="], text=True, timeout=5)
+    return [
+        int(row.split()[1])
+        for row in rows.splitlines()
+        if row.split() and int(row.split()[0]) == pgid
+    ]
+
+
+def stop(child):
+    if child is None:
+        return True
+    for sig, seconds in [(signal.SIGTERM, 5), (signal.SIGKILL, 15)]:
+        try:
+            os.killpg(child.pid, sig)
+        except ProcessLookupError:
+            pass
+        try:
+            child.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            continue
+        if not members(child.pid):
+            return True
+    child.wait(timeout=15)
+    return not members(child.pid)
+
+
+def exact_fields(actual, expected):
+    assert isinstance(actual, dict)
+    for key, value in expected.items():
+        assert key in actual and type(actual[key]) is type(value), key
+        if isinstance(value, list):
+            assert len(actual[key]) == len(value) and all(
+                type(a) is type(b) and a == b for a, b in zip(actual[key], value, strict=True)
+            ), key
+        else:
+            assert actual[key] == value, (key, actual[key], value)
+
+
+def strict_json(text):
+    def nonfinite(value):
+        raise ValueError("nonfinite JSON number: " + value)
+
+    def finite_float(value):
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError("overflowing JSON float")
+        return result
+
+    return json.loads(text, parse_constant=nonfinite, parse_float=finite_float)
+
+
+def native_images(log):
+    images = [line for line in log.splitlines() if line.startswith("dyld[")]
+    assert images and not any(
+        k in log.lower() for k in ["/libmlx", "/libjaccl", "/site-packages/mlx/"]
+    )
+
+
+def marker(log, name):
+    items = [
+        strict_json(line.split(name + " ", 1)[1]) for line in log.splitlines() if name + " " in line
+    ]
+    assert len(items) == 1, "missing/duplicate evidence marker"
+    assert type(items[0]) is dict
+    return items[0]
+
+
+def native8_summary(actual):
+    events = actual["events"]
+    tokens = actual["tokens"]
+    assert type(events) is list and events and type(tokens) is list and len(tokens) == 8
+    assert all(type(token) is int and 0 <= token < 248320 for token in tokens)
+    names = Counter()
+    chains = []
+    allocation = [0, 0, 0]
+    row_allocation = [0, 0, 0]
+    workspace = 0
+    categories = defaultdict(lambda: [0, 0, 0])
+    host = defaultdict(lambda: [0, 0])
+    gpu = defaultdict(lambda: [0, 0.0])
+    identities = set()
+    for i, event in enumerate(events):
+        assert type(event) is dict and type(event["name"]) is str
+        names[event["name"]] += 1
+        assert all(
+            type(event[key]) is int and 0 <= event[key] <= 2**64 - 1
+            for key in (
+                "start_ns",
+                "end_ns",
+                "allocation_requests",
+                "allocation_requested_bytes",
+                "allocation_api_ns",
+            )
+        )
+        assert event["end_ns"] >= event["start_ns"]
+        parent = event["parent"]
+        assert parent is None or type(parent) is int and 0 <= parent < i
+        chain = [i] + ([] if parent is None else chains[parent])
+        chains.append(chain)
+        ancestors = [events[j]["name"] for j in chain]
+        counts = [
+            event[key]
+            for key in ("allocation_requests", "allocation_requested_bytes", "allocation_api_ns")
+        ]
+        allocation = [a + b for a, b in zip(allocation, counts, strict=True)]
+        if event["name"] == "native.row":
+            row_values = [
+                event["data"][key]
+                for key in ("metal_requests", "metal_requested_bytes", "metal_allocation_host_ns")
+            ]
+            assert all(type(n) is int and n > 0 for n in row_values)
+            row_allocation = [a + b for a, b in zip(row_allocation, row_values, strict=True)]
+        if any(name.startswith("native.hc.workspace.") for name in ancestors):
+            category = "HC_workspace_head" if "native.head" in ancestors else "HC_workspace_layers"
+            workspace += counts[0]
+        elif "native.hc.encode_read" in ancestors:
+            category = "HC_read_results"
+        elif "native.hc.encode_write" in ancestors:
+            category = "HC_write_results"
+        elif "native.gdn.frame" in ancestors:
+            category = "GDN_frame"
+        elif "native.gdn.body" in ancestors or "native.hc_gdn.joined" in ancestors:
+            category = "GDN_non_frame"
+        else:
+            category = "other"
+        categories[category] = [a + b for a, b in zip(categories[category], counts, strict=True)]
+        owner = (
+            "HC_GDN_joined"
+            if "native.hc_gdn.joined" in ancestors
+            else "HC_existing_commands_including_gate"
+            if any(name.startswith("native.hc.") for name in ancestors)
+            else "other"
+        )
+        if event["name"] in ("native.central_encode", "native.central_wait"):
+            key = owner + "::" + event["name"].removeprefix("native.central_")
+            host[key][0] += 1
+            host[key][1] += event["end_ns"] - event["start_ns"]
+        if event["name"] == "native.gpu_interval":
+            data = event["data"]
+            assert data["valid"] is True
+            start, end = data["gpu_start_seconds"], data["gpu_end_seconds"]
+            assert (
+                type(start) in (int, float)
+                and type(end) in (int, float)
+                and math.isfinite(start)
+                and math.isfinite(end)
+                and 0 < start <= end
+            )
+            assert type(data["command_address"]) is int and data["command_address"] > 0
+            identity = (data["command_address"], start, end)
+            assert identity not in identities
+            identities.add(identity)
+            key = owner if data["owner"] == "central" else data["owner"]
+            gpu[key][0] += 1
+            gpu[key][1] += end - start
+    for key, count in {
+        "native.row": 7,
+        "native.layer": 336,
+        "native.head": 7,
+        "native.logprobs": 7,
+        "native.cpu_select": 7,
+        "native.hc.encode_read": 679,
+        "native.hc.read_separate": 91,
+        "native.hc.chain_write_read_gate": 336,
+        "native.gdn.frame": 252,
+        "native.hc_gdn.joined": 252,
+        "native.gdn.body": 0,
+    }.items():
+        assert names[key] == count, (key, names[key], count)
+    assert workspace == 2716 and all(n > 0 for n in allocation) and allocation == row_allocation
+    assert len(identities) > 0 and gpu["HC_GDN_joined"][0] == 252
+    return {
+        "status": "validated_diagnostic_only",
+        "rows": 7,
+        "tokens": tokens,
+        "events": len(events),
+        "joined_gdn_scopes": 252,
+        "separate_gdn_scopes": 0,
+        "hc_encode_reads": 679,
+        "workspace_allocations": workspace,
+        "exclusive_allocation_equals_rows": True,
+        "allocation_global": {
+            "requests": allocation[0],
+            "requested_bytes": allocation[1],
+            "API_host_ns": allocation[2],
+        },
+        "allocation_exclusive": {
+            k: {"requests": v[0], "requested_bytes": v[1], "API_host_ns": v[2]}
+            for k, v in categories.items()
+        },
+        "central_host_inclusive": {
+            k: {"events": v[0], "host_ms_per_row": v[1] / 1e6 / 7} for k, v in host.items()
+        },
+        "completed_GPU_CB": {
+            k: {"events": v[0], "GPU_ms_per_row": v[1] * 1000 / 7} for k, v in gpu.items()
+        },
+        "unique_completed_commands": len(identities),
+        "parity": True,
+        "limits": [
+            "Intrusive diagnostic, not production speed.",
+            "Joint HC/GDN command remains a joint attribution; no perkernel split.",
+            "Inclusive host waits overlap GPU and are not saved time.",
+            "Metal host-second timestamps not mapped to CPU Instant epoch.",
+        ],
+    }
+
+
+def old_validate(log, phase):
+    kind = phase["kind"]
+    if kind == "p13-model":
+        strict_json(log.split(phase["marker"] + " ", 1)[1].splitlines()[0])
+        return runpy.run_path(str(ROOT / "build/hc-gdn-chain/quality/run-v2.py"))["validate"](
+            log, phase
+        )
+    if kind in ("native8", "prefetch", "budget"):
+        assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in log
+        native_images(log)
+    if kind == "cli-json":
+        actual = strict_json(Path(phase["report_path"]).read_text())
+        exact_fields(
+            actual,
+            {
+                "status": "verified",
+                "parity": True,
+                "completed": 4,
+                "cancelled": ["context_usage", "delta"],
+                "rejected": 1,
+                "token_hash": "9f850af1cbba074b",
+                "mlx_loaded": False,
+            },
+        )
+        assert actual["engine_sha256"] == phase["engine_sha256"]
+        slots = actual["ledger"]["expert_slots_by_layer"]
+        assert (
+            type(slots) is list
+            and len(slots) == 48
+            and all(type(n) is int and n == 53 for n in slots)
+        )
+        return actual
+    if kind == "budget":
+        assert (
+            "Native budget bridge replay matches the independent two-token hash after rejection and memory-saver cleanup"
+            in log
+        )
+        return {
+            "golden": "9f850af1cbba074b",
+            "completions": 2,
+            "memory_saver_recovery": True,
+            "noMLX": True,
+        }
+    actual = marker(log, phase["marker"])
+    exact_fields(actual, phase["expected"])
+    if kind == "prefix":
+        return actual
+    if kind == "prefetch":
+        secondary = marker(log, "native prefetch model:")
+        exact_fields(secondary, {"state_words": 28803072, "logits": 496640})
+        assert type(secondary["prefetch"]) is dict
+        assert all(
+            type(secondary["prefetch"][key]) is int and secondary["prefetch"][key] > 0
+            for key in ("submitted", "published")
+        )
+        assert type(actual["gate_commands"]) is int and actual["gate_commands"] > 0
+        return {
+            **actual,
+            "prefetch": secondary,
+            "scope": "existing independent full-state/logit/continuation predictive fixture; physical pair counter not exported",
+        }
+    assert kind == "native8"
+    summary = native8_summary(actual)
+    (HERE / "native8-profile.json.gz").write_bytes(
+        gzip.compress(
+            json.dumps(actual, allow_nan=False, separators=(",", ":")).encode(),
+            compresslevel=1,
+            mtime=0,
+        )
+    )
+    (HERE / "native8-safe-summary.json").write_text(
+        json.dumps(summary, allow_nan=False, indent=2) + "\n"
+    )
+    return summary
+
+
+def validate_cross_model(actual):
+    exact_fields(
+        actual,
+        {
+            "parity": True,
+            "compared_state_words": 115212288,
+            "compared_logits": 1986560,
+            "initial_archive_states": 84,
+            "encode_failure_no_commit": True,
+            "late_failure_layer": 20,
+            "retained_prefix": True,
+            "recovery": True,
+            "export_fallback": True,
+        },
+    )
+    steps = actual["steps"]
+    assert type(steps) is list and len(steps) == 4
+    for token, step in zip([248044, 1, 42, 7], steps, strict=True):
+        exact_fields(step, {"token": token, "triples": 34, "doubles": 2, "final_writes": 14})
+        assert all(
+            type(step[k]) is int and step[k] > 0 for k in ("control_commands", "candidate_commands")
+        )
+        assert step["candidate_commands"] + 34 == step["control_commands"]
+    return actual
+
+
+def validate(log, phase):
+    if phase["kind"] == "cross-model":
+        assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in log
+        native_images(log)
+        return validate_cross_model(marker(log, phase["marker"]))
+    if phase["kind"] == "component":
+        return runpy.run_path(
+            str(
+                ROOT
+                / "docs/measurements/issue120-hc-gdn-chain-20261104/quality-v2/controller.py.txt"
+            )
+        )["validate"](log, phase)
+    return old_validate(log, phase)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-after-root-grant", action="store_true")
+    args = parser.parse_args()
+    if not args.run_after_root_grant:
+        parser.error("GPU execution requires an explicit root grant and --run-after-root-grant")
+    plan = strict_json(PLAN.read_text())
+    assert plan["status"] == "frozen_ready", "artifact freeze not bound yet"
+    with REPORT.open("x") as sink:
+        report = {
+            "status": "started",
+            "parity": False,
+            "all_children_joined": False,
+            "expected_phases": 6,
+            "phases": [],
+            "plan_sha256": hashlib.sha256(PLAN.read_bytes()).hexdigest(),
+        }
+        json.dump(report, sink, allow_nan=False)
+    env = {
+        key: value for key, value in os.environ.items() if not key.startswith(("MLXL3_", "DYLD_"))
+    }
+    env.update(plan["environment"])
+    child = None
+    try:
+        for name, item in plan["artifacts"].items():
+            assert hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest() == item["sha256"], (
+                "artifact changed: " + name
+            )
+        dependency = plan["validator_dependency"]
+        assert (
+            hashlib.sha256(Path(dependency["path"]).read_bytes()).hexdigest()
+            == dependency["sha256"]
+        )
+        absent = [
+            "MLXL3_NATIVE_CROSS_LAYER",
+            "MLXL3_NATIVE_HC_GDN_CHAIN",
+            "MLXL3_NATIVE_SSD_DIRECT",
+            "MLXL3_NATIVE_AR_HC_CHAIN",
+            "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+            "MLXL3_NATIVE_FLASH_NT2",
+            "MLXL3_NATIVE_FLASH_STATIC_K",
+            "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+            "MLXL3_NATIVE_ROUTED_SCRATCH",
+        ]
+        assert all(key not in env for key in absent)
+        for phase in plan["phases"]:
+            assert all(key not in phase.get("environment", {}) for key in absent)
+            record = {
+                **phase,
+                "status": "running",
+                "parity": False,
+                "joined": False,
+                "pgid_empty": False,
+            }
+            report["phases"].append(record)
+            save(report)
+            journal(phase["label"] + " STARTED, exclusive root GPU grant, no speed measurement")
+            started = time.monotonic()
+            child = None
+            try:
+                with (HERE / (phase["label"] + ".log")).open("xb") as log:
+                    child = subprocess.Popen(
+                        phase["command"],
+                        cwd=ROOT,
+                        env={**env, **phase.get("environment", {})},
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    record["pid"] = child.pid
+                    save(report)
+                    code = child.wait(timeout=phase["timeout_seconds"])
+                record["returncode"] = code
+                assert code == 0, "child exit " + str(code)
+                assert not members(child.pid), "owned process group retained children"
+                evidence = validate((HERE / (phase["label"] + ".log")).read_text(), phase)
+                record.update(
+                    status="validated",
+                    parity=True,
+                    joined=True,
+                    pgid_empty=True,
+                    returncode=code,
+                    elapsed_seconds=time.monotonic() - started,
+                    evidence=evidence,
+                )
+                save(report)
+                journal(phase["label"] + " VALIDATED " + json.dumps(evidence, sort_keys=True))
+                print(phase["label"] + " validated", flush=True)
+            except BaseException as failure:
+                record["error"] = repr(failure)
+                joined = stop(child)
+                record.update(
+                    status="failed",
+                    parity=False,
+                    joined=joined,
+                    pgid_empty=joined,
+                    elapsed_seconds=time.monotonic() - started,
+                )
+                raise
+        assert len(report["phases"]) == 6 and all(
+            p["parity"] is True and p["joined"] and p["pgid_empty"] for p in report["phases"]
+        )
+        report.update(status="essential_validated", parity=True, all_children_joined=True)
+        journal(
+            "6/6 VALIDATED, all owned processes joined/PGIDs empty; normal test scopes drop/join native readers; no speed measurement"
+        )
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error=repr(error),
+            all_children_joined=all(p.get("joined") is True for p in report["phases"]),
+        )
+        journal("FAILED " + repr(error) + ", no speed qualification")
+        raise
+    finally:
+        save(report)
+
+
+if __name__ == "__main__":
+    main()

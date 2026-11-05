@@ -1,0 +1,86 @@
+{
+  "status": "validated",
+  "started": "2026-10-12T10:40:14.197155+00:00",
+  "runs": [
+    {
+      "name": "numerical-original-mtp",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "expected_tests": 11,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 47.3444617500063
+    },
+    {
+      "name": "target-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 5.381414000003133
+    },
+    {
+      "name": "components-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 6.563378374965396
+    },
+    {
+      "name": "ssd-cohorts",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 1.1722785409656353
+    },
+    {
+      "name": "slots",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.2926277500228025
+    }
+  ],
+  "parity": true,
+  "tests_passed": 15,
+  "finished": "2026-10-12T10:41:14.969357+00:00"
+}

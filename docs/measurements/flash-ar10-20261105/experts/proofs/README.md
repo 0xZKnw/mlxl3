@@ -1,0 +1,9 @@
+# Expert CPU guard checks
+
+All four real-source Kani harnesses PASS:476checks/0failures,15/15covers. Individually23/213/3/237checks and3/3/4/5covers. Exact sourceSHA55cef6b8d1447618b274941c45e1684f0fc295681c97573700385010084265fe matches root composition; source copied verbatim as.txt. Commands and versions are in report.json; stdout/stderr are losslessgzip with raw+compressedSHA in logs.json. Private target build/ar10-expert-kani-target, --lib --no-default-features, no GPU or other test.
+
+Methods: bounded model checking of actual production CPU helpers (no assumptions/stubs); all usize/u32/u64 values for prefixes/counts/length, boolean+routed extents arbitrary, validUTF8 up to4bytes for flag parser/unwind10, array equality extent harnessunwind40. Exact M5 qualification boolean is supplied by the real caller; device-name and Metal APIs are not verified. Kani0.68.0/CBMC6.11.0; host rustc1.98.1, Kani's own pinned compiler handles verification.
+
+Thirteen UNREACHABLE checks inspected: six in selection (fmt shift guard plus five ptr_offset_from<()> ZST arithmetic model guards); seven in flag (fmt, UTF8 validation wide-index arithmetic, align_offset modular inverse). None is a functional assertion or requested coverage point. This is not a GPU/math/allocator/async/IO/whole-model proof. Semantic guards and all15covers execute. No timeout, verifier failure or unsupported source path was observed in these four runs.
+
+All child process groups were terminated/joined after normal verifier completion using the bounded runner; final session exited0. No heavy jobs remain. A source/binding mutation test is prepared in the GPU component (synthetic Suh swapped then restored), not executed in thisCPUwindow; no additional CPU mutation claim. HostedCI/physicalgates/fullfeaturevariants belong to the root common qualification and are not inferred from these proofs.

@@ -1,0 +1,65 @@
+[
+  {
+    "name": "cbmc-disk-v2",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "-I",
+      "native/ffi",
+      "--function",
+      "proof",
+      "--unwind",
+      "5",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check"
+    ],
+    "exit": 6,
+    "seconds": 0.12429550001979806
+  },
+  {
+    "name": "clippy-final",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 2.7046935420075897
+  },
+  {
+    "name": "mlx-tests-final",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 39.01094624999678
+  },
+  {
+    "name": "release-build-final",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 30.22103704098845
+  }
+]

@@ -1,0 +1,71 @@
+{
+  "status": "passed",
+  "kind": "sampled integration checks through production Swift release selector; synthetic publication fixture is not evidence of actual publication",
+  "fixture_correction": "Initial synthetic fixture retained the draft untagged page/download URLs and was correctly rejected; corrected only the synthetic public URLs to the required exact v1.5.0 paths. Production code unchanged.",
+  "cases": [
+    {
+      "name": "actual-draft-ignored",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "synthetic-published",
+      "expected_returncode": 0,
+      "returncode": 0,
+      "passed": true,
+      "stdout": "Published updater selection passed: Desktop 1.5.0/build30, exact DMG digest/size, engine channel unchanged at 1.4.8\n",
+      "stderr": ""
+    },
+    {
+      "name": "draft-ignored",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-digest",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-size",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-build",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "missing-engine",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected independent engine channel\n"
+    },
+    {
+      "name": "untrusted-url",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    }
+  ]
+}

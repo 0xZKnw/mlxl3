@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "parity": true,
+  "command": [
+    "python3",
+    "scripts/check-mtp-depths.py",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit"
+  ],
+  "options": {
+    "MLXL3_MTP_ADAPTIVE": "1",
+    "MLXL3_EMBEDDINGS_PACKED": "1",
+    "allocator_cache": "default"
+  },
+  "timeout_seconds": 300,
+  "engine_sha256": "fcd35b4eac89fe5458256eb97cea0d9c5248eb486c8dfda5e0ad448f61a328b7",
+  "runner_sha256": "61b8d91bf5bbbf0d169d258e73c840e1678992a4b4dfd425234939e1395be6d6",
+  "complete_tuner_executed": false,
+  "speed_measured": false,
+  "exit_code": 0,
+  "completions": 33,
+  "cancellations": 4,
+  "expected_errors": 2,
+  "tuning_key": "82434097046fd932:1.4.2:9e5e14a98178:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=1:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+  "child_reaped": true,
+  "elapsed_seconds": 187.68322966699998
+}

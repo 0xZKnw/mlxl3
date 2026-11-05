@@ -1,0 +1,506 @@
+{
+  "experiment": "ISSUE59-T04-COLD-01",
+  "status": "prepared_not_executed",
+  "common_environment_source": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/common-env.json",
+  "existing_runner": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+  "runner_modified": false,
+  "same_future_engine_for_both_arms": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t04-20261031/engine/prototype-engine",
+  "identity_binary_hash_anchor_status": "pending_root_freeze_after_build; no binary SHA, source identity, measured result or VM anchor invented here",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "arms": {
+    "A": {
+      "MLXL3_FLASH_SWIGLU_DOWN": "0"
+    },
+    "C": {
+      "MLXL3_FLASH_SWIGLU_DOWN": "1"
+    }
+  },
+  "isolated_candidates": {
+    "T17": {
+      "environment": {
+        "MLXL3_FLASH_GDN_EPILOGUE": "0"
+      },
+      "state": "local prototype retained OFF"
+    },
+    "T05": {
+      "environment": {
+        "MLXL3_SSD_WEIGHTED_EPILOGUE": "0"
+      }
+    },
+    "T18": {
+      "state": "not enabled or imported for this candidate",
+      "known_upstream_flag_not_set": "MLXL3_SSD_DYNAMIC_READERS"
+    }
+  },
+  "stages": {
+    "bridge17": {
+      "order_per_mode": "AC",
+      "modes": [
+        "AR",
+        "MTP",
+        "DF"
+      ],
+      "processes": 6,
+      "per_mode": {
+        "processes": 2,
+        "prompts_per_process": 2,
+        "warmups": 4,
+        "measured_generations": 4
+      },
+      "total_warmups": 12,
+      "total_measured_generations": 12,
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "purpose": "real bridge quality; root validates each report and external goldens before next process; not speed qualification"
+    },
+    "pilot128": {
+      "order_per_mode": "ACCA",
+      "modes": [
+        "AR",
+        "MTP",
+        "DF"
+      ],
+      "processes": 12,
+      "per_mode": {
+        "processes": 4,
+        "prompts_per_process": 2,
+        "warmups": 8,
+        "measured_generations": 8
+      },
+      "total_warmups": 24,
+      "total_measured_generations": 24,
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "purpose": "separate AR/MTP/DFlash pilot, no cross-mode gain addition or 17-token substitution"
+    }
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth_in_existing_script": 1,
+    "dflash_mode": 1,
+    "reuse_prompt_cache_in_existing_script": false,
+    "uses_compare_option": false,
+    "uses_pool_driver": false
+  },
+  "launch_conditions_for_root": [
+    "Each plan contains exactly one command. All plans are prepared_not_executed. Launch serially only after numerical and capture gates, source/binary freeze, fresh explicit T04-w1 cumulative anchor and memory/power/quiet admission.",
+    "After every process, inspect the durable report, mode and T04 flag, counts, complete independent external golden hash/text, footprint, reaped/reader_joined and cumulative swap guards before the next command.",
+    "Reject inherited active MLXL3_SSD_DYNAMIC_READERS (anything except absent or canonical 0). T18 is deliberately absent from plan env. Reject stale experimental overrides outside the frozen common env.",
+    "Only MLXL3_FLASH_SWIGLU_DOWN changes between A and C. Keep MLXL3_FLASH_GDN_EPILOGUE=0 and MLXL3_SSD_WEIGHTED_EPILOGUE=0 explicitly. No simultaneous candidate activation or silent path import.",
+    "Require new result paths: the existing runner can overwrite report.json, so root must refuse any preexisting report/log output before launch.",
+    "Use AC power, quiet execution, one GPU model at a time, no concurrent build/prover/other inference; at least60s stable swap before full-model admission. Require admission >=12,000,000,000B before EACH process, zero new Swapout relative to T04-w1, Swapin <=256MiB, RSS <=10GiB and native footprint <12,000,000,000B at observations. No silent reanchor after failure.",
+    "The stdout token_hash marker is only a basic supervisor check; it does not replace root validation of complete reports, independent goldens or actual candidate-path integration evidence.",
+    "AR, MTP and DFlash remain separate comparisons. Bridge17 has6 processes,12 warmups and12 measured generations. Pilot128 has12 processes,24 warmups and24 measured generations. Exclude warmups; aggregate transitions/summed decode seconds per mode, never add gains across modes or substitute bridge17 for128 qualification."
+  ],
+  "plans": [
+    {
+      "phase": "bridge17",
+      "mode": "AR",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-AR-1-A-plan.json",
+      "name": "t04-bridge17-AR-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "AR",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-AR-2-C-plan.json",
+      "name": "t04-bridge17-AR-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "MTP",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-MTP-1-A-plan.json",
+      "name": "t04-bridge17-MTP-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "MTP",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-MTP-2-C-plan.json",
+      "name": "t04-bridge17-MTP-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "DF",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-DF-1-A-plan.json",
+      "name": "t04-bridge17-DF-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "DF",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-DF-2-C-plan.json",
+      "name": "t04-bridge17-DF-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-1-A-plan.json",
+      "name": "t04-pilot128-AR-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-2-C-plan.json",
+      "name": "t04-pilot128-AR-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-3-C-plan.json",
+      "name": "t04-pilot128-AR-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-4-A-plan.json",
+      "name": "t04-pilot128-AR-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-1-A-plan.json",
+      "name": "t04-pilot128-MTP-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-2-C-plan.json",
+      "name": "t04-pilot128-MTP-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-3-C-plan.json",
+      "name": "t04-pilot128-MTP-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-4-A-plan.json",
+      "name": "t04-pilot128-MTP-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-1-A-plan.json",
+      "name": "t04-pilot128-DF-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-2-C-plan.json",
+      "name": "t04-pilot128-DF-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-3-C-plan.json",
+      "name": "t04-pilot128-DF-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "1"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-4-A-plan.json",
+      "name": "t04-pilot128-DF-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "status": "prepared_not_executed",
+      "t04_flag": "0"
+    }
+  ],
+  "template_manifest": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/manifest.json",
+  "common_environment_prepared": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/common-env.json",
+  "template_source_sha256": {
+    "manifest": "2240405d0a6661de30352cc087c5b472414286403d1faf5c22f4c896a8b74bb1",
+    "common_environment": "b5376d6b626765d3a8db278052f91b27f5b6a82f2142400721d1184d098184c9"
+  },
+  "future_anchor_name": "T04-w1",
+  "original_common_environment_source": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/common-env.json",
+  "admission_revision": {
+    "id": "ISSUE59-T04-ADMISSION11-01",
+    "minimum_available_bytes_per_process": 11000000000,
+    "prior_plans_preserved": "../admission12-original",
+    "same_anchor": "T04-w1; no reset",
+    "before_any_full_model_or_benchmark": true
+  },
+  "protocol_changes": [
+    "Admission revised prospectively 12GB to11GB after Brave closed; native/binary/numerical/swap contracts unchanged."
+  ]
+}

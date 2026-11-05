@@ -1,0 +1,50 @@
+{
+  "status": "resume_cpu_preflight_passed",
+  "torch_focused": {
+    "passed": 322,
+    "skipped": 0,
+    "seconds": 3.54
+  },
+  "desktop_ci_style": {
+    "passed": 824,
+    "skipped": 30,
+    "seconds": 92.85,
+    "skipped_reason": "Torch optional paths and absent Ling model; new Torch checks executed separately"
+  },
+  "teacher_integrity_tests": {
+    "passed": 34,
+    "skipped": 0,
+    "seconds": 0.3,
+    "mutation_removed_sha_guard_detected": true
+  },
+  "flash_reproduction": {
+    "old_source_failed": 2,
+    "corrected_collector_passed": 167,
+    "extra_tokens_or_labels": 0
+  },
+  "ruff_format": "passed",
+  "ruff_strict": "passed",
+  "compileall": "passed",
+  "real_modal_cli": "passed",
+  "independent_review": "no open P1/P2 found",
+  "teacher_preserved_sha256": "bd18d5894b02af3b91efb7f2e61253635b5c06785ffc154d5680c7b14abf5478",
+  "source_sha256": {
+    "scripts/lfm25_router_plan.py": "56fa89893248facf8b5a6846f1b8788fbf94985cf89f9a91d96ae4893876951f",
+    "scripts/capture_lfm25_router.py": "e39b82008c20a0340649074a0394510245a9242bbb0192eae1019d486c0aa6c5",
+    "scripts/recalibrate_lfm25_router.py": "2d8b2e55f5494ece4e604085b012ea00a179ec93b4882a1732d42d1c10ddf7c4",
+    "scripts/evaluate_lfm25_router.py": "0e2d511eb10ae7c4e7b8186d8edc6d29c064d0050d6aad71d16e14a4a6a760b1",
+    "scripts/recalibrate_lfm25_router_modal.py": "e4acd9e0716a8531116cd6a1b787faac1f6f59ccc098870d2a09f2d15c4945b9",
+    "tests/test_recalibrate_lfm25_router_modal.py": "e5d5b2b5cd0bb0a88273606ee96db8535db3b96708c609d9d0c847f0a215c768",
+    "tests/test_recalibrate_lfm25_router.py": "b9782f9326563a5f20ee196b55ff4faf76289227c841a28b9530bb24c2327c90",
+    "tests/test_evaluate_lfm25_router.py": "ba0578d8cc78c04f8e83b384ba3cd2b90239646e072e04164f13cc87d1f6e737",
+    "tests/test_capture_lfm25_router.py": "7269533d2bee76fd0d39d8051f8c859d7ef256ada1a059af6c07607518fac8ed"
+  },
+  "formal_scope": "12 prior scalar postconditions remain unchanged; filesystem hashes, tensor math and GPU are not formally proved",
+  "gpu_resume": "not_yet_run",
+  "previous_gpu_status": "failed before first quantized token; BF16 reference complete and preserved",
+  "previous_ci": {
+    "conversion": "success 38780494012",
+    "regression": "failed imports, repaired and verified locally without Torch",
+    "native": "macOS/Ubuntu success, Kani step cancelled after25minutes; no Rust source changed"
+  }
+}

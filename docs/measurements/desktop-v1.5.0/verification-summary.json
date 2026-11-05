@@ -1,0 +1,86 @@
+{
+  "source": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+  "status": "local_functional_checks_passed_with_disclosed_unverified_paths",
+  "publication": "blocked_pending_explicit_human_authorization",
+  "cpu": {
+    "passed": 167,
+    "ignored": 3
+  },
+  "mlx": {
+    "passed": 192,
+    "ignored": 85
+  },
+  "python": {
+    "passed": 840,
+    "skipped": 115
+  },
+  "workspace_assertions": 219,
+  "desktop": {
+    "initial_full_driver_exit_code": 133,
+    "affected_response_and_remaining_checks": "passed",
+    "whole_driver_rerun": false
+  },
+  "kani_budget": {
+    "harnesses": 1,
+    "checks": 57,
+    "covers": 3,
+    "result": "passed"
+  },
+  "kani_library": {
+    "status": "partial_verification_with_timeouts",
+    "process_exit_code": 1,
+    "passed": 70,
+    "timeouts": 23,
+    "harnesses": 93,
+    "checks_in_concluded_harnesses": 9555,
+    "unreachable": 160,
+    "covers_satisfied": 202,
+    "harness_timeout": "60s"
+  },
+  "kani_http_usage": {
+    "target_instances": 2,
+    "checks_per_instance": 65,
+    "covers_per_instance": 3,
+    "result": "passed"
+  },
+  "crosshair_available": false,
+  "swift_formal_proof": false,
+  "ci_exact_source_runs": [],
+  "physical_json": {
+    "status": "passed",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "checks": [
+      "MLX bridge advertises workspace feature support",
+      "Unsupported schema rejected before content",
+      "Real EXL3 generation conforms to independent jsonschema oracle",
+      "False schema exhausts the shared one-token budget without publishing content",
+      "Cancelled structured generation publishes no invalid content",
+      "Bridge remains responsive after cancellation"
+    ],
+    "answer": {
+      "ok": true
+    },
+    "generated_tokens": 372,
+    "json_max_tokens": 1024,
+    "process_exit_code": 0
+  },
+  "initial_physical_256": {
+    "status": "failed",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "checks": [
+      "MLX bridge advertises workspace feature support",
+      "Unsupported schema rejected before content"
+    ],
+    "failure": "AssertionError({'message': 'JSON token budget exhausted', 'request_id': 'valid', 'type': 'error'})",
+    "process_exit_code": 0
+  },
+  "unverified": [
+    "23 Kani library timeouts",
+    "historical MCP URL Kani internal compiler error",
+    "Swift/Python source proof",
+    "ignored/skipped tests",
+    "microphone and audio quality",
+    "remote MCP services",
+    "remote CI and publication"
+  ]
+}

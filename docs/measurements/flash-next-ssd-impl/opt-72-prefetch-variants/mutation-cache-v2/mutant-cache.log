@@ -1,0 +1,41 @@
+   Compiling tokio-macros v2.6.1
+   Compiling mlxl3-native v1.4.3 (/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-72-cache-mutation-jspyimxu)
+   Compiling tokio v1.50.0
+   Compiling tokio-util v0.7.18
+   Compiling h2 v0.3.27
+   Compiling hyper v0.14.32
+warning: methods `predictive_lru_for_test` and `prediction_count_for_test` are never used
+    --> native/src/flash_support.rs:1144:19
+     |
+ 960 | impl ExpertCache {
+     | ---------------- methods in this implementation
+...
+1144 |     pub(crate) fn predictive_lru_for_test(&self) -> bool {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1149 |     pub(crate) fn prediction_count_for_test(&self) -> usize {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 13.22s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-b47799d7e1360ce7)
+
+running 1 test
+test flash_support::tests::unused_prefetch_eviction_preserves_demand_and_leases ... 
+thread 'flash_support::tests::unused_prefetch_eviction_preserves_demand_and_leases' (714533) panicked at native/src/flash_support.rs:1580:9:
+assertion `left == right` failed
+  left: Some(0)
+ right: Some(23)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    flash_support::tests::unused_prefetch_eviction_preserves_demand_and_leases
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 114 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

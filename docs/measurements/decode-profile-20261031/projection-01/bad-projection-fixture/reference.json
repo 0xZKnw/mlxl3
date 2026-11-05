@@ -1,0 +1,457 @@
+{
+  "status": "complete",
+  "tokens": [
+    248044,
+    1,
+    42,
+    248044,
+    7
+  ],
+  "steps": [],
+  "reference": "mlx-vlm 0.7.3 + PonyExl3 8e7fa6b",
+  "branch_dtype": "float16",
+  "activation": "upstream compiled float16 swiglu",
+  "projections": [
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_a",
+      "input_width": 2560,
+      "output_width": 48,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p0-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p0-output.f32",
+        "shape": [
+          1,
+          48
+        ],
+        "count": 48
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_a",
+      "input_width": 2560,
+      "output_width": 48,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p1-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p1-output.f32",
+        "shape": [
+          1,
+          48
+        ],
+        "count": 48
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_b",
+      "input_width": 2560,
+      "output_width": 48,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p2-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p2-output.f32",
+        "shape": [
+          1,
+          48
+        ],
+        "count": 48
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_b",
+      "input_width": 2560,
+      "output_width": 48,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p3-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p3-output.f32",
+        "shape": [
+          1,
+          48
+        ],
+        "count": 48
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_qkv",
+      "input_width": 2560,
+      "output_width": 10240,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p4-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p4-output.f32",
+        "shape": [
+          1,
+          10240
+        ],
+        "count": 10240
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_qkv",
+      "input_width": 2560,
+      "output_width": 10240,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p5-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p5-output.f32",
+        "shape": [
+          1,
+          10240
+        ],
+        "count": 10240
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_z",
+      "input_width": 2560,
+      "output_width": 6144,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p6-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p6-output.f32",
+        "shape": [
+          1,
+          6144
+        ],
+        "count": 6144
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_z",
+      "input_width": 2560,
+      "output_width": 6144,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p7-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p7-output.f32",
+        "shape": [
+          1,
+          6144
+        ],
+        "count": 6144
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.out_proj",
+      "input_width": 6144,
+      "output_width": 2560,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p8-input.f32",
+        "shape": [
+          1,
+          1,
+          6144
+        ],
+        "count": 6144
+      },
+      "output": {
+        "file": "p8-output.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.out_proj",
+      "input_width": 6144,
+      "output_width": 2560,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p9-input.f32",
+        "shape": [
+          1,
+          6144
+        ],
+        "count": 6144
+      },
+      "output": {
+        "file": "p9-output.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.gate_proj",
+      "input_width": 2560,
+      "output_width": 640,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p10-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p10-output.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.gate_proj",
+      "input_width": 2560,
+      "output_width": 640,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p11-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p11-output.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.up_proj",
+      "input_width": 2560,
+      "output_width": 640,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p12-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p12-output.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.up_proj",
+      "input_width": 2560,
+      "output_width": 640,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p13-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p13-output.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.down_proj",
+      "input_width": 640,
+      "output_width": 2560,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p14-input.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      },
+      "output": {
+        "file": "p14-output.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.0.mlp.experts.0.down_proj",
+      "input_width": 640,
+      "output_width": 2560,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p15-input.f32",
+        "shape": [
+          1,
+          640
+        ],
+        "count": 640
+      },
+      "output": {
+        "file": "p15-output.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.3.self_attn.q_proj",
+      "input_width": 2560,
+      "output_width": 12288,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p16-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p16-output.f32",
+        "shape": [
+          1,
+          12288
+        ],
+        "count": 12288
+      }
+    },
+    {
+      "prefix": "model.language_model.layers.3.self_attn.q_proj",
+      "input_width": 2560,
+      "output_width": 12288,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p17-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p17-output.f32",
+        "shape": [
+          1,
+          12288
+        ],
+        "count": 12288
+      }
+    },
+    {
+      "prefix": "lm_head",
+      "input_width": 2560,
+      "output_width": 248320,
+      "dtype": "mlx.core.float16",
+      "input": {
+        "file": "p18-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p18-output.f32",
+        "shape": [
+          1,
+          248320
+        ],
+        "count": 248320
+      }
+    },
+    {
+      "prefix": "lm_head",
+      "input_width": 2560,
+      "output_width": 248320,
+      "dtype": "mlx.core.float32",
+      "input": {
+        "file": "p19-input.f32",
+        "shape": [
+          1,
+          2560
+        ],
+        "count": 2560
+      },
+      "output": {
+        "file": "p19-output.f32",
+        "shape": [
+          1,
+          248320
+        ],
+        "count": 248320
+      }
+    }
+  ]
+}

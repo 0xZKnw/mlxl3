@@ -1,0 +1,54 @@
+{
+  "status": "frozen_after_CPU_before_GPU",
+  "source_head": "b0dcf29d5f4c771834f9e38637073a25302dc8d2",
+  "created_UTC": "2026-11-04T14:45:55.652463+00:00",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/direct-cli",
+      "sha256": "d860f20b0b8a92058465d7ba177a106ea295a2ac2ff9bdeb4b4113b9d3a336cd",
+      "bytes": 10123808,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest",
+      "sha256": "443cebedaccb300ff99014fdb0a0bc552cd43aec3f298b1ee5f0a1686df47469",
+      "bytes": 9283984,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "source_sha256": {
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9",
+    "native/src/lib.rs": "d21067fd50918230637dad57d8066615dc015b164aa25b3f27361a3133ad565f",
+    "native/src/ssd_reads.rs": "b0493f0de326124568b3365c3d0144c92099066fcb3440264786cc39ad1a06ea",
+    "native/src/ssd_reads/direct_tests.rs": "03e72194f40abe093a75054ed7bc6af7c7ad2c0ef7ca5ca4b63299b356b2ae68",
+    "native/src/gpu.rs": "654aff875ae3e92b092be9c092505a94c6eaa954e3afc787b18f297cf5158785",
+    "native/src/gpu/moe.rs": "3398b0584c8374eaec389d177644826067fb7fead8abc87c20967aaa95b84f3c",
+    "native/src/gpu/prefetch.rs": "950f1d5419e7890e2d7454de231af7385cdc5f054ae940d8c14526dbeca064b7",
+    "native/src/gpu/ssd_direct_tests.rs": "4501117b704146b36f40d01cfe297247821bb34e272dc5d017fc33180fe92ff6",
+    "native/src/gpu/projection.rs": "dbfef0a03a7936fbe253909f06324374c9354fa8d6e7bafd69e61c83ad5c0596",
+    "native/src/gpu/flash.rs": "bb1ca0c9d540995f81440d510ffba61b2c33f540d53eb340e45be5c040fe44bd",
+    "native/src/main.rs": "e335d22a9227f625623ad9983a1d2ab54338b319f462c458a20cf4a6fec09433",
+    "native/src/flash_profile.rs": "b106d3f778c77596e5b540a874ab94a5a19b16133977f6754c268723ef3b56be",
+    "native/src/flash_support.rs": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+    "scripts/kani_obligations.json": "2153fabd3b148bdc00a2dcc794a8ba1689c959b8369f9a372e374210076bb48e",
+    "tests/test_kani_ci.py": "dcdd28c168d24a79d1a62e6e27607cdc152dcb9f1e9300bc5c638f3dd2947334"
+  },
+  "CPU": {
+    "production_check": "PASS5.87s",
+    "QA": "6checksPASS; targetedSSD8pass1ignored/counter1pass/Python6pass44Linuxskips",
+    "proofs": "Kani3actualhelpers242checks15covers;7stdguardsunreachable; OS/Metal/concurrency not proved",
+    "release_CLI": "PASS32.77s",
+    "release_libtest": "PASS41.26s"
+  },
+  "all_owned_CPU_children_joined": true,
+  "no_GPU_launched": true,
+  "physical_quality": "not run",
+  "speed": "not measured",
+  "flag": "MLXL3_NATIVE_SSD_DIRECT",
+  "default": false,
+  "limit": "Exact Apple M5, depth0, no prefetcher; fresh owned Shared buffer; legacy background and flag0 rollback retained."
+}

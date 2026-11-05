@@ -1,0 +1,30 @@
+{
+  "hub_commands": [
+    [
+      "hf",
+      "models",
+      "info",
+      "incoai/Qwen3.8-Flash-Next-DFlash2",
+      "--expand",
+      "sha,lastModified,config,safetensors",
+      "--format",
+      "json"
+    ],
+    [
+      "hf",
+      "download",
+      "incoai/Qwen3.8-Flash-Next-DFlash2",
+      "config.json",
+      "--revision",
+      "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+      "--local-dir",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-strata59/dflash-hub-config",
+      "--quiet"
+    ]
+  ],
+  "hf_version": "huggingface_hub1.29.0; no tool/skill update performed",
+  "metadata_algorithm": "Read 8-byte little-endian safetensors header size, JSON header only. Validate nonempty all BF16. Quantized matrices are rank2 names ending .weight per Splash Builder policy; assert columns divisible64. Count all tensor data offsets; AF4G64 size=projection_parameters/64*36+unchanged_tensor_bytes. Excludes padding/allocator/scratch. No weight data read or quantized.",
+  "github_method": "gh api repos/<repo>/commits/HEAD; pinned recursive trees require truncated=false; compare old...new; raw.githubusercontent.com/<repo>/<SHA>/<path> with SHA256; PR487/491/493/469 and path histories saved in ignored source directory. See source indexes for exact URLs.",
+  "profile_analysis": "Read existing53 exports/layers.csv with csv.DictReader; only natural decode by mode/prompt, median of per-layer batch_worker_finish_spread_p95_ns. Descriptive existing evidence, not a new experiment.",
+  "runtime_tests_58": "See opt-58-shared-exl3/rust-checks-v2.json and cpp-build-v2.json; no GPU selected in59R."
+}

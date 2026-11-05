@@ -1,0 +1,12 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0)
+error: function `reset_request_budgets` is never used
+  --> native/src/flash_draft_budget.rs:52:15
+   |
+52 | pub(crate) fn reset_request_budgets(verify: &mut VerifyBudget, pre: &mut PreDraftBudget) {
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

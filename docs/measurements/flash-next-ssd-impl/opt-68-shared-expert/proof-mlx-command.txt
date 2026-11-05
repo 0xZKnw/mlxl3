@@ -1,0 +1,26 @@
+import json, os, signal, subprocess, time
+from pathlib import Path
+p=Path('docs/measurements/flash-next-ssd-impl/opt-68-shared-expert')
+results=[]
+for harness in ['actual_shared_batches_preserve_serial_outputs']:
+ command=['cargo','kani','--lib','--features','mlx,chat','--tests','--harness',harness,'--output-format','regular','-Z','unstable-options','--export-json',str(p/(harness+'.json'))]
+ started=time.monotonic(); peak=0; reason=None; child=None
+ try:
+  with (p/(harness+'.log')).open('x') as log:
+   child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+   while child.poll() is None:
+    if time.monotonic()-started>=120: reason='timeout_120s';break
+    table=subprocess.check_output(['ps','-axo','pid=,pgid=,rss='],text=True,timeout=5)
+    rss=sum(int(r[2])*1024 for line in table.splitlines() if len(r:=line.split())==3 and int(r[1])==child.pid)
+    peak=max(peak,rss)
+    if rss>4<<30:reason='memory_4GiB';break
+    time.sleep(.5)
+ finally:
+  if child is not None:
+   if child.poll() is None:
+    os.killpg(child.pid,signal.SIGTERM)
+    try:child.wait(timeout=5)
+    except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait(timeout=5)
+   results.append({'harness':harness,'command':command,'exit':child.returncode,'reason':reason,'seconds':time.monotonic()-started,'peak_group_rss_bytes':peak,'reaped':child.poll() is not None})
+   (p/'proof-results.json').write_text(json.dumps(results,indent=2)+'\n')
+   print(results[-1],flush=True)

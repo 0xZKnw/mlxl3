@@ -1,0 +1,21 @@
+
+running 1 test
+test flash_support::draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion ... FAILED
+
+failures:
+
+failures:
+    flash_support::draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 100 filtered out; finished in 0.00s
+
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.55s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+thread 'flash_support::draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion' (4823874) panicked at native/src/flash_support.rs:12:5:
+assertion `left == right` failed
+  left: Some(0)
+ right: Some(7)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--lib`

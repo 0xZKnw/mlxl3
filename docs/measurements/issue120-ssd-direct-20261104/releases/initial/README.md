@@ -1,0 +1,5 @@
+# Initial P01 CPU/release artifacts
+
+Source `b0dcf29d5f4c771834f9e38637073a25302dc8d2` passed the production direct/chat library check in5.87s. An initial launcher exited127 because cargo was absent from PATH; that log is retained. Repeating the same check with the absolute cargo path and an explicit tool PATH passed. Release CLI32.77s and native library-test41.26s passed. The original frozen files remain read-only under `build/p01/frozen`; [freeze.json](freeze.json) binds all source/artifact hashes and actual minos26.2/sdk27.2 evidence. No binary-test/main rebuild was needed because main is unchanged.
+
+These are build results, not numerical qualification. Subsequent quality01 stopped on the IO fixture's same-slot generation precondition; its failure is retained separately under `../../quality-01`. The production source and CLId860 are unchanged. Only a corrected test fixture will require another library-test binary; original lib443c must remain intact. QA/proof receipts are separately owned by the QA agent. No benchmark, model, build or proof was launched while archiving this evidence.

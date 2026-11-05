@@ -72,12 +72,17 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var process: Process?
     private var inputPipe: Pipe?
     private var outputBuffer = Data()
+    // A single JSON frame can contain a large tool result, but a broken engine
+    // must not retain an unlimited unterminated frame in the Desktop process.
+    private static let maximumOutputFrameBytes = 8_000_000
+    private var outputFailed = false
     private var stderrBuffer = Data()
     private var pendingDelta: PendingDelta?
     private var receivedReady = false
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
     private let generationID = Mutex(UUID())
+    private let retiringProcesses = Mutex<[Process]>([])
 
     var isRunning: Bool { process?.isRunning == true }
 
@@ -126,14 +131,11 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String, contextLength: Int = 0) async throws {
+    func start(model: String, contextLength: Int = 0, registry: URL? = nil) async throws {
         try Task.checkCancellation()
-        let previous = process
         stop()
         let ticket = generationID.withLock { $0 }
-        if let previous, previous.isRunning {
-            await Task.detached { previous.waitUntilExit() }.value
-        }
+        await waitForRetiringProcesses()
         try Task.checkCancellation()
         guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
         guard let executable = CLIResolver.executable() else {
@@ -146,6 +148,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         let error = Pipe()
         ioQueue.sync {
             outputBuffer.removeAll(keepingCapacity: true)
+            outputFailed = false
             stderrBuffer.removeAll(keepingCapacity: true)
             pendingDelta = nil
             receivedReady = false
@@ -153,7 +156,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             deltaFlushWorkItem = nil
         }
         process.executableURL = executable
-        process.arguments = ["bridge", model, "--context-length", String(contextLength)]
+        process.arguments = (registry.map { ["--registry", $0.path] } ?? []) + ["bridge", model, "--context-length", String(contextLength)]
         process.environment = ProcessInfo.processInfo.environment
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
@@ -185,6 +188,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                 guard let currentProcess = self.process,
                       currentProcess === terminatedProcess
                 else { return }
+                guard self.generationID.withLock({ $0 == ticket }) else { return }
                 output.fileHandleForReading.readabilityHandler = nil
                 error.fileHandleForReading.readabilityHandler = nil
                 self.flushPendingDelta()
@@ -214,7 +218,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             inputPipe = nil
             output.fileHandleForReading.readabilityHandler = nil
             error.fileHandleForReading.readabilityHandler = nil
-            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength) }
+            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength, registry: registry) }
             throw failure
         }
     }
@@ -252,9 +256,38 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func setDFlash(requestID: String, enabled: Bool, draftPath: String) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "set_dflash", "request_id": requestID,
+            "enabled": enabled, "dflash_draft_path": draftPath])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    func tuneDFlash(requestID: String, draftPath: String, memorySaver: Bool = false) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_dflash", "request_id": requestID,
+            "dflash_draft_path": draftPath, "memory_saver": memorySaver])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
+    }
+
+    func stopAndWait() async {
+        stop()
+        await waitForRetiringProcesses()
+    }
+
+    private func waitForRetiringProcesses() async {
+        let pending = retiringProcesses.withLock { $0 }
+        await Task.detached {
+            for process in pending where process.isRunning { process.waitUntilExit() }
+        }.value
+        retiringProcesses.withLock { $0.removeAll { !$0.isRunning } }
     }
 
     func stop() {
@@ -268,6 +301,10 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
         inputPipe?.fileHandleForWriting.closeFile()
         if let process, process.isRunning {
+            retiringProcesses.withLock {
+                $0.removeAll { !$0.isRunning }
+                $0.append(process)
+            }
             process.terminate()
             DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
                 if process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }
@@ -278,11 +315,18 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     private func consumeOutput(_ data: Data, ticket: UUID) {
-        outputBuffer.append(data)
-        let newline = Data([0x0A])
-        while let range = outputBuffer.range(of: newline) {
-            let line = outputBuffer.subdata(in: outputBuffer.startIndex..<range.lowerBound)
-            outputBuffer.removeSubrange(outputBuffer.startIndex...range.lowerBound)
+        guard !outputFailed, generationID.withLock({ $0 == ticket }) else { return }
+        var remaining = data[...]
+        while let end = remaining.firstIndex(of: 0x0A) {
+            let prefix = remaining[..<end]
+            guard prefix.count <= Self.maximumOutputFrameBytes - outputBuffer.count else {
+                rejectOutputFrame(ticket: ticket)
+                return
+            }
+            outputBuffer.append(prefix)
+            let line = outputBuffer
+            outputBuffer = Data()
+            remaining = remaining[remaining.index(after: end)...]
             guard !line.isEmpty else { continue }
             do {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
@@ -319,6 +363,24 @@ final class MLXL3Bridge: @unchecked Sendable {
                 )
                 queueForDisplay(event, ticket: ticket)
             }
+        }
+        guard remaining.count <= Self.maximumOutputFrameBytes - outputBuffer.count else {
+            rejectOutputFrame(ticket: ticket)
+            return
+        }
+        outputBuffer.append(remaining)
+    }
+
+    private func rejectOutputFrame(ticket: UUID) {
+        outputFailed = true
+        outputBuffer = Data()
+        // stop() synchronizes with ioQueue; call it from MainActor, and keep the
+        // original ticket so a delayed failure cannot stop a replacement engine.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.generationID.withLock({ $0 == ticket }) else { return }
+            self.stop()
+            self.onExit?(L("Réponse moteur trop longue. Le moteur a été arrêté.",
+                           "Engine response too long. The engine was stopped."))
         }
     }
 

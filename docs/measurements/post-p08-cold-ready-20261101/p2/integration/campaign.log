@@ -1,0 +1,57 @@
+BEGIN previous-default-plan
+{'name': 'cold-integrated-previous-default-rejected', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.0908492500020657, 'swapouts_bytes': 0}
+DONE previous-default-plan
+BEGIN cold-integrated-quality-refinements-plan
+{'name': 'cold-integrated-quality-refinements', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.9069734590011649, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-refinements-plan
+BEGIN cold-integrated-quality-component-plan
+{'name': 'cold-integrated-quality-component', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.9570127080005477, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-component-plan
+BEGIN cold-integrated-quality-failure-plan
+{'name': 'cold-integrated-quality-failure', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.1992838339938316, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-failure-plan
+BEGIN cold-integrated-quality-oracle-plan
+{'name': 'cold-integrated-quality-oracle', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 5.013363625002967, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-oracle-plan
+BEGIN cold-integrated-quality-pair-plan
+{'name': 'cold-integrated-quality-pair', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 8.92285954199906, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-pair-plan
+BEGIN cold-integrated-quality-mtp-plan
+{'name': 'cold-integrated-quality-mtp', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 9.144081208003627, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-mtp-plan
+BEGIN cold-integrated-quality-dflash-plan
+{'name': 'cold-integrated-quality-dflash', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 27.300375999999233, 'swapouts_bytes': 0}
+DONE cold-integrated-quality-dflash-plan
+BEGIN cold-integrated-AR-1-S
+{'name': 'cold-integrated-AR-1-S', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 90.45856433299923, 'swapouts_bytes': 0}
+{"name": "cold-integrated-AR-1-S", "status": "passed_external_oracle_mode_and_memory_not_gain", "measured": [{"prompt": "MAIN", "decode_tps": 11.362161448128056, "prefill_tps": 11.075749693785756, "ttft_seconds": 7.855332458, "counters": {"mtp": {"proposed": null, "accepted": null, "blocks": null}, "dflash": {"proposed": null, "accepted": null, "blocks": null}}}, {"prompt": "HOLD", "decode_tps": 6.210267835058574, "prefill_tps": 11.023283325267517, "ttft_seconds": 7.439240125, "counters": {"mtp": {"proposed": null, "accepted": null, "blocks": null}, "dflash": {"proposed": null, "accepted": null, "blocks": null}}}]}
+MEASURED cold-integrated-AR-1-S [('MAIN', 11.362161448128056, 11.075749693785756), ('HOLD', 6.210267835058574, 11.023283325267517)]
+BEGIN cold-integrated-AR-2-U
+{'name': 'cold-integrated-AR-2-U', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 106.30571916600456, 'swapouts_bytes': 0}
+{"name": "cold-integrated-AR-2-U", "status": "passed_external_oracle_mode_and_memory_not_gain", "measured": [{"prompt": "MAIN", "decode_tps": 10.708901637513428, "prefill_tps": 9.739894076589747, "ttft_seconds": 8.932998833000001, "counters": {"mtp": {"proposed": null, "accepted": null, "blocks": null}, "dflash": {"proposed": null, "accepted": null, "blocks": null}}}, {"prompt": "HOLD", "decode_tps": 10.368051367037417, "prefill_tps": 9.916394764483528, "ttft_seconds": 8.2697475, "counters": {"mtp": {"proposed": null, "accepted": null, "blocks": null}, "dflash": {"proposed": null, "accepted": null, "blocks": null}}}]}
+MEASURED cold-integrated-AR-2-U [('MAIN', 10.708901637513428, 9.739894076589747), ('HOLD', 10.368051367037417, 9.916394764483528)]
+BEGIN cold-integrated-AR-3-U
+{'name': 'cold-integrated-AR-3-U', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 67.3553643339983, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/gpu-runner.py", line 62, in run
+    UPSTREAM["run"](plan, anchor_path, identity_path)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/gpu-runner.py", line 77, in run
+    F02["run"](plan, anchor_path, identity_path)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py", line 149, in run
+    supervisor["main"](plan)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 181, in main
+    record["exit_code"] = previous["monitor"](child, record, monitored_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py", line 105, in monitor
+    result = original["monitor"](child, record, checked)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 47, in monitor
+    return child.wait(timeout=min(2, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2047, in _wait
+    time.sleep(delay)
+KeyboardInterrupt

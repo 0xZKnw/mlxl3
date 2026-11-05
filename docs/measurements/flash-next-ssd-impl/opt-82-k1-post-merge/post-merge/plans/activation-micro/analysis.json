@@ -1,0 +1,570 @@
+{
+  "status": "complete_micro_diagnostic_not_tokens_per_second",
+  "observed_utc": "2026-10-25T22:26:43.300646+00:00",
+  "component_sha256": "b96ef6e9d0e4a8f0a0920c001ba52670b4fe15e5f33462e9c9492dcbebe1b1d8",
+  "sample_count": 192,
+  "cell_count": 8,
+  "method": "Each cell:4 native AA samples, then5ABBA blocks native/candidate/candidate/native. Medians use10native and10candidate ABBA samples only; sample time/32 is amortized component wall/call, includes31common recurrences. Block range is observed, not a confidence interval. No trace-weighted aggregate or cross-cell sum.",
+  "input_source": "Synthetic GU plus real masks, no captured decoder activations; common recurrence/graph construction/dispatch included; not exclusive GPU time or release tok/s",
+  "parity_contract": "Every32-call full-chain output is byte-exact to native and finite, nonempty[20,640]Float16; Cold positivezero. SyntheticGU plus frozen real slot masks, not captured intermediate activations.",
+  "warmup_contract": "8warmup iterations perarm perfixture, one activation periteration; not8fullchains. Setup/host reads outsideclock.",
+  "cells": [
+    {
+      "fixture": "MAIN-p05",
+      "hot": 7,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 31.757171874999997,
+      "candidate_ABBA_median_wall_us_per_call": 32.20896875,
+      "speed_ratio_percent": -1.4027051859584971,
+      "latency_change_percent": 1.4226609245254096,
+      "AA_native_wall_us_per_call": [
+        40.83853125,
+        30.970062499999997,
+        33.5,
+        31.760406249999996
+      ],
+      "AA_max_min_ratio": 1.3186454257236324,
+      "AA_last_vs_first_percent": -22.22931315630996,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 31.475906250000005,
+          "candidate_wall_us_per_call": 37.483078125,
+          "speed_ratio_percent": -16.0263568935482,
+          "latency_change_percent": 19.084984645994084
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 31.84896875,
+          "candidate_wall_us_per_call": 31.81965625,
+          "speed_ratio_percent": 0.0921207311911143,
+          "latency_change_percent": -0.09203594700377682
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 31.600921874999997,
+          "candidate_wall_us_per_call": 31.542328125,
+          "speed_ratio_percent": 0.18576228668916173,
+          "latency_change_percent": -0.1854178502506021
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 31.888015624999994,
+          "candidate_wall_us_per_call": 31.46678125,
+          "speed_ratio_percent": 1.3386636899825666,
+          "latency_change_percent": -1.320980207591682
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 46.49934375,
+          "candidate_wall_us_per_call": 32.20896875,
+          "speed_ratio_percent": 44.367688735765554,
+          "latency_change_percent": -30.73242297102311
+        }
+      ],
+      "positive_blocks": 4,
+      "observed_block_speed_range_percent": [
+        -16.0263568935482,
+        44.367688735765554
+      ],
+      "native_last_vs_first_block_percent": 47.729960118304746,
+      "candidate_last_vs_first_block_percent": -14.070641043437526
+    },
+    {
+      "fixture": "MAIN-p50",
+      "hot": 14,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 32.31770312500001,
+      "candidate_ABBA_median_wall_us_per_call": 31.456374999999998,
+      "speed_ratio_percent": 2.7381671441798705,
+      "latency_change_percent": -2.6651897929395596,
+      "AA_native_wall_us_per_call": [
+        31.613281249999996,
+        31.82290625,
+        31.8515625,
+        32.609375
+      ],
+      "AA_max_min_ratio": 1.031508711231929,
+      "AA_last_vs_first_percent": 3.1508711231929,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 31.4361875,
+          "candidate_wall_us_per_call": 30.410796875000003,
+          "speed_ratio_percent": 3.371797947994404,
+          "latency_change_percent": -3.2618160996781054
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 32.225890625000005,
+          "candidate_wall_us_per_call": 31.161453125,
+          "speed_ratio_percent": 3.415878892842872,
+          "latency_change_percent": -3.3030506817839145
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 32.599625,
+          "candidate_wall_us_per_call": 31.456374999999998,
+          "speed_ratio_percent": 3.63439843275013,
+          "latency_change_percent": -3.5069421810833834
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 32.622390625,
+          "candidate_wall_us_per_call": 32.221359375000006,
+          "speed_ratio_percent": 1.244613069649536,
+          "latency_change_percent": -1.2293128808673726
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 32.074875000000006,
+          "candidate_wall_us_per_call": 32.477859375,
+          "speed_ratio_percent": -1.2407972161804337,
+          "latency_change_percent": 1.2563864239533151
+        }
+      ],
+      "positive_blocks": 4,
+      "observed_block_speed_range_percent": [
+        -1.2407972161804337,
+        3.63439843275013
+      ],
+      "native_last_vs_first_block_percent": 2.031695160235336,
+      "candidate_last_vs_first_block_percent": 6.797133624930707
+    },
+    {
+      "fixture": "MAIN-p95",
+      "hot": 19,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 20.748046875,
+      "candidate_ABBA_median_wall_us_per_call": 20.427093749999997,
+      "speed_ratio_percent": 1.5712128652662694,
+      "latency_change_percent": -1.5469076532053205,
+      "AA_native_wall_us_per_call": [
+        30.87109375,
+        32.74090625,
+        28.81509375,
+        24.431
+      ],
+      "AA_max_min_ratio": 1.340137786009578,
+      "AA_last_vs_first_percent": -20.861242566114136,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 23.098296875000003,
+          "candidate_wall_us_per_call": 23.893890625,
+          "speed_ratio_percent": -3.329695286909773,
+          "latency_change_percent": 3.4443827365518764
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 23.66990625,
+          "candidate_wall_us_per_call": 20.039703125,
+          "speed_ratio_percent": 18.115054411515906,
+          "latency_change_percent": -15.336787085922666
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 24.616546875,
+          "candidate_wall_us_per_call": 20.077484375,
+          "speed_ratio_percent": 22.607725227030585,
+          "latency_change_percent": -18.439070772390775
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 20.291015625,
+          "candidate_wall_us_per_call": 20.350921875,
+          "speed_ratio_percent": -0.2943662717981854,
+          "latency_change_percent": 0.2952353450765166
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 20.2018125,
+          "candidate_wall_us_per_call": 20.644546874999996,
+          "speed_ratio_percent": -2.1445584525574657,
+          "latency_change_percent": 2.1915576882024723
+        }
+      ],
+      "positive_blocks": 2,
+      "observed_block_speed_range_percent": [
+        -3.329695286909773,
+        22.607725227030585
+      ],
+      "native_last_vs_first_block_percent": -12.539817938416743,
+      "candidate_last_vs_first_block_percent": -13.599056767256812
+    },
+    {
+      "fixture": "HOLD-p05",
+      "hot": 7,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 17.400390625,
+      "candidate_ABBA_median_wall_us_per_call": 17.540359374999998,
+      "speed_ratio_percent": -0.7979810846948432,
+      "latency_change_percent": 0.8044000448984123,
+      "AA_native_wall_us_per_call": [
+        17.951843750000002,
+        16.75,
+        17.772156250000002,
+        17.828125
+      ],
+      "AA_max_min_ratio": 1.0717518656716418,
+      "AA_last_vs_first_percent": -0.6891701583576992,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 18.325515625,
+          "candidate_wall_us_per_call": 17.625,
+          "speed_ratio_percent": 3.9745567375886415,
+          "latency_change_percent": -3.8226243634004176
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 17.46809375,
+          "candidate_wall_us_per_call": 17.494125,
+          "speed_ratio_percent": -0.1487999542703622,
+          "latency_change_percent": 0.14902169848955982
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 17.251296875,
+          "candidate_wall_us_per_call": 17.624984375,
+          "speed_ratio_percent": -2.120214645580354,
+          "latency_change_percent": 2.166141494797036
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 17.467453125,
+          "candidate_wall_us_per_call": 30.998703125,
+          "speed_ratio_percent": -43.65101967471422,
+          "latency_change_percent": 77.46550056936248
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 16.670578125000002,
+          "candidate_wall_us_per_call": 17.263031249999997,
+          "speed_ratio_percent": -3.431918279126067,
+          "latency_change_percent": 3.5538846976849836
+        }
+      ],
+      "positive_blocks": 1,
+      "observed_block_speed_range_percent": [
+        -43.65101967471422,
+        3.9745567375886415
+      ],
+      "native_last_vs_first_block_percent": -9.030782728657872,
+      "candidate_last_vs_first_block_percent": -2.0537234042553365
+    },
+    {
+      "fixture": "HOLD-p50",
+      "hot": 14,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 15.587906250000003,
+      "candidate_ABBA_median_wall_us_per_call": 15.021484375,
+      "speed_ratio_percent": 3.770745026654554,
+      "latency_change_percent": -3.6337264666318037,
+      "AA_native_wall_us_per_call": [
+        16.05078125,
+        16.334625,
+        15.8828125,
+        15.4921875
+      ],
+      "AA_max_min_ratio": 1.054378214826021,
+      "AA_last_vs_first_percent": -3.480165490386955,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 16.09765625,
+          "candidate_wall_us_per_call": 15.958984375000002,
+          "speed_ratio_percent": 0.8689266919593486,
+          "latency_change_percent": -0.8614413977189761
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 15.964187500000001,
+          "candidate_wall_us_per_call": 15.625,
+          "speed_ratio_percent": 2.170800000000006,
+          "latency_change_percent": -2.1246775008123664
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 15.316421875000001,
+          "candidate_wall_us_per_call": 15.00390625,
+          "speed_ratio_percent": 2.0828950794064216,
+          "latency_change_percent": -2.0403957761838676
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 15.129562499999999,
+          "candidate_wall_us_per_call": 14.887359374999999,
+          "speed_ratio_percent": 1.6269045362519163,
+          "latency_change_percent": -1.600860071135568
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 15.0358125,
+          "candidate_wall_us_per_call": 14.5331875,
+          "speed_ratio_percent": 3.458463602702433,
+          "latency_change_percent": -3.3428522735302724
+        }
+      ],
+      "positive_blocks": 5,
+      "observed_block_speed_range_percent": [
+        0.8689266919593486,
+        3.458463602702433
+      ],
+      "native_last_vs_first_block_percent": -6.596263042950734,
+      "candidate_last_vs_first_block_percent": -8.934132909068671
+    },
+    {
+      "fixture": "HOLD-p95",
+      "hot": 19,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 14.37565625,
+      "candidate_ABBA_median_wall_us_per_call": 13.417328125000001,
+      "speed_ratio_percent": 7.142466190525543,
+      "latency_change_percent": -6.666326102504017,
+      "AA_native_wall_us_per_call": [
+        41.22915625,
+        14.63671875,
+        14.247406250000001,
+        14.201812499999999
+      ],
+      "AA_max_min_ratio": 2.903091154738172,
+      "AA_last_vs_first_percent": -65.55395794693229,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 14.501312500000001,
+          "candidate_wall_us_per_call": 13.7890625,
+          "speed_ratio_percent": 5.165325779036833,
+          "latency_change_percent": -4.9116243788277725
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 14.291656249999999,
+          "candidate_wall_us_per_call": 13.48696875,
+          "speed_ratio_percent": 5.966407388613537,
+          "latency_change_percent": -5.630470576144719
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 14.47265625,
+          "candidate_wall_us_per_call": 13.338546875,
+          "speed_ratio_percent": 8.502495703828306,
+          "latency_change_percent": -7.8362213225371065
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 14.170578124999999,
+          "candidate_wall_us_per_call": 13.7298125,
+          "speed_ratio_percent": 3.21028145868707,
+          "latency_change_percent": -3.1104279663960344
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 14.317046875,
+          "candidate_wall_us_per_call": 13.354812500000001,
+          "speed_ratio_percent": 7.205150764939616,
+          "latency_change_percent": -6.7208998014822825
+        }
+      ],
+      "positive_blocks": 5,
+      "observed_block_speed_range_percent": [
+        3.21028145868707,
+        8.502495703828306
+      ],
+      "native_last_vs_first_block_percent": -1.270682395128031,
+      "candidate_last_vs_first_block_percent": -3.1492351274787445
+    },
+    {
+      "fixture": "synthetic-all-hot",
+      "hot": 20,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 14.087234375000001,
+      "candidate_ABBA_median_wall_us_per_call": 13.53059375,
+      "speed_ratio_percent": 4.113940860873178,
+      "latency_change_percent": -3.951383289170274,
+      "AA_native_wall_us_per_call": [
+        14.2265625,
+        14.4166875,
+        14.1263125,
+        14.393218749999999
+      ],
+      "AA_max_min_ratio": 1.0205556120891421,
+      "AA_last_vs_first_percent": 1.1714442613948384,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 13.8483125,
+          "candidate_wall_us_per_call": 13.346359374999999,
+          "speed_ratio_percent": 3.7609741420588705,
+          "latency_change_percent": -3.6246519205859973
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 14.301437499999999,
+          "candidate_wall_us_per_call": 13.940765625000001,
+          "speed_ratio_percent": 2.5871740814091604,
+          "latency_change_percent": -2.52192742862386
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 13.998687499999999,
+          "candidate_wall_us_per_call": 13.537125000000001,
+          "speed_ratio_percent": 3.409605067545707,
+          "latency_change_percent": -3.2971841110103983
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 14.899734375000001,
+          "candidate_wall_us_per_call": 13.335296875,
+          "speed_ratio_percent": 11.731553595427545,
+          "latency_change_percent": -10.499767718174514
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 13.954437500000001,
+          "candidate_wall_us_per_call": 13.547515625,
+          "speed_ratio_percent": 3.003664186584021,
+          "latency_change_percent": -2.916075083642744
+        }
+      ],
+      "positive_blocks": 5,
+      "observed_block_speed_range_percent": [
+        2.5871740814091604,
+        11.731553595427545
+      ],
+      "native_last_vs_first_block_percent": 0.7663388589765008,
+      "candidate_last_vs_first_block_percent": 1.5071994118246446
+    },
+    {
+      "fixture": "synthetic-all-cold-nonempty-map",
+      "hot": 0,
+      "routes": 20,
+      "capacity": 53,
+      "stage": "SwiGLU",
+      "samples": 24,
+      "native_ABBA_median_wall_us_per_call": 14.171234375,
+      "candidate_ABBA_median_wall_us_per_call": 13.549484375,
+      "speed_ratio_percent": 4.588735503080699,
+      "latency_change_percent": -4.387408912641022,
+      "AA_native_wall_us_per_call": [
+        13.88671875,
+        14.70440625,
+        13.7669375,
+        13.658875
+      ],
+      "AA_max_min_ratio": 1.0765459270986812,
+      "AA_last_vs_first_percent": -1.6407313642756716,
+      "blocks": [
+        {
+          "block": 1,
+          "native_wall_us_per_call": 14.033859374999999,
+          "candidate_wall_us_per_call": 13.824874999999999,
+          "speed_ratio_percent": 1.5116547165887617,
+          "latency_change_percent": -1.4891440010599388
+        },
+        {
+          "block": 2,
+          "native_wall_us_per_call": 14.04884375,
+          "candidate_wall_us_per_call": 13.44140625,
+          "speed_ratio_percent": 4.519151409473987,
+          "latency_change_percent": -4.32375440149656
+        },
+        {
+          "block": 3,
+          "native_wall_us_per_call": 14.386078125000001,
+          "candidate_wall_us_per_call": 13.587890625,
+          "speed_ratio_percent": 5.874256144890055,
+          "latency_change_percent": -5.548332860871352
+        },
+        {
+          "block": 4,
+          "native_wall_us_per_call": 14.149734375,
+          "candidate_wall_us_per_call": 13.675125,
+          "speed_ratio_percent": 3.470603559382468,
+          "latency_change_percent": -3.354192823849389
+        },
+        {
+          "block": 5,
+          "native_wall_us_per_call": 14.1666875,
+          "candidate_wall_us_per_call": 13.223968750000001,
+          "speed_ratio_percent": 7.128864018224479,
+          "latency_change_percent": -6.654475508124246
+        }
+      ],
+      "positive_blocks": 5,
+      "observed_block_speed_range_percent": [
+        1.5116547165887617,
+        7.128864018224479
+      ],
+      "native_last_vs_first_block_percent": 0.9464832263933243,
+      "candidate_last_vs_first_block_percent": -4.346558287145442
+    }
+  ],
+  "counts_not_aggregate_gain": {
+    "median_candidate_faster_cells": 6,
+    "median_candidate_slower_cells": 2,
+    "cell_speedup_percent_range": [
+      -1.4027051859584971,
+      7.142466190525543
+    ],
+    "maximum_AA_max_min_ratio": 2.903091154738172
+  },
+  "VM": {
+    "all_three_phases_joined": true,
+    "sampler_joined": true,
+    "samples": 34,
+    "curve_samples": 23,
+    "endpoint_swapins_bytes": 0,
+    "endpoint_swapouts_bytes": 0,
+    "system_compressor_physical_min_bytes": 4157390848,
+    "system_compressor_physical_peak_bytes": 4164976640,
+    "power": "AC at all phase endpoints",
+    "model_footprint_peak_bytes": null,
+    "private_swapout_bytes": null,
+    "scope": "VM system observations; micro is not a full model run. No private swap-out or process physical-peak measurement inferred from zero global delta. Subsecond timed phase has no live VM sample, null is not zero."
+  },
+  "checks": {
+    "expected_192_samples_validated": true,
+    "all_ABBA_positions_and_candidates_validated": true,
+    "fixtures_SHA256_and_FNV_match": true,
+    "fixtures_exact": true,
+    "source100_SHA256_matches": true,
+    "source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+    "native_test_sha256_declared_and_prior_independent_quality_rehash": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+    "binary_not_rehashed_during_real_HC": true,
+    "matrix_sha256_match": true,
+    "required_log_marker_present": true
+  },
+  "findings": [
+    "Six ofeight cell medians faster,two slower; counts/ranges do not establish an aggregate model gain.",
+    "HOLDp50 andp95 positive5/5blocks; MAINp05 andHOLDp05 medians slower.",
+    "AA HOLDp95 max/min2.903: first native41.229us/call vslast14.202; substantial temporal heterogeneity preserved.",
+    "Observed perblock MAINp05 spans-16.03..+44.37%,HOLDp05-43.65..+3.97%. No sample discarded.",
+    "NativeMAINp05 andHOLDp05 samegeometry medians31.757vs17.400us/call; data/mask and time differ, cause not isolated.",
+    "SyntheticallHot+4.11% despite no skippedCold operations shows fusion/dispatch/graph differences are part of this experiment; no exclusive causal allocation.",
+    "31common recurrences andgraphconstruction/dispatch/eval included; no exclusiveGPUlatency orrealdecoder speed inferred."
+  ],
+  "throughput_gain_promoted": false
+}

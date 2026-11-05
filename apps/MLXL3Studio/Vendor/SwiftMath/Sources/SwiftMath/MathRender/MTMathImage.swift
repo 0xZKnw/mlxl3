@@ -53,7 +53,7 @@ extension MTMathImage {
     }
     private func intrinsicContentSize(_ displayList: MTMathListDisplay) -> CGSize {
         CGSize(width: displayList.width + contentInsets.left + contentInsets.right,
-               height: displayList.ascent + displayList.descent + contentInsets.top + contentInsets.bottom)
+               height: max(displayList.ascent + displayList.descent, fontSize / 2) + contentInsets.top + contentInsets.bottom)
     }
     public func asImage() -> (NSError?, MTImage?) {
         func layoutImage(size: CGSize, displayList: MTMathListDisplay) {
@@ -66,10 +66,7 @@ extension MTMathImage {
             let availableHeight = size.height - contentInsets.bottom - contentInsets.top
             
             // center things vertically
-            var height = displayList.ascent + displayList.descent
-            if height < fontSize/2 {
-                height = fontSize/2  // set height to half the font size
-            }
+            let height = displayList.ascent + displayList.descent
             let textY = (availableHeight - height) / 2 + displayList.descent + contentInsets.bottom
             displayList.position = CGPoint(x: textX, y: textY)
         }

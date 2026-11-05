@@ -1,0 +1,184 @@
+Building for debugging...
+[0/7] Write sources
+[1/7] Write MLXL3Studio-entitlement.plist
+[2/7] Write sources
+[3/7] Write swift-version--58304C5D6DBC2206.txt
+[5/28] Compiling SwiftMath MTTypesetter.swift
+[6/28] Compiling SwiftMath MTUnicode.swift
+[7/30] Compiling SwiftMath RWLock.swift
+[8/30] Compiling SwiftMath SwiftMathResources.swift
+[9/30] Compiling SwiftMath MTConfig.swift
+[10/30] Compiling SwiftMath MTFont.swift
+[11/30] Emitting module SwiftMath
+[12/30] Compiling SwiftMath MTFontMathTableV2.swift
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[13/30] Compiling SwiftMath MTFontV2.swift
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[14/30] Compiling SwiftMath MathFont.swift
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[15/30] Compiling SwiftMath MTFontManager.swift
+[16/30] Compiling SwiftMath MTFontMathTable.swift
+[17/30] Compiling SwiftMath MathImage.swift
+[18/30] Compiling SwiftMath MTBezierPath.swift
+[19/30] Compiling SwiftMath MTColor.swift
+[20/30] Compiling SwiftMath MTMathListIndex.swift
+[21/30] Compiling SwiftMath MTMathUILabel.swift
+[22/30] Compiling SwiftMath MTLabel.swift
+[23/30] Compiling SwiftMath MTMathAtomFactory.swift
+[24/30] Compiling SwiftMath MTMathImage.swift
+[25/30] Compiling SwiftMath MTMathList.swift
+[26/30] Compiling SwiftMath MTMathListBuilder.swift
+[27/30] Compiling SwiftMath MTMathListDisplay.swift
+[28/71] Emitting module MLXL3Studio
+[29/75] Compiling MLXL3Studio HTMLPreview.swift
+[30/75] Compiling MLXL3Studio Localization.swift
+[31/75] Compiling MLXL3Studio MCPConfiguration.swift
+[32/75] Compiling MLXL3Studio MCPManager.swift
+[33/75] Compiling MLXL3Studio MCPManagerView.swift
+[34/75] Compiling MLXL3Studio MTPTuningControls.swift
+[35/75] Compiling MLXL3Studio MarkdownResponseView.swift
+[36/75] Compiling MLXL3Studio MenuBarPanel.swift
+[37/75] Compiling MLXL3Studio MessageActionsView.swift
+[38/75] Compiling MLXL3Studio MessageCopyButton.swift
+[39/75] Compiling MLXL3Studio ModelDownloadProgress.swift
+[40/75] Compiling MLXL3Studio ModelIdleUnload.swift
+[41/75] Compiling MLXL3Studio ModelLibrary.swift
+[42/75] Compiling MLXL3Studio MCPPreferenceCheck.swift
+[43/75] Compiling MLXL3Studio MLXL3Bridge.swift
+[44/75] Compiling MLXL3Studio MLXL3StudioApp.swift
+[45/75] Compiling MLXL3Studio MTPTuning.swift
+[46/75] Compiling MLXL3Studio CLICommand.swift
+[47/75] Compiling MLXL3Studio ChatAttachment.swift
+[48/75] Compiling MLXL3Studio ChatComponents.swift
+[49/75] Compiling MLXL3Studio ChatTimelineCheck.swift
+[50/75] Compiling MLXL3Studio ContextMemoryProfile.swift
+[51/75] Compiling MLXL3Studio ConversationStore.swift
+[52/75] Compiling MLXL3Studio Domain.swift
+[53/75] Compiling MLXL3Studio DownloadProgressCard.swift
+[54/75] Compiling MLXL3Studio EngineRuntimeStore.swift
+[55/75] Compiling MLXL3Studio GenerationInspector.swift
+[56/75] Compiling MLXL3Studio UpdateManager.swift
+[57/75] Compiling MLXL3Studio VoiceController.swift
+[58/75] Compiling MLXL3Studio WorkspaceFeatures.swift
+[59/75] Compiling MLXL3Studio WorkspaceManagerView.swift
+[60/75] Compiling MLXL3Studio StudioModes.swift
+[61/75] Compiling MLXL3Studio StudioView.swift
+[62/75] Compiling MLXL3Studio Theme.swift
+[63/75] Compiling MLXL3Studio UIPreview.swift
+[64/75] Compiling MLXL3Studio AgentProjectStore.swift
+[65/75] Compiling MLXL3Studio AgentSandbox.swift
+[66/75] Compiling MLXL3Studio AppDelegate.swift
+[67/75] Compiling MLXL3Studio AppSettingsView.swift
+[68/75] Compiling MLXL3Studio ArtifactStudio.swift
+[69/75] Compiling MLXL3Studio ModelManager.swift
+[70/75] Compiling MLXL3Studio QuantizationStudio.swift
+[71/75] Compiling MLXL3Studio SidebarUpdateBadge.swift
+[72/75] Compiling MLXL3Studio StudioModel.swift
+[72/75] Write Objects.LinkFileList
+[73/75] Linking MLXL3Studio
+[74/75] Applying MLXL3Studio
+Build complete! (35.12s)
+warning: '--build-system native' has been deprecated and will be removed in a future release; please report an issue at https://github.com/swiftlang/swift-package-manager/issues if you are unable to adopt the default build system.
+warning: '--build-system native' has been deprecated and will be removed in a future release; please report an issue at https://github.com/swiftlang/swift-package-manager/issues if you are unable to adopt the default build system.
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping
+Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Agent sandbox checks passed: 25, real commands, file/network/child isolation, environment, limits, process cleanup and invalid input
+Agent protocol checks passed: 29, real MCP commands, errors, bounded input and parent-death cleanup
+Studio modes checks passed: 1179, navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Speculative sampling checks passed: 965 assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests
+Update channel checks passed: stable/beta selection, official suffixes/assets, persistence, no downgrade, beta1→beta2 build, lookup/download/ready cancellation
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+Installer boundaries passed: signed Mach-O engine activation and disposable app replacement/backup
+App updater preflight passed: 15 signed independent-version, compatibility and integrity cases
+Transfer snapshots /asset: ["0.0:false", "65536.0:false", "262144.0:false", "458752.0:false", "655360.0:false", "851968.0:false", "1028096.0:false", "1028096.0:true"]
+Transfer snapshots /unknown: ["0.0:false", "32768.0:false", "196608.0:false", "360448.0:false", "524288.0:false", "688128.0:false", "851968.0:false", "1015808.0:false", "1028096.0:false", "1028096.0:true"]
+Updater transfer checks passed: 22
+HTML preview checks passed: 34; CDN not requested
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Workspace checks passed: 229, including deterministic retrieval, persistence, branching, profiles, MCP validation and bridge journeys
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 51.838 ms; independent UUID 0.123 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, per-frame boundaries, oversized-process cleanup/recovery, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Token fade checks passed: continuous ages, replacement/motion, 786 bounded append cases, Unicode and 63 native drawing comparisons
+Streaming visibility passed: 81 native viewport frames across long prose, growing code and completion
+Scroll checks passed: native initial/final anchor and interpolation; production state transitions for tracking/drag/deceleration/reading/resume
+HTML controls passed: Chat/Agent completion, global streaming gate, tool round and interruption pixels
+LaTeX rendering checks passed: 9 formulas, 2 styles, parse/copy/roundtrip, actual pixels/frame, invalid input
+Response UI checks passed: complete copy, native control/clipboard action, 63 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+.......................................                                  [100%]
+39 passed in 0.98s
+Building for debugging...
+Build complete! (0,19 secs)
+apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift:2:8: error: cannot load module 'SwiftMath' built with SDK 'macosx27.2' when using SDK 'macosx26.5': /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/arm64-apple-macos.swiftmodule
+   1 | import AppKit
+   2 | import SwiftMath
+     |        `- error: cannot load module 'SwiftMath' built with SDK 'macosx27.2' when using SDK 'macosx26.5': /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.swiftmodule/arm64-apple-macos.swiftmodule
+   3 | import SwiftUI
+   4 | 

@@ -1,0 +1,61 @@
+{
+  "status": "prerequisites_satisfied_quality_pending",
+  "allow_gpu_launch": true,
+  "freeze": {
+    "source_manifest_sha256": "1daba39d31acf7454ba4453acfd0c1199a8a7fdbcfb9dbc4c0b86382acda07cf",
+    "engine_sha256": "cbc03630aa08fd8dcdb949b905896ec1dc7f37888a7e984059c12624ec6743e7",
+    "native_tests_sha256": "f83049e4e77202ef01f7d96b5ed24bc14b8897ab992db501eaca06eb2d927431",
+    "F01_parent_decision": "removed from compiled source",
+    "source_all_flags_recorded": true
+  },
+  "required_before_any_gpu": [
+    "Parent decides absent/disabled F01, or an explicitly retained common F01 base; no silent combination.",
+    "Verify exact source/CLI/native SHA, strict F06 parser, --list exact native selectors, formatting/Clippy/build and affected CPU checks.",
+    "Run CPU geometry Kani and inspect every obligation/cover; CPU failure blocks GPU.",
+    "Attempt actual MLX Kani before GPU, with timeout/memory group bounds and reaping; unsupported FFI/ICE is recorded unverified, never relabeled a proof.",
+    "Apply relevant CPU mutation in a disposable copy, detect, restore, rerun affected CPU check/proof.",
+    "Join all compilers/provers and use unchanged 45/49 guards, one model only.",
+    "Do not dynamically mutate process environment after MLX initialization; loader default/0/1 and invalids use separate child-process environments."
+  ],
+  "kani_cpu": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_top10_early_exit_is_confined_to_requested_flash_geometry"
+    ],
+    "scope": "Actual production eligibility gate only, full i32/usize/bool symbolic, no assume; four covers. Not a top-K/MSL proof.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "kani_actual_mlx": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_top10_early_exit_preserves_a_symbolic_input"
+    ],
+    "scope": "Actual MLX path with one arbitrary f32 bit pattern among511 ones; IDs and scores. Unwind513, three covers; unsupported intrinsics/FFI/timeout remain unverified. No Metal abstraction/stub.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "bounded_runner": "Python subprocess process-group monitor, 180s/4GiB, exact commands and outcomes in evidence/*.json",
+  "after_first_component_before_full_model": [
+    "GPU mutation in a separate disposable source/binary: independent rank oracle must detect rotated IDs; restore/rebuild/re-freeze and rerun affected component.",
+    "Inspect all component/metadata/routes/loader outputs before prefixes/MTP/bridge; preserve failures."
+  ],
+  "not_repeated": [
+    "F01 cast boundaries253962",
+    "F01 QMV240 and its half-output64 matrix",
+    "EXL3 slot arithmetic176, shaders/weights/reductions unchanged",
+    "Old generic native suite solely to repeat historical results; parent runs relevant suite for the actual integration only"
+  ],
+  "actual_mlx_proof": "NON_VERIFIED: Kani compiler ICE intrinsics.rs:243; evidence/kani-mlx.log",
+  "mutation_cpu": "detected, source restored, CPU and Kani rerun pass",
+  "mutation_gpu": "normal256 pass; rotated-ID mutant failed independent rank oracle; source restored before both processes"
+}

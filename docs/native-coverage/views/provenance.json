@@ -1,0 +1,29 @@
+{
+  "base": "2ed32de49ed0ee39566c2af88e14edb7ac993d2f",
+  "chip": "Apple M5, 24 GiB",
+  "os": "26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "source_sha256": {
+    "native/src/tensor_layout.rs": "467b764f94415f44405def93711279c5908918a8bfae01c26c5fc4f231181223",
+    "native/src/gpu/view.rs": "5d773fb5a524a2c07472dd6447bd9674c6f7ff0a1aeaf2376a5d40de37e44f9b",
+    "native/src/gpu.rs": "38ae338ebe05867ded9570355532073a7aa2be05fc60b7ec056310819ba8f5eb",
+    "native/src/gpu/projection.rs": "efa5cbf4d27dc67a4b02be4fd01e9b68e6e25901ce24227593054e683a8bfad6",
+    "native/src/main.rs": "b1ae9676469a6425b1abb055c5907f13f24ea053191786bc2d4a07f69a7fd697",
+    "native/shaders/exl3.metal": "4ba4d074f8126a75c133b404c22eb8d584ae4c10c7f247f4e2709451c86844d3",
+    "tests/physical_flash_projection.py": "ffb7bbed7ab2e44997c647da005f2cabdef8fcd49a981e3a52c3c65e175bf3e5",
+    "tests/physical_prepare128.py": "3b6d70e17f6707c6c42608c31444bcb156908e698982530cb92752a2c56cbafd"
+  },
+  "release": "cargo build --locked --release --features chat",
+  "oracle": "MLX 0.32.2 in separate process, existing frozen Rust projection oracle",
+  "kani": {
+    "version": "0.68.0",
+    "command": "cargo kani --lib --no-default-features --harness accepted_matrix_views_bound_every_sampled_coordinate",
+    "checks": 354,
+    "unreachable": 8,
+    "cover_reached": 4,
+    "unwind": 4,
+    "domain": "rows and columns 0..4, i8 signed offsets and strides, u8 storage capacity and indices"
+  },
+  "negative_control": "remove row*p[2] from input index; 256/384 differ on first strided case",
+  "fixture_repair": "first comparison could not import negative strides into MLX via DLPack; NumPy now materializes reference slices before the transfer"
+}

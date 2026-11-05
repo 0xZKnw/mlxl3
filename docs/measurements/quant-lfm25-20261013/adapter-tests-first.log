@@ -1,0 +1,129 @@
+................F                                                        [100%]
+=================================== FAILURES ===================================
+__ test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights __
+
+source = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-130/test_cli_converts_com...fm2_moe', 'tie_word_embeddings': True, 'layer_types': ['conv', 'full_attention', 'conv'], 'num_hidden_layers': 3, ...})
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-130/test_cli_converts_complete_che0')
+
+    @PHYSICAL
+    def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(source, tmp_path):
+        from safetensors import safe_open
+    
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
+    
+        root, corpus, _, cfg = source
+        output, work = tmp_path / "output", tmp_path / "work"
+        command = [
+            sys.executable,
+            str(ROOT / "scripts/quantize_lfm25_moe.py"),
+            "--in-dir",
+            str(root),
+            "--out-dir",
+            str(output),
+            "--work-dir",
+            str(work),
+            "--bits",
+            "4",
+            "--calibration-text",
+            str(corpus),
+            "--calibration-rows",
+            "16",
+            "--calibration-seq-len",
+            "16",
+            "--max-workers",
+            "1",
+            "--search-backend",
+            "metal",
+        ]
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+            "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: [lfm:calib] layer 1/3 complete
+E         [lfm:calib] layer 2/3 complete
+E         [lfm:calib] layer 3/3 complete
+E         e2e conversion complete: out=/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-130/test_cli_converts_complete_che0/output modules=23 plan_avg_bits=4.000000 layer_reuse=23/46
+E         [e2e] work_dir=/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-130/test_cli_converts_complete_che0/work bits=4.000 candidate_bits=[4] shrinkages=[0.0] backend=metal
+E         [e2e:measure] 001/023 done model.layers.0.conv.in_proj K=4 output_rel_rms=0.026580
+E         [e2e:measure] 002/023 done model.layers.0.conv.out_proj K=4 output_rel_rms=0.026618
+E         [e2e:measure] 003/023 done model.layers.0.feed_forward.w1 K=4 output_rel_rms=0.023767
+E         [e2e:measure] 004/023 done model.layers.0.feed_forward.w2 K=4 output_rel_rms=0.022659
+E         [e2e:measure] 005/023 done model.layers.0.feed_forward.w3 K=4 output_rel_rms=0.025471
+E         [e2e:measure] 006/023 done model.layers.1.feed_forward.experts.0.w1 K=4 output_rel_rms=0.024931
+E         [e2e:measure] 007/023 done model.layers.1.feed_forward.experts.0.w2 K=4 output_rel_rms=0.019863
+E         [e2e:measure] 008/023 done model.layers.1.feed_forward.experts.0.w3 K=4 output_rel_rms=0.022434
+E         [e2e:measure] 009/023 done model.layers.1.feed_forward.experts.1.w1 K=4 output_rel_rms=0.022026
+E         [e2e:measure] 010/023 done model.layers.1.feed_forward.experts.1.w2 K=4 output_rel_rms=0.020194
+E         [e2e:measure] 011/023 done model.layers.1.feed_forward.experts.1.w3 K=4 output_rel_rms=0.025864
+E         [e2e:measure] 012/023 done model.layers.1.self_attn.k_proj K=4 output_rel_rms=0.023760
+E         [e2e:measure] 013/023 done model.layers.1.self_attn.out_proj K=4 output_rel_rms=0.022691
+E         [e2e:measure] 014/023 done model.layers.1.self_attn.q_proj K=4 output_rel_rms=0.024585
+E         [e2e:measure] 015/023 done model.layers.1.self_attn.v_proj K=4 output_rel_rms=0.023317
+E         [e2e:measure] 016/023 done model.layers.2.conv.in_proj K=4 output_rel_rms=0.021003
+E         [e2e:measure] 017/023 done model.layers.2.conv.out_proj K=4 output_rel_rms=0.025157
+E         [e2e:measure] 018/023 done model.layers.2.feed_forward.experts.0.w1 K=4 output_rel_rms=0.021107
+E         [e2e:measure] 019/023 done model.layers.2.feed_forward.experts.0.w2 K=4 output_rel_rms=0.027348
+E         [e2e:measure] 020/023 done model.layers.2.feed_forward.experts.0.w3 K=4 output_rel_rms=0.021987
+E         [e2e:measure] 021/023 done model.layers.2.feed_forward.experts.1.w1 K=4 output_rel_rms=0.022770
+E         [e2e:measure] 022/023 done model.layers.2.feed_forward.experts.1.w2 K=4 output_rel_rms=0.022442
+E         [e2e:measure] 023/023 done model.layers.2.feed_forward.experts.1.w3 K=4 output_rel_rms=0.023459
+E         [e2e:convert] 001/023 start model.layers.0.conv.in_proj K=4
+E         [e2e:convert] 001/023 done model.layers.0.conv.in_proj k=4
+E         [e2e:convert] 002/023 start model.layers.0.conv.out_proj K=4
+E         [e2e:convert] 002/023 done model.layers.0.conv.out_proj k=4
+E         [e2e:convert] 003/023 start model.layers.0.feed_forward.w1 K=4
+E         [e2e:convert] 003/023 done model.layers.0.feed_forward.w1 k=4
+E         [e2e:convert] 005/023 done model.layers.0.feed_forward.w3 k=4
+E         [e2e:convert] 004/023 start model.layers.0.feed_forward.w2 K=4
+E         [e2e:convert] 004/023 done model.layers.0.feed_forward.w2 k=4
+E         [e2e:convert] 006/023 start model.layers.1.feed_forward.experts.0.w1 K=4
+E         [e2e:convert] 006/023 done model.layers.1.feed_forward.experts.0.w1 k=4
+E         [e2e:convert] 008/023 done model.layers.1.feed_forward.experts.0.w3 k=4
+E         [e2e:convert] 009/023 done model.layers.1.feed_forward.experts.1.w1 k=4
+E         [e2e:convert] 011/023 done model.layers.1.feed_forward.experts.1.w3 k=4
+E         [e2e:convert] 007/023 start model.layers.1.feed_forward.experts.0.w2 K=4
+E         [e2e:convert] 007/023 done model.layers.1.feed_forward.experts.0.w2 k=4
+E         [e2e:convert] 010/023 done model.layers.1.feed_forward.experts.1.w2 k=4
+E         [e2e:convert] 012/023 start model.layers.1.self_attn.k_proj K=4
+E         [e2e:convert] 012/023 done model.layers.1.self_attn.k_proj k=4
+E         [e2e:convert] 014/023 done model.layers.1.self_attn.q_proj k=4
+E         [e2e:convert] 015/023 done model.layers.1.self_attn.v_proj k=4
+E         [e2e:convert] 013/023 start model.layers.1.self_attn.out_proj K=4
+E         [e2e:convert] 013/023 done model.layers.1.self_attn.out_proj k=4
+E         [e2e:convert] 016/023 start model.layers.2.conv.in_proj K=4
+E         [e2e:convert] 016/023 done model.layers.2.conv.in_proj k=4
+E         [e2e:convert] 017/023 start model.layers.2.conv.out_proj K=4
+E         [e2e:convert] 017/023 done model.layers.2.conv.out_proj k=4
+E         [e2e:convert] 018/023 start model.layers.2.feed_forward.experts.0.w1 K=4
+E         [e2e:convert] 018/023 done model.layers.2.feed_forward.experts.0.w1 k=4
+E         [e2e:convert] 020/023 done model.layers.2.feed_forward.experts.0.w3 k=4
+E         [e2e:convert] 021/023 done model.layers.2.feed_forward.experts.1.w1 k=4
+E         [e2e:convert] 023/023 done model.layers.2.feed_forward.experts.1.w3 k=4
+E         [e2e:convert] 019/023 start model.layers.2.feed_forward.experts.0.w2 K=4
+E         [e2e:convert] 019/023 done model.layers.2.feed_forward.experts.0.w2 k=4
+E         [e2e:convert] 022/023 done model.layers.2.feed_forward.experts.1.w2 k=4
+E         [e2e:convert] done completed=23 skipped=0
+E         [e2e] repacked into 1 HF-standard shard(s)
+E         Traceback (most recent call last):
+E           File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 340, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 319, in main
+E             validate_checkpoint_files(args.out_dir)
+E           File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/src/mlxl3_quantizer/checkpoint.py", line 43, in validate_checkpoint_files
+E             for key in handle:
+E                        ^^^^^^
+E         TypeError: 'builtins.safe_open' object is not iterable
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/exl3-qua...oint_files\n    for key in handle:\n               ^^^^^^\nTypeError: \'builtins.safe_open\' object is not iterable\n').returncode
+
+tests/test_lfm25_moe_conversion.py:275: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_moe_conversion.py::test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights
+1 failed, 16 passed in 6.00s

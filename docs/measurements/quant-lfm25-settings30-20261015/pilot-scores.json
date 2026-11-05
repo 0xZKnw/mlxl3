@@ -1,0 +1,136 @@
+[
+  {
+    "profile": "mcg-standard",
+    "partial_kl": 0.038583397929497165,
+    "seeds_kl": {
+      "25": 0.04212982459665678,
+      "26": 0.03503697126233755
+    },
+    "domain_ratios": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "projection_geomean": 1.0,
+    "worst_projection": [
+      1.0,
+      "model.layers.39.feed_forward.experts.21.w3",
+      26
+    ],
+    "projection_failures": []
+  },
+  {
+    "profile": "mcg-scaled",
+    "partial_kl": 0.04520044061597761,
+    "seeds_kl": {
+      "25": 0.05261850524146616,
+      "26": 0.03778237599048905
+    },
+    "domain_ratios": [
+      0.6264951773280798,
+      0.9023161303641433,
+      1.3246282569568406,
+      1.4246840455011986,
+      0.9789450231522091,
+      0.9459333816994647
+    ],
+    "projection_geomean": 1.015973779580896,
+    "worst_projection": [
+      1.481308733214217,
+      "model.layers.2.feed_forward.experts.44.w2",
+      25
+    ],
+    "projection_failures": [
+      [
+        1.481308733214217,
+        "model.layers.2.feed_forward.experts.44.w2",
+        25
+      ],
+      [
+        1.290353918516379,
+        "model.layers.2.feed_forward.experts.58.w2",
+        25
+      ],
+      [
+        1.480260878208314,
+        "model.layers.2.feed_forward.experts.44.w2",
+        26
+      ],
+      [
+        1.2797430139796275,
+        "model.layers.2.feed_forward.experts.58.w2",
+        26
+      ]
+    ]
+  },
+  {
+    "profile": "mul1-standard",
+    "partial_kl": 0.05024355851320825,
+    "seeds_kl": {
+      "25": 0.05425845399749877,
+      "26": 0.046228663028917726
+    },
+    "domain_ratios": [
+      1.6992220936702527,
+      0.9486106035900949,
+      1.0486311858109048,
+      1.6157225123163783,
+      1.4060100487656808,
+      1.087428386363815
+    ],
+    "projection_geomean": 0.9899241706911575,
+    "worst_projection": [
+      1.003062428650751,
+      "model.layers.39.feed_forward.experts.21.w3",
+      26
+    ],
+    "projection_failures": []
+  },
+  {
+    "profile": "mul1-scaled",
+    "partial_kl": 0.043162048591512514,
+    "seeds_kl": {
+      "25": 0.04441768949425053,
+      "26": 0.04190640768877449
+    },
+    "domain_ratios": [
+      1.1576308973170244,
+      1.09001583380356,
+      1.3837297776321735,
+      0.8839498902943445,
+      1.0528339687427828,
+      1.0316024968426303
+    ],
+    "projection_geomean": 1.0068295395822,
+    "worst_projection": [
+      1.4697261770700465,
+      "model.layers.2.feed_forward.experts.44.w2",
+      26
+    ],
+    "projection_failures": [
+      [
+        1.4687101899923094,
+        "model.layers.2.feed_forward.experts.44.w2",
+        25
+      ],
+      [
+        1.29419139971228,
+        "model.layers.2.feed_forward.experts.58.w2",
+        25
+      ],
+      [
+        1.4697261770700465,
+        "model.layers.2.feed_forward.experts.44.w2",
+        26
+      ],
+      [
+        1.2779674814189335,
+        "model.layers.2.feed_forward.experts.58.w2",
+        26
+      ]
+    ]
+  }
+]

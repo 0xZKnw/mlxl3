@@ -1,0 +1,1438 @@
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index b6da24b1..e53ebf29 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -922,6 +922,16 @@ impl Drop for Verification<'_> {
+ 
+ impl FlashNext {
+     fn forward_captured(&mut self, token: u32, kind: Kind) -> Result<(Array, Array)> {
++        let (logits, captured) = self.forward_captured_optional(token, kind, true)?;
++        Ok((logits.context("missing captured logits")?, captured))
++    }
++
++    fn forward_captured_optional(
++        &mut self,
++        token: u32,
++        kind: Kind,
++        head: bool,
++    ) -> Result<(Option<Array>, Array)> {
+         ensure!(
+             self.verification.is_none() && self.offset < self.context && token < 248320,
+             "invalid captured Flash forward"
+@@ -934,7 +944,7 @@ impl FlashNext {
+                 let _layer = crate::flash_profile::span(&format!("layer_{i}"));
+                 let (current, rest) = self.layers.split_at_mut(i + 1);
+                 let next = (self.lookahead_depth > 0)
+-                    .then(|| rest.first_mut().map(|l| &mut l.moe))
++                    .then(|| rest.first_mut().map(|l| (&mut l.moe, &l.mlp_hc)))
+                     .flatten();
+                 streams =
+                     current[i].forward_lookahead(&streams, token, next, self.lookahead_depth)?;
+@@ -944,7 +954,7 @@ impl FlashNext {
+             }
+             ensure!(captures.len() == 5, "incomplete Flash captures");
+             let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
+-            let logits = self.logits(&streams)?;
++            let logits = head.then(|| self.logits(&streams)).transpose()?;
+             captured.eval()?;
+             self.drain()?;
+             self.last_hidden = Some(streams);
+@@ -957,6 +967,71 @@ impl FlashNext {
+         result
+     }
+ 
++    fn forward_prefill_cohort(
++        &mut self,
++        tokens: &[u32],
++        kind: Kind,
++        only_last_head: bool,
++        final_cohort: bool,
++        cancelled: &std::sync::atomic::AtomicBool,
++    ) -> Result<(Option<Array>, Array)> {
++        ensure!(
++            self.verification.is_none()
++                && (1..=8).contains(&tokens.len())
++                && tokens.len() <= usize::try_from(self.context - self.offset)?
++                && tokens.iter().all(|&t| t < 248320),
++            "invalid prefill cohort"
++        );
++        let result = (|| {
++            let mut streams = tokens
++                .iter()
++                .map(|&t| self.streams(t))
++                .collect::<Result<Vec<_>>>()?;
++            let mut captures = Vec::with_capacity(5);
++            for (index, layer) in self.layers.iter_mut().enumerate() {
++                let mut prepared = Vec::with_capacity(tokens.len());
++                for (&token, stream) in tokens.iter().zip(&streams) {
++                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                    prepared.push(layer.prepare(stream, token)?);
++                }
++                let mixed =
++                    Array::concatenate(&prepared.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                let output = layer.moe.forward_draft_rows(&mixed)?;
++                streams = prepared
++                    .iter()
++                    .enumerate()
++                    .map(|(row, p)| {
++                        Hc::write(&p.0, &output.slice(0, row as i32, row as i32 + 1)?, &p.2)
++                    })
++                    .collect::<Result<Vec<_>>>()?;
++                if kind.captures().contains(&index) {
++                    let rows = streams
++                        .iter()
++                        .map(mean_streams)
++                        .collect::<Result<Vec<_>>>()?;
++                    captures.push(Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?);
++                }
++            }
++            ensure!(captures.len() == 5, "incomplete prefill captures");
++            let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
++            let mut logits = None;
++            for (row, stream) in streams.iter().enumerate() {
++                if !only_last_head || final_cohort && row + 1 == tokens.len() {
++                    logits = Some(self.logits(stream)?);
++                }
++            }
++            captured.eval()?;
++            self.drain()?;
++            self.last_hidden = streams.pop();
++            self.offset += tokens.len() as i32;
++            Ok((logits, captured))
++        })();
++        if result.is_err() {
++            self.reset();
++        }
++        result
++    }
++
+     fn draft_input(&self, anchor: u32, kind: Kind, proposals: usize) -> Result<Array> {
+         ensure!(anchor < 248320, "invalid Flash draft anchor");
+         let rows = kind.rows(proposals)?;
+@@ -1006,11 +1081,33 @@ impl FlashNext {
+                 }
+                 let inputs =
+                     Array::concatenate(&prepared.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                let prediction = if layer.forecast_hc && self.lookahead_depth > 0 {
++                    rest.first()
++                        .map(|next| -> Result<_> {
++                            let rows = prepared
++                                .iter()
++                                .map(|p| next.mlp_hc.read(&p.0).map(|p| p.0))
++                                .collect::<Result<Vec<_>>>()?;
++                            Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
++                        })
++                        .transpose()?
++                } else {
++                    None
++                };
+                 let next = rest.first_mut().map(|layer| &mut layer.moe);
+-                let values =
+-                    layer
+-                        .moe
+-                        .forward_draft_lookahead(&inputs, next, self.lookahead_depth)?;
++                let values = match prediction {
++                    Some(predicted) => layer.moe.forward_draft_lookahead_input(
++                        &inputs,
++                        next,
++                        self.lookahead_depth,
++                        Some(&predicted),
++                    )?,
++                    None => {
++                        layer
++                            .moe
++                            .forward_draft_lookahead(&inputs, next, self.lookahead_depth)?
++                    }
++                };
+                 streams = prepared
+                     .iter()
+                     .enumerate()
+diff --git a/native/src/flash_draft_budget.rs b/native/src/flash_draft_budget.rs
+index c523b25b..a12abdf3 100644
+--- a/native/src/flash_draft_budget.rs
++++ b/native/src/flash_draft_budget.rs
+@@ -4,6 +4,126 @@ use std::collections::VecDeque;
+ 
+ const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+ 
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum DraftAction {
++    Calibrate,
++    Draft,
++    Plain,
++}
++
++#[derive(Clone, Debug, Default, PartialEq, Eq)]
++pub(crate) struct OffBudget {
++    plain: [u64; 3],
++    draft: [u64; 3],
++    plain_count: usize,
++    draft_count: usize,
++    next: usize,
++    stopped: bool,
++}
++
++impl OffBudget {
++    pub(crate) fn action(&self) -> DraftAction {
++        if self.stopped {
++            DraftAction::Plain
++        } else if self.plain_count < 3 {
++            DraftAction::Calibrate
++        } else {
++            DraftAction::Draft
++        }
++    }
++    pub(crate) fn observe_plain(&mut self, nanos: u64) -> Option<()> {
++        if nanos == 0 || self.plain_count == 3 {
++            return None;
++        }
++        self.plain[self.plain_count] = nanos;
++        self.plain_count += 1;
++        Some(())
++    }
++    pub(crate) fn observe_draft(&mut self, nanos: u64, emitted: usize) -> Option<()> {
++        if nanos == 0 || !(1..=8).contains(&emitted) || self.plain_count != 3 || self.stopped {
++            return None;
++        }
++        let cost = (u128::from(nanos).div_ceil(emitted as u128)) as u64;
++        self.draft[self.next] = cost;
++        self.next = (self.next + 1) % 3;
++        self.draft_count = (self.draft_count + 1).min(3);
++        if self.draft_count == 3 {
++            let (mut plain, mut draft) = (self.plain, self.draft);
++            plain.sort_unstable();
++            draft.sort_unstable();
++            // shortcut: calibrates once per request; revisit for large context changes.
++            self.stopped = u128::from(draft[1]) * 100 > u128::from(plain[1]) * 105;
++        }
++        Some(())
++    }
++}
++
++#[cfg(test)]
++#[test]
++fn off_budget_prices_emitted_tokens_and_stops_before_the_next_draft() {
++    for (cost, expected) in [(105, DraftAction::Draft), (106, DraftAction::Plain)] {
++        let mut budget = OffBudget::default();
++        assert_eq!(budget.action(), DraftAction::Calibrate);
++        assert_eq!(budget.observe_draft(100, 2), None);
++        let before = budget.clone();
++        assert_eq!(budget.observe_plain(0), None);
++        assert_eq!(budget, before);
++        for _ in 0..3 {
++            assert_eq!(budget.observe_plain(100), Some(()));
++        }
++        assert_eq!(budget.action(), DraftAction::Draft);
++        for _ in 0..3 {
++            assert_eq!(budget.observe_draft(cost * 2, 2), Some(()));
++        }
++        assert_eq!(budget.action(), expected);
++        let before = budget.clone();
++        assert_eq!(budget.observe_draft(100, 0), None);
++        assert_eq!(budget, before);
++        assert_eq!(budget.observe_draft(100, usize::MAX), None);
++        assert_eq!(budget, before);
++    }
++    let mut budget = OffBudget::default();
++    for _ in 0..3 {
++        budget.observe_plain(u64::MAX).unwrap();
++    }
++    for _ in 0..3 {
++        budget.observe_draft(u64::MAX, 8).unwrap();
++    }
++    assert_eq!(budget.action(), DraftAction::Draft);
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(10)]
++fn off_budget_prices_full_width_costs_without_overflow_and_rejects_atomically() {
++    let plain: u64 = kani::any();
++    let nanos: u64 = kani::any();
++    let emitted: usize = kani::any();
++    let mut budget = OffBudget::default();
++    for _ in 0..3 {
++        let result = budget.observe_plain(plain);
++        assert_eq!(result.is_some(), plain > 0);
++    }
++    let before = budget.clone();
++    let valid = plain > 0 && nanos > 0 && (1..=8).contains(&emitted);
++    let result = budget.observe_draft(nanos, emitted);
++    assert_eq!(result.is_some(), valid);
++    if valid {
++        budget.observe_draft(nanos, emitted).unwrap();
++        budget.observe_draft(nanos, emitted).unwrap();
++        let cost = (u128::from(nanos) + emitted as u128 - 1) / (emitted as u128);
++        assert_eq!(
++            budget.action() == DraftAction::Plain,
++            cost * 100 > u128::from(plain) * 105
++        );
++        kani::cover!(budget.action() == DraftAction::Plain);
++        kani::cover!(budget.action() == DraftAction::Draft);
++    } else {
++        assert_eq!(budget, before);
++        kani::cover!(emitted == usize::MAX);
++    }
++}
++
+ /// Per-request B2/B3/B4 costs, measured before choosing the next draft shape.
+ #[derive(Default, Clone, Debug, PartialEq, Eq)]
+ pub(crate) struct PreDraftBudget {
+diff --git a/native/src/flash_draft_runtime.rs b/native/src/flash_draft_runtime.rs
+index 8d36ff6d..3007a71d 100644
+--- a/native/src/flash_draft_runtime.rs
++++ b/native/src/flash_draft_runtime.rs
+@@ -1,5 +1,5 @@
+ use super::*;
+-use crate::flash_draft_budget::{PreDraftBudget, VerifyBudget};
++use crate::flash_draft_budget::{DraftAction, OffBudget, PreDraftBudget, VerifyBudget};
+ use std::sync::atomic::AtomicBool;
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+@@ -9,6 +9,10 @@ struct Options {
+     adaptive: bool,
+     precap: bool,
+     width: usize,
++    prefill_heads: bool,
++    prefill_cohort: bool,
++    prefix: bool,
++    cost_off: bool,
+ }
+ impl Options {
+     fn read(mode: usize) -> Result<Self> {
+@@ -47,12 +51,22 @@ impl Options {
+             }
+             Err(_) => anyhow::bail!("MLXL3_FLASH_DRAFT_WIDTH must be valid Unicode"),
+         };
++        let prefix = flag("MLXL3_FLASH_PREFIX", false)?;
++        let prefill_cohort = flag("MLXL3_FLASH_PREFILL_COHORT", false)?;
++        ensure!(
++            !prefix || !prefill_cohort,
++            "Flash prefix checkpoints require serial prefill"
++        );
+         Ok(Self {
+             q4: flag("MLXL3_FLASH_DRAFT_Q4", true)?,
+             ring: flag("MLXL3_FLASH_DRAFT_RING", true)?,
+             adaptive,
+             precap,
+             width,
++            prefill_heads: flag("MLXL3_FLASH_PREFILL_HEADS", false)?,
++            prefill_cohort,
++            prefix,
++            cost_off: flag("MLXL3_FLASH_COST_OFF", false)?,
+         })
+     }
+ }
+@@ -77,6 +91,17 @@ pub(in crate::qwen4) struct Session {
+     blocks: usize,
+     seconds: f64,
+     profile: FlashDraftProfile,
++    prefix: Option<PromptState>,
++    reused: usize,
++    off_budget: OffBudget,
++}
++
++struct PromptState {
++    tokens: Vec<u32>,
++    layers: Vec<LayerState>,
++    hidden: Array,
++    logits: Array,
++    draft_cache: Vec<Option<(Array, Array)>>,
+ }
+ impl Session {
+     pub(in crate::qwen4) fn reset(&mut self) {
+@@ -89,6 +114,9 @@ impl Session {
+         self.blocks = 0;
+         self.seconds = 0.;
+         self.profile = FlashDraftProfile::default();
++        self.prefix = None;
++        self.reused = 0;
++        self.off_budget = OffBudget::default();
+     }
+     fn advance(&mut self, target: &mut FlashNext, anchor: u32, remaining: usize) -> Result<u32> {
+         #[cfg(test)]
+@@ -100,6 +128,40 @@ impl Session {
+         if let Some(token) = self.pending.pop_front() {
+             return Ok(token);
+         }
++        if self.options.cost_off && self.off_budget.action() != DraftAction::Draft {
++            let calibrate = self.off_budget.action() == DraftAction::Calibrate;
++            ensure!(
++                target.offset < target.context
++                    && (!calibrate || target.offset == self.draft.offset),
++                "invalid plain-step cache position"
++            );
++            let before = target.io_stats().2;
++            let start = target.offset;
++            let clock = std::time::Instant::now();
++            let (logits, captured) = if calibrate {
++                let (logits, captured) = target.forward_captured(anchor, Kind::Dflash2)?;
++                (logits, Some(captured))
++            } else {
++                (target.forward(anchor)?, None)
++            };
++            let id = logits.chat_greedy_ids()?[0];
++            if let Some(captured) = captured {
++                self.off_budget
++                    .observe_plain(u64::try_from(clock.elapsed().as_nanos())?)
++                    .context("invalid plain-step duration")?;
++                self.draft.append(&captured, start)?;
++                self.profile.calibration_steps += 1;
++            }
++            self.profile.plain_steps += 1;
++            self.profile.plain_seconds += clock.elapsed().as_secs_f64();
++            self.profile.expert_demand_bytes = flash_support::draft_demand_bytes(
++                self.profile.expert_demand_bytes,
++                before,
++                target.io_stats().2,
++            )
++            .context("plain-step demand counter reversed")?;
++            return Ok(id);
++        }
+         ensure!(
+             remaining > 0 && target.offset == self.draft.offset && target.offset < target.context,
+             "DFlash target and cache positions differ"
+@@ -177,6 +239,11 @@ impl Session {
+         );
+         self.pending.push_back(acceptance.target_token);
+         let seconds = started.elapsed().as_secs_f64();
++        if self.options.cost_off {
++            self.off_budget
++                .observe_draft(u64::try_from(started.elapsed().as_nanos())?, retained)
++                .context("invalid speculative cycle cost")?;
++        }
+         if self.options.adaptive {
+             self.budget
+                 .observe(
+@@ -265,6 +332,9 @@ impl FlashNext {
+             blocks: 0,
+             seconds: 0.,
+             profile: FlashDraftProfile::default(),
++            prefix: None,
++            reused: 0,
++            off_budget: OffBudget::default(),
+         }));
+         Ok(())
+     }
+@@ -283,24 +353,111 @@ impl FlashNext {
+         self.dflash.as_ref().map(|s| s.profile)
+     }
+     pub fn prefill_dflash2(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
+-        self.reset();
++        self.prefill_dflash2_with_reuse(tokens, cancelled, false)
++    }
++    pub fn dflash2_reused_tokens(&self) -> usize {
++        self.dflash.as_ref().map_or(0, |s| s.reused)
++    }
++    pub fn prefill_dflash2_with_reuse(
++        &mut self,
++        tokens: &[u32],
++        cancelled: &AtomicBool,
++        reuse: bool,
++    ) -> Result<Array> {
+         let mut session = self
+             .dflash
+             .take()
+             .context("DFlash draft is not configured")?;
++        let checkpoint = session.prefix.take().filter(|p| {
++            reuse
++                && session.options.prefix
++                && flash_support::complete_prompt_prefix(&p.tokens, tokens)
++        });
++        self.reset();
++        session.reset();
+         let result = (|| {
+             ensure!(
+-                !tokens.is_empty() && tokens.len() < self.context as usize,
++                !tokens.is_empty()
++                    && tokens.len() < self.context as usize
++                    && tokens.iter().all(|&t| t < 248320),
+                 "invalid DFlash prompt"
+             );
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+             let mut last = None;
+-            for &token in tokens {
++            if let Some(saved) = checkpoint {
++                ensure!(
++                    saved.layers.len() == self.layers.len() && saved.draft_cache.len() == 5,
++                    "incomplete prompt checkpoint"
++                );
++                session.reused = saved.tokens.len();
++                for (layer, state) in self.layers.iter_mut().zip(saved.layers) {
++                    layer.restore(state)?;
++                }
++                self.offset = session.reused as i32;
++                self.last_hidden = Some(saved.hidden);
++                session.draft.cache = saved.draft_cache;
++                session.draft.offset = self.offset;
++                last = Some(saved.logits);
++            }
++            let chunk = if session.options.prefill_cohort { 8 } else { 1 };
++            let suffix = &tokens[session.reused..];
++            for (index, part) in suffix.chunks(chunk).enumerate() {
+                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+-                let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
+-                session.draft.append(&captured, self.offset - 1)?;
+-                last = Some(logits);
++                let final_part = (index + 1) * chunk >= suffix.len();
++                let start = self.offset;
++                let (logits, captured) = if session.options.prefill_cohort {
++                    self.forward_prefill_cohort(
++                        part,
++                        Kind::Dflash2,
++                        session.options.prefill_heads,
++                        final_part,
++                        cancelled,
++                    )?
++                } else if session.options.prefill_heads && !final_part {
++                    self.forward_captured_optional(part[0], Kind::Dflash2, false)?
++                } else {
++                    let (logits, captured) = self.forward_captured(part[0], Kind::Dflash2)?;
++                    (Some(logits), captured)
++                };
++                for row in 0..part.len() {
++                    session.draft.append(
++                        &captured.slice(0, row as i32, row as i32 + 1)?,
++                        start + row as i32,
++                    )?;
++                }
++                if logits.is_some() {
++                    last = logits;
++                }
+             }
+-            last.context("empty DFlash prompt")
++            let last = last.context("empty DFlash prompt")?;
++            if session.options.prefix && reuse {
++                let draft_cache = session
++                    .draft
++                    .cache
++                    .iter()
++                    .map(|pair| {
++                        pair.as_ref()
++                            .map(|(k, v)| Ok((k.try_clone()?, v.try_clone()?)))
++                            .transpose()
++                    })
++                    .collect::<Result<Vec<_>>>()?;
++                session.prefix = Some(PromptState {
++                    tokens: tokens.to_vec(),
++                    layers: self
++                        .layers
++                        .iter()
++                        .map(Layer::snapshot)
++                        .collect::<Result<Vec<_>>>()?,
++                    hidden: self
++                        .last_hidden
++                        .as_ref()
++                        .context("missing prompt hidden")?
++                        .try_clone()?,
++                    logits: last.try_clone()?,
++                    draft_cache,
++                });
++            }
++            Ok(last)
+         })();
+         if result.is_err() {
+             self.reset();
+@@ -324,9 +481,247 @@ impl FlashNext {
+     }
+ }
+ 
++#[cfg(kani)]
++#[kani::proof]
++fn actual_slotstream_prefill_preserves_context_and_output_shape() {
++    let checkpoint =
++        crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
++            .unwrap();
++    let mut target = FlashNext::from_checkpoint(&checkpoint).unwrap();
++    let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT").unwrap());
++    target.configure_dflash2(Some(&draft), 1).unwrap();
++    let token: u32 = kani::any();
++    let result = target.prefill_dflash2_with_reuse(&[token], &AtomicBool::new(false), true);
++    if let Ok(logits) = result {
++        assert_eq!(target.offset, 1);
++        assert_eq!(logits.shape(), [1, 248320]);
++    } else {
++        assert_eq!(target.offset, 0);
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++
++    #[test]
++    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; run alone"]
++    fn cost_off_calibrates_and_skips_draft_while_preserving_target_steps() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
++        let saved = tempfile::tempdir()?;
++        let prompt = [EOS, 7, 42];
++        let logits = target.prefill_dflash2(&prompt, &AtomicBool::new(false))?;
++        let first = logits.chat_greedy_ids()?[0];
++        let mut expected = Vec::new();
++        let mut id = first;
++        for step in 0..10 {
++            let logits = target.forward(id)?;
++            let values = logits.astype(Dtype::Float32)?.to_f32()?;
++            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++            id = logits.chat_greedy_ids()?[0];
++            expected.push(id);
++            for (part, bytes) in crate::qwen4::tests::state_bytes(&target)?
++                .into_iter()
++                .enumerate()
++            {
++                std::fs::write(saved.path().join(format!("{step}-{part}")), bytes)?;
++            }
++        }
++        target.dflash.as_mut().unwrap().options.cost_off = true;
++        let logits = target.prefill_dflash2(&prompt, &AtomicBool::new(false))?;
++        ensure!(logits.chat_greedy_ids()?[0] == first);
++        id = first;
++        for (step, expected) in expected.into_iter().enumerate() {
++            if step == 3 {
++                let session = target.dflash.as_mut().unwrap();
++                ensure!(
++                    session.profile.calibration_steps == 3 && session.profile.drafted_rows == 0
++                );
++                ensure!(session.draft.offset == target.offset);
++                for _ in 0..3 {
++                    session
++                        .off_budget
++                        .observe_draft(u64::MAX, 1)
++                        .context("failed to force OFF")?;
++                }
++                ensure!(session.off_budget.action() == DraftAction::Plain);
++            }
++            id = target.advance_dflash2(id, 10 - step)?;
++            ensure!(id == expected, "cost OFF token {step} differs");
++            for (part, bytes) in crate::qwen4::tests::state_bytes(&target)?
++                .into_iter()
++                .enumerate()
++            {
++                ensure!(
++                    std::fs::read(saved.path().join(format!("{step}-{part}")))? == bytes,
++                    "cost OFF state {step}/{part} differs"
++                );
++            }
++        }
++        let session = target.dflash.as_ref().unwrap();
++        ensure!(
++            session.profile.plain_steps == 10
++                && session.profile.calibration_steps == 3
++                && session.profile.drafted_rows == 0
++        );
++        ensure!(
++            session.draft.offset == prompt.len() as i32 + 3
++                && target.offset == prompt.len() as i32 + 10
++        );
++        ensure!(target.advance_dflash2(248320, 1).is_err());
++        ensure!(
++            target.offset == 0
++                && target.dflash.as_ref().unwrap().off_budget == OffBudget::default()
++        );
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; run alone"]
++    fn prompt_checkpoint_replays_exactly_after_generation_and_respects_opt_out() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
++        target.dflash.as_mut().unwrap().options.prefix = true;
++        let saved = tempfile::tempdir()?;
++        for (case, (tokens, reuse, expected)) in [
++            (vec![EOS, 1, 42, 7], true, 0),
++            (vec![EOS, 1, 42, 7], true, 4),
++            (vec![EOS, 1, 42, 7, 9, 10], true, 4),
++            (vec![EOS, 1, 42, 8], true, 0),
++            (vec![EOS, 1, 42, 8], false, 0),
++            (vec![EOS, 1, 42, 8], true, 0),
++        ]
++        .into_iter()
++        .enumerate()
++        {
++            let mut retained = None;
++            for fresh in [false, true] {
++                let logits = target.prefill_dflash2_with_reuse(
++                    &tokens,
++                    &AtomicBool::new(false),
++                    reuse && !fresh,
++                )?;
++                ensure!(target.dflash2_reused_tokens() == if fresh { 0 } else { expected });
++                let mut bytes = crate::qwen4::tests::state_bytes(&target)?;
++                let values = logits.astype(Dtype::Float32)?.to_f32()?;
++                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                bytes.push(logits.to_bytes()?);
++                let prefix = target.dflash.as_mut().unwrap().prefix.take();
++                let mut id = logits.chat_greedy_ids()?[0];
++                for remaining in (1..=3).rev() {
++                    id = target.advance_dflash2(id, remaining)?;
++                    bytes.push(id.to_le_bytes().to_vec());
++                }
++                bytes.extend(crate::qwen4::tests::state_bytes(&target)?);
++                for pair in &target.dflash.as_ref().unwrap().draft.cache {
++                    let (k, v) = pair.as_ref().context("missing resumed draft cache")?;
++                    bytes.push(k.to_bytes()?);
++                    bytes.push(v.to_bytes()?);
++                }
++                for (part, value) in bytes.into_iter().enumerate() {
++                    let path = saved.path().join(format!("{case}-{part}"));
++                    if fresh {
++                        ensure!(
++                            std::fs::read(path)? == value,
++                            "resumed state {case}/{part} differs"
++                        );
++                    } else {
++                        std::fs::write(path, value)?;
++                    }
++                }
++                if fresh {
++                    target.dflash.as_mut().unwrap().prefix = retained.take();
++                } else {
++                    retained = prefix;
++                }
++            }
++        }
++        ensure!(
++            target
++                .prefill_dflash2_with_reuse(&[EOS], &AtomicBool::new(true), true)
++                .is_err()
++        );
++        ensure!(target.offset == 0 && target.dflash.as_ref().unwrap().prefix.is_none());
++        target.prefill_dflash2_with_reuse(&[EOS], &AtomicBool::new(false), true)?;
++        ensure!(target.dflash2_reused_tokens() == 0);
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; run alone"]
++    fn prefill_variants_preserve_logits_draft_caches_states_and_continuation() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
++        let saved = tempfile::tempdir()?;
++        for length in [1, 2, 7, 8, 9, 17] {
++            let tokens: Vec<_> = (0..length)
++                .map(|i| if i % 7 == 0 { EOS } else { i as u32 })
++                .collect();
++            for (variant, (heads, cohort)) in [(false, false), (true, false), (false, true)]
++                .into_iter()
++                .enumerate()
++            {
++                let session = target.dflash.as_mut().unwrap();
++                session.options.prefill_heads = heads;
++                session.options.prefill_cohort = cohort;
++                let logits = target.prefill_dflash2(&tokens, &AtomicBool::new(false))?;
++                let values = logits.astype(Dtype::Float32)?.to_f32()?;
++                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                let mut state = crate::qwen4::tests::state_bytes(&target)?;
++                state.push(logits.to_bytes()?);
++                let session = target.dflash.as_ref().unwrap();
++                ensure!(session.draft.offset == length && session.draft.cache.len() == 5);
++                for cached in &session.draft.cache {
++                    let (key, value) = cached.as_ref().context("missing prefill draft cache")?;
++                    state.push(key.to_bytes()?);
++                    state.push(value.to_bytes()?);
++                }
++                let mut id = logits.chat_greedy_ids()?[0];
++                for remaining in (1..=3).rev() {
++                    id = target.advance_dflash2(id, remaining)?;
++                    state.push(id.to_le_bytes().to_vec());
++                }
++                state.extend(crate::qwen4::tests::state_bytes(&target)?);
++                for (index, bytes) in state.into_iter().enumerate() {
++                    let file = saved.path().join(format!("{length}-{index}"));
++                    if variant == 0 {
++                        std::fs::write(file, bytes)?;
++                    } else {
++                        ensure!(
++                            std::fs::read(file)? == bytes,
++                            "prefill variant {variant}, length {length}, state {index} differs"
++                        );
++                    }
++                }
++            }
++        }
++        ensure!(
++            target
++                .prefill_dflash2(&[], &AtomicBool::new(false))
++                .is_err()
++        );
++        ensure!(target.offset == 0);
++        ensure!(
++            target
++                .prefill_dflash2(&[248320], &AtomicBool::new(false))
++                .is_err()
++        );
++        ensure!(target.offset == 0);
++        ensure!(
++            target
++                .prefill_dflash2(&[EOS], &AtomicBool::new(true))
++                .is_err()
++        );
++        ensure!(target.offset == 0 && target.dflash.as_ref().unwrap().draft.offset == 0);
++        Ok(())
++    }
+     #[test]
+     #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; real terminal fallback; run alone"]
+     fn runtime_profile_counts_terminal_target_reads() -> Result<()> {
+@@ -365,6 +760,31 @@ mod tests {
+         }
+     }
+     #[test]
++    #[ignore = "isolated environment; production experimental-option reader, no model"]
++    fn slotstream_options_reach_the_production_reader() -> Result<()> {
++        let expected = std::env::var("MLXL3_SLOTSTREAM_EXPECT")?;
++        let options = Options::read(1);
++        if expected == "error" {
++            ensure!(options.is_err());
++        } else {
++            let actual = options?;
++            let values = [
++                actual.prefill_heads,
++                actual.prefill_cohort,
++                actual.prefix,
++                actual.cost_off,
++            ];
++            ensure!(
++                values
++                    .iter()
++                    .map(|&v| if v { '1' } else { '0' })
++                    .collect::<String>()
++                    == expected
++            );
++        }
++        Ok(())
++    }
++    #[test]
+     #[ignore = "isolated process environment; no checkpoint or GPU model"]
+     fn fixed_width_environment_reaches_the_production_option_reader() -> Result<()> {
+         let expected = std::env::var("MLXL3_EXPECTED_FIXED_WIDTH")?;
+@@ -474,6 +894,10 @@ mod tests {
+                     adaptive,
+                     precap,
+                     width,
++                    prefill_heads: false,
++                    prefill_cohort: false,
++                    prefix: false,
++                    cost_off: false,
+                 },
+                 budget: VerifyBudget::default(),
+                 pre_budget: PreDraftBudget::default(),
+@@ -483,6 +907,9 @@ mod tests {
+                 blocks: 0,
+                 seconds: 0.,
+                 profile: FlashDraftProfile::default(),
++                prefix: None,
++                reused: 0,
++                off_budget: OffBudget::default(),
+             }));
+             for (budget, expected) in &oracles {
+                 let logits = target.prefill_dflash2(&prompt, &cancel)?;
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..6d029ce4 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -94,6 +94,51 @@ pub(crate) fn multi_token_verifier() -> Result<bool> {
+         Err(error) => Err(error.into()),
+     }
+ }
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn complete_prompt_prefix(saved: &[u32], next: &[u32]) -> bool {
++    !saved.is_empty() && crate::reusable_prefix_len(saved, next, 1) == saved.len()
++}
++
++#[cfg(test)]
++#[test]
++fn prompt_checkpoint_requires_the_whole_nonempty_saved_prefix() {
++    for saved in [&[][..], &[1][..], &[1, 2, 3][..]] {
++        for next in [
++            &[][..],
++            &[1][..],
++            &[1, 2, 3][..],
++            &[1, 2, 3, 4][..],
++            &[1, 2, 4][..],
++        ] {
++            assert_eq!(
++                complete_prompt_prefix(saved, next),
++                !saved.is_empty() && next.starts_with(saved)
++            );
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(34)]
++fn complete_prompt_checkpoint_cannot_reuse_a_partial_or_empty_prefix() {
++    let saved: [u32; 8] = kani::any();
++    let next: [u32; 8] = kani::any();
++    let a: u8 = kani::any();
++    let b: u8 = kani::any();
++    kani::assume(a <= 8 && b <= 8);
++    let (a, b) = (usize::from(a), usize::from(b));
++    let reusable = complete_prompt_prefix(&saved[..a], &next[..b]);
++    let mut expected = a > 0 && a <= b;
++    for i in 0..a.min(b) {
++        expected &= saved[i] == next[i];
++    }
++    assert_eq!(reusable, expected);
++    kani::cover!(reusable && a == 8);
++    kani::cover!(!reusable && a > b);
++    kani::cover!(!reusable && a == 0);
++}
+ #[cfg(any(feature = "mlx", test, kani))]
+ use std::{cell::RefCell, rc::Rc};
+ 
+diff --git a/native/src/main.rs b/native/src/main.rs
+index 49f0b295..0ef850f9 100644
+--- a/native/src/main.rs
++++ b/native/src/main.rs
+@@ -1853,7 +1853,8 @@ fn prefill_round(
+         && target.dflash2_active()
+     {
+         *cache = None;
+-        return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
++        let logits = target.prefill_dflash2_with_reuse(tokens, cancelled, reuse)?;
++        return Ok((logits, None, target.dflash2_reused_tokens()));
+     }
+     let chunk_size = if draft.is_some() {
+         mlxl3_native::dflash::PREFILL_CHUNK
+@@ -2238,6 +2239,9 @@ impl NativeStats {
+             sum.draft_seconds += profile.draft_seconds;
+             sum.verification_seconds += profile.verification_seconds;
+             sum.commit_cache_seconds += profile.commit_cache_seconds;
++            sum.plain_steps += profile.plain_steps;
++            sum.calibration_steps += profile.calibration_steps;
++            sum.plain_seconds += profile.plain_seconds;
+             sum.verified_rows += profile.verified_rows;
+             sum.drafted_rows += profile.drafted_rows;
+             for (sum, value) in sum.drafted_widths.iter_mut().zip(profile.drafted_widths) {
+@@ -3734,6 +3738,9 @@ mod tests {
+                 verified_widths: [1, 2, 3, 4, 5, 6, 7, 8],
+                 expert_demand_bytes: 1_248_012,
+                 ssd_prefetch: [1, 2, 3, 4, 5, 6, 7, 8],
++                plain_steps: 4,
++                calibration_steps: 3,
++                plain_seconds: 0.125,
+             }),
+             dflash_proposed_tokens: Some(10),
+             dflash_accepted_tokens: Some(6),
+@@ -3763,6 +3770,9 @@ mod tests {
+                 verified_widths: [8, 7, 6, 5, 4, 3, 2, 1],
+                 expert_demand_bytes: 2_496_024,
+                 ssd_prefetch: [8, 7, 6, 5, 4, 3, 2, 1],
++                plain_steps: 6,
++                calibration_steps: 1,
++                plain_seconds: 0.25,
+             }),
+             dflash_proposed_tokens: Some(40),
+             dflash_accepted_tokens: Some(22),
+@@ -3803,6 +3813,9 @@ mod tests {
+         assert_eq!(encoded["dflash_profile"]["verified_rows"], 60);
+         assert_eq!(encoded["dflash_profile"]["verification_seconds"], 1.5);
+         assert_eq!(profile.ssd_prefetch, [9; 8]);
++        assert_eq!(profile.plain_steps, 10);
++        assert_eq!(profile.calibration_steps, 4);
++        assert_eq!(profile.plain_seconds, 0.375);
+         assert_eq!(profile.drafted_rows, 80);
+         assert_eq!(profile.drafted_widths, [9; 8]);
+         assert_eq!(profile.verified_widths, [9; 8]);
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..739db698 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -46,6 +46,9 @@ pub struct FlashDraftProfile {
+     pub expert_demand_bytes: u64,
+     /// Submitted, completed, used, reused, timeouts, wait ns, read bytes, late demands.
+     pub ssd_prefetch: [u64; 8],
++    pub plain_steps: usize,
++    pub calibration_steps: usize,
++    pub plain_seconds: f64,
+ }
+ 
+ struct Norm {
+@@ -973,6 +976,7 @@ pub(crate) struct Layer {
+     attention: Attention,
+     moe: SsdMoe,
+     ple: Option<Ple>,
++    forecast_hc: bool,
+ }
+ impl Layer {
+     #[allow(clippy::too_many_arguments)]
+@@ -1005,6 +1009,12 @@ impl Layer {
+             ple: ple
+                 .then(|| Ple::load(c, &format!("{p}.ple"), eps))
+                 .transpose()?,
++            forecast_hc: match std::env::var("MLXL3_FLASH_FORECAST_HC") {
++                Ok(v) => flash_support::parse_gpu_hot_wide(&v)
++                    .context("MLXL3_FLASH_FORECAST_HC must be 0 or 1")?,
++                Err(std::env::VarError::NotPresent) => false,
++                Err(e) => return Err(e.into()),
++            },
+         })
+     }
+     fn forward(&mut self, streams: &Array, token: u32) -> Result<Array> {
+@@ -1014,11 +1024,31 @@ impl Layer {
+         &mut self,
+         streams: &Array,
+         token: u32,
+-        next: Option<&mut SsdMoe>,
++        next: Option<(&mut SsdMoe, &Hc)>,
+         depth: usize,
+     ) -> Result<Array> {
+         let (streams, mixed, gate) = self.prepare(streams, token)?;
+-        let output = self.moe.forward_lookahead(&mixed, next, depth)?;
++        let prediction = if self.forecast_hc && depth > 0 {
++            next.as_ref()
++                .map(|(_, hc)| hc.read(&streams).map(|p| p.0))
++                .transpose()?
++        } else {
++            None
++        };
++        let next = next.map(|(moe, _)| moe);
++        #[cfg(test)]
++        if let Some(input) = &prediction {
++            self.stages
++                .push(("forecast_streams".into(), streams.try_clone()?));
++            self.stages
++                .push(("forecast_input".into(), input.try_clone()?));
++        }
++        let output = match prediction {
++            Some(input) => self
++                .moe
++                .forward_lookahead_input(&mixed, next, depth, &input)?,
++            None => self.moe.forward_lookahead(&mixed, next, depth)?,
++        };
+         #[cfg(test)]
+         self.stages.push(("moe".into(), output.try_clone()?));
+         let written = Hc::write(&streams, &output, &gate)?;
+@@ -1194,7 +1224,7 @@ impl Layer {
+         &mut self,
+         streams: &[Array; 2],
+         tokens: [u32; 2],
+-        next: Option<&mut SsdMoe>,
++        next: Option<(&mut SsdMoe, &Hc)>,
+         depth: usize,
+         multi: bool,
+     ) -> Result<([Array; 2], LayerState)> {
+@@ -1205,9 +1235,23 @@ impl Layer {
+             .try_into()
+             .map_err(|_| anyhow::anyhow!("incomplete Flash pair preparation"))?;
+         let first = states.pop().context("missing Flash pair snapshot")?;
+-        let output =
+-            self.moe
+-                .forward_lookahead(&Array::concatenate(&[&a.1, &b.1], 0)?, next, depth)?;
++        let input = Array::concatenate(&[&a.1, &b.1], 0)?;
++        let prediction = if self.forecast_hc && depth > 0 {
++            next.as_ref()
++                .map(|(_, hc)| -> Result<_> {
++                    Array::concatenate(&[&hc.read(&a.0)?.0, &hc.read(&b.0)?.0], 0)
++                })
++                .transpose()?
++        } else {
++            None
++        };
++        let next = next.map(|(moe, _)| moe);
++        let output = match prediction {
++            Some(predicted) => self
++                .moe
++                .forward_lookahead_input(&input, next, depth, &predicted)?,
++            None => self.moe.forward_lookahead(&input, next, depth)?,
++        };
+         let result = [
+             Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
+             Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
+@@ -1475,7 +1519,7 @@ impl FlashNext {
+             let (current, rest) = self.layers.split_at_mut(i + 1);
+             let layer = &mut current[i];
+             let next = (self.lookahead_depth > 0)
+-                .then(|| rest.first_mut().map(|l| &mut l.moe))
++                .then(|| rest.first_mut().map(|l| (&mut l.moe, &l.mlp_hc)))
+                 .flatten();
+             streams = layer.forward_lookahead(&streams, token, next, self.lookahead_depth)?;
+             if capture {
+@@ -1551,7 +1595,7 @@ impl FlashNext {
+             let _layer_profile = crate::flash_profile::span(&format!("layer_{i}"));
+             let (current, rest) = self.layers.split_at_mut(i + 1);
+             let next = (self.lookahead_depth > 0)
+-                .then(|| rest.first_mut().map(|l| &mut l.moe))
++                .then(|| rest.first_mut().map(|l| (&mut l.moe, &l.mlp_hc)))
+                 .flatten();
+             let (output, first) = current[i].forward_pair(
+                 &streams,
+@@ -1968,6 +2012,58 @@ mod tests {
+         Ok(result)
+     }
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; forecast flag and lookahead required"]
++    fn forecast_reads_the_next_layers_hyperconnection_and_rejects_bad_shapes() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut model = FlashNext::from_checkpoint(&c)?;
++        ensure!(
++            model.lookahead_depth > 0 && model.layers[0].forecast_hc,
++            "forecast test configuration inactive"
++        );
++        let logits = model.forward(EOS)?;
++        let values = logits.astype(Dtype::Float32)?.to_f32()?;
++        ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++        let find = |name: &str| {
++            model.layers[0]
++                .stages
++                .iter()
++                .find(|p| p.0 == name)
++                .map(|p| &p.1)
++                .context("forecast trace missing")
++        };
++        let streams = find("forecast_streams")?;
++        let actual = find("forecast_input")?.to_bytes()?;
++        let expected = model.layers[1].mlp_hc.read(streams)?.0;
++        ensure!(
++            !actual.is_empty() && actual == expected.to_bytes()?,
++            "forecast used the wrong HC input"
++        );
++        ensure!(
++            actual != model.layers[0].mlp_hc.read(streams)?.0.to_bytes()?,
++            "HC oracle is not discriminating"
++        );
++        let x = Array::zeros(&[1, H])?;
++        let bad = Array::zeros(&[1, H - 1])?;
++        let before = model.io_stats();
++        ensure!(
++            model.layers[0]
++                .moe
++                .forward_lookahead_input(&x, None, 2, &bad)
++                .is_err()
++        );
++        ensure!(
++            model.layers[0]
++                .moe
++                .forward_draft_lookahead_input(&x, None, 2, Some(&bad))
++                .is_err()
++        );
++        ensure!(
++            model.io_stats() == before,
++            "invalid forecast mutated I/O accounting"
++        );
++        Ok(())
++    }
++    #[test]
+     #[ignore = "physical Apple GPU and Flash checkpoint; LES full logits, states and commits"]
+     fn flash_lookahead_preserves_full_logits_states_and_pair_commits() -> Result<()> {
+         let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a8f1fbb7..ca9ecfb6 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -469,6 +469,20 @@ impl SsdMoe {
+         self.forward_rows(x, next, depth, 2)
+     }
+ 
++    pub(crate) fn forward_lookahead_input(
++        &mut self,
++        x: &Array,
++        next: Option<&mut Self>,
++        depth: usize,
++        prediction_input: &Array,
++    ) -> Result<Array> {
++        ensure!(
++            prediction_input.shape() == x.shape(),
++            "invalid prediction input shape"
++        );
++        self.forward_rows_prepared(x, next, depth, 2, None, Some(prediction_input))
++    }
++
+     #[cfg(any(feature = "chat", test))]
+     pub(crate) fn forward_draft_rows(&mut self, x: &Array) -> Result<Array> {
+         self.forward_rows(x, None, 0, 8)
+@@ -481,6 +495,20 @@ impl SsdMoe {
+         next: Option<&mut Self>,
+         depth: usize,
+     ) -> Result<Array> {
++        self.forward_draft_lookahead_input(x, next, depth, None)
++    }
++
++    pub(crate) fn forward_draft_lookahead_input(
++        &mut self,
++        x: &Array,
++        next: Option<&mut Self>,
++        depth: usize,
++        prediction_input: Option<&Array>,
++    ) -> Result<Array> {
++        ensure!(
++            prediction_input.is_none_or(|p| p.shape() == x.shape()),
++            "invalid draft prediction input shape"
++        );
+         if !self.prefetch_pipeline || depth == 0 {
+             return self.forward_draft_rows(x);
+         }
+@@ -492,7 +520,7 @@ impl SsdMoe {
+             .context("invalid draft prediction rows")?;
+         let prediction = next
+             .as_ref()
+-            .map(|next| next.predict(&x.slice(0, 0, rows as i32)?))
++            .map(|next| next.predict(&prediction_input.unwrap_or(x).slice(0, 0, rows as i32)?))
+             .transpose()?;
+         if let Some(prediction) = &prediction {
+             prediction.async_eval()?;
+@@ -517,7 +545,7 @@ impl SsdMoe {
+         depth: usize,
+         row_limit: i32,
+     ) -> Result<Array> {
+-        self.forward_rows_prepared(x, next, depth, row_limit, None)
++        self.forward_rows_prepared(x, next, depth, row_limit, None, None)
+     }
+ 
+     fn routed_input(x: &Array) -> Result<Array> {
+@@ -603,6 +631,7 @@ impl SsdMoe {
+                     ids,
+                     hot,
+                 }),
++                None,
+             );
+         }
+         // A split may evict future Hot experts: finish their captured results first.
+@@ -668,6 +697,7 @@ impl SsdMoe {
+                             })
+                             .transpose()?,
+                     }),
++                    None,
+                 )?,
+             );
+             begin = end;
+@@ -682,6 +712,7 @@ impl SsdMoe {
+         depth: usize,
+         row_limit: i32,
+         prepared: Option<PreparedRows>,
++        prediction_input: Option<&Array>,
+     ) -> Result<Array> {
+         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
+         ensure!(
+@@ -916,7 +947,9 @@ impl SsdMoe {
+         };
+         let prediction = (|| -> Result<Option<Array>> {
+             let prediction = if depth > 0 {
+-                next.as_ref().map(|next| next.predict(x)).transpose()?
++                next.as_ref()
++                    .map(|next| next.predict(prediction_input.unwrap_or(x)))
++                    .transpose()?
+             } else {
+                 None
+             };
+diff --git a/scripts/benchmark-flash-bridge.py b/scripts/benchmark-flash-bridge.py
+index c5eb8dd7..e0734bcd 100644
+--- a/scripts/benchmark-flash-bridge.py
++++ b/scripts/benchmark-flash-bridge.py
+@@ -19,7 +19,24 @@ PROMPTS = {
+ }
+ 
+ 
+-def validate(event: dict, mode: dict | None, mtp: bool, budget: int, dflash=False) -> None:
++def validate(
++    event: dict,
++    mode: dict | None,
++    mtp: bool,
++    budget: int,
++    dflash=False,
++    *,
++    reuse_cache: bool = False,
++) -> None:
++    """Validate complete bridge measurements, including fully reused prompts.
++
++    raises: ValueError, KeyError, TypeError
++    post: event['stats']['generated_tokens'] == budget
++    post: event['stats']['decode_tokens'] == budget - 1
++    post: event['stats']['prefill_tps'] > 0 or (reuse_cache and event['stats']['evaluated_prompt_tokens'] == 0 and event['stats']['cached_prompt_tokens'] == event['stats']['prompt_tokens'] > 0)
++    """
++    if type(reuse_cache) is not bool:
++        raise ValueError("reuse_cache must be a boolean")
+     if mode is None or mode.get("mtp_active") is not mtp or mode.get("dflash_active") is not dflash:
+         raise ValueError(f"engine mode mismatch: {mode}")
+     stats = event["stats"]
+@@ -31,6 +48,19 @@ def validate(event: dict, mode: dict | None, mtp: bool, budget: int, dflash=Fals
+         raise ValueError("empty output")
+     for key in ("decode_tps", "decode_seconds", "ttft_seconds", "prefill_tps"):
+         value = stats[key]
++        if (
++            key == "prefill_tps"
++            and reuse_cache
++            and type(value) in (int, float)
++            and value == 0
++            and all(
++                type(stats.get(k)) is int
++                for k in ("evaluated_prompt_tokens", "cached_prompt_tokens", "prompt_tokens")
++            )
++            and stats["evaluated_prompt_tokens"] == 0
++            and stats["cached_prompt_tokens"] == stats["prompt_tokens"] > 0
++        ):
++            continue
+         if (
+             isinstance(value, bool)
+             or not isinstance(value, (int, float))
+@@ -76,7 +106,10 @@ def run(
+     dflash_draft=None,
+     dflash_mode=1,
+     environment=None,
++    reuse_cache=False,
+ ):
++    if type(reuse_cache) is not bool:
++        raise ValueError("reuse_cache must be a boolean")
+     dflash = dflash_draft is not None
+     if dflash and (mtp or compare or not Path(dflash_draft).is_dir()):
+         raise ValueError("DFlash requires a draft directory and excludes MTP/comparison")
+@@ -104,6 +137,7 @@ def run(
+         "prompts": prompts,
+         "runs": [],
+         "warmup": [],
++        "reuse_prompt_cache": reuse_cache,
+     }
+ 
+     def save():
+@@ -209,12 +243,14 @@ def run(
+                         "dflash_draft_path": str(Path(dflash_draft).resolve()) if dflash else "",
+                         "dflash_mode": dflash_mode,
+                         "mcp_enabled": False,
+-                        "reuse_prompt_cache": False,
++                        "reuse_prompt_cache": reuse_cache,
+                     }
+                     process.stdin.write(json.dumps(request) + "\n")
+                     process.stdin.flush()
+                     event, mode = until("complete", request_id)
+-                    if dflash:
++                    if reuse_cache:
++                        validate(event, mode, enabled, tokens, dflash, reuse_cache=True)
++                    elif dflash:
+                         validate(event, mode, enabled, tokens, True)
+                     else:
+                         validate(event, mode, enabled, tokens)
+@@ -339,6 +375,7 @@ if __name__ == "__main__":
+     parser.add_argument("--prompt", choices=tuple(PROMPTS), help="measure only this fixed prompt")
+     parser.add_argument("--repeats", type=int, default=3, help="measured repetitions after warmup")
+     parser.add_argument("--tokens", type=int, default=64)
++    parser.add_argument("--reuse-cache", action="store_true", help="allow exact prompt checkpoints")
+     args = parser.parse_args()
+     run(
+         args.engine,
+@@ -353,4 +390,5 @@ if __name__ == "__main__":
+         tokens=args.tokens,
+         dflash_draft=args.dflash_draft,
+         dflash_mode=args.dflash_mode,
++        reuse_cache=args.reuse_cache,
+     )
+diff --git a/tests/test_flash_benchmark.py b/tests/test_flash_benchmark.py
+index c9b5506f..4ca143da 100644
+--- a/tests/test_flash_benchmark.py
++++ b/tests/test_flash_benchmark.py
+@@ -15,6 +15,42 @@ bench = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(bench)
+ 
+ 
++@pytest.mark.parametrize(
++    "update",
++    [
++        {},
++        {"prefill_tps": False},
++        {"prefill_tps": float("nan")},
++        {"cached_prompt_tokens": True},
++        {"cached_prompt_tokens": 9},
++        {"prompt_tokens": 0},
++        {"evaluated_prompt_tokens": 1},
++    ],
++)
++def test_zero_prefill_rate_requires_a_complete_explicitly_reused_prompt(update):
++    stats = {
++        "generated_tokens": 2,
++        "decode_tokens": 1,
++        "decode_tps": 10,
++        "decode_seconds": 0.1,
++        "ttft_seconds": 0.01,
++        "prefill_tps": 0.0,
++        "evaluated_prompt_tokens": 0,
++        "cached_prompt_tokens": 10,
++        "prompt_tokens": 10,
++    }
++    stats.update(update)
++    event = {"stats": stats, "token_hash": "nonempty", "cache_context": "answer"}
++    mode = {"mtp_active": False, "dflash_active": False}
++    if not update:
++        bench.validate(event, mode, False, 2, reuse_cache=True)
++    else:
++        with pytest.raises(ValueError):
++            bench.validate(event, mode, False, 2, reuse_cache=True)
++    with pytest.raises(ValueError):
++        bench.validate(event, mode, False, 2)
++
++
+ @pytest.mark.parametrize(
+     "fault",
+     [
+@@ -50,6 +86,7 @@ spec.loader.exec_module(bench)
+         "df_counter_type",
+         "df_missing_counter",
+         "late_status",
++        "reuse_cache",
+         "late_error",
+         "late_invalid",
+         "late_null",
+@@ -104,6 +141,9 @@ for line in sys.stdin:
+     tokens = r['max_tokens']
+     e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+          'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
++    if fault == 'reuse_cache':
++        assert r['reuse_prompt_cache'] is True
++        if counter > 2: e['stats'].update(prefill_tps=0, evaluated_prompt_tokens=0, cached_prompt_tokens=10, prompt_tokens=10)
+     if fault == 'hash': del e['token_hash']
+     if fault == 'empty': e['cache_context'] = ''
+     if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+@@ -160,7 +200,7 @@ for line in sys.stdin:
+             )
+             assert result["reaped"] and result["reader_joined"]
+         return
+-    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
++    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status", "reuse_cache"):
+         if fault == "ok":
+             original_validate = bench.validate
+ 
+@@ -179,6 +219,7 @@ for line in sys.stdin:
+             timeout=2,
+             auto_cache=automatic,
+             cache_gib=budget,
++            reuse_cache=fault == "reuse_cache",
+         )
+         assert result["status"] == "validated"
+         assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+@@ -189,6 +230,28 @@ for line in sys.stdin:
+             r["generation_mode"]["dflash_active"] is False
+             for r in result["runs"] + result["warmup"]
+         )
++        if fault == "reuse_cache":
++            cli_output = tmp_path / "reuse-cli"
++            subprocess.run(
++                [
++                    sys.executable,
++                    str(Path(bench.__file__)),
++                    str(engine),
++                    str(tmp_path),
++                    str(cli_output),
++                    "--reuse-cache",
++                    "--tokens",
++                    "2",
++                    "--repeats",
++                    "1",
++                ],
++                check=True,
++                timeout=10,
++                capture_output=True,
++                text=True,
++            )
++            assert json.loads((cli_output / "report.json").read_text())["reuse_prompt_cache"]
++            return
+         if fault == "one_prompt":
+             selected = bench.run(
+                 engine,

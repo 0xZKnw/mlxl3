@@ -1,0 +1,41 @@
+..Fatal Python error: Segmentation fault
+
+Current thread 0x0000000203690300 (most recent call first):
+  File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/tests/test_lfm25_moe_conversion.py", line 299 in observe
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx_lm/models/lfm2_moe.py", line 231 in __call__
+  File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 320 in capture_lfm_moe
+  File "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/tests/test_lfm25_moe_conversion.py", line 303 in test_routed_capture_records_actual_switch_inputs_without_cross_expert_links
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 167 in pytest_pyfunc_call
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 1707 in runtest
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 184 in pytest_runtest_call
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 250 in <lambda>
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 361 in from_call
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 249 in call_and_report
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 139 in runtestprotocol
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 118 in pytest_runtest_protocol
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 408 in pytest_runtestloop
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 384 in _main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 330 in wrap_session
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 377 in pytest_cmdline_main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 229 in _main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 253 in _console_main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pytest/__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main
+
+Extension modules: numpy._core._multiarray_umath, numpy.linalg._umath_linalg, yaml._yaml, regex._regex, markupsafe._speedups (total: 5)

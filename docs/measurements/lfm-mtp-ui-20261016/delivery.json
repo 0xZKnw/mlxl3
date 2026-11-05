@@ -1,0 +1,224 @@
+{
+  "status": "validated_local_artifact_installation_declined_by_user",
+  "recorded_at": "2026-10-16T00:02:57.920745+00:00",
+  "branch": "codex/lfm-mtp-ui-state",
+  "base_commit": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "ui_memory_fix_commit": "c94d85ca76b38aae05b243ca993fde4467e282e8",
+  "built_source_commit": "0bebf7446a08db1e13879394288a8a4bacab1632",
+  "built_tracked_changes": false,
+  "artifact_app": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app",
+  "artifact_engine_archive": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3-Engine-v1.4.5-arm64.tar.gz",
+  "desktop": {
+    "version": "1.4.4",
+    "build": "26"
+  },
+  "engine": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "0bebf7446a08",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.5"
+  },
+  "engine_archive": {
+    "name": "MLXL3-Engine-v1.4.5-arm64.tar.gz",
+    "size": 66910870,
+    "sha256": "5785aa7637ca1c96019a495455a0268e7a736bc32f84f44d0ae80ef059f59801"
+  },
+  "artifact_files": {
+    "Contents/MacOS/MLXL3Studio": {
+      "size": 6823968,
+      "sha256": "08d93401abbb7272c47aa93c2c10b323530e6bc7fc1bd1cbab12d1b92a292c60"
+    },
+    "Contents/Resources/build-info.json": {
+      "size": 272,
+      "sha256": "cd4d7e42db2d633fc905996d3ece805532e2eff3fe67cbe97557a184504b0d5e"
+    },
+    "Contents/Resources/runtime/engine.json": {
+      "size": 13587,
+      "sha256": "4db1daa83c7bcb11779d141e526680269cef7a91d4845d8d212d997f77ea7dbd"
+    },
+    "Contents/Resources/runtime/libjaccl.dylib": {
+      "size": 1546672,
+      "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3"
+    },
+    "Contents/Resources/runtime/libmlx.dylib": {
+      "size": 21815104,
+      "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2"
+    },
+    "Contents/Resources/runtime/mlx.metallib": {
+      "size": 182351120,
+      "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+    },
+    "Contents/Resources/runtime/mlxl3": {
+      "size": 9827584,
+      "sha256": "395fc4b6f6cab735c7e3130348c1bb42a3beaad1e86acf22e475ac68df91d8c1"
+    }
+  },
+  "installation": {
+    "status": "declined_by_user_after_auto_review_block",
+    "request": "replace /Applications/MLXL3 Desktop.app with tested local fix while preserving the old app and personal data",
+    "reason": "Auto-review requires explicit user approval to replace the application in /Applications; fix request alone was considered insufficient authorization.",
+    "installed_app_changed": false,
+    "existing_desktop_version": "1.2.0",
+    "existing_desktop_build": "19",
+    "personal_files_unchanged": true,
+    "managed_pointer_unchanged": true,
+    "private_preferences_conversations_backup_created": true,
+    "whole_old_app_backup_created": false,
+    "pending_user_approval": false,
+    "user_decision": "Non, garder l’app actuelle",
+    "user_decision_recorded_at": "2026-10-16T00:07:04.638788+00:00"
+  },
+  "verification": {
+    "desktop_final_assertions": 821,
+    "finite_states": 180,
+    "cpu_rust_passed": 80,
+    "cpu_rust_ignored": 3,
+    "packaging_passed": 45,
+    "packaging_ignored": 0,
+    "kani_SUCCESS": 220,
+    "kani_cover_SATISFIED": 11,
+    "physical_bridge_ready": "passed on debug fix source before version bump; same numerical source hashes, no generation",
+    "live_UI": "passed isolated production inspector via Cua; no personal history used",
+    "final_bundle_signature_hashes_self_checks": "passed",
+    "final_resolver": "passed against actual old managed pointer, read-only",
+    "crosshair": "2 Not confirmed; no counterexample found, no source/I/O proof claimed",
+    "github_exact_commit_ci": "not run; branch not pushed"
+  },
+  "publication": {
+    "github_push": false,
+    "pr_created": false,
+    "merge": false,
+    "release": false,
+    "hf_model_changed": false
+  },
+  "source_scope": "No quantization kernels, weights, model state allocation or inference algorithm changed.",
+  "limits": [
+    "Memory is logical persistent cache estimate, excluding retained backing, temporaries, allocator and process RAM.",
+    "No new KL/PPL or performance claim.",
+    "3 CPU tests remain ignored and physical MLX tests only compiled; no full pre-existing Kani suite rerun.",
+    "Swift has no applicable maintained source proof tool here; finite tests are not a formal proof.",
+    "Audit API finish_reason issue is separate and not fixed."
+  ],
+  "evidence_archive": {
+    "name": "delivery-evidence.tar.gz",
+    "size": 31305,
+    "sha256": "417accc7ff569af1db11083df206e17e460b743617babb042f771e6d2b12812e",
+    "files": {
+      "build/lfm-mtp-ui-state/package-engine-before.py.txt": {
+        "size": 4203,
+        "sha256": "d6a8dcde1a9581f917beee439a2fff3fc38d4f3b910e6804acdbb4bf97c137a9"
+      },
+      "build/lfm-mtp-ui-state/package-engine-cli-red.log": {
+        "size": 1484,
+        "sha256": "895304705913a9f21b57c4c127341d7e5cb5e79c26bf6bb7ced61c06b61cc758"
+      },
+      "build/lfm-mtp-ui-state/package-engine-crosshair.log": {
+        "size": 476,
+        "sha256": "acef5b022b2d60b60f4f408aa7ed835bef22d6f7379b0a79101f80858d2d9688"
+      },
+      "build/lfm-mtp-ui-state/package-engine-format-check-final.log": {
+        "size": 26,
+        "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+      },
+      "build/lfm-mtp-ui-state/package-engine-format-check.log": {
+        "size": 26,
+        "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+      },
+      "build/lfm-mtp-ui-state/package-engine-format-final.log": {
+        "size": 23,
+        "sha256": "43affe539ba0ae8b202b306a3294d04f3b7fc062316c1c825399076d966c8f2d"
+      },
+      "build/lfm-mtp-ui-state/package-engine-format.log": {
+        "size": 42,
+        "sha256": "10869b88a75066aa23546ef1f95fcd4678c3fb92a56ed46ef91688052b67976a"
+      },
+      "build/lfm-mtp-ui-state/package-engine-ruff-final.log": {
+        "size": 19,
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "build/lfm-mtp-ui-state/package-engine-ruff.log": {
+        "size": 399,
+        "sha256": "2ca5c40b5f8a0aa2e7b694440edc8c9e233ee5ff8124e80c332b47b2cca824fd"
+      },
+      "build/lfm-mtp-ui-state/package-engine-tests-first-after-fix.log": {
+        "size": 10187,
+        "sha256": "a44289cc833215fce7e4f8b63c16c292eb586a1587532965a57176d0c9b19b7f"
+      },
+      "build/lfm-mtp-ui-state/package-engine-tests-green.log": {
+        "size": 99,
+        "sha256": "092eb97e045cc5cc8f9d4f034cebbb6f228ffdf1cbad479a7d3a7ffa951578d5"
+      },
+      "build/lfm-mtp-ui-state/package-engine-version-fix.json": {
+        "size": 5097,
+        "sha256": "d5e2fe4875a64303255b8604a4bc69c553cfc40fc2111ce13f5ab6d2b670d62d"
+      },
+      "build/lfm-mtp-ui-20261016/final-chat-check.log": {
+        "size": 97,
+        "sha256": "7be41f436ce87d96559541d42a44e2911ad0148459e3400fc825b13ade8a02e9"
+      },
+      "build/lfm-mtp-ui-20261016/final-codesign.log": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "build/lfm-mtp-ui-20261016/final-mcp-check.log": {
+        "size": 81,
+        "sha256": "ecd399b1fa0bf9325c0caf175f673bc0d1a77dbd76da81ecf222b01ed293a94d"
+      },
+      "build/lfm-mtp-ui-20261016/final-runtime-info.log": {
+        "size": 148,
+        "sha256": "b8db8115de4315a7a20206a7fcc592b852bf91ef3ebbdf4c596e76cfc420c8b4"
+      },
+      "build/lfm-mtp-ui-20261016/package-app-delivered.log": {
+        "size": 4397,
+        "sha256": "2ea75737f448a1688045217f45992f95718b6552feff4d3dd5a41953f86b1576"
+      },
+      "build/lfm-mtp-ui-20261016/package-app-final.log": {
+        "size": 1126,
+        "sha256": "4d9c17f809e7334860709a205b2cc25b3da25811a8aba0ac17e859c02a0a311d"
+      },
+      "build/lfm-mtp-ui-20261016/package-app.log": {
+        "size": 9139,
+        "sha256": "9234ac51bd6cf6a65a95db0bea2f6e89389850d24d9999d26d938aa9c897f739"
+      },
+      "build/lfm-mtp-ui-20261016/ui-qa-fixture.swift": {
+        "size": 2726,
+        "sha256": "35c8e520c5d1179d006a32bedbcf90e9e9bad65b5541a8d104f8271b27b74aed"
+      },
+      "build/lfm-mtp-ui-20261016/ui-qa-combined.swift": {
+        "size": 73578,
+        "sha256": "6a0678867b3a142b2fd8df76452ccf1e1490b3117942c833a71410ed822b26a4"
+      },
+      "build/lfm-mtp-ui-20261016/build-ui-qa.zsh": {
+        "size": 945,
+        "sha256": "ddd9c72229a73c02ff43effc92e910190bbf8f87fe5b2f6960c66e347dc0a933"
+      },
+      "build/lfm-mtp-ui-20261016/ui-qa-build.log": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "build/lfm-mtp-ui-20261016/ui-qa-first-build-failed.json": {
+        "size": 159,
+        "sha256": "1b812432440a68ee9cfbe9b338dbc39a66933cc6454e6ee741be1327d39a6b5d"
+      },
+      "build/lfm-mtp-ui-20261016/qa-cleanup.json": {
+        "size": 655,
+        "sha256": "754e6671e23aa0e8b1c23497eea35459a3bad9d94863ec43db52ecc5745ddb7a"
+      },
+      "build/lfm-mtp-ui-20261016/mismatched-package-c94d85ca/manifest.json": {
+        "size": 1080,
+        "sha256": "7ff81ebc18bd2864e5a60e391a62674c425c049fddc08c185a7a7954450e7a29"
+      },
+      "build/lfm-mtp-ui-20261016/mismatched-package-c94d85ca/engine.json": {
+        "size": 13587,
+        "sha256": "7119188e753a984cee8ec1de43c5f01686530e979b4fe01ece47577bad2f9ceb"
+      },
+      "build/lfm-mtp-ui-20261016/mismatched-package-c94d85ca/build-info.json": {
+        "size": 272,
+        "sha256": "5c0827051339309ef8109496c65170440ac01b3e18957e21d8508bfb63756298"
+      }
+    }
+  }
+}

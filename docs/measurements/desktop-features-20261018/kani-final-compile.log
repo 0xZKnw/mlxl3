@@ -1,0 +1,1595 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)
+warning: trailing semicolon in macro used in expression position
+  --> native/src/contracts.rs:86:17
+   |
+86 |         None => assert!(!(2..24).contains(&rows)),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+   = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.19s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /private/tmp/mlxl3-features-20261018/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/2fb99e4022a9b6ee/out/mlxl3_native-2fb99e4022a9b6ee__RNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Not unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtNtCsarcUACBPeAt_12mlxl3_native3mcp12verification47mcp_server_names_are_nonempty_and_shell_neutral0EB1J_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}> thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Not unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Not unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core5slice6memchr12memchr_naiveCsarcUACBPeAt_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 41 column 5 function core::slice::memchr::memchr_naive thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs line 25 column 1 function core::slice::memchr::memchr thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Not unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4IterhENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsarcUACBPeAt_12mlxl3_native3mcp17valid_server_name0EB1H_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}> thread 0
+Runtime Symex: 1.49164s
+size of program expression: 91453 steps
+slicing removed 67689 assignments
+Generated 5234 VCC(s), 1737 remaining after simplification
+Runtime Postprocess Equation: 0.0320652s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.122086s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.0717037s
+Solving with CaDiCaL 3.0.0
+229246 variables, 409768 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0755893s
+Runtime decision procedure: 0.203359s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+229247 variables, 409769 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00360867s
+Runtime decision procedure: 0.00446138s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+229248 variables, 409770 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.102056s
+Runtime decision procedure: 0.102802s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+229249 variables, 409771 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.466602s
+Runtime decision procedure: 0.468326s
+
+RESULTS:
+Check 1: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 2: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 3: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 4: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 5: std::option::Option::<usize>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<usize>::is_some
+
+Check 6: core::slice::memchr::memchr.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:28:25 in function core::slice::memchr::memchr
+
+Check 7: core::slice::memchr::memchr.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:25:1 in function core::slice::memchr::memchr
+
+Check 8: std::hint::assert_unchecked.assume.1
+	 - Status: SUCCESS
+	 - Description: "Rust intrinsic assumption failed"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/hint.rs:210:9 in function std::hint::assert_unchecked
+
+Check 9: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 10: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 11: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 12: kani::rustc_intrinsics::size_of_val_raw::<u8>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:23:13 in function kani::rustc_intrinsics::size_of_val_raw::<u8>
+
+Check 13: kani::rustc_intrinsics::size_of_val_raw::<u8>.assertion.1
+	 - Status: SUCCESS
+	 - Description: "cannot compute `size_of_val` for extern types"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::size_of_val_raw::<u8>
+
+Check 14: kani::rustc_intrinsics::size_of_val_raw::<u8>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "failed to compute `size_of_val`"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::size_of_val_raw::<u8>
+
+Check 15: kani::rustc_intrinsics::offset::<u8, *mut u8, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *mut u8, usize>
+
+Check 16: kani::rustc_intrinsics::offset::<u8, *mut u8, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *mut u8, usize>
+
+Check 17: kani::rustc_intrinsics::offset::<u8, *mut u8, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *mut u8, usize>
+
+Check 18: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 19: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 20: std::ptr::align_offset::mod_inv.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2316:36 in function std::ptr::align_offset::mod_inv
+
+Check 21: std::ptr::align_offset::mod_inv.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv
+
+Check 22: std::ptr::align_offset::mod_inv.assertion.2
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift right with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv
+
+Check 23: std::ptr::align_offset::mod_inv.assertion.3
+	 - Status: UNREACHABLE
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv
+
+Check 24: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 25: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 26: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 27: std::ptr::const_ptr::<impl *const u8>::align_offset.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1282:13 in function std::ptr::const_ptr::<impl *const u8>::align_offset
+
+Check 28: std::ptr::NonNull::<u8>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 29: std::ptr::NonNull::<u8>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 30: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:304:13 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>
+
+Check 31: core::slice::memchr::memchr_naive.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 32: core::slice::memchr::memchr_naive.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:46:9 in function core::slice::memchr::memchr_naive
+
+Check 33: std::slice::from_raw_parts::<'_, u8>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/raw.rs:139:9 in function std::slice::from_raw_parts::<'_, u8>
+
+Check 34: std::slice::from_raw_parts::<'_, u8>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/raw.rs:139:9 in function std::slice::from_raw_parts::<'_, u8>
+
+Check 35: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 36: core::slice::memchr::memchr_aligned::runtime.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to multiply with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 37: core::slice::memchr::memchr_aligned::runtime.assertion.2
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 38: core::slice::memchr::memchr_aligned::runtime.assertion.3
+	 - Status: UNREACHABLE
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 39: core::slice::memchr::memchr_aligned::runtime.assertion.4
+	 - Status: UNREACHABLE
+	 - Description: "attempt to multiply with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 40: core::slice::memchr::memchr_aligned::runtime.assertion.5
+	 - Status: UNREACHABLE
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 41: core::slice::memchr::memchr_aligned::runtime.assertion.6
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 42: core::slice::memchr::memchr_aligned::runtime.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs:2628:9 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 43: core::slice::memchr::memchr_aligned::runtime.assertion.7
+	 - Status: UNREACHABLE
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 44: std::ptr::align_offset::<u8>.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2353:32 in function std::ptr::align_offset::<u8>
+
+Check 45: std::ptr::align_offset::<u8>.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2364:33 in function std::ptr::align_offset::<u8>
+
+Check 46: std::ptr::align_offset::<u8>.assume.1
+	 - Status: SUCCESS
+	 - Description: "Rust intrinsic assumption failed"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2387:18 in function std::ptr::align_offset::<u8>
+
+Check 47: std::ptr::align_offset::<u8>.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2390:40 in function std::ptr::align_offset::<u8>
+
+Check 48: std::ptr::align_offset::<u8>.exact_div.1
+	 - Status: SUCCESS
+	 - Description: "exact_div arguments divide exactly"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 49: std::ptr::align_offset::<u8>.exact_div.2
+	 - Status: SUCCESS
+	 - Description: "exact_div divisor is nonzero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 50: std::ptr::align_offset::<u8>.exact_div.3
+	 - Status: SUCCESS
+	 - Description: "exact_div division does not overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 51: std::ptr::align_offset::<u8>.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2415:24 in function std::ptr::align_offset::<u8>
+
+Check 52: std::ptr::align_offset::<u8>.arithmetic_overflow.5
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2417:24 in function std::ptr::align_offset::<u8>
+
+Check 53: std::ptr::align_offset::<u8>.arithmetic_overflow.6
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2441:27 in function std::ptr::align_offset::<u8>
+
+Check 54: std::ptr::align_offset::<u8>.arithmetic_overflow.7
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2444:33 in function std::ptr::align_offset::<u8>
+
+Check 55: std::ptr::align_offset::<u8>.arithmetic_overflow.8
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2447:27 in function std::ptr::align_offset::<u8>
+
+Check 56: std::ptr::align_offset::<u8>.arithmetic_overflow.9
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2451:50 in function std::ptr::align_offset::<u8>
+
+Check 57: std::ptr::align_offset::<u8>.arithmetic_overflow.10
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2451:32 in function std::ptr::align_offset::<u8>
+
+Check 58: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 59: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to
+
+Check 60: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1357:13 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to
+
+Check 61: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 62: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 63: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 64: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 65: mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: valid_server_name(name) == expected"
+	 - Location: native/src/mcp.rs:788:9 in function mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral
+
+Check 66: mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid_server_name(name)"
+	 - Location: native/src/mcp.rs:789:9 in function mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral
+
+Check 67: mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: !valid_server_name(name)"
+	 - Location: native/src/mcp.rs:790:9 in function mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral
+
+Check 68: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 69: <std::slice::Iter<'_, u8> as std::iter::Iterator>::any::<{closure@<u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:321:13 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::any::<{closure@<u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>
+
+Check 70: core::ub_checks::is_valid_allocation_size.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to divide by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 71: core::ub_checks::is_valid_allocation_size.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 72: kani::rustc_intrinsics::align_of_val_raw::<u8>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:43:13 in function kani::rustc_intrinsics::align_of_val_raw::<u8>
+
+Check 73: kani::rustc_intrinsics::align_of_val_raw::<u8>.assertion.1
+	 - Status: SUCCESS
+	 - Description: "cannot compute `align_of_val` for extern types"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::align_of_val_raw::<u8>
+
+Check 74: kani::rustc_intrinsics::align_of_val_raw::<u8>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "failed to compute `align_of_val`"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::align_of_val_raw::<u8>
+
+Check 75: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:304:13 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>
+
+Check 76: std::ptr::align_offset::<u8>.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2364:33 in function std::ptr::align_offset::<u8>
+
+Check 77: std::ptr::align_offset::<u8>.division-by-zero.2
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2390:40 in function std::ptr::align_offset::<u8>
+
+Check 78: std::ptr::align_offset::<u8>.division-by-zero.3
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 79: std::ptr::align_offset::<u8>.division-by-zero.4
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 80: std::ptr::align_offset::<u8>.bit_count.1
+	 - Status: SUCCESS
+	 - Description: "count trailing zeros is undefined for value zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2410:17 in function std::ptr::align_offset::<u8>
+
+Check 81: std::ptr::align_offset::<u8>.bit_count.2
+	 - Status: SUCCESS
+	 - Description: "count trailing zeros is undefined for value zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2411:17 in function std::ptr::align_offset::<u8>
+
+Check 82: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 83: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 84: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 85: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 86: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 87: std::ptr::read::<std::ptr::Unaligned<u8>>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<std::ptr::Unaligned<u8>>
+
+Check 88: std::ptr::read::<u8>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 89: std::ptr::read::<u8>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 90: std::ptr::read::<u8>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 91: std::ptr::read::<u8>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 92: std::ptr::read::<u8>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 93: std::ptr::read::<u8>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<u8>
+
+Check 94: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:37 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>
+
+Check 95: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:37 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>
+
+Check 96: <std::slice::Iter<'_, u8> as std::iter::Iterator>::any::<{closure@<u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:326:37 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::any::<{closure@<u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>
+
+Check 97: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 98: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 99: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 100: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 101: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 102: <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:406:36 in function <u8 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 103: std::option::Option::<usize>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 104: std::option::Option::<usize>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 105: std::option::Option::<usize>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 106: std::option::Option::<usize>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 107: std::option::Option::<usize>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 108: std::option::Option::<usize>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 109: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 110: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 111: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 112: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 113: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 114: std::ptr::NonNull::<u8>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u8>::as_ref::<'_>
+
+Check 115: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 116: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 117: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 118: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 119: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 120: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 121: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 122: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 123: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 124: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 125: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 126: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:25 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 127: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 128: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 129: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 130: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 131: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 132: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 133: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 134: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 135: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 136: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 137: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 138: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:56 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 139: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 140: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 141: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 142: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 143: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 144: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 145: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.31
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 146: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.32
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 147: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.33
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 148: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.34
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 149: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.35
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 150: core::num::<impl u8>::is_ascii_alphanumeric.pointer_dereference.36
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/mod.rs:929:87 in function core::num::<impl u8>::is_ascii_alphanumeric
+
+Check 151: core::ub_checks::is_valid_allocation_size.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 152: core::slice::memchr::memchr_naive.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 153: core::slice::memchr::memchr_naive.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 154: core::slice::memchr::memchr_naive.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 155: core::slice::memchr::memchr_naive.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 156: core::slice::memchr::memchr_naive.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 157: core::slice::memchr::memchr_naive.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:42:12 in function core::slice::memchr::memchr_naive
+
+Check 158: std::ptr::align_offset::mod_inv.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv
+
+Check 159: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 160: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 161: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 162: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 163: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 164: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:87:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 165: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 166: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 167: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 168: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 169: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 170: core::slice::memchr::memchr_aligned::runtime.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:29 in function core::slice::memchr::memchr_aligned::runtime
+
+Check 171: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 172: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 173: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 174: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 175: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 176: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 177: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 178: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 179: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 180: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 181: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 182: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 183: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 184: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 185: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 186: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 187: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 188: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 189: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 190: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 191: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 192: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 193: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 194: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 195: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 196: <std::slice::Iter<'_, u8> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::next
+
+Check 197: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 198: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 199: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 200: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 201: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 202: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 203: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 204: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 205: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 206: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 207: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 208: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 209: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 210: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 211: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 212: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 213: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 214: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 215: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 216: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 217: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 218: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 219: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 220: <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u8> as std::cmp::PartialEq>::eq
+
+Check 221: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 222: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 223: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 224: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 225: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 226: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 227: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 228: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 229: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 230: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 231: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 232: std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for u8>::eq
+
+Check 233: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:17 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:787:22: 787:28}>
+
+Check 234: <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:17 in function <std::slice::Iter<'_, u8> as std::iter::Iterator>::all::<{closure@native/src/mcp.rs:149:18: 149:21}>
+
+
+SUMMARY:
+ ** 0 of 232 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.8111744s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

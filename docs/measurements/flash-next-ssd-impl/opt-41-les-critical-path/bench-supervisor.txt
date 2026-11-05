@@ -1,0 +1,452 @@
+import hashlib
+import json
+import math
+import os
+import runpy
+import signal
+import statistics
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+W = Path.cwd()
+ROOT = Path("/Users/justin/Documents/mix-stq1_0")
+BASE = W / "docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path"
+ARMS = ["R0", "C0-LFU", "C0-LRU", "C4-F32-LRU", "C4-F16-LRU", "R0"]
+LIMIT = 256 << 20
+
+
+def choose(records):
+    result = {"common": False, "les": None}
+    if len(records) != 12 or any(r.get("status") != "validated" for r in records):
+        return result
+    if {(r["prompt"], r["index"]) for r in records} != {
+        (p, i) for p in ["MAIN", "HOLD"] for i in range(6)
+    }:
+        return result
+    common = []
+    les = {a: [] for a in ARMS[3:5]}
+    for prompt in ["MAIN", "HOLD"]:
+        cells = sorted((r for r in records if r["prompt"] == prompt), key=lambda r: r["index"])
+        if [r["arm"] for r in cells] != ARMS or any(
+            type(r["tps"]) not in [int, float]
+            or not math.isfinite(r["tps"])
+            or r["tps"] <= 0
+            or type(r["peak_bytes"]) is not int
+            or r["peak_bytes"] <= 0
+            or type(r["swapout_bytes"]) is not int
+            or not 0 <= r["swapout_bytes"] <= LIMIT
+            for r in cells
+        ):
+            return result
+        controls = [cells[0], cells[5]]
+        if max(r["tps"] for r in controls) / min(r["tps"] for r in controls) > 1.10:
+            return result
+        ref = max(r["tps"] for r in controls)
+        peak = max(r["peak_bytes"] for r in controls)
+        common.append(cells[1]["tps"] / ref if cells[1]["peak_bytes"] <= peak + LIMIT else 0)
+        causal = max(ref, cells[1]["tps"], cells[2]["tps"])
+        for cell in cells[3:5]:
+            les[cell["arm"]].append(
+                cell["tps"] / causal if cell["peak_bytes"] <= peak + LIMIT else 0
+            )
+    result["common"] = all(r >= 1.01 for r in common)
+    eligible = [a for a, ratios in les.items() if all(r >= 1.01 for r in ratios)]
+    result["les"] = (
+        max(eligible, key=lambda a: (math.prod(les[a]), a == ARMS[3])) if eligible else None
+    )
+    result["ratios"] = {"common": common, **les}
+    return result
+
+
+def pairs(records):
+    output = []
+    for prompt in ["MAIN", "HOLD"]:
+        for repeat in [1, 2]:
+            cells = [
+                r
+                for r in records
+                if r["prompt"] == prompt and r["repeat"] == repeat and r["status"] == "validated"
+            ]
+            if len(cells) == 2:
+                arms = {r["label"]: r for r in cells}
+                assert set(arms) == {"H", "C"}, "duplicate pair arm"
+                h, c = arms["H"], arms["C"]
+                output.append(
+                    {
+                        "prompt": prompt,
+                        "repeat": repeat,
+                        "H_tps": h["tps"],
+                        "C_tps": c["tps"],
+                        "gain_percent": 100 * (c["tps"] / h["tps"] - 1),
+                        "extra_peak_bytes": c["peak_bytes"] - h["peak_bytes"],
+                    }
+                )
+    return output
+
+
+def pair_passes(pair):
+    return (
+        math.isfinite(pair["gain_percent"])
+        and pair["gain_percent"] >= 1
+        and pair["extra_peak_bytes"] <= LIMIT
+    )
+
+
+def snapshot(parse_vm):
+    result = {
+        " ".join(c): subprocess.check_output(c, text=True, timeout=5)
+        for c in [
+            ["vm_stat"],
+            ["sysctl", "vm.swapusage"],
+            ["pmset", "-g", "batt"],
+            ["pmset", "-g", "therm"],
+        ]
+    }
+    result["vm_bytes"] = parse_vm(result["vm_stat"])
+    return result
+
+
+def monitor(child, r, parse_vm):
+    deadline = time.monotonic() + 360
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(r["command"], 360)
+        try:
+            return child.wait(timeout=min(2, remaining))
+        except subprocess.TimeoutExpired:
+            current = parse_vm(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+            delta = current["Swapouts"] - r["before"]["vm_bytes"]["Swapouts"]
+            r["maximum_live_swapout_bytes"] = max(r.get("maximum_live_swapout_bytes", 0), delta)
+            assert 0 <= delta <= LIMIT, "live swap limit exceeded"
+
+
+DRIVER = """import sys, runpy, json
+from pathlib import Path
+engine, model, dest, mode, prompt, reference, old_reference, repeats = sys.argv[1:]
+flash = runpy.run_path('scripts/benchmark-flash-bridge.py')
+original = flash['validate']
+ref = json.loads(Path(reference).read_text())
+old = json.loads(Path(old_reference).read_text())['runs'][0]
+def checked(event, generation_mode, mtp, budget):
+    original(event, generation_mode, mtp, budget)
+    response = {key: event[key] for key in ['token_hash', 'cache_context']}
+    if response != ref or not response['cache_context'].startswith(old['text']):
+        raise ValueError('128-token or validated 64-token prefix divergence')
+flash['run'].__globals__['validate'] = checked
+flash['run'](Path(engine), Path(model), Path(dest), mtp=mode=='mtp', tokens=128,
+             repeats=int(repeats), timeout=120, cache_gib=4, prompt=prompt)
+"""
+
+
+def main():
+    mode, phase = sys.argv[1:]
+    assert mode in ["baseline", "mtp"] and phase in ["screen", "confirm-common", "confirm-les"]
+    quality = json.loads((BASE / "quality.json").read_text())
+    assert len(quality) == 25 and all(r["status"] == "passed" and r["reaped"] for r in quality)
+    assert (
+        json.loads((BASE / "mutation/result.json").read_text())["status"] == "detected_and_restored"
+    )
+    guards = json.loads((BASE / "guard-checks.json").read_text())
+    assert guards["status"] == "passed" and set(guards["source_hashes"]) == {
+        "bench-supervisor.txt",
+        "quality-supervisor.txt",
+        "guards-supervisor.txt",
+    }
+    for name, expected in guards["source_hashes"].items():
+        assert hashlib.sha256((BASE / name).read_bytes()).hexdigest() == expected
+    identity = json.loads((BASE / "identity.json").read_text())
+    for f, h in identity["files"].items():
+        assert hashlib.sha256((W / f).read_bytes()).hexdigest() == h
+    for f, h in identity["binaries"].items():
+        assert hashlib.sha256(Path(f).read_bytes()).hexdigest() == h
+    assert (
+        json.loads((BASE.parent / "opt-30-les/download.json").read_text())["status"] == "verified"
+    )
+    engines = {
+        "R0": ROOT / "build/flash-opt-39a/les-lru/mlxl3-rs",
+        "C": ROOT / "build/flash-opt-41/final2-critical-path/mlxl3-rs",
+    }
+    assert (
+        hashlib.sha256(engines["R0"].read_bytes()).hexdigest()
+        == "52b7b6bb77981ef8f7a76749b0077e422b692ccfdbbcad6d7da7e0312c771aea"
+    )
+    parse_vm = runpy.run_path(str(W / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+    out = BASE / mode / phase
+    out.mkdir(parents=True, exist_ok=True)
+    assert not (out / "execution.json").exists(), "never overwrite an earlier trial"
+    selected = None
+    if phase == "screen":
+        if mode == "mtp":
+            off = json.loads((BASE / "baseline/screen/result.json").read_text())
+            assert (
+                off["status"] == "screen_complete"
+                and off["completed_arms"] == 12
+                and off["parity_complete"]
+            )
+        schedule = [
+            {"prompt": p, "index": i, "arm": a}
+            for p in ["MAIN", "HOLD"]
+            for i, a in enumerate(ARMS)
+        ]
+    else:
+        screen = json.loads((BASE / mode / "screen/result.json").read_text())
+        assert (
+            screen["status"] == "screen_complete"
+            and screen["parity_complete"]
+            and screen["completed_arms"] == 12
+        )
+        selected = screen["selection"]["les"] if phase == "confirm-les" else "C0-LFU"
+        assert selected is not None and (phase != "confirm-common" or screen["selection"]["common"])
+        schedule = [
+            {
+                "prompt": p,
+                "repeat": repeat,
+                "label": label,
+                "arm": selected
+                if label == "C"
+                else ("R0" if phase == "confirm-common" else "C0-LFU"),
+            }
+            for repeat, labels in [(1, ["H", "C"]), (2, ["C", "H"])]
+            for p in ["MAIN", "HOLD"]
+            for label in labels
+        ]
+    repeats = 2 if phase == "screen" else 3
+    power = "Now drawing from 'AC Power'"
+    (out / "matrix.json").write_text(
+        json.dumps(
+            {
+                "schedule": schedule,
+                "mode": mode,
+                "phase": phase,
+                "warmup": 1,
+                "repeats": repeats,
+                "tokens": 128,
+                "decode_tokens": 127,
+                "identity": identity,
+                "power": power,
+                "maximum_swapout_and_extra_peak_bytes": LIMIT,
+                "started_at": time.time(),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    done = []
+    result = {"status": "running", "parity_complete": False, "selection": None}
+    try:
+        for item in schedule:
+            r = {**item, "name": "-".join(str(v) for v in item.values()), "status": "running"}
+            done.append(r)
+            child = None
+            started = time.monotonic()
+            binary = engines["R0" if r["arm"] == "R0" else "C"]
+            depth = 4 if r["arm"].startswith("C4") else 0
+            env = {
+                **os.environ,
+                "MLXL3_SSD_CACHE_GIB": "4",
+                "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+                "MLXL3_SSD_READERS": "4",
+                "MLXL3_SSD_OVERLAP": "1",
+                "MLXL3_SSD_LOOKAHEAD_DEPTH": str(depth),
+                "MLXL3_SSD_CACHE_POLICY": "auto" if r["arm"] in ["R0", "C0-LFU"] else "lru",
+                "MLXL3_SSD_PREDICTOR_DTYPE": "f16" if r["arm"] == "C4-F16-LRU" else "f32",
+            }
+            dest = out / r["name"]
+            ref = (
+                BASE.parent
+                / "opt-39a-les-lru/confirmation"
+                / ("reference128-" + r["prompt"] + ".json")
+            )
+            old = BASE.parent / ("opt-18-hc/speed/1-" + r["prompt"] + "-baseline-H/report.json")
+            r["command"] = [
+                str(ROOT / ".venv/bin/python"),
+                "-c",
+                DRIVER,
+                str(binary),
+                str(ROOT / "models/Qwen3.8-Flash-Next-exl3-205-65c89531"),
+                str(dest),
+                mode,
+                r["prompt"],
+                str(ref),
+                str(old),
+                str(repeats),
+            ]
+            r["env"] = {k: v for k, v in env.items() if k.startswith("MLXL3_")}
+            try:
+                r["before"] = snapshot(parse_vm)
+                assert r["before"]["pmset -g batt"].splitlines()[0] == power, "power changed"
+                (out / "execution.json").write_text(json.dumps(done, indent=2) + "\n")
+                with (out / (r["name"] + ".log")).open("w") as log:
+                    child = subprocess.Popen(
+                        r["command"],
+                        env=env,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    r["pid"] = child.pid
+                    r["exit_code"] = monitor(child, r, parse_vm)
+                r["after"] = snapshot(parse_vm)
+                assert r["exit_code"] == 0, "benchmark process failed"
+                assert r["after"]["pmset -g batt"].splitlines()[0] == power, "power changed"
+                report = json.loads((dest / "report.json").read_text())
+                assert (
+                    report["status"] == "validated"
+                    and report["binary_sha256"] == hashlib.sha256(binary.read_bytes()).hexdigest()
+                )
+                assert len(report["warmup"]) == 1 and len(report["runs"]) == repeats
+                golden = json.loads(ref.read_text())
+                for g in report["warmup"] + report["runs"]:
+                    assert (g["token_hash"], g["text"]) == (
+                        golden["token_hash"],
+                        golden["cache_context"],
+                    )
+                    assert (
+                        g["stats"]["generated_tokens"] == 128 and g["stats"]["decode_tokens"] == 127
+                    )
+                    if mode == "mtp":
+                        counters = {k: v for k, v in g["stats"].items() if k.startswith("mtp_")}
+                        assert counters
+                        counter_ref = BASE / mode / ("counters-" + r["prompt"] + ".json")
+                        if counter_ref.exists():
+                            assert json.loads(counter_ref.read_text()) == counters, (
+                                "MTP counters diverged"
+                            )
+                        else:
+                            assert r["arm"] == "R0" and phase == "screen"
+                            counter_ref.write_text(json.dumps(counters, indent=2) + "\n")
+                r["samples_tps"] = [g["stats"]["decode_tps"] for g in report["runs"]]
+                assert all(
+                    type(v) in [int, float] and math.isfinite(v) and v > 0 for v in r["samples_tps"]
+                )
+                assert max(r["samples_tps"]) / min(r["samples_tps"]) <= 1.25, (
+                    "within-arm drift exceeded"
+                )
+                r["tps"] = statistics.median(r["samples_tps"])
+                r["peak_bytes"] = max(
+                    g["stats"]["memory"]["process_lifetime_peak_bytes"]
+                    for g in report["warmup"] + report["runs"]
+                )
+                assert type(r["peak_bytes"]) is int and r["peak_bytes"] > 0
+                r["swapout_bytes"] = (
+                    r["after"]["vm_bytes"]["Swapouts"] - r["before"]["vm_bytes"]["Swapouts"]
+                )
+                assert 0 <= r["swapout_bytes"] <= LIMIT, "swap limit exceeded"
+                r["status"] = "validated"
+            except BaseException as exc:
+                r.update(
+                    status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                    error=repr(exc),
+                )
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGTERM)
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.wait(timeout=10)
+                r["reaped"] = child is None or child.poll() is not None
+                r["seconds"] = time.monotonic() - started
+                (out / "execution.json").write_text(json.dumps(done, indent=2) + "\n")
+                print(
+                    {
+                        k: r[k]
+                        for k in ["name", "status", "tps", "peak_bytes", "swapout_bytes"]
+                        if k in r
+                    },
+                    flush=True,
+                )
+                with (W / "opti.md").open("a") as journal:
+                    journal.write(
+                        "\n- 41 "
+                        + mode
+                        + "/"
+                        + phase
+                        + " "
+                        + r["name"]
+                        + " : **"
+                        + r["status"]
+                        + "**, "
+                        + str(r.get("tps", "non mesuré"))
+                        + "tok/s, pic"
+                        + str(r.get("peak_bytes", "non mesuré"))
+                        + "octets, swapouts+"
+                        + str(r.get("swapout_bytes", "non mesuré"))
+                        + "octets ; opt-41/"
+                        + mode
+                        + "/"
+                        + phase
+                        + "/execution.json.\n"
+                    )
+            if phase != "screen":
+                result["pairs"] = pairs(done)
+                if any(not pair_passes(pair) for pair in result["pairs"]):
+                    result.update(
+                        status="rejected",
+                        reason="paired criterion impossible; conservative early stop",
+                    )
+                    break
+        else:
+            if phase == "screen":
+                result.update(
+                    status="screen_complete", selection=choose(done), parity_complete=True
+                )
+            else:
+                pair_results = pairs(done)
+                assert len(pair_results) == 4, "incomplete pair matrix"
+                ranges = {
+                    p: max(r["gain_percent"] for r in pair_results if r["prompt"] == p)
+                    - min(r["gain_percent"] for r in pair_results if r["prompt"] == p)
+                    for p in ["MAIN", "HOLD"]
+                }
+                passed = all(pair_passes(r) for r in pair_results) and all(
+                    r <= 3 for r in ranges.values()
+                )
+                result.update(
+                    status="validated" if passed else "non_conclusive",
+                    pairs=pair_results,
+                    parity_complete=True,
+                    gain_range_points=ranges,
+                )
+    except (Exception, KeyboardInterrupt) as exc:  # noqa: BLE001 - persist failure and return nonzero
+        result.update(
+            status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+            error=repr(exc),
+            parity_complete=False,
+        )
+    finally:
+        result.update(
+            completed_arms=sum(r["status"] == "validated" for r in done),
+            planned_arms=len(schedule),
+            not_started_arms=len(schedule) - len(done),
+            finished_at=time.time(),
+        )
+        (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(result, flush=True)
+        with (W / "opti.md").open("a") as journal:
+            journal.write(
+                "\n- **41 "
+                + mode
+                + "/"
+                + phase
+                + " terminé : "
+                + result["status"]
+                + "**, "
+                + str(result["completed_arms"])
+                + "/"
+                + str(len(schedule))
+                + "bras ; result.json, sélection"
+                + str(result["selection"])
+                + ".\n"
+            )
+    if result["status"] in ["failed", "interrupted"]:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

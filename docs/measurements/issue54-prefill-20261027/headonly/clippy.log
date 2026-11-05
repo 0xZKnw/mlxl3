@@ -1,0 +1,25 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error: method `forward_captured` is never used
+   --> native/src/flash_draft.rs:924:8
+    |
+923 | impl FlashNext {
+    | -------------- method in this implementation
+924 |     fn forward_captured(&mut self, token: u32, kind: Kind) -> Result<(Array, Array)> {
+    |        ^^^^^^^^^^^^^^^^
+    |
+    = note: `-D dead-code` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: very complex type used. Consider factoring parts into `type` definitions
+    --> native/src/qwen4.rs:1474:10
+     |
+1474 |     ) -> Result<(Option<Array>, Vec<(String, Array)>)> {
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#type_complexity
+     = note: `-D clippy::type-complexity` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: could not compile `mlxl3-native` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

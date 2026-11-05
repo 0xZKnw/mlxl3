@@ -1,0 +1,82 @@
+[
+  {
+    "name": "fmt2",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.30867050000233576
+  },
+  {
+    "name": "clippy2",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 2.5371571659925394
+  },
+  {
+    "name": "release-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 43.22986537500401
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.08219287500833161
+  },
+  {
+    "name": "kani-actual-generation",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "qwen4::draft::actual_flash_draft_generation_checks_empty_decode_and_committed_state",
+      "--output-format",
+      "terse"
+    ],
+    "status": "failed",
+    "exit_code": 1,
+    "reaped": true,
+    "seconds": 4.490347250015475
+  }
+]

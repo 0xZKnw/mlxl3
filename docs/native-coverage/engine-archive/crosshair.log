@@ -1,0 +1,41 @@
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/bin/crosshair", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/main.py", line 989, in main
+    sys.exit(unwalled_main(parsed_args))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/main.py", line 930, in unwalled_main
+    return check(args, options, sys.stdout, sys.stderr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/main.py", line 892, in check
+    for message in run_checkables(checkables):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 887, in run_checkables
+    collector.extend(checkable.analyze())
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 815, in analyze
+    analysis = analyze_calltree(options, conditions)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 1224, in analyze_calltree
+    call_analysis = attempt_call(
+                    ^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 1458, in attempt_call
+    original_args = gen_args(conditions.sig)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 755, in gen_args
+    value = proxy_maker(param.annotation, smt_name, allow_subtypes)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "proxy_arg_runtime.py", line 705, in proxy_arg_runtime
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 487, in proxy_for_class
+    constructor_sig = get_constructor_signature(typ)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/core.py", line 460, in get_constructor_signature
+    sig = dynamic_typing.intersect_signatures(*applicable_sigs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/build/formal-python/lib/python3.12/site-packages/crosshair/dynamic_typing.py", line 342, in intersect_signatures
+    result = Signature(
+             ^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/inspect.py", line 3054, in __init__
+    raise ValueError(msg)
+ValueError: wrong parameter order: keyword-only parameter before variadic positional parameter

@@ -1,0 +1,216 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 29100,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.25514529198699165
+  },
+  {
+    "name": "cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 29103,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.7746360420132987
+  },
+  {
+    "name": "cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 29145,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.3147366659977706
+  },
+  {
+    "name": "mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 29247,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.208035250005196
+  },
+  {
+    "name": "release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 29298,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 41.86586933399667
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 29444,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 31.874988666997524
+  },
+  {
+    "name": "kani-publish",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pending_publish_rejects_stale_failed_and_duplicate_records"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 29540,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 4.098872749993461
+  },
+  {
+    "name": "kani-claim",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "speculative_claim_excludes_pending_and_preserves_pair_space"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 29632,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 22.210908957989886
+  },
+  {
+    "name": "kani-reserve",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "two_routes_preserve_hits_and_never_alias_distinct_experts"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 29736,
+    "error": "TimeoutExpired(['cargo', 'kani', '--lib', '--no-default-features', '--harness', 'two_routes_preserve_hits_and_never_alias_distinct_experts'], 120)",
+    "joined": true,
+    "elapsed_seconds": 120.0048014579952
+  },
+  {
+    "name": "kani-owned",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_owned_read_pool_and_drop_path"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 29961,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 3.846714500003145
+  },
+  {
+    "name": "cbmc-prepare",
+    "command": [
+      "cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "-I",
+      "native/ffi",
+      "--function",
+      "persistent_prepare_proof",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwind",
+      "17",
+      "--unwinding-assertions"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "error": "FileNotFoundError(2, 'No such file or directory')",
+    "elapsed_seconds": 0.0015294999902835116
+  },
+  {
+    "name": "crosshair-checks",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/checks-supervisor.txt",
+      "--analysis_kind=asserts"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 30043,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 0.02401358300994616
+  }
+]

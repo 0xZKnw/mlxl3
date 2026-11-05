@@ -1,0 +1,29 @@
+{
+  "status": "deterministic_controller_checks_passed_formal_unverified",
+  "legacy_controller_used_for_GPU": "../controller.v1.py.txt",
+  "validation_only_controller": "../controller.v2.py.txt",
+  "controller_sha256": {
+    "controller.v1.py.txt": "0664c571bab30de47ff437fd8ea128ad5c24f65651370a7e05aab11897f9153b",
+    "controller.v2.py.txt": "127eeaa58219bc0bf26e7589c9a8fc6e83849313ddb4df829aa0ce2e59528de7"
+  },
+  "checks": {
+    "legacy_test_count": 39,
+    "legacy_false_acceptances": [
+      "model-token-bool",
+      "model-token-float"
+    ],
+    "fixed_test_count": 39,
+    "fixed_failed": 0,
+    "existing_physical_logs_revalidated": 2,
+    "new_GPU_runs": 0
+  },
+  "CrossHair": "not_verified_tool_absent",
+  "scope": "actual validate/exact_fields imported via runpy non-main; existing plan and captured physical payloads as fixtures",
+  "limits": [
+    "deterministic finite cases, not complete proof",
+    "CrossHair unavailable; helper symbolic verification NOT VERIFIED",
+    "no OS process/group cleanup or timeout proof from mocked subprocess guards",
+    "no runtime, Metal, state numerical, binary or GPU timing change"
+  ],
+  "all_owned_children_joined": true
+}

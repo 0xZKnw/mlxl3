@@ -1,0 +1,15 @@
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -231,6 +231,12 @@
+           python -m py_compile scripts/check_flash_drafts.py
+       - name: Check bridge and QMM validation tools
+         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_drafts.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
++      - name: Check process memory report analyzer (CPU only)
++        run: |
++          ruff format --check scripts/analyze_flash_process_memory.py tests/test_flash_process_memory.py
++          ruff check scripts/analyze_flash_process_memory.py tests/test_flash_process_memory.py
++          python -m py_compile scripts/analyze_flash_process_memory.py
++          python -m pytest -q tests/test_flash_process_memory.py
+       - name: Check idle-memory benchmark failure and parity gates
+         run: |
+           ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py

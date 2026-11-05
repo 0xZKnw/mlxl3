@@ -1,0 +1,76 @@
+{
+  "status": "source_scope_audited_no_target_projection_excluded",
+  "linear_only_change": "load-time && target_scope(prefix)",
+  "forward_and_batch_functions_byte_identical": true,
+  "dec_one_apply_byte_identical": true,
+  "shader_hash_unchanged": "be8893810143a4476ebc4e2c6780d5c2d28e14953b21042dff8c2e8d4bb308d2",
+  "all_actual_48_target_projection_prefixes_pass": [
+    "model.language_model.layers.0.linear_attn.out_proj.trellis",
+    "model.language_model.layers.1.linear_attn.out_proj.trellis",
+    "model.language_model.layers.2.linear_attn.out_proj.trellis",
+    "model.language_model.layers.3.self_attn.o_proj.trellis",
+    "model.language_model.layers.4.linear_attn.out_proj.trellis",
+    "model.language_model.layers.5.linear_attn.out_proj.trellis",
+    "model.language_model.layers.6.linear_attn.out_proj.trellis",
+    "model.language_model.layers.7.self_attn.o_proj.trellis",
+    "model.language_model.layers.8.linear_attn.out_proj.trellis",
+    "model.language_model.layers.9.linear_attn.out_proj.trellis",
+    "model.language_model.layers.10.linear_attn.out_proj.trellis",
+    "model.language_model.layers.11.self_attn.o_proj.trellis",
+    "model.language_model.layers.12.linear_attn.out_proj.trellis",
+    "model.language_model.layers.13.linear_attn.out_proj.trellis",
+    "model.language_model.layers.14.linear_attn.out_proj.trellis",
+    "model.language_model.layers.15.self_attn.o_proj.trellis",
+    "model.language_model.layers.16.linear_attn.out_proj.trellis",
+    "model.language_model.layers.17.linear_attn.out_proj.trellis",
+    "model.language_model.layers.18.linear_attn.out_proj.trellis",
+    "model.language_model.layers.19.self_attn.o_proj.trellis",
+    "model.language_model.layers.20.linear_attn.out_proj.trellis",
+    "model.language_model.layers.21.linear_attn.out_proj.trellis",
+    "model.language_model.layers.22.linear_attn.out_proj.trellis",
+    "model.language_model.layers.23.self_attn.o_proj.trellis",
+    "model.language_model.layers.24.linear_attn.out_proj.trellis",
+    "model.language_model.layers.25.linear_attn.out_proj.trellis",
+    "model.language_model.layers.26.linear_attn.out_proj.trellis",
+    "model.language_model.layers.27.self_attn.o_proj.trellis",
+    "model.language_model.layers.28.linear_attn.out_proj.trellis",
+    "model.language_model.layers.29.linear_attn.out_proj.trellis",
+    "model.language_model.layers.30.linear_attn.out_proj.trellis",
+    "model.language_model.layers.31.self_attn.o_proj.trellis",
+    "model.language_model.layers.32.linear_attn.out_proj.trellis",
+    "model.language_model.layers.33.linear_attn.out_proj.trellis",
+    "model.language_model.layers.34.linear_attn.out_proj.trellis",
+    "model.language_model.layers.35.self_attn.o_proj.trellis",
+    "model.language_model.layers.36.linear_attn.out_proj.trellis",
+    "model.language_model.layers.37.linear_attn.out_proj.trellis",
+    "model.language_model.layers.38.linear_attn.out_proj.trellis",
+    "model.language_model.layers.39.self_attn.o_proj.trellis",
+    "model.language_model.layers.40.linear_attn.out_proj.trellis",
+    "model.language_model.layers.41.linear_attn.out_proj.trellis",
+    "model.language_model.layers.42.linear_attn.out_proj.trellis",
+    "model.language_model.layers.43.self_attn.o_proj.trellis",
+    "model.language_model.layers.44.linear_attn.out_proj.trellis",
+    "model.language_model.layers.45.linear_attn.out_proj.trellis",
+    "model.language_model.layers.46.linear_attn.out_proj.trellis",
+    "model.language_model.layers.47.self_attn.o_proj.trellis"
+  ],
+  "head_loader": "main.rs:3366 only calls load_mtp_head when mtp_active; AR/DF request false and response checked",
+  "limits": "Static/source and existing component evidence; no claim bit-identical machine code between different release builds.",
+  "manifest_comparison": {
+    "matched_entries": 128,
+    "changed_files": {
+      "native/src/dec_one.rs": [
+        "b7f087a560e800b805c2e003e398f8c9d1acdf5fd5e86c8164ce4e3a1c2c7486",
+        "dd8b498114d1af3c288b34d6f46a33ce74dd384f3eb5d990157962f52a274d3b"
+      ],
+      "native/src/linear.rs": [
+        "46575e610d1493e2a55f300d86e1b13a4a28ba5718d2401b4b8d6d84e9a138c1",
+        "142566ca216930d0cf1ba21a0d7514c1844d8d0a79934196bd4b84de2ffbe327"
+      ],
+      "native/src/linear/dense_epilogue_tests.rs": [
+        "73c725985e6b7f5dc4c29f4efa42ac62721ea2cb4968fa21c04842e334ff03bb",
+        "4f7b48f1f7165b4f2f2e4d6fcecb14216ada82e2cca9c0a9815d46db8231d5e5"
+      ]
+    }
+  }
+}

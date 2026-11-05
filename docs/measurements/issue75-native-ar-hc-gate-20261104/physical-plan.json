@@ -1,0 +1,164 @@
+{
+  "status": "not_run_requires_root_composed_freeze_and_GPU_grant",
+  "isolated_frozen_artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/direct-cli",
+      "sha256": "297b869bd2c4dc3986b5c0d705108452669ff9b891d12ce05fee6589ca317860",
+      "bytes": 10103360,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+      "sha256": "f3cb7d9b79de146c87bec8a812b51ecbecf0f89def4ad90d679c38d3325a0b21",
+      "bytes": 9111456,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "root_instruction": "Replace executable paths with hash-frozen composed artifacts before launch; keep exact tests/env/strict reports, one process/model at a time. No speed in this plan.",
+  "base_environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN": "1",
+    "MLXL3_NATIVE_AR_HC_CHAIN": "1",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+  },
+  "phases": [
+    {
+      "label": "gate-component",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::gate::tests::encoded_gate_matches_independent_uniform_oracle_and_owner_errors",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 60,
+      "environment_override": {},
+      "require": "Analytic independent F32/F16 logits -1, softmax 1/512, top10 tie indices502..511, scores0.1, strided/batched, predict/trace and owner/queue/shape rejection/recovery.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "hc-gate-owner",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::hc::tests::joint_hc_gate_rejects_foreign_moe_before_commit_and_recovers",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 90,
+      "environment_override": {},
+      "require": "Foreign MoE/HC Metal rejects before actual helper commit, then same-owner recovery finite/exact.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "hc-gate-full-ar",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::flash::tests::hc_gate_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment_override": {},
+      "require": "Prefixes0/2/9;48real joints, gateCB48\u21920, helperCBequal, actual waitAPIcalls equal;86409216finiteF32 state words + hidden/logits bitexact, late row IO rollback/recovery.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "independent-depth0",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::flash::tests::hc_gate_depth_zero_matches_archived_full_states_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment_override": {},
+      "require": "Independent84states28803072finiteF32words+496640half logits hashes; actual192joint gate pairs and zero gate.submitCB, reset/prefill continuation.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "prefetch-fallback",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "require": "Independent84states/logits, prefetch drain, actual gatepairs0 and gate.submitCB>0: fallback mandatory despite flag1.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "router-lifetime",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::router::tests::publishes_complete_routes_after_producer_and_input_drop",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 60,
+      "environment_override": {},
+      "require": "Read routes after dropping producer/input, consume scores on another queue.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "ssd-errors",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/frozen/native-libtest",
+        "gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 90,
+      "environment_override": {},
+      "require": "Unchanged shared DemandPlan consumer rejects partial record and recovers, cold3waves/hot1wave and early release. Standalone MoE route used; fullAR adds new joint producer coverage.",
+      "status": "not_run",
+      "parity": false
+    }
+  ],
+  "real_cli_followups": {
+    "bridge_driver": "tests/physical_flash_ar_bridge.py",
+    "timeout_seconds": 240,
+    "require": "4nonemptygoldens9f850af1cbba074b + rejection/context anddeltaSIGUSR1cancel/recovery/noMLX/allchildrenjoined",
+    "budget_existing_test": "native_flash_memory_budget_preserves_bridge_recovery",
+    "budget_fixture_sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+    "budget_timeout_seconds": 180,
+    "fresh_cli_env": "MLXL3_FLASH_TEST_CLI",
+    "budget_require": "2goldens/memorysaver/ledger/rejection/recovery; actual fresh composed CLI"
+  },
+  "environment_unset": [
+    "MLXL3_SSD_CACHE_MIB"
+  ]
+}

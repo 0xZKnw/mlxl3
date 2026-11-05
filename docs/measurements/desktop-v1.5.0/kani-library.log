@@ -1,0 +1,969 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.5.0 (/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:773:17
+    |
+773 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.18s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.5.0 (/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+Checking harness codec::verification::exl3_permutation_and_inverse_are_bijections...
+
+VERIFICATION RESULT:
+ ** 0 of 192 failed (1 unreachable)
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 52.771633s
+
+Checking harness codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile...
+
+VERIFICATION RESULT:
+ ** 0 of 81 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.22388595s
+
+Checking harness codec::verification::symbolic_pack_indices_stay_inside_one_tile...
+
+VERIFICATION RESULT:
+ ** 0 of 76 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.12892358s
+
+Checking harness codec::verification::bitrate_validation_accepts_exactly_one_through_eight...
+
+VERIFICATION RESULT:
+ ** 0 of 56 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04318404s
+
+Checking harness contracts::exl3_lane_order_preserves_shape_and_large_m_fallback...
+
+VERIFICATION RESULT:
+ ** 0 of 68 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.16589092s
+
+Checking harness contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds...
+
+VERIFICATION RESULT:
+ ** 0 of 9 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.048162624s
+
+Checking harness contracts::exl3_lane_layout_key_distinguishes_options...
+
+VERIFICATION RESULT:
+ ** 0 of 2 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.0157085s
+
+Checking harness contracts::exl3_lane_order_default_and_bounded_explicit_values...
+
+VERIFICATION RESULT:
+ ** 0 of 204 failed (7 unreachable)
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 18.52604s
+
+Checking harness contracts::generation_stop_reason_matches_observed_terminal_event...
+
+VERIFICATION RESULT:
+ ** 0 of 15 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.032637086s
+
+Checking harness contracts::lfm_context_memory_small_dimensions_match_wide_oracle...
+
+VERIFICATION RESULT:
+ ** 0 of 96 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 4.579954s
+
+Checking harness contracts::lfm_context_conv_matches_f16_history_and_rejects_overflow...
+
+VERIFICATION RESULT:
+ ** 0 of 63 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.18348345s
+
+Checking harness contracts::lfm_context_attention_matches_f16_shapes_and_rejects_overflow...
+
+VERIFICATION RESULT:
+ ** 0 of 61 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.10911909s
+
+Checking harness contracts::memory_saver_releases_every_unused_buffer...
+
+VERIFICATION RESULT:
+ ** 0 of 3 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.019360667s
+
+Checking harness contracts::idle_cache_release_preserves_small_working_sets...
+
+VERIFICATION RESULT:
+ ** 0 of 4 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.017387832s
+
+Checking harness contracts::verification::qmv_shape_matches_wide_arithmetic...
+
+VERIFICATION RESULT:
+ ** 0 of 180 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.9545951s
+
+Checking harness contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles...
+
+VERIFICATION RESULT:
+ ** 0 of 192 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.3026906s
+
+Checking harness contracts::verification::accepted_data_ranges_are_exact_and_in_bounds...
+
+VERIFICATION RESULT:
+ ** 0 of 5 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.068706125s
+
+Checking harness contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions...
+
+VERIFICATION RESULT:
+ ** 0 of 352 failed (1 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 3.273789s
+
+Checking harness contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions...
+
+VERIFICATION RESULT:
+ ** 0 of 330 failed (5 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 7.6459455s
+
+Checking harness contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary...
+
+VERIFICATION RESULT:
+ ** 0 of 97 failed (1 unreachable)
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.1881905s
+
+Checking harness contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits...
+
+VERIFICATION RESULT:
+ ** 0 of 11 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.043736544s
+
+Checking harness contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows...
+
+VERIFICATION RESULT:
+ ** 0 of 12 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04440025s
+
+Checking harness contracts::verification::gdn_tape_prefix_covers_all_valid_commits...
+
+VERIFICATION RESULT:
+ ** 0 of 66 failed
+
+ ** 5 of 5 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.049202625s
+
+Checking harness contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch...
+
+VERIFICATION RESULT:
+ ** 0 of 2 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.0136125s
+
+Checking harness contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row...
+
+VERIFICATION RESULT:
+ ** 0 of 85 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.28236294s
+
+Checking harness contracts::grouped_mb3_preserves_rows_and_all_fallbacks...
+
+VERIFICATION RESULT:
+ ** 0 of 164 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.21625395s
+
+Checking harness contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes...
+
+VERIFICATION RESULT:
+ ** 0 of 61 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04582904s
+
+Checking harness contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries...
+
+VERIFICATION RESULT:
+ ** 0 of 7 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.036890622s
+
+Checking harness contracts::mtp_add_norm_launch_bounds...
+
+VERIFICATION RESULT:
+ ** 0 of 109 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.11108096s
+
+Checking harness contracts::pipeline_layer_has_no_final_or_outside_submission...
+
+VERIFICATION RESULT:
+ ** 0 of 13 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.062330086s
+
+Checking harness contracts::mtp_pipeline_default_is_limited_to_measured_target...
+
+VERIFICATION RESULT:
+ ** 0 of 1 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.022650415s
+
+Checking harness contracts::dense_mlp_batch_stays_within_supported_domain...
+
+VERIFICATION RESULT:
+ ** 0 of 6 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.075868666s
+
+Checking harness contracts::smallm_kernel_key_is_injective...
+
+VERIFICATION RESULT:
+ ** 0 of 3 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.034322336s
+
+Checking harness contracts::lfm_prefill_end_preserves_context_and_all_block_positions...
+
+VERIFICATION RESULT:
+ ** 0 of 49 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.15084858s
+
+Checking harness contracts::lfm_moe_exact_prefill_accepts_only_the_qualified_geometry...
+
+VERIFICATION RESULT:
+ ** 0 of 6 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.032588333s
+
+Checking harness contracts::lfm_moe_prefill_selection_respects_qualification_and_override...
+
+VERIFICATION RESULT:
+ ** 0 of 33 failed
+
+ ** 5 of 5 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.13635254s
+
+Checking harness contracts::biased_router_domain_bounds_dispatch...
+
+VERIFICATION RESULT:
+ ** 0 of 66 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.4911326s
+
+Checking harness dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples...
+
+VERIFICATION RESULT:
+ ** 0 of 49 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.33476162s
+
+Checking harness dflash::verification::alignment_is_monotonic_and_aligned_when_representable...
+
+VERIFICATION RESULT:
+ ** 0 of 11 failed
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.023120416s
+
+Checking harness dflash::verification::draft_capture_keeps_full_window_at_both_boundaries...
+
+VERIFICATION RESULT:
+ ** 0 of 34 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.08260471s
+
+Checking harness dflash::dflash_layouts_have_bounded_published_geometry...
+
+VERIFICATION RESULT:
+ ** 0 of 30 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.08250766s
+
+Checking harness hub::preview_proofs::preview_cache_arithmetic...
+
+VERIFICATION RESULT:
+ ** 0 of 41 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.1242739s
+
+Checking harness hub::verification::accepted_checkpoint_paths_have_no_traversal_component...
+
+VERIFICATION RESULT:
+ ** 0 of 493 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 55.825638s
+
+Checking harness hub::verification::repository_names_have_one_nonempty_safe_separator...
+
+VERIFICATION RESULT:
+ ** 0 of 338 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 5.885214s
+
+Checking harness mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral...
+
+VERIFICATION RESULT:
+ ** 0 of 232 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.8081863s
+
+Checking harness memory_policy::verification::adaptive_choice_is_bounded_and_preserves_hysteresis...
+
+VERIFICATION RESULT:
+ ** 0 of 157 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 40.14646s
+
+Checking harness memory_policy::verification::cache_budget_never_accepts_an_overflow_or_excess...
+
+VERIFICATION RESULT:
+ ** 0 of 145 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.633352s
+
+Checking harness memory_policy::verification::adaptive_next_is_bounded_and_resets_only_on_switch...
+
+VERIFICATION RESULT:
+ ** 0 of 190 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.89600724s
+
+Checking harness memory_policy::verification::adaptive_observation_is_bounded_and_ignores_invalid_samples...
+
+VERIFICATION RESULT:
+ ** 0 of 160 failed (1 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.7512808s
+
+Checking harness memory_policy::verification::cache_mib_budget_is_bounded...
+
+VERIFICATION RESULT:
+ ** 0 of 19 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04992221s
+
+Checking harness memory_policy::verification::capture_selection_matches_bounded_symbolic_ids...
+
+VERIFICATION RESULT:
+ ** 0 of 79 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.2731093s
+
+Checking harness memory_policy::verification::compaction_requires_large_real_waste_without_overflow...
+
+VERIFICATION RESULT:
+ ** 0 of 6 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.034402125s
+
+Checking harness memory_policy::verification::allocator_tuning_key_is_bounded_and_injective...
+
+VERIFICATION RESULT:
+ ** 0 of 68 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.13467067s
+
+Checking harness mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary...
+
+VERIFICATION RESULT:
+ ** 0 of 247 failed (1 unreachable)
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 3.3122773s
+
+Checking harness mtp::draft_projection_verification::optional_projection_guards_dimensions_and_quantization...
+
+VERIFICATION RESULT:
+ ** 0 of 69 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.20563196s
+
+Checking harness mtp::managed_mtp_never_crosses_architectures...
+
+VERIFICATION RESULT:
+ ** 0 of 181 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.31622294s
+
+Checking harness registry::verification::model_name_validation_matches_the_registry_contract...
+
+VERIFICATION RESULT:
+ ** 0 of 235 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 3.8328192s
+
+Checking harness speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix...
+
+VERIFICATION RESULT:
+ ** 0 of 216 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.9566925s
+
+Checking harness speculative::verification::adaptive_work_never_exceeds_the_existing_budget...
+
+VERIFICATION RESULT:
+ ** 0 of 34 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.618167s
+
+Checking harness speculative::verification::speculative_work_reserves_target_within_both_budgets...
+
+VERIFICATION RESULT:
+ ** 0 of 28 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.08997862s
+
+Checking harness speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets...
+
+VERIFICATION RESULT:
+ ** 0 of 220 failed (1 unreachable)
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.38970205s
+
+Checking harness speculative::verification::tuning_never_selects_missing_or_slower_candidate...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets...
+
+VERIFICATION RESULT:
+ ** 0 of 274 failed (1 unreachable)
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.0753014s
+
+Checking harness speculative::verification::tuning_requires_parity_and_nonzero_acceptance...
+
+VERIFICATION RESULT:
+ ** 0 of 17 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.03212354s
+
+Checking harness speculative::verification::lookup_proposes_only_latest_in_bounds_history...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_disabled_copy_never_proposes...
+
+VERIFICATION RESULT:
+ ** 0 of 305 failed (14 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.9574873s
+
+Checking harness speculative::verification::dflash_copy_len_3...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_8...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_6...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_7...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_2...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_19...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_13...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_0...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_1...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_9...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_4...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_5...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_15...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_17...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_18...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_10...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_12...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_16...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_20...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_14...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::verification::dflash_copy_len_11...
+
+CBMC failed
+VERIFICATION:- FAILED
+CBMC timed out. You may want to rerun your proof with a larger timeout or use stubbing to reduce the size of the code the verifier reasons about.
+
+Checking harness speculative::dflash_modes_preserve_context_and_output_budgets...
+
+VERIFICATION RESULT:
+ ** 0 of 114 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.13893016s
+
+Checking harness structured::proofs::project_permission_boundary...
+
+VERIFICATION RESULT:
+ ** 0 of 318 failed (4 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.39206234s
+
+Checking harness structured::proofs::structured_length_bounds...
+
+VERIFICATION RESULT:
+ ** 0 of 18 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.08702245s
+
+Checking harness structured::proofs::boolean_schema_contract...
+
+VERIFICATION RESULT:
+ ** 0 of 2228 failed (65 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.8917208s
+
+Checking harness structured::proofs::structured_retry_budget_never_restarts_or_wraps...
+
+VERIFICATION RESULT:
+ ** 0 of 57 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.5820944s
+
+Checking harness tool_call::verification::marker_suffix_is_the_longest_possible_prefix...
+
+VERIFICATION RESULT:
+ ** 0 of 162 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 27.257462s
+
+Manual Harness Summary:
+Verification failed for - speculative::verification::tuning_never_selects_missing_or_slower_candidate
+Verification failed for - speculative::verification::lookup_proposes_only_latest_in_bounds_history
+Verification failed for - speculative::verification::dflash_copy_len_3
+Verification failed for - speculative::verification::dflash_copy_len_8
+Verification failed for - speculative::verification::dflash_copy_len_6
+Verification failed for - speculative::verification::dflash_copy_len_7
+Verification failed for - speculative::verification::dflash_copy_len_2
+Verification failed for - speculative::verification::dflash_copy_len_19
+Verification failed for - speculative::verification::dflash_copy_len_13
+Verification failed for - speculative::verification::dflash_copy_len_0
+Verification failed for - speculative::verification::dflash_copy_len_1
+Verification failed for - speculative::verification::dflash_copy_len_9
+Verification failed for - speculative::verification::dflash_copy_len_4
+Verification failed for - speculative::verification::dflash_copy_len_5
+Verification failed for - speculative::verification::dflash_copy_len_15
+Verification failed for - speculative::verification::dflash_copy_len_17
+Verification failed for - speculative::verification::dflash_copy_len_18
+Verification failed for - speculative::verification::dflash_copy_len_10
+Verification failed for - speculative::verification::dflash_copy_len_12
+Verification failed for - speculative::verification::dflash_copy_len_16
+Verification failed for - speculative::verification::dflash_copy_len_20
+Verification failed for - speculative::verification::dflash_copy_len_14
+Verification failed for - speculative::verification::dflash_copy_len_11
+Complete - 70 successfully verified harnesses, 23 failures, 93 total.

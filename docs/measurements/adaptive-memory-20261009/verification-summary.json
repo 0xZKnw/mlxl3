@@ -1,0 +1,69 @@
+{
+  "status": "complete",
+  "integration": "local_source_built_and_tested; installed_app_unchanged; no_publication",
+  "shipped_rust": {
+    "passed": 82,
+    "ignored": 71,
+    "clippy": "passed",
+    "build": "passed",
+    "log": "tests-cache-compact.log"
+  },
+  "cpu_chat": {
+    "passed": 66,
+    "ignored": 3,
+    "clippy": "passed",
+    "logs": [
+      "tests-cpu-final.log",
+      "clippy-cpu-final.log",
+      "fmt-final.log"
+    ]
+  },
+  "python": {
+    "passed": 338,
+    "skipped": 4,
+    "log": "python-tests.log",
+    "transport_idle_regression_repeat": {
+      "passed": 69,
+      "command": "python -m pytest -q tests/test_idle_memory_benchmark.py tests/test_native_json_process.py",
+      "elapsed_seconds": 6.12
+    }
+  },
+  "desktop": {
+    "status": "passed",
+    "log": "desktop-draft.log",
+    "context_linear_oracles": 240
+  },
+  "kani": {
+    "prototype_suite": "50/50 passed, KV8 contract subsequently removed",
+    "retained_unchanged_harnesses": 49,
+    "actual_next_target": "1/1 passed,190 obligations,1 stdlib unreachable,2 covers",
+    "compaction_target": "1/1 passed,6 obligations,2 covers",
+    "current_full_suite_rerun": false,
+    "summary": "kani-summary.json",
+    "gpu_proved": false
+  },
+  "physical": {
+    "compaction": "cache-compact-status.json",
+    "model_embedding_and_mtp": "conserved-quality-status.json",
+    "bridge_adaptive": "bridge-adaptive-final-checks.json",
+    "budgets_capture": "bridge-boundaries-capture.json",
+    "ram_ab_ba": "compact-packed-summary.json"
+  },
+  "source_verifiers": {
+    "cpp": "attempted CBMC6.11, libc++ parser incompatible, not_verified",
+    "python": "CrossHair absent, not_verified, crosshair-final.log",
+    "swift_metal": "not_formally_verified"
+  },
+  "kv8": {
+    "status": "rejected_and_removed",
+    "long_tokens": 8701,
+    "rmse": 0.036535861043586325,
+    "maximum_rmse": 0.03,
+    "archives_retained": true
+  },
+  "speed": "not_measured_validly_battery_observed",
+  "gpu_analysis": "blocked_missing_Xcode",
+  "storage": "deferred_not_useful_at259661bytes",
+  "ci": "workflow_extended; unpublished dirty_checkout_no_matching_run",
+  "active_test_processes": 0
+}

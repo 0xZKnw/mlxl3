@@ -1,0 +1,10 @@
+{
+  "status": "expected_mutant_failure_detected",
+  "mutation": "negated actual readiness-membership branch in disposable real Rust source copy",
+  "build_returncode": 0,
+  "test_returncode": 101,
+  "stdout": "\nrunning 3 tests\ntest tests::duplicate_b2_experts_keep_each_activation_occurrence ... FAILED\ntest tests::empty_all_none_and_integer_boundaries ... FAILED\ntest tests::twenty_occurrences_match_all_ten_slot_readiness_masks ... FAILED\n\nfailures:\n\n---- tests::duplicate_b2_experts_keep_each_activation_occurrence stdout ----\n\nthread 'tests::duplicate_b2_experts_keep_each_activation_occurrence' (1124031) panicked at /var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/cold-partition-mutant-jz2a45qa/mutant.rs:36:9:\nassertion `left == right` failed\n  left: ([(3, 8), (19, 8)], [(1, 5), (8, 2), (11, 5), (14, 2)])\n right: ([(1, 5), (8, 2), (11, 5), (14, 2)], [(3, 8), (19, 8)])\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- tests::empty_all_none_and_integer_boundaries stdout ----\n\nthread 'tests::empty_all_none_and_integer_boundaries' (1124032) panicked at /var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/cold-partition-mutant-jz2a45qa/mutant.rs:28:9:\nassertion `left == right` failed\n  left: ([(18446744073709551615, 4294967295), (0, 0), (18446744073709551615, 4294967295)], [])\n right: ([], [(18446744073709551615, 4294967295), (0, 0), (18446744073709551615, 4294967295)])\n\n---- tests::twenty_occurrences_match_all_ten_slot_readiness_masks stdout ----\n\nthread 'tests::twenty_occurrences_match_all_ten_slot_readiness_masks' (1124033) panicked at /var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/cold-partition-mutant-jz2a45qa/mutant.rs:69:39:\nindex out of bounds: the len is 0 but the index is 0\n\n\nfailures:\n    tests::duplicate_b2_experts_keep_each_activation_occurrence\n    tests::empty_all_none_and_integer_boundaries\n    tests::twenty_occurrences_match_all_ten_slot_readiness_masks\n\ntest result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n",
+  "stderr": "",
+  "source_restored": "production file never modified",
+  "proof": false
+}

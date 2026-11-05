@@ -1,0 +1,26 @@
+use mlxl3_native::flash_support::ExpertCache;
+fn main() {
+    let mut results = Vec::new();
+    for capacity in [24, 89] {
+        for demanded in [false, true] {
+            let mut cache = ExpertCache::new(capacity).unwrap();
+            for first in (0..capacity).step_by(10) {
+                let ids = (0..10).map(|i| ((first + i) % capacity) as u32).collect::<Vec<_>>();
+                assert_eq!(cache.reserve(&ids).unwrap().len(), 10);
+            }
+            assert!((0..capacity as u32).all(|id| cache.contains(id)));
+            cache.protect_predictions(&[511]).unwrap();
+            let first = cache.claim_prefetch(511).unwrap().unwrap();
+            assert!(cache.publish_prefetch(first, 511, true));
+            assert!(cache.contains(511));
+            if demanded { assert!(cache.reserve(&[511]).unwrap()[0].1); }
+            cache.protect_predictions(&[510]).unwrap();
+            let second = cache.claim_prefetch(510).unwrap().unwrap();
+            assert!(cache.publish_prefetch(second, 510, true));
+            let retained = cache.contains(511);
+            println!("{{\"capacity\":{capacity},\"demanded\":{demanded},\"first_slot\":{first},\"second_slot\":{second},\"retained_recent_prefetch\":{retained}}}");
+            results.push(retained);
+        }
+    }
+    assert!(results.iter().all(|&retained| retained), "LES LRU admission should retain a recent prefetch before older entries");
+}

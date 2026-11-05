@@ -1,0 +1,22 @@
+{"type": "job", "path": "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/beta5-mini/jobs/conversion-a3tshqib"}
+{"type": "progress", "phase": "calibration", "completed": 0, "total": 0, "text": "Capturing calibration; source weights stay unchanged"}
+{"type": "log", "text": "[mlxl3] LFM coverage: 6 linears; tied embeddings exported in FP16"}
+{"type": "log", "text": "[e2e] work_dir=/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/beta5-mini/jobs/conversion-a3tshqib/work bits=4.000 candidate_bits=[4] shrinkages=[0.0] backend=metal"}
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantization_studio.py", line 541, in convert
+    result = adapter.main()
+             ^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantize_lfm26.py", line 119, in main
+    result = convert()
+             ^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/cli/convert.py", line 430, in main
+    capture_summary = capture_calibration_activations(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/capture.py", line 234, in capture_calibration_activations
+    hidden = text_model(input_ids)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx_lm/models/lfm2.py", line 280, in __call__
+    conv_mask = create_ssm_mask(h, cache[self.conv_idx])
+                                   ~~~~~^^^^^^^^^^^^^^^
+IndexError: list index out of range

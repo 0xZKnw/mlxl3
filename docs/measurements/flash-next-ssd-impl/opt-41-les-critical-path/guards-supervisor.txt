@@ -1,0 +1,213 @@
+import ast
+import copy
+import hashlib
+import json
+import random
+import runpy
+import subprocess
+import tempfile
+import textwrap
+from pathlib import Path
+from types import SimpleNamespace
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path")
+(p / "guard-checks.json").write_text('{"status":"incomplete"}\n')
+source_hashes = {
+    name: hashlib.sha256((p / name).read_bytes()).hexdigest()
+    for name in ["bench-supervisor.txt", "quality-supervisor.txt", "guards-supervisor.txt"]
+}
+ns = runpy.run_path(str(p / "bench-supervisor.txt"))
+choose, pairs, passes = (ns[k] for k in ["choose", "pairs", "pair_passes"])
+arms = ns["ARMS"]
+fixture = [
+    {
+        "prompt": prompt,
+        "index": index,
+        "arm": arm,
+        "status": "validated",
+        "tps": [10, 10.2, 10.15, 10.4, 10.5, 10][index],
+        "peak_bytes": 1000,
+        "swapout_bytes": 0,
+    }
+    for prompt in ["MAIN", "HOLD"]
+    for index, arm in enumerate(arms)
+]
+assert choose(fixture)["common"] and choose(fixture)["les"] == "C4-F16-LRU"
+cases = 1
+for variant in [[], fixture[:-1], fixture + [fixture[-1]], fixture[:-1] + [fixture[0]]]:
+    assert choose(variant) == {"common": False, "les": None}
+    cases += 1
+for key, value in [
+    ("tps", float("nan")),
+    ("tps", float("inf")),
+    ("tps", 0),
+    ("tps", True),
+    ("peak_bytes", 0),
+    ("peak_bytes", True),
+    ("swapout_bytes", -1),
+    ("swapout_bytes", (256 << 20) + 1),
+    ("status", "failed"),
+    ("arm", "duplicate"),
+]:
+    bad = copy.deepcopy(fixture)
+    bad[0][key] = value
+    assert choose(bad) == {"common": False, "les": None}
+    cases += 1
+for label in ["faster-control", "causal-control", "below-one-percent", "memory", "tie"]:
+    edge = copy.deepcopy(fixture)
+    for r in edge:
+        if label == "faster-control" and r["index"] == 5:
+            r["tps"] = 10.5
+        if label == "causal-control" and r["arm"] == "C0-LRU":
+            r["tps"] = 10.5
+        if label == "below-one-percent" and r["index"] in [1, 3, 4]:
+            r["tps"] = 10.09
+        if label == "memory" and r["index"] in [1, 3, 4]:
+            r["peak_bytes"] += (256 << 20) + 1
+        if label == "tie" and r["index"] == 4:
+            r["tps"] = 10.4
+    selected = choose(edge)
+    assert selected["les"] == ("C4-F32-LRU" if label == "tie" else None)
+    if label in ["faster-control", "below-one-percent", "memory"]:
+        assert not selected["common"]
+    cases += 1
+rng = random.Random(41)
+for _ in range(200):
+    scale = rng.uniform(0.01, 100)
+    scaled = [{**r, "tps": r["tps"] * scale} for r in fixture]
+    assert choose(scaled)["common"] and choose(scaled)["les"] == "C4-F16-LRU"
+
+pair_fixture = [
+    {
+        "prompt": prompt,
+        "repeat": repeat,
+        "label": label,
+        "status": "validated",
+        "tps": 10 if label == "H" else 10.2,
+        "peak_bytes": 1000,
+    }
+    for prompt in ["MAIN", "HOLD"]
+    for repeat in [1, 2]
+    for label in ["H", "C"]
+]
+assert len(pairs(pair_fixture)) == 4 and all(passes(r) for r in pairs(pair_fixture))
+assert len(pairs(pair_fixture[:-1])) == 3
+for gain, peak, expected in [
+    (1, 256 << 20, True),
+    (0.99, 0, False),
+    (2, (256 << 20) + 1, False),
+    (float("nan"), 0, False),
+]:
+    assert passes({"gain_percent": gain, "extra_peak_bytes": peak}) == expected
+cases += 6
+
+memory_cases = []
+for filename in ["quality-supervisor.txt", "bench-supervisor.txt"]:
+    tree = ast.parse((p / filename).read_text())
+    loop = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.While) and isinstance(n.test, ast.Constant) and n.test.value is True
+    )
+    for label, timeouts, delta, expired, read_error, expected in [
+        ("complete", 0, 0, False, False, "ok"),
+        ("silent-then-complete", 2, 0, False, False, "ok"),
+        ("limit-boundary", 1, 256 << 20, False, False, "ok"),
+        ("over-limit", 1, (256 << 20) + 1, False, False, "AssertionError"),
+        ("reversed", 1, -1, False, False, "AssertionError"),
+        ("deadline", 0, 0, True, False, "TimeoutExpired"),
+        ("observer-timeout", 1, 0, False, True, "TimeoutExpired"),
+    ]:
+
+        class Child:
+            calls = 0
+
+            def wait(self, timeout, planned_timeouts=timeouts):
+                assert 0 < timeout <= 2
+                self.calls += 1
+                if self.calls <= planned_timeouts:
+                    raise subprocess.TimeoutExpired(["fake"], timeout)
+                return 0
+
+        def output(*args, fail_read=read_error, **kwargs):
+            assert kwargs["timeout"] == 5
+            if fail_read:
+                raise subprocess.TimeoutExpired(["vm_stat"], 5)
+            return "current"
+
+        context = {
+            "time": SimpleNamespace(monotonic=lambda: 1),
+            "LIMIT": 256 << 20,
+            "subprocess": SimpleNamespace(
+                TimeoutExpired=subprocess.TimeoutExpired, check_output=output
+            ),
+            "parse_vm": lambda text, change=delta: {"Swapouts": 0 if text == "before" else change},
+        }
+        wrapper = """def monitor(child):
+    r = {'before': {'vm_stat': 'before', 'vm_bytes': {'Swapouts': 0}}, 'command': ['fake']}
+    limit = 360
+    cmd = ['fake']
+    deadline = DEADLINE
+BLOCK
+    return r.get('exit_code')
+""".replace("DEADLINE", "0" if expired else "2").replace(
+            "BLOCK", textwrap.indent(ast.unparse(loop), "    ")
+        )
+        exec(wrapper, context)  # noqa: S102 - execute only the inspected monitor AST with fakes
+        child = Child()
+        try:
+            assert context["monitor"](child) == 0
+            observed = "ok"
+        except (AssertionError, subprocess.TimeoutExpired) as error:
+            observed = type(error).__name__
+        assert observed == expected, (filename, label, observed, expected)
+        assert child.calls <= timeouts + 1
+        memory_cases.append({"source": filename, "case": label, "observed": observed})
+result = {
+    "status": "passed",
+    "source_hashes": source_hashes,
+    "selection_and_pair_cases": cases,
+    "deterministic_scaling_cases": 200,
+    "seed": 41,
+    "live_memory_cases": memory_cases,
+}
+main_globals = ns["main"].__globals__
+saved = {key: main_globals[key] for key in ["BASE", "sys"]}
+try:
+    with tempfile.TemporaryDirectory() as directory:
+        fixture_root = Path(directory)
+        (fixture_root / "mutation").mkdir()
+        (fixture_root / "quality.json").write_text(
+            json.dumps([{"status": "passed", "reaped": True} for _ in range(25)])
+        )
+        (fixture_root / "mutation/result.json").write_text('{"status":"detected_and_restored"}')
+        hashes = {}
+        for name in source_hashes:
+            (fixture_root / name).write_text("fixture")
+            hashes[name] = hashlib.sha256(b"fixture").hexdigest()
+        main_globals.update(
+            BASE=fixture_root, sys=SimpleNamespace(argv=["test", "baseline", "screen"])
+        )
+        for label in ["incomplete", "missing-source", "stale-hash", "valid"]:
+            proof = {"status": "passed", "source_hashes": dict(hashes)}
+            if label == "incomplete":
+                proof["status"] = "incomplete"
+            if label == "missing-source":
+                proof["source_hashes"].pop("bench-supervisor.txt")
+            if label == "stale-hash":
+                proof["source_hashes"]["bench-supervisor.txt"] = "0" * 64
+            (fixture_root / "guard-checks.json").write_text(json.dumps(proof))
+            try:
+                ns["main"]()
+                raise AssertionError("benchmark unexpectedly reached a GPU launch")
+            except AssertionError:
+                observed = "rejected"
+            except FileNotFoundError as error:
+                assert Path(error.filename).name == "identity.json"
+                observed = "passed_guard"
+            assert observed == ("passed_guard" if label == "valid" else "rejected"), label
+        result["artifact_preflight_cases"] = 4
+finally:
+    main_globals.update(saved)
+(p / "guard-checks.json").write_text(json.dumps(result, indent=2) + "\n")
+print(json.dumps({k: v for k, v in result.items() if k != "live_memory_cases"}))

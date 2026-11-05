@@ -1,0 +1,140 @@
+{
+  "status": "complete_evidence_archive",
+  "created_utc": "2026-10-15T17:50:04.437700+00:00",
+  "experiment": "QUANT-2026-10-15-LFM25-38",
+  "checks_rerun_for_archive": false,
+  "original_raw_filesystem_logs_available": false,
+  "limitation": "Original collector stdout/stderr logs were not persisted; archive contains labeled transcriptions of visible tool output and child reports. No invented raw logs.",
+  "sources": {
+    "scripts/capture_lfm25_router.py": {
+      "sha256": "745fbd552825aff93b2a0289ab237e13f077fdae6960524f2b02a114fb5ea4e0",
+      "validated_sha256": "745fbd552825aff93b2a0289ab237e13f077fdae6960524f2b02a114fb5ea4e0",
+      "bytes": 27414,
+      "matches_validated_state": true
+    },
+    "tests/test_capture_lfm25_router.py": {
+      "sha256": "bd0975904b273a1478fec1812f772b3133c463625ec252e921659766139991ae",
+      "validated_sha256": "bd0975904b273a1478fec1812f772b3133c463625ec252e921659766139991ae",
+      "bytes": 49202,
+      "matches_validated_state": true
+    }
+  },
+  "final_focused": {
+    "status": "passed",
+    "passed": 155,
+    "skipped": 0,
+    "seconds": 2.65,
+    "evidence": "directly observed final tool output"
+  },
+  "lint_format_compile_cli": {
+    "status": "passed",
+    "evidence": "transcribed visible final outputs; CLI used actual Modal Python without Torch"
+  },
+  "crosshair": {
+    "status": "confirmed",
+    "postconditions": 4,
+    "per_condition_timeout_seconds": 20,
+    "classification": "symbolic counterexample search",
+    "functions": [
+      "capture_position",
+      "cache_capacity"
+    ],
+    "not_proved": [
+      "Torch",
+      "CUDA",
+      "I/O",
+      "allocation",
+      "numerical fidelity",
+      "full program"
+    ]
+  },
+  "mutations": {
+    "origin": "Reports from child agent /root/audit_official_quant/capture_tests; original stdout/stderr not retained; temporary artifacts reported deleted.",
+    "classification": "status transcription, not original raw mutation logs",
+    "cases": [
+      {
+        "name": "remove_detached_payload_clone",
+        "mutation": "Replace one occurrence of value.detach().cpu().clone() with value.detach().cpu() in an isolated temporary worker clone; original worker unchanged.",
+        "result": "detected",
+        "exit_code": 1,
+        "selected_tests": 5,
+        "failed_tests": 5,
+        "elapsed_seconds_reported": 0.58,
+        "worker_sha256_at_that_earlier_stage": "b96c23b5f216acd96c7e71850a2500a44c8022c937cd20b53d2b6e211e75a477",
+        "scope": "earlier145-test worker before addition of teacher128; payload clone implementation retained in final source; not relabeled as a mutation of the final SHA"
+      },
+      {
+        "name": "force_teacher_false_parity_to_true",
+        "mutation": "Force only teacher-control bitexact result to True in an isolated temporary worker clone.",
+        "result": "detected",
+        "failed_tests": 2,
+        "passed_tests": 1,
+        "elapsed_seconds_reported": null,
+        "failing_scenarios": [
+          "divergent teacher helper must report false",
+          "actual teacher run must block before training on a false passive-control result"
+        ],
+        "worker_sha256_at_that_stage": "01ddc565fc0520491362d741e97be2307de06eb0ba863fab4e1674638f1eb7c8",
+        "scope": "teacher128 added, before final Ruff-only cleanup-reference edit; no final-SHA mutation rerun claimed"
+      }
+    ],
+    "after_mutation": {
+      "reported_child_final_focused": "155 passed in2.68s,0skipped",
+      "directly_observed_parent_final_focused": "155 passed in2.65s,0skipped",
+      "original_worker_preserved": true
+    }
+  },
+  "historical_failure_statuses_preserved": true,
+  "gpu_started_by_this_agent": false,
+  "cpu_checks_still_running": false,
+  "archive": {
+    "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-router38-capture-evidence.tar.gz",
+    "bytes": 3643,
+    "sha256": "782bf66df03624695c48d024d4677c02df67eef2affb2b23c46af0be45cd79df",
+    "round_trip_bytes_sha256_verified": true,
+    "members": [
+      {
+        "name": "README-evidence-status.txt",
+        "bytes": 1167,
+        "sha256": "c1f78ae989ced9072eefc591beef23045975bf6abf35e669d24408ba68627926",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      },
+      {
+        "name": "crosshair-final.partial-transcript.txt",
+        "bytes": 1563,
+        "sha256": "d9fd7c87697b306f38a2958de6d75545b64ab8a7efcd6e3039037686c73ef5d6",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      },
+      {
+        "name": "earlier-failures.status-transcription.txt",
+        "bytes": 1643,
+        "sha256": "a6e50f9a20827097b8c2ab900127cc2a3d988dd82fcab3657dd8a5abf172ad10",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      },
+      {
+        "name": "final-focused-pytest.partial-transcript.txt",
+        "bytes": 510,
+        "sha256": "db3a936fe8de8bb003ecaae3fe25a3a5c009e007f7b05417e44558dde2c5030e",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      },
+      {
+        "name": "final-ruff-compile-cli.partial-transcript.txt",
+        "bytes": 1494,
+        "sha256": "2bb0a3e486dccdff5790680626b442601de2e21b81662201b46052ef6ba4f1f5",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      },
+      {
+        "name": "mutation-status-transcription.json",
+        "bytes": 1815,
+        "sha256": "0126595d17b9f23e2ed817a85b8d4fbbe5e38ff26f3a58f9cdf30328ccc9d301",
+        "evidence_kind": "explicit_transcription_or_reported_status",
+        "original_filesystem_log_retained": false
+      }
+    ]
+  }
+}

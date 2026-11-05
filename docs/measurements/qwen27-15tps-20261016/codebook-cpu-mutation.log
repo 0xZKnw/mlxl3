@@ -1,0 +1,30 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_complete_mul1_table_matches_every_scalar_codeword_with_one_half_rounding _
+
+    def test_complete_mul1_table_matches_every_scalar_codeword_with_one_half_rounding():
+        def half(bits):
+            return struct.unpack("<e", struct.pack("<H", bits))[0]
+    
+        expected = b"".join(
+            struct.pack(
+                "<e",
+                half(0x6400 + sum(((word * 0x83DCD12D) >> (8 * i)) & 255 for i in range(4)))
+                * half(0x1EEE)
+                + half(0xC931),
+            )
+            for word in range(65536)
+        )
+        table = SCREEN.mul1_table_cpu()
+        assert table.shape == (65536,) and table.dtype == np.float16
+        assert table.nbytes == 131072 and np.isfinite(table).all()
+>       assert table.tobytes() == expected
+E       AssertionError: assert b'\xe8\xc2\x1...xb2\x1e76\xb9' == b'\xe8\xc2!9-...xb2\x0276\xb9'
+E         
+E         At index 2 diff: b'\x13' != b'!'
+E         Use -v to get more diff
+
+tests/test_smallm_reuse.py:68: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_smallm_reuse.py::test_complete_mul1_table_matches_every_scalar_codeword_with_one_half_rounding
+1 failed in 0.10s

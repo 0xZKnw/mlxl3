@@ -1,0 +1,22 @@
+{
+  "status": "completed",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",
+    "--output-format",
+    "terse"
+  ],
+  "timeout_seconds": 60,
+  "scope": "Actual helper;qualifiedM5boolean,presentboolean,arbitrary4bytes,length0..4,validUTF8branches;noassumptions;unwind10withassertions;noMetalproof",
+  "source_sha256": "b95997296a0cb47576c37fadccd4850e2046de678f27b79a55f8ac76cfad0ef3",
+  "pid": 91978,
+  "exit_code": 0,
+  "seconds": 22.10155200000736,
+  "joined": true
+}

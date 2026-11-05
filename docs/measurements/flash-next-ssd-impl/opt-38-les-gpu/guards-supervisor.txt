@@ -1,0 +1,78 @@
+from pathlib import Path
+import ast
+import json
+import subprocess
+import textwrap
+from types import SimpleNamespace
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-38-les-gpu")
+source = (p / "screen-supervisor.txt").read_text()
+# Execute only the existing pure selector and its deterministic failure fixtures.
+end = source.index('assert json.loads((base.parent / "opt-30-les/download.json")')
+exec(compile(source[:end], "screen-pure-guards", "exec"), {})
+cases = []
+for filename in ["quality-supervisor.txt", "screen-supervisor.txt", "confirmation-supervisor.txt"]:
+    tree = ast.parse((p / filename).read_text())
+    loop = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.While) and isinstance(n.test, ast.Constant) and n.test.value is True
+    )
+    block = ast.unparse(loop)
+    for label, timeouts, delta, expired, read_error, expected in [
+        ("complete", 0, 0, False, False, "ok"),
+        ("silent-then-complete", 2, 0, False, False, "ok"),
+        ("limit-boundary", 1, 256 << 20, False, False, "ok"),
+        ("over-limit", 1, (256 << 20) + 1, False, False, "AssertionError"),
+        ("counter-reversed", 1, -1, False, False, "AssertionError"),
+        ("deadline", 0, 0, True, False, "TimeoutExpired"),
+        ("observer-timeout", 1, 0, False, True, "TimeoutExpired"),
+    ]:
+
+        class Child:
+            calls = 0
+
+            def wait(self, timeout):
+                assert 0 < timeout <= 2
+                self.calls += 1
+                if self.calls <= timeouts:
+                    raise subprocess.TimeoutExpired(["fake"], timeout)
+                return 0
+
+        def output(*args, **kwargs):
+            assert kwargs["timeout"] == 5
+            if read_error:
+                raise subprocess.TimeoutExpired(["vm_stat"], 5)
+            return "current"
+
+        namespace = {
+            "time": SimpleNamespace(monotonic=lambda: 1),
+            "subprocess": SimpleNamespace(
+                TimeoutExpired=subprocess.TimeoutExpired, check_output=output
+            ),
+            "parse_vm": lambda text: {"Swapouts": 0 if text == "before" else delta},
+        }
+        wrapper = """def monitor(child):
+    r = {'before': {'vm_stat': 'before', 'vm_bytes': {'Swapouts': 0}}}
+    rec = r
+    limit = 360
+    cmd = ['fake']
+    deadline = DEADLINE
+BLOCK
+    return locals().get('code', r.get('exit_code')), r
+""".replace("DEADLINE", "0" if expired else "2").replace("BLOCK", textwrap.indent(block, "    "))
+        exec(wrapper, namespace)
+        child = Child()
+        try:
+            code, result = namespace["monitor"](child)
+            assert code == 0
+            observed = "ok"
+        except (AssertionError, subprocess.TimeoutExpired) as error:
+            observed = type(error).__name__
+        assert observed == expected, (filename, label, observed, expected)
+        assert child.calls <= timeouts + 1
+        cases.append({"source": filename, "case": label, "observed": observed})
+(p / "live-memory-guards.json").write_text(
+    json.dumps({"status": "passed", "cases": cases}, indent=2) + "\n"
+)
+print(json.dumps({"status": "passed", "live_memory_cases": len(cases), "selection_cases": 216}))

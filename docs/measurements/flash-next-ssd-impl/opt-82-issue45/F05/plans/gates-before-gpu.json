@@ -1,0 +1,77 @@
+{
+  "status": "prerequisites_satisfied_quality_pending",
+  "allow_gpu_launch": true,
+  "freeze": {
+    "source_manifest_sha256": "b8e07c24ea34e82444d89fb8c3426778b709d48805b29305afae2e0a0c5ca5e2",
+    "engine_sha256": "bb7d25de91d4e5d78afd508aab4f96bb769a3262a3754a46af4ff275379fb4cb",
+    "native_tests_sha256": "c11724af5a332d234e0023ee9f9d625821ed3c7bd52561de33bf82d3afd2c482",
+    "F01_F06_compiled": false
+  },
+  "parent_reported_cpu_results_not_executed_by_plan_author": {
+    "fmt_clippy_cpu_mlx": "passed",
+    "cpu_lib_passed": 117,
+    "cpu_lib_ignored": 6,
+    "integration_passed": 16,
+    "kani_actual_guard_obligations": 97,
+    "kani_covers": 5
+  },
+  "required_before_any_gpu": [
+    "Parent fills exact source and normal-release CLI/test hashes, rehashes drivers and plans, inspects actual build feature defaults+mlx,chat.",
+    "Verify all exact native selectors occur once in release --list; suite global entry must not have native_test metadata.",
+    "Inspect CPU unit/Kani/mutation and bounded actual MLX Kani result; no stub or unsupported proof claim.",
+    "Join all builds/provers, no concurrent model; keep stock45/49 guards, AC, pre20/post30.",
+    "Prepare normal component/mutant disposable binary detections, restore source byte-exact and freeze normal release before complete matrix.",
+    "All test env fixed before subprocess startup; never mutate env after MLX initialization."
+  ],
+  "kani_cpu": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_route_batch_preserves_scalar_fallback_domain"
+    ],
+    "scope": "Production eligibility helper; four symbolic i32 dimensions, rank0..4, symbolic f32 flag, unwind5, five covers. No proof of MLX/Metal/numerics/lifetimes.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "kani_actual_mlx": {
+    "command": [
+      "cargo",
+      "kani",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_batch_routes_preserve_real_gate_logits_and_weights"
+    ],
+    "scope": "Real physical MLX gate test, not a CPU rewrite or stub; unsupported compiler/FFI/timeout remains explicitly unverified.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "mutation_gpu": "drop normalization and replace scalar GEMVs must each fail actual independent gate oracle in disposable binaries; parent owns scheduling/outcomes.",
+  "quality_required_before_speed": [
+    "native-suite(nonignored)",
+    "28 edges",
+    "1004 real gates/404 fast",
+    "24 MoE/4 Hot-order checks",
+    "32 historical U cases incl I/O recovery",
+    "9 fixed-env loader invocations",
+    "external CLI byte0xff rejection",
+    "36 DFlash prefix/capture/logit/state checks",
+    "MTP budgets1/2/3/17",
+    "bridge43 adaptive WIDTH unset",
+    "pre/post and all children/samplers joined"
+  ],
+  "not_repeated": [
+    "F01 QMV/cast variants withdrawn",
+    "F06 top10 early-exit withdrawn",
+    "EXL3 arithmetic/weight/H128 oracles unchanged; no repeat merely to fill journal"
+  ],
+  "proof_outcomes": null,
+  "mutation_outcomes": null,
+  "actual_mlx_proof": "NON_VERIFIED: v1 harness mismatch preserved; correct proof wrapper v2 compiled then Kani ICE intrinsics243",
+  "cpu_proof": "97 obligations/5 covers success, rank0..4 symbolic dimensions, unwind5",
+  "mutations": "CPU admit-B1 detected/restored/retest/Kani; normalization and scalar-GEMV GPU mutations detected; source restored byte-exact before final quality"
+}

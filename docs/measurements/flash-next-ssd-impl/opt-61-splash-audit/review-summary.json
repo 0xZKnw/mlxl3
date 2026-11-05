@@ -1,0 +1,57 @@
+{
+  "experiment": "FLASHSSD-2026-10-21-61R",
+  "status": "completed_static_audit",
+  "published_before_attachment_read": "95d08366e3ac1085b80a78ad2bbc3bd16251d6bb",
+  "runtime_unchanged_from": "dc33e3e48c472dfd875923679304ab3114e55ad0",
+  "runtime_v7_hash_check": {
+    "sources": 85,
+    "artifacts": 3,
+    "all_match": true
+  },
+  "attachment_sha256": "4e6b7d5624dc908144572618c2d7d3d76a2f34dc4f2fc8048768dfd8bcabf6e6",
+  "mission_topics_reconciled": 10,
+  "executable_code_changed": false,
+  "new_builds": 0,
+  "new_tests": 0,
+  "new_gpu_inferences": 0,
+  "new_tps_measurements": 0,
+  "speed_gain_of_new_proposals": "not_measured",
+  "new_source_findings": [
+    "resident_lookup_helper_also_limits_to20_routes",
+    "cohorts_partition_before_actual_unique_route_count",
+    "shared_expert_projections_after_SSD_fill",
+    "missing_boundary_label_when_all_selected_draft_tokens_pass",
+    "draft_verify_does_not_predict_next_layer_while_global_pool_disables_hybrid",
+    "prefetch_reserves20_slots_only_vs_wide_cohort_up_to50_routes",
+    "request_reset_means_MAIN128_ends_before_first_refit_and_HOLD128_refits_at_end",
+    "Desktop_flash_capability_and_legacy_installer_disagree"
+  ],
+  "risk_scenarios": "statically_derived_not_new_physical_reproductions",
+  "source_blobs_verified": {
+    "splash": 19,
+    "strata": 13
+  },
+  "CI_exact_head": {
+    "native": {
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": {
+        "kani-flash-contracts": "success",
+        "native (macos-26)": "success",
+        "kani": "failure",
+        "native (ubuntu-latest)": "success"
+      },
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39589281004"
+    },
+    "regression": {
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": {
+        "desktop-and-protocol": "success"
+      },
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39589281223"
+    }
+  },
+  "report": "flash-next-ssd-splash-61-audit-2026-10-21.md",
+  "app_replaced": false
+}

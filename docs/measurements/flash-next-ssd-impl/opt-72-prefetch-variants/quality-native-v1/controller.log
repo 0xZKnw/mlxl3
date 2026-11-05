@@ -1,0 +1,20 @@
+{'name': 'pre20', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 20.049737334000383, 'swapouts_bytes': 0}
+{'name': 'prefix-legacy', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 35.92364141700091, 'swapouts_bytes': 0}
+{'name': 'prefix-packed', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 32.0929325420002, 'swapouts_bytes': 0}
+{'name': 'prefix-late', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 32.58807429200169, 'swapouts_bytes': 0}
+{'name': 'prefix-bounded', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 32.580030249999254, 'swapouts_bytes': 0}
+{'name': 'prefix-unused', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 32.035013167002035, 'swapouts_bytes': 0}
+{'name': 'prefix-lfu', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 32.506056250000256, 'swapouts_bytes': 0}
+{'name': 'prefix-weighted', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 6.4825459999992745, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 470, in <module>
+    run_sampler(Path(sys.argv[2]), baseline)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 423, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 65, in main
+    assert record["exit_code"] == item["expected_exit"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

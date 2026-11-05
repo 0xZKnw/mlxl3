@@ -1,0 +1,20 @@
+PIE807 [*] Prefer `dict` over useless lambda
+   --> tests/test_flash_larger_cache.py:323:84
+    |
+321 |         "run_path",
+322 |         lambda path: (
+323 |             {"main": supervise} if "run-supervisor" in str(path) else {"snapshot": lambda: {}}
+    |                                                                                    ^^^^^^^^^^
+324 |         ),
+325 |     )
+    |
+help: Replace with `lambda` with `dict`
+    |
+322 |         lambda path: (
+    -             {"main": supervise} if "run-supervisor" in str(path) else {"snapshot": lambda: {}}
+323 +             {"main": supervise} if "run-supervisor" in str(path) else {"snapshot": dict}
+324 |         ),
+    |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

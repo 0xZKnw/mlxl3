@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "name": "empty",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n",
+      "passed": true
+    },
+    {
+      "name": "truncated",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "Invalid release response: DecodingError.dataCorrupted: Data was corrupted. Debug description: The given data was not valid JSON.. Underlying error: Error Domain=NSCocoaErrorDomain Code=3840 \"Unexpected end of file\" UserInfo={NSDebugDescription=Unexpected end of file}\n",
+      "passed": true
+    },
+    {
+      "name": "wrong-root",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "Invalid release response: DecodingError.keyNotFound: Key 'tag_name' not found in keyed decoding container. Debug description: No value associated with key CodingKeys(stringValue: \"tag_name\", intValue: nil) (\"tag_name\").\n",
+      "passed": true
+    }
+  ]
+}

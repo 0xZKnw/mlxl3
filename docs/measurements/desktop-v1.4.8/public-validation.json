@@ -1,0 +1,84 @@
+{
+  "status": "desktop_package_validated_with_limits",
+  "desktop_version": "1.4.8",
+  "desktop_build": 29,
+  "source_commit": "e032a8e814375dea3bedc529930e1918ff401306",
+  "source_repository": "https://github.com/0xZKnw/mlxl3",
+  "tag": "v1.4.8",
+  "architecture": "arm64",
+  "minimum_macos": "26.2",
+  "signing": "ad-hoc; not notarized",
+  "dmg": {
+    "name": "MLXL3-Desktop-v1.4.8-b29-Apple-Silicon.dmg",
+    "bytes": 73423924,
+    "sha256": "ca5dbea362c7709cc36b834684fcd091230f5be457822de330b17a7ffccea151"
+  },
+  "engine": {
+    "version": "1.4.8",
+    "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+    "public_release": "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.8",
+    "reused_byte_for_byte": true,
+    "rebuilt": false,
+    "source_modified_by_this_release": false
+  },
+  "checks": {
+    "local_e2e": "passed",
+    "ci_desktop": "passed",
+    "python_passed": 840,
+    "python_skipped": 115,
+    "finite_fade_cases": 786,
+    "native_drawing_comparisons": 63,
+    "scroll_state_and_interpolation": "passed",
+    "latex_formulas": 9,
+    "latex_styles": 2,
+    "final_dmg_preflight": "passed",
+    "signed_updater_cases": 15,
+    "legacy_v1_3_updater": "accepted final1.4.8 bundle; rejected initial1.4.7 candidate",
+    "strict_swift6_and_sil": "passed; compiler verification is not a formal behavioral proof",
+    "controller_negative_and_lifecycle_cases": 41,
+    "user_installed_app_replaced": false
+  },
+  "ci": [
+    {
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "conclusion": "",
+      "headSha": "e032a8e814375dea3bedc529930e1918ff401306",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38953567272"
+    },
+    {
+      "name": "EXL3 conversion contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "e032a8e814375dea3bedc529930e1918ff401306",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38953567239"
+    },
+    {
+      "name": "Regression checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "e032a8e814375dea3bedc529930e1918ff401306",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38953567273"
+    }
+  ],
+  "performance_observations": {
+    "method": "8 alternating passes ABBA+BAAB, 128 generated tokens per prompt; UI88 replay samples. Aggregate observations only.",
+    "prompt_fr_tps_before": 65.75845558928486,
+    "prompt_fr_tps_after": 65.16260201080901,
+    "prompt_code_tps_before": 67.60631633153957,
+    "prompt_code_tps_after": 68.88098608142083,
+    "ui_total_cpu_seconds_before": 7.536881000000003,
+    "ui_total_cpu_seconds_after": 8.034041499999999,
+    "strict_1percent_equivalence": "not established; drift and dispersion exceed margin",
+    "fps": "not measured",
+    "energy": "not measured"
+  },
+  "limits": [
+    "Sampled tests and finite checks are not a full formal proof",
+    "Optional Python dependencies and physical Metal buffer check skipped",
+    "UI CPU and memory costs vary by case; aggregate CPU increased6.6%",
+    "No further visible tests after user asked to stop",
+    "Rust/Kani workflow in progress at snapshot; not claimed successful"
+  ],
+  "evidence_policy": "Public artifact contains only release identifiers, checksum, test counts, public CI links and aggregate measurements. Raw source/logs, local paths, machine state and checkpoint file metadata stay local."
+}

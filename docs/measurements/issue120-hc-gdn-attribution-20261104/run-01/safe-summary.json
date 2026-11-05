@@ -1,0 +1,187 @@
+{
+  "status": "validated_diagnostic_only",
+  "rows": 7,
+  "allocation_exclusive": {
+    "other": {
+      "requests": 28746,
+      "requested_bytes": 1503701402,
+      "API_host_ms_total": 47.343536,
+      "requests_per_row": 4106.571428571428,
+      "requested_bytes_per_row": 214814486.0,
+      "API_host_ms_per_row": 6.763362285714286
+    },
+    "HC_read_results": {
+      "requests": 2023,
+      "requested_bytes": 6974464,
+      "API_host_ms_total": 3.509355,
+      "requests_per_row": 289.0,
+      "requested_bytes_per_row": 996352.0,
+      "API_host_ms_per_row": 0.5013364285714286
+    },
+    "HC_workspace_layers": {
+      "requests": 2688,
+      "requested_bytes": 56770560,
+      "API_host_ms_total": 8.868679,
+      "requests_per_row": 384.0,
+      "requested_bytes_per_row": 8110080.0,
+      "API_host_ms_per_row": 1.266954142857143
+    },
+    "GDN_non_frame": {
+      "requests": 5040,
+      "requested_bytes": 63528192,
+      "API_host_ms_total": 10.13198,
+      "requests_per_row": 720.0,
+      "requested_bytes_per_row": 9075456.0,
+      "API_host_ms_per_row": 1.4474257142857143
+    },
+    "GDN_frame": {
+      "requests": 504,
+      "requested_bytes": 808206336,
+      "API_host_ms_total": 1.734041,
+      "requests_per_row": 72.0,
+      "requested_bytes_per_row": 115458048.0,
+      "API_host_ms_per_row": 0.24772014285714286
+    },
+    "HC_write_results": {
+      "requests": 672,
+      "requested_bytes": 27525120,
+      "API_host_ms_total": 5.920108,
+      "requests_per_row": 96.0,
+      "requested_bytes_per_row": 3932160.0,
+      "API_host_ms_per_row": 0.8457297142857143
+    },
+    "HC_workspace_head": {
+      "requests": 28,
+      "requested_bytes": 591360,
+      "API_host_ms_total": 0.081586,
+      "requests_per_row": 4.0,
+      "requested_bytes_per_row": 84480.0,
+      "API_host_ms_per_row": 0.011655142857142859
+    }
+  },
+  "allocation_global": {
+    "requests": 39701,
+    "requested_bytes": 2467297434,
+    "API_host_ms_total": 77.589285,
+    "API_host_ms_per_row": 11.084183571428571
+  },
+  "central_host_inclusive": {
+    "HC_read_before_GDN_CB::encode": {
+      "events": 252,
+      "host_ms_per_row": 0.8534771428571428
+    },
+    "HC_read_before_GDN_CB::wait": {
+      "events": 252,
+      "host_ms_per_row": 9.955065142857142
+    },
+    "GDN_body::encode": {
+      "events": 252,
+      "host_ms_per_row": 2.125226571428571
+    },
+    "GDN_body::wait": {
+      "events": 252,
+      "host_ms_per_row": 22.87543457142857
+    },
+    "HC_write_read_gate_CB::encode": {
+      "events": 336,
+      "host_ms_per_row": 2.132065
+    },
+    "HC_write_read_gate_CB::wait": {
+      "events": 336,
+      "host_ms_per_row": 14.956558428571428
+    },
+    "HC_write_separate_CB::encode": {
+      "events": 336,
+      "host_ms_per_row": 0.5988627142857144
+    },
+    "HC_write_separate_CB::wait": {
+      "events": 336,
+      "host_ms_per_row": 7.696725714285714
+    },
+    "other::encode": {
+      "events": 182,
+      "host_ms_per_row": 0.9252551428571428
+    },
+    "other::wait": {
+      "events": 182,
+      "host_ms_per_row": 8.86976157142857
+    },
+    "HC_read_other_attention_CB::encode": {
+      "events": 84,
+      "host_ms_per_row": 0.2790117142857143
+    },
+    "HC_read_other_attention_CB::wait": {
+      "events": 84,
+      "host_ms_per_row": 3.2504647142857146
+    },
+    "HC_head_read_CB::encode": {
+      "events": 7,
+      "host_ms_per_row": 0.018684714285714284
+    },
+    "HC_head_read_CB::wait": {
+      "events": 7,
+      "host_ms_per_row": 0.25389885714285715
+    }
+  },
+  "completed_GPU_CB_durations": {
+    "HC_read_before_GDN_CB": {
+      "events": 252,
+      "GPU_ms_per_row": 4.593619020722274
+    },
+    "GDN_body": {
+      "events": 252,
+      "GPU_ms_per_row": 13.747232113798548
+    },
+    "HC_write_read_gate_CB": {
+      "events": 336,
+      "GPU_ms_per_row": 7.927339291200042
+    },
+    "moe": {
+      "events": 887,
+      "GPU_ms_per_row": 32.365928541236954
+    },
+    "HC_write_separate_CB": {
+      "events": 336,
+      "GPU_ms_per_row": 0.17294652310998312
+    },
+    "other": {
+      "events": 182,
+      "GPU_ms_per_row": 4.974404740746
+    },
+    "HC_read_other_attention_CB": {
+      "events": 84,
+      "GPU_ms_per_row": 1.5081011806614697
+    },
+    "HC_head_read_CB": {
+      "events": 7,
+      "GPU_ms_per_row": 0.11121428022826356
+    },
+    "projection": {
+      "events": 7,
+      "GPU_ms_per_row": 3.1144523776934614
+    }
+  },
+  "invalid_GPU_intervals": 0,
+  "limits": [
+    "Allocation requests assigned once to innermost event; scopes aggregate exclusive records, not parent+child sums.",
+    "API host timing is allocator-call envelope, not reclaimable time or RAM.",
+    "Central host encode/wait durations are inclusive and may overlap GPU. HC chain GPU duration includes its existing gate.",
+    "No CPU Instant to Metal-host-second alignment measured; no devicewide or perkernel utilization.",
+    "This one instrumented run is not production speed or a measured optimization gain."
+  ],
+  "consecutive_HC_to_GDN_GPU_timestamp_gaps_ms": {
+    "pairs": 252,
+    "total_per_row": 11.207666709586713,
+    "median_per_pair": 0.2938124962383881,
+    "minimum": 0.25945832021534443,
+    "maximum": 1.5190416597761214,
+    "interpretation": "Elapsed Metal host timestamps between consecutive owned CB executions; includes scheduling/CPU/other activity, not measured queue idle or recoverable time."
+  },
+  "completed_GPU_commands_identity_check": {
+    "records": 2343,
+    "unique_address_start_end": 2343,
+    "address_alone_unique": 156,
+    "deduplication": "address/start/end tuple; addresses alone are reused",
+    "all_valid": true
+  }
+}

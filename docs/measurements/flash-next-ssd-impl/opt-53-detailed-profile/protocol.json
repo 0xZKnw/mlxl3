@@ -1,0 +1,84 @@
+{
+  "trial": "FLASHSSD-2026-10-20-53",
+  "purpose": "observational dataset, not optimization or speed gain qualification",
+  "model": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "hardware": "Apple M5, 24 GiB, AC, applications open",
+  "cache_gib": [
+    3,
+    6
+  ],
+  "modes": [
+    "OFF",
+    "MTP1"
+  ],
+  "prompts": [
+    "MAIN",
+    "HOLD"
+  ],
+  "natural": {
+    "fresh_process_per_cell": true,
+    "output_tokens": 128,
+    "phases": [
+      "warmup_untraced",
+      "control_before_untraced",
+      "trace_1",
+      "trace_2",
+      "trace_3",
+      "control_after_untraced"
+    ],
+    "cache_reset": "target semantic state reset, expert LFU weights/frequency persist; counts recorded each phase",
+    "additional_gpu_barriers": false,
+    "phase_snapshots": "VM and process resource counters outside prefill/decode clocks",
+    "raw": "nested host spans per layer/component, route IDs/slots/hits/cold union, SSD per-job worker intervals and returned bytes, output step intervals, MTP stage intervals",
+    "release_controls": "one fresh release bridge warmup+measured128 before each natural cell, same fixed binary49, exact golden parity; no claim unit/release difference is pure logging overhead",
+    "overhead": "unit trace_1..3 vs adjacent untraced controls, descriptive with cache/VM/system differences; >10% or drift>5% flagged and retained"
+  },
+  "fenced": {
+    "fresh_process_per_cell": true,
+    "output_tokens": 33,
+    "phases": [
+      "warmup_untraced",
+      "oracle_untraced",
+      "fenced_1",
+      "fenced_2"
+    ],
+    "additional_gpu_barriers": true,
+    "timing_contract": "component completion wall time incl host launch/scheduler/wait; nested times overlap; no exclusive GPU claim",
+    "parity": "every emitted ID and final full finite 248320 logits plus all target semantic states byte exact vs untraced oracle, MTP head alignment; physical independent oracle and MTP pair/session tests first"
+  },
+  "quality_first": {
+    "small_new_profile_cases": "OFF then MTP, cache3 MAIN17 outputs, natural then fenced, full logits/states parity and nonempty trace validation",
+    "existing_oracles": [
+      "flash_matches_independent_reference_states_and_logits",
+      "flash_pair_verification_preserves_serial_logits_and_all_states",
+      "flash_mtp_session_preserves_greedy_sequence_target_and_head_states"
+    ],
+    "error_tests": "scope nesting, no-op disabled, finite/nonempty/count validation, interrupted/silent/nonzero subprocesses, partial outputs never validated, disk failed partial reads and worker joining"
+  },
+  "limits": {
+    "physical_footprint_bytes": 12000000000,
+    "system_swap_guard_bytes": 268435456,
+    "system_poll_seconds": 2,
+    "process_timeout_seconds": 600,
+    "qualifying_new_swapout_bytes": 0,
+    "one_gpu_process": true,
+    "no_build_or_prover_during_gpu": true
+  },
+  "defaults": {
+    "readers": 4,
+    "overlap": 1,
+    "lookahead": 0,
+    "cache_policy": "auto (LFU)",
+    "predictor_dtype": "f32",
+    "resident_gates": 0,
+    "allocator_cache_mib": 512,
+    "context": 4096
+  },
+  "unavailable": [
+    "xctrace/full Xcode",
+    "per-kernel exclusive GPU counters without validated timestamps",
+    "physical NVMe traffic attributed to a model"
+  ],
+  "separate_followups": "DFlash2/DSpark and long context deferred until primary eight-cell natural/fenced matrix is complete; do not silently substitute them",
+  "status": "preregistered_before_code_or_new_model"
+}

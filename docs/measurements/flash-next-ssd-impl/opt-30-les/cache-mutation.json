@@ -1,0 +1,42 @@
+[
+  {
+    "stage": "mutant",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::prefetch_reserves_exact_slots_without_counting_predictions_as_demands",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "expected_outcome_observed": true,
+    "seconds": 2.1875473330001114,
+    "reaped": true
+  },
+  {
+    "stage": "restored",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::prefetch_reserves_exact_slots_without_counting_predictions_as_demands",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "expected_outcome_observed": true,
+    "seconds": 1.6158193340015714,
+    "reaped": true
+  }
+]

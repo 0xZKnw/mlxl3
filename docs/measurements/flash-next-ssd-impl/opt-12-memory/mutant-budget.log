@@ -1,0 +1,24 @@
+
+running 1 test
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... FAILED
+
+failures:
+
+---- flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded stdout ----
+
+thread 'flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded' (9251256) panicked at native/src/flash_support.rs:222:9:
+assertion `left == right` failed
+  left: Some(143)
+ right: Some(107)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.00s
+
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+error: test failed, to rerun pass `--lib`

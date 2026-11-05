@@ -1,0 +1,69 @@
+[
+  {
+    "name": "kani-numeric-test",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "linear::tests::q4_draft_matches_exl3_rotation_reference",
+      "--exact"
+    ],
+    "timeout_seconds": 60,
+    "timed_out": false,
+    "exit_code": 1,
+    "reaped": true,
+    "seconds": 11.235984249971807
+  },
+  {
+    "name": "rust-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "timed_out": false,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.24944899999536574
+  },
+  {
+    "name": "rust-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "timed_out": false,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 2.4863881249912083
+  },
+  {
+    "name": "rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "timed_out": false,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 44.999916124972515
+  }
+]

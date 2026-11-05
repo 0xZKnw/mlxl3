@@ -1,0 +1,294 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index c09aae3b..e8f55ca9 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -32,6 +32,7 @@ jobs:
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+             --harness draft_scheduler_cannot_exceed_available_prefix_or_accept_invalid_costs
+             --harness failed_fill_invalidates_ready_keys_without_releasing_pending_slots
++            --harness slot_tiles_preserve_complete_shapes_and_fallbacks
+             --harness les_control_parsers_accept_only_the_documented_literals
+             --harness pending_publish_rejects_stale_failed_and_duplicate_records
+             --harness speculative_claim_excludes_pending_and_preserves_pair_space
+@@ -124,6 +125,13 @@ jobs:
+           ruff format --check tests/test_flash_quality_run.py
+           ruff check tests/test_flash_quality_run.py
+           python -m pytest -q tests/test_flash_quality_run.py
++          ruff format --check --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt
++          ruff check --select F,E9 --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt
++          ruff format --check --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt
++          ruff check --select F,E9 --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt
++          ruff format --check tests/test_flash_slot_benchmark.py
++          ruff check tests/test_flash_slot_benchmark.py
++          python -m pytest -q tests/test_flash_slot_benchmark.py
+           ruff check --select F,E9 tests/fake-desktop-engine.py
+           python -m py_compile tests/fake-desktop-engine.py
+           ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index 18ae3204..ab2a377b 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -26,6 +26,29 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
+ pub const NGRAM_DIM: usize = 160;
+ pub const NGRAM_WORDS: usize = 41;
+ 
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn slot_qmv_nt(
++    m5: bool,
++    k: usize,
++    mul1: bool,
++    input: i32,
++    output: i32,
++    projections: i32,
++) -> i32 {
++    if m5
++        && k == 2
++        && mul1
++        && matches!(
++            (input, output, projections),
++            (2560, 640, 2) | (640, 2560, 1)
++        )
++    {
++        2
++    } else {
++        1
++    }
++}
++
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
+     !ids.is_empty()
+@@ -600,6 +623,31 @@ impl ExpertCache {
+ mod tests {
+     use super::*;
+     #[test]
++    fn slot_tiles_change_only_the_two_flash_shapes_on_m5() {
++        for (input, output, projections, expected) in [
++            (2560, 640, 2, 2),
++            (640, 2560, 1, 2),
++            (128, 128, 2, 1),
++            (2560, 640, 1, 1),
++            (640, 2560, 2, 1),
++            (2560, 2560, 2, 1),
++            (i32::MIN, 640, 2, 1),
++            (2560, i32::MAX, 2, 1),
++            (2560, 640, 0, 1),
++        ] {
++            for m5 in [false, true] {
++                for mul1 in [false, true] {
++                    for k in [0, 1, 2, 3, usize::MAX] {
++                        assert_eq!(
++                            slot_qmv_nt(m5, k, mul1, input, output, projections),
++                            if m5 && mul1 && k == 2 { expected } else { 1 }
++                        );
++                    }
++                }
++            }
++        }
++    }
++    #[test]
+     fn fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending() {
+         for complete in [false, true] {
+             let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
+@@ -1180,6 +1228,31 @@ mod tests {
+ mod verification {
+     use super::*;
+     #[kani::proof]
++    fn slot_tiles_preserve_complete_shapes_and_fallbacks() {
++        let m5: bool = kani::any();
++        let mul1: bool = kani::any();
++        let k: usize = kani::any();
++        let input: i32 = kani::any();
++        let output: i32 = kani::any();
++        let projections: i32 = kani::any();
++        let nt = slot_qmv_nt(m5, k, mul1, input, output, projections);
++        assert!(nt == 1 || nt == 2);
++        match (input, output, projections) {
++            (2560, 640, 2) | (640, 2560, 1) if m5 && mul1 && k == 2 => assert_eq!(nt, 2),
++            _ => assert_eq!(nt, 1),
++        }
++        if nt == 2 {
++            assert!(input > 0 && output > 0 && output % 32 == 0);
++            assert_eq!((output / 16) % nt, 0);
++        }
++        kani::cover!(nt == 2 && input == 2560);
++        kani::cover!(nt == 2 && input == 640);
++        kani::cover!(nt == 1 && !m5);
++        kani::cover!(nt == 1 && !mul1);
++        kani::cover!(nt == 1 && k == usize::MAX);
++        kani::cover!(nt == 1 && input == i32::MIN);
++    }
++    #[kani::proof]
+     #[kani::unwind(27)]
+     fn failed_fill_invalidates_ready_keys_without_releasing_pending_slots() {
+         let keys: [Option<u32>; 24] = kani::any();
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 6e523f43..80e9eb96 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1209,7 +1209,14 @@ fn expert_mapped_layout(
+     let m5 = array::is_m5_gpu()?;
+     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
+     let mut nt = if slot_major {
+-        1
++        crate::flash_support::slot_qmv_nt(
++            m5,
++            k,
++            cb == Codebook::Mul1,
++            input_dims,
++            output_dims,
++            projections_per_route,
++        )
+     } else if use_nt4 {
+         4
+     } else if local_tiles >= 1024 {
+@@ -1329,6 +1336,149 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "physical Apple GPU; real Flash slot shapes, dtypes, strides and wrong-slot oracle"]
++    fn flash_slot_shapes_match_resident_reference_for_every_route() -> anyhow::Result<()> {
++        use super::*;
++        let cases = [
++            vec![2u32],
++            vec![0, 2],
++            (0..10).map(|i| i % 3).collect(),
++            (0..20).map(|i| (i * 2 + 1) % 3).collect(),
++        ];
++        let mut checked = 0;
++        for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
++            let words = input / 16 * (output / 16) * 32;
++            let packed = (0..3 * projections * words)
++                .map(|i| (i as u16).wrapping_mul(1777))
++                .collect::<Vec<_>>();
++            let bank = Array::from_u16(
++                &packed,
++                &[
++                    3,
++                    projections as i32,
++                    (input / 16) as i32,
++                    (output / 16) as i32,
++                    32,
++                ],
++            )?;
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for strided in [false, true] {
++                    for routes in &cases {
++                        let rows = routes.len() * projections;
++                        let value = |row: usize, col: usize| {
++                            ((row * 37 + col * 13) % 997) as f32 / 1024. - 0.5
++                        };
++                        let values = (0..rows)
++                            .flat_map(|r| (0..input).map(move |c| value(r, c)))
++                            .collect::<Vec<_>>();
++                        let x = if strided {
++                            let transposed = (0..input)
++                                .flat_map(|c| (0..rows).map(move |r| value(r, c)))
++                                .collect::<Vec<_>>();
++                            Array::from_f32(&transposed, &[input as i32, rows as i32])?
++                                .astype(dtype)?
++                                .transpose(&[1, 0])?
++                        } else {
++                            Array::from_f32(&values, &[rows as i32, input as i32])?.astype(dtype)?
++                        };
++                        let scales = |width: usize| {
++                            (0..rows * width)
++                                .map(|i| half::f16::from_f32(0.5 + (i % 11) as f32 / 32.).to_bits())
++                                .collect::<Vec<_>>()
++                        };
++                        let su = scales(input);
++                        let sv = scales(output);
++                        let suh = Array::from_f16_bits(&su, &[rows as i32, input as i32])?;
++                        let svh = Array::from_f16_bits(&sv, &[rows as i32, output as i32])?;
++                        let before = Array::host_readbacks_for_test();
++                        let actual = expert_slots(
++                            &x,
++                            &bank,
++                            &suh,
++                            &svh,
++                            &ExpertSlots::new(routes, 3)?,
++                            output as i32,
++                            projections as i32,
++                            2,
++                            Codebook::Mul1,
++                        )?;
++                        assert_eq!(Array::host_readbacks_for_test(), before);
++                        assert_eq!(actual.shape(), [rows as i32, output as i32]);
++                        let host = actual.to_f32()?;
++                        assert_eq!(host.len(), rows * output);
++                        assert!(host.iter().all(|v| v.is_finite()));
++                        for (route, &slot) in routes.iter().enumerate() {
++                            for projection in 0..projections {
++                                let row = route * projections + projection;
++                                let index = slot as usize * projections + projection;
++                                let mut reference = Exl3Linear::new(
++                                    Array::from_u16(
++                                        &packed[index * words..(index + 1) * words],
++                                        &[(input / 16) as i32, (output / 16) as i32, 32],
++                                    )?,
++                                    Array::from_f16_bits(
++                                        &su[row * input..(row + 1) * input],
++                                        &[input as i32],
++                                    )?,
++                                    Array::from_f16_bits(
++                                        &sv[row * output..(row + 1) * output],
++                                        &[output as i32],
++                                    )?,
++                                    None,
++                                    2,
++                                    Codebook::Mul1,
++                                )?;
++                                reference.simdgroups = 4;
++                                reference.reference_accumulation = true;
++                                let expected = reference.forward(
++                                    &Array::from_f32(
++                                        &values[row * input..(row + 1) * input],
++                                        &[1, input as i32],
++                                    )?
++                                    .astype(dtype)?,
++                                )?;
++                                assert_eq!(
++                                    actual.slice(0, row as i32, row as i32 + 1)?.to_bytes()?,
++                                    expected.to_bytes()?,
++                                    "input={input},output={output},dtype={dtype:?},strided={strided},row={row},slot={slot}"
++                                );
++                            }
++                        }
++                        if routes.len() == 1 {
++                            let wrong = expert_slots(
++                                &x,
++                                &bank,
++                                &suh,
++                                &svh,
++                                &ExpertSlots::new(&[0], 3)?,
++                                output as i32,
++                                projections as i32,
++                                2,
++                                Codebook::Mul1,
++                            )?;
++                            assert_ne!(
++                                actual.to_bytes()?,
++                                wrong.to_bytes()?,
++                                "wrong-slot control was not detected"
++                            );
++                        }
++                        checked += 1;
++                    }
++                }
++            }
++        }
++        assert_eq!(checked, 32);
++        println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_flash_slots_preserve_reference_outputs() {
++        flash_slot_shapes_match_resident_reference_for_every_route().unwrap();
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
+     fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {

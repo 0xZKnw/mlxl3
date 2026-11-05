@@ -1,0 +1,188 @@
+diff --git a/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt b/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt
+index 4259e94c..a114f263 100644
+--- a/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt
++++ b/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt
+@@ -44,6 +44,8 @@ def main(path):
+                     record["before"]["pmset -g batt"].splitlines()[0]
+                     == "Now drawing from 'AC Power'"
+                 )
++                if "before_launch" in previous:
++                    previous["before_launch"](record)
+                 binary = Path(item["command"][0])
+                 record["executable_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+                 save()
+diff --git a/scripts/profile_flash.py b/scripts/profile_flash.py
+index c16a1a7e..c0d01aea 100644
+--- a/scripts/profile_flash.py
++++ b/scripts/profile_flash.py
+@@ -347,6 +347,27 @@ def cumulative_monitor(monitor, baseline):
+     return guarded
+ 
+ 
++def cumulative_preflight(record, baseline, limit):
++    assert set(baseline) == {"Swapins", "Swapouts"}
++    assert all(type(n) is int and n >= 0 for n in baseline.values())
++    assert type(limit) is int and limit >= 0
++    guard = {
++        "status": "failed",
++        "scope": "cumulative_campaign",
++        "baseline": baseline.copy(),
++        "limit_bytes": limit,
++        "deltas": {},
++    }
++    record["preflight_guard"] = guard
++    for key, start in baseline.items():
++        current = record["before"]["vm_bytes"][key]
++        assert type(current) is int and current >= 0, "invalid VM counter before launch"
++        delta = current - start
++        guard["deltas"][key] = delta
++        assert 0 <= delta <= limit, f"campaign {key} limit exceeded before launch"
++    guard["status"] = "passed"
++
++
+ def run_sampler(plan, baseline=None):
+     sampler_path = (
+         ROOT / "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
+@@ -368,6 +389,9 @@ def run_sampler(plan, baseline=None):
+         selected = Path(path).resolve()
+         if selected == monitor_path.resolve():
+             namespace["monitor"] = cumulative_monitor(namespace["monitor"], baseline)
++            namespace["before_launch"] = lambda record: cumulative_preflight(
++                record, baseline, namespace["LIMIT"]
++            )
+         if selected in {sampler_path.resolve(), supervisor_path.resolve()}:
+             namespace["main"].__globals__["runpy"] = SimpleNamespace(run_path=load)
+         return namespace
+diff --git a/tests/test_flash_profile.py b/tests/test_flash_profile.py
+index f1b82599..dd06d9a2 100644
+--- a/tests/test_flash_profile.py
++++ b/tests/test_flash_profile.py
+@@ -361,3 +361,128 @@ def test_loader_intercepts_actual_monitor_without_mutating_global_runpy(tmp_path
+     out = api["run_sampler"](r, {"Swapins": 10, "Swapouts": 20})
+     assert out == {"Swapins": 10, "Swapouts": 20} and before == {"Swapins": 100, "Swapouts": 200}
+     assert runpy.run_path is original and monitor.read_text().startswith("def monitor")
++
++
++@pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
++@pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
++def test_real_sampler_rejects_exhausted_budget_before_starting_child(
++    tmp_path, monkeypatch, counter, delta
++):
++    import shutil
++    import sys
++    import threading
++    from types import SimpleNamespace
++
++    api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
++    base = Path("docs/measurements/flash-next-ssd-impl")
++    monkeypatch.setattr(sys, "path", sys.path.copy())
++    paths = {
++        "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
++        "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
++        "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
++        "parser": Path("benchmarks/benchmark_flash_memory.py"),
++        "process": Path("scripts/native_json_process.py"),
++        "bridge": Path("scripts/benchmark-flash-bridge.py"),
++    }
++    for path in paths.values():
++        target = tmp_path / path
++        target.parent.mkdir(parents=True, exist_ok=True)
++        shutil.copyfile(ROOT / path, target)
++    baseline = {"Swapins": 100, "Swapouts": 100}
++    current = baseline.copy()
++    if delta == "missing":
++        del current[counter]
++    elif delta == "bool":
++        current[counter] = True
++    else:
++        current[counter] += delta
++
++    class FastEvent(threading.Event):
++        def wait(self, timeout=None):
++            return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
++
++    original = runpy.run_path
++
++    def load(path):
++        namespace = original(path)
++        selected = Path(path).resolve()
++        if selected == (tmp_path / paths["sample"]).resolve():
++            glob = namespace["main"].__globals__
++            glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
++            glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
++        if selected == (tmp_path / paths["monitor"]).resolve():
++            namespace["snapshot"] = lambda _: {
++                "vm_bytes": current.copy(),
++                "pmset -g batt": "Now drawing from 'AC Power'",
++            }
++        return namespace
++
++    glob = api["run_sampler"].__globals__
++    monkeypatch.setitem(glob, "ROOT", tmp_path)
++    monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
++    monkeypatch.chdir(tmp_path)
++    marker = tmp_path / "child-started"
++    plan = tmp_path / "run.json"
++    plan.write_text(
++        json.dumps(
++            [
++                {
++                    "name": "preflight",
++                    "command": [
++                        sys.executable,
++                        "-c",
++                        "from pathlib import Path; Path('child-started').touch()",
++                    ],
++                    "env": {},
++                    "expected_exit": 0,
++                }
++            ]
++        )
++    )
++    allowed = type(delta) is int and 0 <= delta <= 256 << 20
++    if allowed:
++        api["run_sampler"](plan, baseline)
++    else:
++        with pytest.raises((AssertionError, KeyError)):
++            api["run_sampler"](plan, baseline)
++    result = json.loads(plan.with_name("run-result.json").read_text())
++    record = result["commands"][0]
++    assert record["reaped"] and marker.exists() == allowed
++    assert ("pid" in record) == allowed
++    assert record["status"] == (
++        "completed_expected_outcome" if allowed else "failed_or_interrupted"
++    )
++    assert record["before"]["vm_bytes"] == current
++    assert record["preflight_guard"]["status"] == ("passed" if allowed else "failed")
++    assert json.loads(plan.with_name("system-samples.json").read_text())["sampler_joined"]
++    assert runpy.run_path is original
++
++
++def test_preflight_budget_boundaries_are_exact_for_large_counters():
++    import copy
++
++    for start in (0, (1 << 64) - 1):
++        for limit in (0, 1, 256 << 20):
++            for counter in ("Swapins", "Swapouts"):
++                for delta in (-1, 0, limit, limit + 1):
++                    baseline = {"Swapins": start, "Swapouts": start}
++                    before = baseline.copy()
++                    before[counter] += delta
++                    record = {"before": {"vm_bytes": before}}
++                    original = copy.deepcopy(record)
++                    if 0 <= delta <= limit:
++                        API["cumulative_preflight"](record, baseline, limit)
++                        assert record["preflight_guard"]["status"] == "passed"
++                    else:
++                        with pytest.raises(AssertionError):
++                            API["cumulative_preflight"](record, baseline, limit)
++                        assert record["preflight_guard"]["status"] == "failed"
++                    assert record["before"] == original["before"]
++                    assert baseline == {"Swapins": start, "Swapouts": start}
++
++
++@pytest.mark.parametrize("limit", [-1, True, None, 1.5])
++def test_preflight_rejects_invalid_limits(limit):
++    baseline = {"Swapins": 0, "Swapouts": 0}
++    with pytest.raises(AssertionError):
++        API["cumulative_preflight"]({"before": {"vm_bytes": baseline.copy()}}, baseline, limit)

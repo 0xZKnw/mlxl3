@@ -1,0 +1,278 @@
+diff --git a/native/src/qwen35.rs b/native/src/qwen35.rs
+index 660315a6..18d3bb9d 100644
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -2339,6 +2339,146 @@ mod tests {
+         Ok(())
+     }
+ 
++    #[test]
++    #[ignore = "physical Qwen27 GPU; writes MLXL3_SMALLM_REPORT; run alone after parity tests"]
++    fn dense_smallm_factorial_profile() -> Result<()> {
++        let output = std::path::PathBuf::from(std::env::var("MLXL3_SMALLM_REPORT")?);
++        ensure!(!output.exists(), "preserve previous small-M reports");
++        let mut report = serde_json::json!({
++            "status":"running", "parity":false, "samples":[],
++            "configurations":[[false,false],[true,false],[false,true],[true,true]],
++            "boundary":"four dependent target blocks, forced IDs, commit included; excludes prefill, draft and text IO; final GPU synchronize included"
++        });
++        let save = |report: &serde_json::Value| -> Result<()> {
++            std::fs::write(&output, serde_json::to_vec_pretty(report)?)?;
++            Ok(())
++        };
++        save(&report)?;
++        let result: Result<()> = (|| {
++            let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
++            ensure!(
++                model.layers.len() == 64
++                    && model.vocab == 248320
++                    && model.mtp_layout.hidden_size == 5120,
++                "requires dense Qwen27B fixture"
++            );
++            model.pipeline = false;
++            model.mtp_pipeline = false;
++            let prefix = (0..69).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
++            model.forward_mtp(&prefix)?;
++            crate::array::synchronize()?;
++            let snapshot = model.snapshot()?;
++            // Williams orders balance position and predecessor for all four configurations.
++            let orders = [[0, 1, 3, 2], [1, 2, 0, 3], [2, 3, 1, 0], [3, 0, 2, 1]];
++            let mut references = [None, None, None, None];
++            for round in 0..10usize {
++                for rows in 1..=4usize {
++                    let reference = &mut references[rows - 1];
++                    let order = if round < 2 {
++                        [0, 1, 2, 3]
++                    } else {
++                        orders[(round - 2) % 4]
++                    };
++                    for config in order {
++                        let batch = config & 1 != 0;
++                        let mb3 = config & 2 != 0;
++                        let (seconds, logits, hidden, states, memory) =
++                            with_dense_mlp_batch(batch, || {
++                                crate::linear::with_grouped_mb3_test(mb3, || -> Result<_> {
++                                    model.restore(snapshot.clone())?;
++                                    crate::array::synchronize()?;
++                                    crate::array::memory_stats(true)?;
++                                    let started = Instant::now();
++                                    let mut last = None;
++                                    for block in 0..4u32 {
++                                        let tokens = (0..rows)
++                                            .map(|i| block * 53 + i as u32 + 1)
++                                            .collect::<Vec<_>>();
++                                        let logits = if rows == 1 {
++                                            model.forward(tokens[0])?
++                                        } else {
++                                            let (logits, raw) = model.verify_mtp(&tokens)?;
++                                            logits.eval()?;
++                                            model.commit_dflash_verification(rows, rows)?;
++                                            model.set_mtp_hidden(raw.slice(
++                                                1,
++                                                rows as i32 - 1,
++                                                rows as i32,
++                                            )?)?;
++                                            logits
++                                        };
++                                        logits.eval()?;
++                                        last = Some(logits);
++                                    }
++                                    crate::array::synchronize()?;
++                                    let seconds = started.elapsed().as_secs_f64();
++                                    ensure!(seconds.is_finite() && seconds > 0.0, "invalid timing");
++                                    let memory = crate::array::memory_stats(false)?;
++                                    let logits =
++                                        last.context("missing target logits")?.to_f16_bits()?;
++                                    let hidden = model.mtp_hidden()?.to_f16_bits()?;
++                                    ensure!(
++                                        logits.len() == rows * 248320
++                                            && hidden.len() == 5120
++                                            && logits
++                                                .iter()
++                                                .chain(&hidden)
++                                                .all(|&v| f16::from_bits(v).is_finite()),
++                                        "incomplete or nonfinite target output"
++                                    );
++                                    let states = state_bytes(&model)?;
++                                    ensure!(states.len() == 128, "incomplete target states");
++                                    Ok((seconds, logits, hidden, states, memory))
++                                })
++                            })?;
++                        let actual = (logits, hidden, states);
++                        if let Some(expected) = &*reference {
++                            ensure!(
++                                actual == *expected,
++                                "factorial divergence M={rows} config={config} round={round}"
++                            );
++                        }
++                        let sample = serde_json::json!({
++                            "phase":if round < 2 {"warmup"} else {"measure"},
++                            "round":round.saturating_sub(2), "rows":rows, "config":config,
++                            "batch":batch, "mb3":mb3, "blocks":4, "seconds":seconds,
++                            "logits":actual.0.len(), "hidden":actual.1.len(), "state_arrays":actual.2.len(),
++                            "bit_exact":true, "memory":memory
++                        });
++                        if reference.is_none() {
++                            *reference = Some(actual);
++                        }
++                        report["samples"]
++                            .as_array_mut()
++                            .context("invalid samples")?
++                            .push(sample.clone());
++                        save(&report)?;
++                        println!("{sample}");
++                    }
++                }
++                model.restore(snapshot.clone())?;
++                crate::array::synchronize()?;
++                crate::array::clear_cache()?;
++            }
++            ensure!(
++                report["samples"]
++                    .as_array()
++                    .is_some_and(|samples| samples.len() == 160),
++                "incomplete factorial campaign"
++            );
++            Ok(())
++        })();
++        if let Err(error) = &result {
++            report["status"] = "failed".into();
++            report["error"] = format!("{error:#}").into();
++        } else {
++            report["status"] = "complete".into();
++            report["parity"] = true.into();
++        }
++        save(&report)?;
++        result
++    }
++
+     #[cfg(feature = "chat")]
+     #[test]
+     #[ignore = "physical GPU/model/head, writes MLXL3_DENSE_RESIDENT_REPORT; run alone"]
+@@ -2761,54 +2901,84 @@ mod tests {
+                     }
+                     Ok(())
+                 })?;
+-                for (mb3, pipeline) in [(true, false), (false, true), (true, true)] {
++                for (batch, mb3, pipeline) in [
++                    (false, false, false),
++                    (true, false, false),
++                    (false, true, false),
++                    (true, true, false),
++                    (true, true, true),
++                ] {
+                     model.mtp_pipeline = pipeline;
+-                    crate::linear::with_grouped_mb3_test(mb3, || -> Result<()> {
+-                        for retained in 1..=total {
+-                            model.restore(base.clone())?;
+-                            let (logits, raw) = model.verify_mtp(&tokens)?;
+-                            let bits = logits.to_f16_bits()?;
+-                            ensure!(
+-                                bits.len() == total * 248320
+-                                    && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                                "invalid verify logits"
+-                            );
+-                            ensure!(
+-                                bits == expected_logits,
+-                                "logits differ prefix={length} M={total} MB3={mb3} pipeline={pipeline}"
+-                            );
+-                            ensure!(
+-                                raw.shape() == [1, total as i32, 5120],
+-                                "invalid verify hidden shape"
+-                            );
+-                            let hidden = raw.to_f16_bits()?;
+-                            ensure!(
+-                                hidden.len() == total * 5120
+-                                    && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                                "invalid verify hidden"
+-                            );
+-                            for (row, (_, expected)) in expected_prefixes.iter().enumerate() {
++                    with_dense_mlp_batch(batch, || -> Result<()> {
++                        crate::linear::with_grouped_mb3_test(mb3, || -> Result<()> {
++                            for retained in 1..=total {
++                                model.restore(base.clone())?;
++                                let (logits, raw) = model.verify_mtp(&tokens)?;
++                                let bits = logits.to_f16_bits()?;
++                                ensure!(
++                                    bits.len() == total * 248320
++                                        && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                    "invalid verify logits"
++                                );
++                                ensure!(
++                                    bits == expected_logits,
++                                    "logits differ prefix={length} M={total} MB3={mb3} pipeline={pipeline}"
++                                );
++                                ensure!(
++                                    raw.shape() == [1, total as i32, 5120],
++                                    "invalid verify hidden shape"
++                                );
++                                let hidden = raw.to_f16_bits()?;
+                                 ensure!(
+-                                    hidden[row * 5120..(row + 1) * 5120] == *expected,
+-                                    "verify hidden differs"
++                                    hidden.len() == total * 5120
++                                        && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                    "invalid verify hidden"
+                                 );
++                                for (row, (_, expected)) in expected_prefixes.iter().enumerate() {
++                                    ensure!(
++                                        hidden[row * 5120..(row + 1) * 5120] == *expected,
++                                        "verify hidden differs"
++                                    );
++                                }
++                                model.commit_dflash_verification(retained, total)?;
++                                model.set_mtp_hidden(raw.slice(
++                                    1,
++                                    retained as i32 - 1,
++                                    retained as i32,
++                                )?)?;
++                                let actual =
++                                    (state_bytes(&model)?, model.mtp_hidden()?.to_f16_bits()?);
++                                ensure!(
++                                    actual == expected_prefixes[retained - 1],
++                                    "rollback differs prefix={length} M={total} retained={retained} batch={batch} MB3={mb3} pipeline={pipeline}"
++                                );
++                                let saved = model.snapshot()?;
++                                let mut continuation = Vec::new();
++                                for token in [113, 127] {
++                                    continuation.push(model.forward(token)?.to_f16_bits()?);
++                                }
++                                let continued_states = state_bytes(&model)?;
++                                model.restore(base.clone())?;
++                                for &token in &tokens[..retained] {
++                                    model.forward(token)?;
++                                }
++                                for (index, token) in [113, 127].into_iter().enumerate() {
++                                    ensure!(
++                                        model.forward(token)?.to_f16_bits()? == continuation[index],
++                                        "post-commit continuation logits differ"
++                                    );
++                                }
++                                ensure!(
++                                    state_bytes(&model)? == continued_states,
++                                    "post-commit continuation states differ"
++                                );
++                                model.restore(saved)?;
+                             }
+-                            model.commit_dflash_verification(retained, total)?;
+-                            model.set_mtp_hidden(raw.slice(
+-                                1,
+-                                retained as i32 - 1,
+-                                retained as i32,
+-                            )?)?;
+-                            let actual = (state_bytes(&model)?, model.mtp_hidden()?.to_f16_bits()?);
+-                            ensure!(
+-                                actual == expected_prefixes[retained - 1],
+-                                "rollback differs prefix={length} M={total} retained={retained} MB3={mb3} pipeline={pipeline}"
+-                            );
+-                        }
+-                        Ok(())
++                            Ok(())
++                        })
+                     })?;
+                     println!(
+-                        "dense dispatch exact: prefix={length} M={total} MB3={mb3} pipeline={pipeline}, {total} commits, 128 state arrays"
++                        "dense dispatch exact: prefix={length} M={total} batch={batch} MB3={mb3} pipeline={pipeline}, {total} commits and continuations, 128 state arrays"
+                     );
+                 }
+                 crate::array::synchronize()?;

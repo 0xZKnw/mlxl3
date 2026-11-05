@@ -1,0 +1,320 @@
+Résultats du profilage réalisé les **27–28 octobre 2026**, avec les vérifications et suites d’essais disponibles au 29 octobre. Objectif : savoir où part le temps avant d’optimiser Qwen3.8 Flash-Next. Cette issue publie les mesures existantes ; **aucun nouveau benchmark n’a été relancé pour la rédiger**.
+
+**Constat principal :** l’attente CPU des routes recouvre presque entièrement du travail GPU. Le poste de soumission MLX contient en revanche environ **12 ms/token de CPU actif pendant que le GPU est inactif**, principalement dans le premier `async_eval` qui soumet aussi les producteurs amont. Le chemin logique des lectures d’experts comporte une queue exposée d’environ **27–31 ms/token**. Sa part physique SSD/NAND reste **non mesurée**.
+
+Il ne s’agit ni d’un gain livré ni de trois budgets additionnables. Les nombres CPU/GPU fins viennent de fenêtres instrumentées, plus lentes que leurs contrôles. Les résultats postérieurs négatifs sont conservés à la fin pour éviter de présenter les pistes initiales comme des boosts disponibles.
+
+## 1. Machine, modèle et référence exacte
+
+| Élément | Configuration |
+|---|---|
+| Matériel | Apple M5 standard, 24 Gio de mémoire unifiée, secteur |
+| Système et outils | macOS 27.2 (26B5112a), MLX 0.32.2, Xcode/xctrace 27.1 (27A9275) |
+| Moteur | Rust + FFI MLX/Metal ; Python utilisé pour piloter, exporter et analyser, pas comme moteur d’inférence |
+| Target | Qwen3.8-Flash-Next, EXL3 2,05 bpw ; checkpoint local identifié `Qwen3.8-Flash-Next-exl3-205-65c89531` |
+| Draft DFlash2 | Checkpoint `Qwen3.8-Flash-Next-DFlash2-a22a1744` |
+| Cache d’experts target | 3 Gio, 53 slots par couche, 48 couches, soit 2 544 slots |
+| I/O | 4 lecteurs, lookahead 0 ; GPU Hot, Wide Hot, cohortes uniques et overlap actifs |
+| Génération | Greedy, 128 tokens de sortie dans les campagnes longues ; 127 transitions de decode chronométrées |
+| Contexte fin CPU/GPU | MAIN, 87 tokens d’entrée ; AR sans MTP/DFlash2 |
+| Référence source | HEAD `7978fceac30d991a8c06d72114fc932b2443f555` **avec changements locaux de profilage** ; le SHA Git seul ne décrit pas l’arbre exécuté |
+| CLI release figé | SHA-256 `a60eb4ada3a948110fc057d9551032b6d03598ab404201145f5a5410f26f8e75` |
+| Libtest profilé figé | SHA-256 `d4bb73099490a6908db442fac5337c44feefeab2910746af69aed5ec844c87b2` |
+
+Les options complètes, empreintes de sources, plans et journaux sont conservés localement dans les manifestes cités en section 12. Les fichiers locaux non publiés ne sont pas présentés comme des fichiers accessibles sur `main`. Cette issue contient donc les résultats nécessaires à sa lecture autonome.
+
+Gardes : un modèle GPU à la fois, aucun build/proveur/autre inférence pendant les acquisitions ; secteur, zéro nouveau `Swapout` dans chaque fenêtre admise, contrôle de la mémoire physique native sous 12 Go. Les campagnes interrompues ne sont pas fusionnées avec les campagnes terminées.
+
+## 2. Couverture effectivement terminée
+
+- **3 qualifications courtes AR/MTP/DFlash2**, 17 sorties : sorties non vides, texte/hash/counts et captures des logits finaux et états finaux complets, finis et byte-exacts entre les phases, y compris les KV draft concernés.
+- **6 datasets naturels** : AR, MTP et DFlash2 × MAIN/HOLD, 128 sorties, 6 phases par dataset : chauffe, contrôle avant, 3 traces naturelles, contrôle après.
+- **3 datasets avec synchronisations ajoutées** : AR/MTP/DFlash2 sur MAIN, 33 sorties. Ils servent à localiser les composants ; leurs durées ne sont pas un modèle du recouvrement naturel.
+- **CLI release sans Instruments** : 6 réponses mesurées et 2 chauffes par mode, MAIN/HOLD, 128 sorties.
+- **Attribution fine AR** : fenêtre courte de 20 pas complets (48–67), corroboration exploratoire séparée sur 36 pas complets (84–119), issue d’une campagne interrompue après la phase numérique validée.
+- Contextes longs, autres largeurs de vérification et attribution CPU/GPU fine MTP/DFlash2 : **non terminés/non mesurés**. Le profilage n’est pas une matrice exhaustive de tous les usages.
+
+L’export MAIN validé couvre **2 828 169 événements**, 294 934 jobs de lecture, 77 982 readbacks et 1 143 pas, sur les seuls datasets de son manifeste. Les **292 536 requêtes de kernels** recensées sont des constructions de graphes lazy : ce ne sont pas 292 536 dispatchs GPU observés.
+
+## 3. Débits release observés, sans Instruments
+
+Chaque cellule contient les 3 mesures successives du prompt, en tok/s. Les modes ont été mesurés dans des processus/campagnes distincts : ce tableau est descriptif, pas un A/B causal d’une optimisation.
+
+| Mode | MAIN : 3 mesures | HOLD : 3 mesures |
+|---|---|---|
+| AR | 10,987 / 10,893 / 10,943 | 10,860 / 10,780 / 10,771 |
+| MTP | 11,403 / 11,203 / 11,129 | 10,554 / 10,455 / 10,420 |
+| DFlash2 | 11,807 / 11,636 / 11,116 | 11,396 / 11,122 / 11,074 |
+
+18 générations mesurées + 6 chauffes au total. Texte, hash et comptes conformes aux goldens externes ; zéro nouveau Swapout dans leur fenêtre ; processus, lecteurs et samplers rejoints. Les contrôles de texte CLI **ne prouvent pas les 128 états numériques à chaque position** ; les contrôles numériques natifs sont distincts.
+
+Les contrôles naturels avant/après, avec oracles/captures en mémoire, montrent pourquoi on ne déduit pas un boost de ces traces :
+
+| Prompt / mode | Préfill avant → après (s) | Decode avant → après (tok/s) |
+|---|---:|---:|
+| MAIN / AR | 8,478 → 9,036 | 10,621 → 8,920 |
+| MAIN / MTP | 9,199 → 9,026 | 11,098 → 10,849 |
+| MAIN / DFlash2 | 8,706 → 9,276 | 11,256 → 10,841 |
+| HOLD / AR | 7,723 → 7,703 | 10,731 → 10,853 |
+| HOLD / MTP | 8,799 → 8,168 | 10,592 → 10,437 |
+| HOLD / DFlash2 | 8,048 → 8,685 | 11,393 → 10,868 |
+
+DFlash2 : le ratio enregistré `draft_verification_fraction` du contrôle après vaut **93,21 % sur MAIN** et **92,38 % sur HOLD**. Il vise le poste de vérification tel que mesuré par ce compteur ; il ne signifie pas «93 % de NAND», ni une attribution CPU/GPU exclusive. Les coûts et conditions de cache varient entre phases ; l’acceptation MTP est stable dans ces datasets (54/72 sur MAIN, 48/78 sur HOLD). Aucune vitesse MTP/DFlash n’est extrapolée depuis les 12 ms AR.
+
+
+### Résultats des neuf datasets instrumentés
+
+Les intervalles portent sur les trois traces naturelles ou les deux traces synchronisées, pas sur les contrôles avant/après. Les neuf `profile/analysis.json` terminent avec leur validation de diagnostic et de parité ; le manifeste initial `completed-nine-matrix.json` conserve un ancien libellé `analysis_pending`.
+
+| Dataset | Sorties / transitions chronométrées | Traces | Préfill (s) | Decode (s) | Decode (tok/s) |
+|---|---:|---:|---:|---:|---:|
+| Naturel AR MAIN | 128 /127 | 3 | 8,498–9,151 | 12,364–12,991 | 9,776–10,272 |
+| Naturel AR HOLD | 128 /127 | 3 | 7,804–8,050 | 12,057–12,903 | 9,843–10,533 |
+| Naturel MTP MAIN | 128 /127 | 3 | 9,122–10,466 | 11,737–12,675 | 10,019–10,821 |
+| Naturel MTP HOLD | 128 /127 | 3 | 8,207–8,266 | 12,115–12,158 | 10,446–10,483 |
+| Naturel DFlash2 MAIN | 128 /127 | 3 | 8,658–8,818 | 10,938–11,577 | 10,970–11,611 |
+| Naturel DFlash2 HOLD | 128 /127 | 3 | 8,032–8,417 | 11,270–12,003 | 10,581–11,269 |
+| Synchronisé AR MAIN | 33 /32 | 2 | 43,140–43,323 | 15,801–15,842 | 2,020–2,025 |
+| Synchronisé MTP MAIN | 33 /32 | 2 | 43,654–43,792 | 10,804–10,851 | 2,949–2,962 |
+| Synchronisé DFlash2 MAIN | 33 /32 | 2 | 42,815–43,153 | 10,576–10,785 | 2,967–3,026 |
+
+Les synchronisations artificielles détruisent une partie du recouvrement. Leurs débits ne sont ni ceux de la production ni un A/B causal AR/MTP/DF.
+
+### Localisation par composant avec synchronisations
+
+Sommes de durées **murales inclusives**, normalisées par les 32 transitions décodées ; les enfants du MoE sont imbriqués dans le parent. **Ne pas additionner ces lignes, ni les appeler temps GPU exclusifs.** GDN utilise le parcours multi-lignes dans les modes de vérification concernés.
+
+| Composant, ms/transition | AR | MTP | DFlash2 |
+|---|---:|---:|---:|
+| GDN | 92,879–92,929 | 51,524–52,078 | 52,492–53,626 |
+| QSA | 24,870–25,136 | ≈25,954 | 25,295–25,588 |
+| MoE complet | 275,729–276,943 | 193,016–193,530 | 191,590–196,033 |
+| Calcul experts, enfant du MoE | 161,490–161,952 | 94,568–94,895 | 92,779–95,514 |
+| Expert partagé | 58,813–58,861 | 58,649–58,822 | 58,473–59,507 |
+| Lecture HC | 33,268–33,367 | 33,632–33,733 | 32,908–33,754 |
+| Bloc lectures experts | 31,205–32,062 | 26,834–26,862 | 27,569–27,928 |
+| Decode total | 493,776–495,070 | 337,616–339,088 | 330,504–337,042 |
+
+AR calcul experts : Gate/Up 73,571–74,041 ms/transition ; Down 67,002–67,122. Ce sont encore des durées synchronisées inclusives, pas des durées de kernels capturées.
+
+### Vérification spéculative naturelle
+
+DFlash2 utilise ici **deux lignes cibles réelles par bloc**. Intervalles sur les trois traces naturelles :
+
+| Prompt | Blocs / propositions acceptées | Lignes vérifiées | Draft (s) | Vérification (s) | Commit/cache (s) | Part vérification¹ |
+|---|---:|---:|---:|---:|---:|---:|
+| MAIN | 69 /58 | 138 | 0,514–0,549 | 10,197–10,789 | 0,227–0,239 | 93,198–93,225 % |
+| HOLD | 70 /56 | 140 | 0,524–0,557 | 10,407–11,099 | 0,230–0,244 | 93,166–93,288 % |
+
+¹ Vérification / (draft + vérification + commit/cache). Ces compteurs ne mesurent pas une occupation GPU.
+
+MTP naturel : MAIN accepte **54/72 propositions**, vérification 11,046–11,905 s, tête 0,497–0,554 s, réparation 0,109–0,122 s, decode total 11,737–12,675 s. HOLD accepte **48/78**, vérification 11,416–11,449 s, tête 0,508–0,520 s, réparation 0,102–0,105 s, decode 12,115–12,158 s.
+
+Ces coûts expliquent l’intérêt de réduire la vérification cible. Ils ne donnent pas le gain d’une fusion particulière ni un plafond SSD physique.
+
+## 4. Premier profil hôte AR : origine des «38–39 ms» et «17–19 ms»
+
+Trois traces naturelles MAIN, 128 sorties / 127 transitions de decode :
+
+| Mesure, ms par transition | Trace 1 | Trace 2 | Trace 3 |
+|---|---:|---:|---:|
+| Attente amont des routes (`source-wait`) | 38,112 | 37,967 | 38,810 |
+| Copie des routes sur CPU | 0,00558 | 0,00572 | 0,00591 |
+| Bloc hôte lectures experts | 29,004 | 29,467 | 30,292 |
+| Soumissions MLX hôte | 17,027 | 17,211 | 18,511 |
+| Decode total de la phase (s) | 12,364 | 12,463 | 12,991 |
+
+6 096 cohortes par trace. Cohortes entièrement Hot : 720, 720 et 709, soit **11,63–11,81 %**. Les hits partiels sont déjà exploités : ce taux ne décrit pas tout le travail GPU Hot existant.
+
+L’union temporelle des fonctions de lecture entre travailleurs vaut 28,52–29,77 ms/token ; le reste du bloc I/O vaut 0,48–0,52 ms. Ce reste inclut préparation, évaluations éventuelles, ordonnanceur, retour et instrumentation. On ne somme pas les travailleurs parallèles ni des spans imbriqués.
+
+Ces horloges hôte ont motivé l’attribution suivante. Elles ne mesuraient pas encore le GPU idle.
+
+## 5. Attribution fine : CPU actif, blocages et GPU
+
+Fenêtre courte : 20 pas complets, AR MAIN. **Unités : ms/token.** CPU = thread d’inférence ; les lecteurs I/O sont sur d’autres threads. GPU actif = exécution de commandes du processus moteur, **pas occupation ALU, ni temps arithmétique pur**.
+
+| Enveloppe hôte | Murale | CPU actif | CPU bloqué | CPU runnable/interruption/préemption | GPU moteur actif | GPU sans activité observée, tous processus |
+|---|---:|---:|---:|---:|---:|---:|
+| Readback routes complet | 40,056 | 0,302 | 39,473 | 0,281 | 39,947 | 0,106 |
+| Soumission MLX | 22,033 | 21,912 | 0,010 | 0,110 | 9,710 | 12,195 |
+| Bloc lectures experts | 38,108 | 7,387 | 30,147 | 0,574 | 6,685 | 31,055 |
+
+Les colonnes CPU partitionnent la durée de leur groupe. Les axes CPU et GPU sont **simultanés** : ne pas les additionner.
+
+Pour l’ensemble des pas sélectionnés, la durée vaut **113,755 ms/token**, avec 37,690 ms CPU actif, 75,030 ms CPU bloqué et 63,013 ms de commandes GPU moteur actives (63,622 ms tous processus). L’intersection **CPU actif ET GPU inactif** sur tout le decode vaut **22,150 ms/token** : les 12,142 ms ci-dessous en sont le sous-ensemble situé dans les soumissions MLX, pas tout le CPU exposé.
+
+Corroboration exploratoire sur 36 autres pas d’une campagne interrompue après la phase validée (elle n’est pas une seconde campagne complète conforme zéro swap) : durée 103,204 ms/token, GPU moteur actif 57,233 ms/token, CPU actif/GPU inactif total 22,122 ms/token. Les deux fenêtres sont gardées séparées.
+
+### Routes
+
+Dans l’enveloppe de 40,056 ms : attente source C++ 40,002 ms ; copie 0,00565 ms. Le GPU moteur est actif pendant 39,947 ms. L’autre fenêtre donne une attente source de 35,937 ms et une enveloppe de 36,006 ms, dont 35,929 ms d’activité GPU.
+
+**Conclusion :** enlever l’appel d’attente ne supprime pas ses producteurs. Le résidu sans activité GPU observée dans cette enveloppe est d’environ 0,08–0,11 ms/token, sous réserve du calage. Les routes attendent notamment la chaîne de calcul précédente, pas une copie CPU coûteuse.
+
+### Soumissions
+
+96 appels `async_eval` par token, **pas 96 dispatchs GPU**. CPU actif/GPU inactif dans ces soumissions : **12,142 ms/token**, corroboration 11,803 ms.
+
+Environ 1,166 ms de CPU actif se trouve dans les syscalls observés ; environ 20,746 ms hors de ces intervalles. Ce n’est pas une partition exhaustive user/kernel. L’encodage Metal, les allocations, le suivi des ressources et la traversée MLX restent en partie imbriqués.
+
+5 258 `fstat` du thread principal sur les 20 pas ne représentent que **0,113 ms/token**. Les gardes de troncature/bornes de fichiers ne sont donc pas la première cible de performance.
+
+## 6. Quels appels occupent précisément les 12,142 ms ?
+
+Chaque couche effectue deux soumissions dans `SsdMoe::prepare_resident_hot`, aux lignes de la **source archivée** `ssd_moe.rs:560/569` :
+
+| Appel | Appels sur 20 tokens | Temps mural/token | CPU actif ET GPU inactif/token |
+|---|---:|---:|---:|
+| `slots.indices().async_eval()` | 960 | 18,323 ms | **11,897 ms — 98,0 %** |
+| `output.async_eval()`, résultat Hot | 960 | 3,710 ms | **0,245 ms — 2,0 %** |
+
+Chemin : `Array::async_eval` → `mlxl3_array_async_eval` → `mlx::core::async_eval` → `eval_impl(..., true)` → évaluation/encodage des primitives GPU.
+
+Le premier appel soumet les dépendances des indices : **Cold précédent, combinaison/réduction, HC, attention/GDN et routeur**. Il ne mesure pas seulement le petit kernel cache-map. «Async» évite d’attendre la fin GPU ; la préparation et l’encodage CPU sont exécutés avant le retour.
+
+249 points CPU à 1 kHz appartiennent aux fenêtres exposées : 243 dans le premier appel, 6 dans le second. Une seule frame MLX, la plus proche de la feuille, est choisie par pile pour obtenir des catégories exclusives :
+
+| Frame MLX | Points / 249 | Part |
+|---|---:|---:|
+| `CommandEncoder::maybeInsertBarrier()` | 39 | 15,7 % |
+| `CommandEncoder::get_command_encoder()` | 37 | 14,9 % |
+| `CommandEncoder::dispatch_threads(...)` | 29 | 11,6 % |
+| `gpu::eval(array&)` | 23 | 9,2 % |
+| `eval_impl(vector<array>, bool)` | 21 | 8,4 % |
+| `CommandEncoder::commit(...)` | 18 | 7,2 % |
+| `CommandEncoder::set_input_array(...)` | 10 | 4,0 % |
+
+Toutes fonctions `CommandEncoder` et callbacks réunis : **143/249 points, 57,4 %**. La simple traversée `eval_impl` n’est pas majoritaire. Le [backend MLX v0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp) encode barrières, ressources, encodeurs et fences ; on ne peut pas retirer ces dépendances comme une attente inutile.
+
+**Limites :** ces pourcentages sont des statistiques de sampling, pas des ms exactes par fonction. La feuille `__kdebug_trace64` apparaît 48/249 fois : une part du travail peut venir de l’observateur Instruments. Les allocations/libérations recouvrent les catégories MLX ; ne pas additionner leurs pourcentages.
+
+Le filtre initial exigeant «Running à l’instant du sample» donnait zéro point et a été rejeté. Les 757 points du thread dans le decode se trouvent dans un contexte Interrupted ; ils ont un contexte Running immédiatement précédent. Ce rattachement explicite précède le filtre soumission/GPU idle. Aucun dénominateur vide n’a été transformé en résultat.
+
+## 7. Lectures masquées, queue exposée et limite SSD physique
+
+Dans la fenêtre courte :
+
+- 816 lots, **2 619 retours `preadv`**, chacun de 1 248 012 B, concordant avec les jobs natifs ; **3 268 543 428 B logiquement retournés**.
+- Union temporelle des lectures : **37,211 ms/token**, bloc complet 38,108 ms/token.
+- Activité GPU moteur concomitante au bloc : **6,685 ms/token**.
+- Hot non prêt au début puis prêt au retour dans 751 lots ; encore non prêt au retour dans 61 ; déjà prêt aux deux bornes dans 4.
+- Par rapport à la dernière activité GPU indépendante avant le retour I/O : 244 lectures finissent avant, 1 876 traversent cette frontière, 499 commencent après.
+- Queue après cette frontière : **31,409 ms/token**, dont **30,862 ms d’union de `preadv`**.
+
+Corroboration sur 36 pas : 1 513 lots, 5 244 jobs, 6 544 574 928 B logiques ; union 31,967 ms/token, overlap GPU 5,329 ms/token ; queue exposée **27,215 ms/token**, dont 26,988 ms de `preadv`.
+
+Ce sont des budgets du chemin **service/copie/OS/ordonnancement**, à ordre de queues fixé. Les classes de lectures décrivent une frontière temporelle ; elles ne démontrent pas la criticité causale de chaque octet ni que leur avancement raccourcirait le token de toute la queue.
+
+### Pourquoi on ne les appelle pas «31 ms de SSD»
+
+`DiskIoRoutines` exporte zéro événement bloc dans la capture modèle. Trois contrôles ont évité de confondre absence de données et absence d’I/O :
+
+1. Témoin jetable 128 Mio écrits + 128 Mio lus, `F_NOCACHE` / `F_FULLFSYNC`, égalité byte-exact ; ses 4 `pwrite` / 4 `pread` et contrôles sont bien visibles, mais zéro événement bloc.
+2. System Trace + DiskIOLatency, 3 itérations 128 Mio écrits/lus : même absence de requêtes bloc.
+3. Répétition après licence/initialisation Xcode confirmée : même résultat.
+
+Helpers/traceurs bornés et rejoints, scratch supprimé. `iostat` global observe des transferts, mais inclut le traceur et ne permet pas l’attribution au moteur. `ru_inblock/oublock=0` ne prouve pas zéro I/O.
+
+Le moteur utilise des fichiers ordinaires et `preadv`, sans `F_NOCACHE` : le cache fichier macOS peut servir des données en plus des 3 Gio de banques explicites. Sa part propre au modèle n’a pas été mesurée.
+
+**Restent non mesurés :** latence NAND, queue du contrôleur, octets physiques par requête, cache fichier propre au modèle, fraction SSD réellement critique. Aucun conseil d’achat SSD ne découle de ces traces.
+
+## 8. Calage, effet de l’observateur et acquisitions interrompues
+
+Le temps vient de `time-info` et du timebase 125/3, pas du seul start-date du TOC. Une capture initiale avait un décalage TOC/origine réelle. Les lectures donnent un contrôle indépendant du GPU : nombre de retours et octets exacts, syscalls contenus dans leurs jobs natifs parents.
+
+- Courte : correction centrale **+6 666 ns**, demi-largeur compatible **1 292 ns**, 2 619 lectures.
+- Première : **−23 624 ns**, demi-largeur **1 396 ns**, 5 244 lectures ; 297 lots à un job confirment l’emboîtement.
+
+Hypothèse : offset constant sur chaque fenêtre. Ce n’est pas une preuve de toutes les horloges système. Un mauvais calage de quelques dizaines de microsecondes affecte les petits spans répétés 48 fois/token.
+
+Effet observateur sur les mêmes indices : **113,755 ms/token tracés contre 91,671 ms au contrôle**, et **103,204 contre 91,993 ms** sur l’autre fenêtre. Cela mélange instrumentation, cache et conditions ; on ne transforme pas le budget instrumenté de 12 ms en gain release garanti.
+
+Échecs conservés : prévols/exports initiaux ; lancement HOLD interrompu après 218,4 Mio de swap entre essais ; captures lourdes interrompues après 104,19 Mio puis 5,44 Mio de Swapout. Pour la première, les snapshots montrent que les 104,19 Mio surviennent **après** la phase `trace_1` validée, sans valider le test complet à 6 phases.
+
+La courte capture a terminé chauffe/contrôle avant/trace_1, validé 128 sorties, 248 320 logits finaux finis et états finaux complets, fermé ses JSON puis arrêté volontairement **notre** processus. Zéro nouveau Swapout sur toute sa fenêtre ; footprint natif aux frontières ≤7,554 Go. Le SIGTERM planifié n’est pas présenté comme un test natif complet passé : `trace_2/trace_3/control_after` non exécutés.
+
+## 9. Plafonds conditionnels et classement issu du profil
+
+Pour passer de **11,5 à 15 tok/s**, il faut enlever **20,29 ms/token**, soit **23,33 % de latence**. Aucun profil ne prouve que cette somme est récupérable.
+
+Les plafonds ci-dessous supposent le reste du travail et les queues comparables. Formule : débit relatif = `T / (T − budget)`. **Ils ne s’additionnent pas et ne sont pas des prédictions de la release.**
+
+| Priorité historique | Piste | Budget / plafond optimiste observé | Risque et lecture |
+|---|---|---|---|
+| 1 | Réduire primitives, construction et encodage MLX tout en gardant les disponibilités précoces | 11,8–12,1 ms/token CPU actif/GPU idle dans les soumissions ; environ **+12–13 %** dans ces seules fenêtres si entièrement effacé | Surcoût Instruments ; encoder/barrières indispensables ; déplacer les commits peut retarder les routes/Hot. Gain release à mesurer |
+| 2 | Cache global et redistribution des slots à 3 Gio | Queue logique exposée 27–31 ms/token ; «lectures gratuites» donnerait environ **+35–38 %** dans les fenêtres | Borne irréalisable telle quelle, pas une politique de cache validée. Le port partagé ARC essayé ensuite est négatif, voir §10 |
+| 3 | Cache-map speculation / GDN différé de Sushi | AllHot 12,4–15 % dans les fenêtres fines ; préfixes éligibles 2,37–2,72 ms/token de durée totale, **0,38–0,47 ms seulement de GPU idle** | Le préfixe inclut plus que GDN. PLE présent chez nous ; rollback exact GDN/conv/HC/injection/initialisation. Gain exposé faible face au risque |
+| 4 | Accélérer un vrai kernel producteur | 57–63 ms/token de commandes GPU actives | Pas de labels/counters permettant un plafond par kernel ; GPU actif inclut stalls. Choix du kernel à qualifier |
+| 5 | Dédupliquer les métadonnées par lot | Au plus environ 0,11–0,12 ms/token de `fstat` | Faible plafond ; garder erreurs troncature/bornes |
+| 6 | Accélérer uniquement copie/readback routes | Copie 0,005–0,006 ms/token ; résidu GPU idle 0,08–0,11 ms | Ne retire pas les producteurs ni 38 ms de calcul |
+
+Hétérogénéité de cache : 200 sélections par couche sur 20 tokens, mais 12 à 129 misses selon la couche avec la même capacité 53. Cela justifiait le replay puis un port, **pas** l’affirmation qu’une couche peut céder ses slots sans effet futur. Le head MTP résident est distinct des 3 Gio target.
+
+Le cache de préfixes SSD vise surtout le TTFT/reprise d’un agent ; il ne reçoit pas le plafond de gain du decode natif.
+
+## 10. Ce que les essais postérieurs ont réellement donné
+
+Ces essais sont distincts du profilage, avec leurs propres protocoles. Ils empêchent de relancer inchangées des idées déjà testées.
+
+| Essai | Résultat | État |
+|---|---|---|
+| POSTPROFILE01, opérations par buffer 20/40/80 | Qualité 7 tests physiques passée ; pilote 4 processus / 8 mesures MAIN128. Référence 11,124 → 10,584 tok/s (−4,86 % de dérive), C20 10,980, C80 10,469 | Non concluant ; défaut 40 gardé |
+| POSTPROFILE02, seuil ressources 20/40/80 MB, opérations 40 | Qualité 6 tests passée ; 9 processus alternés. MB20 decode −1,18/−0,16 % contre contrôles encadrants ; MB80 −3,88/+0,31 %, TTFT +2,42 % aux deux passages | Rejeté |
+| POSTPROFILE03, une soumission Hot mono-token (`M=1`) au lieu de deux | Test de valeurs/comptage passe, **test d’overlap échoue** : les routes attendent le Hot retardé | Rejeté avant vitesse ; démontre que supprimer un `async_eval` peut dégrader une frontière utile |
+| POSTPROFILE05-B, gather+produit EXL3 fusionné, rotations/sommes stock | ABBA, 24 mesures +8 chauffes : MAIN −0,52 %, HOLD +1,74 % decode, références dérivantes | Non retenu ; adaptation auditée puis corrigée dans C |
+| POSTPROFILE05-C, même idée après retrait de 8 vues `reshape` par calcul | ACCA, 24 mesures +8 chauffes : MAIN −3,78 %, HOLD −0,53 % sur moyennes ; agrégé tokens/temps −3,81/−0,54 % | Rejeté **après audit/correction/retest**, sources actives restaurées |
+| POOL04 partagé Uniform/ARC, 3 Gio | A-U-C-C-U-A × MAIN/HOLD, 36 mesures +12 chauffes : ARC/A **−3,485 % MAIN, −2,145 % HOLD** ; Uniform/A +0,58/+0,75 %, non concluant | Runtime partagé retiré après audit ; replay offline conservé |
+
+POOL04 débits agrégés (tokens / somme des temps) : MAIN A 10,70334, Uniform 10,76577, ARC 10,33036 tok/s ; HOLD A 10,58490, Uniform 10,66413, ARC 10,35785. ARC augmente ici lectures logiques et coût hôte de réservation/import ; cela ne prouve pas que toute politique de pool global est inefficace. ARC indexé O(1) et performances MTP/DFlash2 de ce pool : **non mesurés**.
+
+L’audit POSTPROFILE05 a trouvé un défaut concret dans B : huit vues ajoutées par calcul. Corrigé dans C avant rejet. Construction complète instrumentée A/B/C : 2,279 / 4,083 / 2,132 ms/token ; soumissions hôte 16,940 / 21,884 / 14,843 ms/token. **Baisse de temps hôte instrumenté ≠ gain release ni baisse mesurée de GPU idle.** Les sous-spans GU n’avaient pas la même frontière et ne sont pas comparés causalement.
+
+Les prototypes négatifs sont archivés. Le moteur revenu à la référence a retrouvé le SHA CLI `a60eb4ad…`. Aucun gain de ces essais n’a été intégré à l’app installée.
+
+La recherche amont a vérifié des mécanismes de Sushi/Strata/TensorFold, pas exécuté leurs moteurs. Un cache de factories ou de plans n’est pas une relecture complète des commandes GPU. Les appels ICB examinés dans ces projets étaient des tests/micros, sans preuve d’un parcours Flash-Next EXL3 complet servi.
+
+L’issue #59 et son candidat T05 sont **en cours séparément**. Au moment de cette publication, qualité micro/MoE/modèle/MTP/DFlash contrôlée ; capture de dispatch et gain de vitesse **non établis**. Aucun résultat T05 n’est attribué au profilage précédent.
+
+## 11. Correction, tests et limites de preuve
+
+- Les comparaisons exigent valeurs non vides, tailles attendues, finitude et référence indépendante ; les traces naturelles vérifient leurs états finaux et logits finaux complets entre phases et les goldens externes.
+- Suite Rust du profilage : **278 passés /167 ignorés** en MLX/chat ; **248 /6** CPU/chat. Les tests physiques sélectionnés séparément ne sont pas remplacés par ces suites.
+- Python : 384 tests avant correctif d’horloge, 214 après, puis 101 exports après correction lint ; **230 tests** exports/profilage/supervision passent pour la clôture d’attribution. Ces nombres sont des étapes de vérification, **pas des suites à additionner**.
+- Analyse d’intervalles : oracle indépendant par ensembles, **3 375 unions +3 375 intersections** sur grille finie 0..4, 3 bornes invalides, XML valide +5 XML invalides/vides. Mutation max→min détectée, puis version restaurée repasse.
+- Kani : contrat CPU des huit compteurs `u64/usize` arbitraires sans hypothèse, 4 couvertures ; domaine borné/contrat concerné uniquement. Autres tentatives : interning arrêté à 4 Gio RSS ; vraie entrée MLX bloquée par ICE ; CBMC ne parse pas le contexte C++ Apple ; CrossHair absent.
+- Fmt, Clippy strict, Ruff, compilation Python, analyse des exports, YAML et câblage CI PR/push main contrôlés selon les étapes documentées.
+- **Aucune preuve universelle** de Metal, concurrence, allocator ou génération. Pas de run GitHub de l’arbre local non publié ; existence du workflow ≠ CI distante verte.
+- Labels d’encodeurs, compteurs shaders et I/O bloc manquants : pas de compte de dispatch exact, d’occupation ALU ou de temps SSD physique inventé.
+
+## 12. Index des preuves et reproduction
+
+Chemins **relatifs au checkout de mesure**, conservés localement ; leur publication dans cette issue n’implique pas un push de fichiers ou de code :
+
+| Périmètre | Rapports / preuves |
+|---|---|
+| Vue globale | `docs/measurements/ultra-profile-20261027/README.md`, `full-matrix.json`, `completed-nine-matrix.json`, `v1-source.json`, `cli-v1-source.json` |
+| AR initial / contrôles | `first-AR-breakdown.json`, `natural-controls.json`, `natural/{AR,MTP,DF}-{MAIN,HOLD}/profile/` |
+| Mesures synchronisées | `fenced/{AR,MTP,DF}-MAIN-fenced/profile/` |
+| Export MAIN | `MAIN-only-export-v2/result.json`, `archive-v1.json` ; bruts gzip avec SHA-256 du contenu vérifié |
+| CLI release | `cli/{AR-r2,MTP,DF}/{run.json,run-result.json,report.json,inspection.json}` |
+| Attribution fine | `attribution/README.md`, `attribution/short/AR-MAIN/partial-attribution.json`, `attribution/AR-MAIN/partial-attribution.json` |
+| Piles des 12 ms | `attribution/short/AR-MAIN/async-callstacks.json`, `async-eligible-stacks.json`, `attribution/short/async-stack-analysis-source.txt` |
+| Horloges / capteurs | `attribution/short/AR-MAIN/capture.json`, `attribution/{io-positive,io-system,io-post-xcode}/inspection.json` |
+| Vérification analyse | `attribution/verification.json`, `analysis-checks.json`, `analysis-mutation.json` |
+| Suites d’essais | `docs/measurements/post-profile-20261027/README.md`, `docs/measurements/post-sushi-20261028/README.md`, `docs/measurements/issue58-20261029/README.md` |
+| Journal chronologique | `opti.md`, entrées ULTRA, ULTRA-ATTRIB, POSTPROFILE et POOL04 |
+
+Reproduire l’analyse CPU à partir des exports déjà conservés, **sans nouvelle inférence** :
+
+```sh
+python docs/measurements/ultra-profile-20261027/attribution/analyze.py --self-check
+python docs/measurements/ultra-profile-20261027/attribution/analyze.py docs/measurements/ultra-profile-20261027/attribution/short/AR-MAIN
+python docs/measurements/ultra-profile-20261027/attribution/analyze.py docs/measurements/ultra-profile-20261027/attribution/AR-MAIN
+python -m pytest -q tests/test_flash_profile_export.py tests/test_flash_profile.py tests/test_flash_slotstream_supervisor.py
+```
+
+Les plans natifs/CLI archivés fixent les options et la sélection exacte ; une nouvelle acquisition demanderait un préenregistrement et une fenêtre GPU isolée, pas un rerun implicite de cette publication.
+
+**État d’intégration :** instrumentation et analyses locales ; essais négatifs archivés/retirés ; aucun push, merge, release ou remplacement de l’app effectué par cette publication.

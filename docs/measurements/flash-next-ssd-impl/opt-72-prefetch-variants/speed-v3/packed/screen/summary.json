@@ -1,0 +1,60 @@
+{
+  "status": "diagnostic_HC_screen_complete_memory_budget_not_qualified",
+  "rows": [
+    {
+      "prompt": "MAIN",
+      "arm": "H",
+      "tps": 9.122354304600249,
+      "peak_bytes": 7837882608,
+      "ledger_delta": 0,
+      "memory_qualification": null
+    },
+    {
+      "prompt": "MAIN",
+      "arm": "C",
+      "tps": 10.305965972560873,
+      "peak_bytes": 7851399480,
+      "ledger_delta": 0,
+      "memory_qualification": null
+    },
+    {
+      "prompt": "HOLD",
+      "arm": "H",
+      "tps": 8.695171449110033,
+      "peak_bytes": 7850645816,
+      "ledger_delta": 0,
+      "memory_qualification": null
+    },
+    {
+      "prompt": "HOLD",
+      "arm": "C",
+      "tps": 9.626069457737925,
+      "peak_bytes": 7834147128,
+      "ledger_delta": 0,
+      "memory_qualification": null
+    }
+  ],
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 9.122354304600249,
+      "C_tps": 10.305965972560873,
+      "ratio": 1.1297484868970447,
+      "extra_peak_bytes": 13516872
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 8.695171449110033,
+      "C_tps": 9.626069457737925,
+      "ratio": 1.1070591895831072,
+      "extra_peak_bytes": -16498688
+    }
+  ],
+  "responses_exact": 8,
+  "pre20_post30": "passed_AC",
+  "all_children_and_readers_reaped": true,
+  "sampler_joined": true,
+  "gain_promotion": false,
+  "reason": "one pair/prompt;77B compression caps failed; common no-prefetch comparison still small",
+  "no_prefetch_controls": "../../../opt-77-process-memory/fresh-controls-v1/summary.json"
+}

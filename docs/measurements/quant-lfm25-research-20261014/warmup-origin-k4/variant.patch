@@ -1,0 +1,64 @@
+--- a/src/mlxl3_quantizer/metal.py
++++ b/src/mlxl3_quantizer/metal.py
+@@ -5,6 +5,7 @@
+ """
+ 
+ from functools import lru_cache
++from pathlib import Path
+ 
+ 
+ @lru_cache(maxsize=3)
+@@ -180,13 +181,40 @@
+             if compact
+             else f"pred{lane}"
+         )
++        if k == 4:
++            body += f"""
++            if (pass == 0u && ri < 128u) {{
++                origins[curr][e + {2 * lane}u] = mlxl3_warmup_origin(
++                    uint(pred{lane}.x), ri, origins[prev_buf]);
++                origins[curr][e + {2 * lane + 1}u] = mlxl3_warmup_origin(
++                    uint(pred{lane}.y), ri, origins[prev_buf]);
++            }}
++            """
+         body += f"""
+             *(({cost_space} half2*)&costs[curr][e + {2 * lane}u]) = half2(best{lane});
+-            if (pass == 1u || ri < 128u)
++            if ({"pass == 1u" if k == 4 else "pass == 1u || ri < 128u"})
+                 ((device {edge_type}*)edge_ptr)[(ulong(ri) * EDGES + e) / 2u + {lane}u] = {edge_value};
+         """
+     body += "}\n"
+     source = source[:start] + body + source[stop:]
++    if k == 4:
++        start_trace = source.index("            for (int step_i = 255;")
++        end_trace = source.index("            sh_pin = edge;", start_trace)
++        source = (
++            source[:start_trace]
++            + "            if (pass == 0u) { edge = uint(origins[curr][edge]); } else {\n"
++            + source[start_trace:end_trace]
++            + "            }\n"
++            + source[end_trace:]
++        )
++        # Costs and ancestors fill 32 KiB; the pin uses a dead cost after traceback.
++        source = source.replace("threadgroup uint sh_pin;", "threadgroup ushort origins[2][EDGES];")
++        source = source.replace("sh_pin = edge;", "costs[0][0] = as_type<half>(ushort(edge));")
++        source = source.replace(
++            "pin = sh_pin;",
++            "pin = uint(as_type<ushort>(costs[0][0]));\n"
++            "threadgroup_barrier(mem_flags::mem_threadgroup);",
++        )
+     if compact:
+         # Only the fresh label is needed: the other predecessor bits come from
+         # the current edge. 128 marks the reference's default predecessor zero,
+@@ -206,9 +234,10 @@
+     tables = (_decoded_codebook(cb).astype(mx.float16),)
+     mx.eval(*tables)
+     kernel = mx.fast.metal_kernel(
+-        name=f"mlxl3_quantize_group{width}_k{k}_cb{int(cb)}",
++        name=f"mlxl3_quantize_group{width}_k{k}_cb{int(cb)}" + ("_warmup_origin" if k == 4 else ""),
+         input_names=["tiles", "codebook"],
+         output_names=["q_tiles", "indices", "temp_edges", "temp_costs"],
++        header=Path(__file__).with_name("warmup_origin.metal").read_text() if k == 4 else "",
+         source=source,
+     )
+     return kernel, tables

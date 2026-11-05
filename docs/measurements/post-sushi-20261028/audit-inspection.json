@@ -1,0 +1,244 @@
+{
+  "status": "completed_diagnostic_exact_internal_states_and_cross_arm_tokens",
+  "results": {
+    "A": {
+      "event_count": 26204,
+      "metrics": {
+        "expert_calculate_build": {
+          "count": 1460,
+          "total_ms_per_token": 2.2792291875,
+          "median_us": 23.166
+        },
+        "expert_gate_up_build": {
+          "count": 1460,
+          "total_ms_per_token": 0.965693625,
+          "median_us": 9.458
+        },
+        "expert_down_build": {
+          "count": 1460,
+          "total_ms_per_token": 0.87951,
+          "median_us": 9.083
+        },
+        "exl3_banked_scale_build": {
+          "count": 0,
+          "total_ms_per_token": 0.0,
+          "median_us": null
+        },
+        "host_async_submit": {
+          "count": 1536,
+          "total_ms_per_token": 16.9404545,
+          "median_us": 170.5625
+        },
+        "moe_routes_readback": {
+          "count": 0,
+          "total_ms_per_token": 0.0,
+          "median_us": null
+        }
+      },
+      "top_event_counts": [
+        [
+          "expert_kernel_request",
+          2920
+        ],
+        [
+          "host_eval_inclusive",
+          1600
+        ],
+        [
+          "hc_read_build",
+          1552
+        ],
+        [
+          "hc_write_build",
+          1536
+        ],
+        [
+          "host_async_submit",
+          1536
+        ],
+        [
+          "expert_calculate_build",
+          1460
+        ],
+        [
+          "expert_gate_up_build",
+          1460
+        ],
+        [
+          "expert_swiglu_build",
+          1460
+        ],
+        [
+          "expert_down_build",
+          1460
+        ],
+        [
+          "host_readback",
+          784
+        ],
+        [
+          "prepare",
+          768
+        ],
+        [
+          "moe_forward_rows",
+          768
+        ],
+        [
+          "router_build_and_wait_inclusive",
+          768
+        ],
+        [
+          "router_projection_and_topk_build",
+          768
+        ],
+        [
+          "gpu_resident_hot_prepare",
+          768
+        ],
+        [
+          "route_readback_inclusive",
+          768
+        ],
+        [
+          "shared_expert_build",
+          768
+        ],
+        [
+          "shared_projection_build",
+          768
+        ],
+        [
+          "fill_prepare_and_read",
+          692
+        ],
+        [
+          "disk_read_batch",
+          692
+        ]
+      ],
+      "limits": "Nested host wall spans, not exclusive CPU or GPU times. Additional prototype profiling spans affect observation."
+    },
+    "B": {
+      "event_count": 32044,
+      "metrics": {
+        "expert_calculate_build": {
+          "count": 1460,
+          "total_ms_per_token": 4.0825591875,
+          "median_us": 26.208
+        },
+        "expert_gate_up_build": {
+          "count": 1460,
+          "total_ms_per_token": 2.5763275,
+          "median_us": 13.5205
+        },
+        "expert_down_build": {
+          "count": 1460,
+          "total_ms_per_token": 1.1836541875,
+          "median_us": 10.375
+        },
+        "exl3_banked_scale_build": {
+          "count": 5840,
+          "total_ms_per_token": 1.4340238125,
+          "median_us": 1.625
+        },
+        "host_async_submit": {
+          "count": 1536,
+          "total_ms_per_token": 21.88402325,
+          "median_us": 218.4165
+        },
+        "moe_routes_readback": {
+          "count": 0,
+          "total_ms_per_token": 0.0,
+          "median_us": null
+        }
+      },
+      "top_event_counts": [
+        [
+          "exl3_banked_scale_build",
+          5840
+        ],
+        [
+          "expert_kernel_request",
+          2920
+        ],
+        [
+          "host_eval_inclusive",
+          1600
+        ],
+        [
+          "hc_read_build",
+          1552
+        ],
+        [
+          "hc_write_build",
+          1536
+        ],
+        [
+          "host_async_submit",
+          1536
+        ],
+        [
+          "expert_calculate_build",
+          1460
+        ],
+        [
+          "expert_gate_up_build",
+          1460
+        ],
+        [
+          "expert_swiglu_build",
+          1460
+        ],
+        [
+          "expert_down_build",
+          1460
+        ],
+        [
+          "host_readback",
+          784
+        ],
+        [
+          "prepare",
+          768
+        ],
+        [
+          "moe_forward_rows",
+          768
+        ],
+        [
+          "router_build_and_wait_inclusive",
+          768
+        ],
+        [
+          "router_projection_and_topk_build",
+          768
+        ],
+        [
+          "gpu_resident_hot_prepare",
+          768
+        ],
+        [
+          "route_readback_inclusive",
+          768
+        ],
+        [
+          "shared_expert_build",
+          768
+        ],
+        [
+          "shared_projection_build",
+          768
+        ],
+        [
+          "fill_prepare_and_read",
+          692
+        ]
+      ],
+      "limits": "Nested host wall spans, not exclusive CPU or GPU times. Additional prototype profiling spans affect observation."
+    }
+  },
+  "tokens": 17,
+  "swapouts_bytes": 0,
+  "decision": "adaptation review pending"
+}

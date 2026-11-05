@@ -1,0 +1,18 @@
+{
+  "sources_and_binaries_match_measured": true,
+  "diff_reviewed": [
+    "native/ffi/mlx_bridge.cpp",
+    "native/ffi/disk_reader.h",
+    "native/tests/disk_reader.cpp",
+    "native/tests/disk_reader_proof.cpp",
+    "native/src/array.rs",
+    "native/src/ssd_moe.rs",
+    "native/src/flash_support.rs",
+    "scripts/benchmark-flash-bridge.py",
+    "tests/test_flash_benchmark.py",
+    ".github/workflows/rust.yml"
+  ],
+  "proof_scope": "12 symbolic obligations and 3 covers on real u64-sized storage guard; 10-harness suite 1102 obligations/34 covers/3 unreachable; actual I/O, OS, MLX, Metal and concurrency not proved",
+  "code_changes_since_numeric_quality": "default1 to default4 revalidated by 3 physical tests; benchmark prompt selection revalidated separately; no arithmetic/reader body change",
+  "retention": "14B criteria passed, 14 remains non-conclusive; no installed app replacement"
+}

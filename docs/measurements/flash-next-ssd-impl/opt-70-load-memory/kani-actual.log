@@ -1,0 +1,26 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error: failed to run custom build command for `mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/target/kani/debug/build/mlxl3-native/fbd723098e922285/out/build_script_build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_04/HEAD
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_04/index
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/packed-refs
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/refs/heads/codex/flash-splash60
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=ba97af8d93dc-dirty
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+
+  --- stderr
+
+  thread 'main' (568716) panicked at build.rs:79:14:
+  set MLXL3_MLX_ROOT to the installed MLX 0.32.2 package directory
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: Failed to execute cargo (exit status: 101). Found 0 compilation errors.

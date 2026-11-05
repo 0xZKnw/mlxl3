@@ -1,0 +1,181 @@
+{
+  "schedule": [
+    {
+      "name": "1-MAIN-baseline-H",
+      "pair": "1-MAIN-baseline",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "1-MAIN-baseline-C",
+      "pair": "1-MAIN-baseline",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "1-HOLD-baseline-H",
+      "pair": "1-HOLD-baseline",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "1-HOLD-baseline-C",
+      "pair": "1-HOLD-baseline",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "1-MAIN-mtp-H",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "1-MAIN-mtp-C",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "1-HOLD-mtp-H",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "1-HOLD-mtp-C",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "2-HOLD-baseline-C",
+      "pair": "2-HOLD-baseline",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "2-HOLD-baseline-H",
+      "pair": "2-HOLD-baseline",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "2-MAIN-baseline-C",
+      "pair": "2-MAIN-baseline",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "2-MAIN-baseline-H",
+      "pair": "2-MAIN-baseline",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "2-HOLD-mtp-C",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "2-HOLD-mtp-H",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "arm": "H",
+      "status": "not_started"
+    },
+    {
+      "name": "2-MAIN-mtp-C",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "arm": "C",
+      "status": "not_started"
+    },
+    {
+      "name": "2-MAIN-mtp-H",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "arm": "H",
+      "status": "not_started"
+    }
+  ],
+  "engines": {
+    "H": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-20/mixed-hc/mlxl3-rs",
+    "C": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-28/top10/mlxl3-rs"
+  },
+  "sha256": {
+    "H": "7a9a21205812dee34680df4b85600116b8ecb65c58d7897826206af54a8406a1",
+    "C": "248a35c3f2e668a4e157b527769b2103ce390d8d93731f6a6f62f5a19c17b2aa"
+  },
+  "env": {
+    "MLXL3_SSD_CACHE_GIB": "5",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_READERS": "4"
+  },
+  "tokens": 128,
+  "decode_tokens": 127,
+  "context": 4096,
+  "warmup": 1,
+  "paired_repeats": 2,
+  "within_arm_repeats": 3,
+  "criteria": {
+    "minimum_gain_percent_by_mode": {
+      "baseline": 1,
+      "mtp": 1
+    },
+    "gain_range_max_points": 3,
+    "process_peak_extra_max_bytes": 268435456,
+    "system_swapout_arm_max_bytes": 268435456
+  },
+  "power_requirement": "Battery before and after every arm",
+  "within_arm_tps_max_min_ratio": 1.25,
+  "source_head": "fb782d985972ab9f4eed2926389365c713811095",
+  "started_at": 1791878233.118562
+}

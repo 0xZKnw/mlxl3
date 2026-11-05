@@ -1,0 +1,92 @@
+{
+  "status": "exploratory_singles_complete",
+  "parity": true,
+  "all_children_joined": true,
+  "processes": [
+    {
+      "name": "all-five",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/build/uar/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue125-next-ar-research/mix-stq1_0/docs/measurements/issue125-uar-20261104/composition/0-all-five",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "180"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_MOE_DEFERRED": "1",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "1",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "1",
+        "MLXL3_SSD_DYNAMIC_READERS": "1",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "1"
+      },
+      "pid": 85686,
+      "seconds": 33.1268607499951,
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 119,
+        "decode_seconds": 4.0980212090000006,
+        "decode_tokens": 31,
+        "decode_tps": 7.564626540223451,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_profile": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 15.40262875,
+        "end_to_end_ttft_seconds": 11.304600708,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 32,
+        "memory": {
+          "mlx_active_bytes": 0,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 0,
+          "native_metal_allocated_bytes": 6608617472,
+          "process_compressed_lifetime_logical_bytes": 15111389184,
+          "process_compressed_logical_bytes": 2173288448,
+          "process_compressed_peak_logical_bytes": 2456043520,
+          "process_decompressions": 300237,
+          "process_footprint_bytes": 7218517824,
+          "process_id": 85687,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7256741696,
+          "process_start_abstime": 5441402276267
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 11.303762166,
+        "prefill_tps": 7.696552592169958,
+        "prepare_seconds": 0.000368667,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 11.304594833
+      }
+    }
+  ],
+  "limits": [
+    "One warm+one MAIN32 per arm, no HOLD or sustained validation",
+    "Endpoint drift recorded, no summing gains",
+    "Composition selected separately after adaptation audit"
+  ]
+}

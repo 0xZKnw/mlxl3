@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "source": "2fa8c837fdf6b4305c82838d1c04e6e6d14e1fc0",
+  "binary_sha256": "8a010dde480fddaa65a48229a4708a92545b9d8c22d33c1db32e1df971f9bc96",
+  "command": "mlxl3-rs codec",
+  "build": "cargo build --locked --features chat (default direct-metal)",
+  "os": "26B123",
+  "chip": "Apple M5",
+  "models": [
+    "flash",
+    "qwen-dense",
+    "qwen-moe",
+    "lfm-moe"
+  ],
+  "tiles": 12,
+  "states_u16_exact": 3072,
+  "weights_f16_bits_exact": 3072,
+  "qmv_basis_rows_exact": 192,
+  "qmv_f16_bits_exact": 3072,
+  "invalid_request_recovered": true,
+  "dyld_images": 706,
+  "metal_framework_loaded": true,
+  "mlx_library_loaded": false,
+  "linked_libraries": [
+    "/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2200.32.0)",
+    "/System/Library/Frameworks/Metal.framework/Versions/A/Metal (compatibility version 1.0.0, current version 383.1.0)",
+    "/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.40.3)",
+    "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 2050.1.6)",
+    "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5027.1.8)",
+    "/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)",
+    "/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)"
+  ],
+  "permutation_sha256": "64b0a01495c9ca29418c2871599c8f318aa38a3c39f3db5eabe458c809132b2b",
+  "stdout_sha256": "d78baaf6d77989d78dff2c46040d268ef99bc9073c8a139075c41e4c7213b778"
+}

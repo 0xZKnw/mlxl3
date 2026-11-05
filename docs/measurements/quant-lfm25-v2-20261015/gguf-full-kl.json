@@ -1,0 +1,227 @@
+{
+  "status": "complete",
+  "protocols": {
+    "bos-paired": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 511,
+          "nll": 1.9324602541076308,
+          "bf16_nll": 1.908326294191547,
+          "kl": 0.049274899856393474,
+          "greedy_matches": 481,
+          "raw_bytes": 524288000,
+          "raw_sha256": "3d782a3eb5e2db2bfb57875d20549c4b1076053548e4ebf7c87b9ee679240079"
+        },
+        {
+          "tokens": 511,
+          "nll": 2.9812167909051057,
+          "bf16_nll": 2.9714158189939144,
+          "kl": 0.06992405836844418,
+          "greedy_matches": 447,
+          "raw_bytes": 524288000,
+          "raw_sha256": "0364f916dca0675206fd9cf115d6ad9a2425902cdceee8906dc03cf791667c6a"
+        },
+        {
+          "tokens": 511,
+          "nll": 3.3633632808822296,
+          "bf16_nll": 3.2640970557837643,
+          "kl": 0.09643515297219692,
+          "greedy_matches": 434,
+          "raw_bytes": 524288000,
+          "raw_sha256": "1a4f33d4634e598dd310790aa1e74a97d0a3ad007d79d416a608ad0bfa1d9197"
+        },
+        {
+          "tokens": 511,
+          "nll": 2.9017523592605206,
+          "bf16_nll": 2.877507208606547,
+          "kl": 0.07700146137732444,
+          "greedy_matches": 444,
+          "raw_bytes": 524288000,
+          "raw_sha256": "2cc2b1ddec2155d0fd5cfbfda9bc7fee4e8466ea478fa03092d4dd22cf668881"
+        },
+        {
+          "tokens": 511,
+          "nll": 3.038232641773456,
+          "bf16_nll": 3.1436532816488887,
+          "kl": 0.07412766079765847,
+          "greedy_matches": 436,
+          "raw_bytes": 524288000,
+          "raw_sha256": "a43ceb34cbd32c775291e051577f7b3e06003dd81dfd881d907990b5c714b89d"
+        },
+        {
+          "tokens": 511,
+          "nll": 3.06651997596963,
+          "bf16_nll": 2.9318161320638567,
+          "kl": 0.11253329818319115,
+          "greedy_matches": 437,
+          "raw_bytes": 524288000,
+          "raw_sha256": "3afc2a6baa5fe762c8dbddd3cc86978fa6495ef232bdc37262683ab34986dc7b"
+        },
+        {
+          "tokens": 511,
+          "nll": 2.5293711270372876,
+          "bf16_nll": 2.5787443996429458,
+          "kl": 0.08249211105365725,
+          "greedy_matches": 441,
+          "raw_bytes": 524288000,
+          "raw_sha256": "83fb949917c9694540ed824180ed34a2fc1b1becd7ecf4b4e49696b2d911fc95"
+        },
+        {
+          "tokens": 511,
+          "nll": 3.4626776497517917,
+          "bf16_nll": 3.247615112574968,
+          "kl": 0.12226671381781778,
+          "greedy_matches": 442,
+          "raw_bytes": 524288000,
+          "raw_sha256": "bbfb489544c539a90492c0711eb3aae346c24fb15efbb49724f4aef831b7f308"
+        }
+      ],
+      "command": [
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/full_logits",
+        "/Users/justin/.lmstudio/models/unsloth/LFM2.5-24B-A2B-Preview-GGUF/LFM2.5-24B-A2B-Preview-UD-Q4_K_XL.gguf",
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/bos-paired-ids.txt",
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/bos-paired-raw",
+        "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/llama-b11620"
+      ],
+      "token_sha256": "f860546349740b6bbc32e35c4992374047d275e84b8fd87c794a613088bcf074",
+      "teacher_files": {
+        "teacher-00.npy": "ea42825c368ffdd9050472a5a51790d0e881cb829c5d484e3dbbf745953775cc",
+        "teacher-01.npy": "341f52b8b6adbb6f04fe56a6cdc0fccbd27689c1a5c2df4e5624694917e6e3dc",
+        "teacher-02.npy": "d7121de006555e66559cfd358573dcffe79253f7ef01f8db0dbb9ee409808598",
+        "teacher-03.npy": "cdf4b113310307aa784fceaa08700213ca5f9e2884df45574ef368d622a57fa9",
+        "teacher-04.npy": "b8317fedc76c4f26bcdf5f9074f7a892392b8708807033b186ab2c131edf6ed7",
+        "teacher-05.npy": "c53ee9daf3e7002e8a65019e37ecaf3f8ee22e91e9c2ddf83430d403795b22a9",
+        "teacher-06.npy": "bb7b3e4078ef1799a9d283dc441fa03e343a9592101577d0faf15fc6971df727",
+        "teacher-07.npy": "97344e7d8a1716cd2815096bddae8f0e86744b8f3639e4451fa03e3fe9d61d9b"
+      },
+      "score_first": 512,
+      "score_last": 1022,
+      "v2_ppl": 16.932094621672828,
+      "v2_kl": 0.08345755313625057,
+      "scored_tokens": 4088,
+      "perplexity": 18.34669152648982,
+      "mean_kl_bf16_to_gguf": 0.08550691955333546,
+      "greedy_match_fraction": 0.8713307240704501,
+      "v2_ppl_difference_percent": -7.710365123731055,
+      "v2_kl_difference_percent": -2.3967258179691364,
+      "historical_ppl_relative_difference_percent": -4.618547301271647e-05
+    },
+    "main-8192": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 1024,
+          "nll": 2.4237674378464154,
+          "bf16_nll": 2.4360479758100624,
+          "kl": 0.07262977482292948,
+          "greedy_matches": 902,
+          "raw_bytes": 524288000,
+          "raw_sha256": "ac3137e3c421837a14efd36b2a216c2e31d41692a671307db51846c9ef421249"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.4313706740952763,
+          "bf16_nll": 3.401584523052724,
+          "kl": 0.15337134733361882,
+          "greedy_matches": 815,
+          "raw_bytes": 524288000,
+          "raw_sha256": "463644d8f3193da5c496264b862e1cad0dced40c26a0214b57bebd18dfa790d8"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.118475027303444,
+          "bf16_nll": 3.118361211252127,
+          "kl": 0.11077036211067712,
+          "greedy_matches": 835,
+          "raw_bytes": 524288000,
+          "raw_sha256": "af603234b3fe05ef9a2f5193139a7aa3231f2e778d3a325e30199cad3ba584bf"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.458633896030266,
+          "bf16_nll": 3.5945090604879866,
+          "kl": 0.15046205807433308,
+          "greedy_matches": 844,
+          "raw_bytes": 524288000,
+          "raw_sha256": "ed912c092c293edb5197e787d7570d560ba018f368806afef30dc465e7071710"
+        },
+        {
+          "tokens": 1024,
+          "nll": 4.123093289712504,
+          "bf16_nll": 4.16012233736411,
+          "kl": 0.15186669869252176,
+          "greedy_matches": 808,
+          "raw_bytes": 524288000,
+          "raw_sha256": "4c9d1ff8cb6978b0984c22c6bc7189e62af8d596fe3c8bcc6f2e2f276cb5e22a"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.288822026732001,
+          "bf16_nll": 3.2419892692515364,
+          "kl": 0.13374542227332134,
+          "greedy_matches": 865,
+          "raw_bytes": 524288000,
+          "raw_sha256": "7fa0ebda1ab565c7dd8fdf887721efa0590e8d03502d3f3af915027ddedf8e89"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.5872390862633092,
+          "bf16_nll": 3.4812430240428633,
+          "kl": 0.11838700732678693,
+          "greedy_matches": 851,
+          "raw_bytes": 524288000,
+          "raw_sha256": "d3d11250121dfbc1e2bd2c4e8f248921aad268a3f83607c2ffcc30eeffa2446c"
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.2828932556259898,
+          "bf16_nll": 3.2675518802899215,
+          "kl": 0.1851888514914914,
+          "greedy_matches": 810,
+          "raw_bytes": 524288000,
+          "raw_sha256": "8585cd0ff65d03053f1d8c6f29a73bed3966a82c3e045440fc4dd56404d8b31a"
+        }
+      ],
+      "command": [
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/full_logits",
+        "/Users/justin/.lmstudio/models/unsloth/LFM2.5-24B-A2B-Preview-GGUF/LFM2.5-24B-A2B-Preview-UD-Q4_K_XL.gguf",
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/main-8192-ids.txt",
+        "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/gguf-kl22/main-8192-raw",
+        "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/llama-b11620"
+      ],
+      "token_sha256": "50b57d40e5f664a8c77fb5448eb35968f176f3839461b801c2a3a56f65926724",
+      "teacher_files": {
+        "teacher-00.npy": "edadd42ad0f887e80eca2f73b4d8eb91db8b18c26a39128ccaf95d50a33097fb",
+        "teacher-01.npy": "c58b47b94ddd677e7ac8d8f5a60e884154e8da76dd9bcd83935a28f801bc1ce1",
+        "teacher-02.npy": "1e5e5e091e665c7a202d4855310a202d0a427952bd49b6bb36638f9bcc9b4a71",
+        "teacher-03.npy": "e2efbbb4c453a5741fdfcfda0745048d3b91c79cd360b1b46799147e420be4e2",
+        "teacher-04.npy": "171fb435133b7c081ec34cb67ba1042d8d06b2ca0ce2defefca0c7a2c1c8ea70",
+        "teacher-05.npy": "3ff8e19ad23d6ade44e85eb18cc57705285cbff4d13513a64eafbf301069f042",
+        "teacher-06.npy": "96c4515627e5f9cde87aaeb7ea4e0462f80c3ddd3521cc0c02831c103e66edbb",
+        "teacher-07.npy": "ac5fc9d8b38ba446b2ccb327597e573b2a7caf66aa67fb6367b5ee9af41f600e"
+      },
+      "score_first": 0,
+      "score_last": 1023,
+      "v2_ppl": 26.86162819988955,
+      "v2_kl": 0.18792806500138068,
+      "scored_tokens": 8192,
+      "perplexity": 28.199009034361715,
+      "mean_kl_bf16_to_gguf": 0.13455269026570998,
+      "greedy_match_fraction": 0.821533203125,
+      "v2_ppl_difference_percent": -4.742651888378447,
+      "v2_kl_difference_percent": 39.66875328190529
+    }
+  },
+  "formal": "CBMC absent; driver ASan/UBSan and 8 negative integration cases passed; upstream GPU library not instrumented",
+  "publication": false,
+  "gguf_sha256": "a235d23638cc5549cb1ff61da7522c8a7e97f056f27093462a1e56f35aba91d8",
+  "gguf_bytes": 14876901632,
+  "elapsed_seconds": 85.91383916605264,
+  "raw_logits": "unclamped full F32 retained in workdir; exactly 8\u00d71024\u00d7128000 each protocol",
+  "limits": [
+    "different llama.cpp/Native arithmetic; does not isolate quantizer from runtime",
+    "full source provenance of user GGUF not proved",
+    "limited corpus, no general benchmark claim"
+  ]
+}

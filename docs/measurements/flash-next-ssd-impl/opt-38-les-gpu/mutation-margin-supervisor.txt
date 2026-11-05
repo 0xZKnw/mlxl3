@@ -1,0 +1,103 @@
+from pathlib import Path
+import hashlib
+import json
+import os
+import signal
+import subprocess
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-38-les-gpu")
+source = Path("native/src/flash_support.rs")
+original = source.read_text()
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+}
+variants = [
+    (
+        "pending-false-hit",
+        "self.keys[slot] = None;\n        self.prefetched[slot] = false;\n        self.pending[slot] = Some(id);",
+        "self.keys[slot] = Some(id);\n        self.prefetched[slot] = false;\n        self.pending[slot] = Some(id);",
+        "pending_records_never_hit_alias_or_publish_over_a_demand",
+    ),
+    (
+        "ignore-predictions",
+        "u8::from(self.keys[i].is_some_and(|key| self.predicted[key as usize]))",
+        "0_u8",
+        "predictions_protect_victims_without_inventing_frequency_or_blocking_demand",
+    ),
+    (
+        "publish-duplicate",
+        "if !valid || self.contains(id) {",
+        "if !valid {",
+        "pending_records_never_hit_alias_or_publish_over_a_demand",
+    ),
+    (
+        "pending-margin-off-by-one",
+        "self.capacity() - pending <= cohort",
+        "self.capacity() - pending < cohort",
+        "speculative_admission_preserves_actual_cohort_space_and_failed_reservations",
+    ),
+]
+records = []
+try:
+    for name, old, new, test in variants[-1:]:
+        assert original.count(old) == 1
+        source.write_text(original.replace(old, new))
+        command = [
+            "cargo",
+            "test",
+            "--no-default-features",
+            "--features",
+            "chat",
+            "--lib",
+            "flash_support::tests::" + test,
+            "--",
+            "--exact",
+            "--nocapture",
+        ]
+        child = None
+        try:
+            with (p / "checks" / ("mutation-" + name + ".log")).open("w") as f:
+                child = subprocess.Popen(
+                    command, env=env, stdout=f, stderr=subprocess.STDOUT, start_new_session=True
+                )
+                code = child.wait(timeout=60)
+        finally:
+            if child is not None:
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                child.wait(timeout=10)
+            source.write_text(original)
+        log = (p / "checks" / ("mutation-" + name + ".log")).read_text()
+        detected = (
+            code == 101
+            and "test result: FAILED. 0 passed; 1 failed;" in log
+            and "panicked at native/src/flash_support.rs:" in log
+        )
+        records.append(
+            {
+                "name": name,
+                "command": command,
+                "exit_code": code,
+                "detected_by_assertion": detected,
+                "joined": child.poll() is not None,
+            }
+        )
+        (p / "mutations-margin.json").write_text(json.dumps(records, indent=2) + "\n")
+        assert detected, name
+finally:
+    source.write_text(original)
+    (p / "mutation-margin-restoration.json").write_text(
+        json.dumps(
+            {
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "restored": source.read_text() == original,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+print(json.dumps({"status": "passed", "detected": len(records)}))

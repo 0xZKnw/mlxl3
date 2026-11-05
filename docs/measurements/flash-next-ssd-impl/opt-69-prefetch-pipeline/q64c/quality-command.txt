@@ -1,0 +1,75 @@
+import hashlib,json,os,re,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c');phase=os.environ['FLASH_Q64_PHASE'];phases=['bridge69','long70','bridge70','invalid70'];assert phase in phases
+dest=base/phase;identity=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/identity-v3.json').read_text());baseline={'Swapins':0,'Swapouts':157024256};api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+assert json.loads((base.parent/'q64/native69/campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s'
+old_identity=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/identity-v2.json').read_text());old_files={r['path']:r['sha256'] for r in old_identity['files']+old_identity['artifacts']}
+for r in identity['files']+identity['artifacts']:
+ if '/native/' in r['path'] or r in identity['artifacts']:assert old_files[r['path']]==r['sha256'],r['path']
+for previous in phases[:phases.index(phase)]:assert json.loads((base/previous/'campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s'
+def source_check():
+ for r in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(r['path']).read_bytes()).hexdigest()==r['sha256'],r['path']
+def take():return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+def watch(seconds,path,headroom=False):
+ rows=[]
+ try:
+  end=time.monotonic()+seconds
+  while True:
+   row=take();rows.append(row)
+   assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'],'new Swapout'
+   assert 0<=row['vm_bytes']['Swapins']<=256<<20
+   if headroom:assert row['vm_bytes']['Pages occupied by compressor']<=7_000_000_000,'compressor preflight pressure'
+   if time.monotonic()>=end:break
+   time.sleep(min(2,end-time.monotonic()))
+ finally:path.write_text(json.dumps({'samples':rows},indent=2)+'\n')
+result={'status':'incomplete','parity':False,'phase':phase,'baseline':baseline,'allocator_mib':64,'expert_cache_gib':3,'old_69_failed_swapout_bytes':106037248,'identity':'../../opt-70-pre-draft/identity-v3.json','commands':[]}
+def save():(dest/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n')
+try:
+ source_check()
+ if phase=='bridge69':
+  assert not (base/'origin.json').exists();(base/'origin.json').write_text(json.dumps(take(),indent=2)+'\n');watch(60,base/'idle60.json',True)
+ watch(20,dest/'preflight.json',True);plan=json.loads((dest/'run.json').read_text());assert len(plan)==(4 if phase=='native69' else 1)
+ peaks=[]
+ for index,item in enumerate(plan):
+  sub=dest/item['name'];sub.mkdir();(sub/'run.json').write_text(json.dumps([item],indent=2)+'\n');source_check();api['run_sampler'](sub/'run.json',baseline)
+  raw=json.loads((sub/'run-result.json').read_text());assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==1
+  record=raw['commands'][0];assert record['status']=='completed_expected_outcome' and record['reaped'] and record['swapouts_bytes']==0
+  log=(sub/(item['name']+'.log')).read_text()
+  if phase.startswith('bridge'):
+   checks=json.loads((dest/'checks.json').read_text());assert checks['status']=='complete' and checks['parity'] is True and checks['checks']==43
+   profiles=[e['stats']['dflash_profile'] for e in checks['events'] if e.get('type')=='complete' and e.get('stats',{}).get('dflash_profile')]
+   assert profiles
+   for profile in profiles:
+    assert len(profile['drafted_widths'])==len(profile['verified_widths'])==len(profile['ssd_prefetch'])==8
+    assert profile['drafted_rows']==sum((i+1)*n for i,n in enumerate(profile['drafted_widths']))
+    assert profile['verified_rows']==sum((i+1)*n for i,n in enumerate(profile['verified_widths']))
+    assert sum(profile['drafted_widths'])==sum(profile['verified_widths'])
+   if phase=='bridge69':assert any(p['ssd_prefetch'][0]>0 and p['ssd_prefetch'][2]>0 for p in profiles)
+   else:
+    modes={e['request_id']:e for e in checks['events'] if e.get('type')=='generation_mode'}
+    capped=[e for e in checks['events'] if e.get('type')=='complete' and e.get('stats',{}).get('dflash_profile') and modes.get(e.get('request_id'),{}).get('dflash_proposals')==3]
+    assert len(capped)>=4
+    assert all(sum(e['stats']['dflash_profile']['drafted_widths'][4:])==0 for e in capped)
+   peak=max(e.get('stats',{}).get('memory',{}).get('process_lifetime_peak_bytes',0) for e in checks['events'])
+  else:
+   peak=int(re.search(r'(\d+)\s+peak memory footprint',log)[1])
+   if item['name']=='unique-window':assert 'SSD_UNIQUE_WINDOW cases=32' in log
+   if item['name']=='target-prefixes':
+    d=json.loads(next(s.split('FLASH_DRAFT_PREFIX ',1)[1] for s in log.splitlines() if 'FLASH_DRAFT_PREFIX ' in s));assert d['prefix_cases']==36 and d['status']=='passed' and d['target_logits_and_states']=='byte_exact' and d['captures']['count']==64000 and d['captures']['byte_equal'] is True
+   if phase=='invalid70':
+    d=json.loads((base/'invalid-precap-checks.json').read_text());assert d['status']=='passed_real_cli_rejection_and_recovery' and d['parity'] is True and d['reaped'] and d['reader_joined']
+    peak=d['peak_physical_bytes']
+   if phase=='long70':
+    d=json.loads(next(s.split('FLASH_SPLASH_RUNTIME ',1)[1] for s in log.splitlines() if 'FLASH_SPLASH_RUNTIME ' in s));assert d['status']=='passed' and len(d['cases'])==1
+    c=d['cases'][0];assert c['budget']==512 and c['precap'] and c['states']>0 and c['profile']['drafted_widths'][1]>0 and c['profile']['drafted_widths'][2]>0 and c['profile']['drafted_widths'][3]>0 and sum(c['profile']['drafted_widths'][4:])==0
+  assert 0<peak<=12_000_000_000;peaks.append(peak);result['commands'].append({'name':item['name'],'peak_physical_bytes':peak,'record':str(sub/'run-result.json'),'reaped':True,'quality':True});save();source_check()
+  if index+1<len(plan):watch(30,sub/'settlement30.json')
+ result.update(status='passed_pending_postflight',parity=True,peak_physical_bytes=max(peaks))
+except BaseException as error:result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+finally:
+ try:
+  watch(30,dest/'postflight.json')
+  if result['parity']:result['status']='passed_quality_and_postflight30s'
+ except BaseException as error:result.update(status='failed_postflight',parity=False,error=repr(error));raise
+ finally:save();print({k:v for k,v in result.items() if k!='commands'},flush=True)

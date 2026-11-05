@@ -1,0 +1,71 @@
+{
+  "exact": {
+    "resident_slot_indices_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 18.648642525,
+      "cpu_running_gpu_idle_ms_per_output": 11.767626875,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1375": 11.821497675000002,
+        "0": 11.767626875,
+        "1375": 11.713631074999999
+      }
+    },
+    "resident_hot_output_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 3.736786375,
+      "cpu_running_gpu_idle_ms_per_output": 0.086223875,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1375": 0.087272775,
+        "0": 0.086223875,
+        "1375": 0.08519372500000001
+      }
+    }
+  },
+  "sample_reports": {
+    "standard": {
+      "eligible_samples": 497,
+      "samples_by_role": {
+        "resident_slot_indices_async_eval": 494,
+        "resident_hot_output_async_eval": 3
+      },
+      "main_samples": 1543,
+      "raw_types": {
+        "[('0', 'Timer Fired')]": 497
+      },
+      "nearest_mlx": [
+        [
+          "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+          73
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::dispatch_threads(MTL::Size, MTL::Size)",
+          68
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::get_command_encoder()",
+          62
+        ],
+        [
+          "mlx::core::gpu::eval(mlx::core::array&)",
+          56
+        ],
+        [
+          "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+          51
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::set_input_array(mlx::core::array const&, int, long long)",
+          26
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+          17
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)",
+          17
+        ]
+      ]
+    }
+  }
+}

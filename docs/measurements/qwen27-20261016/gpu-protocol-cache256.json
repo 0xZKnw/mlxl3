@@ -1,0 +1,33 @@
+{
+  "sha256": "52029199b1f14cf637f01a45be6f2a5f5a6707096bfd2d00ab6f54cc0b3063d3",
+  "flags": {
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_HEAD": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "256",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_SMALLM_REPORT": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-20261016/factorial-profile-cache256.json"
+  },
+  "checks": [
+    [
+      "prefix-continuation-parity-cache256",
+      "dense_smallm_dispatch_matches_serial_prefixes",
+      900,
+      false
+    ],
+    [
+      "recursive-sessions-parity-cache256",
+      "mtp_recursive_sessions_match_greedy_and_exact_caches",
+      900,
+      true
+    ],
+    [
+      "factorial-profile-cache256",
+      "dense_smallm_factorial_profile",
+      600,
+      false
+    ]
+  ]
+}

@@ -1,0 +1,129 @@
+"""One unchanged, qualified native8 diagnostic; never an AR throughput claim."""
+
+import gzip
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+HERE = Path(__file__).resolve().parent / "profile"
+OLD = runpy.run_path(str(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt"))
+
+
+def summarize(events):
+    assert isinstance(events, list) and events
+    ancestors = []
+    host = defaultdict(lambda: [0, 0])
+    gpu = defaultdict(lambda: [0, 0.0])
+    allocation = defaultdict(lambda: [0, 0, 0])
+    rows = []
+    identities = set()
+    for i, event in enumerate(events):
+        parent = event["parent"]
+        assert parent is None or type(parent) is int and 0 <= parent < i
+        chain = [event["name"]] + ([] if parent is None else ancestors[parent])
+        ancestors.append(chain)
+        assert 0 <= event["start_ns"] <= event["end_ns"]
+        host[event["name"]][0] += 1
+        host[event["name"]][1] += event["end_ns"] - event["start_ns"]
+        category = next((name for name in chain if name not in {
+            "native.gpu_interval", "native.central_wait", "native.central_encode"
+        }), "central")
+        counts = [event[key] for key in ("allocation_requests", "allocation_requested_bytes", "allocation_api_ns")]
+        assert all(type(n) is int and n >= 0 for n in counts)
+        for j, count in enumerate(counts):
+            allocation[category][j] += count
+        if event["name"] == "native.row":
+            rows.append(event["data"])
+        if event["name"] == "native.gpu_interval":
+            data = event["data"]
+            assert data["valid"] is True
+            start, end = data["gpu_start_seconds"], data["gpu_end_seconds"]
+            assert 0 < start <= end
+            identity = (data["command_address"], start, end)
+            assert identity not in identities
+            identities.add(identity)
+            owner = data["owner"]
+            key = category if owner == "central" else owner
+            gpu[key][0] += 1
+            gpu[key][1] += (end - start) * 1000
+    assert rows and identities
+    total = [sum(v[j] for v in allocation.values()) for j in range(3)]
+    row_total = [sum(row[key] for row in rows) for key in (
+        "metal_requests", "metal_requested_bytes", "metal_allocation_host_ns"
+    )]
+    assert total == row_total and all(n > 0 for n in total)
+    n = len(rows)
+    return {
+        "scope": "Intrusive diagnostic; overlapping composites, not release speed or additive savings.",
+        "rows": n,
+        "host_inclusive_ms_per_row": {k: {"events": v[0], "ms": v[1] / n / 1e6} for k, v in host.items()},
+        "gpu_composites_by_ancestry": {k: {"events": v[0], "ms_per_row": v[1] / n} for k, v in gpu.items()},
+        "allocation_exclusive_per_row": {k: {"requests": v[0] / n, "requested_bytes": v[1] / n, "API_host_ms": v[2] / n / 1e6} for k, v in allocation.items() if any(v)},
+        "allocation_totals_per_row": {"requests": total[0] / n, "requested_bytes": total[1] / n, "API_host_ms": total[2] / n / 1e6},
+        "exclusive_allocation_equals_rows": True,
+    }
+
+
+def main():
+    HERE.mkdir()
+    report = {"status": "running", "parity": False, "joined": False}
+    child = None
+    started = time.monotonic()
+
+    def save():
+        (HERE / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    try:
+        freeze = OLD["strict_json"]((ROOT / "docs/measurements/flash-ar20-20261105/freeze-default-integration.json").read_text())
+        artifact = freeze["artifacts"]["native-libtest"]
+        assert hashlib.sha256(Path(artifact["path"]).read_bytes()).hexdigest() == artifact["sha256"]
+        deltas = []
+        for name, digest in freeze["source_files"].items():
+            current = hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+            if current != digest:
+                deltas.append({"path": name, "frozen": digest, "current": current})
+        assert [x["path"] for x in deltas] == ["tests/test_kani_manifest.py"], deltas
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+        env.update({"MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531", "MLXL3_SSD_CACHE_GIB": "3", "MLXL3_SSD_READERS": "4", "MLXL3_SSD_DYNAMIC_READERS": "0", "MLXL3_SSD_LOOKAHEAD_DEPTH": "0", "MLXL3_PROMPT_CACHE_MIB": "0"})
+        command = [artifact["path"], "gpu::flash::tests::native8_sampling_profile_preserves_outputs", "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+        report.update(command=command, binary=artifact, source_commit=freeze["source_commit"], current_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(), checked_source_files=len(freeze["source_files"]), known_verifier_whitespace_delta=deltas, environment={k: v for k, v in env.items() if k.startswith("MLXL3_")}, controller_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), power=subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5))
+        save()
+        with (HERE / "native8.log").open("x") as log:
+            child = subprocess.Popen(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            report["pid"] = child.pid
+            save()
+            code = child.wait(timeout=180)
+        assert code == 0 and not OLD["members"](child.pid)
+        log = (HERE / "native8.log").read_text()
+        assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in log
+        evidence = OLD["marker"](log, "I120_NATIVE8_PROFILE")
+        OLD["exact_fields"](evidence, {"parity": True, "decode_rows": 7, "continuation_state_words": 28803072, "cross_layer_triples": 238, "hc_gdn_doubles": 14, "profile_scope_ancestry_checked": True})
+        events = evidence.pop("events")
+        assert len(events) > 1000
+        summary = summarize(events)
+        assert summary["rows"] == 7
+        raw = json.dumps({**evidence, "events": events}, separators=(",", ":"), allow_nan=False).encode()
+        compressed = gzip.compress(raw, mtime=0)
+        (HERE / "events.json.gz").write_bytes(compressed)
+        (HERE / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
+        report.update(status="validated_diagnostic_only", parity=True, evidence=evidence, events=len(events), profile_sha256=hashlib.sha256(raw).hexdigest(), profile_gzip_sha256=hashlib.sha256(compressed).hexdigest())
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        report.update(joined=OLD["stop"](child), seconds=time.monotonic() - started)
+        if not report["joined"]:
+            report.update(status="failed_cleanup", parity=False)
+        save()
+        with (ROOT / "opti.md").open("a") as journal:
+            journal.write("\nAR30-PROFILE-01 " + report["status"] + " parity=" + str(report["parity"]) + " joined=" + str(report["joined"]) + "\n")
+
+
+if __name__ == "__main__":
+    main()

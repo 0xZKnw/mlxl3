@@ -1,0 +1,36 @@
+"""Trial47 reuses trial46's unchanged campaign and process qualification."""
+
+import re
+import runpy
+import sys
+from pathlib import Path
+
+API = runpy.run_path(
+    "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt"
+)
+OLD_REPORT = API["check_report"]
+
+
+def validate_banks(text, expected):
+    rows = re.findall(r"(?m)^Flash Next: loading layer (\d+)/48, (\d+) exact expert slots$", text)
+    assert len(expected) == 48 and all(type(n) is int and 20 <= n <= 512 for n in expected)
+    assert sum(expected) == 48 * 53, "bank profile exceeds fixed experiment budget"
+    assert [int(layer) for layer, _ in rows] == list(range(1, 49)), "incomplete bank allocation"
+    assert [int(slots) for _, slots in rows] == expected, "bank profile differs"
+
+
+def check_report(data, item, oracle):
+    checked = OLD_REPORT(data, item, oracle)
+    report = Path(__file__).resolve().parent / item["report"]
+    validate_banks(report.with_name("stderr.log").read_text(), item["layer_slots"])
+    return checked
+
+
+def main(stage):
+    entry = API["main"]
+    entry.__globals__.update(__file__=__file__, check_report=check_report)
+    entry(stage)
+
+
+if __name__ == "__main__":
+    main(int(sys.argv[1]))

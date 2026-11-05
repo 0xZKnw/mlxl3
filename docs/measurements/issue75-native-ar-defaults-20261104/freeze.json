@@ -1,0 +1,44 @@
+{
+  "status": "frozen_after_CPU_before_default_physical",
+  "created_UTC": "2026-11-04T12:31:22.692389+00:00",
+  "built_from": "508b8260 + recorded default source changes; containing commit will identify exact source",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/direct-cli",
+      "sha256": "f4b592bc464d697ce5fa88492e837acf8df904d771323c1d240305f7245cb8c5",
+      "bytes": 10120352,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/native-libtest",
+      "sha256": "af2c8eb3955d9f1362effb8f2dd382d52d37377146ca4e7ed1c44c2b09385f48",
+      "bytes": 9187968,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "source_sha256": {
+    "native/src/gpu.rs": "7620799281f4486558b65ca999248c7bd3a468b342c08a262c5bf6409d359a27",
+    "native/src/gpu/flash.rs": "97a5b7298132a45ff1a2f05cca86fb01ad837d11d82f8bbef93c9b209d378d0a",
+    "native/src/gpu/routed_scratch_tests.rs": "5c9bdab18d713c8aeb3476eea140d57e6b35546d6871e9bce6fb7e320fb52725",
+    "native/src/flash_qmv.rs": "3dded781b80df20037fc158f3c83dd1aaeba6db9e5a13530efafab338f137341",
+    "native/src/flash_expert_scratch.rs": "34830590b0fec1e6794be7a8c1c47de10d468196ef4b10283ff85fa9a308f218",
+    "native/src/flash_support.rs": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+    "native/src/gpu/projection.rs": "a0ff89f0ea71435c7f11ccc1a92ff31145403ea42bcb3712065e24f078e80fab",
+    "native/shaders/flash_static_qmv.metal": "c4aafe7c2265292957d43ba75af523b519fd802c8b09572ff0db80a1ff51f22a",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "scripts/kani_obligations.json": "db4876075fe0f6409e35127146cfb0aca67e48960b175392258623605455da52",
+    "tests/test_kani_ci.py": "ff8f20ec34e947e282d36a30a253d59ee99ca676aabb67786c2d7335c1306cdc",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9"
+  },
+  "required_absent": [
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+    "MLXL3_NATIVE_ROUTED_SCRATCH"
+  ],
+  "physical_scope": "archive64+ctx4096+realCLI4096short only; root owns grant/controller; no speed rerun",
+  "no_app_replaced": true
+}

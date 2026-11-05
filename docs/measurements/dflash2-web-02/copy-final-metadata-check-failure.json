@@ -1,0 +1,9 @@
+{
+  "status": "resolved_metadata_check_failure",
+  "reason": "Final recursive status check detected historical running status in an intentionally archived aggregate snapshot and an unclosed interrupted per-pass report. No inference/process remained running, no numerical failure or parity claim.",
+  "affected": [
+    "copy-abba/results-at-interruption.json",
+    "copy-abba/1-B.json"
+  ],
+  "fix": "Retain two exact immutable snapshots with SHA; mark live partial-pass and aggregate nested status interrupted, parity unknown. Recheck with explicitly enumerated immutable snapshots only."
+}

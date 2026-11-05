@@ -1,0 +1,170 @@
+{
+  "source_parent": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "runtime_base": "c146e9a4a351fb159477c50fe83117447dcbed2b",
+  "checks": {
+    "CPU": {
+      "passed": 337,
+      "failed": 0,
+      "ignored": 8,
+      "per_target": [
+        [
+          249,
+          0,
+          8
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "log": "docs/measurements/issue125-cross-layer-20261104/cpu/test-cpu.log.gz"
+    },
+    "DIRECT": {
+      "passed": 353,
+      "failed": 0,
+      "ignored": 54,
+      "per_target": [
+        [
+          264,
+          0,
+          50
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "log": "docs/measurements/issue125-cross-layer-20261104/default-policy/test-direct.log.gz"
+    },
+    "MLX": {
+      "passed": 389,
+      "failed": 0,
+      "ignored": 272,
+      "per_target": [
+        [
+          291,
+          0,
+          260
+        ],
+        [
+          44,
+          0,
+          9
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "log": "docs/measurements/issue125-cross-layer-20261104/default-policy/test-mlx.log.gz"
+    },
+    "kani_eligibility": {
+      "summary": [
+        "** 0 of 25 failed",
+        "** 6 of 6 cover properties satisfied"
+      ],
+      "log": "docs/measurements/issue125-cross-layer-20261104/cpu/kani.log.gz"
+    },
+    "kani_default_flag": {
+      "summary": [
+        "** 0 of 240 failed (7 unreachable)",
+        "** 7 of 7 cover properties satisfied"
+      ],
+      "log": "docs/measurements/issue125-cross-layer-20261104/default-policy/kani-flag.log.gz"
+    }
+  },
+  "limits": [
+    "Kani covers production CPU guard/strict flag helpers, not Metal/OS/concurrency/full generation.",
+    "CrossHair unavailable; Python validators sampled by deterministic selfchecks, not formally verified.",
+    "Hosted CI exact head pending first publication; inherited parent Kani failures remain separately documented.",
+    "No sustained/long-context speed measurement; 32 generated/31 decode only."
+  ]
+}

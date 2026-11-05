@@ -1,0 +1,246 @@
+{
+  "status": "primary_source_research_complete_no_port_or_weight_download",
+  "created_at": "2026-10-19T21:04:39.676156+00:00",
+  "cli": "hf1.28.0 models info + download explicit README/config/capture files only; sources read, remote code never imported/executed",
+  "models": [
+    {
+      "repository": "incoai/Qwen3.8-Flash-Next-DFlash2",
+      "revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+      "current_revision_matches": true,
+      "own_parameters": 603065600,
+      "bf16_parameter_bytes_estimate": 1206131200,
+      "runtime_ram": "not measured; parameter bytes exclude shared target head/embedding, activations and caches",
+      "config": {
+        "architectures": [
+          "DFlash2DraftModel"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "bos_token_id": 248044,
+        "dflash_config": {
+          "block_size": 8,
+          "conv_group_size": 16,
+          "conv_kernel_size": 2,
+          "mask_token_id": 248077,
+          "selector_rank": 256,
+          "selector_top_k": 16,
+          "target_layer_ids": [
+            5,
+            15,
+            25,
+            35,
+            45
+          ]
+        },
+        "dtype": "bfloat16",
+        "eos_token_id": 248044,
+        "head_dim": 128,
+        "hidden_act": "silu",
+        "hidden_size": 2560,
+        "initializer_range": 0.02,
+        "intermediate_size": 7680,
+        "is_causal": false,
+        "layer_types": [
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention",
+          "sliding_attention"
+        ],
+        "max_position_embeddings": 262144,
+        "max_window_layers": 5,
+        "model_type": "qwen3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 5,
+        "num_key_value_heads": 8,
+        "num_target_layers": 48,
+        "pad_token_id": null,
+        "rms_norm_eps": 1e-06,
+        "rope_parameters": {
+          "rope_theta": 10000,
+          "rope_type": "default"
+        },
+        "sliding_window": 2048,
+        "tie_word_embeddings": false,
+        "transformers_version": "5.12.1",
+        "use_cache": false,
+        "use_sliding_window": true,
+        "vocab_size": 248320
+      },
+      "light_source_files": {
+        "config.json": {
+          "sha256": "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+          "bytes": 1236
+        },
+        "README.md": {
+          "sha256": "296dfce04d501f313f4223a4ab2378f198ecb860e3b24a4689e66aff651f0477",
+          "bytes": 5402
+        },
+        "patches/qwen38-dflash2-capture.patch": {
+          "sha256": "91708e18c67f1c0e8f6c19cfbe7cc9f59ff257c05d61bb30b407ae4c36354169",
+          "bytes": 2642
+        }
+      },
+      "source_base_url": "https://huggingface.co/incoai/Qwen3.8-Flash-Next-DFlash2/blob/a22a1744e85c17364dcc54a6a420af7135d4c7f6/"
+    },
+    {
+      "repository": "shadowpa0327/Qwen3.8-Flash-Next-DSpark",
+      "revision": "aafaf1bf59fdc4639183600d7747474990623171",
+      "current_revision_matches": true,
+      "own_parameters": 664569857,
+      "bf16_parameter_bytes_estimate": 1329139714,
+      "runtime_ram": "not measured; parameter bytes exclude shared target head/embedding, activations and caches",
+      "config": {
+        "architectures": [
+          "DSparkDraftModel"
+        ],
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "auto_map": {
+          "AutoModel": "dspark.DSparkDraftModel"
+        },
+        "block_size": 7,
+        "bos_token_id": null,
+        "dflash_config": {
+          "attention_mode": "gqa",
+          "confidence_head_alpha": 1.0,
+          "confidence_head_with_markov": true,
+          "enable_confidence_head": true,
+          "markov_head_type": "vanilla",
+          "markov_rank": 256,
+          "mask_token_id": 248070,
+          "projector_type": "dspark",
+          "target_layer_ids": [
+            1,
+            12,
+            23,
+            34,
+            45
+          ]
+        },
+        "dtype": "bfloat16",
+        "eos_token_id": 248046,
+        "head_dim": 128,
+        "hidden_act": "silu",
+        "hidden_size": 2560,
+        "initializer_range": 0.02,
+        "intermediate_size": 9728,
+        "layer_types": [
+          "full_attention",
+          "full_attention",
+          "full_attention",
+          "full_attention",
+          "full_attention"
+        ],
+        "max_position_embeddings": 262144,
+        "max_window_layers": 5,
+        "model_type": "qwen3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 5,
+        "num_key_value_heads": 8,
+        "num_target_layers": 48,
+        "pad_token_id": 248044,
+        "rms_norm_eps": 1e-06,
+        "rope_scaling": null,
+        "rope_theta": 10000000,
+        "sliding_window": null,
+        "target_hidden_size": null,
+        "tie_word_embeddings": false,
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 248320,
+        "markov_rank": 256,
+        "markov_head_type": "vanilla",
+        "enable_confidence_head": true,
+        "confidence_head_with_markov": true,
+        "confidence_head_alpha": 1.0,
+        "torch_dtype": "bfloat16"
+      },
+      "light_source_files": {
+        "config.json": {
+          "sha256": "1b85e471ba999a26f20fa99394eb3da5cec4aa46eb4bbbc6fb45116cfbedbc33",
+          "bytes": 1537
+        },
+        "README.md": {
+          "sha256": "0ddb5c34f061ad4b5b359e9b5cf656a2565eec8e8f6aeff6eb84bce0d67eb4f3",
+          "bytes": 6794
+        },
+        "qwen38_dspark_sglang/qwen4_exp_aux_capture.py": {
+          "sha256": "b5721df0d166a2b447a2bf223ceaa99c51faf2b16301f023662dd516a108bb6f",
+          "bytes": 8238
+        }
+      },
+      "source_base_url": "https://huggingface.co/shadowpa0327/Qwen3.8-Flash-Next-DSpark/blob/aafaf1bf59fdc4639183600d7747474990623171/"
+    }
+  ],
+  "capture_contracts": {
+    "dflash2": {
+      "completed_target_layers_zero_based": [
+        5,
+        15,
+        25,
+        35,
+        45
+      ],
+      "hc_reduce": "mean across four completed-layer streams",
+      "features": 12800,
+      "rope_theta": 10000,
+      "mask": 248077,
+      "window": 2048,
+      "trained_backbone_positions": 8,
+      "published_verified_target_rows": 4,
+      "selector": "top16 + rank256 coherent path"
+    },
+    "dspark": {
+      "completed_target_layers_zero_based": [
+        1,
+        12,
+        23,
+        34,
+        45
+      ],
+      "hook_entry_layers_after_sglang_setter_plus_one": [
+        2,
+        13,
+        24,
+        35,
+        46
+      ],
+      "hc_reduce": "FP32 mean across four layer-input streams then cast back",
+      "features": 12800,
+      "rope_theta": 10000000,
+      "mask": 248070,
+      "window": null,
+      "trained_draft_proposals": 7,
+      "published_verified_target_rows": 8,
+      "selector": "rank256 vanilla Markov + confidence"
+    }
+  },
+  "native_blockers": [
+    "Family has Qwen36Moe(2048) and Qwen38Dense(5120), no explicit FlashNext2560 layout; five layers alone is ambiguous",
+    "Flash target must capture five specific complete layer outputs, not only last_hidden or all diagnostic traces",
+    "existing hardcoded theta10M is wrong for DFlash2 theta10k",
+    "dynamic projection output640 is rejected by Q4 output%256 geometry; initially BF16 or explicit padded layout required",
+    "backbone8 positions is fixed and distinct from number of selected proposals / verified target tokens",
+    "Flash verifier supports two rows and one/two-token rollback; useful wider drafts require exact prefix commits, GDN/QSA/PLE/capture rollback and bounded memory",
+    "production DFlashChat accepts Qwen35Moe and bridge advertises DFlash only for NativeChatModel::Qwen",
+    "DSpark Markov/confidence is not DFlash2 selector; requires independent port and local calibration"
+  ],
+  "publication_limits": [
+    "DFlash2 source benchmarks targetFP8 on GB300, sampling, not EXL3/M5/SSD",
+    "DSpark source benchmarks targetNVFP4 on H100TP2 with QSA8 patch absent from its repo; stockQSA4 serving still pending",
+    "DSpark source notes earlier >2K-context token mismatches; no local numerical or acceptance qualification performed",
+    "no M5 acceptance/latency/RAM or 15tok/s claim for either draft"
+  ],
+  "recommendation": "DFlash2 first for a future requested port because Flash-specific capture patch and existing native DFlash2 components are reusable; DSpark separate comparison after exact wider verification. This is a research recommendation, not validated performance.",
+  "sglang_capture_setter_sources": [
+    "https://github.com/sgl-project/sglang/blob/e00930c5489053f26d86b179cee0d087f846acbb/python/sglang/srt/models/qwen3_vl.py",
+    "https://github.com/sgl-project/sglang/blob/e00930c5489053f26d86b179cee0d087f846acbb/python/sglang/srt/models/qwen3_5.py"
+  ],
+  "mlx_port_reference": "https://github.com/ARahim3/mlx-dspark/tree/d6042f38f0aa7dd3e03a2a406111d725056d45a3",
+  "native_file_hashes": {
+    "native/src/dflash.rs": "4783977e18b3b06fa166d92a73776491dea344b25d236da40616b1489f631cf2",
+    "native/src/main.rs": "830eb9a63340e3f89a9fe6d095bb910c298d748a9677776006b0202e1652b625",
+    "native/shaders/dflash_conv.metal": "d200efaab5c07399a36df60c3d8a6901f5eff84219983fe81edc16baa541f0d0"
+  }
+}

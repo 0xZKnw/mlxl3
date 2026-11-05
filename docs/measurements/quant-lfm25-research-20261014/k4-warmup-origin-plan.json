@@ -1,0 +1,21 @@
+{
+  "experiment": "QUANT-2026-10-14-LFM25-11",
+  "baseline_commit": "be143a9b33ff2204c2d266c681ec7c51e9ff3eaa",
+  "files": {
+    "src/mlxl3_quantizer/metal.py": "5384e8804570f05d0c91ba1e346dfdb7b5cb0610ffea4d6b7b927b50b3a4ca73",
+    "src/mlxl3_quantizer/warmup_origin.metal": "e4436dc54be88105ba4948e97605fc32d212b49496f20d3e7fa8163129e0a8f4",
+    "tests/quantize_warmup_origin_proof.cpp": "c9dca0b82533006d2ac8a64a44a836d262d3d41a65f96b4ab4eb2fcfce3fcbba",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "60838fa50342266d04ca318232e888c0ac4e7a7342f258d11e5556a09a4cc822",
+    "build/lfm25-warmup-baseline/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "docs/measurements/quant-lfm25-research-20261013/profile-baseline.py": "050e9e8bded4790e368b26465ea80c57952bff3c28e7b4d48fab595377d66784"
+  },
+  "shared_bytes_both_cost_rows_baseline": 16384,
+  "shared_bytes_candidate_cost_and_origin_rows": 32768,
+  "scratch_bytes_both": 268435456,
+  "cache_threshold_bytes_both": 536870912,
+  "tiles_per_dispatch_both": 128,
+  "battery": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t45%; discharging; 4:38 remaining present: true\n",
+  "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+  "protocol": "1 warmup per shape/variant then 3 alternating pairs; 8gate/up + 4down, BF16 seed139, K4MCG 2048 rows sigma .025; no other GPU/build/prover launched by this chat",
+  "scope": "synthetic groups; no whole 24B quality or time claim"
+}
