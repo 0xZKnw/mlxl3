@@ -28,9 +28,12 @@ pub struct FlashMoeRow<'a> {
     records: Vec<TensorInfo>,
     cache: Rc<RefCell<ExpertCache>>,
     slots: prefetch::Slots<'a>,
+    // Only direct records received by this instance have recyclable provenance.
+    record_backings: Vec<Option<Buffer>>,
     pub(super) prefetcher: Option<Rc<RefCell<PrefetchPool<'a>>>>,
     predictor_half: bool,
     pub(super) extra_wave_enabled: bool,
+    pub(super) record_reuse_enabled: bool,
     last: Vec<CommandBuffer>,
 }
 
@@ -109,6 +112,16 @@ impl<'a> FlashMoeRow<'a> {
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_SSD_EXTRA_WAVE must be 0 or 1")?;
+        let record_reuse_enabled = match std::env::var("MLXL3_NATIVE_RECORD_REUSE") {
+            Ok(value) => {
+                crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
+            }
+            Err(std::env::VarError::NotPresent) => {
+                crate::ssd_reads::extra_wave_flag(None, gpu.device.name() == "Apple M5")
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_RECORD_REUSE must be 0 or 1")?;
         let mut cache = ExpertCache::new(capacity)?;
         let control = |name, default: &str| -> Result<String> {
             match std::env::var(name) {
@@ -155,15 +168,20 @@ impl<'a> FlashMoeRow<'a> {
             records,
             cache,
             slots: Rc::new(RefCell::new((0..capacity).map(|_| None).collect())),
+            record_backings: (0..capacity).map(|_| None).collect(),
             prefetcher: None,
             predictor_half,
             extra_wave_enabled,
+            record_reuse_enabled,
             switch: read_weight(&gpu.device, switch, 5120)?,
             last: Vec::new(),
         })
     }
 
     pub(super) fn enable_prefetch(&mut self, pool: Rc<RefCell<PrefetchPool<'a>>>) {
+        self.record_backings
+            .iter_mut()
+            .for_each(|owner| *owner = None);
         self.cache.borrow_mut().enable_predictive_lru();
         self.prefetcher = Some(pool);
     }
@@ -254,18 +272,41 @@ impl<'a> FlashMoeRow<'a> {
         if let Some(pool) = &self.prefetcher {
             pool.borrow_mut().poll(Some(&self.cache), &ids, false)?;
         }
-        for last in self.last.drain(..) {
-            ensure!(
-                last.status() == MTLCommandBufferStatus::Completed,
-                "previous Flash MoE command failed ({:?})",
-                last.status()
-            );
-        }
+        let reuse_requested = crate::ssd_reads::direct_read_eligible(
+            self.record_reuse_enabled && gpu.ssd_direct_enabled,
+            depth,
+            self.prefetcher.is_some(),
+        );
+        let quiescent = if reuse_requested {
+            self.drain_commands()?;
+            true
+        } else {
+            for last in self.last.drain(..) {
+                ensure!(
+                    last.status() == MTLCommandBufferStatus::Completed,
+                    "previous Flash MoE command failed ({:?})",
+                    last.status()
+                );
+            }
+            false
+        };
+        let reuse = crate::ssd_reads::record_reuse_eligible(
+            reuse_requested,
+            depth,
+            self.prefetcher.is_some(),
+            quiescent,
+        );
         let guard = ExpertFill::new(&self.cache);
         let plan = DemandPlan::reserve(&self.cache, &ids)?;
         let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
+        let mut owners = Vec::with_capacity(plan.reads.len());
         for lease in &plan.reads {
-            self.slots.borrow_mut()[lease.slot] = None;
+            let old_views = self.slots.borrow_mut()[lease.slot].take();
+            let owner = self.record_backings[lease.slot].take();
+            // Snapshots contain recurrent state, never expert weights. With no
+            // prefetch, these private slots were the last future-access views.
+            drop(old_views);
+            owners.push(if reuse { owner } else { None });
         }
         let records = || {
             plan.reads
@@ -277,7 +318,12 @@ impl<'a> FlashMoeRow<'a> {
             depth,
             self.prefetcher.is_some(),
         ) {
-            gpu.readers()?.submit_shared(records(), &gpu.device)?
+            gpu.readers()?.submit_shared_reusing(
+                records()
+                    .zip(owners)
+                    .map(|((lease, record), owner)| (lease, record, owner)),
+                &gpu.device,
+            )?
         } else {
             gpu.readers()?.submit(records())?
         };
@@ -403,10 +449,14 @@ impl<'a> FlashMoeRow<'a> {
                 loop {
                     let mut ready = Vec::new();
                     for (lease, payload) in wave {
+                        let direct = matches!(&payload, crate::ssd_reads::ReadPayload::Shared(_));
                         let backing = gpu.completed_record(payload)?;
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
                         ensure!(plan.publish(lease), "stale native SSD demand completion");
                         self.slots.borrow_mut()[lease.slot] = Some(expert);
+                        if reuse && direct {
+                            self.record_backings[lease.slot] = Some(backing);
+                        }
                         if axis {
                             ready.push(lease.slot);
                         } else {
@@ -597,12 +647,15 @@ impl FlashMoeRow<'_> {
         self.drain_commands()
     }
     fn drain_commands(&mut self) -> Result<()> {
+        let mut failure = None;
         for command in &self.last {
             command.wait_until_completed();
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Flash MoE command failed during drain"
-            );
+            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
+                failure = Some(anyhow::anyhow!("Flash MoE command failed during drain"));
+            }
+        }
+        if let Some(error) = failure {
+            return Err(error);
         }
         self.last.clear();
         Ok(())
@@ -615,6 +668,9 @@ impl FlashMoeRow<'_> {
             .borrow_mut()
             .iter_mut()
             .for_each(|slot| *slot = None);
+        self.record_backings
+            .iter_mut()
+            .for_each(|owner| *owner = None);
         Ok(())
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
@@ -631,6 +687,7 @@ impl FlashMoeRow<'_> {
             cache.enable_predictive_lru();
         }
         self.slots = Rc::new(RefCell::new((0..slots).map(|_| None).collect()));
+        self.record_backings = (0..slots).map(|_| None).collect();
         self.cache = Rc::new(RefCell::new(cache));
         Ok(())
     }

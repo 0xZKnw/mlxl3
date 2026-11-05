@@ -67,6 +67,15 @@ pub(crate) fn common_queue_flag(value: Option<&str>) -> Option<bool> {
     crate::flash_support::hc_chain_flag(value, false)
 }
 
+pub(crate) fn record_reuse_eligible(
+    enabled: bool,
+    depth: usize,
+    prefetcher: bool,
+    completed: bool,
+) -> bool {
+    enabled && depth == 0 && !prefetcher && completed
+}
+
 #[cfg(test)]
 #[derive(Default)]
 pub(crate) struct TestReadGate(std::sync::Mutex<bool>, std::sync::Condvar);
@@ -166,8 +175,9 @@ impl Read {
                         "invalid owned SSD destination"
                     );
                     ensure!(!destination.contents().is_null(), "null SSD destination");
-                    // Only this job owns this fresh allocation. No views or buffer
-                    // clones exist until the completed payload is received.
+                    // This job has exclusive CPU-write/future-GPU access: fresh,
+                    // or retired after Completed with all old slot views dropped.
+                    // Old Completed command buffers cannot execute again.
                     let target = unsafe {
                         std::slice::from_raw_parts_mut(destination.contents().cast::<u8>(), bytes)
                     };
@@ -196,6 +206,10 @@ pub(crate) struct ReadService {
     #[cfg(test)]
     pub(crate) dynamic_submissions: Cell<usize>,
     #[cfg(test)]
+    pub(crate) reused_destinations: Cell<usize>,
+    #[cfg(test)]
+    pub(crate) fresh_destinations: Cell<usize>,
+    #[cfg(test)]
     held_first: std::cell::RefCell<Option<Arc<TestReadGate>>>,
     #[cfg(test)]
     gate: std::cell::RefCell<Option<Arc<std::sync::Barrier>>>,
@@ -222,6 +236,10 @@ impl ReadService {
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
             dynamic_submissions: Cell::new(0),
+            #[cfg(test)]
+            reused_destinations: Cell::new(0),
+            #[cfg(test)]
+            fresh_destinations: Cell::new(0),
             #[cfg(test)]
             held_first: std::cell::RefCell::new(None),
             #[cfg(test)]
@@ -324,19 +342,70 @@ impl ReadService {
         limit: Duration,
         device: &metal::DeviceRef,
     ) -> Result<ReadBatch> {
+        let count = reads.len();
+        self.start_shared_reusing(reads, (0..count).map(|_| None).collect(), limit, device)
+    }
+    /// Owners come only from private, retired cache slots after all old GPU uses
+    /// completed and every old projection view was dropped by FlashMoeRow.
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn submit_shared_reusing(
+        &self,
+        records: impl IntoIterator<Item = (SlotLease, TensorInfo, Option<metal::Buffer>)>,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
+        let (records, owners): (Vec<_>, Vec<_>) = records
+            .into_iter()
+            .map(|(lease, record, owner)| ((lease, record), owner))
+            .unzip();
+        self.start_shared_reusing(
+            Self::sources(records)?,
+            owners,
+            Duration::from_secs(30),
+            device,
+        )
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    fn start_shared_reusing(
+        &self,
+        reads: Vec<(SlotLease, File, u64, usize)>,
+        owners: Vec<Option<metal::Buffer>>,
+        limit: Duration,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), false)?;
+        ensure!(reads.len() == owners.len(), "record owner count mismatch");
         let reads = reads
             .into_iter()
-            .map(|(lease, file, offset, bytes)| {
+            .zip(owners)
+            .map(|((lease, file, offset, bytes), owner)| {
                 ensure!(
                     direct_destination_valid(bytes, bytes as u64, true),
                     "invalid owned SSD destination extent"
                 );
-                let destination = crate::gpu::buffer(
-                    device,
-                    bytes as u64,
-                    metal::MTLResourceOptions::StorageModeShared,
-                )?;
+                let reusable = owner.filter(|buffer| {
+                    buffer.device().registry_id() == device.registry_id()
+                        && direct_destination_valid(
+                            bytes,
+                            buffer.length(),
+                            buffer.storage_mode() == metal::MTLStorageMode::Shared,
+                        )
+                });
+                let destination = if let Some(buffer) = reusable {
+                    #[cfg(test)]
+                    self.reused_destinations
+                        .set(self.reused_destinations.get() + 1);
+                    buffer
+                } else {
+                    let buffer = crate::gpu::buffer(
+                        device,
+                        bytes as u64,
+                        metal::MTLResourceOptions::StorageModeShared,
+                    )?;
+                    #[cfg(test)]
+                    self.fresh_destinations
+                        .set(self.fresh_destinations.get() + 1);
+                    buffer
+                };
                 Ok((lease, file, offset, bytes, ReadPayload::Shared(destination)))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -775,3 +844,7 @@ mod wave_tests;
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/common_queue_tests.rs"]
 mod common_queue_tests;
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/record_reuse_tests.rs"]
+mod record_reuse_tests;
