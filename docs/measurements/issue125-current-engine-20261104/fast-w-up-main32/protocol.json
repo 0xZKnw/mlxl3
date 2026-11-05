@@ -1,0 +1,46 @@
+{
+  "trial": "I125-CURRENT-W-UP-FAST-MAIN32-20261104",
+  "candidate": {
+    "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+    "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+    "bytes": 10159488,
+    "minos": "26.2",
+    "sdk": "27.2"
+  },
+  "libtest": {
+    "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+    "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+    "bytes": 9547344,
+    "minos": "26.2",
+    "sdk": "27.2"
+  },
+  "reference_report": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-hc-main32/performance/3-closing-A2/report.json",
+  "reference_report_sha256": "9c54fcbc4582f76203577e6ff7447170b959bb3485d993ed47bc1f45ac7fe85c",
+  "driver_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+  "controller_sha256": "f7bfbcbc0b0d556fef5091d90ba9eafe804c91be76f14ad1833bed72f32a1fd2",
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+    "MLXL3_NATIVE_HC_UP_MIX": "1",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+    "MLXL3_NATIVE_HC_WORKSPACE": "1"
+  },
+  "prompt": "MAIN",
+  "tokens": 32,
+  "repeats": 1,
+  "warmups": 1,
+  "limits": [
+    "previous dated reference, not contemporaneous",
+    "single measured sample; no within-arm drift estimate",
+    "no established gain/HOLD/sustained claim"
+  ]
+}

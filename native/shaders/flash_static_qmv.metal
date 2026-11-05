@@ -66,6 +66,13 @@ kernel void flash_static_k4_nt2(FLASH_QMV_ARGUMENTS) {
 kernel void flash_fixed_k2_2560_640(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 2u
+kernel void flash_fixed_k2_nt2_2560_640(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 1u
 #undef INPUT_DIMS
 #define INPUT_DIMS 640u
 #undef OUTPUT_DIMS
@@ -77,6 +84,13 @@ kernel void flash_fixed_k2_2560_640(FLASH_QMV_ARGUMENTS) {
 kernel void flash_fixed_k2_640_2560(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 2u
+kernel void flash_fixed_k2_nt2_640_2560(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 1u
 #undef INPUT_DIMS
 #define INPUT_DIMS p.rows
 #undef OUTPUT_DIMS

@@ -1,0 +1,18 @@
+{
+  "status": "passed_after_import_spacing_fix",
+  "failure_retained": "Ruff I001 on tests/test_kani_manifest.py:3 (extra blank lines from merge union), formatter alone did not remove import spacing",
+  "fix": "Removed blank lines between json/re/Path imports; no changed executable expression or engine source",
+  "checks": {
+    "ruff_check": "PASS",
+    "pytest_test_kani_manifest": "4 PASS",
+    "native_coverage_unittest": "6 PASS",
+    "native_inventory_files": 273
+  },
+  "source_delta_since_engine_freeze": {
+    "tests/test_kani_manifest.py": {
+      "frozen": "34e20296c87b38a79d87cb341bf6cac5f383219c8a2875d5af9e8cbde52668b7",
+      "current": "b069eef54fe0329dab14299e9c5fa9962a3b7f230761b101186c31f0f0d158f2"
+    }
+  },
+  "all_compiled_rust_metal_cpp_and_cargo_sources_unchanged": true
+}

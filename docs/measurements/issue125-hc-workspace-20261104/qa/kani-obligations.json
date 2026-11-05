@@ -1,0 +1,74 @@
+[
+  {
+    "name": "hc_workspace_actual_admission_sum_is_checked_and_includes_every_buffer",
+    "checks": [
+      [
+        "0",
+        "78"
+      ]
+    ],
+    "covers": [
+      [
+        "3",
+        "3"
+      ]
+    ],
+    "unreachable": []
+  },
+  {
+    "name": "hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions",
+    "checks": [
+      [
+        "0",
+        "116"
+      ]
+    ],
+    "covers": [
+      [
+        "3",
+        "3"
+      ]
+    ],
+    "unreachable": []
+  },
+  {
+    "name": "hc_workspace_flag_preserves_off_default_and_bounded_literals",
+    "checks": [
+      [
+        "0",
+        "240"
+      ]
+    ],
+    "covers": [
+      [
+        "3",
+        "3"
+      ]
+    ],
+    "unreachable": [
+      "Check 9: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "Check 10: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "Check 11: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "Check 29: core::str::validations::run_utf8_validation.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation",
+      "Check 30: core::str::validations::run_utf8_validation.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation",
+      "Check 45: core::str::validations::run_utf8_validation.assertion.18\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:238:21 in function core::str::validations::run_utf8_validation",
+      "Check 51: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    ]
+  },
+  {
+    "name": "hc_workspace_reserve_is_exact_or_rejects_overflow",
+    "checks": [
+      [
+        "0",
+        "47"
+      ]
+    ],
+    "covers": [
+      [
+        "3",
+        "3"
+      ]
+    ],
+    "unreachable": []
+  }
+]

@@ -18,9 +18,9 @@ mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
 pub(super) enum Layer<'a> {
-    Gdn(FlashGdnLayer<'a>),
+    Gdn(Box<FlashGdnLayer<'a>>),
     Ple(Box<FlashPleLayer<'a>>),
-    Qsa(FlashQsaLayer<'a>),
+    Qsa(Box<FlashQsaLayer<'a>>),
 }
 #[derive(Clone)]
 enum State {
@@ -142,6 +142,8 @@ pub struct FlashTraceTensor {
     pub data: Vec<u8>,
 }
 pub struct FlashNext<'a> {
+    pub(super) fixed_residency: Option<super::fixed_residency::FixedResidency>,
+    pub(super) fixed_residency_checked: bool,
     checkpoint_path: std::path::PathBuf,
     lookahead_depth: usize,
     #[cfg(feature = "chat")]
@@ -161,6 +163,35 @@ pub struct FlashNext<'a> {
     pub(super) request_limit: Option<u64>,
 }
 impl<'a> FlashNext<'a> {
+    #[cfg(test)]
+    pub(super) fn slru_counts(&self) -> Result<(usize, usize)> {
+        self.layers
+            .iter()
+            .try_fold((0usize, 0usize), |(enabled, reservations), layer| {
+                let (on, count) = match layer {
+                    Layer::Gdn(a) => a.residual.moe.slru_counts(),
+                    Layer::Ple(a) => a.body.residual.moe.slru_counts(),
+                    Layer::Qsa(a) => a.residual.moe.slru_counts(),
+                };
+                Ok((
+                    enabled
+                        .checked_add(usize::from(on))
+                        .context("SLRU layer count overflow")?,
+                    reservations
+                        .checked_add(count)
+                        .context("SLRU reservation count overflow")?,
+                ))
+            })
+    }
+
+    #[cfg(test)]
+    pub(super) fn ar10_record_reuse_layers(&mut self) -> usize {
+        self.layers
+            .iter_mut()
+            .map(|layer| usize::from(layer.moe().record_reuse_enabled))
+            .sum()
+    }
+
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
         #[cfg(feature = "chat")]
@@ -215,7 +246,7 @@ impl<'a> FlashNext<'a> {
                         gpu, c, &prefix, config.eps, slots,
                     )?))
                 } else if i % 4 == 3 {
-                    Layer::Qsa(FlashQsaLayer::load(
+                    Layer::Qsa(Box::new(FlashQsaLayer::load(
                         gpu,
                         c,
                         &prefix,
@@ -223,9 +254,11 @@ impl<'a> FlashNext<'a> {
                         config.rope,
                         context,
                         slots,
-                    )?)
+                    )?))
                 } else {
-                    Layer::Gdn(FlashGdnLayer::load(gpu, c, &prefix, config.eps, slots)?)
+                    Layer::Gdn(Box::new(FlashGdnLayer::load(
+                        gpu, c, &prefix, config.eps, slots,
+                    )?))
                 })
             })
             .collect::<Result<_>>()?;
@@ -251,7 +284,9 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         gpu.admit_load(request_limit, total_slots)?;
-        Ok(Self {
+        let mut model = Self {
+            fixed_residency: None,
+            fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
             lookahead_depth,
             #[cfg(feature = "chat")]
@@ -269,7 +304,9 @@ impl<'a> FlashNext<'a> {
             context,
             offset: 0,
             request_limit,
-        })
+        };
+        model.ensure_fixed_residency()?;
+        Ok(model)
     }
     pub fn snapshot(&self) -> FlashSnapshot {
         FlashSnapshot {
@@ -354,6 +391,77 @@ impl<'a> FlashNext<'a> {
 
     pub fn forward(&mut self, token: u32) -> Result<Vec<u16>> {
         self.prefill(&[token])
+    }
+
+    /// Request admission is evaluated before any prefix or decode state advances.
+    pub fn device_greedy_eligible(
+        &self,
+        temperature: f32,
+        top_k: usize,
+        penalty: f32,
+        speculative: bool,
+    ) -> bool {
+        crate::gpu_greedy_policy::eligible(
+            self.gpu.device_greedy_available(),
+            temperature,
+            top_k,
+            penalty,
+            speculative,
+        )
+    }
+    pub fn device_greedy_counts(&self) -> [u64; 2] {
+        [
+            self.gpu.device_greedy_calls.get(),
+            self.gpu.device_greedy_heads.get(),
+        ]
+    }
+    pub fn greedy_from_logits(&self, logits: &[u16]) -> Result<u32> {
+        self.gpu.device_greedy_from_logits(logits)
+    }
+    /// A scalar head result belongs to the same rollback boundary as recurrent state.
+    pub fn forward_greedy(&mut self, token: u32) -> Result<u32> {
+        self.forward_greedy_inner(token, false)
+            .map(|(index, _)| index)
+    }
+    #[cfg(test)]
+    pub(super) fn forward_greedy_captured(&mut self, token: u32) -> Result<(u32, Vec<u16>)> {
+        let (index, logits) = self.forward_greedy_inner(token, true)?;
+        Ok((
+            index,
+            logits.context("missing test-only device head capture")?,
+        ))
+    }
+    fn forward_greedy_inner(
+        &mut self,
+        token: u32,
+        capture: bool,
+    ) -> Result<(u32, Option<Vec<u16>>)> {
+        ensure!(
+            self.gpu.device_greedy_available(),
+            "device greedy is disabled or unsupported"
+        );
+        let end = crate::flash_support::flash_prompt_end(self.offset, 1, self.context)
+            .context("Flash context exhausted")?;
+        ensure!(token < 248_320, "token outside Flash vocabulary");
+        self.ensure_fixed_residency()?;
+        let before = self.snapshot();
+        let result = (|| {
+            let streams = self.hidden(token, None, None)?;
+            let mixed = self.mixer.read(&streams, false)?.mixed;
+            #[cfg(test)]
+            {
+                self.target_head_calls += 1;
+            }
+            let selected = self.gpu.device_greedy_head(&self.head, &mixed, capture)?;
+            self.hidden = Some(streams);
+            Ok(selected)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        } else {
+            self.offset = end;
+        }
+        result
     }
 
     fn hidden(
@@ -542,6 +650,7 @@ impl<'a> FlashNext<'a> {
             tokens.iter().all(|&t| t < 248320),
             "token outside Flash vocabulary"
         );
+        self.ensure_fixed_residency()?;
         let (&last, prefix) = tokens.split_last().context("empty Flash prompt")?;
         let before = self.snapshot();
         let result = (|| {
@@ -691,7 +800,9 @@ mod tests {
                 ids.push(next);
             }
             let events = if observed {
-                serde_json::to_value(profile::finish()?)?
+                let trace = profile::finish()?;
+                profile::validate_cross_layer_ancestry(&trace)?;
+                serde_json::to_value(trace)?
                     .as_array()
                     .context("events")?
                     .clone()
@@ -736,12 +847,26 @@ mod tests {
                 "MLXL3_NATIVE_FLASH_NT2",
                 "MLXL3_NATIVE_FLASH_FIXED_DIMS",
                 "MLXL3_NATIVE_ROUTED_SCRATCH",
+                "MLXL3_NATIVE_HC_GDN_CHAIN",
+                "MLXL3_NATIVE_CROSS_LAYER",
+                "MLXL3_NATIVE_HC_WORKSPACE",
+                "MLXL3_NATIVE_SSD_EXTRA_WAVE",
+                "MLXL3_NATIVE_HC_UP_MIX",
+                "MLXL3_NATIVE_HC_DOWN_INJECT",
             ]
             .iter()
             .all(|name| std::env::var_os(name).is_none()),
             "native8 requires actual default policies, no explicit optimization flags"
         );
-        ensure!(gpu.ssd_direct_enabled && gpu.hc_chain.get() && gpu.hc_gate_chain.get());
+        ensure!(
+            gpu.device.name() == "Apple M5"
+                && gpu.ssd_direct_enabled
+                && gpu.hc_chain.get()
+                && gpu.hc_gate_chain.get()
+                && gpu.cross_layer.get()
+                && gpu.hc_gdn_chain.get(),
+            "native8 current baseline requires qualified M5 and accepted defaults"
+        );
         let mut model = FlashNext::load(&gpu, &c, 4096)?;
         ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
         let (first, first_states) = model.forward_trace(248044)?;
@@ -822,8 +947,21 @@ mod tests {
             .iter()
             .filter(|e| e["name"] == "native.hc_gdn.joined")
             .count();
-        ensure!(separate_gdn + joined_gdn == 7 * 36);
-        ensure!(joined_gdn == if gpu.hc_gdn_chain.get() { 7 * 36 } else { 0 });
+        let cross_layer_gdn = events
+            .iter()
+            .filter(|e| e["name"] == "native.hc_gdn.cross_layer")
+            .count();
+        ensure!(cross_layer_gdn == 7 * 34 && joined_gdn == 7 * 2 && separate_gdn == 0);
+        ensure!(separate_gdn + joined_gdn + cross_layer_gdn == 7 * 36);
+        let moe_wait_events = events
+            .iter()
+            .filter(|e| e["name"] == "native.moe_wait")
+            .count();
+        let moe_gpu_intervals = events
+            .iter()
+            .filter(|e| e["name"] == "native.gpu_interval" && e["data"]["owner"] == "moe")
+            .count();
+        ensure!(moe_wait_events > 0 && moe_gpu_intervals > 0);
         for (exclusive, row_total) in [
             ("allocation_requests", "metal_requests"),
             ("allocation_requested_bytes", "metal_requested_bytes"),
@@ -869,7 +1007,7 @@ mod tests {
         ensure!(head_gpu == 7);
         eprintln!(
             "I120_NATIVE8_PROFILE {}",
-            serde_json::json!({"status":"diagnostic_complete","parity":true,"tokens":observed,"prompt_tokens":87,"context":4096,"decode_rows":7,"independent_first_state":true,"independent_first_logits":true,"continuation_state_words":state_words,"events":events,"scope":"test-only intrusive sampling-first current baseline; no release speed","limits":["CPU/GPU clocks not aligned; intervals overlap and are not additive","GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split","SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic","CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated","allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"]})
+            serde_json::json!({"status":"diagnostic_complete","parity":true,"tokens":observed,"prompt_tokens":87,"context":4096,"decode_rows":7,"cross_layer_triples":cross_layer_gdn,"hc_gdn_doubles":joined_gdn,"gdn_separate":separate_gdn,"profile_scope_ancestry_checked":true,"moe_wait_events":moe_wait_events,"moe_gpu_intervals":moe_gpu_intervals,"independent_first_state":true,"independent_first_logits":true,"continuation_state_words":state_words,"events":events,"scope":"test-only intrusive sampling-first accepted L1 baseline on exact M5/defaults; no release speed","limits":["CPU/GPU clocks not aligned; intervals overlap and are not additive","GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split","SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic","CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated","allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"]})
         );
         Ok(())
     }
@@ -1425,3 +1563,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "ssd_wave_model_tests.rs"]
+mod ssd_wave_tests;

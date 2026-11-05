@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards",
+    "--output-format",
+    "terse"
+  ],
+  "status": "not_verified_compiler_ICE",
+  "bounded_seconds": 30,
+  "method": "attempt actual cfgtest ancestry validator on2events; symbolic bools/Option<usize> parents; unwind64; no assumptions/stubs; not full trace or Metal proof",
+  "returncode": 1,
+  "elapsed_seconds": 4.137776375020621,
+  "joined": true,
+  "diagnostic": "kani-compiler/src/intrinsics.rs:243:17; assertion RigidTy Int I32, before verification obligations; known cfgtest compiler limitation"
+}

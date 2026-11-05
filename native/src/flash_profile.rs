@@ -588,3 +588,154 @@ fn modes_remain_thread_local() -> Result<()> {
 fn real_profile_scope_lifecycle() {
     nested_intervals_are_complete_and_disabled_is_a_noop().unwrap();
 }
+
+/// The fused command ends before residual HC/router/MoE work starts. Validate the
+/// actual trace's ancestry, including indirect descendants; central intervals stay valid.
+pub(crate) fn validate_cross_layer_ancestry(events: &[Event]) -> Result<()> {
+    for (index, event) in events.iter().enumerate() {
+        let protected = matches!(
+            event.name.as_str(),
+            "native.moe_wait" | "native.hc.chain_write_read_gate"
+        ) || event.name.starts_with("native.moe.")
+            || (event.name == "native.gpu_interval" && event.data["owner"] == "moe");
+        let mut ancestor = event.parent;
+        while let Some(parent) = ancestor {
+            ensure!(parent < index, "invalid profile parent index");
+            let upstream = &events[parent];
+            ensure!(
+                !protected || upstream.name != "native.hc_gdn.cross_layer",
+                "MoE/residual event {} is inside HC/GDN triple",
+                event.name
+            );
+            ensure!(
+                upstream.parent.is_none_or(|next| next < parent),
+                "cyclic profile ancestry"
+            );
+            ancestor = upstream.parent;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn cross_layer_ancestry_rejects_leaked_residuals_and_keeps_central_intervals() -> Result<()> {
+    fn record(name: &str, owner: Option<&str>, leaked: bool) -> Result<Vec<Event>> {
+        start(false)?;
+        let row = span("native.row");
+        let mut triple = span("native.hc_gdn.cross_layer");
+        {
+            let central = span("native.gpu_interval");
+            central
+                .as_ref()
+                .unwrap()
+                .data(serde_json::json!({"owner":"central"}));
+        }
+        {
+            let _write = span("native.hc.encode_write");
+        }
+        if !leaked {
+            drop(triple.take());
+        }
+        let events = if leaked {
+            let nested = span("native.command");
+            {
+                let target = span(name);
+                if let Some(owner) = owner {
+                    target
+                        .as_ref()
+                        .unwrap()
+                        .data(serde_json::json!({"owner":owner}));
+                }
+            }
+            drop(nested);
+            drop(triple);
+            drop(row);
+            finish()?
+        } else {
+            {
+                let nested = span("native.command");
+                {
+                    let target = span(name);
+                    if let Some(owner) = owner {
+                        target
+                            .as_ref()
+                            .unwrap()
+                            .data(serde_json::json!({"owner":owner}));
+                    }
+                }
+                drop(nested);
+            }
+            drop(row);
+            finish()?
+        };
+        Ok(events)
+    }
+    for (name, owner) in [
+        ("native.moe_wait", None),
+        ("native.hc.chain_write_read_gate", None),
+        ("native.gpu_interval", Some("moe")),
+        ("native.moe.expert", None),
+    ] {
+        let mut valid = record(name, owner, false)?;
+        validate_cross_layer_ancestry(&valid)?;
+        assert!(validate_cross_layer_ancestry(&record(name, owner, true)?).is_err());
+        let parent = valid[0].parent;
+        valid[0].parent = Some(0);
+        assert!(validate_cross_layer_ancestry(&valid).is_err());
+        valid[0].parent = parent;
+        let last = valid.len() - 1;
+        valid[last].parent = Some(usize::MAX);
+        assert!(validate_cross_layer_ancestry(&valid).is_err());
+    }
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(64)]
+fn cross_layer_ancestry_checks_actual_two_event_parent_guards() {
+    let triple: bool = kani::any();
+    let protected: bool = kani::any();
+    let root_parent: Option<usize> = kani::any();
+    let child_parent: Option<usize> = kani::any();
+    let event = |name: &str, parent| Event {
+        name: name.into(),
+        parent,
+        start_ns: 0,
+        end_ns: 0,
+        data: Value::Null,
+        allocation_requests: 0,
+        allocation_requested_bytes: 0,
+        allocation_api_ns: 0,
+    };
+    let events = [
+        event(
+            if triple {
+                "native.hc_gdn.cross_layer"
+            } else {
+                "native.row"
+            },
+            root_parent,
+        ),
+        event(
+            if protected {
+                "native.moe_wait"
+            } else {
+                "native.hc.encode_write"
+            },
+            child_parent,
+        ),
+    ];
+    let actual = validate_cross_layer_ancestry(&events).is_ok();
+    let expected = root_parent.is_none()
+        && (child_parent.is_none() || child_parent == Some(0))
+        && !(child_parent == Some(0) && protected && triple);
+    assert_eq!(actual, expected);
+    kani::cover!(actual && triple && !protected && child_parent == Some(0));
+    kani::cover!(
+        !actual && triple && protected && child_parent == Some(0) && root_parent.is_none()
+    );
+    kani::cover!(!actual && root_parent == Some(0));
+    kani::cover!(!actual && child_parent == Some(usize::MAX));
+    kani::cover!(actual && triple && protected && child_parent.is_none());
+}

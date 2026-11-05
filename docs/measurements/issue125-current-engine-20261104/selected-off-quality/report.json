@@ -1,0 +1,110 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+      "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+      "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+      "bytes": 9547344,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "name": "native8",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+        "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 81236,
+      "seconds": 47.651842999999644,
+      "evidence": {
+        "context": 4096,
+        "continuation_state_words": 28803072,
+        "cross_layer_triples": 238,
+        "decode_rows": 7,
+        "gdn_separate": 0,
+        "hc_gdn_doubles": 14,
+        "independent_first_logits": true,
+        "independent_first_state": true,
+        "limits": [
+          "CPU/GPU clocks not aligned; intervals overlap and are not additive",
+          "GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split",
+          "SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic",
+          "CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated",
+          "allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"
+        ],
+        "moe_gpu_intervals": 887,
+        "moe_wait_events": 336,
+        "parity": true,
+        "profile_scope_ancestry_checked": true,
+        "prompt_tokens": 87,
+        "scope": "test-only intrusive sampling-first accepted L1 baseline on exact M5/defaults; no release speed",
+        "status": "validated_selected_defaults_diagnostic_only",
+        "tokens": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458
+        ],
+        "events": 12311,
+        "workspace_allocation_requests": 2716
+      }
+    },
+    {
+      "name": "cli",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/selected-off-quality"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 81270,
+      "seconds": 11.744158541987417,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}

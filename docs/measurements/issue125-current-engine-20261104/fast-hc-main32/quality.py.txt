@@ -1,0 +1,46 @@
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+ROOT=Path('/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0')
+OUT=ROOT/'docs/measurements/issue125-current-engine-20261104/fast-hc-main32/quality'
+old=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+OUT.mkdir(parents=True,exist_ok=True);sink=OUT/'report.json';assert not sink.exists()
+report={'status':'started','parity':False,'all_children_joined':False,'phases':[]}
+def save():sink.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+def journal(s):
+ with (ROOT/'opti.md').open('a') as f:f.write('\nI125-CURRENT-HC FAST QUALITY '+s+'\n')
+save()
+try:
+ freeze=json.loads((ROOT/'docs/measurements/issue125-current-engine-20261104/freeze.json').read_text())
+ for item in freeze['artifacts'].values():assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+ for file,sha in freeze['source_files'].items():assert hashlib.sha256((ROOT/file).read_bytes()).hexdigest()==sha,file
+ env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))}
+ env.update({'DYLD_PRINT_LIBRARIES':'1','PYTHONPATH':str(ROOT),'MLXL3_FLASH_MODEL':'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_SSD_PREDICTOR_DTYPE':'f32','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_NATIVE_SSD_EXTRA_WAVE':'0','MLXL3_NATIVE_HC_UP_MIX':'1','MLXL3_NATIVE_HC_DOWN_INJECT':'1','MLXL3_NATIVE_HC_WORKSPACE':'0'})
+ lib=freeze['artifacts']['native-libtest']['path'];cli=freeze['artifacts']['direct-cli']['path']
+ phases=[('model',[lib,'gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths','--exact','--ignored','--nocapture','--test-threads=1'],'NATIVE_HC_KERNEL_MODEL'),('cli',['/Users/justin/Documents/mix-stq1_0/.venv/bin/python','/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',cli,str(OUT)],'NATIVE_SSD_DIRECT_CLI')]
+ for name,cmd,marker in phases:
+  row={'name':name,'status':'running','parity':False,'joined':False,'command':cmd};report['phases'].append(row);save();journal(name+' STARTED exclusivegrant');child=None;start=time.monotonic()
+  try:
+   with (OUT/(name+'.log')).open('xb') as log:
+    child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);row['pid']=child.pid;save();code=child.wait(timeout=180)
+   assert code==0 and not old['members'](child.pid)
+   text=(OUT/(name+'.log')).read_text();a=old['marker'](text,marker)
+   if name=='model':
+    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text;old['native_images'](text)
+    old['exact_fields'](a,{'parity':True,'case_count':16,'initial_cross_layer_enabled':True,'workspace_enabled':False,'reference_workspace_off':True,'continuation_workspace_off':True,'compared_state_words':460849152,'compared_logits':7946240,'initial_archive_states':84,'context':4096,'explicit_legacy_continuation':True})
+    assert type(a['cases']) is list and len(a['cases'])==16
+    seen=set()
+    for case in a['cases']:
+     assert type(case['token']) is int and case['token'] in [248044,1,42,7]
+     assert type(case['up']) is bool and type(case['down']) is bool
+     old['exact_fields'](case,{'control_cross_layer_triples':34,'cross_layer_triples':34,'continuation_cross_layer_triples':0,'up_uses':97*int(case['up']),'down_uses':96*int(case['down']),'workspace_uses':0,'parity':True})
+     seen.add((case['token'],case['up'],case['down']))
+    assert seen=={(t,u,d)for t in [248044,1,42,7]for u in [False,True]for d in [False,True]}
+   else:old['exact_fields'](a,{'status':'verified','parity':True,'completed':1,'context_length':4096,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True})
+   row.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=a);save();journal(name+' VALIDATED '+json.dumps(a,sort_keys=True));print(name+' validated',flush=True)
+  except BaseException as error:
+   row.update(status='failed',parity=False,joined=old['stop'](child),error=repr(error));save();raise
+ assert len(report['phases'])==2 and all(x['parity'] and x['joined'] for x in report['phases'])
+ report.update(status='validated',parity=True,all_children_joined=True);journal('2/2VALIDATED beforefastMAIN32')
+except BaseException as error:
+ report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(x['joined'] for x in report['phases']));journal('FAILED '+repr(error));raise
+finally:save()

@@ -188,8 +188,27 @@ fn direct_ssd_preserves_archived_full_states_logits_and_continuation() -> Result
             initial_direct_enabled,
             "qualified Apple M5 direct SSD setting required"
         );
+        let residency_requested = gpu.fixed_residency_enabled.get();
+        if residency_requested {
+            gpu.fixed_residency_enabled.set(enabled);
+        }
         gpu.ssd_direct_enabled = enabled;
         let mut model = FlashNext::load(&gpu, &checkpoint, 64)?;
+        let residency = model.fixed_residency_diagnostics();
+        let fixed_bytes =
+            serde_json::to_value(model.memory_ledger(None)?)?["fixed_weight_backing_bytes"]
+                .as_u64()
+                .context("missing fixed weight ledger")?;
+        if residency_requested {
+            ensure!(
+                if enabled {
+                    residency[0] > 0 && residency[1] == fixed_bytes
+                } else {
+                    residency == [0, 0]
+                },
+                "residency did not exercise the selected actual SDK path"
+            );
+        }
         ensure!(
             model.prefetcher.is_none(),
             "direct fixture requires depth0 without background prefetch"
@@ -245,6 +264,7 @@ fn direct_ssd_preserves_archived_full_states_logits_and_continuation() -> Result
                     .iter()
                     .all(|b| f32::from_le_bytes(*b).is_finite())
         );
+        let prefix_before_continuation = model.snapshot();
         let continuation = model.forward(42)?;
         ensure!(
             continuation.len() == 248320
@@ -263,7 +283,27 @@ fn direct_ssd_preserves_archived_full_states_logits_and_continuation() -> Result
                 "direct changed demanded record bytes"
             );
         }
-        branches.push(serde_json::json!({"enabled":enabled,"initial_direct_enabled":initial_direct_enabled,"counters":counts,"rows":3,"trace_rows":2,"offset":model.offset(),"snapshot_position_before_continuation":2}));
+        let completed_offset = model.offset();
+        if residency_requested {
+            model.release_idle_state()?;
+            ensure!(model.fixed_residency_diagnostics() == [0, 0]);
+            model.restore(&prefix_before_continuation)?;
+            ensure!(
+                model.forward(42)? == continuation,
+                "residency idle clear changed retained-prefix replay"
+            );
+            let resumed = model.fixed_residency_diagnostics();
+            ensure!(if enabled {
+                resumed[0] == residency[0] && resumed[1] == fixed_bytes
+            } else {
+                resumed == [0, 0]
+            });
+            let after = serde_json::to_value(model.memory_ledger(None)?)?;
+            ensure!(after["fixed_weight_backing_bytes"].as_u64() == Some(fixed_bytes));
+            model.release_idle_state()?;
+            ensure!(model.fixed_residency_diagnostics() == [0, 0]);
+        }
+        branches.push(serde_json::json!({"enabled":enabled,"initial_direct_enabled":initial_direct_enabled,"fixed_residency_requested":residency_requested,"residency_count":residency[0],"residency_bytes":residency[1],"residency_idle_resume":residency_requested,"fixed_weight_bytes":fixed_bytes,"counters":counts,"rows":3,"trace_rows":2,"offset":completed_offset,"snapshot_position_before_continuation":2}));
         if reference.is_none() {
             reference = Some(ModelReference {
                 rows: actual,

@@ -1,0 +1,75 @@
+{
+  "status": "passed",
+  "gpu_executed": false,
+  "target_dir": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10-defaults/cargo-target",
+  "commands": [
+    {
+      "name": "full-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "budget_seconds": 180,
+      "status": "completed",
+      "pid": 72572,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 33.644963875
+    },
+    {
+      "name": "direct-cli",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--bin",
+        "mlxl3-rs",
+        "--message-format=json-render-diagnostics"
+      ],
+      "budget_seconds": 240,
+      "status": "completed",
+      "pid": 73359,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 42.344807583000005
+    },
+    {
+      "name": "native-libtest",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json-render-diagnostics"
+      ],
+      "budget_seconds": 240,
+      "status": "completed",
+      "pid": 73851,
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 40.75982220899999
+    }
+  ],
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10-defaults/cargo-target/release/mlxl3-rs",
+      "sha256": "c3d37a4f97b5a29741bfc10600a39801aae347ff0c110b87eb25d8db1140b426",
+      "bytes": 10265920
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10-defaults/cargo-target/release/deps/mlxl3_native-bd13435986c206bf",
+      "sha256": "fff69d389d76973119840583f44e07cc0adadf4ffa50e331343802efc4e0ccba",
+      "bytes": 9901984
+    }
+  }
+}

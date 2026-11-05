@@ -39,6 +39,8 @@ kernel void flash_reference_qmv_nt2(FLASH_QMV_ARGUMENTS) {
 #define MLXL3_QMV_NT 1u
 
 #include "flash_static_qmv.metal"
+#include "flash_expert_axis.metal"
+#include "flash_gdn_resident.metal"
 
 // MTP's four-stream projection uses a different accumulation order in each split.
 #undef MLXL3_QMV_MB

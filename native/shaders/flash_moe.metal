@@ -59,3 +59,45 @@ MOE_KERNELS(float,"moe_switch_float","moe_mix_float")
 #undef MOE_KERNELS
 #undef EXPERT_ARGS
 #undef EXPERT_ARG
+
+
+#define PART_ARG(N) const device float* p##N [[buffer(N)]]
+#define PART_ARGS PART_ARG(0),PART_ARG(1),PART_ARG(2),PART_ARG(3),PART_ARG(4),PART_ARG(5),PART_ARG(6),PART_ARG(7),PART_ARG(8),PART_ARG(9)
+#define SVH_ARG(N,I) const device half* s##N [[buffer(I)]]
+#define SVH_ARGS SVH_ARG(0,10),SVH_ARG(1,11),SVH_ARG(2,12),SVH_ARG(3,13),SVH_ARG(4,14),SVH_ARG(5,15),SVH_ARG(6,16),SVH_ARG(7,17),SVH_ARG(8,18),SVH_ARG(9,19)
+kernel void moe_finish_mix_float(PART_ARGS,SVH_ARGS,
+    const device half* shared [[buffer(20)]],const device float* scores [[buffer(21)]],
+    const device float* multiplier [[buffer(22)]],device float* out [[buffer(23)]],
+    constant uint* extent [[buffer(24)]],uint tid [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    #pragma clang fp contract(off)
+    const uint route=tid/64, lane=tid%64, base=block*128;
+    const device float* partials[10]={p0,p1,p2,p3,p4,p5,p6,p7,p8,p9};
+    const device half* scales[10]={s0,s1,s2,s3,s4,s5,s6,s7,s8,s9};
+    threadgroup float values[10][128];
+    threadgroup half contributions[10][128];
+    for(uint i=lane;i<128;i+=64) values[route][i]=float(half(partials[route][base+i]));
+    // Every route executes every barrier; each owns its disjoint 128-value row.
+    hadamard128(values[route],lane);
+    for(uint i=lane;i<128;i+=64) {
+        half y=half(values[route][i]*as_type<float>(0x3db504f3u))*scales[route][base+i];
+        contributions[route][i]=y;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if(route==0) for(uint i=lane;i<128;i+=64) {
+        const uint col=base+i;
+        if(col>=extent[0])continue;
+        float sum=0;
+        for(uint r=0;r<8;++r) {
+            float term=float(contributions[r][i])*scores[r];
+            if(r<2) {float later=float(contributions[r+8][i])*scores[r+8];term=later+term;}
+            sum=term+sum;
+        }
+        float branch=float(shared[col])*multiplier[0];
+        out[col]=sum+branch;
+    }
+}
+#undef PART_ARGS
+#undef PART_ARG
+#undef SVH_ARGS
+#undef SVH_ARG

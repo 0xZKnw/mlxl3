@@ -1,0 +1,48 @@
+{
+  "status": "source_prepared_execution_pending",
+  "base": "574e4a8c",
+  "flag": "MLXL3_NATIVE_DEVICE_GREEDY",
+  "default": "OFF exactM5",
+  "commands_run": [
+    "/Users/justin/.cargo/bin/cargo fmt",
+    "git diff --check"
+  ],
+  "commands_not_run": [
+    "build",
+    "clippy",
+    "unit/physical tests",
+    "Kani",
+    "Metal compiler/verifier",
+    "GPU/model",
+    "speed"
+  ],
+  "source_sha256": {
+    "native/src/gpu_greedy_policy.rs": "1ffc2c129da2943b0e280065a0b171e0917c8e3a44c1777f321504ba746177ad",
+    "native/src/gpu/greedy.rs": "53fdfe0ee8d22304380fadf29ed6453ca6dd51a16ab28b42bc52b690d31e569e",
+    "native/src/gpu/ar30_greedy_tests.rs": "5d727c154dbbb4eadbc0d975d430539d94a69aeeede48499c6d8a80e6cb335e0",
+    "native/src/gpu.rs": "16dd082bb6c864edc762d70abdf96b9ea4b7fcdab7d4e97fb38c6ee622108d10",
+    "native/src/gpu/flash.rs": "1e8e2da417a655a3d6139b43f1be2b36957f85d9c5a18c4cce8260802f2256aa",
+    "native/src/gpu/ar20_capture_tests.rs": "0dcf5167b827d48c8e247818048063679672b11ccf4ffdc45f97aebbc95b4984",
+    "native/src/main.rs": "3ff834b5f31a79ed4b2e1ce9ad95032c9449469faeaf0099d76ed699a119db34",
+    "native/shaders/flash_logsumexp.metal": "0ae5534551f626a6f4a7b6abbd988fc0a86b7cc54edf3a54933b162e08269697",
+    "native/src/lib.rs": "6e3a0389dea0de8bfc100d290e120cffd9ce248a71457bb47931ecdd3ae22ac8",
+    "scripts/kani_obligations.json": "64d4f7d32cc134d0db9e4ab01adebee895361c42ff962799764d882eda23c845",
+    "tests/test_kani_ci.py": "9093d3fe95bb6144b16a15970ca869405e108022d65c359ddc726e366c58f764"
+  },
+  "component": "gpu::ar30_greedy_tests::physical_ar30_device_greedy_matches_independent_half_normalized_oracle",
+  "model": "gpu::ar20_capture_tests::physical_ar20_model_matches_independent_process_oracle",
+  "proof": "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",
+  "expected_not_observed": {
+    "component_cases": 11,
+    "valid": 8,
+    "invalid": 3,
+    "model_counts": [
+      2,
+      2
+    ],
+    "bridge32_counts": [
+      32,
+      31
+    ]
+  }
+}

@@ -59,6 +59,25 @@ impl<'a> NativeChatModel<'a> {
             Self::Qwen(q) => q.forward(t),
         }
     }
+    pub(crate) fn device_greedy_eligible(
+        &self,
+        temperature: f32,
+        top_k: usize,
+        penalty: f32,
+        speculative: bool,
+    ) -> bool {
+        self.flash()
+            .is_ok_and(|f| f.device_greedy_eligible(temperature, top_k, penalty, speculative))
+    }
+    pub(crate) fn device_greedy_counts(&self) -> [u64; 2] {
+        self.flash().map_or([0; 2], FlashNext::device_greedy_counts)
+    }
+    pub(crate) fn greedy_from_logits(&self, logits: &[u16]) -> Result<u32> {
+        self.flash()?.greedy_from_logits(logits)
+    }
+    pub(crate) fn forward_greedy(&mut self, token: u32) -> Result<u32> {
+        self.flash_mut()?.forward_greedy(token)
+    }
     pub(crate) fn forward_trace(&mut self, t: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
         match self {
             Self::Flash(f) => f.forward_trace(t),

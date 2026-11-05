@@ -1,0 +1,71 @@
+{
+  "status": "frozen_ready_await_root_GPU_grant",
+  "source_base": "65b50fa5413747c709729707fde5cd033d8b022e",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "one_GPU_process_at_a_time": true,
+  "environment_absent": [
+    "MLXL3_NATIVE_AR_HC_CHAIN",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+    "MLXL3_NATIVE_HC_GDN_CHAIN",
+    "MLXL3_NATIVE_FLASH_NT2",
+    "MLXL3_NATIVE_FLASH_STATIC_K",
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+    "MLXL3_NATIVE_ROUTED_SCRATCH",
+    "MLXL3_NATIVE_SSD_DIRECT",
+    "MLXL3_NATIVE_FLASH_EXPERT_ENCODER",
+    "MLXL3_NATIVE_GPU_GREEDY"
+  ],
+  "environment": {
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_NATIVE_HC_UP_MIX": "1",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "libtest": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/frozen/native-libtest",
+  "libtest_sha256": "8c0425b9e0127500f0b99c46dac9f1ada9b3401d8a9c05cdb3da9807c82d4c4a",
+  "cli": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/frozen/direct-cli",
+  "cli_sha256": "1e378cf32442031d5acd45e6c3c9dbf61bc27cb54a7d81056bf31ca9314a9edd",
+  "phases": [
+    {
+      "name": "component",
+      "argv_suffix": [
+        "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_components_and_fallbacks",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_s": 120,
+      "marker": "NATIVE_HC_KERNEL_COMPONENT",
+      "case_count": 48
+    },
+    {
+      "name": "model-four-variants",
+      "argv_suffix": [
+        "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_s": 240,
+      "marker": "NATIVE_HC_KERNEL_MODEL",
+      "case_count": 16,
+      "actual_up_uses_per_active_row": 97,
+      "actual_down_uses_per_active_row": 96,
+      "compared_finite_state_words": 460849152,
+      "compared_logits": 7946240
+    }
+  ],
+  "validation": "exactly1passed0failed0ignored; strict JSON one marker; finite nonempty fixed counts; failclosed on any mismatch",
+  "cleanup": "Popen start_new_session; finite deadline; SIGTERM+wait5 then SIGKILL+wait15; wait parent and require PGID empty; preserve failed report; no new controller yet",
+  "CLI_short": "root existing P01 runner; one golden2token 9f850af1cbba074b, ledger48x53/noMLX/shutdown after Rust parity"
+}

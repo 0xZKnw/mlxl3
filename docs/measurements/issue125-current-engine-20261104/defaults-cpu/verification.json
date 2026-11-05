@@ -1,0 +1,123 @@
+{
+  "env": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/cargo-target",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "stages": [
+    {
+      "name": "qualified-focused-corrected",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_gdn_policy_tests::",
+        "--",
+        "--test-threads=1"
+      ],
+      "expected_returncode": 0,
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 0.14336987500428222,
+      "joined": true
+    },
+    {
+      "name": "workspace-default-mutation",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_workspace_policy::tests::workspace_flag_is_strict_qualified_default_and_m5_only",
+        "--",
+        "--exact"
+      ],
+      "expected_returncode": 101,
+      "returncode": 101,
+      "status": "passed",
+      "seconds": 1.3100831249903422,
+      "joined": true
+    },
+    {
+      "name": "workspace-default-restored",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_workspace_policy::",
+        "--",
+        "--test-threads=1"
+      ],
+      "expected_returncode": 0,
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 1.3558019580086693,
+      "joined": true
+    },
+    {
+      "name": "workspace-flag-kani",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--harness",
+        "hc_workspace_policy::tests::hc_workspace_flag_preserves_qualified_default_and_bounded_literals",
+        "--output-format",
+        "terse"
+      ],
+      "expected_returncode": 0,
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 17.649041750002652,
+      "joined": true
+    },
+    {
+      "name": "final-cli",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--bin",
+        "mlxl3-rs",
+        "--message-format=json"
+      ],
+      "expected_returncode": 0,
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 28.80137333300081,
+      "joined": true
+    },
+    {
+      "name": "final-libtest",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "expected_returncode": 0,
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 39.476257749978686,
+      "joined": true
+    }
+  ]
+}

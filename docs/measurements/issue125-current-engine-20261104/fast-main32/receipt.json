@@ -1,0 +1,61 @@
+{
+  "status": "FAST_MAIN_ONLY_SCREEN_COMPLETE_NO_ESTABLISHED_GAIN",
+  "preregistration": "opti.md I125-CURRENT-L1-L2-FAST-MAIN32-20261104 was written before execution by owner under explicit user speed priority",
+  "quality": "quality/report.json",
+  "screen": "performance/summary.json",
+  "all_children_joined": true,
+  "new_default_activated": false,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+      "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+      "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+      "bytes": 9547344,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "reference": {
+    "path": "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen-default/cli",
+    "sha256": "9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c"
+  },
+  "driver": {
+    "path": "scripts/benchmark-flash-bridge.py",
+    "sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+    "unchanged": true,
+    "option": "--prompt MAIN --tokens32 --repeats1 --cache-gib3"
+  },
+  "sample_scope": {
+    "process_order": [
+      "AacceptedL1",
+      "BL1plusL2"
+    ],
+    "measured_per_variant": 1,
+    "warmup_per_variant": 1,
+    "complete_outputs_exact": 4,
+    "generated_tokens": 32,
+    "decode_transitions": 31,
+    "context": 4096,
+    "cache_gib": 3,
+    "readers": 4,
+    "lookahead": 0,
+    "prefix": false,
+    "old_qualified_flags": "absent incl L1Cross; actual accepted defaults",
+    "candidate_extra": "MLXL3_NATIVE_SSD_EXTRA_WAVE=1",
+    "other_experimental": "HC_UP_MIX=0 HC_DOWN_INJECT=0 HC_WORKSPACE=0",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0"
+  },
+  "limits": [
+    "NoHOLD/ABBA/repeatedcandidate/driftestimate/statisticalgain or sustainedthroughputclaim",
+    "Two current L1combination correctness gates pass; other current-engine options and extendedCLI/cancel/budget remain outside this short screen",
+    "Root granted exclusiveGPU afterallcompiler/proverchildrenjoined; temperature/GPUfrequency and pre-screenpower snapshot not measured by this controller.",
+    "UserreportedDeezerclosed in prior workspace retest; backgrounddesktop activity not eliminated."
+  ],
+  "GPU_handback": "Explicitly returned to root immediately after both processes exited and reports inspected; no further run authorized to this agent."
+}

@@ -1,4 +1,7 @@
-use super::{FlashExpert, FlashGate, MatrixView, Metal, read_weight, view::FloatType};
+use super::{
+    FlashExpert, FlashGate, MatrixView, Metal, buffer, projection::PendingExpertFinish,
+    read_weight, view::FloatType,
+};
 use crate::{
     checkpoint::{self, Checkpoint, TensorInfo},
     flash_support::{DemandPlan, EXPERT_BYTES, ExpertCache, ExpertFill},
@@ -14,6 +17,11 @@ mod prefetch;
 pub(super) use prefetch::PrefetchPool;
 pub(crate) use prefetch::PrefetchStats;
 
+#[cfg(test)]
+thread_local! {
+    pub(super) static EXTRA_WAVE_SUBMISSIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 /// One AR row, with immutable per-slot compressed records.
 pub struct FlashMoeRow<'a> {
     gpu: &'a Metal,
@@ -23,12 +31,19 @@ pub struct FlashMoeRow<'a> {
     records: Vec<TensorInfo>,
     cache: Rc<RefCell<ExpertCache>>,
     slots: prefetch::Slots<'a>,
+    // Only direct records received by this instance have recyclable provenance.
+    record_backings: Vec<Option<Buffer>>,
     pub(super) prefetcher: Option<Rc<RefCell<PrefetchPool<'a>>>>,
     predictor_half: bool,
+    pub(super) extra_wave_enabled: bool,
+    pub(super) record_reuse_enabled: bool,
     last: Vec<CommandBuffer>,
 }
 
 pub struct MoeOutput {
+    spin_wait_enabled: bool,
+    #[cfg(test)]
+    spin_wait_stats: Rc<[std::cell::Cell<u64>; 4]>,
     commands: Vec<CommandBuffer>,
     values: MatrixView,
     pub indices: Vec<u32>,
@@ -37,23 +52,46 @@ pub struct MoeOutput {
     multiplier_trace: Option<MatrixView>,
     #[cfg(test)]
     timeline: Vec<serde_json::Value>,
+    #[cfg(test)]
+    pub(super) extra_wave_submissions: usize,
+    #[cfg(test)]
+    pub(super) injected_failure: bool,
 }
 
 impl MoeOutput {
     pub fn completed(&self) -> Result<&MatrixView> {
         #[cfg(test)]
         let _wait = crate::flash_profile::span("native.moe_wait");
+        let mut failure = None;
         for command in &self.commands {
-            command.wait_until_completed();
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Flash MoE command failed ({:?})",
-                command.status()
-            );
+            let stats = super::wait_command(command, self.spin_wait_enabled);
+            #[cfg(test)]
+            for (counter, value) in self.spin_wait_stats.iter().zip(stats) {
+                counter.set(counter.get() + value);
+            }
+            #[cfg(not(test))]
+            let _ = stats;
+            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
+                failure = Some(anyhow::anyhow!(
+                    "Flash MoE command failed ({:?})",
+                    command.status()
+                ));
+            }
             #[cfg(test)]
             crate::flash_profile::native_gpu_interval(command, "moe");
         }
+        if let Some(error) = failure {
+            return Err(error);
+        }
+        #[cfg(test)]
+        ensure!(
+            !self.injected_failure,
+            "injected deferred MoE producer failure"
+        );
         Ok(&self.values)
+    }
+    pub(super) fn values_for_gpu(&self) -> &MatrixView {
+        &self.values
     }
     pub fn multiplier_trace(&self) -> Result<Option<Vec<u32>>> {
         self.multiplier_trace
@@ -76,7 +114,34 @@ impl<'a> FlashMoeRow<'a> {
         prefix: &str,
         capacity: usize,
     ) -> Result<Self> {
+        let extra_wave_enabled = match std::env::var("MLXL3_NATIVE_SSD_EXTRA_WAVE") {
+            Ok(value) => {
+                crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
+            }
+            Err(std::env::VarError::NotPresent) => {
+                crate::ssd_reads::extra_wave_flag(None, gpu.device.name() == "Apple M5")
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_SSD_EXTRA_WAVE must be 0 or 1")?;
+        let record_reuse_enabled = crate::ar10_defaults::setting(
+            "MLXL3_NATIVE_RECORD_REUSE",
+            gpu.device.name() == "Apple M5",
+        )?;
+        let slru_enabled = match std::env::var("MLXL3_NATIVE_CACHE_SLRU") {
+            Ok(value) => {
+                crate::ssd_reads::extra_wave_flag(Some(&value), gpu.device.name() == "Apple M5")
+            }
+            Err(std::env::VarError::NotPresent) => {
+                crate::ssd_reads::extra_wave_flag(None, gpu.device.name() == "Apple M5")
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_CACHE_SLRU must be 0 or 1")?;
         let mut cache = ExpertCache::new(capacity)?;
+        if slru_enabled {
+            cache.enable_slru();
+        }
         let control = |name, default: &str| -> Result<String> {
             match std::env::var(name) {
                 Ok(value) => Ok(value),
@@ -122,14 +187,20 @@ impl<'a> FlashMoeRow<'a> {
             records,
             cache,
             slots: Rc::new(RefCell::new((0..capacity).map(|_| None).collect())),
+            record_backings: (0..capacity).map(|_| None).collect(),
             prefetcher: None,
             predictor_half,
+            extra_wave_enabled,
+            record_reuse_enabled,
             switch: read_weight(&gpu.device, switch, 5120)?,
             last: Vec::new(),
         })
     }
 
     pub(super) fn enable_prefetch(&mut self, pool: Rc<RefCell<PrefetchPool<'a>>>) {
+        self.record_backings
+            .iter_mut()
+            .for_each(|owner| *owner = None);
         self.cache.borrow_mut().enable_predictive_lru();
         self.prefetcher = Some(pool);
     }
@@ -220,18 +291,47 @@ impl<'a> FlashMoeRow<'a> {
         if let Some(pool) = &self.prefetcher {
             pool.borrow_mut().poll(Some(&self.cache), &ids, false)?;
         }
-        for last in self.last.drain(..) {
-            ensure!(
-                last.status() == MTLCommandBufferStatus::Completed,
-                "previous Flash MoE command failed ({:?})",
-                last.status()
-            );
-        }
+        let reuse_requested = crate::ssd_reads::direct_read_eligible(
+            self.record_reuse_enabled && gpu.ssd_direct_enabled,
+            depth,
+            self.prefetcher.is_some(),
+        );
+        let quiescent = if reuse_requested {
+            self.drain_commands()?;
+            true
+        } else {
+            for last in self.last.drain(..) {
+                ensure!(
+                    last.status() == MTLCommandBufferStatus::Completed,
+                    "previous Flash MoE command failed ({:?})",
+                    last.status()
+                );
+            }
+            false
+        };
+        let reuse = crate::ssd_reads::record_reuse_eligible(
+            reuse_requested,
+            depth,
+            self.prefetcher.is_some(),
+            quiescent,
+        );
         let guard = ExpertFill::new(&self.cache);
         let plan = DemandPlan::reserve(&self.cache, &ids)?;
         let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
+        let mut owners = if reuse {
+            Vec::with_capacity(plan.reads.len())
+        } else {
+            Vec::new()
+        };
         for lease in &plan.reads {
-            self.slots.borrow_mut()[lease.slot] = None;
+            let old_views = self.slots.borrow_mut()[lease.slot].take();
+            let owner = self.record_backings[lease.slot].take();
+            // Snapshots contain recurrent state, never expert weights. With no
+            // prefetch, these private slots were the last future-access views.
+            drop(old_views);
+            if reuse {
+                owners.push(owner);
+            }
         }
         let records = || {
             plan.reads
@@ -243,7 +343,16 @@ impl<'a> FlashMoeRow<'a> {
             depth,
             self.prefetcher.is_some(),
         ) {
-            gpu.readers()?.submit_shared(records(), &gpu.device)?
+            if reuse {
+                gpu.readers()?.submit_shared_reusing(
+                    records()
+                        .zip(owners)
+                        .map(|((lease, record), owner)| (lease, record, owner)),
+                    &gpu.device,
+                )?
+            } else {
+                gpu.readers()?.submit_shared(records(), &gpu.device)?
+            }
         } else {
             gpu.readers()?.submit(records())?
         };
@@ -258,7 +367,21 @@ impl<'a> FlashMoeRow<'a> {
         let output = objc::rc::autoreleasepool(|| {
             #[cfg(test)]
             let mut timeline = Vec::new();
+            #[cfg(test)]
+            let mut extra_wave_submissions = 0;
             let mut outputs = BTreeMap::new();
+            let mut pending_finishes = BTreeMap::new();
+            let axis = gpu.expert_ar_enabled[3].get() && !trace && x.layout.shape == [1, 2560];
+            let finish_mix = gpu.moe_finish_mix_pipeline.as_ref().is_some_and(|p| {
+                crate::expert_ar_policy::finish_mix_eligible(
+                    gpu.moe_finish_mix.get(),
+                    x.dtype == FloatType::F32,
+                    trace,
+                    axis,
+                    p.thread_execution_width() as usize,
+                    p.max_total_threads_per_threadgroup() as usize,
+                )
+            });
             let multiplier = MatrixView::output(
                 gpu,
                 x.dtype,
@@ -271,6 +394,38 @@ impl<'a> FlashMoeRow<'a> {
                 },
             )?;
             let values = MatrixView::output(gpu, x.dtype, 1, 2560, Storage::StorageModeShared)?;
+            let slab = if gpu.expert_ar_enabled[2].get()
+                && !finish_mix
+                && !trace
+                && x.layout.shape == [1, 2560]
+            {
+                let backing = buffer(&gpu.device, 51200, Storage::StorageModePrivate)?;
+                #[cfg(test)]
+                gpu.expert_ar_uses[2].set(gpu.expert_ar_uses[2].get() + 1);
+                Some(backing)
+            } else {
+                None
+            };
+            ensure!(plan.routes.len() == 10, "invalid contribution route count");
+            let canonical_slots: [usize; 10] = std::array::from_fn(|index| plan.routes[index].0);
+            let destination = |slot| -> Result<Option<(&Buffer, u64)>> {
+                slab.as_ref()
+                    .map(|backing| {
+                        let route = canonical_slots
+                            .iter()
+                            .position(|&candidate| candidate == slot)
+                            .context("missing canonical route")?;
+                        let offset = crate::expert_ar_policy::prefix(
+                            route,
+                            canonical_slots.len(),
+                            2560,
+                            backing.length(),
+                        )
+                        .context("invalid canonical contribution prefix")?;
+                        Ok((backing, offset))
+                    })
+                    .transpose()
+            };
             let mut command = gpu.queue.new_command_buffer().to_owned();
             let shared = self
                 .shared
@@ -283,69 +438,196 @@ impl<'a> FlashMoeRow<'a> {
                 MTLSize::new(1, 1, 1),
                 512,
             );
-            for &(slot, hit) in &plan.routes {
-                if hit && !outputs.contains_key(&slot) {
-                    outputs.insert(
-                        slot,
-                        self.slots.borrow()[slot]
-                            .as_ref()
-                            .context("missing resident expert")?
-                            .encode_view(&command, x, Storage::StorageModePrivate)?,
-                    );
+            if axis {
+                let mut hot = Vec::new();
+                for &(slot, hit) in &plan.routes {
+                    if hit && !hot.contains(&slot) {
+                        hot.push(slot);
+                    }
+                }
+                if !hot.is_empty() {
+                    let slots = self.slots.borrow();
+                    let experts = hot
+                        .iter()
+                        .map(|&slot| slots[slot].as_ref().context("missing resident expert"))
+                        .collect::<Result<Vec<_>>>()?;
+                    let targets = hot
+                        .iter()
+                        .map(|&slot| destination(slot))
+                        .collect::<Result<Vec<_>>>()?;
+                    if finish_mix {
+                        let pending = FlashExpert::encode_ready_cohort_pending(
+                            &command, x, &experts, &targets,
+                        )?;
+                        pending_finishes.extend(hot.into_iter().zip(pending));
+                    } else {
+                        let contributions = FlashExpert::encode_ready_cohort(
+                            &command,
+                            x,
+                            &experts,
+                            &targets,
+                            Storage::StorageModePrivate,
+                        )?;
+                        outputs.extend(hot.into_iter().zip(contributions));
+                    }
+                }
+            } else {
+                for &(slot, hit) in &plan.routes {
+                    if hit && !outputs.contains_key(&slot) {
+                        outputs.insert(
+                            slot,
+                            self.slots.borrow()[slot]
+                                .as_ref()
+                                .context("missing resident expert")?
+                                .encode_view_into(
+                                    &command,
+                                    x,
+                                    Storage::StorageModePrivate,
+                                    destination(slot)?,
+                                )?,
+                        );
+                    }
                 }
             }
-            // Hot work is submitted before waiting for any cold record. The next two
-            // waves bind only CPU-complete, generation-checked immutable buffers.
+            // Every cold wave binds only CPU-complete, generation-checked immutable buffers.
             if reads.remaining() > 0 {
                 #[cfg(test)] timeline.push(serde_json::json!({"event":"hot_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
                 command.commit();
                 self.last.push(command);
                 command = gpu.queue.new_command_buffer().to_owned();
                 let mut wave = reads.ready(false)?;
+                let mut extra_used = false;
                 loop {
+                    let mut ready = Vec::new();
                     for (lease, payload) in wave {
+                        let direct = matches!(&payload, crate::ssd_reads::ReadPayload::Shared(_));
                         let backing = gpu.completed_record(payload)?;
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
                         ensure!(plan.publish(lease), "stale native SSD demand completion");
                         self.slots.borrow_mut()[lease.slot] = Some(expert);
-                        outputs.insert(
-                            lease.slot,
-                            self.slots.borrow()[lease.slot]
-                                .as_ref()
-                                .context("missing cold expert")?
-                                .encode_view(&command, x, Storage::StorageModePrivate)?,
-                        );
+                        if reuse && direct {
+                            self.record_backings[lease.slot] = Some(backing);
+                        }
+                        if axis {
+                            ready.push(lease.slot);
+                        } else {
+                            outputs.insert(
+                                lease.slot,
+                                self.slots.borrow()[lease.slot]
+                                    .as_ref()
+                                    .context("missing cold expert")?
+                                    .encode_view_into(
+                                        &command,
+                                        x,
+                                        Storage::StorageModePrivate,
+                                        destination(lease.slot)?,
+                                    )?,
+                            );
+                        }
+                    }
+                    if axis && !ready.is_empty() {
+                        let slots = self.slots.borrow();
+                        let experts = ready
+                            .iter()
+                            .map(|&slot| slots[slot].as_ref().context("missing cold expert"))
+                            .collect::<Result<Vec<_>>>()?;
+                        let targets = ready
+                            .iter()
+                            .map(|&slot| destination(slot))
+                            .collect::<Result<Vec<_>>>()?;
+                        if finish_mix {
+                            let pending = FlashExpert::encode_ready_cohort_pending(
+                                &command, x, &experts, &targets,
+                            )?;
+                            pending_finishes.extend(ready.into_iter().zip(pending));
+                        } else {
+                            let contributions = FlashExpert::encode_ready_cohort(
+                                &command,
+                                x,
+                                &experts,
+                                &targets,
+                                Storage::StorageModePrivate,
+                            )?;
+                            outputs.extend(ready.into_iter().zip(contributions));
+                        }
                     }
                     if reads.remaining() == 0 {
                         break;
                     }
-                    #[cfg(test)] timeline.push(serde_json::json!({"event":"w1_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                    #[cfg(test)] timeline.push(serde_json::json!({"event":if extra_used { "extra_submit" } else { "w1_submit" },"time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
                     command.commit();
                     self.last.push(command);
                     #[cfg(test)]
-                    gpu.readers()?.release_test_gate();
+                    if extra_used {
+                        extra_wave_submissions += 1;
+                        EXTRA_WAVE_SUBMISSIONS.with(|count| count.set(count.get() + 1));
+                    }
+                    let extra = crate::ssd_reads::extra_wave(
+                        crate::ssd_reads::direct_read_eligible(
+                            self.extra_wave_enabled,
+                            depth,
+                            self.prefetcher.is_some(),
+                        ),
+                        reads.remaining(),
+                        extra_used,
+                    );
+                    #[cfg(test)]
+                    {
+                        gpu.readers()?.release_test_gate();
+                        gpu.readers()?.release_wave_test_gate(!extra);
+                    }
                     command = gpu.queue.new_command_buffer().to_owned();
-                    wave = reads.ready(true)?;
+                    wave = if extra {
+                        extra_used = true;
+                        reads.ready_min(2)?
+                    } else {
+                        reads.ready(true)?
+                    };
                 }
             }
-            let mut bindings = plan
-                .routes
-                .iter()
-                .map(|(slot, _)| {
-                    outputs
-                        .get(slot)
-                        .context("missing ordered expert contribution")
-                })
-                .collect::<Result<Vec<_>>>()?;
-            bindings.extend([&shared, &weights.buffer, &multiplier.buffer, &values.buffer]);
-            Metal::encode_bound(
-                &command,
-                &gpu.moe_mix[dtype],
-                bindings.into_iter().map(|b| (b, 0)),
-                [2560u32],
-                MTLSize::new(80, 1, 1),
-                32,
-            );
+            if finish_mix {
+                let terms = plan
+                    .routes
+                    .iter()
+                    .map(|(slot, _)| {
+                        pending_finishes
+                            .get(slot)
+                            .context("missing ordered pending expert finish")
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                PendingExpertFinish::encode_mix(
+                    gpu,
+                    &command,
+                    &terms,
+                    &shared,
+                    [weights, &multiplier, &values],
+                )?;
+            } else {
+                let mut bindings = plan
+                    .routes
+                    .iter()
+                    .map(|(slot, _)| {
+                        let output = outputs
+                            .get(slot)
+                            .context("missing ordered expert contribution")?;
+                        Ok((output, destination(*slot)?.map_or(0, |(_, offset)| offset)))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                bindings.extend([
+                    (&shared, 0),
+                    (&weights.buffer, 0),
+                    (&multiplier.buffer, 0),
+                    (&values.buffer, 0),
+                ]);
+                Metal::encode_bound(
+                    &command,
+                    &gpu.moe_mix[dtype],
+                    bindings.into_iter(),
+                    [2560u32],
+                    MTLSize::new(80, 1, 1),
+                    32,
+                );
+            }
             #[cfg(test)]
             {
                 timeline.push(serde_json::json!({"event":"final_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
@@ -357,9 +639,16 @@ impl<'a> FlashMoeRow<'a> {
             self.last.push(command);
             guard.commit();
             Ok(MoeOutput {
+                spin_wait_enabled: gpu.spin_wait_enabled,
+                #[cfg(test)]
+                spin_wait_stats: gpu.spin_wait_stats.clone(),
                 commands: self.last.clone(),
                 #[cfg(test)]
                 timeline,
+                #[cfg(test)]
+                extra_wave_submissions,
+                #[cfg(test)]
+                injected_failure: false,
                 values,
                 read_bytes: plan.reads.len() as u64 * EXPERT_BYTES,
                 multiplier_trace: trace.then_some(multiplier),
@@ -419,6 +708,11 @@ impl<'a> FlashMoeRow<'a> {
 }
 
 impl FlashMoeRow<'_> {
+    #[cfg(test)]
+    pub(super) fn slru_counts(&self) -> (bool, usize) {
+        let cache = self.cache.borrow();
+        (cache.slru_enabled(), cache.slru_reservations())
+    }
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
         backings.slots.push(self.slots.borrow().len());
         self.gate.record_memory(backings)?;
@@ -438,14 +732,30 @@ impl FlashMoeRow<'_> {
         self.drain_commands()
     }
     fn drain_commands(&mut self) -> Result<()> {
+        let mut failure = None;
         for command in &self.last {
-            command.wait_until_completed();
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Flash MoE command failed during drain"
-            );
+            self.gpu.wait_command(command);
+            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
+                failure = Some(anyhow::anyhow!("Flash MoE command failed during drain"));
+            }
+        }
+        if let Some(error) = failure {
+            return Err(error);
         }
         self.last.clear();
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(super) fn clear_test_cache(&mut self) -> Result<()> {
+        self.drain()?;
+        self.cache.borrow_mut().invalidate();
+        self.slots
+            .borrow_mut()
+            .iter_mut()
+            .for_each(|slot| *slot = None);
+        self.record_backings
+            .iter_mut()
+            .for_each(|owner| *owner = None);
         Ok(())
     }
     pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
@@ -458,10 +768,14 @@ impl FlashMoeRow<'_> {
         }
         self.drain()?;
         let mut cache = ExpertCache::new(slots)?;
+        if self.cache.borrow().slru_enabled() {
+            cache.enable_slru();
+        }
         if self.prefetcher.is_some() || self.cache.borrow().predictive_lru_enabled() {
             cache.enable_predictive_lru();
         }
         self.slots = Rc::new(RefCell::new((0..slots).map(|_| None).collect()));
+        self.record_backings = (0..slots).map(|_| None).collect();
         self.cache = Rc::new(RefCell::new(cache));
         Ok(())
     }
@@ -471,6 +785,104 @@ impl FlashMoeRow<'_> {
 mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
+
+    #[test]
+    #[ignore = "physical Flash checkpoint: bounded extra cold wave versus old schedule"]
+    fn bounded_extra_wave_submits_two_records_before_the_held_tail() -> Result<()> {
+        let path = std::env::var_os("MLXL3_MOE_CHECKPOINT").context("Flash checkpoint required")?;
+        let checkpoint = checkpoint::inspect(std::path::Path::new(&path))?;
+        let gpu = Metal::new()?;
+        let initial = crate::ssd_reads::extra_wave_flag(
+            std::env::var("MLXL3_NATIVE_SSD_EXTRA_WAVE").ok().as_deref(),
+            gpu.device.name() == "Apple M5",
+        );
+        ensure!(
+            initial == Some(true),
+            "requires explicit extra-wave flag1 on qualified M5"
+        );
+        let input = (0..2560)
+            .map(|i| ((i % 73) as f32 - 36.) / 53.)
+            .collect::<Vec<_>>();
+        let initial_submissions = EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get);
+        let mut cases = 0;
+        for fp32 in [false, true] {
+            let layout = MatrixLayout {
+                shape: [1, 2560],
+                strides: [2560, 1],
+                offset: 0,
+            };
+            let x = if fp32 {
+                gpu.f32_storage(&input)?
+            } else {
+                gpu.f16_storage(
+                    &input
+                        .iter()
+                        .map(|&v| half::f16::from_f32(v).to_bits())
+                        .collect::<Vec<_>>(),
+                )?
+            }
+            .matrix(layout)?;
+            let mut expected = None;
+            for enabled in [false, true] {
+                let mut layer =
+                    FlashMoeRow::load(&gpu, &checkpoint, "model.language_model.layers.0.mlp", 10)?;
+                ensure!(layer.extra_wave_enabled, "load did not snapshot flag1");
+                layer.extra_wave_enabled = enabled;
+                let gates = gpu.readers()?.set_wave_test_gates();
+                let outcome = (|| -> Result<Vec<u32>> {
+                    let output = layer.submit(&x)?;
+                    ensure!(output.hits == 0 && output.read_bytes == 10 * EXPERT_BYTES);
+                    ensure!(output.commands.len() == if enabled { 4 } else { 3 });
+                    ensure!(output.extra_wave_submissions == usize::from(enabled));
+                    let extras = output
+                        .timeline
+                        .iter()
+                        .filter(|v| v["event"] == "extra_submit")
+                        .collect::<Vec<_>>();
+                    ensure!(extras.len() == usize::from(enabled));
+                    if enabled {
+                        ensure!(extras[0]["remaining_reads"] == 7);
+                    }
+                    let values = output.read()?;
+                    ensure!(values.len() == 2560 && values.iter().any(|&v| v != 0));
+                    ensure!(values.iter().all(|&v| if fp32 {
+                        f32::from_bits(v).is_finite()
+                    } else {
+                        half::f16::from_bits(v as u16).is_finite()
+                    }));
+                    let hot = layer.submit(&x)?;
+                    ensure!(
+                        hot.hits == 10
+                            && hot.read_bytes == 0
+                            && hot.commands.len() == 1
+                            && hot.extra_wave_submissions == 0
+                    );
+                    ensure!(hot.read()? == values);
+                    Ok(values)
+                })();
+                for gate in gates {
+                    gate.release();
+                }
+                gpu.readers()?.release_wave_test_gate(true);
+                let values = outcome?;
+                gpu.ensure_reads_idle()?;
+                if let Some(expected) = &expected {
+                    ensure!(&values == expected, "OFF/ON cold wave mismatch");
+                } else {
+                    expected = Some(values);
+                }
+                cases += 1;
+            }
+        }
+        let actual_submissions =
+            EXTRA_WAVE_SUBMISSIONS.with(std::cell::Cell::get) - initial_submissions;
+        ensure!(cases == 4 && actual_submissions == 2);
+        eprintln!(
+            "NATIVE_SSD_EXTRA_WAVE {}",
+            serde_json::json!({"cases":cases,"finite_words":cases*2560,"actual_extra_submissions":actual_submissions,"max_commands":4,"oracle":"unchanged OFF schedule; independent full-model oracle separate"})
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Flash checkpoint: next-gate predictions, bounded prefetch, faults and shrink"]
@@ -692,7 +1104,8 @@ mod tests {
         let first = layer.submit(&x)?;
         let second = layer.submit(&x)?;
         ensure!(
-            first.commands.len() == 3
+            first.extra_wave_submissions <= 1
+                && first.commands.len() == 3 + first.extra_wave_submissions
                 && second.commands.len() == 1
                 && first.hits == 0
                 && first.read_bytes == 10 * EXPERT_BYTES

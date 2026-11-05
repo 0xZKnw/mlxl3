@@ -1,0 +1,40 @@
+{
+  "checks": [
+    {
+      "name": "build-cli",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 33.20512954200967,
+      "joined": true
+    },
+    {
+      "name": "build-libtest",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--lib",
+        "--features",
+        "chat",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 42.26809283401235,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true
+}

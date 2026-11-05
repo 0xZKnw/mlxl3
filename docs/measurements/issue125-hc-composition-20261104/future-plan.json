@@ -1,0 +1,101 @@
+{
+  "status": "CPU_frozen_ready_await_exclusive_root_GPU_grant",
+  "environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MLXL3_NATIVE_HC_UP_MIX": "1",
+    "MLXL3_NATIVE_HC_DOWN_INJECT": "1",
+    "MLXL3_NATIVE_HC_WORKSPACE": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-composition/mix-stq1_0/build/hc-composition/frozen/direct-cli",
+      "sha256": "5e3ac213928457f9c85a88d2ce2e3ff05b3ca1d206a42c6ae61cd432fe6cff4c",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-composition/mix-stq1_0/build/hc-composition/frozen/native-libtest",
+      "sha256": "8a70d7cbeaa06699b26281ce01fc386fb34d826180b05d4b5ae78de6a1c3f87f",
+      "bytes": 9448800,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "tests_not_executed": [
+    {
+      "name": "gpu::hc::workspace_tests::physical_workspace_reuses_only_completed_private_temporaries",
+      "expected_fresh_f16_f32": [
+        7,
+        6
+      ],
+      "expected_reused": 3,
+      "expected_cases": 6
+    },
+    {
+      "name": "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_components_and_fallbacks",
+      "expected_cases": 48
+    },
+    {
+      "name": "gpu::hc::hc_kernel_tests::physical_hc_kernel_variants_preserve_model_states_and_actual_paths",
+      "expected_cases": 16,
+      "workspace_enabled": true,
+      "workspace_uses_per_row": 97,
+      "up_uses_when_selected": 97,
+      "down_uses_when_selected": 96
+    },
+    {
+      "name": "gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay",
+      "expected_workspace_bytes_when_L3": 4221440,
+      "expected_workspace_bytes_without_L3": 8194560
+    },
+    {
+      "name": "gpu::hc::workspace_tests::physical_workspace_preserves_model_states_logits_hidden_and_prefix",
+      "expected_steps": 4,
+      "workspace_actual_uses": 388,
+      "compared_state_words": 115212288,
+      "compared_logits": 1986560
+    },
+    {
+      "name": "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries",
+      "expected_triples_per_row": 34,
+      "expected_doubles_per_row": 2,
+      "expected_final_writes_per_row": 14
+    }
+  ],
+  "test_arguments": [
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "process_ownership": "Reuse existing strict bounded owner; one process/model; exact1test; strict finite JSON and markers; TERM5/KILL15/join and PGID empty on every outcome; report false until all relevant gates pass",
+  "source_only": true,
+  "included_published_L1": {
+    "PR": "https://github.com/0xZKnw/mlxl3/pull/126",
+    "runtime": "f99b0576f153926800554b1b9f93de28769c481f",
+    "default": "ON_exact_M5",
+    "performance_separate_only": {
+      "MAIN_percent": 5.897,
+      "HOLD_percent": 2.955
+    }
+  },
+  "excluded": "L2",
+  "environment_absent": [
+    "MLXL3_NATIVE_CROSS_LAYER",
+    "MLXL3_NATIVE_FLASH_NT2",
+    "MLXL3_NATIVE_FLASH_STATIC_K",
+    "MLXL3_NATIVE_AR_HC_CHAIN",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+    "MLXL3_NATIVE_ROUTED_SCRATCH",
+    "MLXL3_NATIVE_SSD_DIRECT",
+    "MLXL3_NATIVE_HC_GDN_CHAIN"
+  ]
+}

@@ -500,3 +500,73 @@ fn physical_reconstruction_cannot_accept_corrupt_first_slot_or_hit() {
     kani::cover!(!accepted && slot >= 53);
     kani::cover!(!accepted && slot == 0 && hit);
 }
+
+#[test]
+#[ignore = "offline actual per-layer SLRU replay, exact physical LFU reconstruction required; no GPU"]
+fn current_ar_traces_compare_slru_after_exact_physical_reconstruction() -> Result<()> {
+    let capture: Capture =
+        serde_json::from_slice(&fs::read(std::env::var("MLXL3_CURRENT_POOL_CAPTURE")?)?)?;
+    capture.validate()?;
+    for case in &capture.cases {
+        reconstruct(case)?;
+    }
+    let mut variants = Vec::new();
+    for enabled in [false, true] {
+        let mut cases = Vec::new();
+        for case in &capture.cases {
+            let mut caches = (0..48)
+                .map(|_| {
+                    let mut c = ExpertCache::new(53)?;
+                    if enabled {
+                        c.enable_slru();
+                    }
+                    Ok(c)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let mut counters = vec![[0u64; 3]; 48];
+            for _ in 0..2 {
+                for part in [&case.phases[0].prefill, &case.phases[0].decode] {
+                    for (i, obs) in part.iter().enumerate() {
+                        observe(&mut caches[i % 48], obs, &mut counters[i % 48], false)?;
+                    }
+                }
+            }
+            let mut phases = Vec::new();
+            for phase in &case.phases {
+                if !enabled {
+                    ensure!(counters == phase.before);
+                }
+                for (name, part, expected) in [
+                    ("prefill", &phase.prefill, &phase.after_prefill),
+                    ("decode", &phase.decode, &phase.after),
+                ] {
+                    let before = counters.clone();
+                    for (i, obs) in part.iter().enumerate() {
+                        observe(&mut caches[i % 48], obs, &mut counters[i % 48], !enabled)?;
+                    }
+                    if !enabled {
+                        ensure!(counters == *expected);
+                    }
+                    let deltas: [u64; 3] = std::array::from_fn(|j| {
+                        counters.iter().zip(&before).map(|(a, b)| a[j] - b[j]).sum()
+                    });
+                    ensure!(
+                        !part.is_empty()
+                            && deltas[0] + deltas[1] == (part.len() * 10) as u64
+                            && deltas[1] * EXPERT_BYTES == deltas[2]
+                    );
+                    phases.push(serde_json::json!({"phase":phase.name,"part":name,"cohorts":part.len(),"hits":deltas[0],"misses":deltas[1],"logical_read_bytes":deltas[2]}));
+                }
+            }
+            let uses: usize = caches.iter().map(ExpertCache::slru_reservations).sum();
+            ensure!(caches.iter().all(|c| c.slru_enabled() == enabled) && (uses > 0) == enabled);
+            cases.push(serde_json::json!({"name":case.name,"phases":phases,"actual_slru_reservations":uses}));
+        }
+        variants.push(serde_json::json!({"policy":if enabled {"SLRU_50_50_per_layer"} else {"decayed_LFU_reference"},"cases":cases}));
+    }
+    let report = serde_json::json!({"status":"complete_simulation_not_speed","baseline_slots_hits_and_counts":"exact_all_phases_after_two_initial_generations","total_slots":2544,"slots_per_layer":53,"no_gpu":true,"confirmed_tps_gain":false,"variants":variants});
+    let path = std::env::var("MLXL3_CURRENT_POOL_REPORT")?;
+    fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+    println!("AR20_SLRU_REPLAY {}", report);
+    Ok(())
+}

@@ -1,0 +1,62 @@
+{
+  "status": "passed",
+  "all_children_joined": true,
+  "GPU": "not_run",
+  "stages": [
+    {
+      "name": "profile-focused",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "flash_profile::",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "seconds": 1.7060008749831468
+    },
+    {
+      "name": "final-release-cli",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--bin",
+        "mlxl3-rs",
+        "--message-format=json"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "seconds": 30.983007583010476
+    },
+    {
+      "name": "final-release-libtest",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "seconds": 40.658548000006704
+    }
+  ]
+}

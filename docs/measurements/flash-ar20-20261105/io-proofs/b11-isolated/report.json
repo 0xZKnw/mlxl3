@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "returncode": 0,
+  "budget_seconds": 30,
+  "seconds": 2.635318833,
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--jobs",
+    "1",
+    "--output-format",
+    "terse",
+    "--harness",
+    "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode"
+  ],
+  "target": "/Users/justin/.codex/worktrees/flash-ar20-io/mix-stq1_0/build/ar20-io-kani-target",
+  "pgid": 20925,
+  "all_children_joined": true,
+  "source_commit": "6e18b89a",
+  "source_sha256": "88f99ddc2fb9de3a241a3e39fe7db8178731c0d63c97e0311f63d8b806977847",
+  "versions": {
+    "kani": "0.68.0",
+    "cbmc": "6.11.0"
+  },
+  "result": {
+    "harness": "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
+    "checks": 40,
+    "failed": 0,
+    "covers_satisfied": 4,
+    "covers_total": 4,
+    "solver_seconds": 0.1759986,
+    "domain": "two symbolic booleans and two complete [u64;2] device/inode identities; no assumptions or stubs",
+    "scope": "actual readahead_eligible and readahead_identity_matches admission helpers only; excludes Darwin fcntl, descriptor ownership/effects, file reads, GPU and concurrency"
+  },
+  "log": {
+    "gzip_path": "docs/measurements/flash-ar20-20261105/io-proofs/b11-isolated/guards.log.gz",
+    "raw_sha256": "3debf45d3bbc497f3c37ab62b3758442f04a90db8250725a1c9e14e3f955e0ea",
+    "gzip_sha256": "3e2122f23e53f5a9b2d4d33e231531ce4946c3cb370d025c301e73f5503578bd",
+    "raw_bytes": 11874
+  },
+  "previous_window": "../report.json"
+}

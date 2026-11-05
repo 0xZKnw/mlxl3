@@ -1,0 +1,355 @@
+{
+  "status": "short_screens_complete",
+  "parity": true,
+  "all_children_joined": true,
+  "processes": [
+    {
+      "name": "off-start",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-ar10-20261105/speed-final/0-off-start",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "180"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 95961,
+      "seconds": 32.687412708008196,
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 119,
+        "decode_seconds": 4.033809667,
+        "decode_tokens": 31,
+        "decode_tps": 7.685042815382792,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_profile": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 15.230377875,
+        "end_to_end_ttft_seconds": 11.196558084,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 32,
+        "memory": {
+          "mlx_active_bytes": 0,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 0,
+          "native_metal_allocated_bytes": 6608617472,
+          "process_compressed_lifetime_logical_bytes": 15968239616,
+          "process_compressed_logical_bytes": 2212757504,
+          "process_compressed_peak_logical_bytes": 2597093376,
+          "process_decompressions": 313043,
+          "process_footprint_bytes": 7214978880,
+          "process_id": 95962,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7251105600,
+          "process_start_abstime": 5629958927430
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 11.195762125,
+        "prefill_tps": 7.770797470386591,
+        "prepare_seconds": 0.000344042,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 11.196553126
+      }
+    },
+    {
+      "name": "all",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-ar10-20261105/speed-final/1-all",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "180"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WRITE_NORM": "1",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "1",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "1",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "1",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "1",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "1",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "1",
+        "MLXL3_NATIVE_GDN_WHOLE": "1",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "1",
+        "MLXL3_NATIVE_QSA_PREPARE": "1",
+        "MLXL3_NATIVE_QSA_GATE": "1",
+        "MLXL3_NATIVE_RECORD_REUSE": "1",
+        "MLXL3_NATIVE_READ_SPLIT": "1"
+      },
+      "pid": 95983,
+      "seconds": 30.077324459009105,
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 119,
+        "decode_seconds": 3.712650709,
+        "decode_tokens": 31,
+        "decode_tps": 8.349829388703746,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_profile": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 13.877971917,
+        "end_to_end_ttft_seconds": 10.165323667,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 32,
+        "memory": {
+          "mlx_active_bytes": 0,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 0,
+          "native_metal_allocated_bytes": 6608617472,
+          "process_compressed_lifetime_logical_bytes": 13472972800,
+          "process_compressed_logical_bytes": 1946468352,
+          "process_compressed_peak_logical_bytes": 2305310720,
+          "process_decompressions": 914971,
+          "process_footprint_bytes": 7220025176,
+          "process_id": 95984,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7249270616,
+          "process_start_abstime": 5630744804791
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 10.164497334,
+        "prefill_tps": 8.559203386180947,
+        "prepare_seconds": 0.000354292,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 10.165308291999999
+      }
+    },
+    {
+      "name": "off-end",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "docs/measurements/flash-ar10-20261105/speed-final/2-off-end",
+        "--prompt",
+        "MAIN",
+        "--tokens",
+        "32",
+        "--repeats",
+        "1",
+        "--cache-gib",
+        "3",
+        "--timeout",
+        "180"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 95999,
+      "seconds": 32.99852620900492,
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 119,
+        "decode_seconds": 4.083440249999999,
+        "decode_tokens": 31,
+        "decode_tps": 7.591637957724497,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_profile": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 15.35638075,
+        "end_to_end_ttft_seconds": 11.272930542000001,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 32,
+        "memory": {
+          "mlx_active_bytes": 0,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 0,
+          "native_metal_allocated_bytes": 6608617472,
+          "process_compressed_lifetime_logical_bytes": 15802138624,
+          "process_compressed_logical_bytes": 2333114368,
+          "process_compressed_peak_logical_bytes": 2637070336,
+          "process_decompressions": 319913,
+          "process_footprint_bytes": 7215486784,
+          "process_id": 96000,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7251367744,
+          "process_start_abstime": 5631466744672
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 11.272075875,
+        "prefill_tps": 7.718187933152109,
+        "prepare_seconds": 0.000383625,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 11.27292575
+      }
+    }
+  ],
+  "plan": {
+    "quality_reports": [
+      {
+        "path": "docs/measurements/flash-ar10-20261105/components-01/report.json",
+        "kind": "components"
+      },
+      {
+        "path": "docs/measurements/flash-ar10-20261105/quality-final/report.json",
+        "kind": "model"
+      },
+      {
+        "path": "docs/measurements/flash-ar10-20261105/quality-final/report.json",
+        "kind": "cli"
+      }
+    ],
+    "arms": [
+      {
+        "name": "off-start",
+        "flags": []
+      },
+      {
+        "name": "all",
+        "flags": [
+          "MLXL3_NATIVE_HC_WRITE_NORM",
+          "MLXL3_NATIVE_ROUTED_NT2_GU",
+          "MLXL3_NATIVE_ROUTED_NT2_DOWN",
+          "MLXL3_NATIVE_EXPERT_UP_FINISH",
+          "MLXL3_NATIVE_EXPERT_GU_PREPARE",
+          "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB",
+          "MLXL3_NATIVE_EXPERT_AXIS_QMV",
+          "MLXL3_NATIVE_GDN_WHOLE",
+          "MLXL3_NATIVE_GDN_JOINT_AB",
+          "MLXL3_NATIVE_QSA_PREPARE",
+          "MLXL3_NATIVE_QSA_GATE",
+          "MLXL3_NATIVE_RECORD_REUSE",
+          "MLXL3_NATIVE_READ_SPLIT"
+        ]
+      },
+      {
+        "name": "off-end",
+        "flags": []
+      }
+    ],
+    "mode": "final"
+  },
+  "plan_sha256": "637da94da5d1bf5b6ff118c055ac959a64e3691bc4bd980c8462b524d1a5bced",
+  "freeze_sha256": "d78c83b21188f11d18c2bec064240ba3737bcb6a6de8a25899fcac1e3615b4f1",
+  "controller_sha256": "07ab4d0e014212aa77f86212b7b276963b8bdc2f57980dc71fbf9b799de3ea9d",
+  "helpers": {
+    "process_helpers_sha256": "984aaecdd5691b72169b71298dac6e6146608c8b357bea983bd36b03d415ae85",
+    "validator_sha256": "1a59e87f733885c77a9cea5690c6d5230771351195d036e62d673425175c6c17"
+  },
+  "quality": [
+    {
+      "kind": "components",
+      "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/docs/measurements/flash-ar10-20261105/components-01/report.json",
+      "sha256": "16e0cbd0512eb09a146d35d9f862dac74259677133deaef0ecd3c08bd962ffd7"
+    },
+    {
+      "kind": "model",
+      "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/docs/measurements/flash-ar10-20261105/quality-final/report.json",
+      "sha256": "c3fb0c7423ef4975da9b41a680529b8c7e894ec6704f72956a126308b7fd32d9"
+    },
+    {
+      "kind": "cli",
+      "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/docs/measurements/flash-ar10-20261105/quality-final/report.json",
+      "sha256": "c3fb0c7423ef4975da9b41a680529b8c7e894ec6704f72956a126308b7fd32d9"
+    }
+  ],
+  "golden": {
+    "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json",
+    "sha256": "f6337224038a550396ee82d9aa6bdd00fd23f9dac23b4375dcc93885d844740c",
+    "token_hash": "bfa49090cb33d4fe"
+  },
+  "controls": {
+    "off-start": 7.685042815382792,
+    "off-end": 7.591637957724497
+  },
+  "endpoint_drift_percent": -1.2154110250541583,
+  "limits": [
+    "One warmup + one MAIN32 measurement per arm; no HOLD or sustained validation",
+    "Group results do not establish individual contributions; no addition of gains",
+    "Endpoint drift is recorded without an automatic rejection or minimum gain threshold"
+  ]
+}

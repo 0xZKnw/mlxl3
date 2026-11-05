@@ -1,0 +1,39 @@
+{
+  "status": "CPU_validated_GPU_pending",
+  "all_cpu_children_joined": true,
+  "format": "pass",
+  "normal_inventory_files": 256,
+  "strict_clippy": [
+    "CPU",
+    "DIRECT/chat",
+    "MLX/chat"
+  ],
+  "focused_tests": {
+    "workspace_policy": 4,
+    "qualified_hardware_policy": 3,
+    "profile": 8
+  },
+  "negative_test": "realworkspaceflagolddefaultfalse mutation caused expected101; restored4tests pass",
+  "kani": {
+    "harness": "hc_workspace_policy::tests::hc_workspace_flag_preserves_qualified_default_and_bounded_literals",
+    "checks": 240,
+    "failed": 0,
+    "unreachable": 7,
+    "covers": 5,
+    "domain": "symbolichardwarebool/presentbool/arbitraryUTF8bytearray4withlength0..4; unwind10; noassume/stub",
+    "limitation": "terse output retains7unreachable count, not their individual labels; all5covers satisfied; noMetal/IO/concurrency/fullengine proof"
+  },
+  "manifest_checks": {
+    "pytest": "2skippedLinuxonly, retained",
+    "direct_function_calls": "both existing baseline/partition functions PASS via runpy",
+    "ruff": "tests/test_kani_ci.py PASS"
+  },
+  "initial_mistake": "qualified-focused filterhc_gdn_policy::selected0tests; receipt preserved, correctedhc_gdn_policy_tests::3pass",
+  "full_suites": "reuse prior CPU347/8,DIRECT363/60,MLX399/278; no repeatedfullsuite forpolicysnapshot/testonlychange",
+  "releases_seconds": {
+    "CLI": 28.80137333300081,
+    "libtest": 39.48
+  },
+  "freeze": "../freeze-defaults.json",
+  "old_ancestry_Kani": "compilerICEbeforeobligations remains unverified and CIcorehook preserved"
+}

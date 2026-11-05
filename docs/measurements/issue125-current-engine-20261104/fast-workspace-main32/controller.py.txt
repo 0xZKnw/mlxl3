@@ -1,0 +1,68 @@
+"""One explicitly granted W-model/CLI/MAIN32 extension; reuse qualified owners/oracles."""
+import hashlib,json,math,os,runpy,subprocess,time
+from pathlib import Path
+ROOT=Path('/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0')
+OWN=Path('/Users/justin/.codex/worktrees/issue125-hc-workspace/mix-stq1_0')
+OUT=ROOT/'docs/measurements/issue125-current-engine-20261104/fast-workspace-main32'
+OUT.mkdir(parents=True,exist_ok=False)
+h=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+w=runpy.run_path(str(OWN/'build/hc-workspace/quality.py'))
+freeze=h['strict_json']((ROOT/'docs/measurements/issue125-current-engine-20261104/freeze.json').read_text())
+py='/Users/justin/Documents/mix-stq1_0/.venv/bin/python'
+lib=freeze['artifacts']['native-libtest'];cli=freeze['artifacts']['direct-cli']
+driver=ROOT/'scripts/benchmark-flash-bridge.py'
+assert hashlib.sha256(driver.read_bytes()).hexdigest()=='8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8'
+for a in (lib,cli):assert hashlib.sha256(Path(a['path']).read_bytes()).hexdigest()==a['sha256']
+for f,sha in freeze['source_files'].items():assert hashlib.sha256((ROOT/f).read_bytes()).hexdigest()==sha,f
+(OUT/'controller.py.txt').write_text(Path(__file__).read_text())
+env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))}
+env.update({'PYTHONPATH':str(ROOT),'MLXL3_FLASH_MODEL':'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_SSD_PREDICTOR_DTYPE':'f32','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_NATIVE_SSD_EXTRA_WAVE':'0','MLXL3_NATIVE_HC_UP_MIX':'0','MLXL3_NATIVE_HC_DOWN_INJECT':'0','MLXL3_NATIVE_HC_WORKSPACE':'1'})
+report={'status':'running','parity':False,'all_children_joined':False,'artifacts':freeze['artifacts'],'environment':env.copy(),'phases':[]}
+# Persist only task-relevant controls, never inherited credentials/environment.
+report['environment']={k:v for k,v in env.items() if k.startswith(('MLXL3_','PYTHONPATH'))}
+def save(): (OUT/'campaign.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+def journal(s):
+ with (ROOT/'opti.md').open('a') as f:f.write('\nI125-CURRENT-WORKSPACE FAST '+s+'\n')
+save()
+reference_path=ROOT/'docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json'
+reference=h['strict_json'](reference_path.read_text())
+h['exact_fields'](reference,{'status':'validated','tokens':32,'repeats':1,'reaped':True,'reader_joined':True,'binary_sha256':'9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c'})
+(OUT/'protocol.json').write_text(json.dumps({'trial':'I125-CURRENT-WORKSPACE-FAST-MAIN32-20261104','candidate':cli,'libtest':lib,'reference_report':str(reference_path),'reference_report_sha256':hashlib.sha256(reference_path.read_bytes()).hexdigest(),'driver_sha256':hashlib.sha256(driver.read_bytes()).hexdigest(),'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'environment':report['environment'],'prompt':'MAIN','tokens':32,'repeats':1,'warmups':1,'limits':['previous dated reference, not contemporaneous','single measured sample; no within-arm drift estimate','no established gain/HOLD/sustained claim']},indent=2)+'\n')
+try:
+ for name,cmd in [('model',[lib['path'],'gpu::hc::workspace_tests::physical_workspace_preserves_model_states_logits_hidden_and_prefix','--exact','--ignored','--nocapture','--test-threads=1']),('cli',[py,'/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',cli['path'],str(OUT)]),('MAIN32',[py,str(driver),cli['path'],env['MLXL3_FLASH_MODEL'],str(OUT/'candidate'),'--prompt','MAIN','--tokens','32','--repeats','1','--cache-gib','3','--timeout','300'])]:
+  row={'name':name,'status':'running','parity':False,'joined':False,'command':cmd};report['phases'].append(row);save();journal(name+' STARTED exclusive grant');child=None;start=time.monotonic()
+  try:
+   runenv=env.copy()
+   if name!='MAIN32':runenv['DYLD_PRINT_LIBRARIES']='1'
+   with (OUT/(name+'.log')).open('xb') as log:
+    child=subprocess.Popen(cmd,cwd=ROOT,env=runenv,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);row['pid']=child.pid;save();code=child.wait(timeout=600 if name=='MAIN32' else 180)
+   assert code==0 and not h['members'](child.pid)
+   text=(OUT/(name+'.log')).read_text()
+   if name=='model':
+    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text;h['native_images'](text)
+    a=h['marker'](text,'I125_HC_WORKSPACE_MODEL');w['validate_model'](a,h);h['exact_fields'](a,{'initial_cross_layer_enabled':True})
+    for s in a['steps']:h['exact_fields'](s,{'control_cross_layer_triples':34,'cross_layer_triples':34,'continuation_cross_layer_triples':0})
+   elif name=='cli':
+    a=h['marker'](text,'NATIVE_SSD_DIRECT_CLI');h['exact_fields'](a,{'status':'verified','parity':True,'completed':1,'context_length':4096,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True})
+    ledger=h['strict_json']((OUT/'cli4096-short/report.json').read_text())['ledger'];assert type(ledger['state_backing_bytes']['hc_workspace']) is int and ledger['state_backing_bytes']['hc_workspace']==8194560
+   else:
+    a=h['strict_json']((OUT/'candidate/report.json').read_text());h['exact_fields'](a,{'status':'validated','tokens':32,'repeats':1,'reaped':True,'reader_joined':True,'binary_sha256':cli['sha256']})
+    assert set(a['prompts'])=={'MAIN'} and len(a['warmup'])==len(a['runs'])==len(reference['warmup'])==len(reference['runs'])==1
+    outputs=reference['warmup']+reference['runs']+a['warmup']+a['runs']
+    for r in outputs:
+     assert r['prompt']=='MAIN' and type(r['text']) is str and r['text'] and type(r['token_hash']) is str and r['token_hash']
+     assert (r['text'],r['token_hash'])==(outputs[0]['text'],outputs[0]['token_hash'])
+     h['exact_fields'](r['stats'],{'generated_tokens':32,'decode_tokens':31,'cached_prompt_tokens':0,'context_limit':4096})
+     h['exact_fields'](r['generation_mode'],{'mtp_active':False,'dflash_active':False})
+     for k in ['decode_tps','decode_seconds','ttft_seconds','elapsed_seconds']:assert type(r['stats'][k]) in (int,float) and math.isfinite(r['stats'][k]) and r['stats'][k]>0
+    old,new=reference['runs'][0]['stats'],a['runs'][0]['stats']
+    summary={'status':'exploratory_previous_control_screen','parity':True,'all_children_joined':True,'gain_established':False,'outputs_checked':4,'previous_control':str(reference_path),'metrics':{k:{'reference':old[k],'candidate':new[k],'single_sample_percent':100*(new[k]/old[k]-1)} for k in ['decode_tps','decode_seconds','ttft_seconds','elapsed_seconds']},'metal_allocated_bytes':[old['memory']['native_metal_allocated_bytes'],new['memory']['native_metal_allocated_bytes']],'logical_workspace_ledger_bytes':8194560,'limits':['previous dated A, not adjacent contemporaneous control','one warmup and one measured response each; no drift estimate','MAIN only; no established/sustained gain']}
+    (OUT/'summary.json').write_text(json.dumps(summary,indent=2,allow_nan=False)+'\n');a=summary
+   row.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=a);save();journal(name+' VALIDATED '+json.dumps(a,sort_keys=True));print(name+' VALIDATED '+json.dumps(a,sort_keys=True),flush=True)
+  except BaseException as error:
+   row.update(status='failed',parity=False,joined=h['stop'](child),error=repr(error));save();raise
+ assert len(report['phases'])==3 and all(p['parity'] is True and p['joined'] is True for p in report['phases'])
+ report.update(status='validated',parity=True,all_children_joined=True);journal('CLOSED 2quality gates + 1candidate MAIN32 all children joined')
+except BaseException as error:
+ report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(p['joined'] for p in report['phases']));journal('FAILED '+repr(error));raise
+finally:save()

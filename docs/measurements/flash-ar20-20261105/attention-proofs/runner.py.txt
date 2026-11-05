@@ -1,0 +1,22 @@
+import hashlib,json,os,re,runpy,subprocess,time
+from pathlib import Path
+ROOT=Path.cwd();OUT=ROOT/'docs/measurements/flash-ar20-20261105/attention-proofs'
+OLD=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+names=['flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities','flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids']
+cmd=['/Users/justin/.cargo/bin/cargo','kani','--lib','--no-default-features','--jobs','1','--output-format','terse']
+for n in names:cmd+=['--harness',n]
+r={'status':'running','returncode':None,'all_children_joined':False,'command':cmd,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'source_sha256':hashlib.sha256((ROOT/'native/src/flash_support.rs').read_bytes()).hexdigest(),'versions':subprocess.check_output(['/Users/justin/.cargo/bin/cargo','kani','--version'],text=True).strip(),'properties':names,'budget_seconds':90}
+sink=OUT/'report.json';assert not sink.exists();sink.write_text(json.dumps(r,indent=2)+'\n')
+env={**os.environ,'PATH':'/Users/justin/.cargo/bin:'+os.environ['PATH'],'CARGO_TARGET_DIR':str(ROOT/'build/ar20-attention-kani/target'),'MACOSX_DEPLOYMENT_TARGET':'26.2'}
+child=None;start=time.monotonic()
+try:
+ with (OUT/'kani.log').open('x') as log:
+  child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);r['pgid']=child.pid;code=child.wait(timeout=85)
+ text=(OUT/'kani.log').read_text();r.update(status='passed' if code==0 else 'failed',returncode=code,counters=re.findall(r'\*\* (\d+) of (\d+) failed(?: \((\d+) unreachable\))?',text),covers=re.findall(r'\*\* (\d+) of (\d+) cover properties satisfied',text),summaries=re.findall(r'Complete - (\d+) successfully verified harnesses, (\d+) failures, (\d+) total',text))
+ assert code==0 and r['summaries']==[('2','0','2')],r
+except subprocess.TimeoutExpired:r.update(status='timeout_unverified')
+except BaseException as error:r.update(status='failed',error=repr(error));raise
+finally:
+ r['all_children_joined']=OLD['stop'](child);r['seconds']=time.monotonic()-start;sink.write_text(json.dumps(r,indent=2)+'\n')
+print(json.dumps(r,indent=2))
+assert r['status']=='passed' and r['all_children_joined']

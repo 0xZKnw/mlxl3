@@ -10,6 +10,7 @@ pub struct ResourcePlan {
     ple_and_hidden_bytes: u64,
     append_overlap_bytes: u64,
     scratch_reserve_bytes: u64,
+    hc_workspace_reserve_bytes: u64,
 }
 
 impl ResourcePlan {
@@ -32,6 +33,7 @@ impl ResourcePlan {
             // Policy headroom for transient graphs, logits, staging and programs.
             // This is an admission estimate, independent of MLX's allocator limit.
             scratch_reserve_bytes: 512 << 20,
+            hc_workspace_reserve_bytes: 0,
         })
     }
 
@@ -51,6 +53,15 @@ impl ResourcePlan {
         Some(plan)
     }
 
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn with_hc_workspace(mut self, count: u64, up: bool) -> Option<Self> {
+        let bytes = crate::hc_workspace_policy::Key { fp32: true, up }.reserve(count)?;
+        self.hc_workspace_reserve_bytes = 0;
+        self.extra_bytes().checked_add(bytes)?;
+        self.hc_workspace_reserve_bytes = bytes;
+        Some(self)
+    }
+
     pub fn extra_bytes(self) -> u64 {
         self.kv_bytes
             + self.index_bytes
@@ -58,6 +69,15 @@ impl ResourcePlan {
             + self.ple_and_hidden_bytes
             + self.append_overlap_bytes
             + self.scratch_reserve_bytes
+            + self.hc_workspace_reserve_bytes
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn with_resident_scratch(mut self) -> Option<Self> {
+        self.scratch_reserve_bytes = self
+            .scratch_reserve_bytes
+            .checked_add(crate::resident_scratch_policy::CAP)?;
+        Some(self)
     }
 }
 

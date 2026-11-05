@@ -1,0 +1,102 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "model",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+        "gpu::flash::ssd_wave_tests::bounded_extra_wave_preserves_model_states_logits_hidden_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "pid": 77787,
+      "seconds": 8.338757374993293,
+      "evidence": {
+        "actual_extra_submissions": 192,
+        "cold_control_and_candidate": true,
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "failure_cross_layer_triples": 14,
+        "failure_extra_submissions": 21,
+        "initial_archive_states": 84,
+        "initial_cross_layer_enabled": true,
+        "late_failure_layer": 20,
+        "late_failure_recovery": true,
+        "parity": true,
+        "retained_prefix": true,
+        "rollback_logits": 496640,
+        "rollback_state_words": 28803072,
+        "steps": [
+          {
+            "actual_extra_submissions": 48,
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "control_extra_submissions": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 1,
+            "token": 248044
+          },
+          {
+            "actual_extra_submissions": 48,
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "control_extra_submissions": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 2,
+            "token": 1
+          },
+          {
+            "actual_extra_submissions": 48,
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "control_extra_submissions": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 3,
+            "token": 42
+          },
+          {
+            "actual_extra_submissions": 48,
+            "continuation_cross_layer_triples": 0,
+            "control_cross_layer_triples": 34,
+            "control_extra_submissions": 0,
+            "cross_layer_triples": 34,
+            "snapshot_position": 4,
+            "token": 7
+          }
+        ]
+      }
+    },
+    {
+      "name": "cli",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/fast-main32/quality"
+      ],
+      "pid": 77880,
+      "seconds": 12.535758165991865,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}

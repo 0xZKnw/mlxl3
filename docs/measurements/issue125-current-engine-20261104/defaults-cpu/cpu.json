@@ -1,0 +1,145 @@
+{
+  "status": "in_progress",
+  "env": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/cargo-target",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "stages": [
+    {
+      "name": "fmt",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--all"
+      ],
+      "status": "passed",
+      "pid": 79474,
+      "returncode": 0,
+      "seconds": 0.6867702499730512,
+      "joined": true
+    },
+    {
+      "name": "inventory",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "status": "passed",
+      "pid": 79477,
+      "returncode": 0,
+      "seconds": 0.5024797919904813,
+      "joined": true
+    },
+    {
+      "name": "workspace-focused",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_workspace_policy::",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 79481,
+      "returncode": 0,
+      "seconds": 2.5412723749759607,
+      "joined": true
+    },
+    {
+      "name": "qualified-focused",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_gdn_policy::",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 79523,
+      "returncode": 0,
+      "seconds": 0.09203245799290016,
+      "joined": true
+    },
+    {
+      "name": "profile-focused",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "flash_profile::",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "pid": 79525,
+      "returncode": 0,
+      "seconds": 0.0899789170071017,
+      "joined": true
+    },
+    {
+      "name": "clippy-cpu",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 79527,
+      "returncode": 0,
+      "seconds": 1.0885498329880647,
+      "joined": true
+    },
+    {
+      "name": "clippy-direct",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 79572,
+      "returncode": 0,
+      "seconds": 2.143997458013473,
+      "joined": true
+    },
+    {
+      "name": "clippy-mlx",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "pid": 79618,
+      "returncode": 0,
+      "seconds": 5.094450832984876,
+      "joined": true
+    }
+  ]
+}

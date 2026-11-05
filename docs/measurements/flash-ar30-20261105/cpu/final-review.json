@@ -1,0 +1,34 @@
+{
+  "status": "passed_cpu_checks",
+  "full_direct": {
+    "passed": 396,
+    "ignored": 91,
+    "test_binaries_with_zero_tests": 2
+  },
+  "clippy": [
+    "no-direct/chat",
+    "direct/chat",
+    "mlx/chat"
+  ],
+  "native_inventory_files": 276,
+  "portable": {
+    "passed": 10,
+    "subtests_passed": 2
+  },
+  "kani_scratch": {
+    "obligations": {
+      "SUCCESS": 381,
+      "UNREACHABLE": 6,
+      "SATISFIED": 6
+    },
+    "covers": 6,
+    "bounds": "full symbolic u64 budget/claim/refund, seven admission booleans, completion/same/exact booleans, positions u16 native context4096; no loops/assumptions/stubs; no GPU proof",
+    "sha256": "bff4201c37d492efef64ffc2fe73a2e1c1274a9f5c5a8e166043849ab5d469dd"
+  },
+  "limits": [
+    "All physical tests remain ignored until explicitly selected separately.",
+    "Kani checks CPU guards only, not Metal, command completion or whole inference.",
+    "CrossHair unavailable.",
+    "Initial large_enum_variant Clippy failure preserved and repaired; full checks rerun on boxed variant."
+  ]
+}

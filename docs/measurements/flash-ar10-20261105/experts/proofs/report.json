@@ -1,0 +1,104 @@
+{
+  "status": "complete",
+  "source_sha256": "55cef6b8d1447618b274941c45e1684f0fc295681c97573700385010084265fe",
+  "timeout_seconds_per_harness": 180,
+  "proofs": [
+    {
+      "harness": "expert_ar_prefixes_are_bounded_disjoint_and_never_overflow",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "expert_ar_policy::expert_ar_prefixes_are_bounded_disjoint_and_never_overflow"
+      ],
+      "status": "completed",
+      "process_group": 93140,
+      "returncode": 0,
+      "seconds": 8.484580916003324,
+      "failed_properties": 0,
+      "properties": 23,
+      "covers_satisfied": 3,
+      "covers_total": 3,
+      "unreachable_count": 0,
+      "verdict_successful": true
+    },
+    {
+      "harness": "expert_ar_selection_requires_exact_actual_record_extents",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "expert_ar_policy::expert_ar_selection_requires_exact_actual_record_extents"
+      ],
+      "status": "completed",
+      "process_group": 93468,
+      "returncode": 0,
+      "seconds": 2.0914051669824403,
+      "failed_properties": 0,
+      "properties": 213,
+      "covers_satisfied": 3,
+      "covers_total": 3,
+      "unreachable_count": 6,
+      "verdict_successful": true
+    },
+    {
+      "harness": "expert_axis_admits_only_nonempty_bounded_ready_tables",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "expert_ar_policy::expert_axis_admits_only_nonempty_bounded_ready_tables"
+      ],
+      "status": "completed",
+      "process_group": 93532,
+      "returncode": 0,
+      "seconds": 1.4897596249938942,
+      "failed_properties": 0,
+      "properties": 3,
+      "covers_satisfied": 4,
+      "covers_total": 4,
+      "unreachable_count": 0,
+      "verdict_successful": true
+    },
+    {
+      "harness": "expert_ar_flags_are_strict_off_and_require_qualified_hardware",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "expert_ar_policy::expert_ar_flags_are_strict_off_and_require_qualified_hardware"
+      ],
+      "status": "completed",
+      "process_group": 93565,
+      "returncode": 0,
+      "seconds": 17.71820933400886,
+      "failed_properties": 0,
+      "properties": 237,
+      "covers_satisfied": 5,
+      "covers_total": 5,
+      "unreachable_count": 7,
+      "verdict_successful": true
+    }
+  ],
+  "all_children_joined": true,
+  "versions": {
+    "kani": "Kani Rust Verifier 0.68.0 (cargo plugin)\nCBMC 6.11.0",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+  },
+  "root_source_sha256": "55cef6b8d1447618b274941c45e1684f0fc295681c97573700385010084265fe",
+  "inspected": true,
+  "limits": [
+    "Rust CPU source-level bounded verification only; no MSL/Metal/IO/concurrency proof",
+    "No stubs or assumptions; prefix/table arithmetic fullusize/u32/u64; strictflag validUTF8 up to4bytes/unwind10; exactextent harnessunwind40",
+    "13 unreachable std/model guards inspected; all functional assertions and15covers reachable",
+    "No mutation/proofotherconfiguration/physicalGPU executed by this agent in thisCPUwindow"
+  ]
+}

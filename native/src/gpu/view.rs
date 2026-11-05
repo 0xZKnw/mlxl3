@@ -194,6 +194,27 @@ impl Metal {
             output.length() == u64::from(blocks) * 256 && blocks > 0,
             "invalid H128 view output allocation"
         );
+        self.encode_prepare_view_into(cmd, x, scales, output, 0)
+    }
+
+    pub(super) fn encode_prepare_view_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        scales: &MatrixView,
+        output: &Buffer,
+        offset: u64,
+    ) -> Result<()> {
+        let blocks = self.view_blocks(x, scales)?;
+        ensure!(
+            blocks > 0
+                && offset.is_multiple_of(2)
+                && offset
+                    .checked_add(u64::from(blocks) * 256)
+                    .is_some_and(|end| end <= output.length())
+                && output.device().registry_id() == self.device.registry_id(),
+            "invalid H128 view output prefix"
+        );
         ensure!(
             self.prepare_view_pipeline
                 .max_total_threads_per_threadgroup()
@@ -210,10 +231,10 @@ impl Metal {
             scales.layout.strides[1],
             i64::from(x.dtype == FloatType::F32),
         ];
-        Self::encode(
+        Self::encode_bound(
             cmd,
             &self.prepare_view_pipeline,
-            &[&x.buffer, &scales.buffer, output],
+            [(&x.buffer, 0), (&scales.buffer, 0), (output, offset)].into_iter(),
             binding,
             MTLSize::new(u64::from(blocks), 1, 1),
             64,

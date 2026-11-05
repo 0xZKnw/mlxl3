@@ -1,0 +1,37 @@
+{
+  "status": "extraction_format_mismatch",
+  "source": "native/src/flash_support.rs",
+  "source_sha256": "97a1a374de693c20b3712c0e206f107997700bd023089f12beda09d55b546f55",
+  "functions": [
+    {
+      "name": "ar20_qsa_chains_eligible",
+      "sha256": "789b71703db5dc300c958f9292f6c3e23a5fa834028a4e7c4192eeafa55a0b5a",
+      "actual_sha256": "2534f31584b7ec43048908c12972c1a26f9d9acab41681b196d527bab9060cfd",
+      "matches": false,
+      "line": 3909
+    },
+    {
+      "name": "ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
+      "sha256": "052a5e9d0f40e908d09061752ba23635d2509bf62ec04e892da19ccf9eba4608",
+      "actual_sha256": "aa8bea67f4d22685c4477bbb87774aedfa630e84802f1b1d548aed224a3212fa",
+      "matches": false,
+      "line": 3956
+    },
+    {
+      "name": "ar20_resident_pair_eligible",
+      "sha256": "81a0f46c7333b85438e73cd184e3f385d89f962476fab35e499d2cdf79b3e772",
+      "actual_sha256": "2e766eb867beda649cb0f1aa05aa9860fd61b7260473dcaefd41ec4a5bd2a1be",
+      "matches": false,
+      "line": 3980
+    },
+    {
+      "name": "ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids",
+      "sha256": "19ab5f31bfa391465345b7ba075359bdd4f63649af7350cd5549d328cfda4c8d",
+      "actual_sha256": "d259b3f0ffef92c94b7be4ef9eaee2e347f4982896770fee361fb8290f7da994",
+      "matches": false,
+      "line": 4031
+    }
+  ],
+  "scope": "exact source bytes only; no proof rerun",
+  "diagnostic": "This initial extractor appended a trailing newline excluded by the original proof receipts. The preserved mismatches are extraction-format differences; root-source-functions-canonical.json uses the original boundary and matches all four bodies."
+}

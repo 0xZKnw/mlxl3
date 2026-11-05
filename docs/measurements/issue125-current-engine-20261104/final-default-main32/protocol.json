@@ -1,0 +1,40 @@
+{
+  "trial": "I125-CURRENT-FINAL-DEFAULTS-MAIN32-CONFIRM-20261104",
+  "reference": {
+    "path": "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen-default/cli",
+    "sha256": "9e2c538c85851159bdb53a054e97485c6accfff8260ebc7f858aaa2fa5b9758c"
+  },
+  "candidate": {
+    "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+    "sha256": "ae3730adedcceca5d03e7bda7e41b04a199dfa4139e0e82cc63162535b730402",
+    "bytes": 10159664,
+    "minos": "26.2",
+    "sdk": "27.2"
+  },
+  "freeze_path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/docs/measurements/issue125-current-engine-20261104/freeze-defaults.json",
+  "controller_sha256": "e114d6467a3a034bb02d8e6b3b79c714287c6a6d7d4e0b5728f8513c9a93777c",
+  "driver_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+  "order": [
+    "reference",
+    "candidate"
+  ],
+  "prompt": "MAIN",
+  "tokens": 32,
+  "warmups": 1,
+  "repeats": 1,
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "limits": [
+    "One measured sample per variant, A/B order, MAIN only.",
+    "No within-arm drift estimate, sustained/statistical gain or addition of earlier results.",
+    "Actual final defaults absent, not earlier flag1 prototype."
+  ]
+}

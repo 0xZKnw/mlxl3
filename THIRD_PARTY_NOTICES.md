@@ -17,6 +17,17 @@ Copyright (c) 2026 David Tai. Its canonical reduction and Hadamard finish reuse
 the MLX 0.32.2 adaptation credited in `flash_dense_epilogue.metal`,
 Copyright © 2023-2024 Apple Inc. Both contributions are MIT licensed:
 
+The optional native AR20 kernels in `native/shaders/exl3.metal`,
+`ar20_trellis.metal` and `_qmv_tile_kernel.metal` also adapt TurboEXL3's
+packed-byte MUL1 sum, eight-codeword window staging, K-tile preloading and
+register/SIMD Hadamard mechanisms from revision
+[`c3bb0e260091709f8ad64c84d1fd02808b12dfd1`](https://github.com/davidtai/turboexl3/tree/c3bb0e260091709f8ad64c84d1fd02808b12dfd1),
+especially `src/kernels/lane/helpers.metal`, `decode/gemv_core.metal` and
+`decb/had128.metal`. Copyright (c) 2026 David Tai; MIT licensed under the
+terms below. The native adaptations preserve MLXL3's original Half
+rounding points, accumulator chains and reduction order; they do not import
+TurboEXL3's deferred affine map or numerical tolerances.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

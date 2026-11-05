@@ -1,0 +1,105 @@
+"""Final-default adaptation of the qualified L5 process owner; import does not run gates."""
+import argparse,gzip,hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+OWN=Path('/Users/justin/.codex/worktrees/issue125-hc-workspace/mix-stq1_0')
+ROOT=Path('/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0')
+PLAN=OWN/'build/hc-workspace/current-engine/final-defaults/plan.json'
+HERE=ROOT/'docs/measurements/issue125-current-engine-20261104/final-default-quality'
+HELPER=ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'
+WORKSPACE=OWN/'build/hc-workspace/quality.py'
+ABSENT=['MLXL3_NATIVE_SSD_DIRECT','MLXL3_NATIVE_AR_HC_CHAIN','MLXL3_NATIVE_AR_HC_GATE_CHAIN','MLXL3_NATIVE_FLASH_STATIC_K','MLXL3_NATIVE_FLASH_NT2','MLXL3_NATIVE_FLASH_FIXED_DIMS','MLXL3_NATIVE_ROUTED_SCRATCH','MLXL3_NATIVE_HC_GDN_CHAIN','MLXL3_NATIVE_CROSS_LAYER','MLXL3_NATIVE_HC_WORKSPACE','MLXL3_NATIVE_SSD_EXTRA_WAVE','MLXL3_NATIVE_HC_UP_MIX','MLXL3_NATIVE_HC_DOWN_INJECT']
+
+def validate(log,phase,h,w):
+ kind=phase['kind']
+ if kind in ['hc-model','workspace-model','ledger','budget','native8']:
+  assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in log
+  h['native_images'](log)
+ if kind=='budget':
+  assert 'Native budget bridge replay matches the independent two-token hash after rejection and memory-saver cleanup' in log
+  return {'golden':'9f850af1cbba074b','memory_saver_recovery':True,'noMLX':True}
+ if kind=='cli':
+  a=h['strict_json'](Path(phase['report_path']).read_text())
+  h['exact_fields'](a,{'status':'verified','parity':True,'completed':4,'cancelled':['context_usage','delta'],'rejected':1,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'engine_sha256':phase['engine_sha256']})
+  ledger=a['ledger'];n=ledger['state_backing_bytes']['hc_workspace']
+  assert type(n) is int and n==4221440
+  slots=ledger['expert_slots_by_layer'];assert type(slots) is list and len(slots)==48 and all(type(n) is int and n==53 for n in slots)
+  return a
+ a=h['marker'](log,phase['marker'])
+ if kind=='workspace-model':
+  w['validate_model'](a,h)
+  h['exact_fields'](a,{'initial_cross_layer_enabled':True,'initial_up_mix_enabled':True})
+  for s in a['steps']:h['exact_fields'](s,{'control_cross_layer_triples':34,'cross_layer_triples':34,'continuation_cross_layer_triples':0})
+  return a
+ if kind=='hc-model':
+  h['exact_fields'](a,{'parity':True,'case_count':16,'initial_cross_layer_enabled':True,'initial_up_mix_enabled':True,'workspace_enabled':True,'reference_workspace_off':True,'continuation_workspace_off':True,'compared_state_words':460849152,'compared_logits':7946240,'initial_archive_states':84,'context':4096,'explicit_legacy_continuation':True})
+  assert type(a['cases']) is list and len(a['cases'])==16
+  seen=set()
+  for c in a['cases']:
+   assert type(c['token']) is int and c['token'] in [248044,1,42,7] and type(c['up']) is bool and type(c['down']) is bool
+   h['exact_fields'](c,{'control_cross_layer_triples':34,'cross_layer_triples':34,'continuation_cross_layer_triples':0,'up_uses':97*int(c['up']),'down_uses':96*int(c['down']),'workspace_uses':97,'parity':True})
+   seen.add((c['token'],c['up'],c['down']))
+  assert seen=={(t,u,d)for t in [248044,1,42,7]for u in [False,True]for d in [False,True]}
+  return a
+ if kind=='ledger':
+  h['exact_fields'](a,{'success_uses_fresh_unpopulated_reservations':True})
+  initial,active,idle=(a[k]['state_backing_bytes'] for k in ['initial','active','idle'])
+  assert 'hc_workspace' not in initial and 'hc_workspace' not in idle
+  assert type(active['hc_workspace']) is int and active['hc_workspace']==4221440
+  for name in ['native memory warm admission','native memory fresh admission']:
+   n=h['marker'](log,name)['plan_extra'];assert type(n) is int and n>4221440
+  return a
+ h['exact_fields'](a,phase['expected'])
+ if kind=='prefix':return a
+ assert kind=='native8'
+ # The real Rust test checks event ancestry, allocations and every finite oracle before emitting.
+ assert type(a['events']) is list and a['events']
+ assert type(a['tokens']) is list and len(a['tokens'])==8 and all(type(t) is int and 0<=t<248320 for t in a['tokens'])
+ for k in ['moe_wait_events','moe_gpu_intervals']:assert type(a[k]) is int and a[k]>0
+ rows=[e for e in a['events'] if e['name']=='native.row'];assert len(rows)==7
+ for row in rows:h['exact_fields'](row['data'],{'hc_workspace_uses':97,'hc_up_mix_uses':97,'hc_down_inject_uses':0})
+ (HERE/'native8-profile.json.gz').write_bytes(gzip.compress(json.dumps(a,allow_nan=False,separators=(',',':')).encode(),compresslevel=1,mtime=0))
+ summary={k:v for k,v in a.items() if k!='events'};summary['events']=len(a['events']);summary['status']='validated_diagnostic_only'
+ (HERE/'native8-safe-summary.json').write_text(json.dumps(summary,indent=2,allow_nan=False)+'\n')
+ return summary
+
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--run-after-root-grant',action='store_true');args=p.parse_args()
+ if not args.run_after_root_grant:p.error('explicit exclusive root GPU grant required')
+ h=runpy.run_path(str(HELPER));w=runpy.run_path(str(WORKSPACE));plan=h['strict_json'](PLAN.read_text())
+ assert plan['status']=='frozen_ready_after_root_GPU_grant','final artifact binding/grant is missing'
+ assert [p['kind'] for p in plan['phases']]==['hc-model','workspace-model','ledger','cli','budget','prefix','native8']
+ for item in list(plan['artifacts'].values())+plan['dependencies']:assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
+ freeze=h['strict_json'](Path(plan['freeze_path']).read_text())
+ for f,sha in freeze['source_files'].items():assert hashlib.sha256((ROOT/f).read_bytes()).hexdigest()==sha,f
+ assert plan['artifacts']['direct-cli']==freeze['artifacts']['direct-cli'] and plan['artifacts']['native-libtest']==freeze['artifacts']['native-libtest']
+ HERE.mkdir(exist_ok=False)
+ (HERE/'controller.py.txt').write_text(Path(__file__).read_text());(HERE/'plan.json').write_bytes(PLAN.read_bytes())
+ sink=HERE/'report.json';report={'status':'started','parity':False,'all_children_joined':False,'expected_phases':7,'plan_sha256':hashlib.sha256(PLAN.read_bytes()).hexdigest(),'phases':[]}
+ def save():
+  temp=sink.with_suffix('.tmp');temp.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n');temp.replace(sink)
+ def journal(s):
+  with (ROOT/'opti.md').open('a') as f:f.write('\nI125-CURRENT-FINAL-DEFAULTS QUALITY '+s+'\n')
+ env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))};env.update(plan['environment']);assert all(k not in env for k in ABSENT)
+ save()
+ try:
+  for phase in plan['phases']:
+   runenv=env|phase.get('environment',{})
+   allowed={'MLXL3_NATIVE_HC_DOWN_INJECT'} if phase['kind']=='hc-model' else set()
+   assert all(k not in runenv for k in ABSENT if k not in allowed)
+   if allowed:assert runenv['MLXL3_NATIVE_HC_DOWN_INJECT']=='1'
+   if phase['kind']=='budget':assert runenv['MLXL3_FLASH_TEST_CLI']==plan['artifacts']['direct-cli']['path']
+   row={'name':phase['name'],'command':phase['command'],'environment_override':phase.get('environment',{}),'status':'running','parity':False,'joined':False};report['phases'].append(row);save();journal(phase['name']+' STARTED');child=None;start=time.monotonic()
+   try:
+    with (HERE/(phase['name']+'.log')).open('xb') as log:
+     child=subprocess.Popen(phase['command'],cwd=ROOT,env=runenv,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);row['pid']=child.pid;save();code=child.wait(timeout=phase['timeout_seconds'])
+    assert code==0 and not h['members'](child.pid)
+    evidence=validate((HERE/(phase['name']+'.log')).read_text(),phase,h,w)
+    row.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=evidence);save();journal(phase['name']+' VALIDATED');print(phase['name']+' validated',flush=True)
+   except BaseException as error:
+    row.update(status='failed',parity=False,joined=h['stop'](child),error=repr(error));save();raise
+  assert len(report['phases'])==7 and all(p['parity'] is True and p['joined'] is True for p in report['phases'])
+  report.update(status='validated',parity=True,all_children_joined=True);journal('7/7 VALIDATED no speed measured')
+ except BaseException as error:
+  report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(p['joined'] is True for p in report['phases']));journal('FAILED '+repr(error));raise
+ finally:save()
+if __name__=='__main__':main()

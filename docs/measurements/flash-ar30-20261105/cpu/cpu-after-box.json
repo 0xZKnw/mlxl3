@@ -1,0 +1,123 @@
+{
+  "status": "processes_passed_pending_result_review",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "clippy-direct",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 66984,
+      "exit_code": 0,
+      "seconds": 5.941281750012422
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 8532,
+      "exit_code": 0,
+      "seconds": 13.496741624985589
+    },
+    {
+      "name": "portable",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_kani_manifest.py",
+        "tests/test_native_coverage.py"
+      ],
+      "budget_seconds": 60,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 5015,
+      "exit_code": 0,
+      "seconds": 1.3906659170170315
+    },
+    {
+      "name": "full-direct-tests",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 15327,
+      "exit_code": 0,
+      "seconds": 39.014359666005475
+    },
+    {
+      "name": "release-cli",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--bin",
+        "mlxl3-rs"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 37668,
+      "exit_code": 0,
+      "seconds": 38.460726749995956
+    },
+    {
+      "name": "release-libtest",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format",
+        "json"
+      ],
+      "budget_seconds": 240,
+      "status": "process_pass_pending_review",
+      "joined": true,
+      "pid": 98201,
+      "exit_code": 0,
+      "seconds": 56.10900187501102
+    }
+  ],
+  "source_head": "afb9fde3137a5c968ad54d0a4feeb7bcff414cee",
+  "source_status": " M docs/native-coverage/mlx-sites.json\n M native/src/gpu/ar20_capture_tests.rs\n M native/src/gpu/flash.rs\n M opti.md\n M scripts/kani_obligations.json\n M tests/test_kani_ci.py\n?? docs/measurements/flash-ar30-20261105/cpu/clippy-direct.log\n?? docs/measurements/flash-ar30-20261105/cpu/clippy-no-direct.log\n?? docs/measurements/flash-ar30-20261105/cpu/cpu-all.json\n?? docs/measurements/flash-ar30-20261105/cpu/fmt.log\n?? docs/measurements/flash-ar30-20261105/cpu/kani-first.log\n?? docs/measurements/flash-ar30-20261105/cpu/kani-scratch.log\n?? docs/measurements/flash-ar30-20261105/profile/native8.log\n",
+  "deployment_target": "26.2",
+  "mlx_root": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+}

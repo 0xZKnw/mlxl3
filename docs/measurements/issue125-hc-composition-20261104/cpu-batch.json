@@ -1,0 +1,139 @@
+{
+  "status": "cpu_checks_and_releases_passed",
+  "all_children_joined": true,
+  "GPU": "not_executed",
+  "stages": [
+    {
+      "name": "clippy-cpu",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 3.7162455419893377
+    },
+    {
+      "name": "clippy-direct",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 6.158716166013619
+    },
+    {
+      "name": "clippy-mlx",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 9.79604095799732
+    },
+    {
+      "name": "test-cpu",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 31.37213270799839
+    },
+    {
+      "name": "test-direct",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 36.763650124979904
+    },
+    {
+      "name": "test-mlx",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 42.588860542018665
+    },
+    {
+      "name": "release-cli",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--bin",
+        "mlxl3-rs",
+        "--message-format=json"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 34.973778874991694
+    },
+    {
+      "name": "release-libtest",
+      "argv": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": "passed",
+      "joined": true,
+      "returncode": 0,
+      "elapsed_seconds": 43.414083667012164
+    }
+  ]
+}

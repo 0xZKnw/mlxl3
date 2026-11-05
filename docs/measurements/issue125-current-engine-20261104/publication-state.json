@@ -1,0 +1,72 @@
+{
+  "status": "selected_restored_opt_in_source_byte_identical_to_qualified_freeze",
+  "selection": "L1onlydefault; W,UP,DOWN,SSD_EXTRA_WAVE remain opt-in defaultOFF",
+  "selected_artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/direct-cli",
+      "sha256": "b4899081478369ae575dff4863d65570efb9909b384fdbbf6330a93a2e660110",
+      "bytes": 10159488,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen/native-libtest",
+      "sha256": "7382bddbfb23538485bdb654e63319ab1513494189e67fd112e18f1e50df1296",
+      "bytes": 9547344,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "selected_source_ref": "3a584944985b8248b2aa696036903958032df4e9",
+  "source_identity": {
+    "files": 518,
+    "mismatches": [],
+    "full_map": "freeze.json"
+  },
+  "default_flags": {
+    "MLXL3_NATIVE_CROSS_LAYER": "ON onlyexactAppleM5",
+    "MLXL3_NATIVE_HC_WORKSPACE": false,
+    "MLXL3_NATIVE_HC_UP_MIX": false,
+    "MLXL3_NATIVE_HC_DOWN_INJECT": false,
+    "MLXL3_NATIVE_SSD_EXTRA_WAVE": false
+  },
+  "superseded_default_on_trial": {
+    "artifacts": {
+      "direct-cli": {
+        "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/direct-cli",
+        "sha256": "ae3730adedcceca5d03e7bda7e41b04a199dfa4139e0e82cc63162535b730402",
+        "bytes": 10159664,
+        "minos": "26.2",
+        "sdk": "27.2"
+      },
+      "native-libtest": {
+        "path": "/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/frozen-defaults/native-libtest",
+        "sha256": "a69d5f53f0f2ea76b5d7378321e1312b29ad3cccef4d2537fec40618a27bf066",
+        "bytes": 9564416,
+        "minos": "26.2",
+        "sdk": "27.2"
+      }
+    },
+    "status": "numerically_validated8of8_but_decode_gain_unconfirmed_superseded_product_defaults",
+    "single_sample_tps": [
+      6.630084462731237,
+      6.63271400621624
+    ],
+    "percent": 0.039660784108908054,
+    "source_archive": "history/defaults-on-superseded-source"
+  },
+  "restore_only": [
+    "native/src/gpu.rs",
+    "native/src/gpu/flash.rs",
+    "native/src/gpu/hc_kernel_tests.rs",
+    "native/src/gpu/hc_workspace_tests.rs",
+    "native/src/hc_workspace_policy.rs",
+    "native/src/hc_workspace_policy_tests.rs",
+    "scripts/kani_obligations.json",
+    "tests/test_kani_ci.py"
+  ],
+  "no_rebuild": "all518sources/selectedartifacts byteidentical to oldqualifiedfreeze",
+  "no_source_change_outside_eight": true,
+  "restored_default_physical_revalidation": "pendingrootGPUgrant_native8_andCLIshort",
+  "all_owned_children_joined": true
+}
