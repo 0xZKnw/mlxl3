@@ -180,8 +180,16 @@ fn physical_ar20_head_gates_preserve_boundary_corpus_and_retained_frames() -> Re
         );
     }
     ensure!(gpu.gdn_head_gate_uses.get() - start == 2);
+    let resources = [canonical, candidate].map(|p| {
+        serde_json::json!({
+            "thread_execution_width":p.thread_execution_width(),
+            "max_threads_per_group":p.max_total_threads_per_threadgroup(),
+            "static_threadgroup_bytes":p.static_threadgroup_memory_length(),
+        })
+    });
     eprintln!(
-        "AR20_GDN_HEAD_GATES {{\"parity\":true,\"boundary_cases\":3,\"boundary_state_words\":2359296,\"boundary_history_half_words\":92160,\"boundary_gated_half_words\":18432,\"actual_runtime_uses\":2,\"retained_frames\":true,\"canonical_psos_separate\":true}}"
+        "AR20_GDN_HEAD_GATES {}",
+        serde_json::json!({"parity":true,"boundary_cases":3,"boundary_state_words":2359296,"boundary_history_half_words":92160,"boundary_gated_half_words":18432,"actual_runtime_uses":2,"retained_frames":true,"canonical_psos_separate":true,"pipeline_resources":resources})
     );
     Ok(())
 }
