@@ -1,0 +1,12 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue140-ar2-20261105/mix-stq1_0)
+error: manual implementation of `.is_multiple_of()`
+    --> native/src/gpu/qsa.rs:1574:29
+     |
+1574 |         layer.state.tail = (offset % 4 > 0 && layer.index.is_some())
+     |                             ^^^^^^^^^^^^^^ help: replace with: `!offset.is_multiple_of(4)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#manual_is_multiple_of
+     = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

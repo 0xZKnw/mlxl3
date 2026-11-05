@@ -111,6 +111,8 @@ fn actual_paths(gpu: &Metal, model: &FlashNext) -> Result<serde_json::Value> {
     let slru = model.slru_counts()?;
     let readahead = readers.readahead_counts();
     let mut paths = serde_json::json!({"kernel_bits":gpu.ar20_kernel_bits,"ar30_cooperative":gpu.ar30_cooperative,"ar30_cooperative_dispatches":gpu.ar30_cooperative_uses.each_ref().map(std::cell::Cell::get),"head_gates":gpu.gdn_head_gate_uses.get(),"qsa_chains":gpu.qsa_chain_uses.get(),"qsa_prefetch":gpu.qsa_prefetch_uses.get(),"resident_bundle":gpu.gdn_resident_bundle_uses.get(),"finish_mix":gpu.moe_finish_mix_uses.get(),"spin_wait":gpu.spin_wait_stats.each_ref().map(std::cell::Cell::get),"readahead_fds":readahead[0],"readahead_records":readahead[1],"slru_layers":slru.0,"slru_reservations":slru.1,"cross_layer_triples":gpu.cross_layer_triples.get(),"moe_deferred":gpu.moe_deferred_uses.get(),"expert_axis_qmv_dispatches":gpu.expert_axis_dispatches.get(),"reused_destinations":readers.reused_destinations.get(),"split_records":readers.split_records.get(),"split_pieces":readers.split_pieces.get(),"device_greedy":model.device_greedy_counts(),"router_pair_uses":gpu.router_pair.uses.get(),"readers_in_flight":readers.in_flight()});
+    paths["qsa_append_chain_counts"] =
+        serde_json::json!(super::qsa::QSA_APPEND_CHAIN_COUNTS.with(std::cell::Cell::get));
     paths["codeword_table"] = serde_json::json!(gpu.ar33_codeword_table);
     paths["cached_caps"] = serde_json::json!(gpu.cached_caps_enabled);
     paths["caps_stats"] = serde_json::json!(crate::pipeline_caps::stats());
@@ -159,6 +161,12 @@ fn run_capture() -> Result<()> {
         "requested C03 path is unavailable"
     );
     let hot_setting = std::env::var("MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE");
+    let qsa_setting = std::env::var("MLXL3_NATIVE_QSA_APPEND_CHAIN");
+    let qsa_expected = crate::qsa_chain_policy::append_setting(
+        qsa_setting.as_deref().ok(),
+        gpu.device.name() == "Apple M5",
+    )
+    .context("invalid QSA append setting")?;
     let hot_default = hot_setting.is_err()
         && gpu.device.name() == "Apple M5"
         && gpu.device.argument_buffers_support() == metal::MTLArgumentBuffersTier::Tier2;
@@ -253,6 +261,7 @@ fn run_capture() -> Result<()> {
             .each_ref()
             .map(std::cell::Cell::get);
         let hot_before = gpu.device_hot_submissions();
+        let qsa_append_before = super::qsa::QSA_APPEND_CHAIN_COUNTS.with(std::cell::Cell::get);
         let router_before = gpu.router_pair.uses.get();
         let scratch_before = gpu.resident_scratch.reuses.get();
         let cooperative_before = gpu
@@ -344,6 +353,14 @@ fn run_capture() -> Result<()> {
                     && counts[1] + counts[2] == counts[0] * 10
                     && counts[3] <= 10 * crate::flash_support::EXPERT_BYTES,
                 "T05 hit/miss/retirement accounting is incomplete"
+            );
+        }
+        if qsa_expected {
+            let after = super::qsa::QSA_APPEND_CHAIN_COUNTS.with(std::cell::Cell::get);
+            let delta = std::array::from_fn::<_, 3, _>(|i| after[i] - qsa_append_before[i]);
+            ensure!(
+                delta == [12, 12, 0],
+                "QSA append chain did not complete/publish exactly twelve real calls"
             );
         }
         let (next, states) = model.forward_trace(11)?;
@@ -451,7 +468,7 @@ fn run_capture() -> Result<()> {
         );
         eprintln!(
             "AR20_MODEL_COMPARE {}",
-            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"compiled_codeword_table":codeword_table,"codeword_table_dispatches":gpu.ar33_codeword_table_uses.each_ref().map(std::cell::Cell::get),"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"device_hot_rollback":gpu.device_resident_route_enabled(),"device_hot_default_environment_unset":hot_setting.is_err(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
+            serde_json::json!({"parity":true,"status":"validated","case_count":2,"compared_state_words":state_words,"compared_logits":993280,"compared_hidden_bytes":81920,"initial_archive_states":84,"kernel_bits":bits,"compiled_cooperative":cooperative,"qsa_append_default_environment_unset":qsa_setting.is_err(),"qsa_append_chain_counts":super::qsa::QSA_APPEND_CHAIN_COUNTS.with(std::cell::Cell::get),"compiled_codeword_table":codeword_table,"codeword_table_dispatches":gpu.ar33_codeword_table_uses.each_ref().map(std::cell::Cell::get),"resident_scratch_reuses":gpu.resident_scratch.reuses.get(),"resident_scratch_charge":gpu.resident_scratch.charged(),"router_pair_uses":gpu.router_pair.uses.get(),"device_greedy_counts":model.device_greedy_counts(),"device_greedy_rollback":gpu.device_greedy_available(),"device_hot_rollback":gpu.device_resident_route_enabled(),"device_hot_default_environment_unset":hot_setting.is_err(),"device_hot_submissions":gpu.device_hot_submissions(),"device_hot_counts":super::moe::DEVICE_HOT_COUNTS.with(std::cell::Cell::get),"actual_paths":paths,"oracle_sha256":oracle_sha,"all_readers_joined":true})
         );
     } else {
         let oracle = Oracle {

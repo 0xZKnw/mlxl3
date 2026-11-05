@@ -1,0 +1,61 @@
+[
+  {
+    "name": "controller-tests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "build/issue140",
+      "-p",
+      "test_*.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "portable-inventory-tests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_kani_manifest.py",
+      "tests/test_native_coverage.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "native-coverage",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "ruff",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "build/issue140/default.py",
+      "build/issue140/test_default.py",
+      "build/issue140/freeze-default.py",
+      "tests/test_kani_ci.py"
+    ],
+    "exit_code": 1
+  }
+]
