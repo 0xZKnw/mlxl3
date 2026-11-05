@@ -1131,6 +1131,21 @@ impl<'a> FlashExpert<'a> {
         self.encode(cmd, Activation::View(x), extents, storage)
     }
 
+    pub(super) fn encode_view_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+        destination: Option<(&Buffer, u64)>,
+    ) -> Result<Buffer> {
+        let extents = self.expert_extents(self.gate.view_extents(x)?)?;
+        ensure!(
+            destination.is_none() || crate::expert_ar_policy::eligible(self.routed, extents),
+            "ineligible expert destination"
+        );
+        self.encode_into(cmd, Activation::View(x), extents, storage, destination)
+    }
+
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
         let extents = self.expert_extents(self.gate.extents(x.len())?)?;
         submit(self.gate.metal, x, |cmd, x| {
@@ -1169,6 +1184,23 @@ impl<'a> FlashExpert<'a> {
         x: Activation<'_>,
         [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
         storage: Storage,
+    ) -> Result<Buffer> {
+        self.encode_into(
+            cmd,
+            x,
+            [gate_extents, up_extents, down_extents],
+            storage,
+            None,
+        )
+    }
+
+    fn encode_into(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
+        storage: Storage,
+        destination: Option<(&Buffer, u64)>,
     ) -> Result<Buffer> {
         let gpu = self.gate.metal;
         let reuse = crate::flash_expert_scratch::select(
@@ -1290,12 +1322,16 @@ impl<'a> FlashExpert<'a> {
                 .metal
                 .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?
         };
-        let output = self.down.encode_with_scratch(
+        let output = self.down.encode_expert_stage(
             cmd,
             Activation::Contiguous(&activated),
             down_extents,
             storage,
             scratch,
+            ExpertStage {
+                destination,
+                ..Default::default()
+            },
         )?;
         #[cfg(test)]
         gpu.flash_expert_outputs.set([

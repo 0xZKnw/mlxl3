@@ -1,4 +1,4 @@
-use super::{FlashExpert, FlashGate, MatrixView, Metal, read_weight, view::FloatType};
+use super::{FlashExpert, FlashGate, MatrixView, Metal, buffer, read_weight, view::FloatType};
 use crate::{
     checkpoint::{self, Checkpoint, TensorInfo},
     flash_support::{DemandPlan, EXPERT_BYTES, ExpertCache, ExpertFill},
@@ -307,6 +307,34 @@ impl<'a> FlashMoeRow<'a> {
                 },
             )?;
             let values = MatrixView::output(gpu, x.dtype, 1, 2560, Storage::StorageModeShared)?;
+            let slab = if gpu.expert_ar_enabled[2].get() && !trace && x.layout.shape == [1, 2560] {
+                let backing = buffer(&gpu.device, 51200, Storage::StorageModePrivate)?;
+                #[cfg(test)]
+                gpu.expert_ar_uses[2].set(gpu.expert_ar_uses[2].get() + 1);
+                Some(backing)
+            } else {
+                None
+            };
+            ensure!(plan.routes.len() == 10, "invalid contribution route count");
+            let canonical_slots: [usize; 10] = std::array::from_fn(|index| plan.routes[index].0);
+            let destination = |slot| -> Result<Option<(&Buffer, u64)>> {
+                slab.as_ref()
+                    .map(|backing| {
+                        let route = canonical_slots
+                            .iter()
+                            .position(|&candidate| candidate == slot)
+                            .context("missing canonical route")?;
+                        let offset = crate::expert_ar_policy::prefix(
+                            route,
+                            canonical_slots.len(),
+                            2560,
+                            backing.length(),
+                        )
+                        .context("invalid canonical contribution prefix")?;
+                        Ok((backing, offset))
+                    })
+                    .transpose()
+            };
             let mut command = gpu.queue.new_command_buffer().to_owned();
             let shared = self
                 .shared
@@ -326,7 +354,12 @@ impl<'a> FlashMoeRow<'a> {
                         self.slots.borrow()[slot]
                             .as_ref()
                             .context("missing resident expert")?
-                            .encode_view(&command, x, Storage::StorageModePrivate)?,
+                            .encode_view_into(
+                                &command,
+                                x,
+                                Storage::StorageModePrivate,
+                                destination(slot)?,
+                            )?,
                     );
                 }
             }
@@ -349,7 +382,12 @@ impl<'a> FlashMoeRow<'a> {
                             self.slots.borrow()[lease.slot]
                                 .as_ref()
                                 .context("missing cold expert")?
-                                .encode_view(&command, x, Storage::StorageModePrivate)?,
+                                .encode_view_into(
+                                    &command,
+                                    x,
+                                    Storage::StorageModePrivate,
+                                    destination(lease.slot)?,
+                                )?,
                         );
                     }
                     if reads.remaining() == 0 {
@@ -390,16 +428,22 @@ impl<'a> FlashMoeRow<'a> {
                 .routes
                 .iter()
                 .map(|(slot, _)| {
-                    outputs
+                    let output = outputs
                         .get(slot)
-                        .context("missing ordered expert contribution")
+                        .context("missing ordered expert contribution")?;
+                    Ok((output, destination(*slot)?.map_or(0, |(_, offset)| offset)))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            bindings.extend([&shared, &weights.buffer, &multiplier.buffer, &values.buffer]);
+            bindings.extend([
+                (&shared, 0),
+                (&weights.buffer, 0),
+                (&multiplier.buffer, 0),
+                (&values.buffer, 0),
+            ]);
             Metal::encode_bound(
                 &command,
                 &gpu.moe_mix[dtype],
-                bindings.into_iter().map(|b| (b, 0)),
+                bindings.into_iter(),
                 [2560u32],
                 MTLSize::new(80, 1, 1),
                 32,

@@ -401,9 +401,39 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
         }
     }
     ensure!(compared == 81920);
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    let slab = upload(&gpu.device, &vec![0x7e00u16; 25600])?;
+    let before = requests();
+    let command = gpu.queue.new_command_buffer().to_owned();
+    for route in [9, 1, 5, 0, 8, 2, 6, 4, 3, 7] {
+        let case = &cases[route % 4];
+        let backing = record(&gpu, case)?;
+        let expert = FlashExpert::from_backing(&gpu, &backing)?;
+        let x = input(&gpu, case, route % 2 != 0)?;
+        let prefix = crate::expert_ar_policy::prefix(route, 10, 2560, slab.length())
+            .context("slab prefix")?;
+        let output = expert.encode_view_into(
+            &command,
+            &x,
+            Storage::StorageModeShared,
+            Some((&slab, prefix)),
+        )?;
+        ensure!(output.as_ptr() == slab.as_ptr());
+    }
+    command.commit();
+    command.wait_until_completed();
+    ensure!(command.status() == MTLCommandBufferStatus::Completed);
+    // Each record upload and input upload adds two requests outside expert encoding.
+    ensure!(requests() - before == 70);
+    let words = Metal::read(&slab, 25600);
+    for route in 0..10 {
+        check_words(&words[route * 2560..(route + 1) * 2560], &refs[route % 4])?;
+    }
     eprintln!(
         "NATIVE_EXPERT_AR_COMPONENT {}",
-        serde_json::json!({"parity":true,"words":compared,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
+        serde_json::json!({"parity":true,"words":compared,"slab_words":25600,"slab_reordered_routes":10,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
     );
     Ok(())
 }
