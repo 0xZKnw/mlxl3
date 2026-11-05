@@ -9,7 +9,8 @@ use anyhow::{Context, Result, bail, ensure};
 use half::{bf16, f16};
 use metal::{
     Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize, foreign_types::ForeignType,
+    MTLResourceOptions as Storage, MTLSize,
+    foreign_types::{ForeignType, ForeignTypeRef},
 };
 
 pub struct FlashProjection<'a> {
@@ -31,8 +32,25 @@ pub struct FlashProjection<'a> {
     nt: u32,
     static_key: Option<usize>,
     fixed_key: Option<u8>,
+    scratch: std::cell::RefCell<Option<ResidentScratch<'a>>>,
     #[cfg(test)]
     nt2_submissions: std::cell::Cell<u64>,
+}
+
+struct ResidentScratch<'a> {
+    prepared: Buffer,
+    partial: Buffer,
+    owner: CommandBuffer,
+    bytes: u64,
+    budget: &'a crate::resident_scratch_policy::Budget,
+}
+impl Drop for ResidentScratch<'_> {
+    fn drop(&mut self) {
+        // Abandoned/error commands retain their conservative charge until Metal teardown.
+        if self.owner.status() == MTLCommandBufferStatus::Completed {
+            self.budget.refund(self.bytes);
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -277,6 +295,7 @@ impl<'a> FlashProjection<'a> {
             nt,
             static_key,
             fixed_key,
+            scratch: std::cell::RefCell::new(None),
             #[cfg(test)]
             nt2_submissions: std::cell::Cell::new(0),
         })
@@ -455,7 +474,77 @@ impl<'a> FlashProjection<'a> {
         [inputs, partials, outputs]: [u32; 3],
         storage: Storage,
     ) -> Result<Buffer> {
-        self.encode_with_scratch(cmd, x, [inputs, partials, outputs], storage, None)
+        let extents = [inputs, partials, outputs];
+        let budget = &self.metal.resident_scratch;
+        if budget.enabled.get()
+            && budget.valid()
+            && crate::resident_scratch_policy::eligible(
+                true,
+                self.generic,
+                self.mtp_hidden,
+                self.routed_record,
+                inputs == self.input,
+                storage == Storage::StorageModePrivate,
+                cmd.status() == MTLCommandBufferStatus::NotEnqueued,
+            )
+            && let Ok(mut slot) = self.scratch.try_borrow_mut()
+        {
+            let sizes = [u64::from(inputs) * 2, u64::from(partials) * 4];
+            if slot.is_none() && budget.claim(sizes[0] + sizes[1]) {
+                let pair = (|| -> Result<_> {
+                    Ok(ResidentScratch {
+                        prepared: buffer(
+                            &self.metal.device,
+                            sizes[0],
+                            Storage::StorageModePrivate,
+                        )?,
+                        partial: buffer(&self.metal.device, sizes[1], Storage::StorageModePrivate)?,
+                        owner: cmd.to_owned(),
+                        bytes: sizes[0] + sizes[1],
+                        budget,
+                    })
+                })();
+                match pair {
+                    Ok(pair) => {
+                        let pair = slot.insert(pair);
+                        return self.encode_with_scratch(
+                            cmd,
+                            x,
+                            extents,
+                            storage,
+                            Some((&pair.prepared, &pair.partial)),
+                        );
+                    }
+                    Err(error) => {
+                        budget.refund(sizes[0] + sizes[1]);
+                        return Err(error);
+                    }
+                }
+            }
+            if let Some(pair) = slot.as_mut()
+                && crate::resident_scratch_policy::reusable(
+                    pair.owner.status() == MTLCommandBufferStatus::Completed,
+                    pair.owner.as_ptr() == cmd.as_ptr(),
+                    pair.prepared.length() == sizes[0]
+                        && pair.partial.length() == sizes[1]
+                        && pair.prepared.device().registry_id() == self.metal.device.registry_id()
+                        && pair.partial.device().registry_id() == self.metal.device.registry_id()
+                        && pair.prepared.as_ptr() != pair.partial.as_ptr(),
+                )
+            {
+                pair.owner = cmd.to_owned();
+                #[cfg(test)]
+                budget.reuses.set(budget.reuses.get() + 1);
+                return self.encode_with_scratch(
+                    cmd,
+                    x,
+                    extents,
+                    storage,
+                    Some((&pair.prepared, &pair.partial)),
+                );
+            }
+        }
+        self.encode_with_scratch(cmd, x, extents, storage, None)
     }
 
     fn encode_with_scratch(
@@ -1360,6 +1449,7 @@ impl<'a> FlashExpert<'a> {
                 nt: 1,
                 static_key: static_key(gpu, 2, Codebook::Mul1, 1, true)?,
                 fixed_key: fixed_key(gpu, [input, output], splits, [2, 2, 1], true)?,
+                scratch: std::cell::RefCell::new(None),
                 #[cfg(test)]
                 nt2_submissions: std::cell::Cell::new(0),
             })
@@ -1915,7 +2005,32 @@ impl<'a> FlashExpert<'a> {
 }
 
 impl FlashProjection<'_> {
+    pub(super) fn release_idle_scratch(&self) -> Result<()> {
+        let mut slot = self
+            .scratch
+            .try_borrow_mut()
+            .map_err(|_| anyhow::anyhow!("resident scratch is borrowed"))?;
+        if slot
+            .as_ref()
+            .is_some_and(|pair| pair.owner.status() == MTLCommandBufferStatus::Completed)
+        {
+            *slot = None;
+        }
+        ensure!(
+            self.metal.resident_scratch.valid(),
+            "resident scratch charge underflow"
+        );
+        Ok(())
+    }
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        let scratch = self
+            .scratch
+            .try_borrow()
+            .map_err(|_| anyhow::anyhow!("resident scratch is borrowed"))?;
+        if let Some(pair) = scratch.as_ref() {
+            backings.record("resident_projection_scratch", &pair.prepared)?;
+            backings.record("resident_projection_scratch", &pair.partial)?;
+        }
         for buffer in [&self.packed, &self.suh, &self.svh]
             .into_iter()
             .chain(&self.bias)
@@ -2523,3 +2638,7 @@ mod resident_bundle_tests;
 #[cfg(test)]
 #[path = "ar20_finish_mix_tests.rs"]
 mod ar20_finish_mix_tests;
+
+#[cfg(test)]
+#[path = "resident_scratch_tests.rs"]
+mod resident_scratch_tests;

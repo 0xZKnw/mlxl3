@@ -395,6 +395,7 @@ pub struct Metal {
     moe_finish_mix_uses: std::cell::Cell<usize>,
     gate_dot: [ComputePipelineState; 2],
     router_pair: gate::PairedDot,
+    resident_scratch: crate::resident_scratch_policy::Budget,
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
@@ -1037,6 +1038,9 @@ impl Metal {
                 moe_finish_mix_uses: std::cell::Cell::new(0),
                 gate_dot,
                 router_pair,
+                resident_scratch: crate::resident_scratch_policy::Budget::new(hc_kernel_setting(
+                    "MLXL3_NATIVE_RESIDENT_SCRATCH",
+                )?),
                 gate_softmax,
                 route_half,
                 route_float,
