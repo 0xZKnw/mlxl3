@@ -1,5 +1,23 @@
 # MLXL3 — journal des optimisations
 
+## QWEN36-144-P11-20261105 — sélection greedy exacte sur le GPU
+
+Préenregistré avant code. Piste 8 de #144. Main6030540b possède déjà la sélection normalisée Flash. P11 réemploie le même logsumexp et le même départage Half, conserve en plus le rejet Qwen de tout logit brut non fini, garde la tête privée et lit seulement l’ID lors du decode greedy ordinaire. Encoder norme finale, tête et sélection dans la commande de fin de dernière couche. Le cache de prompt conserve ses logits complets, de même que les autres modes. Options MLXL3_NATIVE_QWEN_DEVICE_GREEDY1 et MLXL3_NATIVE_DEVICE_GREEDY1 sur la voie jointe qualifiée. Aucune modification du contrat Flash ni des voies outils, MTP/DFlash ou sampling. Piste distincte des anciens essais Flash/MLX sans gain exportable. Comparer les cas d’égalité après arrondi et de logit brut -Inf, oracle de logits/états/rollback, compteurs du vrai bridge et fallback échantillonné. Kani sur admission, portée et publication du préfixe, tentative MSL. Même binaire que P10, A/B après qualification, P10 fixé suivant verdict et P11 off/on, ABBA64/8, mêmes prompts, sorties/mémoire/TTFT/dérive. État EN COURS, aucun essai lancé.
+
+P11 Cargo check direct avec tests passe. Premier Ruff signale SIM102 sur le nouveau contrôle Python des compteurs. Condition combinée avant la suite des contrôles.
+
+## QWEN36-144-P10-20261105 — intégration de la base et regroupement complet des experts
+
+Préenregistré avant intégration ou code. Demande utilisateur d’accélérer le même Qwen et de pousser une branche pour ouvrir la PR lui-même. Issue #144 relue en intégralité, aucun commentaire au relevé. Base de la PR `6030540b5573185a4bf8b13207011872d94d0045`, #128 déjà intégré. Porter P01–P09 dans un worktree distinct. Conserver les voies Flash et les tests du main, les flags par défaut et l’expérience MTP opt-in, sans remplacer l’app. Référence expérimentale historique P09 CLI 76eb4aa2…cc63, mesures non transférées à la nouvelle base. Relancer les vérifications source/CPU/GPU du chemin réellement poussé. Contrôler les chemins Flash modifiés par résolution des conflits et l’inventaire.
+
+P10 complète la piste 3 de #144. Regrouper les 16 préparations gate/up, huit SwiGLU/préparations down et huit fins de projection par grille de jobs avec les mêmes arguments Metal Tier 2 que P09. Conserver le retour CPU des huit routes et l’ordre des réductions, le QMV existant et l’arithmétique FP16/FP32 exacte. P09 compte 35 dispatches routés par ligne, P10 vise six (5 étapes puis mix), hors routeur et expert partagé. Option M5 `MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES=1` et GROUP_EXPERT_QMV1. Éviter réutilisation des temporaires en cours de commande. Pistes 4, 6, 8 et 18 distinctes, à évaluer selon le code de main et les résultats. Avant vitesse, comparer sorties et dispatches du composant réel, contre-oracle SwiGLU, oracle complet des logits et états, rollback, bridge, modes et erreurs. Kani sur plan/plages, tentative MSL, suites CPU/direct/compat et vérification CI applicable.
+
+Après correction, A/B ABBA même binaire sur M5, 64 tokens générés, chauffe8, contexte4096, greedy, cache et spéculation off, deux prompts P09 et mêmes options P09 des deux côtés. A=STAGES0, B=STAGES1. Un seul modèle GPU et aucun build/proof concomitant. Parité, débit, TTFT, préfill, mémoire Metal/empreinte et dérive. Référence historique conservée. Preuves sous `docs/measurements/qwen36-144-p10-20261105/`. État en cours, aucun essai lancé.
+
+Intégration main6030540b. Le patch P09 s’applique en trois voies. Le seul conflit textuel est la file MTP face au greedy Flash dans main.rs, résolu en conservant les deux. L’inventaire et le manifeste Kani sont actualisés depuis main. Cargo check direct/chat all-targets passe sur ce portage avant P10. Preuve host/integration-check.log.
+
+Première compilation des tests P10 arrêtée sur le chemin d’import FloatType du nouveau test. Le code moteur compile. Diagnostic host/check.log conservé, correction du chemin de test avant relance.
+
 
 ## Intégration PR74 / PR139 / PR141 — 2026-11-05
 

@@ -1917,6 +1917,8 @@
     "config MLXL3_NATIVE_QSA_GATE": 1,
     "config MLXL3_NATIVE_QSA_PREFETCH": 1,
     "config MLXL3_NATIVE_QSA_PREPARE": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": 1,
     "config MLXL3_NATIVE_RESIDENT_SCRATCH": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_DOWN": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_GU": 1,
@@ -2135,7 +2137,7 @@
     "config MLXL3_DISABLE_TENSOR_OPS": 2,
     "config MLXL3_NATIVE_FLASH_NT2": 2,
     "config MLXL3_NT2_FIXTURES": 1,
-    "config MLXL3_QWEN_NATIVE_MODEL": 2
+    "config MLXL3_QWEN_NATIVE_MODEL": 4
   },
   "native/src/gpu/qsa.rs": {
     ".shape": 1,
@@ -2152,12 +2154,36 @@
     "shader mlxl3_quantize_tiles": 1
   },
   "native/src/gpu/qwen.rs": {
+    ".log_probs": 1,
     ".memory_stats": 1,
+    ".retained_bytes": 2,
     ".run": 3,
+    ".shape": 1,
     ".sum": 1,
+    ".take": 1,
     ".to_f32": 3,
-    "config MLXL3_QWEN_NATIVE_ORACLE": 1,
-    "config MLXL3_QWEN_TEST_MODEL": 1
+    ".transpose": 2,
+    "config MLXL3_NATIVE_QWEN_DEVICE_GREEDY": 1,
+    "config MLXL3_NATIVE_QWEN_DEVICE_KV": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": 1,
+    "config MLXL3_NATIVE_QWEN_LAYER_CHAIN": 1,
+    "config MLXL3_NATIVE_QWEN_LAYER_JOIN": 1,
+    "config MLXL3_NATIVE_QWEN_MOE_JOIN": 1,
+    "config MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": 1,
+    "config MLXL3_QWEN_NATIVE_ORACLE": 2,
+    "config MLXL3_QWEN_TEST_MODEL": 5
+  },
+  "native/src/gpu/qwen/kv.rs": {
+    ".shape": 1
+  },
+  "native/src/gpu/qwen/mtp.rs": {
+    ".log_probs": 1,
+    ".shape": 1,
+    ".sum": 2,
+    ".to_f32": 2,
+    "config MLXL3_NATIVE_QWEN_MTP": 1,
+    "shader ../../../shaders/qwen_mtp_affine.metal": 1
   },
   "native/src/gpu/qwen_gdn.rs": {
     ".shape": 1,
@@ -2459,7 +2485,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 195,
+    "mlx": 198,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {

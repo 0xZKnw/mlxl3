@@ -3,7 +3,8 @@ use super::{FlashProjection, MatrixView, Metal, checkpoint_float_weight, view::F
 use crate::{checkpoint::Checkpoint, tensor_layout::MatrixLayout};
 use anyhow::{Context, Result, ensure};
 use metal::{
-    Buffer, CompileOptions, ComputePipelineState, MTLResourceOptions as Storage, MTLSize, NSRange,
+    Buffer, CommandBufferRef, CompileOptions, ComputePipelineState, MTLResourceOptions as Storage,
+    MTLSize, NSRange,
 };
 use std::rc::Rc;
 
@@ -225,6 +226,23 @@ impl<'a> QwenGdn<'a> {
             .transpose()
     }
     pub fn forward(&mut self, x: &MatrixView) -> Result<MatrixView> {
+        let (next, output) = self
+            .gpu
+            .command(|cmd| self.encode_step(cmd, x, self.state.as_ref()))?;
+        self.state = Some(next);
+        Ok(output)
+    }
+
+    pub(super) fn encode_step(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        previous: Option<&QwenGdnState>,
+    ) -> Result<(QwenGdnState, MatrixView)> {
+        ensure!(
+            previous.is_none_or(|s| Rc::ptr_eq(&self.owner, &s.owner)),
+            "Qwen state belongs to another layer"
+        );
         ensure!(
             x.shape() == [1, self.hidden]
                 && x.dtype == FloatType::F16
@@ -251,91 +269,87 @@ impl<'a> QwenGdn<'a> {
                 recurrent: row(FloatType::F32, values * 128)?,
             })
         };
-        let (next, output) = gpu.command(|cmd| {
-            let previous = if let Some(s) = &self.state {
-                s.clone()
-            } else {
-                let s = frame()?;
-                let blit = cmd.new_blit_command_encoder();
-                for a in [&s.history, &s.recurrent] {
-                    blit.fill_buffer(&a.buffer, NSRange::new(0, a.buffer.length()), 0);
-                }
-                blit.end_encoding();
-                s
-            };
-            let next = frame()?;
-            let qkv = self.qkv.encode_row(cmd, x, Storage::StorageModePrivate)?;
-            let z = self.z.encode_row(cmd, x, Storage::StorageModePrivate)?;
-            let dense = |weight| -> Result<MatrixView> {
-                let out = row(FloatType::F16, self.value_heads)?;
-                Metal::encode(
-                    cmd,
-                    &self.pipelines.dense,
-                    &[&x.buffer, weight, &out.buffer],
-                    [self.value_heads],
-                    MTLSize::new(u64::from(self.value_heads / 4), 1, 1),
-                    256,
-                );
-                Ok(out)
-            };
-            let a = dense(&self.a)?;
-            let b = dense(&self.b)?;
-            let q = row(FloatType::F16, self.key_heads * 128)?;
-            let k = row(FloatType::F16, self.key_heads * 128)?;
-            let v = row(FloatType::F16, values)?;
+        let previous = if let Some(s) = previous {
+            s.clone()
+        } else {
+            let s = frame()?;
+            let blit = cmd.new_blit_command_encoder();
+            for a in [&s.history, &s.recurrent] {
+                blit.fill_buffer(&a.buffer, NSRange::new(0, a.buffer.length()), 0);
+            }
+            blit.end_encoding();
+            s
+        };
+        let next = frame()?;
+        let qkv = self.qkv.encode_row(cmd, x, Storage::StorageModePrivate)?;
+        let z = self.z.encode_row(cmd, x, Storage::StorageModePrivate)?;
+        let dense = |weight| -> Result<MatrixView> {
+            let out = row(FloatType::F16, self.value_heads)?;
             Metal::encode(
                 cmd,
-                &self.pipelines.prepare,
-                &[
-                    &qkv.buffer,
-                    &previous.history.buffer,
-                    &self.conv,
-                    &q.buffer,
-                    &k.buffer,
-                    &v.buffer,
-                    &next.history.buffer,
-                ],
-                [0u32],
-                MTLSize::new(1, u64::from(self.value_heads.max(self.key_heads)), 1),
-                32,
+                &self.pipelines.dense,
+                &[&x.buffer, weight, &out.buffer],
+                [self.value_heads],
+                MTLSize::new(u64::from(self.value_heads / 4), 1, 1),
+                256,
             );
-            let delta = row(FloatType::F16, values)?;
-            Metal::encode(
-                cmd,
-                &self.pipelines.step,
-                &[
-                    &q.buffer,
-                    &k.buffer,
-                    &v.buffer,
-                    &a.buffer,
-                    &b.buffer,
-                    &self.a_log,
-                    &self.dt_bias,
-                    &previous.recurrent.buffer,
-                    &delta.buffer,
-                    &next.recurrent.buffer,
-                ],
-                [128u32],
-                MTLSize::new(1, u64::from(value_groups), u64::from(self.value_heads)),
-                64,
-            );
-            let gated = row(FloatType::F16, values)?;
-            Metal::encode(
-                cmd,
-                &self.pipelines.norm_gate,
-                &[&delta.buffer, &z.buffer, &self.norm, &gated.buffer],
-                [self.eps.to_bits()],
-                MTLSize::new(u64::from(self.value_heads), 1, 1),
-                32,
-            );
-            Ok((
-                next,
-                self.output
-                    .encode_row(cmd, &gated, Storage::StorageModeShared)?,
-            ))
-        })?;
-        self.state = Some(next);
-        Ok(output)
+            Ok(out)
+        };
+        let a = dense(&self.a)?;
+        let b = dense(&self.b)?;
+        let q = row(FloatType::F16, self.key_heads * 128)?;
+        let k = row(FloatType::F16, self.key_heads * 128)?;
+        let v = row(FloatType::F16, values)?;
+        Metal::encode(
+            cmd,
+            &self.pipelines.prepare,
+            &[
+                &qkv.buffer,
+                &previous.history.buffer,
+                &self.conv,
+                &q.buffer,
+                &k.buffer,
+                &v.buffer,
+                &next.history.buffer,
+            ],
+            [0u32],
+            MTLSize::new(1, u64::from(self.value_heads.max(self.key_heads)), 1),
+            32,
+        );
+        let delta = row(FloatType::F16, values)?;
+        Metal::encode(
+            cmd,
+            &self.pipelines.step,
+            &[
+                &q.buffer,
+                &k.buffer,
+                &v.buffer,
+                &a.buffer,
+                &b.buffer,
+                &self.a_log,
+                &self.dt_bias,
+                &previous.recurrent.buffer,
+                &delta.buffer,
+                &next.recurrent.buffer,
+            ],
+            [128u32],
+            MTLSize::new(1, u64::from(value_groups), u64::from(self.value_heads)),
+            64,
+        );
+        let gated = row(FloatType::F16, values)?;
+        Metal::encode(
+            cmd,
+            &self.pipelines.norm_gate,
+            &[&delta.buffer, &z.buffer, &self.norm, &gated.buffer],
+            [self.eps.to_bits()],
+            MTLSize::new(u64::from(self.value_heads), 1, 1),
+            32,
+        );
+        Ok((
+            next,
+            self.output
+                .encode_row(cmd, &gated, Storage::StorageModeShared)?,
+        ))
     }
 }
 

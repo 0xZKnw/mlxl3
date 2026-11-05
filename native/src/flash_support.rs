@@ -3,11 +3,7 @@ use anyhow::Result;
 
 pub const PREFILL_CHUNK: usize = 8;
 
-#[cfg(any(
-    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
-    test,
-    kani
-))]
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn prefill_head_required(row: usize, rows: usize, headonly: bool) -> Option<bool> {
     (row < rows).then(|| !headonly || row == rows - 1)
 }

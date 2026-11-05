@@ -173,6 +173,7 @@ def main():
     parser.add_argument("--settle-seconds", type=float, default=0.0)
     parser.add_argument("--load-timeout", type=positive_seconds, default=600.0)
     parser.add_argument("--request-timeout", type=positive_seconds, default=600.0)
+    parser.add_argument("--shutdown-timeout", type=positive_seconds, default=10.0)
     parser.add_argument("--campaign-timeout", type=positive_seconds)
     parser.add_argument("--baseline-env", action="append", default=[], metavar="NAME=VALUE")
     parser.add_argument("--candidate-env", action="append", default=[], metavar="NAME=VALUE")
@@ -230,6 +231,7 @@ def main():
             "settle_seconds": args.settle_seconds,
             "load_timeout": args.load_timeout,
             "request_timeout": args.request_timeout,
+            "shutdown_timeout": args.shutdown_timeout,
             "campaign_timeout": args.campaign_timeout,
             "context": 4096,
             "cache": False,
@@ -378,7 +380,17 @@ def main():
                             ),
                             flush=True,
                         )
+                    shutdown_started = time.monotonic()
+                    deadline = bounded_deadline(args.shutdown_timeout, campaign_deadline)
+                    process.send({"type": "shutdown"}, deadline)
+                    try:
+                        process.process.wait(timeout=max(0, deadline - time.monotonic()))
+                    except subprocess.TimeoutExpired:
+                        current["shutdown_timed_out"] = True
+                    current["shutdown_seconds"] = time.monotonic() - shutdown_started
             current["exit_code"] = process.process.returncode
+            if current.get("shutdown_timed_out"):
+                raise TimeoutError("native bridge timed out shutting down")
             if current["exit_code"] != 0:
                 raise RuntimeError(
                     f"native bridge exited abnormally after generation ({current['exit_code']})"

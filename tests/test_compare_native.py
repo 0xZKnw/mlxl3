@@ -86,6 +86,7 @@ def write_bridge(
         "    print(json.dumps({'type': 'delta', 'request_id': rid, 'text': text}), flush=True)\n"
         "    print(json.dumps({'type': 'complete', 'request_id': rid,\n"
         "                      'token_hash': token_hash, 'stats': stats, 'cache_context': history}), flush=True)\n"
+        "if behavior == 'slow_clean_shutdown': time.sleep(0.5)\n"
         "if behavior == 'exit_after_eof': sys.exit(1)\n"
         "if behavior == 'stall_after_eof': time.sleep(60)\n"
     )
@@ -549,7 +550,9 @@ def test_invalid_campaign_timeout_does_not_start_a_bridge(tmp_path, duration):
 
 @pytest.mark.parametrize("behavior", ["exit_after_eof", "stall_after_eof"])
 def test_valid_responses_do_not_hide_an_abnormal_bridge_exit(tmp_path, behavior):
-    run, _, report = run_campaign(tmp_path, behavior, order="BAAB", timeout=10)
+    run, _, report = run_campaign(
+        tmp_path, behavior, order="BAAB", timeout=10, extra_args=["--shutdown-timeout", "0.4"]
+    )
     assert run.returncode != 0
     assert report["status"] == "failed" and report["parity"] is None
     assert "summary" not in report
@@ -558,5 +561,17 @@ def test_valid_responses_do_not_hide_an_abnormal_bridge_exit(tmp_path, behavior)
     assert failed["status"] == "failed"
     assert failed["exit_code"] == (1 if behavior == "exit_after_eof" else -signal.SIGTERM)
     assert len(failed["prompts"]["short"]["runs"]) == 2
-    assert "native bridge exited abnormally" in failed["error"]["message"]
+    if behavior == "stall_after_eof":
+        assert failed["shutdown_timed_out"] is True
+        assert "timed out shutting down" in failed["error"]["message"]
+    else:
+        assert "native bridge exited abnormally" in failed["error"]["message"]
+    assert_campaign_children_reaped(tmp_path)
+
+
+def test_valid_slow_shutdown_preserves_a_complete_campaign(tmp_path):
+    run, _, report = run_campaign(tmp_path, "slow_clean_shutdown", order="BAAB", timeout=10)
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert all(p["exit_code"] == 0 for p in report["passes"])
     assert_campaign_children_reaped(tmp_path)

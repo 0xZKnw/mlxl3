@@ -1,8 +1,8 @@
 //! One owned prompt checkpoint; speculative decode state is never cached.
-use super::{ChatMtpHead, RoundDraft, prompt_cache_budget};
+use super::{RoundDraft, prompt_cache_budget};
 use anyhow::{Context, Result, bail, ensure};
 use mlxl3_native::gpu::FlashNext as NativeChatModel;
-use mlxl3_native::gpu::{FlashMtpSession, FlashQsaState, FlashSnapshot};
+use mlxl3_native::gpu::{FlashMtpHead, FlashMtpSession, FlashQsaState, FlashSnapshot};
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -48,7 +48,7 @@ impl PromptCache {
     }
     fn capture(
         model: &NativeChatModel,
-        head: Option<&ChatMtpHead>,
+        head: Option<&FlashMtpHead>,
         draft: Option<&RoundDraft>,
         conversation: &str,
         tokens: &[u32],
@@ -94,7 +94,7 @@ impl PromptCache {
 }
 pub(super) fn ledger(
     model: &NativeChatModel,
-    head: Option<&ChatMtpHead>,
+    head: Option<&FlashMtpHead>,
     draft: Option<&RoundDraft>,
     cache: Option<&PromptCache>,
 ) -> Result<Value> {
@@ -138,7 +138,7 @@ pub(crate) fn admit_request(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn prefill(
     model: &mut NativeChatModel,
-    mut head: Option<&mut ChatMtpHead>,
+    mut head: Option<&mut FlashMtpHead>,
     draft: Option<&RoundDraft>,
     tokens: &[u32],
     depth: usize,

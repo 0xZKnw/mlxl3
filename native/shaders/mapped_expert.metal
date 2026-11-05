@@ -19,14 +19,14 @@ inline void mapped_float_h128(threadgroup float* a,threadgroup float* b,uint tid
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
 }
-kernel void mapped_glu(const device float* gate_raw [[buffer(0)]],const device float* up_raw [[buffer(1)]],
-    const device half* gate_scale [[buffer(2)]],const device half* up_scale [[buffer(3)]],
-    const device half* down_scale [[buffer(4)]],device half* prepared [[buffer(5)]],
-    constant uint* p [[buffer(6)]],uint tid [[thread_index_in_threadgroup]],uint block [[threadgroup_position_in_grid]]) {
-    threadgroup float ga[128],gb[128],ua[128],ub[128],da[128],db[128];
+inline void mapped_glu_block(const device float* gate_raw, const device float* up_raw,
+    const device half* gate_scale, const device half* up_scale, const device half* down_scale,
+    device half* prepared, uint width, uint splits, uint tid, uint block,
+    threadgroup float* ga, threadgroup float* gb, threadgroup float* ua,
+    threadgroup float* ub, threadgroup float* da, threadgroup float* db) {
     uint column=block*128+tid;
-    ga[tid]=float(half(mapped_partial_sum(gate_raw,column,p[0],p[1])));
-    ua[tid]=float(half(mapped_partial_sum(up_raw,column,p[0],p[1])));
+    ga[tid]=float(half(mapped_partial_sum(gate_raw,column,width,splits)));
+    ua[tid]=float(half(mapped_partial_sum(up_raw,column,width,splits)));
     mapped_float_h128(ga,gb,tid);
     mapped_float_h128(ua,ub,tid);
     float gate=float(half(ga[tid]*0.08838834764831845f*float(gate_scale[column])));
@@ -39,6 +39,50 @@ kernel void mapped_glu(const device float* gate_raw [[buffer(0)]],const device f
     mapped_float_h128(da,db,tid);
     prepared[column]=half(da[tid]*0.08838834764831845f);
 }
+
+kernel void mapped_glu(const device float* gate_raw [[buffer(0)]],const device float* up_raw [[buffer(1)]],
+    const device half* gate_scale [[buffer(2)]],const device half* up_scale [[buffer(3)]],
+    const device half* down_scale [[buffer(4)]],device half* prepared [[buffer(5)]],
+    constant uint* p [[buffer(6)]],uint tid [[thread_index_in_threadgroup]],uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float ga[128],gb[128],ua[128],ub[128],da[128],db[128];
+    mapped_glu_block(gate_raw, up_raw, gate_scale, up_scale, down_scale,
+                     prepared, p[0], p[1], tid, block, ga, gb, ua, ub, da, db);
+}
+
+kernel void qwen_stage_glu(
+    const device float* raw [[buffer(0)]],
+    const device QwenStageScales* scales [[buffer(1)]],
+    device half* prepared [[buffer(2)]],
+    constant uint& splits [[buffer(3)]],
+    uint tid [[thread_index_in_threadgroup]], uint2 group [[threadgroup_position_in_grid]]) {
+    threadgroup float ga[128],gb[128],ua[128],ub[128],da[128],db[128];
+    uint route = group.y;
+    uint job_words = splits * 512u;
+    const device QwenStageScales& weights = scales[route];
+    mapped_glu_block(raw + (route * 2u) * job_words, raw + (route * 2u + 1u) * job_words,
+                     weights.sv[0], weights.sv[1], weights.su[2], prepared + route * 512u,
+                     512u, splits, tid, group.x, ga, gb, ua, ub, da, db);
+}
+
+kernel void qwen_stage_prepare(
+    const device half* input [[buffer(0)]],
+    const device QwenStageScales* scales [[buffer(1)]],
+    device half* prepared [[buffer(2)]],
+    constant long2& input_view [[buffer(3)]],
+    uint lane [[thread_index_in_threadgroup]], uint2 group [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    uint start = group.x * 128u;
+    uint job = group.y;
+    const device half* su = scales[job / 2u].su[job % 2u];
+    for (uint i = lane; i < 128u; i += 64u) {
+        uint col = start + i;
+        values[i] = float(input[input_view.x + long(col) * input_view.y] * su[col]);
+    }
+    hadamard128(values, lane);
+    for (uint i = lane; i < 128u; i += 64u)
+        prepared[job * 2048u + start + i] = half(values[i] * as_type<float>(0x3db504f3u));
+}
+
 kernel void mapped_mix(const device half* expert [[buffer(0)]],const device half* scores [[buffer(1)]],
     device half* out [[buffer(2)]],constant uint* p [[buffer(3)]],uint column [[thread_position_in_grid]]) {
     if(column>=p[0])return;

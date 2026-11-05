@@ -78,6 +78,13 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "qwen35_config::native_qwen_stage_jobs_have_disjoint_in_bounds_slices",
+        "qwen35_config::native_qwen_qmv_binding_stays_in_the_allocated_range",
+        "qwen35_config::native_qwen_kv_plan_never_overwrites_a_reserved_prefix",
+        "qwen35_config::native_qwen_layer_chain_only_prepares_the_adjacent_layer",
+        "qwen35_config::native_qwen_block_preflights_every_row",
+        "qwen35_config::native_qwen_verification_retains_only_a_verified_prefix",
+        "qwen35_config::native_mtp_affine_binds_a_complete_expert_slice",
         "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
         "device_hot_policy::device_hot_defaults_preserve_strict_literals_and_both_hardware_guards",
         "device_hot_policy::device_hot_actual_admission_offsets_and_peak_are_bounded",
