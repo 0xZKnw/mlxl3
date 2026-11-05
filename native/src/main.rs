@@ -2882,6 +2882,10 @@ struct NativeStats {
     prefill_seconds: f64,
     decode_seconds: f64,
     decode_tokens: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native_gpu_greedy_selections: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native_gpu_greedy_heads: Option<u64>,
     end_to_end_ttft_seconds: Option<f64>,
     tool_seconds: f64,
     draft_load_seconds: f64,
@@ -2907,6 +2911,12 @@ struct NativeStats {
 ))]
 impl NativeStats {
     fn accumulate(&mut self, round: &Self) {
+        if let Some(value) = round.native_gpu_greedy_selections {
+            *self.native_gpu_greedy_selections.get_or_insert(0) += value;
+        }
+        if let Some(value) = round.native_gpu_greedy_heads {
+            *self.native_gpu_greedy_heads.get_or_insert(0) += value;
+        }
         self.prompt_tokens += round.prompt_tokens;
         self.generated_tokens += round.generated_tokens;
         self.cached_prompt_tokens += round.cached_prompt_tokens;
@@ -3197,6 +3207,16 @@ fn bridge_generate_round(
 ) -> Result<RoundOutput> {
     use mlxl3_native::{streaming::Channel, tool_call::StreamFilter};
     let started = Instant::now();
+    #[cfg(not(feature = "mlx"))]
+    let device_greedy = tools.is_empty()
+        && model.device_greedy_eligible(
+            temperature,
+            top_k,
+            repetition_penalty,
+            mtp.is_some() || draft.is_some(),
+        );
+    #[cfg(not(feature = "mlx"))]
+    let device_greedy_before = model.device_greedy_counts();
     anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
     anyhow::ensure!(
         max_tokens == -1 || max_tokens > 0,
@@ -3297,6 +3317,8 @@ fn bridge_generate_round(
     let mut first_token = None;
     let mut first_visible_text = None;
     let mut dflash_next = None;
+    #[cfg(not(feature = "mlx"))]
+    let mut device_greedy_next = None;
     let mut eos_observed = false;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
@@ -3316,15 +3338,22 @@ fn bridge_generate_round(
                 random,
             )?;
             #[cfg(not(feature = "mlx"))]
-            let sampled = direct_bridge::select(
-                model,
-                &logits,
-                &generated,
-                temperature,
-                top_k,
-                repetition_penalty,
-                random,
-            )?;
+            let sampled = if device_greedy {
+                match device_greedy_next.take() {
+                    Some(token) => token,
+                    None => model.greedy_from_logits(&logits)?,
+                }
+            } else {
+                direct_bridge::select(
+                    model,
+                    &logits,
+                    &generated,
+                    temperature,
+                    top_k,
+                    repetition_penalty,
+                    random,
+                )?
+            };
             sampled
         };
         if tokenizer.eos_ids().contains(&next) {
@@ -3422,6 +3451,8 @@ fn bridge_generate_round(
             } else if let Some(draft) = draft {
                 dflash_next =
                     Some(draft.advance(model, next, context_limit, budget - generated.len())?);
+            } else if device_greedy {
+                device_greedy_next = Some(model.forward_greedy(next)?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -3479,6 +3510,12 @@ fn bridge_generate_round(
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
         ttft_seconds: ttft,
+        #[cfg(not(feature = "mlx"))]
+        native_gpu_greedy_selections: device_greedy
+            .then(|| model.device_greedy_counts()[0] - device_greedy_before[0]),
+        #[cfg(not(feature = "mlx"))]
+        native_gpu_greedy_heads: device_greedy
+            .then(|| model.device_greedy_counts()[1] - device_greedy_before[1]),
         prefill_tps: (tokens.len() - cached) as f64 / prefill_seconds.max(1e-9),
         decode_tps: generated.len().saturating_sub(1) as f64 / (elapsed - ttft).max(1e-9),
         prompt_tokens: tokens.len(),
@@ -4516,6 +4553,10 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
             logits
         };
         #[cfg(not(feature = "mlx"))]
+        let device_greedy = model.device_greedy_eligible(0., 1, 1., false);
+        #[cfg(not(feature = "mlx"))]
+        let mut device_greedy_next = None;
+        #[cfg(not(feature = "mlx"))]
         let mut logits = model.prefill(&tokens)?;
         let prefill = started.elapsed();
         let mut decoder = tokenizer.tokenizer().decode_stream(false);
@@ -4548,11 +4589,19 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
             // Preserve MLX-LM's normalization before greedy selection. A raw
             // logits argmax could choose differently at FP16 rounding ties.
             #[cfg(feature = "mlx")]
-            let probabilities = logits.log_probs()?.to_f32()?;
+            let next =
+                mlxl3_native::speculative::greedy_log_prob_id(&logits.log_probs()?.to_f32()?)
+                    .context("model returned invalid log probabilities or no finite token")?;
             #[cfg(not(feature = "mlx"))]
-            let probabilities = gpu.flash_log_probs(&logits)?;
-            let next = mlxl3_native::speculative::greedy_log_prob_id(&probabilities)
-                .context("model returned invalid log probabilities or no finite token")?;
+            let next = if device_greedy {
+                match device_greedy_next.take() {
+                    Some(token) => token,
+                    None => model.greedy_from_logits(&logits)?,
+                }
+            } else {
+                mlxl3_native::speculative::greedy_log_prob_id(&gpu.flash_log_probs(&logits)?)
+                    .context("model returned invalid log probabilities or no finite token")?
+            };
             if tokenizer.eos_ids().contains(&next) {
                 break;
             }
@@ -4567,7 +4616,16 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
                 emit(split.feed(&text))?;
             }
             if count < budget {
-                logits = model.forward(next)?;
+                #[cfg(feature = "mlx")]
+                {
+                    logits = model.forward(next)?;
+                }
+                #[cfg(not(feature = "mlx"))]
+                if device_greedy {
+                    device_greedy_next = Some(model.forward_greedy(next)?);
+                } else {
+                    logits = model.forward(next)?;
+                }
             }
         }
         // A token limit can cut a byte-fallback character. Flush the tokenizer's
@@ -5648,5 +5706,40 @@ mod tests {
             assert!(cache.is_none(), "cache OFF must release the saved state");
         }
         Ok(())
+    }
+}
+
+#[cfg(all(
+    test,
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+mod device_greedy_stats_tests {
+    use super::*;
+    #[test]
+    fn scalar_selector_stats_are_optional_and_accumulate_actual_work() {
+        let mut stats = NativeStats::default();
+        assert!(
+            serde_json::to_value(&stats)
+                .unwrap()
+                .get("native_gpu_greedy_selections")
+                .is_none()
+        );
+        stats.accumulate(&NativeStats {
+            native_gpu_greedy_selections: Some(2),
+            native_gpu_greedy_heads: Some(1),
+            ..Default::default()
+        });
+        stats.accumulate(&NativeStats::default());
+        stats.accumulate(&NativeStats {
+            native_gpu_greedy_selections: Some(3),
+            native_gpu_greedy_heads: Some(2),
+            ..Default::default()
+        });
+        assert_eq!(stats.native_gpu_greedy_selections, Some(5));
+        assert_eq!(stats.native_gpu_greedy_heads, Some(3));
+        let encoded = serde_json::to_value(&stats).unwrap();
+        assert_eq!(encoded["native_gpu_greedy_selections"], 5);
+        assert_eq!(encoded["native_gpu_greedy_heads"], 3);
     }
 }

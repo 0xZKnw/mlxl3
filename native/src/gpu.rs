@@ -16,6 +16,7 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod greedy;
 mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
@@ -380,6 +381,11 @@ pub struct Metal {
     model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
     logsumexp: ComputePipelineState,
+    device_greedy_pipeline: Option<ComputePipelineState>,
+    device_greedy_calls: std::cell::Cell<u64>,
+    device_greedy_heads: std::cell::Cell<u64>,
+    #[cfg(test)]
+    device_greedy_reject_result: std::cell::Cell<bool>,
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
@@ -865,6 +871,9 @@ impl Metal {
                 gdn_head_gates,
             )?;
             let logsumexp = pipeline("flash_logsumexp")?;
+            let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
+                .then(|| pipeline("flash_normalized_greedy"))
+                .transpose()?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&pipeline)?;
@@ -1016,6 +1025,11 @@ impl Metal {
                 model_ops,
                 gdn,
                 logsumexp,
+                device_greedy_pipeline,
+                device_greedy_calls: std::cell::Cell::new(0),
+                device_greedy_heads: std::cell::Cell::new(0),
+                #[cfg(test)]
+                device_greedy_reject_result: std::cell::Cell::new(false),
                 ple,
                 moe_switch,
                 moe_mix,
@@ -1361,3 +1375,7 @@ mod ar30_kernel_tests;
 #[cfg(test)]
 #[path = "gpu/ar20_capture_tests.rs"]
 mod ar20_capture_tests;
+
+#[cfg(test)]
+#[path = "gpu/ar30_greedy_tests.rs"]
+mod ar30_greedy_tests;

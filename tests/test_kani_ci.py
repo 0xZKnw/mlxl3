@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",
         "gpu_wait_policy::gpu_spin_budget_never_exceeds_either_production_limit",
         "flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids",
         "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
