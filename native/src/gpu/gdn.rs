@@ -322,8 +322,23 @@ impl<'a> FlashGdn<'a> {
             g(80, 1, 1),
             32,
         );
-        let qkv = self.qkv.encode_row(cmd, &input, storage)?;
-        let z = self.z.encode_row(cmd, &input, storage)?;
+        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_resident_bundle.get(),
+            trace,
+            private_f32_consumer,
+        ) {
+            self.qkv
+                .encode_resident_pair(&self.z, cmd, &input, storage)?
+        } else {
+            None
+        };
+        let [qkv, z] = match pair {
+            Some(pair) => pair,
+            None => [
+                self.qkv.encode_row(cmd, &input, storage)?,
+                self.z.encode_row(cmd, &input, storage)?,
+            ],
+        };
         let dense = |w: &Buffer| -> Result<MatrixView> {
             let gate = half(48)?;
             Metal::encode(

@@ -248,6 +248,10 @@ pub struct Metal {
     gdn_joint_ab: std::cell::Cell<bool>,
     gdn_whole: std::cell::Cell<bool>,
     gdn_head_gates: std::cell::Cell<bool>,
+    gdn_resident_bundle: std::cell::Cell<bool>,
+    gdn_resident_qmv: Option<ComputePipelineState>,
+    #[cfg(test)]
+    gdn_resident_bundle_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     gdn_head_gate_uses: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -455,6 +459,7 @@ impl Metal {
             let gdn_joint_ab = hc_kernel_setting("MLXL3_NATIVE_GDN_JOINT_AB")?;
             let gdn_whole = hc_kernel_setting("MLXL3_NATIVE_GDN_WHOLE")?;
             let gdn_head_gates = hc_kernel_setting("MLXL3_NATIVE_GDN_HEAD_GATES")?;
+            let gdn_resident_bundle = hc_kernel_setting("MLXL3_NATIVE_GDN_RESIDENT_BUNDLE")?;
             let qsa_prepare = hc_kernel_setting("MLXL3_NATIVE_QSA_PREPARE")?;
             let qsa_chains = hc_kernel_setting("MLXL3_NATIVE_QSA_CHAINS")?;
             let qsa_prefetch = hc_kernel_setting("MLXL3_NATIVE_QSA_PREFETCH")?;
@@ -587,6 +592,10 @@ impl Metal {
                 .replace(
                     "#include \"flash_expert_axis.metal\"",
                     include_str!("../shaders/flash_expert_axis.metal"),
+                )
+                .replace(
+                    "#include \"flash_gdn_resident.metal\"",
+                    include_str!("../shaders/flash_gdn_resident.metal"),
                 )
                 .replace(
                     "#include \"_qmv_tile_kernel.metal\"",
@@ -784,6 +793,9 @@ impl Metal {
                     ])
                 })
                 .transpose()?;
+            let gdn_resident_qmv = gdn_resident_bundle
+                .then(|| pipeline("ar20_gdn_resident_qkv_z_nt2"))
+                .transpose()?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -845,6 +857,10 @@ impl Metal {
                 gdn_joint_ab: std::cell::Cell::new(gdn_joint_ab),
                 gdn_whole: std::cell::Cell::new(gdn_whole),
                 gdn_head_gates: std::cell::Cell::new(gdn_head_gates),
+                gdn_resident_bundle: std::cell::Cell::new(gdn_resident_bundle),
+                gdn_resident_qmv,
+                #[cfg(test)]
+                gdn_resident_bundle_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 gdn_head_gate_uses: std::cell::Cell::new(0),
                 #[cfg(test)]

@@ -347,6 +347,89 @@ impl<'a> FlashProjection<'a> {
         self.encode_rows(cmd, x, storage)
     }
 
+    pub(super) fn encode_resident_pair(
+        &self,
+        other: &Self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<Option<[MatrixView; 2]>> {
+        let gpu = self.metal;
+        ensure!(
+            std::ptr::eq(gpu, other.metal),
+            "resident pair requires the same Metal instance"
+        );
+        if !gpu.gdn_resident_bundle.get() {
+            return Ok(None);
+        }
+        let Some(pipeline) = gpu.gdn_resident_qmv.as_ref() else {
+            return Ok(None);
+        };
+        let resident = |p: &Self| {
+            !p.generic
+                && !p.mtp_hidden
+                && !p.routed_record
+                && [p.offsets.trellis, p.offsets.suh, p.offsets.svh] == [0; 3]
+        };
+        if !crate::flash_support::ar20_resident_pair_eligible(
+            true,
+            [[self.input, self.output], [other.input, other.output]],
+            [
+                [self.k, self.cb as u32, self.nt],
+                [other.k, other.cb as u32, other.nt],
+            ],
+            [self.splits, other.splits],
+            [resident(self), resident(other)],
+            [self.bias.is_some(), other.bias.is_some()],
+            [
+                pipeline.thread_execution_width() as u32,
+                pipeline.max_total_threads_per_threadgroup() as u32,
+            ],
+        ) {
+            return Ok(None);
+        }
+        ensure!(
+            x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
+            "invalid resident pair input"
+        );
+        let prepared = [
+            buffer(&gpu.device, 5120, Storage::StorageModePrivate)?,
+            buffer(&gpu.device, 5120, Storage::StorageModePrivate)?,
+        ];
+        let partial = [
+            buffer(&gpu.device, 40960, Storage::StorageModePrivate)?,
+            buffer(&gpu.device, 24576, Storage::StorageModePrivate)?,
+        ];
+        let output = [
+            MatrixView::output(gpu, super::view::FloatType::F16, 1, 10240, storage)?,
+            MatrixView::output(gpu, super::view::FloatType::F16, 1, 6144, storage)?,
+        ];
+        for (projection, prepared) in [(self, &prepared[0]), (other, &prepared[1])] {
+            projection.encode_input_into(cmd, Activation::View(x), prepared, 0)?;
+        }
+        Metal::encode(
+            cmd,
+            pipeline,
+            &[
+                &prepared[0],
+                &self.packed,
+                &prepared[1],
+                &other.packed,
+                &partial[0],
+                &partial[1],
+            ],
+            [0u32],
+            MTLSize::new(512, 1, 1),
+            128,
+        );
+        self.encode_finish(cmd, &partial[0], 0, &output[0].buffer, 0, 10240, None)?;
+        other.encode_finish(cmd, &partial[1], 0, &output[1].buffer, 0, 6144, None)?;
+        #[cfg(test)]
+        gpu.gdn_resident_bundle_uses
+            .set(gpu.gdn_resident_bundle_uses.get() + 1);
+        Ok(Some(output))
+    }
+
     pub(super) fn encode_rows(
         &self,
         cmd: &CommandBufferRef,
@@ -2266,3 +2349,7 @@ mod routed_nt2_tests;
 #[cfg(test)]
 #[path = "ar20_projection_tests.rs"]
 mod ar20_projection_tests;
+
+#[cfg(test)]
+#[path = "resident_bundle_tests.rs"]
+mod resident_bundle_tests;

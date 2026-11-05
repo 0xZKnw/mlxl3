@@ -3920,3 +3920,84 @@ fn ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabiliti
     kani::cover!(!a && s);
     kani::cover!(!a && c[3] < 1024);
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn ar20_resident_pair_eligible(
+    enabled: bool,
+    shape: [[u32; 2]; 2],
+    format: [[u32; 3]; 2],
+    splits: [u32; 2],
+    resident: [bool; 2],
+    bias: [bool; 2],
+    capability: [u32; 2],
+) -> bool {
+    enabled
+        && shape == [[2560, 10240], [2560, 6144]]
+        && format == [[4, 2, 2]; 2]
+        && splits == [1; 2]
+        && resident == [true; 2]
+        && bias == [false; 2]
+        && capability[0] == 32
+        && capability[1] >= 128
+}
+#[test]
+fn ar20_resident_bundle_requires_exact_live_canonical_pair() {
+    assert!(ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 2]; 2],
+        [1; 2],
+        [true; 2],
+        [false; 2],
+        [32, 128]
+    ));
+    assert!(!ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 1]; 2],
+        [1; 2],
+        [true; 2],
+        [false; 2],
+        [32, 128]
+    ));
+    assert!(!ar20_resident_pair_eligible(
+        true,
+        [[2560, 10240], [2560, 6144]],
+        [[4, 2, 2]; 2],
+        [1; 2],
+        [true; 2],
+        [false, true],
+        [32, 128]
+    ));
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(40)]
+fn ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids() {
+    let e: bool = kani::any();
+    let shape: [[u32; 2]; 2] = kani::any();
+    let f: [[u32; 3]; 2] = kani::any();
+    let splits: [u32; 2] = kani::any();
+    let resident: [bool; 2] = kani::any();
+    let bias: [bool; 2] = kani::any();
+    let c: [u32; 2] = kani::any();
+    let a = ar20_resident_pair_eligible(e, shape, f, splits, resident, bias, c);
+    assert_eq!(
+        a,
+        e && shape == [[2560, 10240], [2560, 6144]]
+            && f == [[4, 2, 2]; 2]
+            && splits == [1; 2]
+            && resident == [true; 2]
+            && bias == [false; 2]
+            && c[0] == 32
+            && c[1] >= 128
+    );
+    if a {
+        assert_eq!(320u32 * 32, shape[0][1]);
+        assert_eq!(192u32 * 32, shape[1][1]);
+        assert_eq!(320 + 192, 512);
+    }
+    kani::cover!(a);
+    kani::cover!(!a && f[0][2] == 1);
+    kani::cover!(!a && bias[1]);
+}
