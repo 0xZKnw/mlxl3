@@ -1,0 +1,75 @@
+{
+  "status": "timeout_unverified",
+  "budget_seconds": 90,
+  "all_children_joined": true,
+  "properties": [
+    "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
+    "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
+    "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds"
+  ],
+  "source_sha256": {
+    "native/src/ssd_reads.rs": "88f99ddc2fb9de3a241a3e39fe7db8178731c0d63c97e0311f63d8b806977847",
+    "native/src/flash_support/slru.rs": "64c308053746eb77c6fbf80377681339316a06201336d62c57db6a7f1ddeb223",
+    "native/src/expert_ar_policy.rs": "ce8a74cf267cf9c19bf97ca39e39060b6d30277fc4b662c18fa9dc37fde3e095"
+  },
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--jobs",
+    "1",
+    "--output-format",
+    "terse",
+    "--harness",
+    "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
+    "--harness",
+    "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
+    "--harness",
+    "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds"
+  ],
+  "target": "/Users/justin/.codex/worktrees/flash-ar20-io/mix-stq1_0/build/ar20-io-kani-target",
+  "pgid": 19399,
+  "seconds": 85.12177550000001,
+  "window_status": "timeout_unverified",
+  "versions": {
+    "kani": "0.68.0",
+    "cbmc": "6.11.0"
+  },
+  "results": [
+    {
+      "harness": "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds",
+      "status": "passed",
+      "checks": 27,
+      "failed": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4,
+      "solver_seconds": 0.1586907,
+      "domain": "symbolic booleans/usize pipeline capability and four u64 offsets/lengths; no assumptions/stubs"
+    },
+    {
+      "harness": "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
+      "status": "timeout_unverified",
+      "domain": "real queue implementation, capacity10/11; six fixed valid hit promotions force demotion, four symbolic(u8 slot,bool hit) updates, optional clear, unwind40; unwinding assertions retained",
+      "reason": "90-second total CPU window, solver stopped at85seconds elapsed including setup/build and all children joined"
+    },
+    {
+      "harness": "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
+      "status": "not_started_unverified",
+      "reason": "selected but earlier lexicographical SLRU harness exhausted the window before this solver started"
+    }
+  ],
+  "source_copies": {
+    "native/src/ssd_reads.rs": "docs/measurements/flash-ar20-20261105/io-proofs/ssd_reads.rs.txt",
+    "native/src/flash_support/slru.rs": "docs/measurements/flash-ar20-20261105/io-proofs/slru.rs.txt",
+    "native/src/expert_ar_policy.rs": "docs/measurements/flash-ar20-20261105/io-proofs/expert_ar_policy.rs.txt"
+  },
+  "log": {
+    "gzip_path": "docs/measurements/flash-ar20-20261105/io-proofs/guards.log.gz",
+    "raw_sha256": "fd072417afdc2aa7657703122581c23165e92df493c1f26e6841be15e130b03b",
+    "gzip_sha256": "4cace4c938bf1eabc55ab3bec69794f4a0b1dcc411bbcaf4219d1d62aad46175",
+    "raw_bytes": 12199
+  }
+}

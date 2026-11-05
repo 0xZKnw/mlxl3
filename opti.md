@@ -25836,3 +25836,47 @@ AR20 QUALITY cli VALIDATED
 AR20 QUALITY 3/3 QUALIFIED (reference capture parityfalse, candidate and CLI paritytrue)
 
 AR20 QUIET-01 userrevision beforetiming: user cancelsartificial90sidle; clock.sleep45 interruptedbynewmessage after20.8389s, actual wallinterval recordedpreparation.json (-0.01s includingnormalbookkeeping), no90scoolingclaim. Appsconfirmedclosed; quality3/3PASS onquietfreeze, noGPUpendingelsewhere/builds/proofsended. FinishCIledger now and launch8MAIN32arms immediately. FullCPUfinalnoDirect379PASS10ignored/strictClippy+fmtPASS; DIRECT390PASS85ignored andstrictClippyfreshquietPASS; releasesPASS. Coverage272files/sixregressionsPASS. Kanimanifeststalealias regressionRED1fail2pass beforefix; firstcleanupmirrorstill1fail6pass16subtests, mirrorfixedthen7PASS16subtests; allfailurespreserved. AddedportableliteralSLRUdeclarationguard, manifest417obligations vswrong418includingnonexistentrenamealias. FormalKaniactualpropertyunchanged/timeoutsunchanged, nonewGPU/Rustmathchange. Python44Linux-onlyorchestrationtests skippedlocally/CIpending; no completeCIgreenclaim.
+
+AR20 QUIET-01 selected-quality STARTED
+
+AR20 QUIET-01 selected-quality VALIDATED numerical-gate
+
+AR20 QUIET-01 off-start STARTED
+
+AR20 QUIET-01 off-start VALIDATED 7.023266078206595
+
+AR20 QUIET-01 kernels STARTED
+
+AR20 QUIET-01 kernels VALIDATED 5.896138708685307
+
+AR20 QUIET-01 attention STARTED
+
+AR20 QUIET-01 attention VALIDATED 5.424945614920209
+
+AR20 QUIET-01 off-middle STARTED
+
+AR20 QUIET-01 provenancecorrection(légèrerevue): priorcooling_elapsed_seconds -0.008187792000000001 invalid becausePython3.9macmonotonic basesdifferbetweenprocesses. Valuepreservedasinvalid_cross_process_monotonic_delta_seconds; correctedwallclockepochinterval58.622785s(time.time), includingmessage/bookkeeping, actualclock.sleepwait20.8389s only. No90sidleoractualtemperatureclaim; no sourcecode/benchmarkchanged. Userrequestedtargetedlightreview startedSOURCEonlyparallelGPU:no compilers/provers/othermodel.
+
+AR20 QUIET-01 off-middle VALIDATED 9.717218999867542
+
+AR20 QUIET-01 finish-mix STARTED
+
+AR20 QUIET-01 finish-mix VALIDATED 9.629734879755603
+
+AR20 QUIET-01 host-io STARTED
+
+AR20 QUIET-01 host-io VALIDATED 9.516373791857095
+
+AR20 QUIET-01 compatible STARTED
+
+AR20 QUIET-01 compatible VALIDATED 9.446447688105724
+
+AR20 QUIET-01 off-end STARTED
+
+AR20 QUIET-01 off-end VALIDATED 5.312800710893457
+
+AR20 QUIET-01 CLOSED 8 MAIN32 groups, no sustained throughput claim
+
+AR20 QUIET-01 CLOS afteruserappquit: actualquality3/3+selected10model PASS,8MAIN32arms16/16goldenoutputs/alljoined. Tok/s{"attention": 5.424945614920209, "compatible": 9.446447688105724, "finish-mix": 9.629734879755603, "host-io": 9.516373791857095, "kernels": 5.896138708685307, "off-end": 5.312800710893457, "off-middle": 9.717218999867542, "off-start": 7.023266078206595}. Controls7.0233/9.7172/5.3128 stronglyvariable despiteEquibop/Braveclosed, speedNONCONCLUANT; no10target/AR20defaultpromotion orcausalheatreport. Source-onlylightreview B01–B12/mapping32tokens/CLIsha/counters/offsets/tails/owners/FDs foundnonewconcretefault; sourceproofnotexhaustive. All8qualifyingnewcasescorrectbutnot12localboostclaims. UsernowexplicitlyauthorizesDEFAULT-AR10 activation ofPR13212validatedoptimisations/13flags (historical8.3498); isolatedsourcepreparationinPR132, noAR20newoptionenabled. NoGPUbenchmarkrunning; readyCPU/proof/buildgrantforAR10defaultpatch aftersourceprepared.
+
+AR20 reporting/verificationCLOS: quietpluspriorcommonMAIN48/48completegoldenoutputs(32generated/31decode), fastB01eightadditionalhistoricaloutputs separate, allgroupsjoined/noGPUremaining. README/matrix/rawreports/independentoracles/audits/proofreceipts andlosslessarchivesstaged; originalrawlogs retainedlocal. Lastdiffcheck found realKani logtrailingwhitespace; preservedrawbytes viaadjacentgzip+raw/compressedSHAindex andrestoreguide ratherthaneditingproofevidence, thenstageddiffcheckPASS. Originalarchive/manifestsnotrewritten, QUIETaddendumseparate. CIinventories272files/sixnative-coveragetests and7portableproofmanifest+cleanupregressions16subcasesPASS; 44Linux-onlyskipsnotgreenclaims. All12AR20remainOFF; userexplicit12AR10defaultpromotion nowprepared/testedseparatelyinPR132, noAR20perfacceptedbydefault. Source-onlylightreviewallB01–B12+actualCLIsha32tokensfoundnonewconcretefault, neitherexhaustiveproofnorperformanceattribution.

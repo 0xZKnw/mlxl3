@@ -1,0 +1,45 @@
+"""B01 first independent component/model/CLI gates, then three bounded MAIN32 arms."""
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2];H=ROOT/'docs/measurements/flash-ar20-20261105/fast'
+OLD=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+VALIDATE=runpy.run_path('/Users/justin/.codex/worktrees/issue125-current-engine/mix-stq1_0/build/current-engine/fast-hc/screen.py')['validate']
+MODEL='/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531'
+def main():
+ H.mkdir();f=OLD['strict_json']((ROOT/'build/ar20/fast/freeze.json').read_text());flags=OLD['strict_json']((ROOT/'docs/measurements/flash-ar10-20261105/plan-final.json').read_text())['arms'][1]['flags'];assert len(flags)==13
+ for a in [*f['artifacts'].values(),f['baseline']]:assert hashlib.sha256(Path(a['path']).read_bytes()).hexdigest()==a['sha256']
+ for p,s in f['source_files'].items():assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==s,p
+ env={k:v for k,v in os.environ.items()if not k.startswith(('MLXL3_','DYLD_'))};env.update({'MLXL3_FLASH_MODEL':MODEL,'MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_NATIVE_GPU_SPIN_WAIT':'0','PYTHONPATH':str(ROOT)});env.update({k:'1'for k in flags});env.update({'MLXL3_NATIVE_'+k:'0'for k in ['HC_WORKSPACE','HC_UP_MIX','HC_DOWN_INJECT','SSD_EXTRA_WAVE','GDN_HALF_ELISION','GDN_NORM_GATE','FIXED_RESIDENCY']})
+ r={'status':'running','parity':False,'all_children_joined':False,'phases':[]};sink=H/'report.json'
+ def save():sink.write_text(json.dumps(r,indent=2,allow_nan=False)+'\n')
+ def journal(s):
+  with (ROOT/'opti.md').open('a')as p:p.write('\nAR20-B01-FAST '+s+'\n')
+ def child_run(name,cmd,runenv,validate):
+  item={'name':name,'status':'running','parity':False,'joined':False,'command':cmd};r['phases'].append(item);save();journal(name+' STARTED');child=None;t=time.monotonic()
+  try:
+   with (H/(name+'.log')).open('x')as log:
+    child=subprocess.Popen(cmd,cwd=ROOT,env=runenv,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);item['pid']=child.pid;save();code=child.wait(timeout=240)
+   assert code==0 and not OLD['members'](child.pid);item['evidence']=validate((H/(name+'.log')).read_text());item.update(status='validated',parity=True)
+  except BaseException as e:item.update(status='failed',parity=False,error=repr(e));raise
+  finally:item.update(joined=OLD['stop'](child),seconds=time.monotonic()-t);save()
+  assert item['joined'];journal(name+' VALIDATED');return item['evidence']
+ def quality(text,marker,expected):
+  OLD['native_images'](text);e=OLD['marker'](text,marker);OLD['exact_fields'](e,{'parity':True,**expected});assert 'test result: ok. 1 passed; 0 failed; 0 ignored;'in text;return e
+ save()
+ try:
+  lib=f['artifacts']['native-libtest']['path'];ce={**env,'MLXL3_NATIVE_GDN_HEAD_GATES':'1','DYLD_PRINT_LIBRARIES':'1'}
+  for name,test,marker,expected in [('component','gpu::gdn::ar20_gdn_tests::physical_ar20_head_gates_preserve_boundary_corpus_and_retained_frames','AR20_GDN_HEAD_GATES',{'boundary_cases':3,'actual_runtime_uses':2,'retained_frames':True}),('model','gpu::ar10_model_tests::physical_ar10_composition_preserves_full_state_and_continuation','NATIVE_AR10_COMPOSITION_MODEL',{'case_count':2,'compared_state_words':57606144,'compared_logits':993280,'initial_archive_states':84,'all_readers_joined':True})]:
+   child_run(name,[lib,test,'--exact','--ignored','--nocapture','--test-threads=1'],ce,lambda text,m=marker,e=expected:quality(text,m,e))
+  def cli_check(text):
+   OLD['native_images'](text);e=OLD['marker'](text,'NATIVE_SSD_DIRECT_CLI');OLD['exact_fields'](e,{'parity':True,'status':'verified','completed':1,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True});return e
+  child_run('cli',['/Users/justin/Documents/mix-stq1_0/.venv/bin/python','/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',f['artifacts']['direct-cli']['path'],str(H)],ce,cli_check)
+  r['quality_complete']=True;save();gold=OLD['strict_json']((ROOT/'docs/measurements/issue125-current-engine-20261104/fast-main32/performance/1-reference/report.json').read_text())['runs'][0];expected=(gold['text'],gold['token_hash'])
+  for name,a,on in [('control-start',f['baseline'],False),('head-gates',f['artifacts']['direct-cli'],True),('control-end',f['baseline'],False)]:
+   out=H/name;runenv={**env,'MLXL3_NATIVE_GDN_HEAD_GATES':str(int(on))};cmd=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python',str(ROOT/'scripts/benchmark-flash-bridge.py'),a['path'],MODEL,str(out),'--prompt','MAIN','--tokens','32','--repeats','1','--cache-gib','3','--timeout','180']
+   def speed_check(text,out=out,a=a):
+    v=VALIDATE(OLD['strict_json']((out/'report.json').read_text()),a['sha256']);assert all((x['text'],x['token_hash'])==expected for x in v['warmup']+v['runs']);return v['runs'][0]['stats']
+   stats=child_run(name,cmd,runenv,speed_check);print(name,stats['decode_tps'],flush=True)
+  r.update(status='validated_short_screen',parity=True,all_children_joined=True);journal('CLOSED all phases PASS, short screen only')
+ except BaseException as e:r.update(status='failed',parity=False,error=repr(e),all_children_joined=all(p['joined']for p in r['phases']));journal('FAILED '+repr(e));raise
+ finally:save()
+if __name__=='__main__':main()
