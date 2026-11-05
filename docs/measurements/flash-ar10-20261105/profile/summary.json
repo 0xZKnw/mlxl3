@@ -1,0 +1,85 @@
+{
+  "scope": "intrusive current-default diagnostic, no predicted savings; composites overlap and clocks not aligned",
+  "rows": 7,
+  "host": {
+    "native.row": {
+      "events": 7,
+      "inclusive_ms_per_row": 137.13438685714286
+    },
+    "native.central_wait": {
+      "events": 959,
+      "inclusive_ms_per_row": 71.23060257142856
+    },
+    "native.moe_wait": {
+      "events": 336,
+      "inclusive_ms_per_row": 8.415191
+    },
+    "native.central_encode": {
+      "events": 959,
+      "inclusive_ms_per_row": 6.6909661428571425
+    },
+    "native.hc.encode_read": {
+      "events": 679,
+      "inclusive_ms_per_row": 2.0998215714285715
+    },
+    "native.hc.encode_write": {
+      "events": 672,
+      "inclusive_ms_per_row": 1.111619
+    }
+  },
+  "gpu": {
+    "native.hc_gdn.joined": {
+      "events": 14,
+      "composite_ms_per_row": 1.0602738142811827
+    },
+    "native.hc.chain_write_read_gate": {
+      "events": 336,
+      "composite_ms_per_row": 8.800630877625995
+    },
+    "moe": {
+      "events": 887,
+      "composite_ms_per_row": 35.07281552135412
+    },
+    "native.hc.write_separate": {
+      "events": 98,
+      "composite_ms_per_row": 0.06677378717410777
+    },
+    "central": {
+      "events": 182,
+      "composite_ms_per_row": 5.35545835737139
+    },
+    "native.hc_gdn.cross_layer": {
+      "events": 238,
+      "composite_ms_per_row": 18.001071426884405
+    },
+    "native.hc.read_separate": {
+      "events": 91,
+      "composite_ms_per_row": 1.817416657494115
+    },
+    "projection": {
+      "events": 7,
+      "composite_ms_per_row": 3.3048273804264943
+    }
+  },
+  "cold_records": 1097,
+  "cold_batch_counts": {
+    "9": 3,
+    "7": 25,
+    "1": 51,
+    "3": 48,
+    "5": 32,
+    "4": 47,
+    "2": 59,
+    "0": 35,
+    "6": 28,
+    "8": 7,
+    "10": 1
+  },
+  "known_limits": [
+    "CPU/GPU clocks not aligned; intervals overlap and are not additive",
+    "GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split",
+    "SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic",
+    "CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated",
+    "allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"
+  ]
+}

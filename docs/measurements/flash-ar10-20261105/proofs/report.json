@@ -1,0 +1,39 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--jobs",
+    "1",
+    "--output-format",
+    "terse",
+    "--harness",
+    "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
+    "--harness",
+    "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
+    "--harness",
+    "flash_support::ar10_whole_gdn_requires_every_real_private_capability_guard",
+    "--harness",
+    "flash_support::ar10_qsa_gate_requires_every_actual_short_dense_guard",
+    "--harness",
+    "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots",
+    "--harness",
+    "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",
+    "--harness",
+    "ssd_reads::split_record_tests::native_split_record_claims_never_overlap_or_repeat"
+  ],
+  "status": "passed",
+  "properties": [
+    "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
+    "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
+    "flash_support::ar10_whole_gdn_requires_every_real_private_capability_guard",
+    "flash_support::ar10_qsa_gate_requires_every_actual_short_dense_guard",
+    "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots",
+    "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",
+    "ssd_reads::split_record_tests::native_split_record_claims_never_overlap_or_repeat"
+  ],
+  "returncode": 0
+}

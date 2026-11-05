@@ -25508,3 +25508,33 @@ AR10 MAIN32 matriceCLOSE/QUALITÉVALIDÉE : publié7.401531354, OFF7.589933366/7
 AR10-IDLE-FIX avantédition/mesure : auditidentifie6PSOsexpertscréésmêmeOFF etVecNone/batchSharedOFF. Corrigeruniquementcoûtsnonactifs : PSOOptionchargéssiflaginitialON (erreurcontextuelleavantencodesiabsents), destinationsfreshpariteratorquandreuseOFF. Pasdechangementmath/shader/caches/threads/flagsdefaults. AjoutergatephysiqueOFF6PSOabsents, gardercommongateONexact etCLI ; refairestrictCPU/buildsaffectés puisuniquementOFF/ALL32surartefactsfinaux. Lematériel/modèle/protocoleinchangés, anciensrésultatsconservésnotclaimfinalcode. Defaultsdes12restentOFF/prototypesopt-in ; aucunminimumindividuelexigé, pasderetraitparbruit.
 
 AR10-IDLE-FIX compile/CPU CLOS : strictClippyPASS etDIRECT/chat379PASS73ignored (2nouveauxgatesphysiquesexplicitementignorésdanssuite), releasesCLI/libtestPASS ; aucuneformule/shader/helperprouvémodifié. Kani11preuves734checks44coversréutilisésauxSHAhelpersidentiques ; inventaireglobalICEtoujoursnonvérifié. Archivesexpert290ecbfe copiéesbyteidentiques. Nouveaugelavant3gatesGPUidleOFF/modelON/CLION, puis3MAIN32OFF/ALL/OFFseulement ; pasrelance10composantsarithmétiquementinchangés. ChacungateliecommandesetSHA ; anciensgelsetmesuresconservés.
+
+AR10 QUALITY idle STARTED
+
+AR10 QUALITY idle VALIDATED
+
+AR10 QUALITY model STARTED
+
+AR10 QUALITY model VALIDATED
+
+AR10 QUALITY cli STARTED
+
+AR10 QUALITY cli VALIDATED
+
+AR10 QUALITY 3/3 VALIDATED before final MAIN32
+
+AR10 MAIN32 off-start STARTED
+
+AR10 MAIN32 off-start VALIDATED 7.685042815382792
+
+AR10 MAIN32 all STARTED
+
+AR10 MAIN32 all VALIDATED 8.349829388703746
+
+AR10 MAIN32 off-end STARTED
+
+AR10 MAIN32 off-end VALIDATED 7.591637957724497
+
+AR10 MAIN32 CLOSED {"off-start": 7.685042815382792, "off-end": 7.591637957724497}
+
+AR10 FINAL CLOS : source35c7c976/531SHA, CLIa99c9cb4/lib44d543fa, runtimeident83e118cc-dirtydocumentéavantcommit. Réexécutionaffectée3/3PASSidle6PSOabsents+modèlefulllogits/états+CLI/noMLX ; finalOFF7.685042815/7.591637958 vsALL8.349829389tok/s (+8.6504/+9.9872%,dérive−1.2154%).24/24sortiesMAIN32complètesidentiques, tousprocessuslecteursjoints. Pasdechangementdéfaut12optionsOFF ; L1+MoEON. A01-A12tousCLOS : correctionVALIDÉE, performanceINDIVIDUELLEnonconcluante/grouponly, PROMETTEURSCONSERVÉSopt-in ; compositionqualitéVALIDÉE/écrancourtfavorable, pasdébitdurable. Auditavantdécisionfait, deuxcoûtsOFFcorrigés/retestés ; aucunepisteretiréeparbruit. Sourcesprimaires5projets/matrice12/commandes/fixtures/hashes/proofs/logs docs/measurements/flash-ar10-20261105/{README,summary,log-archive}.md/json ; aucunlogtemporairemanquant.379testsPASS73ignored,11Kani734checks44coversCPUbornés ; inventaireglobalICE/PythonCrossHairabsent/IOactivitémodèlenoninstrumentée/MLXFFIautresGPUlongctxnonvérifiésconservés. Aucuneappinstallée/merge/release. PrêtpublicationPRsur130commeautorisé, aucunessaiGPUencours.

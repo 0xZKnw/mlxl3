@@ -1,0 +1,517 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "label": "A01",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::hc::hc_write_norm_tests::physical_hc_write_norm_preserves_written_normalized_and_mixed",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "1",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94082,
+      "evidence": {
+        "actual_fused_cases": 2,
+        "cases": 4,
+        "compared_bytes": 322560,
+        "half_and_float_branch": true,
+        "half_stream_fallback": true,
+        "negative_strides": true,
+        "parity": true
+      },
+      "seconds": 1.7707886660064105
+    },
+    {
+      "label": "A02",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::projection::routed_nt2_tests::physical_routed_nt2_preserves_stock_and_screens_stage_shapes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "1",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "1",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94086,
+      "evidence": {
+        "experts_per_sample": 16,
+        "finite_stock_half_words": 81920,
+        "modes": [
+          "off",
+          "GU",
+          "down",
+          "both"
+        ],
+        "parity": true,
+        "samples_per_mode": 6,
+        "samples_seconds_per_expert": [
+          [
+            7.28176875e-05,
+            7.4046875e-05,
+            7.67760625e-05,
+            8.82135625e-05,
+            9.18125e-05,
+            0.0001615260625
+          ],
+          [
+            7.50755e-05,
+            7.61796875e-05,
+            9.415625e-05,
+            9.48046875e-05,
+            0.0001125885,
+            0.0001708463125
+          ],
+          [
+            7.07005625e-05,
+            7.20546875e-05,
+            8.8328125e-05,
+            9.2862e-05,
+            9.61119375e-05,
+            0.000147263
+          ],
+          [
+            7.481775e-05,
+            7.57239375e-05,
+            9.37943125e-05,
+            0.0001054323125,
+            0.000122375,
+            0.0001707916875
+          ]
+        ],
+        "scope": "host encoding+allocation and GPU command completion, not perkernel GPU time or model gain",
+        "seconds_per_expert_medians": [
+          8.24948125e-05,
+          9.448046875e-05,
+          9.05950625e-05,
+          9.96133125e-05
+        ]
+      },
+      "seconds": 22.428445417026524
+    },
+    {
+      "label": "A03-05",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::projection::routed_scratch_tests::physical_expert_ar_epilogues_match_independent_stock",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "1",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "1",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "1",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "1",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94100,
+      "evidence": {
+        "initial": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "parity": true,
+        "slab_reordered_routes": 10,
+        "slab_words": 25600,
+        "suh_swap_detected_and_restored": true,
+        "up_finish_uses": 16,
+        "words": 81920
+      },
+      "seconds": 28.564519958017627
+    },
+    {
+      "label": "A06",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::projection::routed_scratch_tests::physical_expert_axis_matches_independent_stock_and_ready_cohorts",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "1",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "1",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "1",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "1",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94135,
+      "evidence": {
+        "cohorts": 48,
+        "dispatches_per_cohort": 3,
+        "empty_rejected": true,
+        "mixed_slab_words": 25600,
+        "parity": true,
+        "stock_words": 532480,
+        "uncommitted_error_recovered": true
+      },
+      "seconds": 35.03884866600856
+    },
+    {
+      "label": "A07",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::gdn::ar10_gdn_tests::physical_ar10_whole_gdn_matches_canonical_frames",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "1",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94156,
+      "evidence": {
+        "parity": true,
+        "cases": 2,
+        "state_words": 1572864,
+        "history_half_words": 61440,
+        "gated_half_words": 12288,
+        "output_float_words": 5120,
+        "actual_whole_uses": 2,
+        "retained_frames": true
+      },
+      "seconds": 0.8786507920012809
+    },
+    {
+      "label": "A08",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::qsa::ar10_qsa_tests::physical_ar10_qsa_prepare_matches_canonical",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "1",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94160,
+      "evidence": {
+        "parity": true,
+        "cases": 4,
+        "finite_half_words": 26624
+      },
+      "seconds": 0.11142683299840428
+    },
+    {
+      "label": "A09",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::qsa::ar10_qsa_tests::physical_ar10_qsa_gated_store_matches_canonical",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "1",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94164,
+      "evidence": {
+        "parity": true,
+        "cases": 3,
+        "finite_half_words": 18432
+      },
+      "seconds": 0.11152800000854768
+    },
+    {
+      "label": "A10",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::gdn::ar10_gdn_tests::physical_ar10_joint_ab_matches_canonical_dense",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "1",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94168,
+      "evidence": {
+        "parity": true,
+        "cases": 2,
+        "finite_half_words": 192
+      },
+      "seconds": 0.8319705829781014
+    },
+    {
+      "label": "A11",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "ssd_reads::record_reuse_tests::physical_record_reuse_preserves_bytes_and_rejects_invalid_owners",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "1",
+        "MLXL3_NATIVE_READ_SPLIT": "0"
+      },
+      "pid": 94172,
+      "evidence": {
+        "reused": 2,
+        "fresh": 2,
+        "bytes": 17,
+        "eof_recovery": true,
+        "parity": true
+      },
+      "seconds": 0.06979500001762062
+    },
+    {
+      "label": "A12",
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "ssd_reads::split_record_tests::physical_isolated_shared_record_uses_two_pieces_and_preserves_every_byte",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "flags": {
+        "MLXL3_NATIVE_HC_WORKSPACE": "0",
+        "MLXL3_NATIVE_HC_UP_MIX": "0",
+        "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+        "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        "MLXL3_NATIVE_GDN_HALF_ELISION": "0",
+        "MLXL3_NATIVE_GDN_NORM_GATE": "0",
+        "MLXL3_NATIVE_FIXED_RESIDENCY": "0",
+        "MLXL3_NATIVE_HC_WRITE_NORM": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_GU": "0",
+        "MLXL3_NATIVE_ROUTED_NT2_DOWN": "0",
+        "MLXL3_NATIVE_EXPERT_UP_FINISH": "0",
+        "MLXL3_NATIVE_EXPERT_GU_PREPARE": "0",
+        "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "0",
+        "MLXL3_NATIVE_EXPERT_AXIS_QMV": "0",
+        "MLXL3_NATIVE_GDN_WHOLE": "0",
+        "MLXL3_NATIVE_QSA_PREPARE": "0",
+        "MLXL3_NATIVE_QSA_GATE": "0",
+        "MLXL3_NATIVE_GDN_JOINT_AB": "0",
+        "MLXL3_NATIVE_RECORD_REUSE": "0",
+        "MLXL3_NATIVE_READ_SPLIT": "1"
+      },
+      "pid": 94175,
+      "evidence": {
+        "logical_records": 1,
+        "pieces": 2,
+        "bytes": 1248012,
+        "parity": true
+      },
+      "seconds": 0.06966800001100637
+    }
+  ],
+  "helper_sha256": "984aaecdd5691b72169b71298dac6e6146608c8b357bea983bd36b03d415ae85",
+  "artifact": {
+    "path": "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+    "sha256": "af9880c2278780d544ce710455d7cbfed694e1280e65c8ad121baee9004b1687",
+    "size": 9876544
+  },
+  "fixture_count": 5
+}

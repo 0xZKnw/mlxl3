@@ -1,0 +1,142 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "model",
+      "command": [
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/native-libtest",
+        "gpu::ar10_model_tests::physical_ar10_composition_preserves_full_state_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 94186,
+      "evidence": {
+        "all_readers_joined": true,
+        "case_count": 2,
+        "cases": [
+          {
+            "actual_uses": [
+              82,
+              960,
+              480,
+              480,
+              480,
+              48,
+              480,
+              36,
+              12,
+              12,
+              36
+            ],
+            "axis_qmv_dispatches": 144,
+            "continuation_new_uses": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "cross_layer_triples": 34,
+            "legacy_continuation": true,
+            "moe_deferred": 34,
+            "parity": true,
+            "states": 84,
+            "token": 248044
+          },
+          {
+            "actual_uses": [
+              82,
+              960,
+              480,
+              480,
+              480,
+              48,
+              480,
+              36,
+              12,
+              12,
+              36
+            ],
+            "axis_qmv_dispatches": 144,
+            "continuation_new_uses": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "cross_layer_triples": 34,
+            "legacy_continuation": true,
+            "moe_deferred": 34,
+            "parity": true,
+            "states": 84,
+            "token": 1
+          }
+        ],
+        "compared_hidden_bytes": 81920,
+        "compared_logits": 993280,
+        "compared_state_words": 57606144,
+        "context": 4096,
+        "initial_archive_states": 84,
+        "initial_flags": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "legacy_continuation": true,
+        "parity": true
+      },
+      "seconds": 4.270340040995507
+    },
+    {
+      "name": "cli",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/build/ar10/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/flash-ar10-20261105/mix-stq1_0/docs/measurements/flash-ar10-20261105/quality"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 94280,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "seconds": 10.211784583021654
+    }
+  ]
+}
