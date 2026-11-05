@@ -22,6 +22,7 @@ pub(super) struct Pipelines {
     write: ComputePipelineState,
     up_mix: Option<ComputePipelineState>,
     down_inject: Option<ComputePipelineState>,
+    write_norm: Option<ComputePipelineState>,
 }
 impl Pipelines {
     pub(super) fn load(
@@ -29,6 +30,7 @@ impl Pipelines {
         suffix: &str,
         up_mix: bool,
         down_inject: bool,
+        write_norm: bool,
     ) -> Result<Self> {
         let stage = |name: &str| pipeline(&format!("hc_{name}_{suffix}"));
         Ok(Self {
@@ -43,6 +45,9 @@ impl Pipelines {
                 .transpose()?,
             down_inject: (suffix == "float" && down_inject)
                 .then(|| stage("down_inject"))
+                .transpose()?,
+            write_norm: (suffix == "float" && write_norm)
+                .then(|| pipeline("hc_write_norm_float"))
                 .transpose()?,
         })
     }
@@ -229,11 +234,90 @@ impl<'a> FlashHc<'a> {
             .finish(trace)
     }
 
+    pub(super) fn encode_after_write(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+    ) -> Result<(MatrixView, ReadBuffers)> {
+        let gpu = self.gpu;
+        gpu.check_hc_write(streams, branch, gate)?;
+        if !crate::flash_support::hc_write_norm_eligible(
+            gpu.hc_write_norm.get(),
+            streams.dtype == FloatType::F32,
+            gpu.hc_workspace_enabled.get(),
+        ) {
+            let written = gpu.encode_hc_write(cmd, streams, branch, gate)?;
+            let read = self.encode_read(cmd, &written, false)?;
+            return Ok((written, read));
+        }
+        let pipeline = gpu.hc[1]
+            .write_norm
+            .as_ref()
+            .context("HC write/norm PSO was not loaded")?;
+        ensure!(
+            pipeline.thread_execution_width() == 32
+                && pipeline.max_total_threads_per_threadgroup() >= 640,
+            "unsupported HC write/norm geometry"
+        );
+        #[cfg(test)]
+        let scope = crate::flash_profile::span("native.hc.encode_write");
+        let written =
+            MatrixView::output(gpu, FloatType::F32, 1, 10240, Storage::StorageModeShared)?;
+        let normalized = {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.hc.workspace.norm");
+            MatrixView::output(gpu, FloatType::F32, 1, 10240, Storage::StorageModePrivate)?
+        };
+        Metal::encode(
+            cmd,
+            pipeline,
+            &[
+                &streams.buffer,
+                &branch.buffer,
+                &gate.buffer,
+                &self.gain,
+                &written.buffer,
+                &normalized.buffer,
+            ],
+            [
+                streams.layout.offset,
+                streams.layout.strides[1],
+                branch.layout.offset,
+                branch.layout.strides[1],
+                gate.layout.offset,
+                gate.layout.strides[1],
+                i64::from(branch.dtype == FloatType::F32),
+                i64::from(self.eps.to_bits()),
+            ],
+            groups(4),
+            640,
+        );
+        #[cfg(test)]
+        {
+            gpu.hc_write_norm_uses.set(gpu.hc_write_norm_uses.get() + 1);
+            drop(scope);
+        }
+        let read = self.encode_read_prepared(cmd, &written, false, Some(normalized))?;
+        Ok((written, read))
+    }
+
     pub(super) fn encode_read(
         &self,
         cmd: &metal::CommandBufferRef,
         x: &MatrixView,
         trace: bool,
+    ) -> Result<ReadBuffers> {
+        self.encode_read_prepared(cmd, x, trace, None)
+    }
+
+    fn encode_read_prepared(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+        prepared_norm: Option<MatrixView>,
     ) -> Result<ReadBuffers> {
         #[cfg(test)]
         let _scope = crate::flash_profile::span("native.hc.encode_read");
@@ -257,14 +341,28 @@ impl<'a> FlashHc<'a> {
         let output = |w, mode| MatrixView::output(self.gpu, x.dtype, 1, w, mode);
         #[cfg(test)]
         let norm_scope = crate::flash_profile::span("native.hc.workspace.norm");
-        let normalized = self.gpu.encode_stream_norm_into(
-            cmd,
-            x,
-            &self.gain,
-            self.eps,
-            storage,
-            cached.map(|v| &v.normalized),
-        )?;
+        let normalized = if let Some(normalized) = prepared_norm {
+            ensure!(
+                !trace
+                    && cached.is_none()
+                    && normalized.shape() == [1, 10240]
+                    && normalized.dtype == x.dtype
+                    && normalized.layout.offset == 0
+                    && normalized.layout.strides[1] == 1
+                    && normalized.buffer.device().registry_id() == self.gpu.device.registry_id(),
+                "invalid precomputed HC normalization"
+            );
+            normalized
+        } else {
+            self.gpu.encode_stream_norm_into(
+                cmd,
+                x,
+                &self.gain,
+                self.eps,
+                storage,
+                cached.map(|v| &v.normalized),
+            )?
+        };
         #[cfg(test)]
         drop(norm_scope);
         let gemv = |v: &MatrixView, weight: &Buffer, n: u32| -> Result<MatrixView> {
@@ -459,8 +557,7 @@ impl<'a> FlashHc<'a> {
             "HC chain requires the same Metal instance"
         );
         let (written, read) = self.gpu.command(|cmd| {
-            let written = writer.encode_write(cmd, streams, branch, gate)?;
-            let read = self.encode_read(cmd, &written, false)?;
+            let (written, read) = self.encode_after_write(cmd, streams, branch, gate)?;
             #[cfg(test)]
             self.gpu
                 .hc_chain_pairs
@@ -490,8 +587,7 @@ impl<'a> FlashHc<'a> {
             "HC chain requires the same Metal instance"
         );
         let (written, read, gate) = self.gpu.command(|cmd| {
-            let written = writer.encode_write(cmd, streams, branch, gate)?;
-            let read = self.encode_read(cmd, &written, false)?;
+            let (written, read) = self.encode_after_write(cmd, streams, branch, gate)?;
             let gate = moe.encode_gate(self.gpu, cmd, &read.mixed)?;
             #[cfg(test)]
             {
@@ -570,6 +666,26 @@ impl<'a> FlashHc<'a> {
 }
 
 impl Metal {
+    fn check_hc_write(
+        &self,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+    ) -> Result<()> {
+        for (view, width) in [(streams, 10240), (branch, 2560), (gate, 4)] {
+            ensure!(
+                view.shape() == [1, width]
+                    && view.buffer.device().registry_id() == self.device.registry_id(),
+                "invalid Flash HC input shape or device"
+            );
+        }
+        ensure!(
+            gate.dtype == streams.dtype,
+            "injection gate dtype disagrees with its streams"
+        );
+        Ok(())
+    }
+
     pub(super) fn encode_hc_write(
         &self,
         cmd: &metal::CommandBufferRef,
@@ -579,18 +695,8 @@ impl Metal {
     ) -> Result<MatrixView> {
         #[cfg(test)]
         let _scope = crate::flash_profile::span("native.hc.encode_write");
-        for (view, width) in [(streams, 10240), (branch, 2560), (gate, 4)] {
-            ensure!(
-                view.shape() == [1, width]
-                    && view.buffer.device().registry_id() == self.device.registry_id(),
-                "invalid Flash HC input shape or device"
-            );
-        }
+        self.check_hc_write(streams, branch, gate)?;
         let p = &self.hc[usize::from(streams.dtype == FloatType::F32)];
-        ensure!(
-            gate.dtype == streams.dtype,
-            "injection gate dtype disagrees with its streams"
-        );
         let dtype = if branch.dtype == FloatType::F32 {
             FloatType::F32
         } else {
@@ -943,3 +1049,7 @@ mod tests {
 #[cfg(test)]
 #[path = "hc_kernel_tests.rs"]
 mod hc_kernel_tests;
+
+#[cfg(test)]
+#[path = "hc_write_norm_tests.rs"]
+mod hc_write_norm_tests;

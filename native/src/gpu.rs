@@ -218,6 +218,9 @@ pub struct Metal {
     #[cfg(test)]
     gdn_half_elisions: std::cell::Cell<usize>,
     hc_down_inject: std::cell::Cell<bool>,
+    hc_write_norm: std::cell::Cell<bool>,
+    #[cfg(test)]
+    hc_write_norm_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     hc_up_mix_uses: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -373,6 +376,7 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
+            let hc_write_norm = hc_kernel_setting("MLXL3_NATIVE_HC_WRITE_NORM")?;
             let routed_nt2_gu = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_GU")?;
             let routed_nt2_down = hc_kernel_setting("MLXL3_NATIVE_ROUTED_NT2_DOWN")?;
             let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
@@ -655,8 +659,8 @@ impl Metal {
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
-                hc::Pipelines::load(&pipeline, "half", false, false)?,
-                hc::Pipelines::load(&pipeline, "float", hc_up_mix, hc_down_inject)?,
+                hc::Pipelines::load(&pipeline, "half", false, false, false)?,
+                hc::Pipelines::load(&pipeline, "float", hc_up_mix, hc_down_inject, hc_write_norm)?,
             ];
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
@@ -681,6 +685,9 @@ impl Metal {
                 #[cfg(test)]
                 gdn_half_elisions: std::cell::Cell::new(0),
                 hc_down_inject: std::cell::Cell::new(hc_down_inject),
+                hc_write_norm: std::cell::Cell::new(hc_write_norm),
+                #[cfg(test)]
+                hc_write_norm_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 hc_up_mix_uses: std::cell::Cell::new(0),
                 #[cfg(test)]

@@ -699,8 +699,12 @@ impl<'a> FlashGdnLayer<'a> {
             #[cfg(test)]
             let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
             let encoded = gpu.command(|cmd| {
-                let streams = write.encode(gpu, cmd)?;
-                let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
+                let (streams, read) = self.residual.attn_hc.encode_after_write(
+                    cmd,
+                    &write.streams,
+                    &write.branch,
+                    &write.gate,
+                )?;
                 let pending = self.attention.encode_for_consumer(
                     cmd,
                     read.mixed(),

@@ -87,6 +87,38 @@ pub(crate) fn defer_moe_completion(enabled: bool, deferred_write: bool) -> bool 
     enabled && deferred_write
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_write_norm_eligible(enabled: bool, fp32: bool, workspace: bool) -> bool {
+    enabled && fp32 && !workspace
+}
+
+#[test]
+fn hc_write_norm_keeps_half_and_workspace_fallbacks() {
+    for enabled in [false, true] {
+        for fp32 in [false, true] {
+            for workspace in [false, true] {
+                assert_eq!(
+                    hc_write_norm_eligible(enabled, fp32, workspace),
+                    (enabled, fp32, workspace) == (true, true, false)
+                );
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn hc_write_norm_preserves_the_actual_dtype_and_workspace_guards() {
+    let enabled: bool = kani::any();
+    let fp32: bool = kani::any();
+    let workspace: bool = kani::any();
+    let actual = hc_write_norm_eligible(enabled, fp32, workspace);
+    assert_eq!(actual, enabled && fp32 && !workspace);
+    kani::cover!(actual);
+    kani::cover!(enabled && !fp32 && !actual);
+    kani::cover!(enabled && fp32 && workspace && !actual);
+}
+
 #[test]
 fn moe_completion_requires_a_bounded_deferred_consumer() {
     for enabled in [false, true] {
