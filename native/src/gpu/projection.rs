@@ -1177,22 +1177,76 @@ impl<'a> FlashExpert<'a> {
             gpu.flash_expert_scratch_setting,
         )
         .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_ROUTED_SCRATCH must be 0 or 1"))?;
+        let eligible = crate::expert_ar_policy::eligible(
+            self.routed,
+            [gate_extents, up_extents, down_extents],
+        );
+        let dual = eligible && gpu.expert_ar_enabled[1].get();
         let pair = if reuse {
             let [prepared, partial] = crate::flash_expert_scratch::CAPACITIES;
             Some((
-                buffer(&gpu.device, prepared, Storage::StorageModePrivate)?,
+                buffer(
+                    &gpu.device,
+                    if dual { prepared * 2 } else { prepared },
+                    Storage::StorageModePrivate,
+                )?,
                 buffer(&gpu.device, partial, Storage::StorageModePrivate)?,
             ))
         } else {
             None
         };
         let scratch = pair.as_ref().map(|(prepared, partial)| (prepared, partial));
-        let gate = self.gate.encode_with_scratch(
+        let owned_dual = if dual && pair.is_none() {
+            Some(buffer(&gpu.device, 10240, Storage::StorageModePrivate)?)
+        } else {
+            None
+        };
+        let prepared = if dual {
+            Some(pair.as_ref().map_or_else(
+                || owned_dual.as_ref().expect("owned dual preparation"),
+                |pair| &pair.0,
+            ))
+        } else {
+            None
+        };
+        if let Some(prepared) = prepared {
+            let (input, offset, stride, fp32) = match x {
+                Activation::Contiguous(input) => (input, 0, 1, false),
+                Activation::View(x) => (
+                    &x.buffer,
+                    x.layout.offset,
+                    x.layout.strides[1],
+                    x.dtype == super::view::FloatType::F32,
+                ),
+            };
+            ensure!(prepared.length() >= 10240, "short dual preparation");
+            Metal::encode_bound(
+                cmd,
+                &gpu.expert_gu_prepare,
+                [
+                    (input, 0),
+                    (&self.gate.suh, self.gate.offsets.suh),
+                    (&self.up.suh, self.up.offsets.suh),
+                    (prepared, 0),
+                ]
+                .into_iter(),
+                [offset, stride, i64::from(fp32), 2560],
+                MTLSize::new(20, 1, 1),
+                64,
+            );
+            #[cfg(test)]
+            gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+        }
+        let gate = self.gate.encode_expert_stage(
             cmd,
             x,
             gate_extents,
             Storage::StorageModePrivate,
             scratch,
+            ExpertStage {
+                prepared: prepared.map(|b| (b, 0)),
+                ..Default::default()
+            },
         )?;
         let fused_up = crate::expert_ar_policy::eligible(
             self.routed,
@@ -1209,6 +1263,7 @@ impl<'a> FlashExpert<'a> {
                 scratch,
                 ExpertStage {
                     gate: Some(&gate),
+                    prepared: prepared.map(|b| (b, 5120)),
                     ..Default::default()
                 },
             )?;
@@ -1216,12 +1271,16 @@ impl<'a> FlashExpert<'a> {
             gpu.expert_ar_uses[0].set(gpu.expert_ar_uses[0].get() + 1);
             activated
         } else {
-            let up = self.up.encode_with_scratch(
+            let up = self.up.encode_expert_stage(
                 cmd,
                 x,
                 up_extents,
                 Storage::StorageModePrivate,
                 scratch,
+                ExpertStage {
+                    prepared: prepared.map(|b| (b, 5120)),
+                    ..Default::default()
+                },
             )?;
             #[cfg(test)]
             {

@@ -300,6 +300,7 @@ pub struct Metal {
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: ComputePipelineState,
+    expert_gu_prepare: ComputePipelineState,
     #[cfg(test)]
     flash_scratch_bindings: std::cell::Cell<[[usize; 2]; 3]>,
     #[cfg(test)]
@@ -677,6 +678,7 @@ impl Metal {
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
             let finish128_pipeline = pipeline("flash_finish128")?;
             let expert_up_finish = pipeline("flash_up_finish_swiglu")?;
+            let expert_gu_prepare = pipeline("flash_dual_gu_prepare")?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -806,6 +808,7 @@ impl Metal {
                 #[cfg(test)]
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
+                expert_gu_prepare,
                 #[cfg(test)]
                 flash_scratch_bindings: std::cell::Cell::new([[0; 2]; 3]),
                 #[cfg(test)]

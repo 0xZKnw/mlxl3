@@ -207,6 +207,28 @@ kernel void flash_prepare_view(const device uchar* input [[buffer(0)]],
         output[start+i]=half(values[i]*as_type<float>(0x3db504f3u));
 }
 
+// Two different Suh transforms; each keeps the canonical half multiply/H128.
+kernel void flash_dual_gu_prepare(const device uchar* input [[buffer(0)]],
+    const device half* gate_suh [[buffer(1)]], const device half* up_suh [[buffer(2)]],
+    device half* output [[buffer(3)]], constant long* p [[buffer(4)]],
+    uint lane [[thread_index_in_threadgroup]], uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float gate[128], up[128];
+    uint start = block * 128;
+    for (uint i = lane; i < 128; i += 64) {
+        long xi = p[0] + long(start+i) * p[1];
+        half x = p[2] ? half(reinterpret_cast<const device float*>(input)[xi])
+                      : reinterpret_cast<const device half*>(input)[xi];
+        gate[i] = float(x * gate_suh[start+i]);
+        up[i] = float(x * up_suh[start+i]);
+    }
+    hadamard128(gate, lane);
+    hadamard128(up, lane);
+    for (uint i = lane; i < 128; i += 64) {
+        output[start+i] = half(gate[i] * as_type<float>(0x3db504f3u));
+        output[p[3]+start+i] = half(up[i] * as_type<float>(0x3db504f3u));
+    }
+}
+
 #include "router_topk.h"
 
 template <typename T>

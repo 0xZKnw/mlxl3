@@ -332,14 +332,58 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
     let gpu = Metal::new()?;
     let initial = gpu.expert_ar_enabled.each_ref().map(std::cell::Cell::get);
     let mut compared = 0usize;
-    for enabled in [false, true] {
+    for cell in &gpu.expert_ar_enabled {
+        cell.set(false);
+    }
+    for (enabled, dual) in [(false, false), (true, false), (false, true), (true, true)] {
         gpu.expert_ar_enabled[0].set(enabled);
+        gpu.expert_ar_enabled[1].set(dual);
         for (case, expected) in cases[..4].iter().zip(&refs) {
             for fp32 in [false, true] {
                 let backing = record(&gpu, case)?;
                 let expert = FlashExpert::from_backing(&gpu, &backing)?;
                 let x = input(&gpu, case, fp32)?;
                 let uses = gpu.expert_ar_uses[0].get();
+                let dual_uses = gpu.expert_ar_uses[1].get();
+                if dual {
+                    let expected_gate = gpu.prepare_view(
+                        &x,
+                        &MatrixView::column_scales(
+                            &expert.gate.suh,
+                            expert.gate.offsets.suh,
+                            1,
+                            2560,
+                        )?,
+                    )?;
+                    let expected_up = gpu.prepare_view(
+                        &x,
+                        &MatrixView::column_scales(&expert.up.suh, expert.up.offsets.suh, 1, 2560)?,
+                    )?;
+                    let prefixes = gpu.command(|cmd| {
+                        let output = upload(&gpu.device, &vec![0x7e00u16; 5120])?;
+                        Metal::encode_bound(
+                            cmd,
+                            &gpu.expert_gu_prepare,
+                            [
+                                (&x.buffer, 0),
+                                (&expert.gate.suh, expert.gate.offsets.suh),
+                                (&expert.up.suh, expert.up.offsets.suh),
+                                (&output, 0),
+                            ]
+                            .into_iter(),
+                            [x.layout.offset, x.layout.strides[1], i64::from(fp32), 2560],
+                            MTLSize::new(20, 1, 1),
+                            64,
+                        );
+                        Ok(output)
+                    })?;
+                    let words = Metal::read(&prefixes, 5120);
+                    ensure!(
+                        words[..2560] == expected_gate
+                            && words[2560..] == expected_up
+                            && expected_gate != expected_up
+                    );
+                }
                 let allocations = requests();
                 let output = gpu.command(|cmd| {
                     let out = expert.encode_view(cmd, &x, Storage::StorageModeShared)?;
@@ -349,13 +393,14 @@ fn physical_expert_ar_epilogues_match_independent_stock() -> Result<()> {
                     Ok(out)
                 })?;
                 ensure!(gpu.expert_ar_uses[0].get() - uses == u64::from(enabled));
+                ensure!(gpu.expert_ar_uses[1].get() - dual_uses == u64::from(dual));
                 ensure!(requests() - allocations == if enabled { 5 } else { 6 });
                 check_words(&Metal::read(&output, 2560), expected)?;
                 compared += 2560;
             }
         }
     }
-    ensure!(compared == 40960);
+    ensure!(compared == 81920);
     eprintln!(
         "NATIVE_EXPERT_AR_COMPONENT {}",
         serde_json::json!({"parity":true,"words":compared,"initial":initial,"up_finish_uses":gpu.expert_ar_uses[0].get()})
