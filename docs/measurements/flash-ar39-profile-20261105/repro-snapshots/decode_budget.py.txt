@@ -1,0 +1,45 @@
+"""Correlate the retained stdout suffix, then clip scheduler/syscall intervals."""
+import json,sys,gzip,csv
+from collections import Counter,defaultdict
+from pathlib import Path
+sys.path.insert(0,'scripts')
+from analyze_native_ar_profile import table_rows,number
+from analyze_native_metal_trace import interval_union_ns as union
+H=Path('docs/measurements/flash-ar39-profile-20261105');D=H/'exports-raw/cpu-io'
+c=json.loads((H/'stdout-correlation.json').read_text());assert c['all_line_ends_on_write_boundary'];rows=c['rows'];assert all(r['request_id']=='native-ar-measured' for r in rows)
+start=rows[0]['end_ns'];stop=rows[-1]['end_ns'];assert rows[0]['type']=='delta' and rows[-1]['type']=='complete' and start<stop
+stats=json.loads((H/'cpu-io-window/report.json').read_text())['evidence']['complete'][1]['stats'];assert stats['decode_tokens']==127
+report={'status':'incomplete','bounds_ns':[start,stop],'host_output_interval_ns':stop-start,'bridge_decode_seconds':stats['decode_seconds'],'duration_difference_ns':(stop-start)-round(stats['decode_seconds']*1e9),'scope':'Same-capture host output correlation; not a calibrated GPU/CPU join.'}
+def clip(a,b):
+ a=max(a,start);b=min(b,stop);return (a,b) if a<b else None
+states=defaultdict(Counter);ivs=defaultdict(list);blocked=defaultdict(list)
+for r in table_rows(D/'thread-state.xml','thread-state',{'start','duration','thread','process','state'}):
+ if r['process']['pid']!=14373 or r['state']['text']=='Unknown':continue
+ a=number(r['start'],signed=True);d=number(r['duration']);iv=clip(a,a+d)
+ if iv:
+  tid=r['thread']['tid'];states[tid][r['state']['text']]+=iv[1]-iv[0];ivs[tid].append(iv)
+  if r['state']['text']=='Blocked':blocked[tid].append(iv)
+report['scheduler']={str(tid):{'states_ns':dict(v),'interval_union_ns':union(ivs[tid]),'overlap_ns':sum(v.values())-union(ivs[tid]),'unaccounted_ns':stop-start-union(ivs[tid])} for tid,v in states.items()}
+calls=Counter();dur=Counter();main_calls=Counter();main_dur=Counter();read_sizes=Counter();read_bytes=0;edge_reads=0;waits=defaultdict(list);main_native=Counter();cv_stacks=Counter();sem_stacks=Counter();small_read_stacks=Counter();main=69361319
+for r in table_rows(D/'syscall.xml','syscall',{'start','duration','process','thread','call','arg1','return','backtrace'}):
+ if r['process']['pid']!=14373:continue
+ a=number(r['start'],signed=True);d=number(r['duration']);iv=clip(a,a+d)
+ if not iv:continue
+ name=r['call']['text'];tid=r['thread']['tid'];calls[name]+=1;dur[name]+=iv[1]-iv[0]
+ if tid==main:
+  main_calls[name]+=1;main_dur[name]+=iv[1]-iv[0]
+  if name in ['BSC_psynch_cvwait','MSC_semaphore_timedwait_trap']:waits[name].append(iv)
+  native=tuple(f for f in r['backtrace']['frames'] if 'mlxl3' in f)
+  if name=='BSC_psynch_cvwait':cv_stacks[native]+=iv[1]-iv[0]
+  if name=='MSC_semaphore_timedwait_trap':sem_stacks[native]+=iv[1]-iv[0]
+ result=number(r['return'],signed=True)
+ if name=='BSC_pread' and result is not None and result>=0:
+  if iv==(a,a+d):read_sizes[result]+=1;read_bytes+=result
+  else:edge_reads+=1
+  if result==5120:
+   small_read_stacks[tuple(f for f in r['backtrace']['frames'] if 'mlxl3' in f)]+=1
+b=union(blocked[main]);cv=waits['BSC_psynch_cvwait'];sem=waits['MSC_semaphore_timedwait_trap'];intersection=lambda x,y:union(x)+union(y)-union(x+y)
+report.update(status='validated_output_correlated_host_budget',main_thread=main,main_waits={'cvwait_clipped_ns':union(cv),'semaphore_timedwait_clipped_ns':union(sem),'wait_overlap_ns':union(cv)+union(sem)-union(cv+sem),'blocked_intersect_cvwait_ns':intersection(blocked[main],cv),'blocked_intersect_semaphore_ns':intersection(blocked[main],sem),'blocked_other_ns':b-intersection(blocked[main],cv+sem)},syscalls=[{'name':n,'count':calls[n],'clipped_wall_ns':dur[n],'main_count':main_calls[n],'main_clipped_wall_ns':main_dur[n]} for n,_ in calls.most_common()],reads={'fully_contained_calls':sum(read_sizes.values()),'boundary_partial_calls':edge_reads,'fully_contained_return_bytes':read_bytes,'returned_size_counts':dict(read_sizes)},cvwait_native_stacks=[{'frames':list(k),'clipped_wall_ns':v} for k,v in cv_stacks.most_common(8)],semaphore_native_stacks=[{'frames':list(k),'clipped_wall_ns':v} for k,v in sem_stacks.most_common(8)],small_read_native_stacks=[{'frames':list(k),'calls':v} for k,v in small_read_stacks.most_common(4)],limits=['Output writes identify host interval boundaries; 43us agreement does not prove individual model-token boundaries.','Scheduler states partition main host wall time; syscall durations are inclusive and cannot be added to that budget.','I/O return bytes are logical; partial-boundary calls are not prorated.','Backtraces support caller attribution; unknown frames remain unknown.'])
+assert report['scheduler'][str(main)]['overlap_ns']==0
+(H/'decode-budget.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+print(json.dumps({k:report[k] for k in ['status','host_output_interval_ns','duration_difference_ns','main_waits','reads']},indent=2));print('main states',report['scheduler'][str(main)])

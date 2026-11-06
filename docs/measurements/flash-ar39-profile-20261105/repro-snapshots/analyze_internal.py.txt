@@ -1,0 +1,67 @@
+"""Aggregate the validated seven-row diagnostic without adding overlapping clocks."""
+import collections,csv,gzip,json,math
+from pathlib import Path
+import sys
+sys.path.insert(0,'scripts')
+from analyze_native_metal_trace import interval_union_ns as union
+H=Path('docs/measurements/flash-ar39-profile-20261105');D=json.loads(gzip.decompress((H/'internal-native7-t05/events.json.gz').read_bytes()));E=D['events'];rows=[i for i,e in enumerate(E) if e['name']=='native.row'];assert len(rows)==7
+children=collections.defaultdict(list)
+for i,e in enumerate(E):
+ assert isinstance(e['name'],str) and 0<=e['start_ns']<=e['end_ns']
+ if e['parent'] is not None:assert type(e['parent']) is int and 0<=e['parent']<len(E);children[e['parent']].append(i)
+def ancestor(i,name):
+ seen=set()
+ while i is not None:
+  assert i not in seen;seen.add(i)
+  if E[i]['name']==name:return i
+  i=E[i]['parent']
+ return None
+host=collections.defaultdict(lambda:collections.Counter());alloc=collections.defaultdict(lambda:collections.Counter());gpu={};owners=collections.Counter();duplicates=0;outside=0
+for i,e in enumerate(E):
+ if e['name']=='native.gpu_interval':
+  d=e['data'];owners[d['owner']]+=1;assert d['valid'] and math.isfinite(d['gpu_start_seconds']) and 0<d['gpu_start_seconds']<=d['gpu_end_seconds']
+  key=(d['command_address'],d['gpu_start_seconds'],d['gpu_end_seconds']);v={'owner':d['owner'],'interval':(round(d['gpu_start_seconds']*1e9),round(d['gpu_end_seconds']*1e9)),'row':ancestor(i,'native.row')}
+  if key in gpu:duplicates+=1;assert gpu[key]['owner']==v['owner']
+  else:gpu[key]=v
+ iv=[]
+ for child in children[i]:
+  a,b=E[child]['start_ns'],E[child]['end_ns']
+  if a<e['start_ns'] or b>e['end_ns']:outside+=1
+  a=max(a,e['start_ns']);b=min(b,e['end_ns'])
+  if a<b:iv.append((a,b))
+ exclusive=e['end_ns']-e['start_ns']-union(iv);assert exclusive>=0
+ h=host[e['name']];h['count']+=1;h['inclusive_ns']+=e['end_ns']-e['start_ns'];h['exclusive_ns']+=exclusive
+ for k in ['allocation_requests','allocation_requested_bytes','allocation_api_ns']:alloc[e['name']][k]+=e[k]
+row_total=sum(E[i]['end_ns']-E[i]['start_ns'] for i in rows);assert sum(x['exclusive_ns'] for x in host.values())==row_total and outside==0
+assert sum(x['allocation_requests'] for x in alloc.values())==sum(E[i]['data']['metal_requests'] for i in rows)
+by_owner=collections.defaultdict(list)
+for g in gpu.values():by_owner[g['owner']].append(g['interval'])
+ssd=[e for e in E if e['name']=='native.ssd_timeline'];assert len(ssd)==336;hits=0;reads=0;bytes_=0;cohorts=collections.Counter();read_ns=[];first_delays=[];tails=[]
+for e in ssd:
+ d=e['data'];assert type(d['hits']) is int and 0<=d['hits']<=10 and len(d['indices'])==10
+ hits+=d['hits'];bytes_+=d['read_bytes'];rs=[x for x in d['events'] if x['event']=='read'];reads+=len(rs)
+ for r in rs:assert 0<=r['start_ns']<=r['end_ns'];read_ns.append(r['end_ns']-r['start_ns'])
+ previous=len(rs);sub=[x for x in d['events'] if x['event'] in ['w1_submit','extra_submit','final_submit']]
+ for s in sub:
+  n=previous-s['remaining_reads'];assert n>=0
+  if n:cohorts[n]+=1
+  previous=s['remaining_reads']
+ assert previous==0
+ hot=next((x for x in d['events'] if x['event']=='hot_submit'),None)
+ cold=next((x for x in sub if x['event']=='w1_submit'),None)
+ if hot and cold:first_delays.append(cold['time_ns']-hot['time_ns'])
+ if rs and sub:tails.append(sub[-1]['time_ns']-max(x['end_ns'] for x in rs))
+def dist(v):
+ s=sorted(v);return {'count':len(v),'min_ns':s[0],'median_ns':s[(len(s)-1)//2],'p95_ns':s[(len(s)*95-1)//100],'max_ns':s[-1],'total_ns':sum(v)} if v else {'count':0}
+assert hits+reads==3360
+report={'status':'validated_intrusive_seven_row_aggregate','rows':7,'events':len(E),'host_row_wall_ms':[ (E[i]['end_ns']-E[i]['start_ns'])/1e6 for i in rows],'host_total_ns':row_total,'host_mean_ms':row_total/7e6,'host_scopes':[{'name':n,**v} for n,v in sorted(host.items(),key=lambda t:t[1]['exclusive_ns'],reverse=True)],'allocations_by_scope':[{'name':n,**v} for n,v in sorted(alloc.items(),key=lambda t:t[1]['allocation_requests'],reverse=True)],'metal_requests_per_row':[E[i]['data']['metal_requests'] for i in rows],'metal_requested_bytes_per_row':[E[i]['data']['metal_requested_bytes'] for i in rows],'allocation_wrapper_ns_per_row':[E[i]['data']['metal_allocation_host_ns'] for i in rows],'gpu':{'raw_owner_counts':dict(owners),'unique_commands':len(gpu),'duplicate_observations':duplicates,'command_interval_union_ns':union([g['interval'] for g in gpu.values()]),'owners':{n:{'commands':len(v),'raw_duration_ns':sum(b-a for a,b in v),'interval_union_ns':union(v)} for n,v in by_owner.items()}},'ssd':{'calls':336,'routes':3360,'hits':hits,'read_records':reads,'read_bytes':bytes_,'positive_cold_cohort_histogram':dict(cohorts),'read_api_durations':dist(read_ns),'hot_to_first_cold_submit':dist(first_delays),'last_read_to_final_submit':dist(tails)},'limits':['cfg(test) intrusive diagnostic; not release throughput or the full128 workload.','CPU spans are wall time; GPU values are completed command-buffer intervals, not kernels or utilization.','CPU Instant and GPU/Metal timestamp epochs are not aligned; no cross-clock overlap assigned.','SSD local MoE clocks preserve worker/API observations, not physical NAND or pure encoding.','Allocation requests/bytes are API traffic, not process RAM or peak allocated footprint.']}
+(H/'internal-summary.json').write_text(json.dumps(report,indent=2)+'\n')
+with (H/'internal-layers.csv').open('w',newline='') as f:
+ w=csv.writer(f);w.writerow(['row','enclosing_layer','host_inclusive_ms','metal_requests_in_subtree','requested_bytes_in_subtree'])
+ for i,e in enumerate(E):
+  if e['name']=='native.layer':
+   ids=[];todo=[i]
+   while todo:j=todo.pop();ids.append(j);todo.extend(children[j])
+   row=ancestor(i,'native.row');w.writerow([E[row]['data']['row'],e['data']['layer'],(e['end_ns']-e['start_ns'])/1e6,sum(E[j]['allocation_requests'] for j in ids),sum(E[j]['allocation_requested_bytes'] for j in ids)])
+print('internal mean ms',report['host_mean_ms'],'alloc req avg',sum(report['metal_requests_per_row'])/7,'alloc bytes avg',sum(report['metal_requested_bytes_per_row'])/7)
+print('GPU',report['gpu']);print('SSD',report['ssd']);print('top exclusive',report['host_scopes'][:6]);print('top allocations',report['allocations_by_scope'][:5])

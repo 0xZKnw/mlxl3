@@ -1,0 +1,40 @@
+[
+  {
+    "harness": "native_allocation_attributes_two_symbolic_requests_exclusively",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "flash_profile::native_allocation_attributes_two_symbolic_requests_exclusively",
+      "--exact"
+    ],
+    "budget_seconds": 120,
+    "status": "failed",
+    "pid": 17435,
+    "exit": 1,
+    "seconds": 1.9203661249484867,
+    "reaped": true
+  },
+  {
+    "harness": "cross_layer_ancestry_checks_actual_two_event_parent_guards",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards",
+      "--exact"
+    ],
+    "budget_seconds": 60,
+    "status": "failed",
+    "pid": 17444,
+    "exit": 1,
+    "seconds": 1.9187773329904303,
+    "reaped": true
+  }
+]

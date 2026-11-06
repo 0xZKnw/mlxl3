@@ -1,0 +1,70 @@
+{
+  "status": "analyzed_encoder_activity_not_speed_validation",
+  "time_unit": "ns; raw xctrace start-time/duration values",
+  "analyzer_sha256": "04047687ba8dd9854a18338b06d20570a104400039bae3c855410e9a711bad92",
+  "input_sha256": {
+    "metal-gpu-intervals.xml": "dbf3f42cc2b7ae2cc3011a04371006fddbb2f22cf5559b01fe3ff69b247a7856",
+    "metal-application-encoders-list.xml": "004af32d269cb7110700a369712773edb158873cd9d2da6b9878a8722a275626",
+    "metal-shader-profiler-shader-list.xml": "7c8dfd329ba7d8166a9ee48a0f1c35f0d097800043f0215daa0605740fa8639b",
+    "metal-shader-profiler-intervals.xml": "1bedba8e00eed23237c584da39722c09718b04aba5840e414cf9683110d16242"
+  },
+  "target_PID_filtered": true,
+  "GPU": {
+    "total_rows": 5181,
+    "target_rows": 4302,
+    "active_rows": 4302,
+    "states": {
+      "Active": 4302
+    },
+    "depths": {
+      "1": 378,
+      "0": 3924
+    },
+    "channels": {
+      "Compute": 4302
+    },
+    "raw_duration_ns": 756883558,
+    "per_encoder_union_sum_ns": 756883558,
+    "global_interval_union_ns": 728944692,
+    "within_encoder_overlap_ns": 0,
+    "cross_encoder_overlap_ns": 27938866,
+    "observed_span_ns": 1648281583
+  },
+  "join": {
+    "CPU_encoder_rows": 4276,
+    "CPU_duplicate_rows": 0,
+    "CPU_unique_encoders": 4276,
+    "GPU_unique_encoders": 4277,
+    "matched_GPU_rows": 4301,
+    "unmapped_GPU_encoders": 1,
+    "CPU_encoders_without_active_GPU": 0
+  },
+  "CPU_encoding": {
+    "event_types": {
+      "Encoding": 4276
+    },
+    "raw_duration_ns": 36951312,
+    "scope": "CPU Encoding duration, not GPU kernel time"
+  },
+  "shader_metadata": {
+    "target_rows": 107,
+    "scope": "shader/PSO catalog only; no invocation or timing inferred"
+  },
+  "shader_timeline": {
+    "target_rows": 0,
+    "timing_analyzed": false
+  },
+  "named_encoder_groups": [],
+  "aggregated_encoder_groups": [],
+  "unknown_or_unmapped": {
+    "GPU_intervals": 4302,
+    "interval_union_ns": 728944692
+  },
+  "limits": [
+    "Named groups require the explicit diagnostic encoder-label contract, not shader-catalog guesses.",
+    "Aggregated encoder sequences preserve whole-group duration; no constituent kernel timing is assigned.",
+    "Encoder activity can contain nested/overlapping events; group sums are not exclusive GPU percentages.",
+    "No correctness, clean measurement conditions, full-generation coverage or release speed gain is established.",
+    "Zero ShaderTimeline rows do not mean zero kernel work or per-kernel timing."
+  ]
+}

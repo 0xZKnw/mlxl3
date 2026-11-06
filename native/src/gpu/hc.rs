@@ -164,6 +164,8 @@ impl PendingHcRoute<'_> {
     }
 
     pub(super) fn complete(mut self) -> Result<(MatrixView, FlashHcRead, super::RouteOutput)> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.route.pending_complete");
         self.drain();
         ensure!(
             crate::device_hot_policy::pending_route_publishable(
@@ -175,6 +177,8 @@ impl PendingHcRoute<'_> {
         );
         #[cfg(test)]
         ensure!(!self.injected_failure, "injected pending HC route failure");
+        #[cfg(test)]
+        crate::flash_profile::native_gpu_interval(&self.command, "pending-route");
         let (written, read, gate) = self.buffers.take().context("missing pending HC route")?;
         Ok((written, read.finish(false)?, gate.routes))
     }
@@ -684,6 +688,12 @@ impl<'a> FlashHc<'a> {
         gate: &MatrixView,
         moe: &super::FlashMoeRow,
     ) -> Result<PendingHcRoute<'a>> {
+        #[cfg(test)]
+        let scope = crate::flash_profile::span("native.hc.chain_write_read_gate");
+        #[cfg(test)]
+        if let Some(span) = &scope {
+            span.data(serde_json::json!({"submission_only":true}));
+        }
         objc::rc::autoreleasepool(|| {
             ensure!(
                 self.inject.is_some()

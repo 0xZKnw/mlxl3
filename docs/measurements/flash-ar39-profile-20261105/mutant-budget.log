@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ NativeArProfileTests.test_128_budget_uses_actual_request_and_checks_complete_counts _
+
+self = <test_native_ar_profile.NativeArProfileTests testMethod=test_128_budget_uses_actual_request_and_checks_complete_counts>
+
+    def test_128_budget_uses_actual_request_and_checks_complete_counts(self):
+        self.plan["tokens"] = 128
+>       report = self.execute()
+                 ^^^^^^^^^^^^^^
+
+tests/test_native_ar_profile.py:216: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_native_ar_profile.py:150: in execute
+    return PROFILE.run(self.plan_path, self.out, mode, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/profile_native_ar.py:415: in run
+    report["evidence"] = validate_bridge(stdout, engine, model, golden, tokens)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/profile_native_ar.py:171: in validate_bridge
+    BENCH["validate"](event, modes[0], False, tokens)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+event = {'type': 'complete', 'request_id': 'native-ar-warmup', 'stats': {'generated_tokens': 32, 'decode_tokens': 31, 'cached_prompt_tokens': 0, 'context_limit': 4096, ...}, 'cache_context': 'golden fixture', ...}
+mode = {'type': 'generation_mode', 'request_id': 'native-ar-warmup', 'mtp_active': False, 'dflash_active': False}
+mtp = False, budget = 128, dflash = False
+
+    def validate(event: dict, mode: dict | None, mtp: bool, budget: int, dflash=False) -> None:
+        if mode is None or mode.get("mtp_active") is not mtp or mode.get("dflash_active") is not dflash:
+            raise ValueError(f"engine mode mismatch: {mode}")
+        stats = event["stats"]
+        if stats["generated_tokens"] != budget or stats["decode_tokens"] != budget - 1:
+>           raise ValueError("incomplete generation (including early EOS)")
+E           ValueError: incomplete generation (including early EOS)
+
+scripts/benchmark-flash-bridge.py:27: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_native_ar_profile.py::NativeArProfileTests::test_128_budget_uses_actual_request_and_checks_complete_counts
+1 failed in 0.15s

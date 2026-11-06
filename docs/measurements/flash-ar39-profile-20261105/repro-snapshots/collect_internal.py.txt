@@ -1,0 +1,39 @@
+"""Run the existing qualified libtest using the previously tested process supervisor."""
+import gzip, hashlib, json, os, runpy, signal, subprocess, time
+from pathlib import Path
+ROOT=Path.cwd(); H=ROOT/'docs/measurements/flash-ar39-profile-20261105'; OUT=H/'internal-native7'
+PRIOR=Path('/Users/justin/.codex/worktrees/issue140-ar2-20261105/mix-stq1_0')
+P=json.loads((PRIOR/'build/issue140/plan-default.json').read_text())
+def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+for name in ('run.py','basis.py'):
+ p=PRIOR/'build/issue140'/name; assert sha(p)==P['source_files'][str(p)]
+R=runpy.run_path(str(PRIOR/'build/issue140/run.py')); D=R['D']
+assert json.loads((H/'resume-control-after/report.json').read_text())['parity']
+A=P['artifacts']['native-libtest']; assert sha(A['path'])==A['sha256']
+OUT.mkdir(); report={'status':'running','parity':False,'all_children_joined':False,'binary':A,'scope':'Existing intrusive libtest; 7 decode rows. No release speed claim.'}
+def save():
+ tmp=OUT/'report.tmp';tmp.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n');tmp.replace(OUT/'report.json')
+def stop_signal(signum,frame):
+ signal.signal(signal.SIGTERM,signal.SIG_IGN);raise KeyboardInterrupt('profile interrupted')
+signal.signal(signal.SIGTERM,stop_signal)
+env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','MLX_','DYLD_','METAL_','MTL_'))}
+env.update(MLXL3_FLASH_MODEL=P['model']['path'],MLXL3_SSD_CACHE_GIB='3',MLXL3_SSD_READERS='4',MLXL3_SSD_DYNAMIC_READERS='0',MLXL3_SSD_LOOKAHEAD_DEPTH='0',MLXL3_PROMPT_CACHE_MIB='0')
+flags='HC_WRITE_NORM ROUTED_NT2_GU ROUTED_NT2_DOWN EXPERT_UP_FINISH EXPERT_GU_PREPARE EXPERT_OUTPUT_SLAB EXPERT_AXIS_QMV GDN_WHOLE GDN_JOINT_AB QSA_PREPARE QSA_GATE RECORD_REUSE READ_SPLIT'.split();env.update({'MLXL3_NATIVE_'+k:'1' for k in flags})
+cmd=[A['path'],'gpu::flash::tests::native8_sampling_profile_preserves_outputs','--exact','--ignored','--nocapture','--test-threads=1'];report.update(command=cmd,environment={k:v for k,v in env.items() if k.startswith('MLXL3_')},supervisor_sha256=sha(PRIOR/'build/issue140/run.py'));save();child=None;t=time.monotonic()
+try:
+ with (OUT/'native7.log').open('x') as log:
+  child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);report['pid']=child.pid;save();code=child.wait(timeout=180)
+ assert code==0, f'libtest exit {code}'
+ text=(OUT/'native7.log').read_text();assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+ data=D['marker'](text,'I120_NATIVE8_PROFILE');assert data['parity'] and data['decode_rows']==7 and data['continuation_state_words']==28803072 and len(data['events'])>1000
+ assert data['profile_scope_ancestry_checked'] and data['independent_first_logits'] and data['independent_first_state']
+ raw=json.dumps(data,separators=(',',':'),allow_nan=False).encode();(OUT/'events.json.gz').write_bytes(gzip.compress(raw,mtime=0))
+ report.update(status='validated_intrusive_diagnostic',parity=True,events=len(data['events']),raw_sha256=hashlib.sha256(raw).hexdigest(),event_gzip_sha256=sha(OUT/'events.json.gz'),metadata={k:v for k,v in data.items() if k!='events'})
+except BaseException as error:
+ report.update(status='failed',parity=False,error=repr(error));raise
+finally:
+ report.update(all_children_joined=R['safe_stop'](child),seconds=time.monotonic()-t)
+ if not report['all_children_joined']:report.update(status='failed_cleanup',parity=False)
+ save()
+ with (ROOT/'opti.md').open('a') as f:f.write('\nAR39 INTERNAL7 CLOS '+report['status']+' parity='+str(report['parity'])+' joined='+str(report['all_children_joined'])+' ; diagnosticintrusif7rows/separateCPU-GPUclocks,pasdébitrelease.\n')
+print(report['status'],report.get('events'),report['all_children_joined'])

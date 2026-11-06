@@ -1,0 +1,32 @@
+import hashlib,json,os,runpy,signal,subprocess,time
+from pathlib import Path
+root=Path.cwd();out=root/'docs/measurements/flash-ar39-profile-20261105/rust-checks';out.mkdir(exist_ok=True)
+old=runpy.run_path(str(root/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+cargo='/Users/justin/.cargo/bin/cargo';python='/Users/justin/Documents/mix-stq1_0/.venv/bin/python'
+env={**os.environ,'PATH':'/Users/justin/.cargo/bin:'+os.environ['PATH'],'MACOSX_DEPLOYMENT_TARGET':'26.2','CARGO_TARGET_DIR':str(root/'build/ar39/cargo-target')}
+env['DEVELOPER_DIR']='/Applications/Xcode.app/Contents/Developer'
+env['MLXL3_MLX_ROOT']=subprocess.check_output([python,'-c','import importlib.util;print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))'],text=True).strip()
+commands=[('clippy-direct-final',[cargo,'clippy','--locked','--all-targets','--features','direct-metal,chat','--','-D','warnings'],180),('clippy-mlx',[cargo,'clippy','--locked','--all-targets','--features','mlx,chat','--','-D','warnings'],240),('full-direct-tests',[cargo,'test','--locked','--features','chat'],240),('release-libtest',[cargo,'test','--locked','--release','--features','chat','--lib','--no-run','--message-format','json'],240)]
+sink=out/'checks.json';assert not sink.exists();report={'status':'running','all_children_joined':False,'checks':[],'started_epoch':time.time(),'source_head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()}
+def save():sink.write_text(json.dumps(report,indent=2)+'\n')
+save()
+try:
+ for name,cmd,budget in commands:
+  row={'name':name,'command':cmd,'budget_seconds':budget,'status':'running','joined':False};report['checks'].append(row);report['all_children_joined']=False;save();child=None;start=time.monotonic()
+  try:
+   with (out/(name+'.log')).open('x')as log:
+    child=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True);row['pid']=child.pid;save();row['exit_code']=child.wait(timeout=budget)
+   assert row['exit_code']==0,(name,row['exit_code']);row['status']='process_pass_pending_result_review'
+  except BaseException as error:row.update(status='failed',error=repr(error));raise
+  finally:
+   if child is not None and child.poll() is None:
+    os.killpg(child.pid,signal.SIGTERM)
+    try:child.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+     if child.poll() is None:os.killpg(child.pid,signal.SIGKILL)
+     child.wait(timeout=5)
+   row['joined']=child is None or (child.poll() is not None and not old['members'](child.pid));row['seconds']=time.monotonic()-start;report['all_children_joined']=all(x['joined']for x in report['checks']);save()
+  assert row['joined'];print(name,row['status'],row['seconds'],flush=True)
+ report['status']='processes_passed_pending_result_review'
+except BaseException as error:report.update(status='failed',error=repr(error));raise
+finally:save()

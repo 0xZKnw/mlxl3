@@ -122,6 +122,8 @@ impl HotOutput {
     }
 
     pub(super) fn completed(&self) -> Result<()> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hot.complete");
         ensure!(
             self.command.status() != MTLCommandBufferStatus::NotEnqueued,
             "resident producer was never submitted"
@@ -139,6 +141,8 @@ impl HotOutput {
         );
         #[cfg(test)]
         ensure!(!self.reject_result, "injected resident publication failure");
+        #[cfg(test)]
+        crate::flash_profile::native_gpu_interval(&self.command, "resident-hot");
         Ok(())
     }
 }

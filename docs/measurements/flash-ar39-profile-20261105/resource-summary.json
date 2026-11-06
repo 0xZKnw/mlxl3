@@ -1,0 +1,26 @@
+{
+  "status": "target_resource_tables_partial_window",
+  "events_by_type": {
+    "Allocation": 41383,
+    "Deallocation": 41701
+  },
+  "resource_kinds": {
+    "Buffer": 83084
+  },
+  "reported_resource_size_sum_by_event_type": {
+    "Allocation": 8099774464,
+    "Deallocation": 8136081408
+  },
+  "size_cells": {
+    "Allocation": 41383,
+    "Deallocation": 41701
+  },
+  "current_allocated_size_samples": 87918,
+  "current_allocated_size_min_bytes": 1769472,
+  "current_allocated_size_max_bytes": 6734479360,
+  "limits": [
+    "Resource lifecycle event bytes are not process RAM or bytes physically allocated once.",
+    "Only the retained tail window is represented; no full-generation allocation rate inferred.",
+    "The retained resource tail includes process teardown; the low minimum is not a steady-state footprint."
+  ]
+}
