@@ -49,3 +49,5 @@ The delivered DMG, SHA-256 file, validation JSON and verification archive were c
 ## Authorized publication
 
 After the completed local build, the owner explicitly requested GitHub publication. The Desktop prerelease `v2.0.0-beta.7` targets the exact application source `accabf48a8a6c2a57fb1daa05703adc7f41be330`; these build notes are on `codex/desktop-v2-beta7`. The validation JSON and verification archive preserve the earlier local-build snapshot. No engine artifact is included. No exact-source GitHub CI run exists at publication preparation; the local results above are the available validation, not a green remote CI claim.
+
+Publication completed and read back on2026-11-06 at01:22:54UTC: [Desktop beta7](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.7). The public tag resolves to the exact application source above. All four uploaded asset sizes and SHA-256 digests match the local files; anonymous DMG HEAD returns200 with the exact byte length. The production updater parser selects Desktop beta7/build38, preserves stable1.5.1 and still selects engine2.0.2-beta.1. No installed app or engine was changed.

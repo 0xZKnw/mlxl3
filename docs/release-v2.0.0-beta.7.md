@@ -34,7 +34,7 @@ The converter and its architecture compatibility limits remain those of beta 6. 
 
 The complete Desktop checks passed in retained segments, including lifecycle, preferences, bridge, imports, rendering, previews and Studio workspaces. Package helpers: 94 tests passed; Studio Python checks: 39 passed. Per-model sampling: 969 assertions over 216 capability states; layout: 16 rendered cases and an old-layout mutation rejected; long-response native bitmap/OCR: 30 frames. The signed, read-only DMG passed the production updater build37→38 check and 15 updater regression cases. All five runtime entries and 3,050 converter entries match the published beta 6 payloads. See [the build report](https://github.com/0xZKnw/mlxl3/blob/codex/desktop-v2-beta7/docs/desktop-beta7-build-2026-11-06.md) for commands and retained failures.
 
-No model inference, conversion or fresh engine benchmark was run for this Desktop package. Swift source proof is unavailable; tests are not proofs. At the publication snapshot, no GitHub CI run exists for this exact source; the complete local Desktop checks passed. The source is provided on the release tag and the preparation branch. This release does not install or replace the local application.
+No model inference, conversion or fresh engine benchmark was run for this Desktop package. Swift source proof is unavailable; tests are not proofs. At the publication snapshot, no GitHub CI run exists for this exact source; the complete local Desktop checks passed. The source is provided on the release tag and the preparation branch. After publication, the real updater feed selected beta7/build38 while retaining stable1.5.1 and engine2.0.2-beta.1. This release does not install or replace the local application.
 
 ## Artifacts
 
