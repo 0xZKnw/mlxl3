@@ -1200,19 +1200,27 @@ private struct MarkdownTableView: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow {
+            VStack(alignment: .leading, spacing: 0) {
+                row(header, header: true)
+                ForEach(rows.indices, id: \.self) { index in
+                    row(rows[index], header: false)
+                }
+            }
+            .overlay {
+                HStack(spacing: 0) {
                     ForEach(header.indices, id: \.self) { column in
-                        cell(header[column], column: column, header: true)
+                        Color.clear
+                            .containerRelativeFrame(.horizontal) { [count = header.count, scale = textScale] width, _ in
+                                max(260 * scale + 24, width / CGFloat(max(1, count)))
+                            }
+                            .overlay(alignment: .trailing) {
+                                if column < header.count - 1 {
+                                    Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(width: 0.7)
+                                }
+                            }
                     }
                 }
-                ForEach(rows.indices, id: \.self) { row in
-                    GridRow {
-                        ForEach(header.indices, id: \.self) { column in
-                            cell(rows[row][column], column: column, header: false)
-                        }
-                    }
-                }
+                .allowsHitTesting(false)
             }
             .background(StudioTheme.contrast.opacity(0.018), in: RoundedRectangle(cornerRadius: 11))
             .overlay {
@@ -1224,42 +1232,48 @@ private struct MarkdownTableView: View {
         .scrollIndicators(.never)
     }
 
-    private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
-        SmoothTokenText(
-            content: InlineLatexText.render(source, mathSize: 12.5 * textScale),
-            source: source,
-            streaming: streaming
-        )
-        .font(.system(size: 12.5 * textScale, weight: isHeader ? .semibold : .regular, design: .rounded))
-        .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
-        .frame(minWidth: 112 * textScale, maxWidth: 260 * textScale, alignment: frameAlignment(column))
-        .padding(.horizontal, 12)
-        .padding(.vertical, isHeader ? 10 : 9)
-        .background(isHeader ? StudioTheme.contrast.opacity(0.055) : Color.clear)
-        .overlay(alignment: .trailing) {
-            if column < header.count - 1 {
-                Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(width: 0.7)
+    private func row(_ values: [String], header isHeader: Bool) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(header.indices, id: \.self) { column in
+                cell(values[column], column: column, header: isHeader)
             }
         }
+        .background(StudioTheme.contrast.opacity(isHeader ? 0.055 : 0))
         .overlay(alignment: .bottom) {
             Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(height: 0.7)
         }
     }
 
+    private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
+        SmoothTokenText(
+            content: InlineLatexText.render(source, mathSize: 12.5 * textScale, htmlLineBreaks: true),
+            source: source,
+            streaming: streaming
+        )
+        .font(.system(size: 12.5 * textScale, weight: isHeader ? .semibold : .regular, design: .rounded))
+        .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
+        .containerRelativeFrame(.horizontal, alignment: frameAlignment(column)) { [count = header.count, scale = textScale] width, _ in
+            max(260 * scale, width / CGFloat(max(1, count)) - 24)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 12)
+        .padding(.vertical, isHeader ? 10 : 9)
+    }
+
     private func frameAlignment(_ column: Int) -> Alignment {
-        guard alignments.indices.contains(column) else { return .leading }
+        guard alignments.indices.contains(column) else { return .topLeading }
         switch alignments[column] {
-        case .leading: return .leading
-        case .center: return .center
-        case .trailing: return .trailing
+        case .leading: return .topLeading
+        case .center: return .top
+        case .trailing: return .topTrailing
         }
     }
 }
 
 @MainActor
 private enum InlineLatexText {
-    static func render(_ source: String, mathSize: CGFloat) -> Text {
-        InlineMathParser.parse(source).reduce(Text("")) { result, piece in
+    static func render(_ source: String, mathSize: CGFloat, htmlLineBreaks: Bool = false) -> Text {
+        InlineMathParser.parse(source, htmlLineBreaks: htmlLineBreaks).reduce(Text("")) { result, piece in
             switch piece {
             case let .prose(text):
                 return Text("\(result)\(markdownText(text))")
@@ -1293,15 +1307,24 @@ private enum InlineMathPiece {
 }
 
 private enum InlineMathParser {
-    static func parse(_ source: String) -> [InlineMathPiece] {
+    static func parse(_ source: String, htmlLineBreaks: Bool = false) -> [InlineMathPiece] {
         let characters = Array(source)
         var pieces: [InlineMathPiece] = []
         var textStart = 0
         var index = 0
+        var breaks: [Range<Int>] = []
 
         func appendProse(until end: Int) {
             guard end > textStart else { return }
-            pieces.append(.prose(String(characters[textStart..<end])))
+            var prose = ""
+            var start = textStart
+            for range in breaks {
+                prose += String(characters[start..<range.lowerBound]) + "\n"
+                start = range.upperBound
+            }
+            prose += String(characters[start..<end])
+            breaks.removeAll(keepingCapacity: true)
+            pieces.append(.prose(prose))
         }
 
         func appendMath(
@@ -1368,6 +1391,20 @@ private enum InlineMathParser {
                         end: close + delimiterLength,
                         mode: delimiterLength == 2 ? .display : .text
                     )
+                    continue
+                }
+            }
+            if htmlLineBreaks, characters[index] == "<", !isEscaped(index, in: characters),
+               index + 3 <= characters.count,
+               String(characters[index..<(index + 3)]).lowercased() == "<br" {
+                var end = index + 3
+                while end < characters.count && (characters[end] == " " || characters[end] == "\t") {
+                    end += 1
+                }
+                if end < characters.count && characters[end] == "/" { end += 1 }
+                if end < characters.count && characters[end] == ">" {
+                    breaks.append(index..<(end + 1))
+                    index = end + 1
                     continue
                 }
             }

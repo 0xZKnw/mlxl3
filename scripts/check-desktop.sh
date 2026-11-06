@@ -70,6 +70,7 @@ check_response_ui() {
     response_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
     local response_app="${test_dir}/MLXL3 Response Check.app"
     awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
+        tests/table-rendering-check.swift \
         tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
     mkdir -p "${response_app}/Contents/MacOS"
     cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
