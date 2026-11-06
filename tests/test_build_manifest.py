@@ -24,6 +24,7 @@ def project(tmp_path):
         "Cargo.toml",
         "LICENSES/MTPLX-NOTICE.txt",
         "LICENSES/Apache-2.0.txt",
+        "LICENSES/MLX-VLM-MIT.txt",
         "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
         "apps/MLXL3Studio/Resources/Info.plist",
     ]:
