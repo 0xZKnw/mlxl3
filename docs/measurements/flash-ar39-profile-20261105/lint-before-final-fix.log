@@ -1,0 +1,25 @@
+RUF015 Prefer `next(...)` over single element slice
+   --> tests/test_native_ar_profile_analysis.py:186:11
+    |
+184 |         ],
+185 |     )
+186 |     row = list(A.table_rows(p, "toy", {"process", "thread"}))[0]
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+187 |     assert row["process"]["pid"] == row["thread"]["pid"] == 7
+    |
+help: Replace with `next(...)`
+
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> tests/test_native_ar_profile_analysis.py:270:14
+    |
+268 |     p.write_text(p.read_text()[:-20])
+269 |     out = tmp_path / "out"
+270 |     result = subprocess.run(
+    |              ^^^^^^^^^^^^^^
+271 |         [
+272 |             sys.executable,
+    |
+help: Add explicit `check=False`
+
+Found 2 errors.
+No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).

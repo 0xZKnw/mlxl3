@@ -1,0 +1,507 @@
+{
+  "status": "validated_intrusive_seven_row_aggregate",
+  "rows": 7,
+  "events": 13303,
+  "host_row_wall_ms": [
+    113.342584,
+    107.471209,
+    107.005625,
+    114.047209,
+    109.235209,
+    96.946375,
+    106.461584
+  ],
+  "host_total_ns": 754509795,
+  "host_mean_ms": 107.78711357142858,
+  "host_scopes": [
+    {
+      "name": "native.layer",
+      "count": 336,
+      "inclusive_ns": 719519574,
+      "exclusive_ns": 358941671
+    },
+    {
+      "name": "native.central_wait",
+      "count": 539,
+      "inclusive_ns": 277089092,
+      "exclusive_ns": 276748728
+    },
+    {
+      "name": "native.moe_wait",
+      "count": 336,
+      "inclusive_ns": 43033680,
+      "exclusive_ns": 42287329
+    },
+    {
+      "name": "native.projection_wait",
+      "count": 7,
+      "inclusive_ns": 23818709,
+      "exclusive_ns": 23818709
+    },
+    {
+      "name": "native.central_encode",
+      "count": 539,
+      "inclusive_ns": 26718749,
+      "exclusive_ns": 15233321
+    },
+    {
+      "name": "native.hc.encode_write",
+      "count": 672,
+      "inclusive_ns": 8079273,
+      "exclusive_ns": 6372216
+    },
+    {
+      "name": "native.row",
+      "count": 7,
+      "inclusive_ns": 754509795,
+      "exclusive_ns": 5064268
+    },
+    {
+      "name": "native.hc.workspace.gemv",
+      "count": 1358,
+      "inclusive_ns": 4484782,
+      "exclusive_ns": 4484782
+    },
+    {
+      "name": "native.hc.chain_write_read_gate",
+      "count": 336,
+      "inclusive_ns": 12927037,
+      "exclusive_ns": 3680260
+    },
+    {
+      "name": "native.hc.workspace.norm",
+      "count": 1253,
+      "inclusive_ns": 2713334,
+      "exclusive_ns": 2713334
+    },
+    {
+      "name": "native.route.pending_complete",
+      "count": 336,
+      "inclusive_ns": 1828916,
+      "exclusive_ns": 1707340
+    },
+    {
+      "name": "native.gdn.frame",
+      "count": 252,
+      "inclusive_ns": 1651799,
+      "exclusive_ns": 1651799
+    },
+    {
+      "name": "native.hc.workspace.activation",
+      "count": 679,
+      "inclusive_ns": 1397286,
+      "exclusive_ns": 1397286
+    },
+    {
+      "name": "native.hc.result.mixed",
+      "count": 679,
+      "inclusive_ns": 1231052,
+      "exclusive_ns": 1231052
+    },
+    {
+      "name": "native.hc.result.gate_gemv",
+      "count": 672,
+      "inclusive_ns": 1195575,
+      "exclusive_ns": 1195575
+    },
+    {
+      "name": "native.gpu_interval",
+      "count": 2103,
+      "inclusive_ns": 1173535,
+      "exclusive_ns": 1173535
+    },
+    {
+      "name": "native.hc.result.gate_activation",
+      "count": 672,
+      "inclusive_ns": 1089712,
+      "exclusive_ns": 1089712
+    },
+    {
+      "name": "native.cpu_select",
+      "count": 7,
+      "inclusive_ns": 812373,
+      "exclusive_ns": 812373
+    },
+    {
+      "name": "native.hc_gdn.cross_layer",
+      "count": 238,
+      "inclusive_ns": 199692743,
+      "exclusive_ns": 766991
+    },
+    {
+      "name": "native.ssd_timeline",
+      "count": 336,
+      "inclusive_ns": 696328,
+      "exclusive_ns": 696328
+    },
+    {
+      "name": "native.logprobs",
+      "count": 7,
+      "inclusive_ns": 2770708,
+      "exclusive_ns": 683914
+    },
+    {
+      "name": "native.hc.encode_read",
+      "count": 679,
+      "inclusive_ns": 11001133,
+      "exclusive_ns": 596449
+    },
+    {
+      "name": "native.hc.read_separate",
+      "count": 91,
+      "inclusive_ns": 25434586,
+      "exclusive_ns": 537534
+    },
+    {
+      "name": "native.readback_copy",
+      "count": 14,
+      "inclusive_ns": 411667,
+      "exclusive_ns": 411667
+    },
+    {
+      "name": "native.hc.write_separate",
+      "count": 98,
+      "inclusive_ns": 16614337,
+      "exclusive_ns": 348669
+    },
+    {
+      "name": "native.hc_gdn.joined",
+      "count": 14,
+      "inclusive_ns": 11890208,
+      "exclusive_ns": 303417
+    },
+    {
+      "name": "native.upload_copy",
+      "count": 357,
+      "inclusive_ns": 272366,
+      "exclusive_ns": 272366
+    },
+    {
+      "name": "native.head",
+      "count": 7,
+      "inclusive_ns": 26318415,
+      "exclusive_ns": 165537
+    },
+    {
+      "name": "native.route_readback_copy",
+      "count": 336,
+      "inclusive_ns": 79124,
+      "exclusive_ns": 79124
+    },
+    {
+      "name": "native.hot.complete",
+      "count": 336,
+      "inclusive_ns": 194336,
+      "exclusive_ns": 40882
+    },
+    {
+      "name": "native.projection_readback_copy",
+      "count": 7,
+      "inclusive_ns": 413335,
+      "exclusive_ns": 3627
+    }
+  ],
+  "allocations_by_scope": [
+    {
+      "name": "native.layer",
+      "allocation_requests": 11116,
+      "allocation_requested_bytes": 1522515500,
+      "allocation_api_ns": 26612578
+    },
+    {
+      "name": "native.central_encode",
+      "allocation_requests": 5340,
+      "allocation_requested_bytes": 63531488,
+      "allocation_api_ns": 10041984
+    },
+    {
+      "name": "native.hc.workspace.gemv",
+      "allocation_requests": 1358,
+      "allocation_requested_bytes": 28680960,
+      "allocation_api_ns": 3614673
+    },
+    {
+      "name": "native.hc.chain_write_read_gate",
+      "allocation_requests": 1344,
+      "allocation_requested_bytes": 1403136,
+      "allocation_api_ns": 1611649
+    },
+    {
+      "name": "native.hc.workspace.norm",
+      "allocation_requests": 679,
+      "allocation_requested_bytes": 27811840,
+      "allocation_api_ns": 2302702
+    },
+    {
+      "name": "native.hc.workspace.activation",
+      "allocation_requests": 679,
+      "allocation_requested_bytes": 869120,
+      "allocation_api_ns": 1003896
+    },
+    {
+      "name": "native.hc.result.mixed",
+      "allocation_requests": 679,
+      "allocation_requested_bytes": 6952960,
+      "allocation_api_ns": 1182623
+    },
+    {
+      "name": "native.hc.result.gate_gemv",
+      "allocation_requests": 672,
+      "allocation_requested_bytes": 10752,
+      "allocation_api_ns": 883712
+    },
+    {
+      "name": "native.hc.result.gate_activation",
+      "allocation_requests": 672,
+      "allocation_requested_bytes": 10752,
+      "allocation_api_ns": 813211
+    },
+    {
+      "name": "native.hc.encode_write",
+      "allocation_requests": 672,
+      "allocation_requested_bytes": 27525120,
+      "allocation_api_ns": 4311177
+    },
+    {
+      "name": "native.gdn.frame",
+      "allocation_requests": 504,
+      "allocation_requested_bytes": 808206336,
+      "allocation_api_ns": 1628966
+    },
+    {
+      "name": "native.head",
+      "allocation_requests": 21,
+      "allocation_requested_bytes": 10465280,
+      "allocation_api_ns": 77125
+    },
+    {
+      "name": "native.logprobs",
+      "allocation_requests": 14,
+      "allocation_requested_bytes": 3476494,
+      "allocation_api_ns": 61084
+    },
+    {
+      "name": "native.row",
+      "allocation_requests": 7,
+      "allocation_requested_bytes": 286720,
+      "allocation_api_ns": 45206
+    },
+    {
+      "name": "native.upload_copy",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hc_gdn.joined",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hc.encode_read",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.central_wait",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.gpu_interval",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.route_readback_copy",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.route.pending_complete",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.ssd_timeline",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.moe_wait",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hot.complete",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hc.write_separate",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hc_gdn.cross_layer",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.hc.read_separate",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.projection_wait",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.projection_readback_copy",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.readback_copy",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    },
+    {
+      "name": "native.cpu_select",
+      "allocation_requests": 0,
+      "allocation_requested_bytes": 0,
+      "allocation_api_ns": 0
+    }
+  ],
+  "metal_requests_per_row": [
+    3423,
+    3346,
+    3377,
+    3497,
+    3434,
+    3250,
+    3430
+  ],
+  "metal_requested_bytes_per_row": [
+    362842350,
+    343770426,
+    347586654,
+    393347598,
+    364113402,
+    315807282,
+    374278746
+  ],
+  "allocation_wrapper_ns_per_row": [
+    8032771,
+    7761697,
+    7460696,
+    8045755,
+    7688210,
+    7381520,
+    7819937
+  ],
+  "gpu": {
+    "raw_owner_counts": {
+      "central": 539,
+      "pending-route": 336,
+      "moe": 885,
+      "resident-hot": 336,
+      "projection": 7
+    },
+    "unique_commands": 2103,
+    "duplicate_observations": 0,
+    "command_interval_union_ns": 405183200,
+    "owners": {
+      "central": {
+        "commands": 539,
+        "raw_duration_ns": 171408497,
+        "interval_union_ns": 171408497
+      },
+      "pending-route": {
+        "commands": 336,
+        "raw_duration_ns": 59468584,
+        "interval_union_ns": 59468584
+      },
+      "moe": {
+        "commands": 885,
+        "raw_duration_ns": 91716162,
+        "interval_union_ns": 90918412
+      },
+      "resident-hot": {
+        "commands": 336,
+        "raw_duration_ns": 80206248,
+        "interval_union_ns": 80206248
+      },
+      "projection": {
+        "commands": 7,
+        "raw_duration_ns": 22457917,
+        "interval_union_ns": 22457917
+      }
+    }
+  },
+  "ssd": {
+    "calls": 336,
+    "routes": 3360,
+    "hits": 2263,
+    "read_records": 1097,
+    "read_bytes": 1369069164,
+    "positive_cold_cohort_histogram": {
+      "1": 338,
+      "8": 3,
+      "6": 16,
+      "2": 68,
+      "4": 33,
+      "5": 32,
+      "3": 51,
+      "7": 7,
+      "9": 1
+    },
+    "read_api_durations": {
+      "count": 1097,
+      "min_ns": 79208,
+      "median_ns": 472958,
+      "p95_ns": 919625,
+      "max_ns": 2566084,
+      "total_ns": 521595779
+    },
+    "hot_to_first_cold_submit": {
+      "count": 248,
+      "min_ns": 96708,
+      "median_ns": 161333,
+      "p95_ns": 717917,
+      "max_ns": 2517958,
+      "total_ns": 82463589
+    },
+    "last_read_to_final_submit": {
+      "count": 301,
+      "min_ns": 15209,
+      "median_ns": 30959,
+      "p95_ns": 57792,
+      "max_ns": 119250,
+      "total_ns": 9859463
+    }
+  },
+  "limits": [
+    "cfg(test) intrusive diagnostic; not release throughput or the full128 workload.",
+    "CPU spans are wall time; GPU values are completed command-buffer intervals, not kernels or utilization.",
+    "CPU Instant and GPU/Metal timestamp epochs are not aligned; no cross-clock overlap assigned.",
+    "SSD local MoE clocks preserve worker/API observations, not physical NAND or pure encoding.",
+    "Allocation requests/bytes are API traffic, not process RAM or peak allocated footprint."
+  ]
+}

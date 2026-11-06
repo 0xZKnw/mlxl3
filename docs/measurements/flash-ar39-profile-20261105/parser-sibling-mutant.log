@@ -1,0 +1,45 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_same_row_earlier_sibling_definitions_resolve_in_later_threads ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-154/test_same_row_earlier_sibling_0')
+
+    def test_same_row_earlier_sibling_definitions_resolve_in_later_threads(tmp_path):
+        p = tmp_path / "x.xml"
+        table(
+            p,
+            "toy",
+            ["process", "thread"],
+            [
+                '<process id="1"><pid>7</pid></process><thread id="2"><tid>11</tid><process ref="1"/></thread>',
+                '<process ref="1"/><thread ref="2"/>',
+            ],
+        )
+>       row = list(A.table_rows(p, "toy", {"process", "thread"}))[0]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_native_ar_profile_analysis.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/analyze_native_ar_profile.py:134: in table_rows
+    remember(element)
+scripts/analyze_native_ar_profile.py:106: in remember
+    cache[key] = cell(node)
+                 ^^^^^^^^^^
+scripts/analyze_native_ar_profile.py:93: in cell
+    value["pid"] = cell(child)["pid"]
+                   ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+element = <Element 'process' at 0x1067e3010>
+
+    def cell(element):
+        if "ref" in element.attrib:
+            value = cache.get(element.attrib["ref"])
+            if value is None or value["tag"] != element.tag:
+>               raise ValueError("missing/forward or mismatched XML reference")
+E               ValueError: missing/forward or mismatched XML reference
+
+scripts/analyze_native_ar_profile.py:73: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_native_ar_profile_analysis.py::test_same_row_earlier_sibling_definitions_resolve_in_later_threads
+1 failed in 0.05s

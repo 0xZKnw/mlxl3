@@ -1,0 +1,9 @@
+flowchart LR
+  L["HC / GDN ou QSA"] --> P["P : HC et routeur GPU"]
+  P --> H["H : experts résidents sur GPU"]
+  P --> R["CPU : attendre les routes exactes"]
+  R --> IO["Lectures des experts manquants"]
+  IO --> C["Calcul des cohortes prêtes"]
+  H --> M["Somme canonique des dix contributions"]
+  C --> M
+  M --> N["Consommateur HC / couche suivante"]

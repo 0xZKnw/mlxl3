@@ -1,0 +1,91 @@
+{
+  "status": "reviewed_local_checks_passed_with_explicit_ignored_tests",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "direct-metal,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 180,
+      "status": "reviewed_pass",
+      "joined": true,
+      "pid": 16068,
+      "exit_code": 0,
+      "seconds": 8.422228665964212
+    },
+    {
+      "name": "clippy-mlx",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "budget_seconds": 240,
+      "status": "reviewed_pass",
+      "joined": true,
+      "pid": 16130,
+      "exit_code": 0,
+      "seconds": 10.530148749996442
+    },
+    {
+      "name": "full-direct-tests",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "budget_seconds": 240,
+      "status": "reviewed_pass",
+      "joined": true,
+      "pid": 16192,
+      "exit_code": 0,
+      "seconds": 38.749240625009406
+    },
+    {
+      "name": "release-libtest",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format",
+        "json"
+      ],
+      "budget_seconds": 240,
+      "status": "reviewed_pass",
+      "joined": true,
+      "pid": 16950,
+      "exit_code": 0,
+      "seconds": 55.87226000003284
+    }
+  ],
+  "started_epoch": 1793921693.137345,
+  "source_head": "61d7ec798812eac869c95daf0e62092847b51408",
+  "result_review": {
+    "passed": 412,
+    "ignored": 100,
+    "zero_test_targets": 2,
+    "proof_status": "Kani targeted attempts failed by compiler ICE; no proof claimed"
+  }
+}

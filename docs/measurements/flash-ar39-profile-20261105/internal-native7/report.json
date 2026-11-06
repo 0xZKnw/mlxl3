@@ -1,0 +1,44 @@
+{
+  "status": "failed",
+  "parity": false,
+  "all_children_joined": true,
+  "binary": {
+    "path": "/Users/justin/.codex/worktrees/issue140-ar2-20261105/mix-stq1_0/build/issue140/frozen-default/native-libtest",
+    "sha256": "45f2c7009048150e2d4d3ba6a54c3d026322c644264494c1efd1f529f622f007",
+    "bytes": 10664736
+  },
+  "scope": "Existing intrusive libtest; 7 decode rows. No release speed claim.",
+  "command": [
+    "/Users/justin/.codex/worktrees/issue140-ar2-20261105/mix-stq1_0/build/issue140/frozen-default/native-libtest",
+    "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "MLXL3_NATIVE_HC_WRITE_NORM": "1",
+    "MLXL3_NATIVE_ROUTED_NT2_GU": "1",
+    "MLXL3_NATIVE_ROUTED_NT2_DOWN": "1",
+    "MLXL3_NATIVE_EXPERT_UP_FINISH": "1",
+    "MLXL3_NATIVE_EXPERT_GU_PREPARE": "1",
+    "MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": "1",
+    "MLXL3_NATIVE_EXPERT_AXIS_QMV": "1",
+    "MLXL3_NATIVE_GDN_WHOLE": "1",
+    "MLXL3_NATIVE_GDN_JOINT_AB": "1",
+    "MLXL3_NATIVE_QSA_PREPARE": "1",
+    "MLXL3_NATIVE_QSA_GATE": "1",
+    "MLXL3_NATIVE_RECORD_REUSE": "1",
+    "MLXL3_NATIVE_READ_SPLIT": "1"
+  },
+  "supervisor_sha256": "72d74dfda85cbbb5891b516dc407b2f394197cd108e527ae674d274aebf9cf49",
+  "pid": 15080,
+  "error": "AssertionError('libtest exit 101')",
+  "seconds": 31.646266750001814
+}

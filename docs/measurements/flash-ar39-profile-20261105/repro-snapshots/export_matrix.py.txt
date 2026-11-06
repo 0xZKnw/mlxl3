@@ -1,0 +1,30 @@
+"""Bounded exports of existing captures; never launches a model."""
+import json,os,signal,subprocess,time
+from pathlib import Path
+H=Path.cwd()/'docs/measurements/flash-ar39-profile-20261105'; B=H/'exports-raw'
+MATRIX=[('resume-metal-window','resume-metal',['metal-gpu-intervals','metal-application-encoders-list','metal-shader-profiler-shader-list','metal-shader-profiler-intervals','metal-application-command-buffer-submissions','metal-resource-allocations','metal-current-allocated-size','time-profile']),('cpu-io-window','cpu-io',['time-profile','ThreadActivity','thread-state','syscall','FsSyscall','FileDescriptorTimeSlices','ProcessCPUUsage'])]
+records=[];child=None
+
+def save(): (B/'export-results.json').write_text(json.dumps(records,indent=2)+'\n')
+def terminate(signum,frame):
+ signal.signal(signal.SIGTERM,signal.SIG_IGN);raise KeyboardInterrupt('export interrupted')
+signal.signal(signal.SIGTERM,terminate)
+for capture,dest,schemas in MATRIX:
+ for schema in schemas:
+  out=B/dest/(schema+'.xml');assert not out.exists()
+  cmd=['/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace','export','--input',str(H/capture/'native-ar.trace'),'--xpath','/trace-toc/run[@number="1"]/data/table[@schema="'+schema+'"]','--output',str(out)]
+  row={'capture':capture,'schema':schema,'status':'running','command':cmd};records.append(row);save();t=time.monotonic()
+  try:
+   child=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,start_new_session=True,env={**os.environ,'DEVELOPER_DIR':'/Applications/Xcode.app/Contents/Developer'})
+   log=child.communicate(timeout=60)[0];row.update(status='exported' if child.returncode==0 else 'failed',exit=child.returncode,bytes=out.stat().st_size if out.exists() else 0)
+   (out.with_suffix('.log')).write_text(log)
+  except BaseException as error:
+   row.update(status='failed',error=repr(error))
+   if child is not None:
+    for sig in [signal.SIGTERM,signal.SIGKILL]:
+     if child.poll() is None:os.killpg(child.pid,sig)
+     try:child.wait(timeout=5)
+     except subprocess.TimeoutExpired:continue
+   if isinstance(error,(KeyboardInterrupt,SystemExit)):raise
+  finally:
+   row.update(seconds=time.monotonic()-t,reaped=child is None or child.poll() is not None);save();print(schema,row['status'],row.get('bytes'),round(row['seconds'],2),flush=True);child=None

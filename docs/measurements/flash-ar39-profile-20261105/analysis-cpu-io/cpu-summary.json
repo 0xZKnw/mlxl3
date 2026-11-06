@@ -1,0 +1,2386 @@
+{
+  "pid": 14373,
+  "status": "validated_target_tables_partial_window",
+  "limits": [
+    "Weights are Instruments output, not CPU busy durations; context-switch weights may extend before the retained sample window.",
+    "Inclusive stacks overlap; their weights must not be added.",
+    "Thread-state Unknown before the retained window is excluded.",
+    "Read return bytes are logical file traffic, not physical SSD/NAND bytes.",
+    "Output chunk times are not guaranteed to be individual model token times."
+  ],
+  "samples": {
+    "rows": 59298,
+    "start_ns": 36936103708,
+    "end_ns": 54787836708,
+    "weight_ns_by_state": {
+      "Running": 93013189461,
+      "": 1332425111
+    },
+    "running_weight_ns_by_thread": {
+      "69361754": 12553960974,
+      "69361319": 12166833675,
+      "69361766": 12604417377,
+      "69361763": 12542508338,
+      "69361753": 11621810689,
+      "69361764": 12450013663,
+      "69361765": 12511490601,
+      "69361759": 6552154144,
+      "69361786": 5000000,
+      "69361785": 5000000
+    },
+    "unattributed_running_weight_ns": 49000000,
+    "leaf_running_weight_ns": [
+      [
+        "0xfffffe000bd90c44",
+        41134447871
+      ],
+      [
+        "0xfffffe000c2c3e54",
+        24294855015
+      ],
+      [
+        "pread",
+        4458000000
+      ],
+      [
+        "psynch_cvcontinue",
+        3636359793
+      ],
+      [
+        "iokit_user_client_trap",
+        2982000000
+      ],
+      [
+        "mach_msg2_trap",
+        1341000000
+      ],
+      [
+        "0xfffffe000bcbd38c",
+        1260000000
+      ],
+      [
+        "0xfffffe000bd7e194",
+        1175435197
+      ],
+      [
+        "0xfffffe000c2cf4fc",
+        825000000
+      ],
+      [
+        "0xfffffe000bede580",
+        595000000
+      ],
+      [
+        "start_wqthread",
+        471000000
+      ],
+      [
+        "0xfffffe000bedf7f8",
+        350000000
+      ],
+      [
+        "copyin",
+        305000000
+      ],
+      [
+        "0xfffffe000bd04f4c",
+        235000000
+      ],
+      [
+        "0xfffffe000bea1718",
+        190000000
+      ],
+      [
+        "objc_msgSend",
+        187000000
+      ],
+      [
+        "0xfffffe000bd59a1c",
+        170000000
+      ],
+      [
+        "copyout",
+        160000000
+      ],
+      [
+        "0xfffffe000bdcfa7c",
+        155000000
+      ],
+      [
+        "0xfffffe000be7922c",
+        150000000
+      ],
+      [
+        "0xfffffe000bd5ea54",
+        130000000
+      ],
+      [
+        "kevent_id",
+        123000000
+      ],
+      [
+        "mach_absolute_time",
+        122000000
+      ],
+      [
+        "0xfffffe000be69fdc",
+        115000000
+      ],
+      [
+        "0xfffffff0271014dd",
+        110000000
+      ],
+      [
+        "0xfffffe000bdb7534",
+        100000000
+      ],
+      [
+        "_platform_memset",
+        99000000
+      ],
+      [
+        "AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3EncodedInstr<AGXIotoInstruction_SPECLM_0>::AGX3EncodedInstr(AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3Instr<AGXIotoInstruction_SPECLM_0> const&)",
+        98000000
+      ],
+      [
+        "_platform_memmove",
+        82000000
+      ],
+      [
+        "_xzm_free_main",
+        82000000
+      ],
+      [
+        "__bzero",
+        81000000
+      ],
+      [
+        "0xfffffe000bdcb048",
+        75000000
+      ],
+      [
+        "0xfffffff02710ad61",
+        75000000
+      ],
+      [
+        "0xfffffe000bede00c",
+        75000000
+      ],
+      [
+        "0xfffffff0270c824d",
+        75000000
+      ],
+      [
+        "0xfffffe000bdc22bc",
+        70000000
+      ],
+      [
+        "0xfffffe000bdd3f0c",
+        70000000
+      ],
+      [
+        "MTLRangeAllocatorGetMaxFreeSize",
+        67000000
+      ],
+      [
+        "0xfffffff02710b47d",
+        65000000
+      ],
+      [
+        "0xfffffe000bce830c",
+        65000000
+      ],
+      [
+        "0xfffffe000be74fe4",
+        65000000
+      ],
+      [
+        "0xfffffe000be12cf8",
+        60000000
+      ],
+      [
+        "objc_release",
+        59000000
+      ],
+      [
+        "semaphore_signal_trap",
+        57000000
+      ],
+      [
+        "__psynch_cvwait",
+        56000000
+      ],
+      [
+        "0xfffffe000be0efb8",
+        55000000
+      ],
+      [
+        "0xfffffe000bd60abc",
+        55000000
+      ],
+      [
+        "MTLRangeAllocatorDeallocate",
+        53000000
+      ],
+      [
+        "__psynch_cvbroad",
+        52000000
+      ],
+      [
+        "fstat",
+        51000000
+      ],
+      [
+        "objc_retain",
+        50000000
+      ],
+      [
+        "0xfffffe000bea14ac",
+        50000000
+      ],
+      [
+        "IOGPUMemory::prepareMemoryQuick(unsigned long long)",
+        50000000
+      ],
+      [
+        "IORecursiveLockLock",
+        50000000
+      ],
+      [
+        "0xfffffe000be67800",
+        50000000
+      ],
+      [
+        "IOGPUEventMachine::initEvent(IOGPUEvent*)",
+        50000000
+      ],
+      [
+        "0xfffffe000bee5aec",
+        50000000
+      ],
+      [
+        "IOLockUnlock",
+        50000000
+      ],
+      [
+        "<unavailable backtrace>",
+        49000000
+      ],
+      [
+        "semaphore_wait_trap",
+        48000000
+      ],
+      [
+        "weak_entry_for_referent",
+        45000000
+      ],
+      [
+        "IOLockLock",
+        45000000
+      ],
+      [
+        "0xfffffe000bdcbe08",
+        45000000
+      ],
+      [
+        "0xfffffe000be58cd0",
+        45000000
+      ],
+      [
+        "IORecursiveLockUnlock",
+        45000000
+      ],
+      [
+        "0xfffffe000bce498c",
+        40000000
+      ],
+      [
+        "IOGeneralMemoryDescriptor::dmaCommandOperation(unsigned int, void*, unsigned int) const",
+        40000000
+      ],
+      [
+        "0xfffffe000bdbef00",
+        40000000
+      ],
+      [
+        "semaphore_timedwait_trap",
+        39000000
+      ],
+      [
+        "MTLResourceListAddResource",
+        37000000
+      ]
+    ],
+    "inclusive_running_weight_ns": [
+      [
+        "_RNvNvMs0_NtNtNtCs82bWklYMk3w_3std3sys6thread4unixNtB7_6Thread3new12thread_start",
+        50060009729
+      ],
+      [
+        "_RINvNtNtCs82bWklYMk3w_3std3sys9backtrace28___rust_begin_short_backtraceNCNvMs3_NtCslA0JEHHRwyY_12mlxl3_native9ssd_readsNtB1f_11ReadService16new_with_optionss_0uEB1h_",
+        50060009729
+      ],
+      [
+        "_pthread_start",
+        50060009729
+      ],
+      [
+        "thread_start",
+        50060009729
+      ],
+      [
+        "_RNSNvYNCINvNtNtCs82bWklYMk3w_3std6thread9lifecycle15spawn_uncheckedNCNvMs3_NtCslA0JEHHRwyY_12mlxl3_native9ssd_readsNtB1b_11ReadService16new_with_optionss_0uEs_0INtNtNtCs8Mbv00yxnRz_4core3ops8function6FnOnceuE9call_once6vtableB1d_",
+        50060009729
+      ],
+      [
+        "_dispatch_semaphore_wait_slow",
+        41273497789
+      ],
+      [
+        "0xfffffe000bd90c44",
+        41134447871
+      ],
+      [
+        "0xfffffe000bd909d8",
+        41119447871
+      ],
+      [
+        "_RNvMsg_NtNtCs82bWklYMk3w_3std4sync4mpmcINtB5_8ReceiverNtNtCslA0JEHHRwyY_12mlxl3_native9ssd_reads8ReadWorkE4recvBU_",
+        39736977160
+      ],
+      [
+        "_RNCNvMs_NtNtNtCs82bWklYMk3w_3std4sync4mpmc5arrayINtB6_7ChannelINtNtCs8Mbv00yxnRz_4core6result6ResultNtNtCs8xAYoPIOQEA_10serde_json5value5ValueNtNtCshxvaOLs88l5_5alloc6string6StringEE4recvs_0CslA0JEHHRwyY_12mlxl3_native",
+        39726977160
+      ],
+      [
+        "semaphore_wait_trap",
+        39719977160
+      ],
+      [
+        "_dispatch_sema4_wait",
+        39719977160
+      ],
+      [
+        "start_wqthread",
+        27121946683
+      ],
+      [
+        "0xfffffe000c2c3e54",
+        24584855015
+      ],
+      [
+        "0xfffffe000c2c3cc8",
+        24274855015
+      ],
+      [
+        "qos_class_main",
+        21578902391
+      ],
+      [
+        "start",
+        12144823133
+      ],
+      [
+        "main",
+        12139823133
+      ],
+      [
+        "_RINvNtNtCs82bWklYMk3w_3std3sys9backtrace28___rust_begin_short_backtraceFENtNtB6_7process8ExitCodeB19_ECsfdo9KmZ3WwP_8mlxl3_rs",
+        12139823133
+      ],
+      [
+        "_RNvNtCs82bWklYMk3w_3std2rt19lang_start_internal",
+        12139823133
+      ],
+      [
+        "_RNvCsfdo9KmZ3WwP_8mlxl3_rs3run",
+        12139823133
+      ],
+      [
+        "_RNCINvNtCs82bWklYMk3w_3std2rt10lang_startNtNtB6_7process8ExitCodeE0Csfdo9KmZ3WwP_8mlxl3_rs",
+        12139823133
+      ],
+      [
+        "_RNvCsfdo9KmZ3WwP_8mlxl3_rs4main",
+        12139823133
+      ],
+      [
+        "_RNvNtCsfdo9KmZ3WwP_8mlxl3_rs13direct_bridge3run",
+        12139823133
+      ],
+      [
+        "_RNCNvNtCsfdo9KmZ3WwP_8mlxl3_rs13direct_bridge3run0B5_",
+        11958823133
+      ],
+      [
+        "_RNvCsfdo9KmZ3WwP_8mlxl3_rs15bridge_generate",
+        11957823133
+      ],
+      [
+        "_RNvCsfdo9KmZ3WwP_8mlxl3_rs21bridge_generate_round",
+        11957823133
+      ],
+      [
+        "_RNvMs0_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu5flashNtB5_9FlashNext13prefill_inner",
+        11885093132
+      ],
+      [
+        "_RNvMs0_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu5flashNtB5_9FlashNext6hidden",
+        11339476718
+      ],
+      [
+        "_RNvMs1_NtCslA0JEHHRwyY_12mlxl3_native9ssd_readsNtB5_8ReadWork3run",
+        10321032569
+      ],
+      [
+        "pread",
+        10221879112
+      ],
+      [
+        "_RNvMNtNtCsfdo9KmZ3WwP_8mlxl3_rs13direct_bridge5modelNtB2_15NativeChatModel7forward",
+        10028664752
+      ],
+      [
+        "0xfffffe000bcbb664",
+        9990392655
+      ],
+      [
+        "0xfffffe000bedf7f8",
+        9980392655
+      ],
+      [
+        "_RNvMs3_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu3gdnNtB5_13LayerResidual28forward_after_attention_read",
+        6740893839
+      ],
+      [
+        "0xfffffe000c4a1b88",
+        6160280779
+      ],
+      [
+        "iokit_user_client_trap",
+        6027057084
+      ],
+      [
+        "0xfffffe000c367a48",
+        5760280779
+      ],
+      [
+        "0xfffffe000c3673fc",
+        5760280779
+      ],
+      [
+        "0xfffffe000bfd06dc",
+        5755280779
+      ],
+      [
+        "0xfffffe000bfd0cfc",
+        5755280779
+      ],
+      [
+        "cluster_read_ext",
+        5755280779
+      ],
+      [
+        "0xfffffe000bf8be20",
+        5755280779
+      ],
+      [
+        "apfs_vnop_read",
+        5750280779
+      ],
+      [
+        "_dispatch_workloop_worker_thread",
+        5542044292
+      ],
+      [
+        "_pthread_wqthread",
+        5541044292
+      ],
+      [
+        "_dispatch_root_queue_drain_deferred_wlh",
+        5498044292
+      ],
+      [
+        "_dispatch_lane_invoke",
+        5497044292
+      ],
+      [
+        "_dispatch_lane_serial_drain",
+        5488044292
+      ],
+      [
+        "_RNvMs_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu3moeNtB4_11FlashMoeRow17with_pending_gate",
+        5390711798
+      ],
+      [
+        "_dispatch_source_invoke",
+        4059044292
+      ],
+      [
+        "_dispatch_source_latch_and_call",
+        4058044292
+      ],
+      [
+        "_dispatch_continuation_pop",
+        4057044292
+      ],
+      [
+        "_dispatch_client_callout",
+        4055044292
+      ],
+      [
+        "-[_MTLCommandQueue _submitAvailableCommandBuffers]",
+        4052044292
+      ],
+      [
+        "-[IOGPUMetalCommandQueue _submitCommandBuffers:count:]",
+        4014044292
+      ],
+      [
+        "-[IOGPUMetalCommandQueue submitCommandBuffers:count:]",
+        4014044292
+      ],
+      [
+        "IOGPUCommandQueueSubmitCommandBuffers",
+        3995044292
+      ],
+      [
+        "-[_MTLCommandBuffer waitUntilCompleted]",
+        3768381543
+      ],
+      [
+        "_pthread_cond_wait",
+        3759381543
+      ],
+      [
+        "__psynch_cvwait",
+        3757381543
+      ],
+      [
+        "_RNvMs_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu3moeNtB4_11FlashMoeRow14forward_routed",
+        3725562046
+      ],
+      [
+        "psynch_cvcontinue",
+        3681359793
+      ],
+      [
+        "0xfffffe000bed8c34",
+        3660111876
+      ],
+      [
+        "_psynch_cvwait",
+        3631359793
+      ],
+      [
+        "0xfffffe000c33af44",
+        3385000000
+      ],
+      [
+        "0xfffffe000bede00c",
+        3380000000
+      ],
+      [
+        "copyout",
+        3355000000
+      ],
+      [
+        "0xfffffe000bf8aed0",
+        3248379829
+      ],
+      [
+        "0xfffffe000bdf378c",
+        3223379829
+      ],
+      [
+        "0xfffffe000bcbd38c",
+        3160000000
+      ],
+      [
+        "-[AGXBuffer initWithDevice:length:alignment:options:isSuballocDisabled:pinnedGPULocation:]",
+        3147053459
+      ],
+      [
+        "-[AGXBuffer(Internal) initWithDevice:length:alignment:options:isSuballocDisabled:resourceInArgs:pinnedGPULocation:]",
+        3131053459
+      ],
+      [
+        "-[AGXBuffer(Internal) initWithDevice:length:alignment:pointerTag:options:isSuballocDisabled:resourceInArgs:pinnedGPULocation:]",
+        3131053459
+      ],
+      [
+        "_RINvNtNtCsjGYdqKODfLF_4objc2rc11autorelease15autoreleasepoolINtNtCs8Mbv00yxnRz_4core6result6ResultNtNtNtCslA0JEHHRwyY_12mlxl3_native3gpu3moe9MoeOutputNtCsjSTNnZL2mOf_6anyhow5ErrorENCNvMs_B1A_NtB1A_11FlashMoeRow14forward_routeds3_0EB1E_",
+        3016562046
+      ],
+      [
+        "-[IOGPUMetalResource initWithDevice:remoteStorageResource:options:args:argsSize:]",
+        2975053459
+      ],
+      [
+        "IOGPUResourceCreate",
+        2830053459
+      ],
+      [
+        "IOConnectCallMethod",
+        2722053459
+      ],
+      [
+        "io_connect_method",
+        2713053459
+      ],
+      [
+        "mach_msg2_internal",
+        2687053459
+      ],
+      [
+        "mach_msg2_trap",
+        2686053459
+      ],
+      [
+        "_RNvNtCslA0JEHHRwyY_12mlxl3_native3gpu12wait_command",
+        2539253585
+      ],
+      [
+        "0xfffffe000c5d8c48",
+        2530058417
+      ],
+      [
+        "-[AGXG17GFamilyBuffer dealloc]",
+        2507017167
+      ],
+      [
+        "-[AGXBuffer dealloc]",
+        2504017167
+      ],
+      [
+        "-[IOGPUMetalBuffer dealloc]",
+        2467017167
+      ],
+      [
+        "_RNvMs5_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu3qsaNtB5_13FlashQsaLayer16forward_deferred",
+        2386915127
+      ],
+      [
+        "-[IOGPUMetalResource dealloc]",
+        2321012792
+      ],
+      [
+        "_CFRelease",
+        2105012792
+      ],
+      [
+        "ioGPUResourceFinalize",
+        2035012792
+      ],
+      [
+        "IOGPUDeviceUserClient::t_submit_command_buffer(unsigned long, unsigned long, unsigned long, unsigned long)",
+        1990045625
+      ],
+      [
+        "IOGPUCommandQueue::submit_command_buffers(IOGPUCommandQueueCommandBufferArgs const*, unsigned long long, unsigned long long, unsigned int*)",
+        1975045625
+      ],
+      [
+        "IOGPUCommandQueue::submit_command_buffer(IOGPUCommandQueueCommandBufferArgs const*)",
+        1965045625
+      ],
+      [
+        "IOGPUCommandQueue::submitCommandBuffer(IOGPUCommandQueueCommandBufferArgs const*)",
+        1890045625
+      ],
+      [
+        "IOGPUCommandQueue::processCommandBuffer(IOGPUCommandQueueCommandBufferArgs const*)",
+        1885045625
+      ],
+      [
+        "_RNvMs0_NtNtCslA0JEHHRwyY_12mlxl3_native3gpu5flashNtB5_9FlashNext7prefill",
+        1856428380
+      ],
+      [
+        "IOGPUCommandQueue::processSegmentKernelCommands(IOGPUSegmentResourceList*, IOGPUKernelCommand const*, IOGPUKernelCommand const*, unsigned char const*, unsigned char const*, IOGPUCommandQueueCommandBufferArgs const*)",
+        1825045625
+      ],
+      [
+        "AGXCommandQueue::processSegmentKernelCommand(IOGPUSegmentResourceList*, IOGPUKernelCommand const*, IOGPUKernelCommand const*, unsigned char const*, unsigned char const*, IOGPUCommandQueueCommandBufferArgs const*)",
+        1815045625
+      ],
+      [
+        "AGXCommandQueue::processCompute(AGXHardwareKernelCommand const&, AGXComputeHardwareKernelCommand const&, AGXSegmentKernelCommand const&, unsigned long long, unsigned long long, CompositeSubtypeState*)",
+        1795045625
+      ],
+      [
+        "IOGPUScheduler::scheduleWorkqueue(IOGPUWorkQueue*)",
+        1665045625
+      ]
+    ]
+  },
+  "syscalls": [
+    {
+      "name": "MSC_iokit_user_client",
+      "count": 559380,
+      "total_ns": 2534651368,
+      "min_ns": 83,
+      "p50_ns": 417,
+      "p95_ns": 27834,
+      "max_ns": 466583,
+      "cpu_ns_known": 2624821455,
+      "wait_ns_known": 18277634,
+      "cpu_duration_cells": 559366,
+      "wait_duration_cells": 2242,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 229141,
+        "69361753": 95570,
+        "69361754": 80681,
+        "69361759": 153988
+      },
+      "duration_ns_by_thread": {
+        "69361319": 393625217,
+        "69361753": 620107115,
+        "69361754": 530777709,
+        "69361759": 990141327
+      }
+    },
+    {
+      "name": "MSC_mach_msg2_trap",
+      "count": 509721,
+      "total_ns": 919291428,
+      "min_ns": 500,
+      "p50_ns": 958,
+      "p95_ns": 5084,
+      "max_ns": 1359958,
+      "cpu_ns_known": 1066972252,
+      "wait_ns_known": 15767272,
+      "cpu_duration_cells": 509702,
+      "wait_duration_cells": 1647,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 509719,
+        "69361754": 2
+      },
+      "duration_ns_by_thread": {
+        "69361319": 919285928,
+        "69361754": 5500
+      }
+    },
+    {
+      "name": "BSC_workq_kernreturn",
+      "count": 128492,
+      "total_ns": 49303196406,
+      "min_ns": 542,
+      "p50_ns": 81792,
+      "p95_ns": 1002792,
+      "max_ns": 8999943000,
+      "cpu_ns_known": 3733013946,
+      "wait_ns_known": 85714308556,
+      "cpu_duration_cells": 128492,
+      "wait_duration_cells": 94569,
+      "nonzero_errno": 128492,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361753": 36888,
+        "69361754": 31435,
+        "69361759": 60169
+      },
+      "duration_ns_by_thread": {
+        "69361753": 17008752074,
+        "69361754": 17129090800,
+        "69361759": 15165353532
+      }
+    },
+    {
+      "name": "BSC_sys_fstat64",
+      "count": 43299,
+      "total_ns": 17458043,
+      "min_ns": 166,
+      "p50_ns": 250,
+      "p95_ns": 1417,
+      "max_ns": 7334,
+      "cpu_ns_known": 18192461,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 43299,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 43299
+      },
+      "duration_ns_by_thread": {
+        "69361319": 17458043
+      }
+    },
+    {
+      "name": "MSC_semaphore_signal_trap",
+      "count": 40087,
+      "total_ns": 34630854,
+      "min_ns": 250,
+      "p50_ns": 833,
+      "p95_ns": 1333,
+      "max_ns": 32542,
+      "cpu_ns_known": 36184232,
+      "wait_ns_known": 62667,
+      "cpu_duration_cells": 40087,
+      "wait_duration_cells": 6,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 19289,
+        "69361763": 5207,
+        "69361764": 5221,
+        "69361766": 5192,
+        "69361765": 5177,
+        "69361759": 1
+      },
+      "duration_ns_by_thread": {
+        "69361319": 16219951,
+        "69361763": 4596162,
+        "69361764": 4660555,
+        "69361766": 4598486,
+        "69361765": 4554950,
+        "69361759": 750
+      }
+    },
+    {
+      "name": "BSC_kevent_id",
+      "count": 39434,
+      "total_ns": 69264509,
+      "min_ns": 500,
+      "p50_ns": 1709,
+      "p95_ns": 2333,
+      "max_ns": 18375,
+      "cpu_ns_known": 78020257,
+      "wait_ns_known": 33832,
+      "cpu_duration_cells": 39432,
+      "wait_duration_cells": 8,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 39405,
+        "69361753": 5,
+        "69361754": 10,
+        "69361759": 14
+      },
+      "duration_ns_by_thread": {
+        "69361319": 69196049,
+        "69361753": 12417,
+        "69361754": 22960,
+        "69361759": 33083
+      }
+    },
+    {
+      "name": "BSC_sys_close",
+      "count": 24091,
+      "total_ns": 8213301,
+      "min_ns": 83,
+      "p50_ns": 292,
+      "p95_ns": 542,
+      "max_ns": 21041,
+      "cpu_ns_known": 9368837,
+      "wait_ns_known": 27833,
+      "cpu_duration_cells": 24091,
+      "wait_duration_cells": 2,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 6009,
+        "69361764": 6029,
+        "69361766": 6033,
+        "69361765": 6013,
+        "69361319": 7
+      },
+      "duration_ns_by_thread": {
+        "69361763": 2015920,
+        "69361764": 2058414,
+        "69361766": 2061515,
+        "69361765": 2046368,
+        "69361319": 31084
+      }
+    },
+    {
+      "name": "BSC_sys_fcntl",
+      "count": 24084,
+      "total_ns": 11172094,
+      "min_ns": 41,
+      "p50_ns": 333,
+      "p95_ns": 1167,
+      "max_ns": 4292,
+      "cpu_ns_known": 11688219,
+      "wait_ns_known": 34334,
+      "cpu_duration_cells": 24084,
+      "wait_duration_cells": 1,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 24084
+      },
+      "duration_ns_by_thread": {
+        "69361319": 11172094
+      }
+    },
+    {
+      "name": "BSC_pread",
+      "count": 22980,
+      "total_ns": 14312218025,
+      "min_ns": 1625,
+      "p50_ns": 640459,
+      "p95_ns": 1007917,
+      "max_ns": 3370417,
+      "cpu_ns_known": 5738358370,
+      "wait_ns_known": 157655161101,
+      "cpu_duration_cells": 22980,
+      "wait_duration_cells": 19861,
+      "nonzero_errno": 0,
+      "read_return_bytes": 26925384008,
+      "threads": {
+        "69361763": 5708,
+        "69361764": 5707,
+        "69361765": 5707,
+        "69361766": 5707,
+        "69361319": 151
+      },
+      "duration_ns_by_thread": {
+        "69361763": 3573298628,
+        "69361764": 3591203770,
+        "69361765": 3568346108,
+        "69361766": 3550987653,
+        "69361319": 28381866
+      }
+    },
+    {
+      "name": "BSC_psynch_cvwait",
+      "count": 21735,
+      "total_ns": 9672419530,
+      "min_ns": 4500,
+      "p50_ns": 307125,
+      "p95_ns": 859833,
+      "max_ns": 4885334,
+      "cpu_ns_known": 2171201739,
+      "wait_ns_known": 46545073962,
+      "cpu_duration_cells": 21735,
+      "wait_duration_cells": 21735,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 21735
+      },
+      "duration_ns_by_thread": {
+        "69361319": 9672419530
+      }
+    },
+    {
+      "name": "BSC_psynch_cvbroad",
+      "count": 21735,
+      "total_ns": 29836244,
+      "min_ns": 542,
+      "p50_ns": 1167,
+      "p95_ns": 2791,
+      "max_ns": 24875,
+      "cpu_ns_known": 30159665,
+      "wait_ns_known": 37875,
+      "cpu_duration_cells": 21735,
+      "wait_duration_cells": 4,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 5287,
+        "69361753": 6120,
+        "69361759": 10328
+      },
+      "duration_ns_by_thread": {
+        "69361754": 7292958,
+        "69361753": 8435166,
+        "69361759": 14108120
+      }
+    },
+    {
+      "name": "MSC_semaphore_timedwait_trap",
+      "count": 20797,
+      "total_ns": 4835732265,
+      "min_ns": 417,
+      "p50_ns": 145125,
+      "p95_ns": 684792,
+      "max_ns": 2920208,
+      "cpu_ns_known": 792000555,
+      "wait_ns_known": 4796322196,
+      "cpu_duration_cells": 20797,
+      "wait_duration_cells": 20796,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 20797
+      },
+      "duration_ns_by_thread": {
+        "69361319": 4835732265
+      }
+    },
+    {
+      "name": "MSC_semaphore_wait_trap",
+      "count": 19286,
+      "total_ns": 56714925545,
+      "min_ns": 9125,
+      "p50_ns": 2276875,
+      "p95_ns": 6179750,
+      "max_ns": 48349292,
+      "cpu_ns_known": 571159156,
+      "wait_ns_known": 56667066339,
+      "cpu_duration_cells": 19286,
+      "wait_duration_cells": 19286,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 4819,
+        "69361764": 4829,
+        "69361766": 4824,
+        "69361765": 4813,
+        "69361754": 1
+      },
+      "duration_ns_by_thread": {
+        "69361763": 14177692967,
+        "69361764": 14159456743,
+        "69361766": 14197235401,
+        "69361765": 14180531309,
+        "69361754": 9125
+      }
+    },
+    {
+      "name": "BSC_sys_ulock_wake",
+      "count": 4891,
+      "total_ns": 2353324,
+      "min_ns": 83,
+      "p50_ns": 375,
+      "p95_ns": 1125,
+      "max_ns": 5333,
+      "cpu_ns_known": 2629905,
+      "wait_ns_known": 334,
+      "cpu_duration_cells": 4889,
+      "wait_duration_cells": 2,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 3292,
+        "69361753": 455,
+        "69361754": 422,
+        "69361759": 719,
+        "69361764": 1,
+        "69361766": 1,
+        "69361763": 1
+      },
+      "duration_ns_by_thread": {
+        "69361319": 1367700,
+        "69361753": 278381,
+        "69361754": 260292,
+        "69361759": 445200,
+        "69361764": 417,
+        "69361766": 292,
+        "69361763": 1042
+      }
+    },
+    {
+      "name": "BSC_sys_ulock_wait2",
+      "count": 4886,
+      "total_ns": 4936631,
+      "min_ns": 83,
+      "p50_ns": 333,
+      "p95_ns": 4666,
+      "max_ns": 43333,
+      "cpu_ns_known": 29222697,
+      "wait_ns_known": 1445121,
+      "cpu_duration_cells": 4884,
+      "wait_duration_cells": 646,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361753": 950,
+        "69361319": 1592,
+        "69361754": 780,
+        "69361759": 1564
+      },
+      "duration_ns_by_thread": {
+        "69361753": 614705,
+        "69361319": 3089920,
+        "69361754": 482755,
+        "69361759": 749251
+      }
+    },
+    {
+      "name": "BSC_madvise",
+      "count": 3634,
+      "total_ns": 6115090,
+      "min_ns": 500,
+      "p50_ns": 1042,
+      "p95_ns": 3084,
+      "max_ns": 8625,
+      "cpu_ns_known": 6537922,
+      "wait_ns_known": 3750,
+      "cpu_duration_cells": 3634,
+      "wait_duration_cells": 1,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 3634
+      },
+      "duration_ns_by_thread": {
+        "69361319": 6115090
+      }
+    },
+    {
+      "name": "BSC_psynch_mutexwait",
+      "count": 135,
+      "total_ns": 766789,
+      "min_ns": 1208,
+      "p50_ns": 4708,
+      "p95_ns": 15916,
+      "max_ns": 41583,
+      "cpu_ns_known": 4422661,
+      "wait_ns_known": 316086,
+      "cpu_duration_cells": 135,
+      "wait_duration_cells": 77,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 6,
+        "69361319": 25,
+        "69361753": 4,
+        "69361766": 20,
+        "69361765": 21,
+        "69361763": 21,
+        "69361759": 14,
+        "69361764": 24
+      },
+      "duration_ns_by_thread": {
+        "69361754": 16166,
+        "69361319": 175753,
+        "69361753": 20541,
+        "69361766": 108330,
+        "69361765": 182374,
+        "69361763": 86832,
+        "69361759": 63793,
+        "69361764": 113000
+      }
+    },
+    {
+      "name": "BSC_psynch_mutexdrop",
+      "count": 134,
+      "total_ns": 200081,
+      "min_ns": 500,
+      "p50_ns": 1334,
+      "p95_ns": 2500,
+      "max_ns": 13291,
+      "cpu_ns_known": 217164,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 134,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361753": 9,
+        "69361764": 32,
+        "69361754": 8,
+        "69361766": 17,
+        "69361765": 21,
+        "69361759": 17,
+        "69361763": 29,
+        "69361319": 1
+      },
+      "duration_ns_by_thread": {
+        "69361753": 31165,
+        "69361764": 46503,
+        "69361754": 10251,
+        "69361766": 22374,
+        "69361765": 22792,
+        "69361759": 26583,
+        "69361763": 37996,
+        "69361319": 2417
+      }
+    },
+    {
+      "name": "BSC_write",
+      "count": 133,
+      "total_ns": 487708,
+      "min_ns": 250,
+      "p50_ns": 3667,
+      "p95_ns": 4500,
+      "max_ns": 5166,
+      "cpu_ns_known": 971917,
+      "wait_ns_known": 2083,
+      "cpu_duration_cells": 133,
+      "wait_duration_cells": 1,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 133
+      },
+      "duration_ns_by_thread": {
+        "69361319": 487708
+      }
+    },
+    {
+      "name": "BSC_sys_ulock_wait",
+      "count": 5,
+      "total_ns": 241334,
+      "min_ns": 208,
+      "p50_ns": 459,
+      "p95_ns": 221500,
+      "max_ns": 221500,
+      "cpu_ns_known": 1546042,
+      "wait_ns_known": 231375,
+      "cpu_duration_cells": 5,
+      "wait_duration_cells": 2,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 2,
+        "69361754": 1,
+        "69361319": 2
+      },
+      "duration_ns_by_thread": {
+        "69361763": 583,
+        "69361754": 459,
+        "69361319": 240292
+      }
+    },
+    {
+      "name": "MSC_mach_port_mod_refs_trap",
+      "count": 5,
+      "total_ns": 2498,
+      "min_ns": 291,
+      "p50_ns": 583,
+      "p95_ns": 666,
+      "max_ns": 666,
+      "cpu_ns_known": 2498,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 5,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 1,
+        "69361763": 1,
+        "69361765": 1,
+        "69361764": 1,
+        "69361766": 1
+      },
+      "duration_ns_by_thread": {
+        "69361754": 666,
+        "69361763": 583,
+        "69361765": 375,
+        "69361764": 583,
+        "69361766": 291
+      }
+    },
+    {
+      "name": "BSC_sigaltstack",
+      "count": 5,
+      "total_ns": 1916,
+      "min_ns": 166,
+      "p50_ns": 375,
+      "p95_ns": 667,
+      "max_ns": 667,
+      "cpu_ns_known": 1916,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 5,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 1,
+        "69361764": 1,
+        "69361765": 1,
+        "69361766": 1,
+        "69361319": 1
+      },
+      "duration_ns_by_thread": {
+        "69361763": 375,
+        "69361764": 166,
+        "69361765": 208,
+        "69361766": 667,
+        "69361319": 500
+      }
+    },
+    {
+      "name": "BSC_munmap",
+      "count": 5,
+      "total_ns": 10459,
+      "min_ns": 1333,
+      "p50_ns": 1583,
+      "p95_ns": 3709,
+      "max_ns": 3709,
+      "cpu_ns_known": 10459,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 5,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 1,
+        "69361764": 1,
+        "69361765": 1,
+        "69361766": 1,
+        "69361319": 1
+      },
+      "duration_ns_by_thread": {
+        "69361763": 1500,
+        "69361764": 1333,
+        "69361765": 1583,
+        "69361766": 3709,
+        "69361319": 2334
+      }
+    },
+    {
+      "name": "BSC_disable_threadsignal",
+      "count": 4,
+      "total_ns": 833,
+      "min_ns": 125,
+      "p50_ns": 125,
+      "p95_ns": 375,
+      "max_ns": 375,
+      "cpu_ns_known": 833,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 4,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361763": 1,
+        "69361764": 1,
+        "69361765": 1,
+        "69361766": 1
+      },
+      "duration_ns_by_thread": {
+        "69361763": 208,
+        "69361764": 125,
+        "69361765": 125,
+        "69361766": 375
+      }
+    },
+    {
+      "name": "MSC_mach_vm_deallocate_trap",
+      "count": 4,
+      "total_ns": 19874,
+      "min_ns": 1458,
+      "p50_ns": 1542,
+      "p95_ns": 14958,
+      "max_ns": 14958,
+      "cpu_ns_known": 20040,
+      "wait_ns_known": 5083,
+      "cpu_duration_cells": 4,
+      "wait_duration_cells": 1,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 4
+      },
+      "duration_ns_by_thread": {
+        "69361319": 19874
+      }
+    },
+    {
+      "name": "MSC_kern_invalid_63",
+      "count": 2,
+      "total_ns": 959,
+      "min_ns": 459,
+      "p50_ns": 459,
+      "p95_ns": 500,
+      "max_ns": 500,
+      "cpu_ns_known": 959,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 2,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 2
+      },
+      "duration_ns_by_thread": {
+        "69361319": 959
+      }
+    },
+    {
+      "name": "MSC_mach_vm_map_trap",
+      "count": 1,
+      "total_ns": 3000,
+      "min_ns": 3000,
+      "p50_ns": 3000,
+      "p95_ns": 3000,
+      "max_ns": 3000,
+      "cpu_ns_known": 3000,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 1
+      },
+      "duration_ns_by_thread": {
+        "69361319": 3000
+      }
+    },
+    {
+      "name": "BSC_proc_info",
+      "count": 1,
+      "total_ns": 5917,
+      "min_ns": 5917,
+      "p50_ns": 5917,
+      "p95_ns": 5917,
+      "max_ns": 5917,
+      "cpu_ns_known": 5917,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361319": 1
+      },
+      "duration_ns_by_thread": {
+        "69361319": 5917
+      }
+    },
+    {
+      "name": "BSC_bsdthread_ctl",
+      "count": 1,
+      "total_ns": 625,
+      "min_ns": 625,
+      "p50_ns": 625,
+      "p95_ns": 625,
+      "max_ns": 625,
+      "cpu_ns_known": 625,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 1
+      },
+      "duration_ns_by_thread": {
+        "69361754": 625
+      }
+    },
+    {
+      "name": "MSC_mach_port_type_trap",
+      "count": 1,
+      "total_ns": 666,
+      "min_ns": 666,
+      "p50_ns": 666,
+      "p95_ns": 666,
+      "max_ns": 666,
+      "cpu_ns_known": 666,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 1
+      },
+      "duration_ns_by_thread": {
+        "69361754": 666
+      }
+    },
+    {
+      "name": "MSC_mach_port_deallocate_trap",
+      "count": 1,
+      "total_ns": 3000,
+      "min_ns": 3000,
+      "p50_ns": 3000,
+      "p95_ns": 3000,
+      "max_ns": 3000,
+      "cpu_ns_known": 3000,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 1
+      },
+      "duration_ns_by_thread": {
+        "69361754": 3000
+      }
+    },
+    {
+      "name": "MSC_mach_port_destruct_trap",
+      "count": 1,
+      "total_ns": 1042,
+      "min_ns": 1042,
+      "p50_ns": 1042,
+      "p95_ns": 1042,
+      "max_ns": 1042,
+      "cpu_ns_known": 1042,
+      "wait_ns_known": null,
+      "cpu_duration_cells": 1,
+      "wait_duration_cells": 0,
+      "nonzero_errno": 0,
+      "read_return_bytes": 0,
+      "threads": {
+        "69361754": 1
+      },
+      "duration_ns_by_thread": {
+        "69361754": 1042
+      }
+    }
+  ],
+  "stdout_writes": [
+    {
+      "start_ns": 39704394333,
+      "end_ns": 39704398458,
+      "bytes": 84
+    },
+    {
+      "start_ns": 39832894500,
+      "end_ns": 39832898958,
+      "bytes": 87
+    },
+    {
+      "start_ns": 39953498291,
+      "end_ns": 39953502333,
+      "bytes": 90
+    },
+    {
+      "start_ns": 40073241166,
+      "end_ns": 40073245125,
+      "bytes": 83
+    },
+    {
+      "start_ns": 40203528166,
+      "end_ns": 40203531541,
+      "bytes": 90
+    },
+    {
+      "start_ns": 40323493583,
+      "end_ns": 40323497083,
+      "bytes": 81
+    },
+    {
+      "start_ns": 40424633833,
+      "end_ns": 40424637416,
+      "bytes": 82
+    },
+    {
+      "start_ns": 40551410333,
+      "end_ns": 40551414666,
+      "bytes": 92
+    },
+    {
+      "start_ns": 40673465375,
+      "end_ns": 40673469666,
+      "bytes": 88
+    },
+    {
+      "start_ns": 40785592750,
+      "end_ns": 40785596791,
+      "bytes": 81
+    },
+    {
+      "start_ns": 40897538291,
+      "end_ns": 40897541916,
+      "bytes": 83
+    },
+    {
+      "start_ns": 41013736708,
+      "end_ns": 41013740291,
+      "bytes": 84
+    },
+    {
+      "start_ns": 41128511416,
+      "end_ns": 41128515750,
+      "bytes": 84
+    },
+    {
+      "start_ns": 41257793083,
+      "end_ns": 41257798041,
+      "bytes": 83
+    },
+    {
+      "start_ns": 41377238708,
+      "end_ns": 41377242583,
+      "bytes": 90
+    },
+    {
+      "start_ns": 41485387375,
+      "end_ns": 41485391666,
+      "bytes": 81
+    },
+    {
+      "start_ns": 41604511000,
+      "end_ns": 41604514541,
+      "bytes": 85
+    },
+    {
+      "start_ns": 41726202458,
+      "end_ns": 41726205250,
+      "bytes": 83
+    },
+    {
+      "start_ns": 41836355291,
+      "end_ns": 41836359041,
+      "bytes": 88
+    },
+    {
+      "start_ns": 41955204833,
+      "end_ns": 41955209291,
+      "bytes": 88
+    },
+    {
+      "start_ns": 42066756208,
+      "end_ns": 42066759500,
+      "bytes": 81
+    },
+    {
+      "start_ns": 42169558291,
+      "end_ns": 42169561833,
+      "bytes": 88
+    },
+    {
+      "start_ns": 42286540041,
+      "end_ns": 42286543583,
+      "bytes": 83
+    },
+    {
+      "start_ns": 42403879791,
+      "end_ns": 42403883458,
+      "bytes": 86
+    },
+    {
+      "start_ns": 42535072625,
+      "end_ns": 42535076375,
+      "bytes": 83
+    },
+    {
+      "start_ns": 42672075666,
+      "end_ns": 42672079333,
+      "bytes": 81
+    },
+    {
+      "start_ns": 42803699458,
+      "end_ns": 42803703416,
+      "bytes": 84
+    },
+    {
+      "start_ns": 42930029833,
+      "end_ns": 42930033750,
+      "bytes": 83
+    },
+    {
+      "start_ns": 43052699666,
+      "end_ns": 43052703333,
+      "bytes": 84
+    },
+    {
+      "start_ns": 43186924166,
+      "end_ns": 43186927750,
+      "bytes": 89
+    },
+    {
+      "start_ns": 43314761208,
+      "end_ns": 43314765000,
+      "bytes": 84
+    },
+    {
+      "start_ns": 43429942416,
+      "end_ns": 43429946416,
+      "bytes": 83
+    },
+    {
+      "start_ns": 43545738333,
+      "end_ns": 43545742125,
+      "bytes": 82
+    },
+    {
+      "start_ns": 43665733916,
+      "end_ns": 43665737833,
+      "bytes": 84
+    },
+    {
+      "start_ns": 43777517708,
+      "end_ns": 43777521708,
+      "bytes": 88
+    },
+    {
+      "start_ns": 43908954250,
+      "end_ns": 43908958208,
+      "bytes": 82
+    },
+    {
+      "start_ns": 44020063291,
+      "end_ns": 44020067208,
+      "bytes": 83
+    },
+    {
+      "start_ns": 44152637875,
+      "end_ns": 44152641375,
+      "bytes": 83
+    },
+    {
+      "start_ns": 44263370375,
+      "end_ns": 44263373875,
+      "bytes": 82
+    },
+    {
+      "start_ns": 44364015166,
+      "end_ns": 44364019166,
+      "bytes": 85
+    },
+    {
+      "start_ns": 44467224750,
+      "end_ns": 44467229916,
+      "bytes": 82
+    },
+    {
+      "start_ns": 44584230166,
+      "end_ns": 44584233750,
+      "bytes": 85
+    },
+    {
+      "start_ns": 44698599541,
+      "end_ns": 44698602916,
+      "bytes": 88
+    },
+    {
+      "start_ns": 44817133333,
+      "end_ns": 44817137083,
+      "bytes": 83
+    },
+    {
+      "start_ns": 44936466500,
+      "end_ns": 44936470750,
+      "bytes": 81
+    },
+    {
+      "start_ns": 45049286208,
+      "end_ns": 45049289833,
+      "bytes": 83
+    },
+    {
+      "start_ns": 45190726458,
+      "end_ns": 45190730125,
+      "bytes": 83
+    },
+    {
+      "start_ns": 45338560041,
+      "end_ns": 45338563291,
+      "bytes": 85
+    },
+    {
+      "start_ns": 45472024125,
+      "end_ns": 45472027750,
+      "bytes": 90
+    },
+    {
+      "start_ns": 45605383083,
+      "end_ns": 45605386708,
+      "bytes": 85
+    },
+    {
+      "start_ns": 45730417083,
+      "end_ns": 45730420208,
+      "bytes": 88
+    },
+    {
+      "start_ns": 45855452375,
+      "end_ns": 45855455958,
+      "bytes": 88
+    },
+    {
+      "start_ns": 45964512750,
+      "end_ns": 45964516333,
+      "bytes": 81
+    },
+    {
+      "start_ns": 46078874250,
+      "end_ns": 46078877750,
+      "bytes": 85
+    },
+    {
+      "start_ns": 46193885583,
+      "end_ns": 46193888708,
+      "bytes": 87
+    },
+    {
+      "start_ns": 46292183416,
+      "end_ns": 46292186416,
+      "bytes": 89
+    },
+    {
+      "start_ns": 46398841333,
+      "end_ns": 46398844625,
+      "bytes": 84
+    },
+    {
+      "start_ns": 46518077708,
+      "end_ns": 46518081583,
+      "bytes": 89
+    },
+    {
+      "start_ns": 46623210708,
+      "end_ns": 46623214708,
+      "bytes": 87
+    },
+    {
+      "start_ns": 46736933416,
+      "end_ns": 46736936583,
+      "bytes": 81
+    },
+    {
+      "start_ns": 46839060333,
+      "end_ns": 46839064041,
+      "bytes": 84
+    },
+    {
+      "start_ns": 46962136166,
+      "end_ns": 46962139708,
+      "bytes": 87
+    },
+    {
+      "start_ns": 47064324583,
+      "end_ns": 47064327750,
+      "bytes": 82
+    },
+    {
+      "start_ns": 47171664166,
+      "end_ns": 47171668041,
+      "bytes": 81
+    },
+    {
+      "start_ns": 47293623333,
+      "end_ns": 47293627458,
+      "bytes": 83
+    },
+    {
+      "start_ns": 47414277833,
+      "end_ns": 47414281791,
+      "bytes": 83
+    },
+    {
+      "start_ns": 47513871416,
+      "end_ns": 47513875958,
+      "bytes": 89
+    },
+    {
+      "start_ns": 47618787916,
+      "end_ns": 47618791500,
+      "bytes": 81
+    },
+    {
+      "start_ns": 47722618375,
+      "end_ns": 47722623333,
+      "bytes": 83
+    },
+    {
+      "start_ns": 47833136875,
+      "end_ns": 47833140666,
+      "bytes": 85
+    },
+    {
+      "start_ns": 47928836583,
+      "end_ns": 47928840041,
+      "bytes": 85
+    },
+    {
+      "start_ns": 48029773250,
+      "end_ns": 48029777333,
+      "bytes": 86
+    },
+    {
+      "start_ns": 48132839041,
+      "end_ns": 48132842666,
+      "bytes": 88
+    },
+    {
+      "start_ns": 48246486500,
+      "end_ns": 48246490708,
+      "bytes": 83
+    },
+    {
+      "start_ns": 48359379375,
+      "end_ns": 48359383166,
+      "bytes": 83
+    },
+    {
+      "start_ns": 48506160625,
+      "end_ns": 48506164166,
+      "bytes": 81
+    },
+    {
+      "start_ns": 48631198750,
+      "end_ns": 48631203166,
+      "bytes": 82
+    },
+    {
+      "start_ns": 48770203208,
+      "end_ns": 48770206916,
+      "bytes": 81
+    },
+    {
+      "start_ns": 48894721000,
+      "end_ns": 48894724583,
+      "bytes": 86
+    },
+    {
+      "start_ns": 49021184333,
+      "end_ns": 49021187916,
+      "bytes": 83
+    },
+    {
+      "start_ns": 49142559750,
+      "end_ns": 49142563541,
+      "bytes": 88
+    },
+    {
+      "start_ns": 49248675625,
+      "end_ns": 49248679333,
+      "bytes": 82
+    },
+    {
+      "start_ns": 49377371291,
+      "end_ns": 49377374583,
+      "bytes": 88
+    },
+    {
+      "start_ns": 49489015541,
+      "end_ns": 49489019666,
+      "bytes": 86
+    },
+    {
+      "start_ns": 49625823583,
+      "end_ns": 49625827333,
+      "bytes": 83
+    },
+    {
+      "start_ns": 49730730791,
+      "end_ns": 49730734125,
+      "bytes": 84
+    },
+    {
+      "start_ns": 49864478833,
+      "end_ns": 49864482291,
+      "bytes": 84
+    },
+    {
+      "start_ns": 49980686083,
+      "end_ns": 49980690125,
+      "bytes": 81
+    },
+    {
+      "start_ns": 50106333583,
+      "end_ns": 50106336291,
+      "bytes": 86
+    },
+    {
+      "start_ns": 50208002583,
+      "end_ns": 50208006625,
+      "bytes": 83
+    },
+    {
+      "start_ns": 50317511250,
+      "end_ns": 50317514541,
+      "bytes": 84
+    },
+    {
+      "start_ns": 50416520791,
+      "end_ns": 50416523791,
+      "bytes": 82
+    },
+    {
+      "start_ns": 50547379416,
+      "end_ns": 50547383166,
+      "bytes": 82
+    },
+    {
+      "start_ns": 50653589166,
+      "end_ns": 50653592208,
+      "bytes": 81
+    },
+    {
+      "start_ns": 50760429791,
+      "end_ns": 50760433708,
+      "bytes": 83
+    },
+    {
+      "start_ns": 50877319125,
+      "end_ns": 50877322625,
+      "bytes": 81
+    },
+    {
+      "start_ns": 50989081291,
+      "end_ns": 50989085791,
+      "bytes": 82
+    },
+    {
+      "start_ns": 51121233750,
+      "end_ns": 51121237458,
+      "bytes": 85
+    },
+    {
+      "start_ns": 51254091166,
+      "end_ns": 51254095291,
+      "bytes": 91
+    },
+    {
+      "start_ns": 51371246541,
+      "end_ns": 51371249916,
+      "bytes": 85
+    },
+    {
+      "start_ns": 51474943291,
+      "end_ns": 51474947500,
+      "bytes": 81
+    },
+    {
+      "start_ns": 51585231666,
+      "end_ns": 51585235333,
+      "bytes": 86
+    },
+    {
+      "start_ns": 51717618666,
+      "end_ns": 51717622125,
+      "bytes": 84
+    },
+    {
+      "start_ns": 51846632958,
+      "end_ns": 51846637250,
+      "bytes": 88
+    },
+    {
+      "start_ns": 51969466541,
+      "end_ns": 51969469916,
+      "bytes": 87
+    },
+    {
+      "start_ns": 52074614083,
+      "end_ns": 52074617875,
+      "bytes": 86
+    },
+    {
+      "start_ns": 52175860000,
+      "end_ns": 52175863625,
+      "bytes": 90
+    },
+    {
+      "start_ns": 52282865416,
+      "end_ns": 52282868833,
+      "bytes": 81
+    },
+    {
+      "start_ns": 52418973208,
+      "end_ns": 52418976708,
+      "bytes": 84
+    },
+    {
+      "start_ns": 52551401791,
+      "end_ns": 52551405625,
+      "bytes": 83
+    },
+    {
+      "start_ns": 52652415500,
+      "end_ns": 52652419250,
+      "bytes": 86
+    },
+    {
+      "start_ns": 52761788416,
+      "end_ns": 52761792500,
+      "bytes": 86
+    },
+    {
+      "start_ns": 52862247333,
+      "end_ns": 52862251000,
+      "bytes": 84
+    },
+    {
+      "start_ns": 52973052666,
+      "end_ns": 52973056375,
+      "bytes": 81
+    },
+    {
+      "start_ns": 53116770583,
+      "end_ns": 53116775291,
+      "bytes": 83
+    },
+    {
+      "start_ns": 53260367291,
+      "end_ns": 53260370958,
+      "bytes": 85
+    },
+    {
+      "start_ns": 53384669000,
+      "end_ns": 53384672416,
+      "bytes": 88
+    },
+    {
+      "start_ns": 53491029958,
+      "end_ns": 53491033875,
+      "bytes": 81
+    },
+    {
+      "start_ns": 53616345375,
+      "end_ns": 53616349208,
+      "bytes": 87
+    },
+    {
+      "start_ns": 53737387500,
+      "end_ns": 53737391125,
+      "bytes": 91
+    },
+    {
+      "start_ns": 53849019291,
+      "end_ns": 53849022583,
+      "bytes": 82
+    },
+    {
+      "start_ns": 53958632958,
+      "end_ns": 53958636541,
+      "bytes": 88
+    },
+    {
+      "start_ns": 54071893166,
+      "end_ns": 54071897000,
+      "bytes": 86
+    },
+    {
+      "start_ns": 54197788625,
+      "end_ns": 54197791958,
+      "bytes": 87
+    },
+    {
+      "start_ns": 54309931541,
+      "end_ns": 54309935458,
+      "bytes": 81
+    },
+    {
+      "start_ns": 54438496875,
+      "end_ns": 54438500291,
+      "bytes": 89
+    },
+    {
+      "start_ns": 54570808875,
+      "end_ns": 54570812458,
+      "bytes": 88
+    },
+    {
+      "start_ns": 54678489583,
+      "end_ns": 54678492833,
+      "bytes": 86
+    },
+    {
+      "start_ns": 54678760333,
+      "end_ns": 54678762291,
+      "bytes": 843
+    },
+    {
+      "start_ns": 54678765875,
+      "end_ns": 54678766333,
+      "bytes": 1024
+    },
+    {
+      "start_ns": 54678770250,
+      "end_ns": 54678775375,
+      "bytes": 1023
+    },
+    {
+      "start_ns": 54678778750,
+      "end_ns": 54678779166,
+      "bytes": 1024
+    },
+    {
+      "start_ns": 54678780250,
+      "end_ns": 54678780500,
+      "bytes": 115
+    }
+  ],
+  "filesystem": {
+    "rows": 90496,
+    "calls": {
+      "BSC_sys_fstat64": 43299,
+      "BSC_sys_fcntl": 24084,
+      "BSC_pread": 22980,
+      "BSC_write": 133
+    },
+    "reported_bytes": {
+      "BSC_sys_fstat64": 0,
+      "BSC_sys_fcntl": 0,
+      "BSC_pread": null,
+      "BSC_write": null
+    },
+    "reported_byte_cells": {
+      "BSC_sys_fstat64": 43299,
+      "BSC_sys_fcntl": 24084,
+      "BSC_pread": 0,
+      "BSC_write": 0
+    },
+    "nonzero_errno": {
+      "BSC_sys_fstat64": 0,
+      "BSC_sys_fcntl": 0,
+      "BSC_pread": 0,
+      "BSC_write": 0
+    },
+    "interval_union_ns": 5308152262
+  },
+  "scheduler": {
+    "known_state_thread_ns": {
+      "Idle": 48331094216,
+      "Runnable": 790152353,
+      "Running": 11272618460,
+      "Blocked": 80658741809,
+      "Interrupted": 48820511,
+      "Preempted": 44305734,
+      "Terminated": 991885298
+    },
+    "oncore_ns_known_by_thread": {
+      "69361753": null,
+      "69361754": null,
+      "69361319": null,
+      "69361763": null,
+      "69361764": null,
+      "69361765": null,
+      "69361766": null,
+      "69361759": null,
+      "69361786": null,
+      "69361785": null
+    },
+    "wait_ns_known_by_thread": {
+      "69361753": null,
+      "69361754": null,
+      "69361319": null,
+      "69361763": null,
+      "69361764": null,
+      "69361765": null,
+      "69361766": null,
+      "69361759": null,
+      "69361786": null,
+      "69361785": null
+    },
+    "oncore_duration_cells": {
+      "69361753": 0,
+      "69361754": 0,
+      "69361319": 0,
+      "69361763": 0,
+      "69361764": 0,
+      "69361765": 0,
+      "69361766": 0,
+      "69361759": 0,
+      "69361786": 0,
+      "69361785": 0
+    },
+    "wait_duration_cells": {
+      "69361753": 0,
+      "69361754": 0,
+      "69361319": 0,
+      "69361763": 0,
+      "69361764": 0,
+      "69361765": 0,
+      "69361766": 0,
+      "69361759": 0,
+      "69361786": 0,
+      "69361785": 0
+    },
+    "state_duration_ns_by_thread": {
+      "69361753": {
+        "Idle": 16724181367,
+        "Runnable": 133346104,
+        "Running": 973761181,
+        "Preempted": 2978049,
+        "Interrupted": 3640395,
+        "Blocked": 2097862,
+        "Terminated": 76727459
+      },
+      "69361754": {
+        "Blocked": 2286711,
+        "Runnable": 108075269,
+        "Running": 830973819,
+        "Interrupted": 2854943,
+        "Idle": 16893131539,
+        "Preempted": 2612636,
+        "Terminated": 76726459
+      },
+      "69361319": {
+        "Blocked": 14319224075,
+        "Runnable": 136124792,
+        "Running": 3379015542,
+        "Interrupted": 8810632,
+        "Preempted": 8676167,
+        "Terminated": 64801876
+      },
+      "69361763": {
+        "Blocked": 16582233119,
+        "Runnable": 52045255,
+        "Running": 1133182379,
+        "Interrupted": 6800206,
+        "Preempted": 6178624,
+        "Terminated": 135872959
+      },
+      "69361764": {
+        "Blocked": 16579240936,
+        "Runnable": 51311825,
+        "Running": 1136615056,
+        "Preempted": 6176117,
+        "Interrupted": 7094983,
+        "Terminated": 135865917
+      },
+      "69361765": {
+        "Blocked": 16586607572,
+        "Runnable": 50159166,
+        "Running": 1128804724,
+        "Interrupted": 6813525,
+        "Preempted": 6015513,
+        "Terminated": 135872876
+      },
+      "69361766": {
+        "Blocked": 16583062126,
+        "Runnable": 51350519,
+        "Running": 1129831013,
+        "Interrupted": 7436054,
+        "Preempted": 6727538,
+        "Terminated": 135855709
+      },
+      "69361759": {
+        "Blocked": 3986241,
+        "Runnable": 207739423,
+        "Running": 1560434746,
+        "Idle": 14713781310,
+        "Interrupted": 5369773,
+        "Preempted": 4941090,
+        "Terminated": 76719584
+      },
+      "69361786": {
+        "Blocked": 1125,
+        "Terminated": 76722917
+      },
+      "69361785": {
+        "Blocked": 2042,
+        "Terminated": 76719542
+      }
+    },
+    "thread_interval_union_ns": {
+      "69361753": 17916732417,
+      "69361754": 17916661376,
+      "69361319": 17916653084,
+      "69361763": 17916312542,
+      "69361764": 17916304834,
+      "69361765": 17914273376,
+      "69361766": 17914262959,
+      "69361759": 16572972167,
+      "69361786": 76724042,
+      "69361785": 76721584
+    },
+    "thread_interval_overlap_ns": {
+      "69361753": 0,
+      "69361754": 0,
+      "69361319": 0,
+      "69361763": 0,
+      "69361764": 0,
+      "69361765": 0,
+      "69361766": 0,
+      "69361759": 0,
+      "69361786": 0,
+      "69361785": 0
+    },
+    "thermal_throttled_cell_counts": {
+      "unavailable": 840560
+    },
+    "known_interval_union_ns": 17916732417
+  }
+}
