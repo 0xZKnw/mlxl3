@@ -316,3 +316,13 @@ PonyExl3's Metal reference at 8e7fa6b1556f59fc669e25087903b279b9b0346f,
 Copyright 2026 Theinruj Toranavikrai, under Apache-2.0. The port preserves
 the two tail-biting passes, FP16 costs and predecessor tie order. The engine
 manifest includes PonyExl3's NOTICE and the Apache-2.0 license text.
+
+## LFM3 / LFM3-VL architecture references
+
+The native LFM3 text and vision implementation follows the reference model code
+from [LiquidAI/LFM3-1.7B](https://huggingface.co/LiquidAI/LFM3-1.7B) and
+[LiquidAI/LFM3-VL-2B](https://huggingface.co/LiquidAI/LFM3-VL-2B), including
+`modeling_lfm3.py` and `modeling_lfm3_vl.py` (Copyright 2026 The HuggingFace Team,
+Apache License 2.0). Model weights remain subject to the separate LFM Open
+License v1.0 distributed with each checkpoint. The EXL3 loading conventions also
+follow [ExLlamaV3](https://github.com/turboderp-org/exllamav3) (MIT).

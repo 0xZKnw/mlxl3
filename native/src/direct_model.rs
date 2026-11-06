@@ -16,6 +16,11 @@ pub(crate) enum NativeChatModel<'a> {
 }
 impl<'a> NativeChatModel<'a> {
     pub(crate) fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
+        ensure!(
+            std::env::var("MLXL3_NATIVE_FLASH_ONLY").as_deref() != Ok("1")
+                || mlxl3_native::backend::native_flash(c.model_type.as_bytes()),
+            "hybrid native helper only accepts the selected Flash Next architecture"
+        );
         match c.model_type.as_str() {
             "qwen4_exp" => Ok(Self::Flash(Box::new(FlashNext::load(gpu, c, context)?))),
             "qwen3_5_moe" => Ok(Self::Qwen(Box::new(Qwen35::load(gpu, c, context)?))),
@@ -24,6 +29,9 @@ impl<'a> NativeChatModel<'a> {
     }
     pub(crate) fn is_flash(&self) -> bool {
         matches!(self, Self::Flash(_))
+    }
+    pub(crate) fn supports_images(&self) -> bool {
+        false
     }
     pub(crate) fn name(&self) -> &'static str {
         match self {

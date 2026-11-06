@@ -257,3 +257,170 @@ fn flash_projection_stock_oracle() -> Result<()> {
     serde_json::to_writer(fs::File::create_new(dir.join("stock.json"))?, &expected)?;
     Ok(())
 }
+
+#[test]
+#[cfg(feature = "mlx")]
+#[ignore = "physical Apple GPU; LFM3 image primitives"]
+fn lfm3_vision_primitives_match_scalar_oracles() -> Result<()> {
+    let values = [-3., -1., 0., 1., 3.];
+    let gelu = Array::from_f32(&values, &[5])?.gelu()?.to_f32()?;
+    for (actual, expected) in gelu
+        .iter()
+        .zip([-0.004049694, -0.15865526, 0., 0.8413447, 2.9959502])
+    {
+        assert!((actual - expected).abs() < 2e-6);
+    }
+    let norm = Array::from_f32(&[1., 2., 3., 4., 4., 4.], &[2, 3])?
+        .layer_norm_without_weight(1e-6)?
+        .to_f32()?;
+    let scale = (2f32 / 3. + 1e-6).sqrt();
+    for (actual, expected) in norm.iter().zip([-1. / scale, 0., 1. / scale, 0., 0., 0.]) {
+        assert!((actual - expected).abs() < 2e-6);
+    }
+    let pixels = (0..24).map(|i| i as f32 / 10.).collect::<Vec<_>>();
+    let weights = (0..18).map(|i| (i as f32 - 8.) / 10.).collect::<Vec<_>>();
+    let x = Array::from_f32(&pixels, &[1, 3, 4, 2])?;
+    let w = Array::from_f32(&weights, &[2, 3, 3, 1])?;
+    let actual = x.conv2d_depthwise(&w)?.to_f32()?;
+    for row in 0..3i32 {
+        for col in 0..4i32 {
+            for ch in 0..2 {
+                let mut expected = 0.;
+                for dy in 0..3 {
+                    for dx in 0..3 {
+                        let (r, c) = (row + dy - 1, col + dx - 1);
+                        if (0..3).contains(&r) && (0..4).contains(&c) {
+                            expected += pixels[((r * 4 + c) * 2 + ch) as usize]
+                                * weights[(ch * 9 + dy * 3 + dx) as usize];
+                        }
+                    }
+                }
+                assert!((actual[((row * 4 + col) * 2 + ch) as usize] - expected).abs() < 2e-5);
+            }
+        }
+    }
+    assert!(x.conv2d_depthwise(&Array::zeros(&[2, 2, 3, 1])?).is_err());
+    Ok(())
+}
+
+#[cfg(feature = "chat")]
+#[test]
+#[cfg(feature = "mlx")]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_REFERENCE from independent ExLlamaV3 fixtures"]
+fn lfm3_real_checkpoints_match_independent_reference() -> Result<()> {
+    use anyhow::Context;
+    use mlxl3_native::{checkpoint, lfm3::Lfm3, vision_input};
+    let fixture = std::env::var("MLXL3_LFM3_REFERENCE")?;
+    let data: serde_json::Value = serde_json::from_slice(&std::fs::read(fixture)?)?;
+    let cases = data["cases"].as_array().context("missing LFM3 cases")?;
+    ensure!(
+        cases.len() >= 4,
+        "fixture must exercise text/vision at 4/8 bpw"
+    );
+    for case in cases {
+        let cp = checkpoint::inspect(std::path::Path::new(case["model"].as_str().unwrap()))?;
+        let mut model = Lfm3::from_checkpoint(&cp)?;
+        let tokens: Vec<u32> = serde_json::from_value(case["tokens"].clone())?;
+        ensure!(!tokens.is_empty(), "empty oracle tokens");
+        let images = if let Some(path) = case["image"].as_str() {
+            vec![vision_input::decode_image(&vision_input::file_data_url(
+                std::path::Path::new(path),
+            )?)?]
+        } else {
+            Vec::new()
+        };
+        if !images.is_empty() {
+            let expected: Vec<f32> = serde_json::from_value(case["features"].clone())?;
+            let actual = model.image_features(&images[0])?.to_f32()?;
+            ensure!(
+                !actual.is_empty()
+                    && actual.len() == expected.len()
+                    && actual.iter().chain(&expected).all(|v| v.is_finite()),
+                "invalid image feature oracle"
+            );
+            let error = actual
+                .iter()
+                .zip(&expected)
+                .map(|(a, b)| f64::from(a - b).powi(2))
+                .sum::<f64>()
+                .sqrt()
+                / expected
+                    .iter()
+                    .map(|x| f64::from(*x).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+            eprintln!("{} image feature relative L2={error}", cp.path.display());
+            assert!(
+                error < 0.01,
+                "native image features differ from independent runtime: {error}"
+            );
+        }
+        let expected: Vec<f32> = serde_json::from_value(case["logits"].clone())?;
+        let mut reference_bits = None;
+        for replay in 0..2 {
+            model.reset();
+            assert!(model.state_arrays().is_empty());
+            if !images.is_empty() {
+                model.prepare_images(&tokens, &images)?;
+            }
+            let mut logits = None;
+            for chunk in tokens.chunks(256) {
+                if chunk.len() == 1 || chunk.len() >= 24 {
+                    logits = Some(model.forward(chunk)?);
+                } else {
+                    for token in chunk {
+                        logits = Some(model.forward(&[*token])?);
+                    }
+                }
+                for (_, state) in model.state_arrays() {
+                    state.eval()?;
+                }
+            }
+            let logits = logits.context("missing native logits")?;
+            ensure!(logits.shape() == [1, 1, 128000], "wrong native logit shape");
+            let actual = logits.to_f32()?;
+            ensure!(
+                actual.len() == expected.len()
+                    && actual.iter().chain(&expected).all(|v| v.is_finite()),
+                "invalid logit oracle"
+            );
+            let log_z = |v: &[f32]| {
+                let max = v.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+                max + v
+                    .iter()
+                    .map(|x| (f64::from(*x) - max).exp())
+                    .sum::<f64>()
+                    .ln()
+            };
+            let (za, ze) = (log_z(&actual), log_z(&expected));
+            let kl = expected
+                .iter()
+                .zip(&actual)
+                .map(|(e, a)| {
+                    (f64::from(*e) - ze).exp() * (f64::from(*e) - ze - f64::from(*a) + za)
+                })
+                .sum::<f64>();
+            let max = actual
+                .iter()
+                .zip(&expected)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0., f32::max);
+            eprintln!(
+                "{} replay={replay} native/exl KL={kl}, max_abs={max}",
+                cp.path.display()
+            );
+            assert!(
+                kl < 0.002 && max < 0.5,
+                "native LFM3 logit divergence: KL={kl}, max_abs={max}"
+            );
+            if let Some(previous) = &reference_bits {
+                assert_eq!(&logits.to_f16_bits()?, previous, "reset/replay differs");
+            } else {
+                reference_bits = Some(logits.to_f16_bits()?);
+            }
+        }
+        assert!(model.forward(&[]).is_err());
+        assert!(model.forward(&[128000]).is_err());
+    }
+    Ok(())
+}

@@ -812,19 +812,17 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
         {
             return Err("MLXL3 requires text messages without tool calls".into());
         }
+        mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
         let content = match &message["content"] {
-            Value::String(text) => text.clone(),
-            Value::Array(parts) => {
-                let mut text = String::new();
-                for part in parts {
-                    if part["type"] != "text" {
-                        return Err("MLXL3 accepts text only".into());
-                    }
-                    text.push_str(part["text"].as_str().ok_or("text part is missing text")?);
-                }
-                text
+            Value::Array(parts) if parts.iter().all(|p| p["type"] == "text") => {
+                json!(
+                    parts
+                        .iter()
+                        .map(|p| p["text"].as_str().unwrap())
+                        .collect::<String>()
+                )
             }
-            _ => return Err("MLXL3 accepts text only".into()),
+            content => content.clone(),
         };
         messages.push(json!({"role":role,"content":content}));
     }
@@ -1262,6 +1260,34 @@ mod tests {
         process::Command,
         sync::{Mutex, Semaphore},
     };
+
+    #[test]
+    fn image_request_preserves_parts_and_rejects_remote_urls() {
+        let parts = json!([{"type":"text","text":"before"},
+            {"type":"image_url","image_url":{"url":"data:image/png;base64,AAAA"}},
+            {"type":"text","text":"after"}]);
+        let request = bridge_request(
+            &json!({"model":"small","messages":[{"role":"user","content":parts}]}),
+            "small",
+        )
+        .unwrap();
+        assert_eq!(request["messages"][0]["content"], parts);
+        assert!(
+            bridge_request(
+                &json!({"model":"small","messages":[{"role":"user","content":[
+            {"type":"image_url","image_url":{"url":"https://example.invalid/image.png"}}]}]}),
+                "small"
+            )
+            .is_err()
+        );
+        assert!(
+            bridge_request(
+                &json!({"model":"small","messages":[{"role":"assistant","content":parts}]}),
+                "small"
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn text_request_maps_to_bridge_and_unsupported_inputs_fail() {

@@ -333,12 +333,15 @@ fn initialize() -> Result<()> {
     let bundled = std::env::current_exe()
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.join("mlx.metallib")));
-    let library = root
-        .map(|root| root.join("lib/mlx.metallib"))
-        .filter(|path| path.is_file())
-        .or_else(|| bundled.filter(|path| path.is_file()))
+    let library = std::env::var_os("MLXL3_METALLIB_PATH")
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|| {
-            std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT")).join("lib/mlx.metallib")
+            root.map(|root| root.join("lib/mlx.metallib"))
+                .filter(|path| path.is_file())
+                .or_else(|| bundled.filter(|path| path.is_file()))
+                .unwrap_or_else(|| {
+                    std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT")).join("lib/mlx.metallib")
+                })
         });
     ensure!(
         library.is_file(),
@@ -1319,6 +1322,28 @@ impl Array {
     }
     pub fn hadamard_transform(&self, scale: Option<f32>) -> Result<Self> {
         self.unary(4, &[], scale.unwrap_or(0.), i32::from(scale.is_some()))
+    }
+    pub fn gelu(&self) -> Result<Self> {
+        self.unary(27, &[], 0., 0)
+    }
+    pub fn layer_norm_without_weight(&self, eps: f32) -> Result<Self> {
+        ensure!(eps.is_finite() && eps > 0., "invalid layer norm epsilon");
+        self.unary(28, &[], eps, 0)
+    }
+    pub fn conv2d_depthwise(&self, weight: &Self) -> Result<Self> {
+        ensure!(
+            self.shape().len() == 4
+                && weight.shape().len() == 4
+                && self.shape()[3] > 0
+                && weight.shape()[0] == self.shape()[3]
+                && weight.shape()[3] == 1
+                && weight.shape()[1] > 0
+                && weight.shape()[1] % 2 == 1
+                && weight.shape()[2] > 0
+                && weight.shape()[2] % 2 == 1,
+            "invalid depthwise convolution shape"
+        );
+        self.binary(weight, 14, self.shape()[3], 0.)
     }
     pub fn sigmoid(&self) -> Result<Self> {
         self.unary(5, &[], 0., 0)

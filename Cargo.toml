@@ -1,6 +1,6 @@
 [package]
 name = "mlxl3-native"
-version = "2.0.2"
+version = "2.0.3"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT"
@@ -10,7 +10,8 @@ description = "Native Rust/Metal port of MLXL3 (experimental)"
 default = ["direct-metal"]
 direct-metal = ["dep:metal", "dep:objc"]
 mlx = []
-chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib"]
+hybrid-dispatch = ["chat"]
+chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib", "dep:image", "dep:base64"]
 
 [lib]
 path = "native/src/lib.rs"
@@ -18,6 +19,11 @@ path = "native/src/lib.rs"
 [[bin]]
 name = "mlxl3-rs"
 path = "native/src/main.rs"
+
+[[bin]]
+name = "mlxl3-hybrid"
+path = "native/src/hybrid_main.rs"
+required-features = ["hybrid-dispatch"]
 
 [[test]]
 name = "contracts"
@@ -28,6 +34,8 @@ name = "runtime_gpu"
 path = "native/tests/runtime_gpu.rs"
 
 [dependencies]
+image = { version = "0.25.8", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
+base64 = { version = "0.22", optional = true }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 fs2 = "0.4"
