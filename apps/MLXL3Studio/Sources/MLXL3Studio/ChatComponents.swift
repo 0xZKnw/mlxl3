@@ -15,6 +15,7 @@ struct StreamingScrollState {
 }
 
 struct MessagesView: View {
+  @Environment(\.conversationDensity) private var density
   @Environment(\.conversationReadingWidth) private var readingWidth
   let messages: [ChatMessage]
   @State private var scroll = StreamingScrollState()
@@ -24,9 +25,9 @@ struct MessagesView: View {
   var body: some View {
     ScrollViewReader { proxy in
       ScrollView {
-        VStack(spacing: 38) {
+        VStack(spacing: density.spacing) {
           if messages.count > 1 {
-            LazyVStack(spacing: 38) {
+            LazyVStack(spacing: density.spacing) {
               ForEach(messages.dropLast()) { message in
                 MessageView(message: message)
                   .id(message.id)

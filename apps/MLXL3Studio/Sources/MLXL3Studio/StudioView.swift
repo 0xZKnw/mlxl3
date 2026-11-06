@@ -4,6 +4,7 @@ import SwiftUI
 /// observes token-by-token text updates.
 struct StudioView: View {
     @Environment(\.studioAppTheme) private var appTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var studio: StudioModel
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
@@ -26,18 +27,18 @@ struct StudioView: View {
                     .padding(.leading, sidebarVisible ? 0 : 8)
                     .padding(.trailing, 8)
 
-                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width >= 1220 {
-                    GenerationInspector().frame(width: 286)
+                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width >= 1280 {
+                    GenerationInspector().frame(width: 340)
                 }
             }
             .overlay(alignment: .trailing) {
-                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width < 1220 {
+                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width < 1280 {
                   ZStack(alignment: .trailing) {
                     Color.black.opacity(0.28)
                         .contentShape(Rectangle())
                         .onTapGesture { studio.showInspector = false }
                     GenerationInspector()
-                        .frame(width: 286)
+                        .frame(width: 340)
                         .overlay(alignment: .leading) {
                             Rectangle().fill(StudioTheme.edge).frame(width: 0.5)
                         }
@@ -47,6 +48,7 @@ struct StudioView: View {
                 }
             }
         }
+        .environment(\.conversationDensity, studio.conversationDensity)
         .environment(\.conversationReadingWidth, studio.readingWidth)
         .environment(\.conversationTextScale, CGFloat(studio.responseTextSize / ResponseTextSize.defaultValue))
         .id(studio.language)
@@ -62,20 +64,34 @@ struct StudioView: View {
             }
         }
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
+        .disabled(studio.showAppSettings)
+        .allowsHitTesting(!studio.showAppSettings)
+        .accessibilityHidden(studio.showAppSettings)
+        .overlay {
+            if studio.showAppSettings {
+                AppSettingsView().environmentObject(studio).transition(.opacity)
+            }
+        }
+        .disabled(studio.showModelManager || studio.showWorkspace || studio.showMCPManager)
+        .allowsHitTesting(!studio.showModelManager && !studio.showWorkspace && !studio.showMCPManager)
+        .accessibilityHidden(studio.showModelManager || studio.showWorkspace || studio.showMCPManager)
+        .overlay {
+            if studio.showMCPManager {
+                MCPManagerView().environmentObject(studio).transition(.opacity)
+            } else if studio.showWorkspace {
+                WorkspaceManagerView().environmentObject(studio).transition(.opacity)
+            } else if studio.showModelManager {
+                ModelManagerView().environmentObject(studio).transition(.opacity)
+            }
+        }
         .background(StudioTheme.sidebar(for: appTheme))
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
-        .sheet(isPresented: $studio.showModelManager) {
-            ModelManagerView().environmentObject(studio)
-        }
-        .sheet(isPresented: $studio.showWorkspace) { WorkspaceManagerView().environmentObject(studio) }
-        .sheet(isPresented: $studio.showMCPManager) { MCPManagerView().environmentObject(studio) }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
+                   value: [studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
-        .sheet(isPresented: $studio.showAppSettings) {
-            AppSettingsView().environmentObject(studio)
-        }
         .alert(L("Sauvegarde des conversations", "Conversation storage"), isPresented: Binding(
             get: { studio.storageError != nil }, set: { if !$0 { studio.storageError = nil } }
         )) {
@@ -96,19 +112,18 @@ private struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
-                MonogramMark(size: 21)
-                Text("MLXL3")
-                    .font(.system(size: 14, weight: .semibold))
-                    .tracking(1)
+            HStack {
+                MonogramMark(size: 44)
                 Spacer()
-                Text("Desktop")
-                    .font(.system(size: 10))
-                    .foregroundStyle(StudioTheme.quiet)
+                Button(action: studio.newConversation) {
+                    Image(systemName: "square.and.pencil").font(.system(size: 15))
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(StudioToolbarStyle())
+                .accessibilityLabel(studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
+                .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 51)
-            .padding(.bottom, 22)
+            .padding(.horizontal, 20).padding(.top, 36).padding(.bottom, 14)
 
             HStack(spacing: 2) {
                 ForEach(StudioMode.allCases) { mode in
@@ -123,19 +138,6 @@ private struct SidebarView: View {
             }
             .padding(3).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 12).padding(.bottom, 16).disabled(studio.isGenerating)
-
-            Button(action: studio.newConversation) {
-                HStack(spacing: 10) {
-                    Image(systemName: "square.and.pencil").font(.system(size: 14))
-                    Text(studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation")).font(.system(size: 12, weight: .medium))
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 11)
-                .frame(height: 38)
-            }
-            .buttonStyle(StudioControlStyle(emphasized: true))
-            .padding(.horizontal, 12)
-            .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
 
             Picker(L("Projet", "Project"), selection: Binding(get: { studio.selectedProjectID }, set: { studio.chooseProject($0) })) {
                 Text(L("Sans projet", "No project")).tag(UUID?.none)

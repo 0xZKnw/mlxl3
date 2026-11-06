@@ -54,7 +54,7 @@ struct MTPToolbarControl: View {
             }
             .frame(width: 360).frame(maxHeight: 540)
             .background(StudioTheme.canvas(for: studio.theme))
-            .studioAppearance(studio.theme)
+            .studioAppearance(studio.theme, accent: studio.accent)
             .environmentObject(studio)
         }
     }

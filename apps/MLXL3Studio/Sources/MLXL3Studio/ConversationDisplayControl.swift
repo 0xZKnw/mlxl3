@@ -16,20 +16,21 @@ struct ConversationDisplayControl: View {
             ConversationDisplaySettings()
                 .padding(20).frame(width: 300)
                 .background(StudioTheme.canvas(for: studio.theme))
-                .studioAppearance(studio.theme)
+                .studioAppearance(studio.theme, accent: studio.accent)
                 .environmentObject(studio)
         }
     }
 }
 
 struct ConversationDisplaySettings: View {
+    var showsTitle = true
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(L("Affichage", "Appearance")).font(.system(size: 17, weight: .semibold))
+            if showsTitle { Text(L("Affichage", "Appearance")).font(.system(size: 17, weight: .semibold)) }
             VStack(alignment: .leading, spacing: 9) {
-                Text(L("Largeur des réponses", "Response width")).font(.system(size: 11, weight: .medium))
+                Text(L("Largeur des réponses", "Response width")).font(.system(size: 13, weight: .medium))
                 Picker(L("Largeur des réponses", "Response width"), selection: Binding(
                     get: { studio.readingWidth }, set: { studio.setReadingWidth($0) }
                 )) {
@@ -46,12 +47,12 @@ struct ConversationDisplaySettings: View {
                     Spacer()
                     Text("\(Int(studio.responseTextSize)) pt").monospacedDigit()
                         .foregroundStyle(StudioTheme.secondary)
-                }.font(.system(size: 11, weight: .medium))
+                }.font(.system(size: 13, weight: .medium))
                 HStack(spacing: 12) {
                     Text("A").font(.system(size: 11)).accessibilityHidden(true)
                     Slider(value: Binding(get: { studio.responseTextSize }, set: { studio.setResponseTextSize($0) }),
                            in: ResponseTextSize.range, step: 1)
-                        .tint(StudioTheme.blueAccent)
+                        .tint(studio.accent.color)
                         .accessibilityLabel(L("Taille du texte", "Text size"))
                         .accessibilityValue("\(Int(studio.responseTextSize)) pt")
                     Text("A").font(.system(size: 21)).accessibilityHidden(true)
