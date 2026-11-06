@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "prior_report": "final-journeys.json",
+  "prior_report_status": "failed; preserved cache-fixture mismatch",
+  "source_sha": "b8472fc9073c3ff1ec1e314de327167de1d20e6a",
+  "cli": [
+    {
+      "model": "Text449",
+      "logit_KL": 0.00011756833941578473,
+      "logit_max_abs": 0.0703125,
+      "state_arrays": 35,
+      "state_max_relative_L2": 0.008636350248752037
+    },
+    {
+      "model": "VL449",
+      "logit_KL": 0.0006913468990070231,
+      "logit_max_abs": 0.1015625,
+      "state_arrays": 35,
+      "state_max_relative_L2": 0.008830216447939118
+    }
+  ],
+  "bridge": "passed",
+  "http": "passed",
+  "flash": {
+    "status": "verified",
+    "mlx_loaded": false,
+    "completed": 4,
+    "cancelled": [
+      "context_usage",
+      "delta"
+    ],
+    "rejected": 1,
+    "token_hash": "9f850af1cbba074b",
+    "slots": 53,
+    "cache_GiB": 3
+  },
+  "updater": "Desktop beta7 production updater: signed hybrid install, relocation, runtime identity and fallback passed",
+  "mlx_loaded_from_relocated_package": true,
+  "bundled_metallib_required": true,
+  "performance": "not measured"
+}
