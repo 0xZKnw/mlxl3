@@ -26,3 +26,7 @@ Reading this as a native macOS local-model tool, retaining MLXL3's metallic logo
 Scoped checks: PASS for build/SIL and lint/diff, real menu open/back inspection, compact toolbar screenshot, and the preview MCP refusal. This is not a complete antislop Delivery Gate pass: full keyboard/contrast/theme combinations, every control, real model loading and the full test suites remain unverified under the user's test-budget instruction. Screenshots are in build/settings-redesign-20261106. No performance claim is made.
 
 Apple reference: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views . UI skill: /Users/justin/.agents/skills/antislop-ui/SKILL.md . Core reference: https://github.com/miqdadbadjuber/anti-slop/blob/main/antislop.md . No skill installation or AGENTS.md change was performed.
+
+## Publication
+
+Approved UI packaged and published as [Desktop v2.0.0-beta.10](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.10), build 41, from source 5e815940cf84f4004eff35ecd41e17c595cf48f3 on codex/settings-redesign. See the English release notes and docs/measurements/desktop-beta10-release.json for exact files, sizes, digests and limits. Two packaged app self-checks and mounted-image/signature/runtime checks passed; full tests and exact-source CI remain unexecuted. This later publication supersedes the earlier no-publication status above.
