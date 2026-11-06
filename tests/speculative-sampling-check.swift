@@ -55,7 +55,8 @@ extension StudioModel {
     preferences.set(true, forKey: "studio.mtpEnabled")
     let relaunched = StudioModel(
       conversationFileURL: file, isPreview: true, preferences: preferences)
-    try check(relaunched.mtpEnabled, "Relaunch lost global ON")
+    try check(!relaunched.mtpEnabled && !relaunched.samplingLocked,
+      "Legacy MTP intent activated before resolving a model")
     try check(
       relaunched.temperature == 0.73 && relaunched.topK == 37
         && relaunched.repetitionPenalty == 1.12,
@@ -161,23 +162,28 @@ extension StudioModel {
       "value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 })",
       ".disabled(studio.samplingLocked)",
       "let mode = studio.dflash2Applicable ? \"DFlash2\" : \"MTP\"",
-      "if studio.mtpAvailable || studio.mtpEnabled || studio.mtpDownloading {",
+      "if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {",
       "if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {",
-      "get: { studio.mtpEnabled || studio.mtpDownloading }",
-      "set: { studio.setMTPEnabled($0) }",
       "get: { studio.dflash2Enabled || studio.dflashDownloading }",
       "set: { studio.setDFlash2Enabled($0) }",
-      "Toggle(studio.mtpAvailable",
       "Toggle(studio.dflash2Available",
-      "MTP preference (inactive for this model)",
       "DFlash2 preference (inactive for this model)",
-      "MTPTuningControls().id(\"mtp-tuning\").disabled(!studio.mtpAvailable)",
+      "MTPSettingsContent().id(\"mtp-tuning\")",
       "MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)",
-      ".disabled(studio.isGenerating || (!(studio.mtpEnabled || studio.mtpDownloading)",
       ".disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)",
     ] {
       try check(
         inspectorSource.contains(required), "Missing inspector production wiring: " + required)
+    }
+    let mtpSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
+      .deletingLastPathComponent().appendingPathComponent("MTPSettingsContent.swift"), encoding: .utf8)
+    for required in [
+      "get: { studio.mtpRememberedEnabled }, set: { studio.setMTPEnabled($0) }",
+      ".disabled(studio.isGenerating || !studio.engineState.isReady)",
+      "MTPTuningControls()",
+      ".disabled(!studio.canTuneMTP)",
+    ] {
+      try check(mtpSource.contains(required), "Missing shared MTP production wiring: " + required)
     }
     func checkInspector(greedy: Bool) async throws {
       host.layoutSubtreeIfNeeded()
@@ -215,7 +221,10 @@ extension StudioModel {
         model.temperature == 0.73 && model.topK == 37 && model.repetitionPenalty == 1.12,
         "Generation changed saved sampling")
     }
-    preferences.set(true, forKey: "studio.mtpEnabled")
+    for name in ["auto-dense", "lfm-dense", "lfm-moe", "plain", "auto-fail"] {
+      let target = model.models.first { $0.name == name }!
+      ModelMTPPreference.save(true, modelPath: target.path, preferences: preferences)
+    }
     try await select("auto-dense")
     try check(
       model.mtpActive == true && model.samplingLocked, "Compatible Qwen did not prepare MTP")
@@ -224,7 +233,7 @@ extension StudioModel {
     for name in ["lfm-dense", "lfm-moe", "plain"] {
       try await select(name)
       try check(
-        model.mtpEnabled && preferences.bool(forKey: "studio.mtpEnabled") && !model.samplingLocked,
+        !model.mtpEnabled && model.mtpRememberedEnabled && !model.samplingLocked,
         "Unsupported model must preserve ON intent and unlock sampling")
       try await send(mtp: false, flash: false, greedy: false)
       try await checkInspector(greedy: false)
@@ -237,7 +246,7 @@ extension StudioModel {
     try await select("auto-fail")
     try check(
       model.mtpError != nil && !model.mtpEnabled && !model.samplingLocked
-        && preferences.bool(forKey: "studio.mtpEnabled"),
+        && model.mtpRememberedEnabled,
       "Failed MTP preparation must unlock without discarding saved ON")
     try await send(mtp: false, flash: false, greedy: false)
     try await select("auto-dense")
@@ -250,6 +259,10 @@ extension StudioModel {
       !model.mtpEnabled && !preferences.bool(forKey: "studio.mtpEnabled"),
       "Unsupported MTP OFF was ignored")
     try await select("auto-dense")
+    try check(model.mtpRememberedEnabled, "Another model's OFF erased the dense model's ON")
+    try await send(mtp: true, flash: false, greedy: true)
+    model.setMTPEnabled(false)
+    try await wait("dense MTP OFF") { model.mtpActive == false }
     try await send(mtp: false, flash: false, greedy: false)
     try await select("dflash-good")
     model.setDFlash2Enabled(true)
@@ -272,7 +285,7 @@ extension StudioModel {
     try await select("dflash-good")
     try await send(mtp: false, flash: false, greedy: false)
     print(
-      "Speculative sampling checks passed: \(checks) assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
+      "Speculative sampling checks passed: \(checks) assertions, 216 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
     )
   }
 }

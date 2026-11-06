@@ -478,7 +478,7 @@ extension CodeBlockView {
     )
   }
 
-  private static func recognizedCPU(_ image: CGImage) throws -> String {
+  fileprivate static func recognizedCPU(_ image: CGImage) throws -> String {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     request.recognitionLanguages = ["en-US"]
@@ -935,6 +935,10 @@ extension CodeBlockView {
   }
 
   @MainActor private static func runChecks() async throws {
+    if CommandLine.arguments.contains("--check-tables") {
+      try await MarkdownTableRegressionCheck.run()
+      return
+    }
     if CommandLine.arguments.contains("--check-long-visibility") {
       try await checkLongVisibility()
       return
@@ -944,6 +948,7 @@ extension CodeBlockView {
       return
     }
     checkFade()
+    try await MarkdownTableRegressionCheck.run()
     try await checkScroll()
     try await checkHTMLControls()
     try await checkInlinePreviewLifetime()

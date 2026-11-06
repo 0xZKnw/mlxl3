@@ -1,0 +1,35 @@
+{
+  "status": "validated_local",
+  "baseline": "accabf48a8a6c2a57fb1daa05703adc7f41be330",
+  "tests": {
+    "tables": 24,
+    "inline_boundaries": 15,
+    "fade_append": 786,
+    "fade_pixels": 63,
+    "native_stream_viewports": 81,
+    "parser_worker_parity": 63,
+    "latex_formulas": 9,
+    "latex_styles": 2,
+    "focused_ignored": 0
+  },
+  "native_table_oracle": "exact pixel equality with manually newline-delimited cells; nonempty captures; CPU OCR requires ALPHA/HOTEL/NEXT ROW in wide snapshot",
+  "builds": [
+    "isolated Desktop beta7 worktree",
+    "original workspace with preexisting changes preserved"
+  ],
+  "source_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift": "04f0e13463fd6c65814262463c6e48b08eea2ada335cd8b00bf88eae4b074306",
+    "tests/table-rendering-check.swift": "11b03e8496bc25310de5ba4ad7048b8db0087e6e67724b6e73c76eabd1bc09e7",
+    "tests/response-ui-check.swift": "5f91b3356a8b33b3e01040d314937dff533f8075536d07e68295fb9ca1d5adae",
+    "scripts/check-desktop.sh": "df5a9116b1740a65f328b859ff3eaa481997a35e64492e3014544a51e16e855c"
+  },
+  "workspace_file_sha256": "a70003c8dc66bf32dd3fe701d4aab2af1efe172090df136dd65f6ddecdd5d46b",
+  "formal_verification": "Swift 6 warnings-as-errors and SIL verifier passed; compiler invariants only, no behavioral SwiftUI proof",
+  "limits": [
+    "Full unrelated Desktop/engine suites not repeated",
+    "Remote CI not run; no push authorized for this UI fix",
+    "No installed-app replacement or beta release",
+    "Earlier ImageRenderer black captures were geometry-only, not raster proof; clipped intermediate prototype failed unchanged OCR guard"
+  ],
+  "performance": "not measured"
+}

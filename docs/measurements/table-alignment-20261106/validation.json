@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "desktop_source": "32d00bfc56c5e061b162a0593e6c8d573a88cf6b",
+  "version": "2.0.0",
+  "build": 40,
+  "dmg": {
+    "name": "MLXL3-Desktop-v2.0.0-beta.9-b40-Apple-Silicon.dmg",
+    "bytes": 251135186,
+    "sha256": "d06b29f85627737b34df6792606b1bd2e313fec5bea3f657776e23568d3cddd4"
+  },
+  "native_table_pairs": 32,
+  "parser_boundaries": 15,
+  "widths_points": [
+    360,
+    800,
+    1200,
+    2000
+  ],
+  "font_scales": [
+    0.85,
+    1,
+    1.4,
+    1.8
+  ],
+  "streaming_and_final": true,
+  "row_border_pixels": "retina-corrected regression: previous image10 staggered edge pixels; fixed0; 1200/2000 guard passes",
+  "ocr": "CPU: ALPHA / HOTEL / NEXT ROW present",
+  "swift": "release build +Swift6 warnings-as-errors / SIL verification passed",
+  "updater": "15 passed, including actual DMG build39\u219240 preflight; detached",
+  "mounted_checks": {
+    "status": "passed",
+    "build": 40,
+    "version": "2.0.0",
+    "engine": {
+      "architecture": "aarch64",
+      "backend": "hybrid",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "ead60d0323e9",
+      "metal_helper_sha256": "165ae484d7581930ac8ef68f80ffed3eba23cd4d1d045e6ad2cf104873afd7ab",
+      "mlx_enabled": true,
+      "mlx_helper_sha256": "d09c94e6646bf1b4f548797908b6ac3924d2dc8722c27da35d75eea67d2434eb",
+      "native_flash_enabled": true,
+      "profile": "release",
+      "version": "2.0.4"
+    },
+    "self_checks": {
+      "--check-chat-timeline": {
+        "exit": 0,
+        "stdout": "Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation\n",
+        "stderr": ""
+      },
+      "--check-mcp-preferences": {
+        "exit": 0,
+        "stdout": "MCP checks passed: default off, persisted on/off, request flag, isolated preview\n",
+        "stderr": ""
+      }
+    }
+  },
+  "bundled_engine": "byte-identical to independently published2.0.4 runtime/sourceead60d0323e99bc023c82485dddc89d9903e4ead",
+  "converter_entries_unchanged": 3050,
+  "remote_ci": "No PR-triggered run found for exact source32d00bfc; full suites omitted at user request",
+  "limits": "No behavioral SwiftUI proof; ad-hoc signing/not notarized; installed app unchanged"
+}
