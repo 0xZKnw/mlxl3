@@ -6,6 +6,40 @@ fn run(command: &mut Command) {
 }
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(mlxl3_hybrid_payload)");
+    let helpers = ["MLXL3_MLX_HELPER", "MLXL3_METAL_HELPER"];
+    for name in helpers {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
+    if env::var_os("CARGO_FEATURE_HYBRID_DISPATCH").is_some() {
+        let supplied = helpers.map(|name| env::var_os(name).is_some());
+        assert_eq!(supplied[0], supplied[1], "both hybrid helpers are required");
+        if supplied[0] {
+            for name in helpers {
+                let path = PathBuf::from(env::var_os(name).unwrap())
+                    .canonicalize()
+                    .expect("missing hybrid helper");
+                let size = path.metadata().expect("cannot inspect hybrid helper").len();
+                assert!(size > 0 && size <= 256 * 1024 * 1024, "invalid helper size");
+                let output = Command::new("/usr/bin/shasum")
+                    .args(["-a", "256"])
+                    .arg(&path)
+                    .output()
+                    .expect("cannot hash hybrid helper");
+                assert!(output.status.success(), "cannot hash hybrid helper");
+                let digest = String::from_utf8(output.stdout).expect("invalid digest output");
+                let digest = digest.split_whitespace().next().expect("missing digest");
+                assert!(
+                    digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()),
+                    "invalid helper hash"
+                );
+                println!("cargo:rerun-if-changed={}", path.display());
+                println!("cargo:rustc-env={name}={}", path.display());
+                println!("cargo:rustc-env={name}_SHA256={digest}");
+            }
+            println!("cargo:rustc-cfg=mlxl3_hybrid_payload");
+        }
+    }
     // Resolve Git paths too: .git can be a file in a worktree, and HEAD itself
     // does not change when a commit advances the current branch.
     let reference = Command::new("git")

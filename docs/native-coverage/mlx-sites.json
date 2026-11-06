@@ -11,9 +11,10 @@
     "ponyexl3": 3
   },
   ".github/workflows/rust.yml": {
-    "MLXL3_MLX_ROOT": 8,
+    "MLXL3_MLX_ROOT": 9,
     "array::tests": 2,
-    "mlx": 14
+    "mlx": 17,
+    "mlx_enabled": 1
   },
   "Cargo.toml": {
     "mlx": 1
@@ -1059,15 +1060,15 @@
     "mx::Dtype": 4,
     "mx::Shape": 7,
     "mx::abs": 1,
-    "mx::add": 5,
+    "mx::add": 6,
     "mx::all": 3,
     "mx::allocator::free": 1,
     "mx::allocator::malloc": 1,
     "mx::argmax": 1,
     "mx::argsort": 1,
-    "mx::array": 61,
+    "mx::array": 64,
     "mx::array::Status::unscheduled": 1,
-    "mx::astype": 7,
+    "mx::astype": 9,
     "mx::async_eval": 2,
     "mx::bfloat16": 2,
     "mx::bool_": 1,
@@ -1078,16 +1079,19 @@
     "mx::concatenate": 1,
     "mx::contiguous": 2,
     "mx::conv1d": 1,
+    "mx::conv2d": 1,
     "mx::divide": 4,
+    "mx::erf": 1,
     "mx::eval": 4,
     "mx::exp": 1,
     "mx::fast::CustomKernelFunction": 1,
+    "mx::fast::layer_norm": 1,
     "mx::fast::metal_kernel": 1,
     "mx::fast::rms_norm": 2,
     "mx::fast::rope": 2,
     "mx::fast::scaled_dot_product_attention": 2,
     "mx::float16": 2,
-    "mx::float32": 6,
+    "mx::float32": 7,
     "mx::float64": 1,
     "mx::gather_qmm": 1,
     "mx::get_active_memory": 1,
@@ -1107,7 +1111,7 @@
     "mx::metal::set_metallib_path": 1,
     "mx::metal::start_capture": 1,
     "mx::metal::stop_capture": 1,
-    "mx::multiply": 20,
+    "mx::multiply": 23,
     "mx::negative": 1,
     "mx::power": 2,
     "mx::quantize": 1,
@@ -1262,7 +1266,7 @@
     ".rope": 1,
     ".rope_with_freqs": 1,
     ".scalar_mul": 2,
-    ".shape": 22,
+    ".shape": 33,
     ".slice": 9,
     ".slice_update": 2,
     ".take": 1,
@@ -1311,6 +1315,7 @@
     "array API compiled_silu": 1,
     "array API concatenate": 2,
     "array API conv1d": 1,
+    "array API conv2d_depthwise": 1,
     "array API disk_profile": 1,
     "array API disk_profile_enable": 1,
     "array API disk_profile_schedule": 1,
@@ -1330,12 +1335,14 @@
     "array API from_u16": 1,
     "array API from_u32": 1,
     "array API geglu": 1,
+    "array API gelu": 1,
     "array API hadamard_transform": 1,
     "array API hold_read_batch_job_for_test": 1,
     "array API host_readbacks_for_test": 1,
     "array API is_available": 1,
     "array API is_m5_gpu": 1,
     "array API item_size": 1,
+    "array API layer_norm_without_weight": 1,
     "array API log_probs": 1,
     "array API logaddexp": 1,
     "array API matmul": 1,
@@ -1405,6 +1412,7 @@
     "config MLXL3_ALLOCATOR_CACHE_MIB": 4,
     "config MLXL3_CACHE_COMPACTION": 1,
     "config MLXL3_DISABLE_TENSOR_OPS": 1,
+    "config MLXL3_METALLIB_PATH": 1,
     "config MLXL3_METAL_CAPTURE_PATH": 1,
     "config MLXL3_METAL_CAPTURE_REQUEST": 1,
     "config MLXL3_MLX_BUILD_ROOT": 1,
@@ -1474,9 +1482,15 @@
     "shader mlxl3_test_later_gpu_work": 1,
     "shader mlxl3_test_scheduled_route_ids": 1
   },
+  "native/src/backend.rs": {
+    ".take": 1
+  },
   "native/src/checkpoint.rs": {
     ".finish": 1,
     "mlx": 1
+  },
+  "native/src/cli.rs": {
+    "mlx": 2
   },
   "native/src/codec.rs": {
     ".to_f32": 2,
@@ -1575,7 +1589,8 @@
     ".log_probs": 2,
     ".memory_stats": 3,
     ".retained_bytes": 2,
-    ".take": 3
+    ".take": 3,
+    "config MLXL3_NATIVE_FLASH_ONLY": 1
   },
   "native/src/embedding.rs": {
     ".dtype": 1,
@@ -2234,34 +2249,49 @@
     ".finish": 4,
     ".take": 2
   },
+  "native/src/hybrid_main.rs": {
+    ".take": 1,
+    "config MLXL3_BUILD_PROFILE": 1,
+    "config MLXL3_BUILD_REVISION": 1,
+    "config MLXL3_METALLIB_PATH": 1,
+    "config MLXL3_METAL_HELPER": 1,
+    "config MLXL3_METAL_HELPER_SHA256": 1,
+    "config MLXL3_MLX_HELPER": 1,
+    "config MLXL3_MLX_HELPER_SHA256": 1,
+    "config MLXL3_NATIVE_FLASH_ONLY": 2,
+    "mlx": 1,
+    "mlx.metallib": 1,
+    "mlx_enabled": 1
+  },
   "native/src/lfm2.rs": {
     ".add": 8,
-    ".astype": 7,
+    ".astype": 8,
     ".broadcast_to": 3,
     ".conv1d": 1,
     ".div": 2,
-    ".dtype": 7,
+    ".dtype": 11,
     ".eval": 6,
     ".matmul": 3,
-    ".mul": 4,
-    ".reshape": 10,
-    ".rms_norm": 8,
+    ".mul": 5,
+    ".reshape": 12,
+    ".rms_norm": 10,
     ".rope": 2,
-    ".shape": 24,
-    ".sigmoid": 2,
-    ".slice": 9,
+    ".shape": 28,
+    ".sigmoid": 3,
+    ".slice": 11,
     ".sum": 3,
     ".swiglu": 1,
     ".take": 2,
     ".to_bytes": 2,
     ".to_f32": 1,
-    ".transpose": 11,
+    ".transpose": 14,
     ".try_clone": 2,
     "Array::concatenate": 6,
     "Array::from_f16_bits": 2,
     "Array::from_f32": 10,
     "Array::from_i32": 2,
     "Array::sdpa": 1,
+    "Array::sdpa_mask": 1,
     "Array::zeros": 2,
     "Array::zeros_dtype": 2,
     "array::metal_kernel": 2,
@@ -2284,8 +2314,67 @@
     "config MLXL3_LFM_TEST_MODEL": 1,
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
+  "native/src/lfm3.rs": {
+    ".add": 2,
+    ".astype": 3,
+    ".dtype": 1,
+    ".eval": 1,
+    ".mul": 4,
+    ".negative": 1,
+    ".reshape": 1,
+    ".shape": 7,
+    ".slice": 5,
+    ".transpose": 1,
+    "Array::concatenate": 2,
+    "Array::from_f32": 3,
+    "mlx": 5
+  },
+  "native/src/lfm3_kernels.rs": {
+    ".dtype": 3,
+    ".shape": 5,
+    "array::metal_kernel": 2,
+    "shader ../shaders/lfm3_attention_gate.metal": 1,
+    "shader ../shaders/lfm3_short_conv.metal": 1,
+    "shader mlxl3_lfm3_conv_step7_{dim}_v2": 1,
+    "shader mlxl3_lfm3_gate_{time}_{heads}_{dim}_v1": 1
+  },
+  "native/src/lfm3_kernels_tests.rs": {
+    ".astype": 2,
+    ".chat_greedy_ids": 1,
+    ".conv1d": 1,
+    ".exp": 1,
+    ".mul": 3,
+    ".reshape": 1,
+    ".shape": 2,
+    ".sigmoid": 1,
+    ".slice": 4,
+    ".sum": 1,
+    ".to_f16_bits": 5,
+    ".to_f32": 9,
+    ".transpose": 3,
+    "Array::concatenate": 1,
+    "Array::from_f16_bits": 5,
+    "Array::zeros_dtype": 2,
+    "config MLXL3_LFM3_REFERENCE": 1
+  },
+  "native/src/lfm3_vision.rs": {
+    ".add": 3,
+    ".astype": 1,
+    ".conv2d_depthwise": 1,
+    ".eval": 1,
+    ".gelu": 1,
+    ".layer_norm_without_weight": 1,
+    ".mul": 3,
+    ".reshape": 9,
+    ".rms_norm": 5,
+    ".slice": 3,
+    ".swiglu": 1,
+    ".transpose": 7,
+    "Array::from_f32": 1,
+    "Array::sdpa": 1
+  },
   "native/src/lib.rs": {
-    "mlx": 25
+    "mlx": 27
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2450,7 +2539,7 @@
   "native/src/main.rs": {
     ".chat_greedy_ids": 12,
     ".compact_for_cache": 5,
-    ".eval": 12,
+    ".eval": 13,
     ".exp": 1,
     ".finish": 5,
     ".log_probs": 2,
@@ -2465,7 +2554,7 @@
     ".to_f32": 12,
     ".to_u32": 3,
     ".transpose": 19,
-    ".try_clone": 7,
+    ".try_clone": 9,
     "Array::concatenate": 1,
     "Array::from_f16_bits": 42,
     "Array::from_f32": 11,
@@ -2493,7 +2582,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 198,
+    "mlx": 201,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -3165,6 +3254,9 @@
   "native/src/tool_call.rs": {
     ".finish": 3
   },
+  "native/src/vision_input.rs": {
+    ".take": 1
+  },
   "native/src/weighted_epilogue.rs": {
     ".dtype": 4,
     ".shape": 4,
@@ -3233,9 +3325,11 @@
   "native/tests/runtime_gpu.rs": {
     "Array::concatenate": 1,
     "Array::from_f16_bits": 6,
+    "Array::from_f32": 4,
     "Array::from_u16": 1,
+    "Array::zeros": 1,
     "array::Array": 1,
-    "mlx": 1
+    "mlx": 3
   },
   "native/tests/uninitialized_bank_proof.cpp": {
     "mlxl3_array_free": 2,
@@ -3254,9 +3348,9 @@
     "MLXL3_MLX_ROOT": 3,
     "libjaccl.dylib": 3,
     "libmlx.dylib": 4,
-    "mlx": 6,
-    "mlx.metallib": 4,
-    "mlx_enabled": 1
+    "mlx": 14,
+    "mlx.metallib": 5,
+    "mlx_enabled": 2
   },
   "scripts/build-quantizer.sh": {
     "mlx": 1,

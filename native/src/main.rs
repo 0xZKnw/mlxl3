@@ -1,5 +1,12 @@
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::Parser;
+mod cli;
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+use cli::resolve_model_path;
+use cli::{Cli, Command, HubAction, McpAction};
 use mlxl3_native::{
     checkpoint,
     codec::{self, Codebook},
@@ -60,189 +67,12 @@ type RoundDraft = mlxl3_native::native_draft::Session;
     )
 ))]
 mod openai;
-use std::{
-    io::{self, BufRead, Read, Write},
-    path::PathBuf,
-};
-
-#[derive(Parser)]
-#[command(
-    version,
-    about = "Native MLXL3 Rust/Metal runtime",
-    after_help = "Powered by MTPLX https://github.com/youssofal/MTPLX"
-)]
-struct Cli {
-    #[arg(long, global = true)]
-    registry: Option<PathBuf>,
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Machine-readable engine identity; no model or registry mutation.
-    RuntimeInfo,
-    #[command(alias = "ls")]
-    List {
-        #[arg(long)]
-        json: bool,
-    },
-    Inspect {
-        path: PathBuf,
-    },
-    #[command(alias = "add")]
-    Register {
-        name: String,
-        path: PathBuf,
-        #[arg(long)]
-        force: bool,
-    },
-    #[command(alias = "rm")]
-    Remove {
-        name: String,
-        #[arg(long)]
-        expected_path: Option<PathBuf>,
-    },
-    /// JSON-line codec oracle used for differential tests (not a chat bridge).
-    Codec,
-    /// Quantize complete FP32 kernel-order tiles with the autonomous Metal trellis.
-    QuantizeTiles {
-        input: PathBuf,
-        output: PathBuf,
-        #[arg(long)]
-        k: u32,
-        #[arg(long, default_value_t = 0)]
-        codebook: u32,
-        #[arg(long, default_value_t = 256 * 1024 * 1024)]
-        max_scratch_bytes: u64,
-    },
-    /// Multiply finite FP32 matrices for the converter's feedback boundary.
-    ConvertMatmul {
-        left: PathBuf,
-        right: PathBuf,
-        output: PathBuf,
-        #[arg(long)]
-        m: u32,
-        #[arg(long)]
-        n: u32,
-        #[arg(long)]
-        k: u32,
-        #[arg(long)]
-        full_fp32: bool,
-    },
-    /// Feed a JSON array of text chunks on stdin; return reasoning/answer fragments.
-    Split {
-        #[arg(long, default_value = "")]
-        prompt: String,
-    },
-    /// Chat with a local or registered model using the compiled inference backend.
-    Run {
-        model: String,
-        #[arg(short, long)]
-        prompt: Option<String>,
-        #[arg(long, default_value_t = 128)]
-        max_tokens: usize,
-    },
-    /// Resident JSON-lines bridge consumed by MLXL3 Desktop.
-    Bridge {
-        model: String,
-        #[arg(long, default_value_t = 0)]
-        context_length: i32,
-    },
-    /// Serve an EXL3 model through an OpenAI-compatible HTTP API.
-    Serve {
-        model: String,
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-        #[arg(long, default_value_t = 8000)]
-        port: u16,
-        #[arg(long, default_value = "")]
-        api_key: String,
-        #[arg(long, default_value_t = 0)]
-        context_length: i32,
-    },
-    /// Browse EXL3 repositories on Hugging Face.
-    Hub {
-        #[arg(value_enum)]
-        action: HubAction,
-        query: String,
-        #[arg(long)]
-        revision: Option<String>,
-        #[arg(long, default_value = "")]
-        folder: String,
-        #[arg(long, default_value_t = 60)]
-        limit: usize,
-    },
-    /// Install or validate the pinned Qwen DFlash2 draft (no target weights).
-    DflashDraft {
-        #[arg(long)]
-        inspect: Option<PathBuf>,
-        /// Download/validate the draft matching this target's configuration.
-        #[arg(long)]
-        target: Option<PathBuf>,
-    },
-    /// Install or inspect a native Qwen MTP head without downloading the target.
-    MtpHead {
-        #[arg(long)]
-        inspect: Option<PathBuf>,
-        /// Select/validate the head against this target's configuration.
-        #[arg(long)]
-        target: Option<PathBuf>,
-    },
-    /// Configure and inspect Model Context Protocol servers.
-    Mcp {
-        #[command(subcommand)]
-        action: McpAction,
-    },
-    /// Emit logits for an imposed token sequence (native parity check).
-    #[cfg(all(
-        feature = "chat",
-        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
-    ))]
-    Forward {
-        model: PathBuf,
-        #[arg(long, value_delimiter = ',', required = true)]
-        tokens: Vec<u32>,
-        #[arg(long)]
-        states: bool,
-        #[arg(long)]
-        batch: bool,
-    },
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-enum HubAction {
-    Search,
-    Details,
-    Download,
-    Pending,
-    Resume,
-    Discard,
-    Auth,
-}
-
-#[derive(Subcommand)]
-enum McpAction {
-    #[command(alias = "ls")]
-    List {
-        #[arg(long)]
-        json: bool,
-    },
-    Check {
-        #[arg(long)]
-        json: bool,
-    },
-    Config,
-    Add {
-        name: String,
-        command: String,
-        args: Vec<String>,
-    },
-    #[command(alias = "rm")]
-    Remove {
-        name: String,
-    },
-}
+use std::io::{self, BufRead, Read, Write};
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+use std::path::PathBuf;
 
 #[derive(Deserialize)]
 struct CodecRequest {
@@ -1495,6 +1325,11 @@ fn main() -> std::process::ExitCode {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
+        #[cfg(all(
+            feature = "hybrid-dispatch",
+            not(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))
+        ))]
+        Command::Forward { .. } => bail!("forward requires an inference backend"),
         Command::QuantizeTiles {
             input,
             output,
@@ -1679,6 +1514,11 @@ fn run(cli: Cli) -> Result<()> {
                     _ => model.forward_many(&tokens)?,
                 };
                 let arrays = match (&model, states) {
+                    (NativeChatModel::Lfm3(model), true) => model
+                        .state_arrays()
+                        .into_iter()
+                        .map(|(name, array)| Ok((name, array.try_clone()?)))
+                        .collect::<Result<Vec<_>>>()?,
                     (NativeChatModel::Lfm2(model), true) => model
                         .state_arrays()
                         .into_iter()
@@ -1708,6 +1548,15 @@ fn run(cli: Cli) -> Result<()> {
                         (logits, model.state_trace()?)
                     }
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
+                    (NativeChatModel::Lfm3(model), true) => {
+                        let logits = model.forward(&[token])?;
+                        let arrays = model
+                            .state_arrays()
+                            .into_iter()
+                            .map(|(name, array)| Ok((name, array.try_clone()?)))
+                            .collect::<Result<Vec<_>>>()?;
+                        (logits, arrays)
+                    }
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
                         let arrays = model
@@ -1746,6 +1595,7 @@ fn run(cli: Cli) -> Result<()> {
             model,
             prompt,
             max_tokens,
+            images,
         } => {
             #[cfg(all(
                 feature = "chat",
@@ -1753,14 +1603,14 @@ fn run(cli: Cli) -> Result<()> {
             ))]
             {
                 let model_path = resolve_model_path(cli.registry.as_deref(), &model)?;
-                native_chat(&model_path, prompt, max_tokens)?;
+                native_chat(&model_path, prompt, max_tokens, images)?;
             }
             #[cfg(not(all(
                 feature = "chat",
                 any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
             )))]
             {
-                let _ = (prompt, max_tokens);
+                let _ = (prompt, max_tokens, images);
                 bail!(
                     "native execution for {model:?} requires a build with --features mlx,chat; the installed app is separate"
                 );
@@ -2025,27 +1875,6 @@ fn run(cli: Cli) -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(
-    feature = "chat",
-    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
-))]
-fn resolve_model_path(registry_path: Option<&std::path::Path>, model: &str) -> Result<PathBuf> {
-    let candidate = registry::expand_home(&PathBuf::from(model))?;
-    if candidate.is_dir() {
-        return Ok(candidate);
-    }
-    let path = registry_path
-        .map(PathBuf::from)
-        .map(Ok)
-        .unwrap_or_else(registry::default_path)?;
-    Ok(PathBuf::from(
-        &registry::load(&path)?
-            .get(model)
-            .context("unknown registered model")?
-            .path,
-    ))
-}
-
 fn human_size(size: u64) -> String {
     let mut value = size as f64;
     for unit in ["B", "KB", "MB", "GB", "TB"] {
@@ -2072,6 +1901,7 @@ fn model_payload(name: &str, entry: &registry::ModelEntry) -> Result<Value> {
 enum NativeChatModel {
     Gemma4(mlxl3_native::gemma4::Gemma4),
     Lfm2(mlxl3_native::lfm2::Lfm2),
+    Lfm3(Box<mlxl3_native::lfm3::Lfm3>),
     Ling(mlxl3_native::ling::Ling),
     Qwen(mlxl3_native::qwen35::Qwen35Moe),
     Flash(Box<mlxl3_native::qwen4::FlashNext>),
@@ -2095,6 +1925,9 @@ impl NativeChatModel {
             "bailing_hybrid" => Ok(Self::Ling(mlxl3_native::ling::Ling::from_checkpoint(
                 checkpoint,
             )?)),
+            "lfm3" | "lfm3_vl" => Ok(Self::Lfm3(Box::new(
+                mlxl3_native::lfm3::Lfm3::from_checkpoint(checkpoint)?,
+            ))),
             "lfm2" | "lfm2_moe" => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::from_checkpoint(
                 checkpoint,
             )?)),
@@ -2109,6 +1942,7 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(model) => model.forward(token),
             Self::Lfm2(model) => model.forward(&[token]),
+            Self::Lfm3(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
             Self::Qwen(model) => model.forward(token),
             Self::Flash(model) => model.forward(token),
@@ -2142,6 +1976,7 @@ impl NativeChatModel {
                     model.forward_tokens(tokens)
                 }
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
+                Self::Lfm3(model) => model.forward(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
                 Self::Flash(model) => model.forward_tokens(tokens),
@@ -2167,7 +2002,7 @@ impl NativeChatModel {
 
     fn prefill_chunk_size(&self) -> usize {
         match self {
-            Self::Gemma4(_) => 256,
+            Self::Gemma4(_) | Self::Lfm3(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
             Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
             Self::Qwen(_) => 256,
@@ -2181,6 +2016,7 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(model) => model.context_limit(),
             Self::Lfm2(model) => model.context_limit(),
+            Self::Lfm3(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
             Self::Qwen(model) => model.context_limit(),
             Self::Flash(model) => model.context_limit(),
@@ -2191,6 +2027,7 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(model) => model.reset(),
             Self::Lfm2(model) => model.reset(),
+            Self::Lfm3(model) => model.reset(),
             Self::Ling(model) => model.reset(),
             Self::Qwen(model) => model.reset(),
             Self::Flash(model) => model.reset(),
@@ -2199,6 +2036,11 @@ impl NativeChatModel {
 
     fn eval_state(&self) -> Result<()> {
         match self {
+            Self::Lfm3(model) => {
+                for (_, state) in model.state_arrays() {
+                    state.eval()?;
+                }
+            }
             Self::Lfm2(model) => {
                 for (_, state) in model.state_arrays() {
                     state.eval()?;
@@ -2209,10 +2051,29 @@ impl NativeChatModel {
         Ok(())
     }
 
+    fn supports_images(&self) -> bool {
+        matches!(self, Self::Lfm3(model) if model.supports_images())
+    }
+
+    fn prepare_images(
+        &mut self,
+        tokens: &[u32],
+        images: &[mlxl3_native::lfm3::PreparedImage],
+    ) -> Result<()> {
+        if images.is_empty() {
+            return Ok(());
+        }
+        let Self::Lfm3(model) = self else {
+            bail!("this model does not support images");
+        };
+        model.prepare_images(tokens, images)
+    }
+
     fn name(&self) -> &'static str {
         match self {
             Self::Gemma4(_) => "Gemma 4",
             Self::Lfm2(_) => "LFM2",
+            Self::Lfm3(model) => model.name(),
             Self::Ling(_) => "Ling 3",
             Self::Qwen(_) => "Qwen3.5",
             Self::Flash(_) => "Qwen3.8 Flash Next",
@@ -2516,9 +2377,11 @@ impl PromptCache {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+#[allow(clippy::too_many_arguments)]
 fn prefill_round(
     model: &mut NativeChatModel,
     tokens: &[u32],
+    images: &[mlxl3_native::lfm3::PreparedImage],
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
     cache: &mut Option<PromptCache>,
     conversation: &str,
@@ -2545,12 +2408,14 @@ fn prefill_round(
     let checkpoint_offset = tokens.len() / chunk_size * chunk_size;
     let previous = cache.take().filter(|saved| {
         reuse
+            && images.is_empty()
             && saved.conversation == conversation
             && saved.mtp.is_none()
             && saved.draft.is_some() == draft.is_some()
             && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, chunk_size) > 0
     });
     model.reset();
+    model.prepare_images(tokens, images)?;
     let mut cached = 0;
     let mut logits = None;
     let mut dflash = draft.map(|_| DFlashChat::new());
@@ -3227,7 +3092,9 @@ fn bridge_generate_round(
         max_tokens == -1 || max_tokens > 0,
         "max_tokens must be positive, or -1"
     );
-    let rendered = tokenizer.render_values(&Value::Array(messages.to_vec()), Some(tools))?;
+    let (prepared, images) =
+        mlxl3_native::vision_input::prepare_messages(messages, model.supports_images())?;
+    let rendered = tokenizer.render_values(&Value::Array(prepared), Some(tools))?;
     let tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
     anyhow::ensure!(
@@ -3273,7 +3140,16 @@ fn bridge_generate_round(
                 }
             }
         } else {
-            prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
+            prefill_round(
+                model,
+                &tokens,
+                &images,
+                draft,
+                cache,
+                conversation,
+                reuse,
+                cancelled,
+            )?
         };
         if let Some((session, weights)) = dflash.as_mut().zip(draft) {
             session.configure(dflash_mode, weights.family, &tokens);
@@ -3297,6 +3173,7 @@ fn bridge_generate_round(
     #[cfg(not(feature = "mlx"))]
     let (mut logits, cached, mut mtp_session) = {
         let _ = dflash_mode;
+        let _ = images;
         direct_bridge::prefill(
             model,
             mtp.as_deref_mut(),
@@ -3643,11 +3520,9 @@ fn validated_bridge_messages(messages: Vec<Value>) -> Result<Vec<Value>> {
             matches!(role.as_str(), "system" | "user" | "assistant" | "tool"),
             "invalid message role"
         );
-        anyhow::ensure!(
-            object.get("content").is_some_and(Value::is_string),
-            "message requires string content"
-        );
-        if let Some(turn) = object.remove("turn_context") {
+        let turn = object.remove("turn_context");
+        mlxl3_native::vision_input::validate_content(&message)?;
+        if let Some(turn) = turn {
             anyhow::ensure!(
                 role == "assistant",
                 "only assistant messages can contain tool history"
@@ -4485,11 +4360,13 @@ fn native_bridge(
     feature = "chat",
     any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
 ))]
-fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize) -> Result<()> {
-    use mlxl3_native::{
-        streaming::Channel,
-        tokenizer::{ChatTokenizer, Message},
-    };
+fn native_chat(
+    path: &std::path::Path,
+    prompt: Option<String>,
+    max_tokens: usize,
+    image_paths: Vec<PathBuf>,
+) -> Result<()> {
+    use mlxl3_native::{streaming::Channel, tokenizer::ChatTokenizer};
     let tokenizer = ChatTokenizer::load(path)?;
     #[cfg(feature = "mlx")]
     let mut model = NativeChatModel::load(path)?;
@@ -4508,6 +4385,10 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
     let mut messages = Vec::new();
     let interactive = prompt.is_none();
     let mut one_prompt = prompt;
+    let mut image_urls = image_paths
+        .iter()
+        .map(|p| mlxl3_native::vision_input::file_data_url(p))
+        .collect::<Result<Vec<_>>>()?;
     let mut stdout = io::stdout().lock();
     loop {
         let user = if interactive {
@@ -4533,11 +4414,23 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         } else {
             one_prompt.take().context("missing prompt")?
         };
-        messages.push(Message {
-            role: "user".into(),
-            content: user,
-        });
-        let rendered = tokenizer.render(&messages)?;
+        let content = if image_urls.is_empty() {
+            json!(user)
+        } else {
+            let mut parts = vec![json!({"type":"text","text":user})];
+            parts.extend(
+                image_urls
+                    .drain(..)
+                    .map(|url| json!({"type":"image_url","image_url":{"url":url}})),
+            );
+            json!(parts)
+        };
+        messages.push(json!({"role":"user","content":content}));
+        let (prepared, images) =
+            mlxl3_native::vision_input::prepare_messages(&messages, model.supports_images())?;
+        #[cfg(not(feature = "mlx"))]
+        let _ = &images;
+        let rendered = tokenizer.render_values(&json!(prepared), None)?;
         let tokens = tokenizer.encode(&rendered)?;
         anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
         let available = (model.context_limit() as usize).saturating_sub(tokens.len());
@@ -4559,6 +4452,8 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         #[cfg(not(feature = "mlx"))]
         model.admit_request(tokens.len() + budget)?;
         model.reset();
+        #[cfg(feature = "mlx")]
+        model.prepare_images(&tokens, &images)?;
         let started = std::time::Instant::now();
         #[cfg(feature = "mlx")]
         let mut logits = {
@@ -4669,10 +4564,7 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
             count
         )?;
         stdout.flush()?;
-        messages.push(Message {
-            role: "assistant".into(),
-            content: raw_text,
-        });
+        messages.push(json!({"role":"assistant","content":raw_text}));
         if !interactive {
             break;
         }
@@ -5283,6 +5175,7 @@ mod tests {
                 let (logits, session, cached) = prefill_round(
                     &mut model,
                     tokens,
+                    &[],
                     Some(&weights),
                     &mut None,
                     "long",
@@ -5388,6 +5281,7 @@ mod tests {
         prefill_round(
             &mut model,
             &tokens,
+            &[],
             Some(&weights),
             &mut saved,
             "replay",
@@ -5407,6 +5301,7 @@ mod tests {
         let (warm, mut session, cached) = prefill_round(
             &mut model,
             &extended,
+            &[],
             Some(&weights),
             &mut saved,
             "replay",
@@ -5468,7 +5363,14 @@ mod tests {
         let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
         let cancelled = AtomicBool::new(false);
         let (mut logits, _, _) = prefill_round(
-            &mut model, &tokens, None, &mut None, "normal", false, &cancelled,
+            &mut model,
+            &tokens,
+            &[],
+            None,
+            &mut None,
+            "normal",
+            false,
+            &cancelled,
         )?;
         let normal_prefill = logits.to_f16_bits()?;
         let NativeChatModel::Qwen(target) = &mut model else {
@@ -5486,6 +5388,7 @@ mod tests {
         let (logits, session, _) = prefill_round(
             &mut model,
             &tokens,
+            &[],
             Some(&weights),
             &mut None,
             "dflash",
@@ -5669,13 +5572,27 @@ mod tests {
                 .map(|index| (index % 97 + 1) as u32)
                 .collect();
             let (cold, _, count) = prefill_round(
-                &mut model, &original, draft, &mut cache, "a", true, &cancelled,
+                &mut model,
+                &original,
+                &[],
+                draft,
+                &mut cache,
+                "a",
+                true,
+                &cancelled,
             )?;
             assert_eq!(count, 0, "mode switch must miss");
             let cold = cold.to_f16_bits()?;
             model.forward(51)?.eval()?; // Live decode may be ahead of the saved prefix.
             let (replay, _, count) = prefill_round(
-                &mut model, &original, draft, &mut cache, "a", true, &cancelled,
+                &mut model,
+                &original,
+                &[],
+                draft,
+                &mut cache,
+                "a",
+                true,
+                &cancelled,
             )?;
             assert_eq!(count, block);
             assert_eq!(replay.to_f16_bits()?, cold);
@@ -5686,11 +5603,25 @@ mod tests {
                     .chain(std::iter::repeat_n(42, suffix))
                     .collect();
                 let (expected, _, _) = prefill_round(
-                    &mut model, &extended, draft, &mut None, "a", false, &cancelled,
+                    &mut model,
+                    &extended,
+                    &[],
+                    draft,
+                    &mut None,
+                    "a",
+                    false,
+                    &cancelled,
                 )?;
                 let expected = expected.to_f16_bits()?;
                 let (actual, _, count) = prefill_round(
-                    &mut model, &extended, draft, &mut cache, "a", true, &cancelled,
+                    &mut model,
+                    &extended,
+                    &[],
+                    draft,
+                    &mut cache,
+                    "a",
+                    true,
+                    &cancelled,
                 )?;
                 assert_eq!(count, block);
                 assert_eq!(
@@ -5703,23 +5634,51 @@ mod tests {
             let mut edited = original.clone();
             edited[0] += 1;
             let (_, _, count) = prefill_round(
-                &mut model, &edited, draft, &mut cache, "a", true, &cancelled,
+                &mut model,
+                &edited,
+                &[],
+                draft,
+                &mut cache,
+                "a",
+                true,
+                &cancelled,
             )?;
             assert_eq!(count, 0, "edited history must miss");
             let (_, _, count) = prefill_round(
-                &mut model, &edited, draft, &mut cache, "b", true, &cancelled,
+                &mut model,
+                &edited,
+                &[],
+                draft,
+                &mut cache,
+                "b",
+                true,
+                &cancelled,
             )?;
             assert_eq!(count, 0, "conversation switch must miss");
             cancelled.store(true, Ordering::Relaxed);
             assert!(
                 prefill_round(
-                    &mut model, &edited, draft, &mut cache, "b", true, &cancelled
+                    &mut model,
+                    &edited,
+                    &[],
+                    draft,
+                    &mut cache,
+                    "b",
+                    true,
+                    &cancelled
                 )
                 .is_err()
             );
             cancelled.store(false, Ordering::Relaxed);
             let (_, _, count) = prefill_round(
-                &mut model, &edited, draft, &mut cache, "b", false, &cancelled,
+                &mut model,
+                &edited,
+                &[],
+                draft,
+                &mut cache,
+                "b",
+                false,
+                &cancelled,
             )?;
             assert_eq!(count, 0);
             assert!(cache.is_none(), "cache OFF must release the saved state");
