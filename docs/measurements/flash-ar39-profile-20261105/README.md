@@ -99,3 +99,7 @@ python scripts/analyze_native_metal_trace.py EXPORTS_GPU --pid PID_CIBLE --outpu
 ```
 
 Les plans contiennent des chemins locaux et refusent les empreintes différentes ; adapter un plan exige un nouveau préenregistrement et une nouvelle identité. Les [snapshots des collecteurs/analyses ponctuelles](repro-snapshots) et le [schéma du parcours](architecture.mmd) décrivent leurs entrées figées. Les bundles et XML système restent privés/non versionnés ; seuls les extraits filtrés et leurs identités sont publiés. Aucun essai en cours, modèle, compilateur ou proveur n’est laissé actif à la clôture.
+
+## Publication
+
+[Issue détaillée #147](https://github.com/0xZKnw/mlxl3/issues/147) : résultats, tableau de priorités et conditions de la prochaine recherche. [PR #148](https://github.com/0xZKnw/mlxl3/pull/148) : outillage, observateur de test et données filtrées. Source des preuves : `bae770cb9cb28cda99e774d58e5472663aa9dbf5` ; aucun merge ni remplacement de l’app. La première observation de CI sur ce SHA ne comporte que des jobs en cours/en attente : [reçu daté par le head](publication.json), pas de CI verte annoncée. Les résultats finaux disponibles sont à lire dans la PR.
