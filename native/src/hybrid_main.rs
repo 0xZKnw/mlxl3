@@ -95,10 +95,9 @@ fn run(args: cli::Cli) -> Result<()> {
     } else {
         command.env_remove("MLXL3_NATIVE_FLASH_ONLY");
         let executable = std::env::current_exe()?.canonicalize()?;
-        command.env(
-            "DYLD_LIBRARY_PATH",
-            executable.parent().context("runtime directory missing")?,
-        );
+        let directory = executable.parent().context("runtime directory missing")?;
+        command.env("DYLD_LIBRARY_PATH", directory);
+        command.env("MLXL3_METALLIB_PATH", directory.join("mlx.metallib"));
     }
     Err(command.exec()).context("cannot execute verified inference backend")
 }

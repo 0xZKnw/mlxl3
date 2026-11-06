@@ -333,12 +333,15 @@ fn initialize() -> Result<()> {
     let bundled = std::env::current_exe()
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.join("mlx.metallib")));
-    let library = root
-        .map(|root| root.join("lib/mlx.metallib"))
-        .filter(|path| path.is_file())
-        .or_else(|| bundled.filter(|path| path.is_file()))
+    let library = std::env::var_os("MLXL3_METALLIB_PATH")
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|| {
-            std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT")).join("lib/mlx.metallib")
+            root.map(|root| root.join("lib/mlx.metallib"))
+                .filter(|path| path.is_file())
+                .or_else(|| bundled.filter(|path| path.is_file()))
+                .unwrap_or_else(|| {
+                    std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT")).join("lib/mlx.metallib")
+                })
         });
     ensure!(
         library.is_file(),

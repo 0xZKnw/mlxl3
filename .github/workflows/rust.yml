@@ -518,6 +518,8 @@ jobs:
           export MLXL3_MLX_ROOT="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
           export MLXL3_BUILD_PYTHON="$(command -v python)"
           MLXL3_ENGINE_BACKEND=hybrid scripts/build-engine.sh
+          python -m pip install pytest==8.4.2
+          MLXL3_TEST_MLX_ENGINE=build/hybrid-helpers/mlx python -m pytest -q tests/test_metallib_override.py
           build/rust-runtime/mlxl3 runtime-info > build/hybrid-helpers/dispatcher-runtime.json
           otool -L build/rust-runtime/mlxl3 > build/hybrid-helpers/dispatcher-dependencies.txt
           python - <<'PYVERIFY'
