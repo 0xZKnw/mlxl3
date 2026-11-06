@@ -25,6 +25,9 @@ impl<'a> NativeChatModel<'a> {
     pub(crate) fn is_flash(&self) -> bool {
         matches!(self, Self::Flash(_))
     }
+    pub(crate) fn supports_images(&self) -> bool {
+        false
+    }
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Flash(_) => "Flash Next / direct Metal",

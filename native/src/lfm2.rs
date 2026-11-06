@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::{collections::BTreeSet, fs::File, path::Path};
 
 #[derive(Deserialize)]
-struct Config {
+pub(crate) struct Config {
     model_type: String,
     vocab_size: i32,
     hidden_size: i32,
@@ -52,6 +52,10 @@ struct Config {
     rope_parameters: Option<serde_json::Value>,
     full_attn_idxs: Option<Vec<usize>>,
     layer_types: Option<Vec<String>>,
+    head_dim: Option<i32>,
+    sliding_window: Option<i32>,
+    #[serde(default)]
+    use_sandwich_norm: bool,
 }
 
 fn default_rope_theta() -> f32 {
@@ -185,9 +189,10 @@ impl Projection {
         output: i32,
         bias: bool,
     ) -> Result<Self> {
-        let is_exl3 = checkpoint
-            .tensors
-            .contains_key(&format!("{prefix}.trellis"));
+        let is_exl3 = checkpoint.modules.iter().any(|name| name == prefix)
+            || checkpoint
+                .tensors
+                .contains_key(&format!("{prefix}.trellis"));
         if bias {
             ensure!(
                 checkpoint.tensors.contains_key(&format!("{prefix}.bias")),
@@ -379,13 +384,13 @@ impl Projection {
     }
 }
 
-enum Qkv {
+pub(crate) enum Qkv {
     Separate(Box<[Projection; 3]>),
     Grouped(Box<Exl3Group>),
 }
 
 impl Qkv {
-    fn new(projections: [Projection; 3]) -> Result<Self> {
+    pub(crate) fn new(projections: [Projection; 3]) -> Result<Self> {
         let linears: Vec<_> = projections
             .iter()
             .filter_map(|p| match &p.weights {
@@ -407,7 +412,7 @@ impl Qkv {
         }
     }
 
-    fn forward(&self, x: &Array) -> Result<Vec<Array>> {
+    pub(crate) fn forward(&self, x: &Array) -> Result<Vec<Array>> {
         match self {
             Self::Grouped(g) => g.forward(x),
             Self::Separate(p) => p.iter().map(|p| p.forward(x)).collect(),
@@ -427,17 +432,37 @@ struct Attention {
     theta: f32,
     keys: Option<Array>,
     values: Option<Array>,
+    lfm3_rope: Option<crate::lfm3::Rope>,
+    gate: Option<Projection>,
+    window: Option<i32>,
 }
 
 impl Attention {
-    fn load(checkpoint: &Checkpoint, prefix: &str, config: &Config, theta: f32) -> Result<Self> {
+    fn load(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        config: &Config,
+        theta: f32,
+        kind: &str,
+    ) -> Result<Self> {
         let dim = config.hidden_size;
         let heads = config.num_attention_heads;
         let kv_heads = config.num_key_value_heads.unwrap_or(heads);
-        let head_dim = dim / heads;
+        let lfm3 = config.model_type == "lfm3";
+        let head_dim = if lfm3 {
+            config.head_dim.unwrap_or(dim / heads)
+        } else {
+            dim / heads
+        };
         Ok(Self {
             qkv: Qkv::new([
-                Projection::load(checkpoint, &format!("{prefix}.q_proj"), dim, dim, false)?,
+                Projection::load(
+                    checkpoint,
+                    &format!("{prefix}.q_proj"),
+                    dim,
+                    heads * head_dim,
+                    false,
+                )?,
                 Projection::load(
                     checkpoint,
                     &format!("{prefix}.k_proj"),
@@ -453,15 +478,27 @@ impl Attention {
                     false,
                 )?,
             ])?,
-            output: Projection::load(checkpoint, &format!("{prefix}.out_proj"), dim, dim, false)?,
+            output: Projection::load(
+                checkpoint,
+                &format!("{prefix}.{}", if lfm3 { "o_proj" } else { "out_proj" }),
+                heads * head_dim,
+                dim,
+                false,
+            )?,
             q_norm: half_weight(
                 checkpoint,
-                &format!("{prefix}.q_layernorm.weight"),
+                &format!(
+                    "{prefix}.{}.weight",
+                    if lfm3 { "q_norm" } else { "q_layernorm" }
+                ),
                 Some(&[head_dim]),
             )?,
             k_norm: half_weight(
                 checkpoint,
-                &format!("{prefix}.k_layernorm.weight"),
+                &format!(
+                    "{prefix}.{}.weight",
+                    if lfm3 { "k_norm" } else { "k_layernorm" }
+                ),
                 Some(&[head_dim]),
             )?,
             heads,
@@ -471,6 +508,38 @@ impl Attention {
             theta,
             keys: None,
             values: None,
+            lfm3_rope: if lfm3 {
+                Some(crate::lfm3::Rope::from_config(
+                    config
+                        .rope_parameters
+                        .as_ref()
+                        .context("missing LFM3 RoPE parameters")?,
+                    kind,
+                    head_dim,
+                )?)
+            } else {
+                None
+            },
+            gate: if lfm3 {
+                Some(Projection::load(
+                    checkpoint,
+                    &format!("{prefix}.gate_proj"),
+                    dim,
+                    heads,
+                    false,
+                )?)
+            } else {
+                None
+            },
+            window: if kind == "sliding_attention" {
+                Some(
+                    config
+                        .sliding_window
+                        .context("missing LFM3 sliding window")?,
+                )
+            } else {
+                None
+            },
         })
     }
 
@@ -481,16 +550,21 @@ impl Attention {
             .context("LFM2 attention input must have time")?;
         ensure!(time > 0, "empty LFM2 attention input");
         let projections = self.qkv.forward(x)?;
-        let q = projections[0]
+        let mut q = projections[0]
             .reshape(&[1, time, self.heads, self.head_dim])?
             .rms_norm(&self.q_norm, self.eps)?
-            .transpose(&[0, 2, 1, 3])?
-            .rope(self.head_dim, self.theta, offset)?;
-        let k = projections[1]
+            .transpose(&[0, 2, 1, 3])?;
+        let mut k = projections[1]
             .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .rms_norm(&self.k_norm, self.eps)?
-            .transpose(&[0, 2, 1, 3])?
-            .rope(self.head_dim, self.theta, offset)?;
+            .transpose(&[0, 2, 1, 3])?;
+        if let Some(rope) = &self.lfm3_rope {
+            q = rope.apply(&q, offset)?;
+            k = rope.apply(&k, offset)?;
+        } else {
+            q = q.rope(self.head_dim, self.theta, offset)?;
+            k = k.rope(self.head_dim, self.theta, offset)?;
+        }
         let v = projections[2]
             .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
@@ -502,15 +576,35 @@ impl Attention {
             Some(previous) => Array::concatenate(&[previous, &v], 2)?,
             None => v,
         };
-        let out = Array::sdpa(
-            &q,
-            &keys,
-            &values,
-            (self.head_dim as f32).powf(-0.5),
-            time > 1,
-        )?
-        .transpose(&[0, 2, 1, 3])?
-        .reshape(&[1, time, self.heads * self.head_dim])?;
+        let mut out = if let Some(window) = self.window {
+            let key_count = keys.shape()[2];
+            let mask = crate::lfm3::sliding_mask(time, key_count, window)?.astype(q.dtype())?;
+            Array::sdpa_mask(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), &mask)?
+        } else {
+            Array::sdpa(
+                &q,
+                &keys,
+                &values,
+                (self.head_dim as f32).powf(-0.5),
+                time > 1,
+            )?
+        }
+        .transpose(&[0, 2, 1, 3])?;
+        if let Some(gate) = &self.gate {
+            out = out.mul(
+                &gate
+                    .forward(x)?
+                    .sigmoid()?
+                    .reshape(&[1, time, self.heads, 1])?,
+            )?;
+        }
+        let out = out.reshape(&[1, time, self.heads * self.head_dim])?;
+        // Keep W-1 past keys: the next query itself occupies the last window slot.
+        let start = self
+            .window
+            .map_or(0, |w| (keys.shape()[2] - (w - 1)).max(0));
+        let keys = keys.slice(2, start, keys.shape()[2])?;
+        let values = values.slice(2, start, values.shape()[2])?;
         self.keys = Some(keys);
         self.values = Some(values);
         self.output.forward(&out)
@@ -600,7 +694,14 @@ impl ShortConv {
         if let Some(bias) = &self.bias {
             conv = conv.add(bias)?;
         }
-        self.state = Some(bx.slice(1, time, time + self.length - 1)?);
+        self.state = Some(
+            bx.slice(
+                1,
+                time,
+                time.checked_add(self.length - 1)
+                    .context("convolution state offset overflow")?,
+            )?,
+        );
         self.output.forward(&c.mul(&conv)?)
     }
 }
@@ -618,6 +719,8 @@ struct Layer {
     operator: Operator,
     feed_forward: FeedForward,
     eps: f32,
+    post_operator_norm: Option<Array>,
+    post_ffn_norm: Option<Array>,
 }
 
 enum FeedForward {
@@ -743,9 +846,11 @@ impl Layer {
         attention: bool,
         ff_dim: i32,
         theta: f32,
+        root: &str,
     ) -> Result<Self> {
-        let prefix = format!("model.layers.{index}");
+        let prefix = format!("{root}.layers.{index}");
         let dim = config.hidden_size;
+        let sandwich = config.model_type == "lfm3" && config.use_sandwich_norm;
         Ok(Self {
             operator_norm: half_weight(
                 checkpoint,
@@ -763,6 +868,10 @@ impl Layer {
                     &format!("{prefix}.self_attn"),
                     config,
                     theta,
+                    config
+                        .layer_types
+                        .as_ref()
+                        .map_or("full_attention", |types| types[index].as_str()),
                 )?)
             } else {
                 Operator::Conv(ShortConv::load(
@@ -836,18 +945,43 @@ impl Layer {
                 }
             },
             eps: config.norm_eps,
+            post_operator_norm: sandwich
+                .then(|| {
+                    half_weight(
+                        checkpoint,
+                        &format!("{prefix}.post_operator_norm.weight"),
+                        Some(&[dim]),
+                    )
+                })
+                .transpose()?,
+            post_ffn_norm: sandwich
+                .then(|| {
+                    half_weight(
+                        checkpoint,
+                        &format!("{prefix}.post_ffn_norm.weight"),
+                        Some(&[dim]),
+                    )
+                })
+                .transpose()?,
         })
     }
 
     fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
         let normalized = x.rms_norm(&self.operator_norm, self.eps)?;
-        let mixed = match &mut self.operator {
+        let mut mixed = match &mut self.operator {
             Operator::Attention(attention) => attention.forward(&normalized, offset)?,
             Operator::Conv(conv) => conv.forward(&normalized)?,
         };
+        if let Some(norm) = &self.post_operator_norm {
+            mixed = mixed.rms_norm(norm, self.eps)?;
+        }
         let h = x.add(&mixed)?;
         let normalized = h.rms_norm(&self.ffn_norm, self.eps)?;
-        h.add(&self.feed_forward.forward(&normalized)?)
+        let mut output = self.feed_forward.forward(&normalized)?;
+        if let Some(norm) = &self.post_ffn_norm {
+            output = output.rms_norm(norm, self.eps)?;
+        }
+        h.add(&output)
     }
 }
 
@@ -880,10 +1014,14 @@ impl Lfm2 {
     }
 
     pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
-        let path = &checkpoint.path;
-        let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+        let config: Config =
+            serde_json::from_reader(File::open(checkpoint.path.join("config.json"))?)?;
+        Self::from_config(checkpoint, config, "model")
+    }
+
+    pub(crate) fn from_config(checkpoint: &Checkpoint, config: Config, root: &str) -> Result<Self> {
         ensure!(
-            config.model_type == "lfm2" || config.model_type == "lfm2_moe",
+            matches!(config.model_type.as_str(), "lfm2" | "lfm2_moe" | "lfm3"),
             "expected LFM2, got {}",
             config.model_type
         );
@@ -911,13 +1049,51 @@ impl Lfm2 {
             kv_heads > 0 && config.num_attention_heads % kv_heads == 0,
             "invalid LFM2 KV head count"
         );
-        ensure!(config.conv_length > 0, "invalid LFM2 convolution length");
+        ensure!(config.conv_length > 0, "invalid LFM convolution length");
+        if config.model_type == "lfm3" {
+            let head_dim = config
+                .head_dim
+                .unwrap_or(config.hidden_size / config.num_attention_heads);
+            ensure!(
+                head_dim > 0
+                    && head_dim % 2 == 0
+                    && head_dim.checked_mul(config.num_attention_heads).is_some(),
+                "invalid LFM3 head dimension"
+            );
+            ensure!(
+                config.sliding_window.is_some_and(|w| w > 0),
+                "invalid LFM3 sliding window"
+            );
+            let types = config
+                .layer_types
+                .as_ref()
+                .context("missing LFM3 layer types")?;
+            ensure!(
+                types.len() == config.num_hidden_layers
+                    && types.iter().all(|t| matches!(
+                        t.as_str(),
+                        "conv" | "full_attention" | "sliding_attention"
+                    )),
+                "invalid LFM3 layer types"
+            );
+            ensure!(
+                config.full_attn_idxs.is_none(),
+                "LFM3 uses layer_types, not full_attn_idxs"
+            );
+            let params = config
+                .rope_parameters
+                .as_ref()
+                .context("missing LFM3 RoPE parameters")?;
+            for kind in types.iter().filter(|t| t.as_str() != "conv") {
+                crate::lfm3::Rope::from_config(params, kind, head_dim)?;
+            }
+        }
         if config.model_type == "lfm2" {
             ensure!(
                 config.block_dim == Some(config.hidden_size),
                 "invalid LFM2 block dimensions"
             );
-        } else {
+        } else if config.model_type == "lfm2_moe" {
             ensure!(
                 config.moe_intermediate_size > 0
                     && config.num_experts > 0
@@ -980,15 +1156,18 @@ impl Lfm2 {
                 "LFM2 layer types count mismatch"
             );
             ensure!(
-                types
-                    .iter()
-                    .all(|kind| kind == "full_attention" || kind == "conv" || kind == "short_conv"),
+                types.iter().all(|kind| kind == "full_attention"
+                    || kind == "conv"
+                    || kind == "short_conv"
+                    || (config.model_type == "lfm3" && kind == "sliding_attention")),
                 "unsupported LFM2 layer type"
             );
             types
                 .iter()
                 .enumerate()
-                .filter_map(|(i, kind)| (kind == "full_attention").then_some(i))
+                .filter_map(|(i, kind)| {
+                    (kind == "full_attention" || kind == "sliding_attention").then_some(i)
+                })
                 .collect()
         };
         ensure!(
@@ -998,10 +1177,14 @@ impl Lfm2 {
         let dim = config.hidden_size;
         let embeddings = half_weight(
             checkpoint,
-            "model.embed_tokens.weight",
+            &format!("{root}.embed_tokens.weight"),
             Some(&[config.vocab_size, dim]),
         )?;
-        let norm = half_weight(checkpoint, "model.embedding_norm.weight", Some(&[dim]))?;
+        let norm = half_weight(
+            checkpoint,
+            &format!("{root}.embedding_norm.weight"),
+            Some(&[dim]),
+        )?;
         let head = if checkpoint.modules.iter().any(|name| name == "lm_head")
             || checkpoint.tensors.contains_key("lm_head.weight")
         {
@@ -1024,6 +1207,7 @@ impl Lfm2 {
                 attention.contains(&index),
                 ff_dim,
                 theta,
+                root,
             )?);
         }
         let moe_exact_prefill = exact_moe_prefill_config(&config, attention.len(), true)
@@ -1063,6 +1247,27 @@ impl Lfm2 {
 
     /// Consumes one token for decode, or at least 24 tokens for dense TensorOps prefill.
     pub fn forward(&mut self, tokens: &[u32]) -> Result<Array> {
+        self.forward_embedded(tokens, None)
+    }
+
+    pub(crate) fn embed_tokens(&self, tokens: &[u32]) -> Result<Array> {
+        ensure!(
+            !tokens.is_empty() && tokens.iter().all(|&t| t < self.vocab_size as u32),
+            "invalid LFM tokens"
+        );
+        let time = i32::try_from(tokens.len())?;
+        let ids = Array::from_i32(
+            &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
+            &[1, time],
+        )?;
+        self.embeddings.take(&ids, 0)
+    }
+
+    pub(crate) fn forward_embedded(
+        &mut self,
+        tokens: &[u32],
+        embedded: Option<Array>,
+    ) -> Result<Array> {
         ensure!(
             tokens.len() == 1 || tokens.len() >= 24,
             "LFM2 batches must contain one token or at least 24 tokens"
@@ -1086,11 +1291,10 @@ impl Lfm2 {
                 .offset
                 .checked_add(time)
                 .context("LFM2 position overflow")?;
-            let ids = Array::from_i32(
-                &tokens.iter().map(|&token| token as i32).collect::<Vec<_>>(),
-                &[1, time],
-            )?;
-            let mut hidden = self.embeddings.take(&ids, 0)?;
+            let mut hidden = match embedded {
+                Some(hidden) => hidden,
+                None => self.embed_tokens(tokens)?,
+            };
             for layer in &mut self.layers {
                 hidden = layer.forward(&hidden, self.offset)?;
             }

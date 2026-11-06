@@ -78,6 +78,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "lfm3::lfm3_window_is_causal_and_bounded",
+        "lfm3::lfm3_patch_index_is_in_bounds",
         "qwen35_config::native_qwen_stage_jobs_have_disjoint_in_bounds_slices",
         "qwen35_config::native_qwen_qmv_binding_stays_in_the_allocated_range",
         "qwen35_config::native_qwen_kv_plan_never_overwrites_a_reserved_prefix",

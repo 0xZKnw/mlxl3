@@ -181,13 +181,23 @@ fn sample(
         Draft::DFlash(weights) if depth > 0 => prefill_round(
             model,
             &input,
+            &[],
             Some(weights),
             &mut cache,
             "dflash-tune",
             false,
             cancelled,
         )?,
-        _ => prefill_round(model, &input, None, &mut cache, "tune", false, cancelled)?,
+        _ => prefill_round(
+            model,
+            &input,
+            &[],
+            None,
+            &mut cache,
+            "tune",
+            false,
+            cancelled,
+        )?,
     };
     let mut next = logits.chat_greedy_ids()?[0];
     if let (Some(session), Draft::DFlash(weights)) = (&mut dflash, &*draft) {

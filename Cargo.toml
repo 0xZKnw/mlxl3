@@ -10,7 +10,7 @@ description = "Native Rust/Metal port of MLXL3 (experimental)"
 default = ["direct-metal"]
 direct-metal = ["dep:metal", "dep:objc"]
 mlx = []
-chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib"]
+chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib", "dep:image", "dep:base64"]
 
 [lib]
 path = "native/src/lib.rs"
@@ -28,6 +28,8 @@ name = "runtime_gpu"
 path = "native/tests/runtime_gpu.rs"
 
 [dependencies]
+image = { version = "0.25.8", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
+base64 = { version = "0.22", optional = true }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 fs2 = "0.4"

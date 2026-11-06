@@ -690,6 +690,12 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
           }, true);
           return silu({a})[0];
         }
+        case 27: {
+          auto x = mx::astype(a, mx::float32);
+          return mx::astype(mx::multiply(mx::multiply(x, mx::array(0.5f)),
+            mx::add(mx::array(1.0f), mx::erf(mx::multiply(x, mx::array(0.7071067811865475f))))), a.dtype());
+        }
+        case 28: return mx::fast::layer_norm(a, std::nullopt, std::nullopt, scalar);
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -724,6 +730,7 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           return mx::astype(mx::multiply(gate, value), a.dtype());
         }
         case 9: return mx::divide(a, b);
+        case 14: return mx::conv2d(a, b, {1, 1}, {b.shape(1)/2, b.shape(2)/2}, {1, 1}, arg);
         case 10: {
           thread_local auto geglu = mx::compile([](const std::vector<mx::array>& x) {
             auto gate = x[0];

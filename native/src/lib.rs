@@ -83,6 +83,9 @@ mod hc_workspace_policy;
 pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
+pub mod lfm3;
+#[cfg(feature = "mlx")]
+mod lfm3_vision;
 #[cfg(feature = "mlx")]
 pub mod linear;
 #[cfg(feature = "mlx")]
@@ -139,3 +142,6 @@ pub(crate) mod weighted_epilogue;
 mod native_bf16;
 #[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
 pub mod native_draft;
+
+#[cfg(feature = "chat")]
+pub mod vision_input;
