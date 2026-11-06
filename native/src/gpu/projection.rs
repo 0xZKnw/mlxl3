@@ -369,6 +369,84 @@ impl<'a> FlashProjection<'a> {
         self.encode_rows(cmd, x, storage)
     }
 
+    /// K is the final complete H128 of the full 640-wide index projection.
+    pub(super) fn encode_index_key(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<Option<MatrixView>> {
+        let gpu = self.metal;
+        let resident = !self.generic
+            && !self.mtp_hidden
+            && !self.routed_record
+            && self.bias.is_none()
+            && self.simdgroups == 4
+            && self.fixed_key == Some(0);
+        let Some(groups) = flash_support::index_key_groups(
+            self.dimensions(),
+            [self.k, self.cb as u32, self.nt],
+            self.splits,
+            resident,
+        ) else {
+            return Ok(None);
+        };
+        let Some(pipeline) = &gpu.flash_index_key_qmv else {
+            return Ok(None);
+        };
+        if x.shape()[0] != 1
+            || pipeline.thread_execution_width() != 32
+            || pipeline.max_total_threads_per_threadgroup() < 128
+        {
+            return Ok(None);
+        }
+        let [inputs, partials, _] = self.view_extents(x)?;
+        let prepared = buffer(
+            &gpu.device,
+            u64::from(inputs) * 2,
+            Storage::StorageModePrivate,
+        )?;
+        let partial = buffer(
+            &gpu.device,
+            u64::from(partials) * 4,
+            Storage::StorageModePrivate,
+        )?;
+        let output = MatrixView::output(gpu, super::view::FloatType::F16, 1, 128, storage)?;
+        self.encode_input_into(cmd, Activation::View(x), &prepared, 0)?;
+        Metal::encode_bound(
+            cmd,
+            pipeline,
+            [
+                (&prepared, 0),
+                (&self.packed, self.offsets.trellis),
+                (&self.svh, self.offsets.svh),
+                (&partial, 0),
+            ]
+            .into_iter(),
+            [1u32, self.k, self.cb as u32, self.input, self.output],
+            MTLSize::new(u64::from(groups), 1, u64::from(self.splits)),
+            128,
+        );
+        // Only K was written; retain the original split stride and shift Svh by 512.
+        Metal::encode_bound(
+            cmd,
+            &gpu.finish128_pipeline,
+            [
+                (&partial, 512 * 4),
+                (&self.svh, self.offsets.svh + 512 * 2),
+                (&self.svh, self.offsets.svh + 512 * 2),
+                (&output.buffer, 0),
+            ]
+            .into_iter(),
+            [self.splits, 0, 0, 0, self.output],
+            MTLSize::new(1, 1, 1),
+            64,
+        );
+        #[cfg(test)]
+        gpu.index_key_uses.set(gpu.index_key_uses.get() + 1);
+        Ok(Some(output))
+    }
+
     pub(super) fn encode_resident_pair(
         &self,
         other: &Self,

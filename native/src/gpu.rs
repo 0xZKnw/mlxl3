@@ -303,6 +303,13 @@ pub struct Metal {
     hc_workspace_uses: std::cell::Cell<usize>,
     cross_layer: std::cell::Cell<bool>,
     gdn_route_chain: std::cell::Cell<bool>,
+    hot_workspace: std::cell::Cell<bool>,
+    qsa_index_key_only: std::cell::Cell<bool>,
+    flash_index_key_qmv: Option<ComputePipelineState>,
+    #[cfg(test)]
+    hot_workspace_reuses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    index_key_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     gdn_route_uses: std::cell::Cell<usize>,
     moe_deferred: std::cell::Cell<bool>,
@@ -485,6 +492,8 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
+            let hot_workspace = hc_kernel_setting("MLXL3_NATIVE_HOT_WORKSPACE")?;
+            let qsa_index_key_only = hc_kernel_setting("MLXL3_NATIVE_QSA_INDEX_KEY_ONLY")?;
             let ar30_cooperative = hc_kernel_setting("MLXL3_NATIVE_QMV_COOPERATIVE")?;
             let ar33_codeword_table = hc_kernel_setting("MLXL3_NATIVE_CODEWORD_TABLE")?;
             let cached_caps_enabled = hc_kernel_setting("MLXL3_NATIVE_CACHED_CAPS")?;
@@ -947,6 +956,7 @@ impl Metal {
                 qsa_gate_fused,
                 qsa_chains,
                 qsa_prefetch,
+                qsa_index_key_only,
             )?;
             let gdn = gdn::Pipelines::load(
                 &cached_pipeline,
@@ -964,6 +974,9 @@ impl Metal {
                 indirect_hot::Pipelines::load(&device, &library, &pipeline, device_resident_route)?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&cached_pipeline)?;
+            let flash_index_key_qmv = qsa_index_key_only
+                .then(|| pipeline("flash_index_key_qmv"))
+                .transpose()?;
             Ok(Self {
                 device,
                 cached_caps_enabled,
@@ -1028,6 +1041,13 @@ impl Metal {
                 #[cfg(test)]
                 hc_workspace_uses: std::cell::Cell::new(0),
                 cross_layer: std::cell::Cell::new(cross_layer),
+                hot_workspace: std::cell::Cell::new(hot_workspace),
+                qsa_index_key_only: std::cell::Cell::new(qsa_index_key_only),
+                flash_index_key_qmv,
+                #[cfg(test)]
+                hot_workspace_reuses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                index_key_uses: std::cell::Cell::new(0),
                 gdn_route_chain: std::cell::Cell::new(
                     match std::env::var("MLXL3_NATIVE_GDN_ROUTE_CHAIN") {
                         Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),

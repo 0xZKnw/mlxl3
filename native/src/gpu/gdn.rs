@@ -819,10 +819,14 @@ impl<'a> FlashGdnLayer<'a> {
                 && std::ptr::eq(gpu, self.residual.attn_hc.gpu),
             "GDN route requires one Metal owner"
         );
+        #[cfg(test)]
+        let scope = crate::flash_profile::span(if previous.is_some() {
+            "native.hc_gdn.cross_layer"
+        } else {
+            "native.hc_gdn.joined"
+        });
         let command = gpu.queue.new_command_buffer().to_owned();
         let (streams, read) = if let Some(write) = previous.as_deref() {
-            #[cfg(test)]
-            let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
             self.residual.attn_hc.encode_after_write(
                 &command,
                 &write.streams,
@@ -842,6 +846,8 @@ impl<'a> FlashGdnLayer<'a> {
             .encode_for_consumer(&command, read.mixed(), false, true)?;
         // These views stay GPU-only until the common GDN/P command completes.
         let read = read.finish(false)?;
+        #[cfg(test)]
+        drop(scope);
         let pending = self.residual.mlp_hc.submit_after_write_with_gate_on(
             command,
             &self.residual.attn_hc,

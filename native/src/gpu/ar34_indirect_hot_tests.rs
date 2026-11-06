@@ -54,7 +54,18 @@ fn words(hot: &HotOutput) -> Result<Vec<u16>> {
 #[test]
 #[ignore = "physical AR34 Tier2 argument table53, independent ten-binding projections, missing/invalid/stale/retained/mutants; exclusive GPU"]
 fn physical_ar34_indirect_hot_preserves_all_slots_and_canonical_contributions() -> Result<()> {
+    check_indirect_hot(false)
+}
+
+#[test]
+#[ignore = "physical five-buffer Hot workspace, poison and producer/consumer lifetimes"]
+fn physical_ar42_hot_workspace_preserves_all_canonical_contributions() -> Result<()> {
+    check_indirect_hot(true)
+}
+
+fn check_indirect_hot(workspace: bool) -> Result<()> {
     let gpu = Metal::new()?;
+    gpu.hot_workspace.set(workspace);
     ensure!(
         gpu.device_resident_route_available(),
         "enable DEVICE_RESIDENT_ROUTE on exact M5/Tier2"
@@ -241,6 +252,8 @@ fn physical_ar34_indirect_hot_preserves_all_slots_and_canonical_contributions() 
     );
     drop(rejected);
     let snapshot = make(full_map)?;
+    let poison_snapshot = workspace.then(|| make(full_map)).transpose()?;
+    let refill_snapshot = workspace.then(|| make(full_map)).transpose()?;
     drop(experts);
     drop(records);
     drop(base);
@@ -257,6 +270,57 @@ fn physical_ar34_indirect_hot_preserves_all_slots_and_canonical_contributions() 
     invalid_map[expert_id(0) as usize] = 53;
     ensure!(ResidentSnapshot::for_test(invalid_map, vec![None; 53]).is_err());
     ensure!(checked == 256000 && cases == 10 && gpu.device_hot_submissions() == 15);
+    if workspace {
+        ensure!(gpu.hot_workspace_reuses.get() >= 10);
+        ensure!(
+            p.spare.borrow().is_none(),
+            "unsubmitted consumer was recycled"
+        );
+        let before_fresh = crate::gpu::BUFFER_REQUESTS.with(std::cell::Cell::get);
+        let warm = gpu.submit_resident_hot_inner(
+            &x,
+            &ids,
+            refill_snapshot.context("refill snapshot")?,
+            Storage::StorageModeShared,
+        )?;
+        let fresh_requests = crate::gpu::BUFFER_REQUESTS.with(std::cell::Cell::get) - before_fresh;
+        ensure!(words(&warm)?[..2560] == reference[0]);
+        drop(warm);
+        let spare = p.spare.borrow();
+        let buffers = spare.as_ref().context("completed workspace not returned")?;
+        gpu.command(|cmd| {
+            let blit = cmd.new_blit_command_encoder();
+            for buffer in buffers {
+                blit.fill_buffer(buffer, metal::NSRange::new(0, buffer.length()), 0xff);
+            }
+            blit.end_encoding();
+            Ok(())
+        })?;
+        drop(spare);
+        let before_reuse = crate::gpu::BUFFER_REQUESTS.with(std::cell::Cell::get);
+        let poisoned = gpu.submit_resident_hot_inner(
+            &x,
+            &ids,
+            poison_snapshot.context("poison snapshot")?,
+            Storage::StorageModeShared,
+        )?;
+        let reused_requests = crate::gpu::BUFFER_REQUESTS.with(std::cell::Cell::get) - before_reuse;
+        ensure!(fresh_requests == reused_requests + 5 && reused_requests > 0);
+        ensure!(words(&poisoned)?[..2560] == reference[0]);
+        let consumer = gpu.queue.new_command_buffer().to_owned();
+        let mut poisoned = poisoned;
+        poisoned.retain_consumer(&consumer)?;
+        consumer.commit();
+        drop(poisoned);
+        ensure!(consumer.status() == MTLCommandBufferStatus::Completed);
+        gpu.clear_hot_workspace()?;
+        ensure!(p.spare.borrow().is_none());
+        eprintln!(
+            "AR42_HOT_WORKSPACE {}",
+            serde_json::json!({"parity":true,"canonical_half_words":checked,"reuses":gpu.hot_workspace_reuses.get(),"fresh_requests":fresh_requests,"reused_requests":reused_requests,"poison_recovery":true,"consumer_joined":true,"idle_cleared":true})
+        );
+    }
+
     eprintln!(
         "AR34_INDIRECT_HOT {}",
         serde_json::json!({
@@ -265,7 +329,7 @@ fn physical_ar34_indirect_hot_preserves_all_slots_and_canonical_contributions() 
             "invalid_ids_zeroed_then_rejected":true,"duplicate_ids_rejected":true,"stale_generation_rejected":true,
             "retained_snapshot":true,"wrong_pointer_mutant_detected":true,
             "unsubmitted_consumer_abandon":true,
-            "publication_failure_rejected":true,"active_released":true,"actual_hot_submissions":15,
+            "publication_failure_rejected":true,"active_released":true,"actual_hot_submissions":gpu.device_hot_submissions(),
             "limits":"Synthetic publication rejection is not a real Metal command error; full-model/CLI gates remain separate"
         })
     );

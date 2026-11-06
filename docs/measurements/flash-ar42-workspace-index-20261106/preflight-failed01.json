@@ -1,0 +1,5 @@
+{
+  "status": "failed_before_gpu",
+  "error": "Fixture path is the real 42 GB model, exceeded the planned 128 MiB fixture full-file hashing bound. No weight payload was hashed.",
+  "correction": "Freeze metadata/header and the exact first-expert payload range consumed by the component instead of rehashing the complete model."
+}

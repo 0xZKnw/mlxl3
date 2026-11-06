@@ -8,6 +8,73 @@ pub(crate) const CONTRIBUTION_BYTES: u64 = 2 * 2560;
 pub(crate) const AUXILIARY_LIMIT: u64 = 2 * 1024 * 1024;
 pub(crate) const RESERVE_BYTES: u64 = ROUTES as u64 * RECORD_BYTES + AUXILIARY_LIMIT;
 
+pub(crate) fn workspace_valid(lengths: [u64; 5], private: [bool; 5], private_slab: bool) -> bool {
+    lengths == [102400, 102400, 12800, 12800, 51200]
+        && private == [true, true, true, true, private_slab]
+}
+
+pub(crate) fn workspace_recyclable(
+    producer_terminal: bool,
+    consumer_terminal: Option<bool>,
+) -> bool {
+    producer_terminal && consumer_terminal.unwrap_or(true)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn hot_workspace_never_recycles_a_live_or_unsubmitted_consumer() {
+    let producer: bool = kani::any();
+    let consumer: Option<bool> = kani::any();
+    let reusable = workspace_recyclable(producer, consumer);
+    assert_eq!(reusable, producer && consumer != Some(false));
+    kani::cover!(reusable && consumer.is_none());
+    kani::cover!(reusable && consumer == Some(true));
+    kani::cover!(!reusable && producer && consumer == Some(false));
+}
+
+#[test]
+fn workspace_rejects_wrong_extents_and_storage() {
+    for (producer, consumer, expected) in [
+        (false, None, false),
+        (false, Some(false), false),
+        (false, Some(true), false),
+        (true, None, true),
+        (true, Some(false), false),
+        (true, Some(true), true),
+    ] {
+        assert_eq!(workspace_recyclable(producer, consumer), expected);
+    }
+
+    let sizes = [102400, 102400, 12800, 12800, 51200];
+    for slab in [false, true] {
+        let modes = [true, true, true, true, slab];
+        assert!(workspace_valid(sizes, modes, slab));
+        for i in 0..5 {
+            let mut bad = sizes;
+            bad[i] += 1;
+            assert!(!workspace_valid(bad, modes, slab));
+            let mut bad = modes;
+            bad[i] = !bad[i];
+            assert!(!workspace_valid(sizes, bad, slab));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn hot_workspace_requires_exact_extents_and_storage() {
+    let sizes: [u64; 5] = kani::any();
+    let modes: [bool; 5] = kani::any();
+    let slab: bool = kani::any();
+    let ok = workspace_valid(sizes, modes, slab);
+    assert_eq!(
+        ok,
+        sizes == [102400, 102400, 12800, 12800, 51200] && modes == [true, true, true, true, slab]
+    );
+    kani::cover!(ok && slab);
+    kani::cover!(ok && !slab);
+}
+
 /// Qualified default and strict overrides; unsupported hardware always falls back.
 pub(crate) fn flag(value: Option<&str>, qualified_m5: bool, tier2: bool) -> Option<bool> {
     crate::ar10_defaults::flag(value, qualified_m5).map(|enabled| enabled && tier2)

@@ -78,6 +78,9 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "device_hot_policy::hot_workspace_requires_exact_extents_and_storage",
+        "device_hot_policy::hot_workspace_never_recycles_a_live_or_unsubmitted_consumer",
+        "flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128",
         "flash_support::gdn_route_admission_preserves_all_producer_guards",
         "lfm3::lfm3_short_conv_buffers_are_bounded",
         "lfm3::lfm3_attention_gate_buffers_are_bounded",

@@ -27061,3 +27061,47 @@ AR41 vitesse gdn-route validated_output ; brut /Users/justin/.codex/worktrees/fl
 AR41 vitesse control-after validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar41-gdn-route-20261106/control-after/report.json
 
 AR41 CLOS VALIDÉ opt-in AR128 : physiqueR3PASS1/0ignoré/442filtrés,2tokens×36prises/36CBretirés, full-logits/hidden et57606144motsétatsfinis/84tenseursparcasexacts, initiallogits+premiertenseurindépendants, erreursP+previousMoE/rollback/retry/exportflagrestauréPASS. CLI128×6golden/tousjoints. OFF9.51339051273952 / ON10.112197853717872 / OFF9.494652361340602tok/s, gainvscontrôlesmoyens~6.40%, dérive−0.197%. AucunprofilGPUperkernel/temperaturemesurés. Rapport docs/measurements/flash-ar41-gdn-route-20261106/README.md. Kani247SUCCESS/4SAT/6UNREACHstdinspectés, domainegardebooluniquement ;paspreuveMetal. Pasdenouveautestgénéral/GPUhorsQAaffectéeàdemandeutilisateur. Codeopt-inlocal, défautinchangéenattendantcompositionP03/P08 ; PRenpréparation, pasmerge/release/appinstallée. EssaisR1/R2FAILEDconservés/hash+logs(R2binaireécraséaugelcorrigé), aucunrecyclagedelesdébits. Aucunessaiencoursaprèsécran.
+
+AR41 publication EFFECTIVE PR156 https://github.com/0xZKnw/mlxl3/pull/156 heada5a6a454/base71530f09. CIexactconsultée17jobsqueued/in_progress, pasverteannoncée. P02opt-inqualifié+6.399%surécran128, défauttemporairesentaitcompositionP03/P08. Essaisclos, tousprocessusjoints.
+
+## AR42-P03-P08 — AVANT prototypes, 2026-11-06
+
+Utilisateur demande réaliserlespistesAR40 etréduiretestsau strictnécessaire. Basea5a6a454(P02PR156), travailisolébranchecodex/flash-ar42-workspace-index-20261106. CompositionbaselineP02ON/T05+AR2+13défauts, MAIN87/128générés127decode/cache3GiB53slots/readers4/depth0/ctx4096/prefix0/T0,MTP/DFlashOFF. Deuxflagsstrictsopt-in indépendants MLXL3_NATIVE_HOT_WORKSPACE etMLXL3_NATIVE_QSA_INDEX_KEY_ONLY.
+
+P03 : recyclerles5buffersnumériquesH(prepared102400,partial102400,gate12800,activated12800,slab51200B), poolglobalunique281600B/instanceGPU sousleaseActiveexistante ; map/argumentresteàchaquetransaction(P07distinctnonimplémentéici). BailH/Favantretourpool, stockage/device/taillesstricts, erreur/cancel/drop/poison etreset. Pasrecyclage desrecordsSSD ni sortiemixFP32retenue. AdmissionAUXexistantecouvreles5buffers ; compterlapersistanceréelleetviderau release_idle_stateaprèsdrain.
+
+P08 : utiliserlescorpsQMV/finishH128canoniquesavecbaseglobaletile32 etTILES_N40 inchangés, sortiesK128compactes, splits/NT/ordre/castsoriginaux. SeulindexQSA2560→640éligible, residentformatsqualifiés, traceOFF,count≤512 ; premierQaupasoffset2051/2052positionsfallbackfull640. Projectionentréeinchangée ; tail/blit etpoolKutilisentoffset0pourKcompact,1024pourfull. AucunQnoninitialisé exposé. TesterKvsfullprojection,tail/blocs ettransition2046..2053composantseul,orphelins/annulation/repriseetlogits/étatsvraiCLI.
+
+QA cibléeavantvitesse : Clippy/build/fmt, CPUhelpers/Kaniréelsbornesetgéométrie, uncomposantworkspace etunindexQSAphysiquessélectionnés, puisparitémodèle/CLIcomposition avec compteurspositifsetoraclesindépendants. Réutilisercontrôleursbornésexistants ; pasnouvellecaptureGPU/suitegénérale. Aprèscomposantsexacts, uniqueécran128 contrôle/composition/contrôle, pascampagnecomplèteparmicrogain. Snapshotsavanttoutretrait ;prometteurscompatiblesconservés, dérive≠rejet. Pascompile/proofautremodèlependantGPU. État EN COURS source, performancesNONMESURÉES.
+
+AR42 source/CPU : trois erreursdecompilationpré-GPUconservées (empruntclosurePSOaprèsmoveddevice, associatedinspectinexistantdansharnais, placementinitialduguardrecyclabledanscompleted&selfaulieudeDrop). Corrigéesavantmodèle ; ClippyalltargetsPASS,68testflash_support et4device_hot_policyPASS/0ignoré, Metalcompileproduitcheck.air (warningshistoriques, paserreur). RaffinementdeslifetimesAVANTQA : uneFnonencorecommittée peutretenirlesbuffers, doncnepasrecycler sonworkspace mêmeaprèsH ; Dropne rendlepoolqu'aprèsHterminaletFabsenteouterminale, nouveauhelperKani/guardtestunsubmitted. ProfilageinterneP02scopeparentcorrigé#[cfgtest]etvérifiédansQAcompositionexistante, pasdeprofilagesystème. FinitudedesK128/tails/blocs ettracecourteoffenplusdutransitionsparse. AucunevitesseenregistréeAR42.
+
+AR42 workspace CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR42 index CLOS failed parity=False joined=True ; vitesseNONMESURÉE.
+
+AR42 QA1 : workspacePASS1/0ignoré/447filtrés,256000Halfexactes,15réemplois,7→2requêtesMetal partransaction,poison/Fjoin/unsubmittednonrecyclé/idleclearPASS. IndexFAILED«compactkernel fellback», aucunmodèle/vitesse après. Auditsource : indexréelutiliseDÉJÀfixedK2/CB2/NT1/split1 ; gardeinitialeexcluaitfixed/staticettestdétecteabsence deprise. Correctionpréenregistrée : spécialiseruniquementceformatetlePSOfixedactif, corpsfixedinchangé+baseN32/grid8, pasremplacementparqmv dynamiquepluscoûteux. Autresformats gardentfull640. Garderoraclemêmes128Half/tails/blocs/transition/trace ; petitevalidationdebugcomposantavantrebuildreleasepourévitercompilationsinutiles. Unseulmodèle/composantGPU, aucuncompiler/proverconcurrentpendanttest.
+
+AR42 indexdebug2 : kernelcompactK128 vsfull640 exact/finis passe ; harnais échoueensuitesurlecturehôte deblocsPrivate («invalidhostread»). CorrectionHARNAISSEULE parvraiexport_bytesGPUblit, mêmescomparaisonsdebits/tailles/transition, pascontournementdesoracle. ProductionP08inchangédepuisfixPSOfixed ; debugciblérejouéavantrelease. SourceKanicibleP08désormaisstrict[2560,640]/K2CB2NT1split1 avecfixedKey0actif ; autresformatsfallbackfull640, pasvariantedynamiquepluscoûteuse.
+
+AR42 indexdebug3 échoueencoreuniquementdansharnais : export_bytes exigevuecouvrantbufferentier, paspréfixeblocs. VraieAPIdelectureidentifiée(view.rs103–126) ; lecturedupayloadentierinitialisépuiscomparaisondupréfixeprécisexercé, taillespositives/fulltailinchangées. Aucunparamètre/kernel/productionchangé. Échecconservé, debugindexseulrelancé, aucunprofil/vitesse.
+
+AR42 debugindex4PASS : K128exactfull640,8offsets2046..2053 tails/blocs/positionsfinis ettracecourtefallback,1test/0ignoré/447filtrés. Modèledebug1 échouesurl'invariantdeprofilage «HCrouteeventinsidetriple» avantcomparaisonglobale ; spanHC/GDNdéplacéjusteavantencodageMLP/routeur (#[cfgtest]seulement), parentGDNconservé. Celacorrelabaslamêmeanciennefrontière sémantique, aucunecodeexécutablereleasechangé. Gardercheckancestryetnonvide, pasdésactivationdugarde. Rejouerlemodèledebugciblé avantcompilationrelease ; écheclogconservé.
+
+AR42 debugmodèle2 PASS1/0ignoré/447filtrés : deuxsorties,36P02prisesparcas,mêmes88/100CB,57606144motsétatsexacts,oracleinitialindépendant,rollbackP/previousMoE/couche20etprofilancestryPASS. Avantvitesse : gelreleasefinaldesmêmessources puis3gatesrelease sélectionnées,helpersCPU/KanicorrigéstrictetClippy ; pasnouvellecampagnegénérale.
+
+AR42 CPUfinalFAILED67passés/1échec : testgéométrierestaitsurancienprototypeNT2/CB0/split2aprèsresserrementfixed. Correctiontestuniquement : casacceptéK2CB2NT1split1→8groupes, rejetsNT2/CB0/split2/formatsalternatifs. Productioninchangée, logéchecconservé.
+
+AR42 workspace CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR42 index CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR42 model CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR42 vitesse control-before validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar42-workspace-index-20261106/control-before/report.json
+
+AR42 vitesse workspace-index validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar42-workspace-index-20261106/workspace-index/report.json
+
+AR42 vitesse control-after validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar42-workspace-index-20261106/control-after/report.json
+
+AR42 CLOS NON CONCLUANT vitesse / correctionVALIDÉE : release3gatesPASS,68+4CPU/11metadata+2subtests,Clippy/fmt/releasePASS,Kani3réelsPASSgéométriecorrigée. AR128 P02ON : 9.91354900595736 / 9.862855920595234 / 9.844882855963315tok/s, vscontrôlespoolés-0.164%,dérive-0.693%. Sixsorties128golden/tousjoints. Pasdegainétabli,P03/P08OFFpardéfaut, prototypeoptionnelcorrectnumériquementconservépourrevue ; pasinstallation/merge. [Rapport](docs/measurements/flash-ar42-workspace-index-20261106/README.md). Aucunessaiencours. CIprécédentePR156consultée : buildLinux/inventairePASS ; DesktopSwiftchecktype-timeoutdansResponseUIpréexistant, Kaniancienharness600stimeouts/process_erroretICEtests, nonvert. FichiershorsdiffAR41, noncorrigésdansoptimisation.
