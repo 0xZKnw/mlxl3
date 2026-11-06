@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v2.0.3 (/Users/justin/.codex/worktrees/engine-lfm3-kernels/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 1m 35s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-4815365d6ef3230d)
+
+running 1 test
+test lfm3::tests::loading_selects_bounded_allocator_cache_and_preserves_live_arrays ... FAILED
+
+failures:
+
+---- lfm3::tests::loading_selects_bounded_allocator_cache_and_preserves_live_arrays stdout ----
+
+thread 'lfm3::tests::loading_selects_bounded_allocator_cache_and_preserves_live_arrays' (101767) panicked at native/src/lfm3.rs:346:13:
+assertion failed: array::memory_stats(false)?.mlx_cache_bytes <= limit
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lfm3::tests::loading_selects_bounded_allocator_cache_and_preserves_live_arrays
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 683 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `--lib`

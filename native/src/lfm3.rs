@@ -183,6 +183,7 @@ mod runtime {
                 vl || checkpoint.model_type == "lfm3",
                 "expected LFM3 checkpoint"
             );
+            crate::array::set_default_cache_limit(512 << 20)?;
             let text = if vl { &config["text_config"] } else { &config };
             let language = Lfm2::from_config(
                 checkpoint,
@@ -310,6 +311,56 @@ pub(crate) use runtime::{Rope, rotate, sliding_mask};
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "physical Apple GPU; run alone, allocator override absent or 0/1 MiB"]
+    fn loading_selects_bounded_allocator_cache_and_preserves_live_arrays() -> anyhow::Result<()> {
+        use crate::{
+            array::{self, Array, Dtype},
+            checkpoint::Checkpoint,
+        };
+        let limit = match std::env::var("MLXL3_ALLOCATOR_CACHE_MIB") {
+            Ok(value) => value.parse::<u64>()?,
+            Err(std::env::VarError::NotPresent) => 512,
+            Err(error) => return Err(error.into()),
+        } << 20;
+        array::set_default_cache_limit(4096 << 20)?;
+        let live = Array::from_f32(&[1.25, -3.5, 0.0], &[3])?;
+        live.eval()?;
+        let directory = tempfile::tempdir()?;
+        for kind in ["lfm3", "lfm3_vl"] {
+            {
+                let temporary = Array::zeros_dtype(&[320 * 1024 * 1024], Dtype::Float16)?;
+                temporary.eval()?;
+            }
+            // Configuration errors must propagate after the allocator is selected, without weights.
+            std::fs::write(
+                directory.path().join("config.json"),
+                r#"{"text_config":{}}"#,
+            )?;
+            let checkpoint = Checkpoint {
+                path: directory.path().to_owned(),
+                model_type: kind.to_owned(),
+                bits: None,
+                size_bytes: 0,
+                modules: Vec::new(),
+                tensors: Default::default(),
+            };
+            let error = match Lfm3::from_checkpoint(&checkpoint) {
+                Ok(_) => anyhow::bail!("incomplete checkpoint accepted"),
+                Err(error) => error,
+            };
+            assert!(error.to_string().contains("missing field"), "{error:#}");
+            let next = live.add(&live)?;
+            next.eval()?;
+            array::synchronize()?;
+            assert!(array::memory_stats(false)?.mlx_cache_bytes <= limit);
+            assert_eq!(next.to_f32()?, [2.5, -7.0, 0.0]);
+            assert_eq!(live.to_f32()?, [1.25, -3.5, 0.0]);
+        }
+        Ok(())
+    }
+
     #[test]
     fn fused_kernel_sizes_reject_invalid_and_overflowing_buffers() {
         assert_eq!(short_conv_sizes(2048), Some([6144, 12288]));
@@ -457,4 +508,11 @@ fn lfm3_attention_gate_buffers_are_bounded() {
         kani::cover!(time == 257 && heads == 16 && dim == 128);
     }
     kani::cover!(time == i32::MAX && heads == 2 && sizes.is_none());
+}
+
+#[cfg(all(kani, feature = "mlx"))]
+#[kani::proof]
+fn allocator_default_runtime_has_no_rust_panics() {
+    let bytes: u32 = kani::any();
+    let _ = crate::array::set_default_cache_limit(u64::from(bytes));
 }

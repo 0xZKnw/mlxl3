@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "source_snapshot": "conv7-sources.json",
+  "executables": {
+    "runtime_gpu": {
+      "path": "/Users/justin/.codex/worktrees/engine-lfm3-kernels/mix-stq1_0/target/release/deps/runtime_gpu-18ba1dce1052d8bd",
+      "sha256": "bd901030f2ccdd9c3c21afd3f19818bb0fb93acdf8df9220ffad2fe69e9c84ad"
+    },
+    "mlxl3_native": {
+      "path": "/Users/justin/.codex/worktrees/engine-lfm3-kernels/mix-stq1_0/target/release/deps/mlxl3_native-4815365d6ef3230d",
+      "sha256": "2e921369852172ed6fb5f68c15531e8f044f4cbe090db6e6531ee53a09ab9747"
+    }
+  },
+  "tests": [
+    {
+      "name": "lfm3_kernels::tests::short_conv_matches_scalar_and_mlx_across_eight_steps",
+      "code": 0,
+      "seconds": 0.8394695840543136,
+      "log": "build/lfm3-kernels-20261106/conv7-short_conv_matches_scalar_and_mlx_across_eight_steps.log"
+    },
+    {
+      "name": "lfm3_kernels::tests::attention_gate_matches_scalar_and_noncontiguous_mlx",
+      "code": 0,
+      "seconds": 0.13142375001916662,
+      "log": "build/lfm3-kernels-20261106/conv7-attention_gate_matches_scalar_and_noncontiguous_mlx.log"
+    },
+    {
+      "name": "lfm3_kernels::tests::malformed_layouts_and_dtypes_do_not_dispatch",
+      "code": 0,
+      "seconds": 0.040461583994328976,
+      "log": "build/lfm3-kernels-20261106/conv7-malformed_layouts_and_dtypes_do_not_dispatch.log"
+    },
+    {
+      "name": "lfm3_kernels::tests::real_text_and_vl_decode_use_both_kernels_and_reset_exactly",
+      "code": 0,
+      "seconds": 3.201692750037182,
+      "log": "build/lfm3-kernels-20261106/conv7-real_text_and_vl_decode_use_both_kernels_and_reset_exactly.log"
+    },
+    {
+      "name": "lfm3_real_checkpoints_match_independent_reference",
+      "code": 0,
+      "seconds": 4.998536082974169,
+      "log": "build/lfm3-kernels-20261106/conv7-lfm3_real_checkpoints_match_independent_reference.log"
+    }
+  ]
+}
