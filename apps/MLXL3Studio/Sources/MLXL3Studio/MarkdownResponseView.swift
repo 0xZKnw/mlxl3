@@ -1200,26 +1200,27 @@ private struct MarkdownTableView: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            Grid(alignment: .topLeading, horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow {
+            VStack(alignment: .leading, spacing: 0) {
+                row(header, header: true)
+                ForEach(rows.indices, id: \.self) { index in
+                    row(rows[index], header: false)
+                }
+            }
+            .overlay {
+                HStack(spacing: 0) {
                     ForEach(header.indices, id: \.self) { column in
-                        cell(header[column], column: column, header: true)
+                        Color.clear
+                            .containerRelativeFrame(.horizontal) { [count = header.count, scale = textScale] width, _ in
+                                max(260 * scale + 24, width / CGFloat(max(1, count)))
+                            }
+                            .overlay(alignment: .trailing) {
+                                if column < header.count - 1 {
+                                    Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(width: 0.7)
+                                }
+                            }
                     }
                 }
-                .background(StudioTheme.contrast.opacity(0.055))
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(height: 0.7)
-                }
-                ForEach(rows.indices, id: \.self) { row in
-                    GridRow {
-                        ForEach(header.indices, id: \.self) { column in
-                            cell(rows[row][column], column: column, header: false)
-                        }
-                    }
-                    .overlay(alignment: .bottom) {
-                        Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(height: 0.7)
-                    }
-                }
+                .allowsHitTesting(false)
             }
             .background(StudioTheme.contrast.opacity(0.018), in: RoundedRectangle(cornerRadius: 11))
             .overlay {
@@ -1231,6 +1232,18 @@ private struct MarkdownTableView: View {
         .scrollIndicators(.never)
     }
 
+    private func row(_ values: [String], header isHeader: Bool) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(header.indices, id: \.self) { column in
+                cell(values[column], column: column, header: isHeader)
+            }
+        }
+        .background(StudioTheme.contrast.opacity(isHeader ? 0.055 : 0))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(height: 0.7)
+        }
+    }
+
     private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
         SmoothTokenText(
             content: InlineLatexText.render(source, mathSize: 12.5 * textScale, htmlLineBreaks: true),
@@ -1239,15 +1252,12 @@ private struct MarkdownTableView: View {
         )
         .font(.system(size: 12.5 * textScale, weight: isHeader ? .semibold : .regular, design: .rounded))
         .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
-        .frame(width: 260 * textScale, alignment: frameAlignment(column))
+        .containerRelativeFrame(.horizontal, alignment: frameAlignment(column)) { [count = header.count, scale = textScale] width, _ in
+            max(260 * scale, width / CGFloat(max(1, count)) - 24)
+        }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 12)
         .padding(.vertical, isHeader ? 10 : 9)
-        .overlay(alignment: .trailing) {
-            if column < header.count - 1 {
-                Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(width: 0.7)
-            }
-        }
     }
 
     private func frameAlignment(_ column: Int) -> Alignment {

@@ -68,7 +68,7 @@ import SwiftUI
     }
 
     var cases = 0
-    for width: CGFloat in [360, 800, 1200] {
+    for width: CGFloat in [360, 800, 1200, 2000] {
       for scale: CGFloat in [0.85, 1, 1.4, 1.8] {
         for streaming in [false, true] {
           let actual = try await pixels(
@@ -156,6 +156,34 @@ import SwiftUI
       throw NSError(
         domain: "MarkdownTableRegression", code: 6,
         userInfo: [NSLocalizedDescriptionKey: "Empty table capture: \(label), ink=\(ink)"])
+    }
+    if label.contains("-1200-1.4-") || label.contains("-2000-1.4-") {
+      // Sample padding, away from text: every column must share every horizontal border.
+      let columns = 3
+      let pixelScale = CGFloat(image.width) / (width + 32)
+      let xs = (0..<columns).map { Int((27 + CGFloat($0) * width / CGFloat(columns)) * pixelScale) }
+      let delta = Int(2 * pixelScale)
+      func brightness(_ x: Int, _ y: Int) -> Int {
+        let index = (y * image.width + x) * 4
+        return Int(bytes[index]) + Int(bytes[index + 1]) + Int(bytes[index + 2])
+      }
+      var boundaries = 0
+      for y in Int(30 * pixelScale)..<(image.height - Int(30 * pixelScale)) {
+        let edges = xs.map { x in
+          brightness(x, y) - min(brightness(x, y - delta), brightness(x, y + delta)) > 12
+        }
+        if edges.contains(true) {
+          guard edges.allSatisfy({ $0 }) else {
+            throw NSError(domain: "MarkdownTableRegression", code: 8,
+              userInfo: [NSLocalizedDescriptionKey: "Staggered row border: \(label), y=\(y), edges=\(edges)"])
+          }
+          boundaries += 1
+        }
+      }
+      guard boundaries >= 2 else {
+        throw NSError(domain: "MarkdownTableRegression", code: 9,
+          userInfo: [NSLocalizedDescriptionKey: "No full-width row borders: \(label)"])
+      }
     }
     return (image.width, image.height, Data(bytes))
   }

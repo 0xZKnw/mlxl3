@@ -26913,8 +26913,22 @@ AR39 PUBLICATION EFFECTIVE : issue détaillée [#147](https://github.com/0xZKnw/
 
 - Clôture : largeur effective260×police fixe AVANT mesure résout le repli.24capturesAppKitnonvides strictementidentiques aux retours réels,15frontières, OCRCPU ALPHA/HOTEL/NEXTROW et revue visuellePASS ;786fondu/63dessins/81viewports/63parités/9formules×2styles et copie/bridge/history/cancelPASS,0ignoré danssuiteciblée. Swift6warnings-as-errors+SIL, swift-format nouveauharnais, shellsyntax/diffchecks et buildsworktree+racinePASS. Fichiers racine préexistants préservés, fixproductionreporté explicitement ; aucuneappinstallée, push, release, moteur, performance ou preuveSwiftUIcomplète. Anciennesparitésnoires etprototypeclippé conservés/rejetés, derniergardeOCR inchangé. CIcâbléePR/mainmaisnonexécutéedistantecarpasdepushUIautorisé. Aucunessai encours. Rapport docs/table-breaks-2026-11-06.md et preuves docs/measurements/table-breaks-20261106/.
 
-### RELEASE-2026-11-06-DESKTOP-BETA8 — en cours
+### RELEASE-2026-11-06-DESKTOP-BETA8 — VALIDÉ — publié
 
 - Publication explicitement demandée après correctif tableaux d2a66a6d. Desktop interne2.0.0/build39, public v2.0.0-beta.8. Baseline beta7 accabf48/build38 et DMG247050083B SHA256431e7de3f8a1d6df0aad4944c9817b6230dc86d56dc1844fb523268f3a9e3385.
 - Protocole : Swift release du correctif déjà vérifié (24capturesnatives/15frontières/OCRfin/suiteResponseUI), réutiliser byteexact le moteurintégré2.0.2 etconvertisseur duDMGbeta7 vérifié ; préserver le moteurexterne2.0.3 installé. Refaire contrôlespackage+sources, signaturenative, DMG montéreadonly, selfchecks etupdater réel38→39. Changeloganglais+empreintes+limites puispublicationGitHub. Pasderemplacementappinstallée.
 - EnquêteRAM LFM3 distincte, pasdecorrectifmoteur nonvérifié dans cettebeta. Historique mémoire etLF3 relu, modèleutilisateurtexte8bpw confirméau registre, haussependantréponse déclarée. AucuneinférenceGPU avantfincompilationsDesktop. Preuves build/desktop-beta8 et campagne mémoire séparée à préenregistrer avantexécution.
+
+- Desktopbeta8 publication EFFECTIVE https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.8 à 2026-11-06T10:37:01Z ;4assetsdistants tailles/SHA256 exacts, DMG244495828B SHA256d8fbab60e9d39ca608d153a77bb0768f908e2d9ea832baa2e4169339c9763b70 ; tag/source6c2cb16e4c358d21a297d23c77e37269dcc4e86f. Swiftrelease/suiteUI/94package/15updater38→39/montagereadonly+selfchecks/signature+payloadbyteexact PASS. ÉchechdiutilResourcebusy dûaux2montages simultanés conservé, relance séquentiellePASS sansartefactchangé ; premièrehypothèsepathSwiftPMcorrigéeavantcopie. Appinstalléenonremplacée, moteurexterne2.0.3inchangé. EnquêteRAMMEM-2026-11-06-LFM3-7Kséparéeencours.
+
+
+### UI-FIX-2026-11-06-TABLE-ALIGNMENT — en cours, préenregistré
+
+- Régressionbeta8 signalée parcaptureutilisateur : GridRow.overlay/background se répartissent parcellule, séparateurssouscellulescourtesau lieu dela hauteurdelaligne. Le contenuestcompletmaislesborduressontenescaliers. Baseline6c2cb16e, ancienUI-FIXTABLEBREAKSvérifiaitcontenu/OCRmaiscecontrôlemancait.
+- Changementminimalprévu : mêmeslargeursfixes/padding/parser/alignementsMarkdown, rangéesHStackdansVStack pourdessineruneseulebordurehorizontaleàlahauteurréelledelarangée ; verticalesdrawsurconteneur completauxlimitescolonnes. Pasdestate/callbackdemesure. Ajoutergarderasterindépendant : mêmesligneshorizontalesauxmêmesy àtroispointsdétachésdutextedanscolonnesdehauteurstrèsdifférentes. ExigeréchecsurancienneUI, passesurcandidat,24cas+15frontières/OCR/ResponseUI/compiSwift6/SIL/release/signature/updater. Nouvellebetademandéeincluantfixdepublicationprécédente, nepasmuterassetbeta8.
+
+- Périmètreétendu parutilisateur avantimplémentation : enwide remplirlargeurdisponible ; utilisercontainerRelativeFramehorizontal pourmesurer chaquecontenuàlargeurfinie avantfixedSizevertical, garderminimum260×échelle etscrollsurpetitsviewports. Tester2/3colonnes jusqu’à2000points, contourspleinlargeur/lastcolumn etalignementsMarkdown. Publicationmoteur explicitementdemandée : prépareartefactsaprèsvalidation,canalengine --latest=false.
+
+- PRsourceDesktopbeta8 #153 ouverte(HEAD6c2cb16e/baseed3bfdb8),5workflows exactSHAqueued/in_progress au6nov10:43UTC, pasCIverteannoncée. Nouveaucorrectifalignement/wideenpréparationbeta9 aprèscaptureutilisateur ; assetsbeta8immuables.
+
+- Vérificationraster : initialgardeéchouaitsurlesdeuxversions àcausedufacteurRetina2×/samplingcorner, défautharnaisconservé. Conversionpoint→pixels corrigée, pointsdanspaddinghorscoins : anciennescaptures10pixelsdeborduresdésalignés, nouveau0. Revuevisuellecapture1200/1.4 : contenucomplet, alignementhaut, lignespleines, largeurremplie. Relanceharnaiscorrigéavantpublication ; pasnouvellemodificationruntime.
