@@ -779,7 +779,7 @@ extension UpdateManager {
         flashNext.setMTPEnabled(true)
         precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath == flashModel.path)
         precondition(prefs.string(forKey: "studio.mtpHeadPath") == flashModel.path, "Built-in MTP did not remember its model checkpoint")
-        precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
+        precondition(prefs.string(forKey: "studio.mtpHead.\(renamed.models[0].path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
         precondition(flashNext.samplingTemperature == 0 && flashNext.samplingTopK == 1 && flashNext.samplingRepetitionPenalty == 1)
         precondition(flashNext.temperature == 0.73 && flashNext.topK == 47 && flashNext.repetitionPenalty == 1.17,
             "Built-in MTP must preserve ordinary sampling settings")

@@ -50,7 +50,8 @@ extension StudioModel {
                     host.frame = NSRect(x: 0, y: 0, width: width + 32, height: 600)
                     try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded()
                     let height = host.fittingSize.height - 32
-                    let limit: CGFloat = results ? 370 : 130
+                    // The current tuning guidance wraps below the picker at narrow widths.
+                    let limit: CGFloat = results ? 370 : 160
                     cases += 1
                     let label = "\(language.rawValue)-\(width)-results\(results)"
                     print("\(label): height=\(height), limit=\(limit)")
