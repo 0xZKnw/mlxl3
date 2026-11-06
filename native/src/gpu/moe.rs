@@ -258,8 +258,14 @@ impl<'a> FlashMoeRow<'a> {
         )
     }
     pub(super) fn device_hot_gate_eligible(&self, depth: usize) -> bool {
+        self.gpu.device_resident_route_available()
+            && self.device_hot_gate_eligible_for_encoding(depth)
+    }
+
+    /// Encoding P may overlap the previous H/F; H still requires its exclusive lease.
+    pub(super) fn device_hot_gate_eligible_for_encoding(&self, depth: usize) -> bool {
         if !crate::device_hot_policy::admitted(
-            self.gpu.device_resident_route_available(),
+            self.gpu.device_resident_route_enabled(),
             self.record_backings.len(),
             self.gpu.ssd_direct_enabled,
             depth,

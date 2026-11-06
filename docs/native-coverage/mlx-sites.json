@@ -1915,6 +1915,7 @@
     "config MLXL3_NATIVE_GDN_JOINT_AB": 1,
     "config MLXL3_NATIVE_GDN_NORM_GATE": 1,
     "config MLXL3_NATIVE_GDN_RESIDENT_BUNDLE": 1,
+    "config MLXL3_NATIVE_GDN_ROUTE_CHAIN": 1,
     "config MLXL3_NATIVE_GDN_WHOLE": 1,
     "config MLXL3_NATIVE_GPU_SPIN_WAIT": 1,
     "config MLXL3_NATIVE_H128_SIMD": 1,
@@ -2062,11 +2063,14 @@
     ".transpose": 1
   },
   "native/src/gpu/gdn.rs": {
-    ".finish": 5,
+    ".finish": 7,
     ".shape": 2,
     ".take": 1,
     ".transpose": 5,
     "config MLXL3_GDN_MODEL": 1
+  },
+  "native/src/gpu/gdn_route_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/gpu/gdn_uar_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1,
@@ -2315,19 +2319,25 @@
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
   "native/src/lfm3.rs": {
-    ".add": 2,
+    ".add": 3,
     ".astype": 3,
     ".dtype": 1,
-    ".eval": 1,
+    ".eval": 4,
     ".mul": 4,
     ".negative": 1,
     ".reshape": 1,
     ".shape": 7,
     ".slice": 5,
+    ".to_f32": 2,
     ".transpose": 1,
     "Array::concatenate": 2,
-    "Array::from_f32": 3,
-    "mlx": 5
+    "Array::from_f32": 4,
+    "Array::zeros_dtype": 1,
+    "array::memory_stats": 1,
+    "array::set_default_cache_limit": 3,
+    "array::synchronize": 1,
+    "config MLXL3_ALLOCATOR_CACHE_MIB": 1,
+    "mlx": 7
   },
   "native/src/lfm3_kernels.rs": {
     ".dtype": 3,

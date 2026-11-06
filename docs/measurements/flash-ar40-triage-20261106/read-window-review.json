@@ -1,0 +1,27 @@
+{
+  "status": "reproduced_existing_host_read_window_analysis",
+  "input_sha256": "cd5d9e2bcffcc302cdddf89eeac0d5b44033f2979d83f6371edb9c66721567fe",
+  "base_sha": "71530f09dfbc2f698b240d6bbfd6ebea09bd39fc",
+  "bounds_ns": [
+    39704398458,
+    54678780500
+  ],
+  "expert_calls": 19427,
+  "expert_bytes": 22964668812,
+  "union_ns": 4429262048,
+  "active_share": 0.29578930439846196,
+  "logical_GB_per_active_second": 5.184761832362012,
+  "concurrency_histogram_ns": {
+    "0": 10545119994,
+    "1": 565950041,
+    "2": 1416919821,
+    "3": 1087561071,
+    "4": 1358831115
+  },
+  "max_concurrency": 4,
+  "limits": [
+    "Existing instrumented AR39 data, not a new benchmark",
+    "Logical syscalls, not NAND throughput or GPU idleness",
+    "Capacity replay not rerun; issue150 historical figures remain conditional"
+  ]
+}

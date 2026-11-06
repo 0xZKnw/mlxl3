@@ -4,6 +4,37 @@ use anyhow::Result;
 pub const PREFILL_CHUNK: usize = 8;
 
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn gdn_route_eligible(
+    enabled: bool,
+    hc_gdn: bool,
+    device_hot: bool,
+    fp32: bool,
+    workspace: bool,
+) -> bool {
+    enabled && hc_gdn && device_hot && fp32 && !workspace
+}
+
+#[test]
+fn gdn_route_requires_every_producer_and_workspace_guard() {
+    for bits in 0u8..32 {
+        let b = |n: u32| bits & (1u8 << n) != 0;
+        assert_eq!(gdn_route_eligible(b(0), b(1), b(2), b(3), b(4)), bits == 15);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn gdn_route_admission_preserves_all_producer_guards() {
+    let b: [bool; 5] = kani::any();
+    let accepted = gdn_route_eligible(b[0], b[1], b[2], b[3], b[4]);
+    assert_eq!(accepted, b == [true, true, true, true, false]);
+    kani::cover!(accepted);
+    kani::cover!(!b[0] && b[1] && b[2] && b[3] && !b[4]);
+    kani::cover!(b[0] && !b[2] && b[1] && b[3] && !b[4]);
+    kani::cover!(b[0] && b[1] && b[2] && b[3] && b[4]);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn prefill_head_required(row: usize, rows: usize, headonly: bool) -> Option<bool> {
     (row < rows).then(|| !headonly || row == rows - 1)
 }

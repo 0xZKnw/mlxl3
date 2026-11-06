@@ -1,0 +1,52 @@
+    Checking simd-adler32 v0.3.10
+    Checking adler2 v2.0.1
+   Compiling crc32fast v1.5.4
+   Compiling autocfg v1.5.1
+   Compiling onig_sys v69.9.3
+   Compiling esaxx-rs v0.1.10
+    Checking byteorder-lite v0.1.0
+    Checking zune-core v0.5.3
+    Checking quick-error v2.0.1
+    Checking pxfm v0.1.30
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+    Checking bytemuck v1.25.2
+    Checking miniz_oxide v0.9.1
+    Checking miniz_oxide v0.8.9
+    Checking fdeflate v0.3.7
+    Checking image-webp v0.2.4
+   Compiling num-traits v0.2.19
+    Checking zune-jpeg v0.5.15
+    Checking base64 v0.22.1
+    Checking moxcms v0.8.1
+    Checking flate2 v1.1.10
+    Checking png v0.18.1
+    Checking image v0.25.10
+    Checking onig v6.5.3
+    Checking tokenizers v0.23.2
+error[E0277]: no implementation for `u8 & i32`
+  --> native/src/flash_support.rs:20:26
+   |
+20 |         let b = |n| bits & (1 << n) != 0;
+   |                          ^ no implementation for `u8 & i32`
+   |
+   = help: the trait `std::ops::BitAnd<i32>` is not implemented for `u8`
+help: the following other types implement trait `std::ops::BitAnd<Rhs>`
+  --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ops/bit.rs:174:8
+   |
+   = note: `u8` implements `std::ops::BitAnd`
+  ::: /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ops/bit.rs:187:0
+   |
+   = note: in this macro invocation
+  --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/internal_macros.rs:22:8
+   |
+   = note: `&u8` implements `std::ops::BitAnd<u8>`
+  ::: /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/internal_macros.rs:33:8
+   |
+   = note: `u8` implements `std::ops::BitAnd<&u8>`
+  ::: /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/internal_macros.rs:44:8
+   |
+   = note: `&u8` implements `std::ops::BitAnd`
+   = note: this error originates in the macro `bitand_impl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

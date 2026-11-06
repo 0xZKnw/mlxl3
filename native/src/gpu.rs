@@ -302,6 +302,9 @@ pub struct Metal {
     #[cfg(test)]
     hc_workspace_uses: std::cell::Cell<usize>,
     cross_layer: std::cell::Cell<bool>,
+    gdn_route_chain: std::cell::Cell<bool>,
+    #[cfg(test)]
+    gdn_route_uses: std::cell::Cell<usize>,
     moe_deferred: std::cell::Cell<bool>,
     #[cfg(test)]
     moe_deferred_uses: std::cell::Cell<usize>,
@@ -1025,6 +1028,16 @@ impl Metal {
                 #[cfg(test)]
                 hc_workspace_uses: std::cell::Cell::new(0),
                 cross_layer: std::cell::Cell::new(cross_layer),
+                gdn_route_chain: std::cell::Cell::new(
+                    match std::env::var("MLXL3_NATIVE_GDN_ROUTE_CHAIN") {
+                        Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
+                        Err(std::env::VarError::NotPresent) => Some(false),
+                        Err(error) => return Err(error.into()),
+                    }
+                    .context("MLXL3_NATIVE_GDN_ROUTE_CHAIN must be 0 or 1")?,
+                ),
+                #[cfg(test)]
+                gdn_route_uses: std::cell::Cell::new(0),
                 moe_deferred: std::cell::Cell::new(moe_deferred),
                 #[cfg(test)]
                 moe_deferred_uses: std::cell::Cell::new(0),

@@ -1,0 +1,164 @@
+.F.........                                                            [100%]
+=================================== FAILURES ===================================
+____________________ test_required_proof_names_are_portable ____________________
+
+    def test_required_proof_names_are_portable():
+>       _required()
+
+tests/test_kani_manifest.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def test_required_obligations_preserve_baseline_and_complete_partitions():
+        baseline = ci.inventory_names(
+            json.loads(
+                (ROOT / "docs/measurements/kani-ci-repair/baseline-library-inventory.json").read_text()
+            )
+        )
+        replaced = {
+            "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+            "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+            "flash_support::draft_contract_proofs::unique_expert_prefix_is_bounded_for_eighty_routes",
+            "ssd_prefetch::verification::prediction_order_preserves_all_values_within_two_rows",
+            *(f"speculative::verification::dflash_copy_len_{n}" for n in range(21)),
+        }
+        required = set(ci.required_names())
+        assert set(baseline) - required == replaced
+        frozen = set(
+            json.loads((ROOT / "tests/fixtures/kani-obligations-d5a776e5.json").read_text())[
+                "required_harnesses"
+            ]
+        )
+        added = {
+            "lfm3::lfm3_short_conv_buffers_are_bounded",
+            "lfm3::lfm3_attention_gate_buffers_are_bounded",
+            "backend::hybrid_routes_only_exact_flash_identifiers",
+            "lfm3::lfm3_window_is_causal_and_bounded",
+            "lfm3::lfm3_patch_index_is_in_bounds",
+            "qwen35_config::native_qwen_stage_jobs_have_disjoint_in_bounds_slices",
+            "qwen35_config::native_qwen_qmv_binding_stays_in_the_allocated_range",
+            "qwen35_config::native_qwen_kv_plan_never_overwrites_a_reserved_prefix",
+            "qwen35_config::native_qwen_layer_chain_only_prepares_the_adjacent_layer",
+            "qwen35_config::native_qwen_block_preflights_every_row",
+            "qwen35_config::native_qwen_verification_retains_only_a_verified_prefix",
+            "qwen35_config::native_mtp_affine_binds_a_complete_expert_slice",
+            "qsa_chain_policy::qsa_append_default_actual_parser_is_strict_and_hardware_qualified",
+            "qsa_chain_policy::qsa_append_chain_actual_guard_preserves_dense_cpu_free_boundary",
+            "qsa_chain_policy::qsa_actual_publication_and_abandon_are_fail_closed",
+            "pipeline_caps::proofs::cached_pipeline_preserves_full_width_and_dynamic_capability_guards",
+            "device_hot_policy::device_hot_defaults_preserve_strict_literals_and_both_hardware_guards",
+            "device_hot_policy::device_hot_actual_admission_offsets_and_peak_are_bounded",
+            "device_hot_policy::device_hot_actual_identity_readers_and_pending_lifecycle_are_fail_closed",
+            "flash_memory::device_hot_native_plan_charges_one_transaction_before_admission",
+            "resident_scratch_policy::completed_slot_admission_and_reservation_are_bounded",
+            "ar30_router_policy::paired_router_actual_geometry_preserves_every_reference_output_bound",
+            "gpu_greedy_policy::device_greedy_admission_and_readback_preserve_actual_bounds",
+            "gpu_wait_policy::gpu_spin_budget_never_exceeds_either_production_limit",
+            "flash_support::ar20_resident_bundle_preserves_exact_formats_offsets_and_complete_output_grids",
+            "flash_support::ar20_qsa_chain_selection_preserves_dense_private_and_both_pipeline_capabilities",
+            "flash_support::ar20_head_gates_require_all_actual_runtime_and_capability_guards",
+            "ar20_kernel_policy::native_kernel_mask_preserves_every_actual_compiler_switch",
+            "expert_ar_policy::finish_mix_preserves_actual_capability_and_record_view_bounds",
+            "flash_support::slru::slru_actual_promotions_preserve_every_slot_and_protected_capacity",
+            "ssd_reads::dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode",
+            "ar10_defaults::qualified_defaults_preserve_strict_overrides_and_legacy_io",
+            "flash_support::hc_write_norm_preserves_the_actual_dtype_and_workspace_guards",
+            "flash_qmv::routed_nt2_requires_exact_records_and_covers_the_complete_output",
+            "expert_ar_policy::expert_axis_admits_only_nonempty_bounded_ready_tables",
+            "expert_ar_policy::expert_ar_flags_preserve_qualified_defaults_and_overrides",
+            "expert_ar_policy::expert_ar_prefixes_are_bounded_disjoint_and_never_overflow",
+            "expert_ar_policy::expert_ar_selection_requires_exact_actual_record_extents",
+            "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",
+            "ssd_reads::split_record_tests::native_split_record_claims_never_overlap_or_repeat",
+            "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots",
+            "flash_support::deferred_moe_cannot_escape_the_existing_cross_layer_guard",
+            "flash_support::ar10_whole_gdn_requires_every_real_private_capability_guard",
+            "flash_support::ar10_qsa_gate_requires_every_actual_short_dense_guard",
+            "flash_support::gdn_private_epilogue_requires_every_actual_consumer_guard",
+            "ssd_reads::common_queue_tests::native_common_queue_flag_is_strict_and_off_without_override",
+            "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+            "contracts::hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds",
+            "fixed_residency_policy::fixed_residency_enrollment_requires_capability_and_admitted_nonempty_bytes",
+            "hc_workspace_policy::tests::hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions",
+            "hc_workspace_policy::tests::hc_workspace_reserve_is_exact_or_rejects_overflow",
+            "hc_workspace_policy::tests::hc_workspace_flag_preserves_off_default_and_bounded_literals",
+            "hc_workspace_policy::tests::hc_workspace_actual_admission_sum_is_checked_and_includes_every_buffer",
+            "flash_support::cross_layer_selection_requires_all_transaction_guards",
+            "ssd_reads::wave_tests::native_extra_wave_is_bounded_and_never_splits_two_or_fewer_remaining_reads",
+            "ssd_reads::wave_tests::native_extra_wave_flag_is_strict_default_off_and_qualified_only",
+            "ssd_reads::wave_tests::native_ready_minimum_rejects_impossible_thresholds_before_waiting",
+            "hc_gdn_policy_tests::hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
+            "hc_gdn_policy_tests::hc_gdn_flag_preserves_qualified_defaults_and_exact_literals",
+            "ssd_reads::direct_tests::native_direct_destination_requires_exact_shared_extent",
+            "ssd_reads::direct_tests::native_direct_reads_require_depth_zero_without_prefetch",
+            "ssd_reads::direct_tests::native_direct_flag_preserves_qualified_default_and_exact_override",
+            "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
+            "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",
+            "flash_support::hc_gate_chain_selection_requires_every_production_guard",
+            "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
+            "tensor_layout::matrix_row_preserves_backing_and_address",
+            "contracts::draft_blas_extents_reject_overflow_and_truncation",
+            "contracts::flash_expert_submissions_share_intermediate_extents",
+            "contracts::projection_offsets_fit_submitted_extents",
+            "contracts::prepare128_validates_block_and_scale_indices",
+            "flash_support::flash_record_projection_bindings_fit_the_pinned_read",
+            "contracts::flash_gate_dispatch_bounds_output_and_weight_addresses",
+            "contracts::flash_hc_groups_cover_exactly_the_checked_weight_matrix",
+            "contracts::packed_flash_gdn_groups_partition_state_entries",
+            "flash_support::ple_codewords_select_the_wrapped_nibbles",
+            "flash_support::dense_flash_prompt_cursor_never_overflows_or_partially_accepts",
+            "flash_support::qsa_append_preserves_all_published_rows",
+            "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
+            "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
+            "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+            "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
+            "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
+            "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
+            "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
+            "flash_support::native_prefetch_room_bounds_owned_and_running_records",
+            "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+            "contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
+            "contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
+            "contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections",
+            "contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands",
+            "contracts::native_projection_thread_count_matches_its_fixed_kernel",
+            "contracts::native_flash_resident_nt2_selector_preserves_every_fallback",
+            "contracts::native_flash_reference_grid_covers_only_complete_output_tiles",
+            "contracts::native_flash_nt2_default_and_supported_overrides_are_exact",
+            "flash_expert_scratch::native_routed_scratch_selection_preserves_all_fallbacks",
+            "flash_expert_scratch::native_routed_scratch_prefix_capacities_use_wide_arithmetic",
+            "flash_qmv::native_static_qmv_key_matches_the_actual_pso_table_and_every_fallback",
+            "flash_qmv::native_fixed_qmv_key_checks_complete_shape_split_and_format",
+            "flash_qmv::native_static_qmv_flag_preserves_default_and_bounded_utf8_literals",
+            "contracts::native_flash_nt2_flag_default_and_bounded_unicode_literals",
+            "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
+            "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
+            "speculative::normalized_greedy_retains_first_finite_maximum",
+            "contracts::router_dispatch_sizes_bound_static_memory_and_output",
+            "dec_one::dec_one_storage_contract",
+            "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
+            "cold_ready::two_job_priority_keeps_records_and_stable_order",
+            "contracts::flash_reference_mb34_preserves_coverage_and_fallbacks",
+            "contracts::flash_reference_mb34_shape_scope_rejects_other_dimensions",
+            "contracts::flash_reference_mb34_role_parser_preserves_default_and_named_choices",
+            "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
+            "flash_memory::admission_and_shrink_respect_memory_bounds",
+            "flash_memory::native_admission_covers_the_complete_geometric_slab",
+            "flash_memory::native_request_budget_keeps_every_configured_limit_ar_only",
+            "contracts::native_prompt_reuse_requires_the_whole_prefix_and_matching_owners",
+            "flash_draft_budget::request_budget_reset_discards_all_observations",
+            "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
+            "flash_support::stale_prefetch_completion_preserves_new_reservation",
+        }
+        assert len(frozen) == 322
+        assert frozen <= required
+>       assert required - frozen == added
+E       AssertionError: assert {'ar10_defaul...e_order', ...} == {'ar10_defaul...e_order', ...}
+E         
+E         Extra items in the left set:
+E         'flash_support::gdn_route_admission_preserves_all_producer_guards'
+E         Use -v to get more diff
+
+tests/test_kani_ci.py:203: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_kani_manifest.py::test_required_proof_names_are_portable - ...
+1 failed, 10 passed, 2 subtests passed in 0.92s

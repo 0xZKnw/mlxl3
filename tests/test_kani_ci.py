@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "flash_support::gdn_route_admission_preserves_all_producer_guards",
         "lfm3::lfm3_short_conv_buffers_are_bounded",
         "lfm3::lfm3_attention_gate_buffers_are_bounded",
         "backend::hybrid_routes_only_exact_flash_identifiers",
