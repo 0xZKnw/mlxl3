@@ -38,10 +38,21 @@ fn native_record_reuse_requires_completed_producers_and_private_foreground_slots
 #[test]
 #[ignore = "physical Metal Shared destinations: A11 reuse/EOF/fallback/recovery"]
 fn physical_record_reuse_preserves_bytes_and_rejects_invalid_owners() -> Result<()> {
+    check_record_reuse(false)
+}
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+#[test]
+#[ignore = "physical early Shared read path, reuse/EOF/invalid owners"]
+fn physical_ar43_early_reads_preserve_bytes_and_ownership() -> Result<()> {
+    check_record_reuse(true)
+}
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+fn check_record_reuse(early: bool) -> Result<()> {
     use crate::flash_support::{DemandPlan, ExpertCache};
     use std::{cell::RefCell, io::Write, rc::Rc};
     let device = metal::Device::system_default().context("Metal device required")?;
-    let pool = ReadService::new_with_schedule(2, false)?;
+    let mut pool = ReadService::new_with_schedule(2, false)?;
+    pool.early_reads = early;
     let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
     let lease = DemandPlan::reserve(&cache, &[17])?.reads[0];
     let mut file = tempfile::tempfile()?;
@@ -57,6 +68,20 @@ fn physical_record_reuse_preserves_bytes_and_rejects_invalid_owners() -> Result<
     let read = |offset| -> Result<Vec<(SlotLease, File, u64, usize)>> {
         Ok(vec![(lease, file.try_clone()?, offset, 17)])
     };
+    ensure!(
+        pool.start_shared_reusing(read(0)?, vec![], Duration::from_secs(2), &device)
+            .is_err()
+    );
+    ensure!(
+        pool.start_shared_reusing(
+            vec![(lease, file.try_clone()?, 0, 0)],
+            vec![None],
+            Duration::from_secs(2),
+            &device
+        )
+        .is_err()
+    );
+    ensure!(pool.in_flight() == 0 && pool.fresh_destinations.get() == 0);
     let first = take(pool.start_shared(read(0)?, Duration::from_secs(2), &device)?)?;
     let original = first.as_ptr() as usize;
     let reused = take(pool.start_shared_reusing(
@@ -90,6 +115,70 @@ fn physical_record_reuse_preserves_bytes_and_rejects_invalid_owners() -> Result<
     ensure!(pool.in_flight() == 0);
     eprintln!(
         "AR10_RECORD_REUSE {{\"reused\":2,\"fresh\":2,\"bytes\":17,\"eof_recovery\":true,\"parity\":true}}"
+    );
+    Ok(())
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+#[test]
+#[ignore = "physical real pread/allocation ordering; disposable10-record Shared microcheck"]
+fn physical_ar43_first_pread_timing() -> Result<()> {
+    use crate::flash_support::{DemandPlan, ExpertCache};
+    use std::{cell::RefCell, io::Write, rc::Rc};
+    let device = metal::Device::system_default().context("Metal device required")?;
+    let bytes = EXPERT_BYTES as usize;
+    let mut file = tempfile::tempfile()?;
+    for i in 0..10 {
+        file.write_all(&vec![i as u8 + 1; bytes])?;
+    }
+    let mut cases = Vec::new();
+    for early in [false, true] {
+        let mut pool = ReadService::new_with_schedule(4, false)?;
+        pool.early_reads = early;
+        let trace = Arc::new(Mutex::new(Vec::new()));
+        *pool.shared_trace.borrow_mut() = Some(trace.clone());
+        let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+        let plan = DemandPlan::reserve(&cache, &(0..10).collect::<Vec<_>>())?;
+        let records = plan
+            .reads
+            .iter()
+            .enumerate()
+            .map(|(i, &lease)| Ok((lease, file.try_clone()?, (i * bytes) as u64, bytes)))
+            .collect::<Result<Vec<_>>>()?;
+        let start = Instant::now();
+        let mut batch = pool.start_shared(records, Duration::from_secs(5), &device)?;
+        let rows = batch.ready(true)?;
+        ensure!(rows.len() == 10 && pool.in_flight() == 0);
+        for (lease, payload) in rows {
+            let ReadPayload::Shared(buffer) = payload else {
+                anyhow::bail!("Shared destination required")
+            };
+            let actual =
+                unsafe { std::slice::from_raw_parts(buffer.contents().cast::<u8>(), bytes) };
+            ensure!(actual.iter().all(|&v| v == lease.expert as u8 + 1));
+        }
+        let trace = trace.lock().unwrap();
+        let allocations = trace
+            .iter()
+            .filter(|(k, _)| *k == "allocation")
+            .map(|(_, t)| *t)
+            .collect::<Vec<_>>();
+        let reads = trace
+            .iter()
+            .filter(|(k, _)| *k == "pread")
+            .map(|(_, t)| *t)
+            .collect::<Vec<_>>();
+        ensure!(allocations.len() == 10 && reads.len() == 10);
+        let first_read = *reads.iter().min().unwrap();
+        let last_allocation = *allocations.iter().max().unwrap();
+        if !early {
+            ensure!(first_read >= last_allocation);
+        }
+        cases.push(serde_json::json!({"early":early,"allocations":10,"preads":10,"first_pread_ns":first_read.duration_since(start).as_nanos(),"last_allocation_ns":last_allocation.duration_since(start).as_nanos(),"observed_overlap":first_read<last_allocation}));
+    }
+    eprintln!(
+        "AR43_PREAD_TIMING {}",
+        serde_json::json!({"parity":true,"cases":cases,"limits":"host timestamps immediately before read_exact_at, instrumented temporary-file microcheck; not physical NAND or speed proof"})
     );
     Ok(())
 }

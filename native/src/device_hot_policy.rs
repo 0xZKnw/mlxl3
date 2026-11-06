@@ -1,6 +1,35 @@
 //! CPU admission/identity/ownership guards used by the native device-Hot transaction.
 
 pub(crate) const SLOTS: usize = 53;
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn capacity(value: Option<&str>) -> Option<usize> {
+    match value {
+        None | Some("53") => Some(SLOTS),
+        Some("64") => Some(64),
+        _ => None,
+    }
+}
+pub(crate) fn supported_slots(slots: usize) -> bool {
+    matches!(slots, SLOTS | 64)
+}
+pub(crate) fn retirement_bit(slot: usize, slots: usize) -> Option<u64> {
+    (supported_slots(slots) && slot < slots).then(|| 1u64 << slot)
+}
+#[test]
+fn capacities_and_retirement_bits_are_strict_and_bounded() {
+    assert_eq!(capacity(None), Some(53));
+    for (text, slots) in [("53", 53), ("64", 64)] {
+        assert_eq!(capacity(Some(text)), Some(slots));
+        assert_eq!(retirement_bit(slots - 1, slots), Some(1u64 << (slots - 1)));
+        assert_eq!(retirement_bit(slots, slots), None);
+    }
+    for text in ["", "063", "65", "80", " 64", "64\n"] {
+        assert_eq!(capacity(Some(text)), None);
+    }
+    assert_eq!(retirement_bit(64, 64), None);
+    assert_eq!(retirement_bit(0, usize::MAX), None);
+}
+
 pub(crate) const EXPERTS: usize = 512;
 pub(crate) const ROUTES: usize = 10;
 pub(crate) const RECORD_BYTES: u64 = 1_248_012;
@@ -88,7 +117,7 @@ pub(crate) fn admitted(
     prefetch: bool,
     record_reuse: bool,
 ) -> bool {
-    gpu_available && slots == SLOTS && direct && depth == 0 && !prefetch && record_reuse
+    gpu_available && supported_slots(slots) && direct && depth == 0 && !prefetch && record_reuse
 }
 
 pub(crate) fn identity_matches(expert: u32, generation: u64, current: Option<(u32, u64)>) -> bool {
@@ -146,6 +175,7 @@ fn device_hot_defaults_require_both_hardware_guards_and_strict_overrides() {
 #[test]
 fn device_hot_guard_rejects_every_scope_escape_and_bad_identity() {
     assert!(admitted(true, 53, true, 0, false, true));
+    assert!(admitted(true, 64, true, 0, false, true));
     for slots in [0, 10, 52, 54, usize::MAX] {
         assert!(!admitted(true, slots, true, 0, false, true));
     }
@@ -227,7 +257,9 @@ fn device_hot_actual_admission_offsets_and_peak_are_bounded() {
     let prefetch: bool = kani::any();
     let reuse: bool = kani::any();
     let accepted = admitted(gpu, slots, direct, depth, prefetch, reuse);
-    assert!(accepted == (gpu && slots == 53 && direct && depth == 0 && !prefetch && reuse));
+    assert!(
+        accepted == (gpu && matches!(slots, 53 | 64) && direct && depth == 0 && !prefetch && reuse)
+    );
     let route: usize = kani::any();
     let offset = contribution_offset(route);
     assert!(offset.is_some() == (route < 10));
@@ -241,7 +273,14 @@ fn device_hot_actual_admission_offsets_and_peak_are_bounded() {
     if let Some(peak) = peak {
         assert!(peak <= RESERVE_BYTES);
     }
-    kani::cover!(accepted);
+    let bit = retirement_bit(route, slots);
+    assert_eq!(bit.is_some(), matches!(slots, 53 | 64) && route < slots);
+    if let Some(bit) = bit {
+        assert_eq!(bit.count_ones(), 1);
+    }
+    kani::cover!(accepted && slots == 53);
+    kani::cover!(accepted && slots == 64);
+    kani::cover!(slots == 64 && route == 63 && bit == Some(1u64 << 63));
     kani::cover!(!accepted && depth > 0);
     kani::cover!(route == 9 && offset == Some(46_080));
     kani::cover!(retired == 10 && auxiliary == AUXILIARY_LIMIT);

@@ -780,6 +780,14 @@ impl Metal {
                     r#"#include "ar33_kernel_tests.metal""#,
                     include_str!("../shaders/ar33_kernel_tests.metal"),
                 );
+            let hot_slots_value = match std::env::var("MLXL3_NATIVE_DEVICE_HOT_SLOTS") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            let hot_slots = crate::device_hot_policy::capacity(hot_slots_value.as_deref())
+                .context("MLXL3_NATIVE_DEVICE_HOT_SLOTS must be 53 or 64")?;
+            let source = format!("#define MLXL3_DEVICE_HOT_SLOTS {hot_slots}u\n{source}");
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -970,8 +978,13 @@ impl Metal {
                 .then(|| pipeline("flash_normalized_greedy"))
                 .transpose()?;
             let ple = ple::Pipelines::load(&cached_pipeline)?;
-            let indirect_hot =
-                indirect_hot::Pipelines::load(&device, &library, &pipeline, device_resident_route)?;
+            let indirect_hot = indirect_hot::Pipelines::load(
+                &device,
+                &library,
+                &pipeline,
+                device_resident_route,
+                hot_slots,
+            )?;
             let queue = device.new_command_queue();
             let model_ops = model_ops::Pipelines::load(&cached_pipeline)?;
             let flash_index_key_qmv = qsa_index_key_only
@@ -1051,7 +1064,7 @@ impl Metal {
                 gdn_route_chain: std::cell::Cell::new(
                     match std::env::var("MLXL3_NATIVE_GDN_ROUTE_CHAIN") {
                         Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
-                        Err(std::env::VarError::NotPresent) => Some(false),
+                        Err(std::env::VarError::NotPresent) => Some(qualified_m5),
                         Err(error) => return Err(error.into()),
                     }
                     .context("MLXL3_NATIVE_GDN_ROUTE_CHAIN must be 0 or 1")?,

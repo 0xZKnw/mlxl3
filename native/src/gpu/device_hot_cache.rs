@@ -72,11 +72,11 @@ impl ResidentSnapshot {
         owners: &[Option<RecordBacking>],
     ) -> Result<Self> {
         ensure!(
-            identities.len() == policy::SLOTS && owners.len() == policy::SLOTS,
-            "device Hot requires exactly 53 slots"
+            policy::supported_slots(identities.len()) && owners.len() == identities.len(),
+            "device Hot requires 53 or 64 matching slots"
         );
         let mut map = [u32::MAX; policy::EXPERTS];
-        let mut records = Vec::with_capacity(policy::SLOTS);
+        let mut records = Vec::with_capacity(identities.len());
         let mut read_owners = Vec::new();
         for (slot, identity) in identities.iter().enumerate() {
             if let Some((expert, _)) = identity {
@@ -161,9 +161,10 @@ impl ResidentSnapshot {
         let mut bits = 0u64;
         let mut count = 0;
         for slot in misses {
-            ensure!(slot < policy::SLOTS, "retired slot outside snapshot");
-            if self.identities[slot].is_some() && bits & (1u64 << slot) == 0 {
-                bits |= 1u64 << slot;
+            let bit = policy::retirement_bit(slot, self.identities.len())
+                .context("retired slot outside snapshot")?;
+            if self.identities[slot].is_some() && bits & bit == 0 {
+                bits |= bit;
                 count += 1;
             }
         }
@@ -174,8 +175,11 @@ impl ResidentSnapshot {
         map: [u32; policy::EXPERTS],
         records: Vec<Option<Buffer>>,
     ) -> Result<Self> {
-        ensure!(records.len() == policy::SLOTS, "invalid test record count");
-        let mut identities = vec![None; policy::SLOTS];
+        ensure!(
+            policy::supported_slots(records.len()),
+            "invalid test record count"
+        );
+        let mut identities = vec![None; records.len()];
         for (expert, &slot) in map.iter().enumerate() {
             if slot == u32::MAX {
                 continue;

@@ -12,18 +12,29 @@ fn finite(logits: &[u16]) -> bool {
 #[test]
 #[ignore = "exclusive physical GDN/P chain, exact model states and producer failure recovery"]
 fn physical_gdn_route_preserves_states_and_removes_36_commands() -> Result<()> {
-    check_route_composition(false)
+    check_route_composition(false, false)
 }
 
 #[test]
 #[ignore = "physical P02 + five-buffer Hot workspace + compact index composition; exclusive GPU"]
 fn physical_ar42_composition_keeps_full_states_and_error_recovery() -> Result<()> {
-    check_route_composition(true)
+    check_route_composition(true, false)
 }
 
-fn check_route_composition(compose: bool) -> Result<()> {
+#[test]
+#[ignore = "physical64 cache and early Shared reads with P02; exclusive GPU"]
+fn physical_ar43_cache64_keeps_states_and_error_recovery() -> Result<()> {
+    check_route_composition(false, true)
+}
+fn check_route_composition(compose: bool, wide: bool) -> Result<()> {
     let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
+    if wide {
+        ensure!(
+            gpu.device_hot_slots() == 64 && gpu.gdn_route_chain.get(),
+            "64 bank and qualified P02 default required"
+        );
+    }
     ensure!(gpu.cross_layer.get() && gpu.hc_gdn_chain.get());
     let mut model = FlashNext::load(&gpu, &c, 4096)?;
     let initial = model.snapshot();
@@ -54,6 +65,7 @@ fn check_route_composition(compose: bool) -> Result<()> {
         model.restore(&prefix)?;
         gpu.gdn_route_chain.set(true);
         let (before, uses) = (gpu.helper_commits.get(), gpu.gdn_route_uses.get());
+        let hot_before = gpu.device_hot_submissions();
         gpu.hot_workspace.set(compose);
         gpu.qsa_index_key_only.set(compose);
         let (workspace_uses, index_uses) =
@@ -76,6 +88,12 @@ fn check_route_composition(compose: bool) -> Result<()> {
         }
         let candidate_commands = gpu.helper_commits.get() - before;
         ensure!(gpu.gdn_route_uses.get() - uses == 36);
+        if wide {
+            ensure!(
+                gpu.device_hot_submissions() - hot_before == 48,
+                "64-slot T05 fallback in model"
+            );
+        }
         ensure!(candidate_commands + if compose { 0 } else { 36 } == baseline_commands);
         ensure!(
             model
@@ -164,14 +182,93 @@ fn check_route_composition(compose: bool) -> Result<()> {
         }
     }
 
+    let audit_reads = gpu.readers()?.early_batches.get();
+    let audit_hot = super::super::moe::DEVICE_HOT_COUNTS.with(|c| c.get());
+    if wide {
+        ensure!(
+            audit_reads > 0 && audit_hot[0] > 0 && audit_hot[2] > 0,
+            "early Shared/T05 misses not exercised"
+        );
+    }
     eprintln!(
         "{} {}",
-        if compose {
+        if wide {
+            "AR43_COMPOSITION"
+        } else if compose {
             "AR42_COMPOSITION"
         } else {
             "AR41_GDN_ROUTE"
         },
-        serde_json::json!({"parity":true,"cases":cases,"state_words":words,"independent_initial":true,"pending_failure_recovery":true,"previous_moe_failure_recovery":true,"trace_fallback":true})
+        serde_json::json!({"parity":true,"cases":cases,"state_words":words,"early_shared_batches":audit_reads,"actual_hot_counts":audit_hot,"independent_initial":true,"pending_failure_recovery":true,"previous_moe_failure_recovery":true,"trace_fallback":true})
+    );
+    Ok(())
+}
+
+#[cfg(feature = "chat")]
+#[test]
+#[ignore = "exclusive lightweight MAIN87 warm128/measured128 counters, no event profiler"]
+fn physical_ar43_main128_cache_counts() -> Result<()> {
+    let path = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+    let checkpoint = crate::checkpoint::inspect(&path)?;
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let prompt = "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.";
+    let ids = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+        role: "user".into(),
+        content: prompt.into(),
+    }])?)?;
+    ensure!(ids.len() == 87);
+    let gpu = Metal::new()?;
+    let slots = gpu.device_hot_slots();
+    ensure!(matches!(slots, 53 | 64) && gpu.gdn_route_chain.get());
+    let greedy = |logits: &[u16]| -> Result<u32> {
+        crate::speculative::greedy_log_prob_id(&gpu.flash_log_probs(logits)?)
+            .context("invalid CLI log probabilities")
+    };
+    let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
+    let mut phases = Vec::new();
+    let counts = || super::super::moe::DEVICE_HOT_COUNTS.with(|c| c.get());
+    for phase in ["warmup", "measured"] {
+        model.reset();
+        let before = counts();
+        let logits = model.prefill(&ids)?;
+        ensure!(finite(&logits));
+        let mut token = greedy(&logits)?;
+        let mut tokens = vec![token];
+        let boundary = counts();
+        let gdn = gpu.gdn_route_uses.get();
+        let early = gpu.readers()?.early_batches.get();
+        for _ in 1..128 {
+            let logits = model.forward(token)?;
+            ensure!(finite(&logits));
+            token = greedy(&logits)?;
+            tokens.push(token);
+        }
+        let after = counts();
+        let decode = [
+            after[0] - boundary[0],
+            after[1] - boundary[1],
+            after[2] - boundary[2],
+        ];
+        ensure!(
+            decode[0] == 48 * 127
+                && decode[1] + decode[2] == 48 * 127 * 10
+                && gpu.gdn_route_uses.get() - gdn == 36 * 127
+        );
+        let hash = tokens
+            .iter()
+            .flat_map(|t| t.to_le_bytes())
+            .fold(0xcbf29ce484222325u64, |h, b| {
+                (h ^ u64::from(b)).wrapping_mul(0x100000001b3)
+            });
+        let text = tokenizer.decode(&tokens)?;
+        ensure!(
+            format!("{hash:016x}") == std::env::var("MLXL3_AR43_TOKEN_HASH")? && !text.is_empty()
+        );
+        phases.push(serde_json::json!({"phase":phase,"tokens":tokens,"token_hash":format!("{hash:016x}"),"text":text,"prefill_counts":[boundary[0]-before[0],boundary[1]-before[1],boundary[2]-before[2]],"decode_counts":decode,"early_shared_batches":gpu.readers()?.early_batches.get()-early,"memory":gpu.memory_stats()?}));
+    }
+    eprintln!(
+        "AR43_CACHE_COUNTS {}",
+        serde_json::json!({"parity":true,"slots":slots,"phases":phases,"limits":"DEBUG counts, not comparable release TPS; same MAIN87 golden128, no kernel/event profiling"})
     );
     Ok(())
 }

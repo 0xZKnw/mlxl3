@@ -1,0 +1,42 @@
+"""One targeted I/O microcheck and two native count observations; no speed claims."""
+import hashlib,json,os,runpy,signal,subprocess,time
+from pathlib import Path
+ROOT=Path.cwd();OUT=ROOT/'docs/measurements/flash-ar43-cache-reads-20261106/audit4';P=json.loads((OUT/'quality-plan.json').read_text())
+sha=lambda f:hashlib.sha256(Path(f).read_bytes()).hexdigest()
+for f,h in P['source_files'].items():assert sha(f)==h,f
+for f,h in P['model']['metadata'].items():assert sha(f)==h,f
+for item in ['libtest','supervisor','golden']:assert sha(P[item]['path'])==P[item]['sha256'],item
+R=runpy.run_path(P['supervisor']['path']);C=runpy.run_path('scripts/profile_native_ar.py')
+env=C['environment']();env.update(MLXL3_FLASH_MODEL=P['model']['path'],MLXL3_NATIVE_HOT_WORKSPACE='0',MLXL3_NATIVE_QSA_INDEX_KEY_ONLY='0',MLXL3_AR43_TOKEN_HASH=P['golden']['token_hash']);env.pop('MLXL3_NATIVE_GDN_ROUTE_CHAIN',None)
+specs=[('pread','ssd_reads::record_reuse_tests::physical_ar43_first_pread_timing','AR43_PREAD_TIMING',53),('slots53','gpu::gdn::gdn_route_tests::physical_ar43_main128_cache_counts','AR43_CACHE_COUNTS',53),('slots64','gpu::gdn::gdn_route_tests::physical_ar43_main128_cache_counts','AR43_CACHE_COUNTS',64)]
+rows=[];child=None
+signal.signal(signal.SIGTERM,lambda *a:(_ for _ in ()).throw(KeyboardInterrupt()))
+def save():(OUT/'quality.json').write_text(json.dumps(rows,indent=2,allow_nan=False)+'\n')
+for name,test,marker,slots in specs:
+ current={**env,'MLXL3_NATIVE_DEVICE_HOT_SLOTS':str(slots),'MLXL3_NATIVE_EARLY_READS':str(int(slots==64)),'MLXL3_SSD_CACHE_GIB':('3.625' if slots==64 else '3')}
+ r={'phase':name,'status':'running','parity':False,'joined':False,'command':[P['libtest']['path'],test,'--exact','--ignored','--nocapture','--test-threads=1'],'environment':{k:v for k,v in current.items() if k.startswith('MLXL3_')},'plan_sha256':sha(OUT/'quality-plan.json')};rows.append(r);child=None;start=time.monotonic();save()
+ try:
+  with (OUT/(name+'.log')).open('x') as f:
+   child=subprocess.Popen(r['command'],env=current,stdout=f,stderr=subprocess.STDOUT,start_new_session=True);r['pid']=child.pid;save();code=child.wait(timeout=180)
+  text=(OUT/(name+'.log')).read_text();assert code==0,f'exit {code}'
+  assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+  data=R['D']['marker'](text,marker);assert data['parity']
+  if name=='pread':
+   assert len(data['cases'])==2 and all(x['preads']==x['allocations']==10 for x in data['cases'])
+  else:
+   assert data['slots']==slots and len(data['phases'])==2
+   for phase in data['phases']:
+    assert len(phase['tokens'])==128 and phase['token_hash']==P['golden']['token_hash'] and phase['text']
+    assert phase['decode_counts'][0]==6096 and sum(phase['decode_counts'][1:])==60960
+   if slots==64:assert all(x['early_shared_batches']>0 for x in data['phases'])
+   else:assert all(x['early_shared_batches']==0 for x in data['phases'])
+  r.update(status='validated_observation',parity=True,evidence=data)
+ except BaseException as e:r.update(status='failed',parity=False,error=repr(e));raise
+ finally:
+  r.update(joined=R['safe_stop'](child),seconds=time.monotonic()-start)
+  if not r['joined']:r.update(status='failed_cleanup',parity=False)
+  save()
+  with (ROOT/'opti.md').open('a') as f:f.write('\nAR43-AUDIT4 '+name+' '+r['status']+' parity='+str(r['parity'])+' joined='+str(r['joined'])+' ; observationciblée,pasTPS.\n')
+ print(name,r['status'],flush=True)
+a,b=rows[1]['evidence']['phases'],rows[2]['evidence']['phases']
+for x,y in zip(a,b):assert x['tokens']==y['tokens'] and x['text']==y['text']

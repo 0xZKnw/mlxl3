@@ -63,9 +63,17 @@ fn physical_ar42_hot_workspace_preserves_all_canonical_contributions() -> Result
     check_indirect_hot(true)
 }
 
+#[test]
+#[ignore = "physical64 Hot bank, all slots and canonical contribution oracle"]
+fn physical_ar43_hot64_preserves_all_canonical_contributions() -> Result<()> {
+    check_indirect_hot(false)
+}
+
 fn check_indirect_hot(workspace: bool) -> Result<()> {
     let gpu = Metal::new()?;
     gpu.hot_workspace.set(workspace);
+    let slots_count = gpu.device_hot_slots();
+    ensure!(matches!(slots_count, 53 | 64));
     ensure!(
         gpu.device_resident_route_available(),
         "enable DEVICE_RESIDENT_ROUTE on exact M5/Tier2"
@@ -88,7 +96,7 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
     let original = Metal::read(&base, flash_support::EXPERT_BYTES as usize / 2);
     let offset = flash_support::record_offsets(0).unwrap().svh as usize / 2;
     let mut records = Vec::new();
-    for slot in 0..53 {
+    for slot in 0..slots_count {
         let mut data = original.clone();
         for word in &mut data[offset..offset + 2560] {
             let value = f16::from_f32(f16::from_bits(*word).to_f32() * (1. + slot as f32 / 64.));
@@ -119,7 +127,7 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
         .map(|r| Metal::read(r, 2560))
         .collect::<Vec<_>>();
     ensure!(
-        reference.len() == 53
+        reference.len() == slots_count
             && reference[0] == frozen
             && reference
                 .iter()
@@ -134,17 +142,19 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
         }
         map
     };
-    let all = (0..53).collect::<Vec<_>>();
+    let all = (0..slots_count).collect::<Vec<_>>();
     let make = |map| ResidentSnapshot::for_test(map, records.iter().cloned().map(Some).collect());
     let mut checked = 0;
     let mut cases = 0;
     for (start, hits) in
-        (0..53)
+        (0..slots_count)
             .step_by(10)
             .map(|s| (s, 10))
             .chain([(0, 0), (0, 1), (0, 9), (0, 10)])
     {
-        let slots = (0..10).map(|r| (start + r) % 53).collect::<Vec<_>>();
+        let slots = (0..10)
+            .map(|r| (start + r) % slots_count)
+            .collect::<Vec<_>>();
         let map = if hits == 10 {
             map_of(&all)
         } else {
@@ -177,7 +187,7 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
         ensure!(gpu.device_resident_route_available());
     }
     let full_map = map_of(&all);
-    let mut current = vec![None; 53];
+    let mut current = vec![None; slots_count];
     for &slot in &all {
         current[slot] = Some((expert_id(slot), 1));
     }
@@ -208,6 +218,10 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
             .iter()
             .all(Option::is_some)
     );
+    if slots_count == 64 {
+        ensure!(hot.snapshot().retired_bytes([63, 63])? == flash_support::EXPERT_BYTES);
+        ensure!(hot.snapshot().retired_bytes([64]).is_err());
+    }
     let actual = words(&hot)?;
     ensure!(actual[..2560] == reference[0]);
     drop(hot);
@@ -267,9 +281,13 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
     ensure!(unsubmitted.status() == MTLCommandBufferStatus::NotEnqueued);
     ensure!(gpu.device_resident_route_available());
     let mut invalid_map = full_map;
-    invalid_map[expert_id(0) as usize] = 53;
-    ensure!(ResidentSnapshot::for_test(invalid_map, vec![None; 53]).is_err());
-    ensure!(checked == 256000 && cases == 10 && gpu.device_hot_submissions() == 15);
+    invalid_map[expert_id(0) as usize] = slots_count as u32;
+    ensure!(ResidentSnapshot::for_test(invalid_map, vec![None; slots_count]).is_err());
+    ensure!(
+        checked == 25600 * (slots_count.div_ceil(10) + 4)
+            && cases == slots_count.div_ceil(10) + 4
+            && gpu.device_hot_submissions() == cases as u64 + 5
+    );
     if workspace {
         ensure!(gpu.hot_workspace_reuses.get() >= 10);
         ensure!(
@@ -324,7 +342,7 @@ fn check_indirect_hot(workspace: bool) -> Result<()> {
     eprintln!(
         "AR34_INDIRECT_HOT {}",
         serde_json::json!({
-            "parity":true,"compiled_device_lookup":true,"slots":53,"canonical_half_words":135680,
+            "parity":true,"compiled_device_lookup":true,"slots":slots_count,"canonical_half_words":slots_count*2560,
             "compared_half_words":checked,"cases":cases,"hit_counts":[0,1,9,10],
             "invalid_ids_zeroed_then_rejected":true,"duplicate_ids_rejected":true,"stale_generation_rejected":true,
             "retained_snapshot":true,"wrong_pointer_mutant_detected":true,
