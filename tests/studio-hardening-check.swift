@@ -777,8 +777,8 @@ extension UpdateManager {
         flashNext.engineState = flashReady
         flashNext.temperature = 0.73; flashNext.topK = 47; flashNext.repetitionPenalty = 1.17
         flashNext.setMTPEnabled(true)
-        precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath.isEmpty)
-        precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
+        precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath == flashModel.path)
+        precondition(prefs.string(forKey: "studio.mtpHeadPath") == flashModel.path, "Built-in MTP did not remember its model checkpoint")
         precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
         precondition(flashNext.samplingTemperature == 0 && flashNext.samplingTopK == 1 && flashNext.samplingRepetitionPenalty == 1)
         precondition(flashNext.temperature == 0.73 && flashNext.topK == 47 && flashNext.repetitionPenalty == 1.17,
@@ -798,7 +798,7 @@ extension UpdateManager {
         flashNext.ejectModel()
         prefs.removeObject(forKey: "studio.mtpHeadPath")
         let flashRestored = try await make("flash", type: "qwen4_exp")
-        precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath.isEmpty, "Built-in MTP required an external head after restart")
+        precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath == flashModel.path, "Built-in MTP required an external head after restart")
         flashRestored.setMTPEnabled(false); flashRestored.ejectModel()
         let flashOff = try await make("flash", type: "qwen4_exp")
         precondition(!flashOff.mtpEnabled && flashOff.mtpDepth == 1, "Built-in MTP OFF selection did not persist")
