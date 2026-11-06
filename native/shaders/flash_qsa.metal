@@ -51,6 +51,13 @@ kernel void qsa_pool(const device half* tail [[buffer(0)]], const device half* q
 }
 
 // The stock FP32 matmul collapses the four index heads into M and uses tiled GEMM.
+kernel void qsa_pool_key(const device half* tail [[buffer(0)]], const device half* key [[buffer(1)]],
+    device half* out [[buffer(2)]],constant uint& width [[buffer(3)]],uint i [[thread_position_in_grid]]) {
+    #pragma clang fp contract(off)
+    float sum=float(tail[i])+float(tail[width+i])+float(tail[2*width+i])+float(key[i]);
+    out[i]=half(sum*0.25f);
+}
+
 kernel void qsa_index_scores(const device half* q [[buffer(0)]],const device half* blocks [[buffer(1)]],
     device float* out [[buffer(2)]], constant uint& count [[buffer(3)]],uint group [[threadgroup_position_in_grid]],
     uint lane [[thread_index_in_simdgroup]]) {

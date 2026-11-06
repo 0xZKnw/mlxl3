@@ -1,0 +1,63 @@
+[
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "device_hot_policy::hot_workspace_requires_exact_extents_and_storage",
+      "--exact"
+    ],
+    "budget_seconds": 75,
+    "status": "pass_pending_review",
+    "exit": 0,
+    "seconds": 3.1321106660016085,
+    "joined": true,
+    "individual_statuses": {
+      "UNREACHABLE": 6,
+      "SUCCESS": 207,
+      "SATISFIED": 2
+    }
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "device_hot_policy::hot_workspace_never_recycles_a_live_or_unsubmitted_consumer",
+      "--exact"
+    ],
+    "budget_seconds": 75,
+    "status": "pass_pending_review",
+    "exit": 0,
+    "seconds": 1.456958000000668,
+    "joined": true,
+    "individual_statuses": {
+      "SUCCESS": 42,
+      "SATISFIED": 3
+    }
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128",
+      "--exact"
+    ],
+    "budget_seconds": 75,
+    "status": "pass_pending_review",
+    "exit": 0,
+    "seconds": 1.689363333000074,
+    "joined": true,
+    "individual_statuses": {
+      "SUCCESS": 106,
+      "SATISFIED": 2
+    }
+  }
+]

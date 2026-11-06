@@ -1,0 +1,977 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1151:17
+     |
+1151 |         None => assert!(!(2..=8).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1304:17
+     |
+1304 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: constant `FLAGS` is never used
+ --> native/src/ar10_defaults.rs:4:18
+  |
+4 | pub(crate) const FLAGS: [&str; 13] = [
+  |                  ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `setting_value` is never used
+  --> native/src/ar10_defaults.rs:29:4
+   |
+29 | fn setting_value(value: std::result::Result<String, std::env::VarError>, m5: bool) -> Result<bool> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `setting` is never used
+  --> native/src/ar10_defaults.rs:38:15
+   |
+38 | pub(crate) fn setting(name: &str, qualified_m5: bool) -> Result<bool> {
+   |               ^^^^^^^
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `defines` is never used
+ --> native/src/ar20_kernel_policy.rs:9:15
+  |
+9 | pub(crate) fn defines(bits: u32) -> String {
+  |               ^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `position`, `feature`, and `accepted` are never read
+   --> native/src/flash_draft_budget.rs:108:5
+    |
+107 | struct Label {
+    |        ----- fields in this struct
+108 |     position: usize,
+    |     ^^^^^^^^
+109 |     feature: f64,
+    |     ^^^^^^^
+110 |     accepted: bool,
+    |     ^^^^^^^^
+    |
+    = note: `Label` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `logit` is never used
+   --> native/src/flash_draft_budget.rs:129:4
+    |
+129 | fn logit(p: f64) -> f64 {
+    |    ^^^^^
+
+warning: function `sigmoid` is never used
+   --> native/src/flash_draft_budget.rs:133:4
+    |
+133 | fn sigmoid(z: f64) -> f64 {
+    |    ^^^^^^^
+
+warning: function `seed` is never used
+   --> native/src/flash_draft_budget.rs:137:4
+    |
+137 | fn seed(rows: f64) -> f64 {
+    |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:190:8
+    |
+185 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+...
+190 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+203 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+209 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+227 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+278 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+295 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: constant `CAPACITIES` is never used
+ --> native/src/flash_expert_scratch.rs:4:18
+  |
+4 | pub(crate) const CAPACITIES: [u64; 2] = [5120, 10240];
+  |                  ^^^^^^^^^^
+
+warning: methods `ready_slot_snapshot`, `enable_slru`, and `slru_enabled` are never used
+    --> native/src/flash_support.rs:1543:19
+     |
+1425 | impl ExpertCache {
+     | ---------------- methods in this implementation
+...
+1543 |     pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
+     |                   ^^^^^^^^^^^^^^^^^^^
+...
+1593 |     pub(crate) fn enable_slru(&mut self) {
+     |                   ^^^^^^^^^^^
+...
+1599 |     pub(crate) fn slru_enabled(&self) -> bool {
+     |                   ^^^^^^^^^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1743:19
+     |
+1743 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve` and `publish` are never used
+    --> native/src/flash_support.rs:1751:19
+     |
+1750 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1751 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1772 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3612:15
+     |
+3612 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3679:15
+     |
+3679 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `ReadPayload` is never used
+  --> native/src/ssd_reads.rs:20:17
+   |
+20 | pub(crate) enum ReadPayload {
+   |                 ^^^^^^^^^^^
+
+warning: struct `Completed` is never constructed
+   --> native/src/ssd_reads.rs:126:19
+    |
+126 | pub(crate) struct Completed {
+    |                   ^^^^^^^^^
+
+warning: struct `Ticket` is never constructed
+   --> native/src/ssd_reads.rs:144:8
+    |
+144 | struct Ticket(Arc<AtomicUsize>);
+    |        ^^^^^^
+
+warning: struct `Read` is never constructed
+   --> native/src/ssd_reads.rs:150:8
+    |
+150 | struct Read {
+    |        ^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:164:8
+    |
+163 | impl Read {
+    | --------- method in this implementation
+164 |     fn run(self) {
+    |        ^^^
+
+warning: enum `ReadWork` is never used
+   --> native/src/ssd_reads.rs:228:6
+    |
+228 | enum ReadWork {
+    |      ^^^^^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:237:8
+    |
+236 | impl ReadWork {
+    | ------------- method in this implementation
+237 |     fn run(self) {
+    |        ^^^
+
+warning: struct `SplitState` is never constructed
+   --> native/src/ssd_reads.rs:249:8
+    |
+249 | struct SplitState {
+    |        ^^^^^^^^^^
+
+warning: struct `SplitRecord` is never constructed
+   --> native/src/ssd_reads.rs:257:8
+    |
+257 | struct SplitRecord {
+    |        ^^^^^^^^^^^
+
+warning: associated items `new` and `run_part` are never used
+   --> native/src/ssd_reads.rs:270:8
+    |
+269 | impl SplitRecord {
+    | ---------------- associated items in this implementation
+270 |     fn new(
+    |        ^^^
+...
+323 |     fn run_part(&self, index: usize, file: File) {
+    |        ^^^^^^^^
+
+warning: struct `ReadService` is never constructed
+   --> native/src/ssd_reads.rs:461:19
+    |
+461 | pub(crate) struct ReadService {
+    |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> native/src/ssd_reads.rs:494:19
+    |
+493 | impl ReadService {
+    | ---------------- associated items in this implementation
+494 |     pub(crate) fn new(readers: usize) -> Result<Self> {
+    |                   ^^^
+...
+509 |     fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+530 |     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
+    |        ^^^^^^^^^^^^^^^^
+...
+641 |     pub(crate) fn in_flight(&self) -> usize {
+    |                   ^^^^^^^^^
+...
+644 |     pub(crate) fn submit(
+    |                   ^^^^^^
+...
+765 |     fn sources(
+    |        ^^^^^^^
+...
+800 |     fn start(
+    |        ^^^^^
+...
+807 |     fn start_mode(
+    |        ^^^^^^^^^^
+...
+818 |     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+    |        ^^^^^^^^^^^^^^
+...
+830 |     fn start_payloads(
+    |        ^^^^^^^^^^^^^^
+...
+916 |     fn enqueue(&self, work: ReadWork) -> Result<()> {
+    |        ^^^^^^^
+
+warning: struct `ReadBatch` is never constructed
+   --> native/src/ssd_reads.rs:944:19
+    |
+944 | pub(crate) struct ReadBatch {
+    |                   ^^^^^^^^^
+
+warning: methods `remaining`, `poll`, `ready`, and `ready_min` are never used
+   --> native/src/ssd_reads.rs:952:19
+    |
+951 | impl ReadBatch {
+    | -------------- methods in this implementation
+952 |     pub(crate) fn remaining(&self) -> usize {
+    |                   ^^^^^^^^^
+...
+955 |     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+    |                   ^^^^
+...
+972 |     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
+    |                   ^^^^^
+...
+979 |     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+    |                   ^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 10`
+Checking harness flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/build/ar41/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/b85c3e9a63eafd86/out/mlxl3_native-b85c3e9a63eafd86__RNvNtCsfLnpigA7YA1_12mlxl3_native13flash_support57index_key_actual_geometry_stays_in_the_last_complete_h128.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file native/src/flash_support.rs line 36 column 1 function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128 thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Runtime Symex: 0.0221716s
+size of program expression: 1834 steps
+slicing removed 1039 assignments
+Generated 314 VCC(s), 46 remaining after simplification
+Runtime Postprocess Equation: 0.000225375s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00603204s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.125e-06s
+Solving with CaDiCaL 3.0.0
+12488 variables, 54932 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000399125s
+Runtime decision procedure: 0.00653825s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12489 variables, 54933 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00303392s
+Runtime decision procedure: 0.00310346s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12490 variables, 54934 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.0016795s
+Runtime decision procedure: 0.00171646s
+
+RESULTS:
+Check 1: memcmp.precondition.1
+	 - Status: SUCCESS
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 2: memcmp.precondition.2
+	 - Status: SUCCESS
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 3: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>
+
+Check 4: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_support.rs:36:1 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 5: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: resident && shape == [2560, 640] && matches!(splits, 1 | 2)"
+	 - Location: native/src/flash_support.rs:42:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 6: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:26 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 7: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:56 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 8: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:43:47 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 9: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: matches!(format[2], 1 | 2) && groups * format[2] == 8"
+	 - Location: native/src/flash_support.rs:43:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 10: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:44:35 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 11: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:44:26 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 12: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:44:20 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 13: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:44:20 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 14: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (32 + groups * format[2]) * 16 == 640"
+	 - Location: native/src/flash_support.rs:44:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 15: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:17 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 16: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.12
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_support.rs:45:30 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 17: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.13
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:30 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 18: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.14
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:30 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 19: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.15
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:45:17 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 20: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.16
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:62 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 21: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.17
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:45:17 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 22: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.18
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:73 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 23: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.19
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:73 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 24: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.20
+	 - Status: SUCCESS
+	 - Description: "assertion failed: 512u64 * 4 + (splits as u64 - 1) * 640 * 4 + 128 * 4 <= splits as u64 * 640 *
+4"
+	 - Location: native/src/flash_support.rs:45:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 25: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.21
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:46:22 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 26: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: format[2] == 1"
+	 - Location: native/src/flash_support.rs:46:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 27: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.assertion.22
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:47:22 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 28: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: format[2] == 2"
+	 - Location: native/src/flash_support.rs:47:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 29: flash_support::index_key_groups::{closure#0}.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:20:14 in function flash_support::index_key_groups::{closure#0}
+
+Check 30: flash_support::index_key_groups::{closure#0}.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:20:14 in function flash_support::index_key_groups::{closure#0}
+
+Check 31: flash_support::index_key_groups::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 32: flash_support::index_key_groups::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 33: flash_support::index_key_groups::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 34: flash_support::index_key_groups::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 35: flash_support::index_key_groups::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 36: flash_support::index_key_groups::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:20:18 in function flash_support::index_key_groups::{closure#0}
+
+Check 37: flash_support::index_key_groups::{closure#0}.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:20:14 in function flash_support::index_key_groups::{closure#0}
+
+Check 38: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/macros/mod.rs:434:9 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 39: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:56 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 40: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:44:35 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 41: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.array_bounds.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:46:22 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 42: flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128.array_bounds.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:47:22 in function flash_support::index_key_actual_geometry_stays_in_the_last_complete_h128
+
+Check 43: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 44: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 45: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 46: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 47: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 48: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 49: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 50: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 51: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 52: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 53: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 54: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 55: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 56: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 57: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 58: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 59: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 60: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 61: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 62: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 63: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 64: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 65: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 66: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 67: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 68: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 69: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 70: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 71: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 72: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 73: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 74: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 75: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 76: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 77: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 78: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 79: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 80: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 81: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 82: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 83: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 84: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 85: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 86: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 87: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 88: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 89: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 90: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 91: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 92: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 93: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 94: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 95: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 96: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 97: memcmp.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 98: memcmp.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 99: memcmp.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 100: memcmp.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 101: memcmp.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 102: memcmp.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 103: memcmp.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 104: memcmp.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 105: memcmp.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 106: memcmp.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 107: memcmp.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 108: memcmp.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+
+SUMMARY:
+ ** 0 of 106 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.19500701s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

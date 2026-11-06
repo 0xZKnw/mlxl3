@@ -1,9 +1,12 @@
+#ifndef MLXL3_DEVICE_HOT_SLOTS
+#define MLXL3_DEVICE_HOT_SLOTS 53u
+#endif
 #if MLXL3_DEVICE_RESIDENT_ROUTE
 // The argument encoder supplies pointers; no CPU/GPU address representation is assumed.
-struct DeviceHotBank { array<const device uchar*, 53> records [[id(0)]]; };
+struct DeviceHotBank { array<const device uchar*, MLXL3_DEVICE_HOT_SLOTS> records [[id(0)]]; };
 inline uint device_hot_slot(const device uint* ids, const device uint* map, uint route) {
     uint id = ids[route];
-    return id < 512u && map[id] < 53u ? map[id] : 0xffffffffu;
+    return id < 512u && map[id] < MLXL3_DEVICE_HOT_SLOTS ? map[id] : 0xffffffffu;
 }
 
 kernel void device_hot_gu_prepare(const device float* input [[buffer(0)]],

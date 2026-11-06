@@ -12,6 +12,9 @@
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
+#ifdef MLXL3_INDEX_KEY_TILES
+            tile_n += 32u;
+#endif
 #ifdef MLXL3_INDEPENDENT_QMV_JOBS
             uint row_base = 0u;
 #else
