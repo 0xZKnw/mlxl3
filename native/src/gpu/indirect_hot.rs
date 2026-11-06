@@ -1,12 +1,32 @@
 //! Intralayer GPU cache lookup. The canonical projection/reduction bodies are unchanged.
 use super::{device_hot_cache::ResidentSnapshot, *};
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
+
+type Workspace = [Buffer; 5];
+struct WorkspaceLease {
+    spare: Rc<RefCell<Option<Workspace>>>,
+    buffers: Option<Workspace>,
+    reusable: bool,
+}
+impl Drop for WorkspaceLease {
+    fn drop(&mut self) {
+        // HotOutput joins H and its final consumer before dropping this lease.
+        if self.reusable {
+            *self.spare.borrow_mut() = self.buffers.take();
+        }
+    }
+}
 
 pub(super) struct Pipelines {
+    slots: usize,
     stages: [ComputePipelineState; 5],
     argument: metal::ArgumentEncoder,
     dummy: Buffer,
     active: Rc<Cell<bool>>,
+    spare: Rc<RefCell<Option<Workspace>>>,
     #[cfg(test)]
     submissions: Cell<u64>,
     #[cfg(test)]
@@ -21,6 +41,7 @@ impl Pipelines {
         library: &metal::Library,
         pipeline: &impl Fn(&str) -> Result<ComputePipelineState>,
         enabled: bool,
+        slots: usize,
     ) -> Result<Option<Self>> {
         if !enabled {
             return Ok(None);
@@ -48,6 +69,7 @@ impl Pipelines {
             return Ok(None);
         }
         Ok(Some(Self {
+            slots,
             stages,
             argument,
             dummy: buffer(
@@ -56,6 +78,7 @@ impl Pipelines {
                 Storage::StorageModeShared,
             )?,
             active: Rc::new(Cell::new(false)),
+            spare: Rc::new(RefCell::new(None)),
             #[cfg(test)]
             submissions: Cell::new(0),
             #[cfg(test)]
@@ -82,6 +105,7 @@ pub(super) struct HotOutput {
     slab: Buffer,
     _resources: Vec<Buffer>,
     _pipelines: [ComputePipelineState; 5],
+    _workspace: Option<WorkspaceLease>,
     #[cfg(test)]
     reject_result: bool,
     _active: Active,
@@ -165,6 +189,20 @@ impl Drop for HotOutput {
         ) {
             self.command.wait_until_completed();
         }
+        if let Some(workspace) = &mut self._workspace {
+            workspace.reusable = crate::device_hot_policy::workspace_recyclable(
+                matches!(
+                    self.command.status(),
+                    MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error
+                ),
+                self.final_consumer.as_ref().map(|c| {
+                    matches!(
+                        c.status(),
+                        MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error
+                    )
+                }),
+            );
+        }
     }
 }
 
@@ -196,6 +234,16 @@ fn encode<T: Copy, const N: usize>(
 }
 
 impl Metal {
+    pub(super) fn clear_hot_workspace(&self) -> Result<()> {
+        if let Some(p) = &self.indirect_hot {
+            ensure!(!p.active.get(), "cannot clear an active resident workspace");
+            p.spare.borrow_mut().take();
+        }
+        Ok(())
+    }
+    pub(super) fn device_hot_slots(&self) -> usize {
+        self.indirect_hot.as_ref().map_or(0, |p| p.slots)
+    }
     pub(super) fn device_resident_route_enabled(&self) -> bool {
         self.indirect_hot.is_some()
             && self.routed_nt2_gu.get()
@@ -260,12 +308,14 @@ impl Metal {
                 "invalid resident route input/ID buffer"
             );
             ensure!(
-                snapshot.records().len() == 53,
-                "resident snapshot must contain53slots"
+                snapshot.records().len() == self.device_hot_slots(),
+                "resident snapshot must match the compiled argument bank"
             );
             for &slot in snapshot.map() {
                 ensure!(
-                    slot == u32::MAX || slot < 53 && snapshot.records()[slot as usize].is_some(),
+                    slot == u32::MAX
+                        || (slot as usize) < self.device_hot_slots()
+                            && snapshot.records()[slot as usize].is_some(),
                     "resident map names an empty or out-of-range slot"
                 );
             }
@@ -307,7 +357,7 @@ impl Metal {
             for (slot, record) in records.iter().enumerate() {
                 #[cfg(test)]
                 let record = if p.wrong_binding.get() {
-                    &records[(slot + 1) % 53]
+                    &records[(slot + 1) % self.device_hot_slots()]
                 } else {
                     record
                 };
@@ -318,11 +368,42 @@ impl Metal {
                 .map(|r| -> &metal::ResourceRef { r })
                 .collect::<Vec<_>>();
             let map = upload(&self.device, snapshot.map())?;
-            let prepared = buffer(&self.device, 102400, Storage::StorageModePrivate)?;
-            let partial = buffer(&self.device, 102400, Storage::StorageModePrivate)?;
-            let gate = buffer(&self.device, 12800, Storage::StorageModePrivate)?;
-            let activated = buffer(&self.device, 12800, Storage::StorageModePrivate)?;
-            let slab = buffer(&self.device, 51200, storage)?;
+            let cached = if self.hot_workspace.get() {
+                p.spare.borrow_mut().take().filter(|b| {
+                    crate::device_hot_policy::workspace_valid(
+                        b.each_ref().map(|b| b.length()),
+                        b.each_ref()
+                            .map(|b| b.storage_mode() == metal::MTLStorageMode::Private),
+                        storage == Storage::StorageModePrivate,
+                    ) && b
+                        .iter()
+                        .all(|b| b.device().registry_id() == self.device.registry_id())
+                })
+            } else {
+                None
+            };
+            #[cfg(test)]
+            if cached.is_some() {
+                self.hot_workspace_reuses
+                    .set(self.hot_workspace_reuses.get() + 1);
+            }
+            let buffers = if let Some(buffers) = cached {
+                buffers
+            } else {
+                [
+                    buffer(&self.device, 102400, Storage::StorageModePrivate)?,
+                    buffer(&self.device, 102400, Storage::StorageModePrivate)?,
+                    buffer(&self.device, 12800, Storage::StorageModePrivate)?,
+                    buffer(&self.device, 12800, Storage::StorageModePrivate)?,
+                    buffer(&self.device, 51200, storage)?,
+                ]
+            };
+            let workspace = self.hot_workspace.get().then(|| WorkspaceLease {
+                spare: p.spare.clone(),
+                buffers: Some(buffers.clone()),
+                reusable: false,
+            });
+            let [prepared, partial, gate, activated, slab] = buffers;
             let offsets = (0..3)
                 .map(|i| {
                     crate::flash_support::record_offsets(i)
@@ -449,6 +530,7 @@ impl Metal {
                 slab,
                 _resources: owned,
                 _pipelines: pipelines,
+                _workspace: workspace,
                 #[cfg(test)]
                 reject_result: p.reject_result.get(),
                 _active: active,

@@ -233,6 +233,7 @@ impl FlashNext<'_> {
         for layer in &mut self.layers {
             layer.release_idle_state()?;
         }
+        self.gpu.clear_hot_workspace()?;
         Ok(())
     }
     pub fn admit_request(&mut self, positions: usize) -> Result<Option<ResourcePlan>> {

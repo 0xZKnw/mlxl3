@@ -688,6 +688,27 @@ impl<'a> FlashHc<'a> {
         gate: &MatrixView,
         moe: &super::FlashMoeRow,
     ) -> Result<PendingHcRoute<'a>> {
+        ensure!(moe.device_hot_gate_eligible(0), "resident producer is busy");
+        self.submit_after_write_with_gate_on(
+            self.gpu.queue.new_command_buffer().to_owned(),
+            writer,
+            streams,
+            branch,
+            gate,
+            moe,
+        )
+    }
+
+    /// The private caller creates this command on `self.gpu.queue`.
+    pub(super) fn submit_after_write_with_gate_on(
+        &self,
+        command: CommandBuffer,
+        writer: &FlashHc,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+        moe: &super::FlashMoeRow,
+    ) -> Result<PendingHcRoute<'a>> {
         #[cfg(test)]
         let scope = crate::flash_profile::span("native.hc.chain_write_read_gate");
         #[cfg(test)]
@@ -699,14 +720,17 @@ impl<'a> FlashHc<'a> {
                 self.inject.is_some()
                     && !self.gpu.hc_workspace_enabled.get()
                     && streams.dtype == FloatType::F32
-                    && moe.device_hot_gate_eligible(0),
+                    && moe.device_hot_gate_eligible_for_encoding(0),
                 "ineligible pending HC route"
             );
             ensure!(
                 std::ptr::eq(self.gpu, writer.gpu),
                 "HC chain requires the same Metal instance"
             );
-            let command = self.gpu.queue.new_command_buffer().to_owned();
+            ensure!(
+                command.status() == MTLCommandBufferStatus::NotEnqueued,
+                "pending HC route requires an unsubmitted command"
+            );
             #[cfg(test)]
             self.gpu
                 .helper_commands

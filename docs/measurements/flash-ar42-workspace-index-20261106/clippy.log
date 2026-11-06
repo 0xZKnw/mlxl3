@@ -1,0 +1,34 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+error[E0505]: cannot move out of `device` because it is borrowed
+    --> native/src/gpu.rs:978:17
+     |
+ 786 |             let pipeline = |name: &str| -> Result<_> {
+     |                            ------------------------- borrow of `device` occurs here
+...
+ 790 |                 device
+     |                 ------ borrow occurs due to use in closure
+...
+ 978 |                 device,
+     |                 ^^^^^^ move out of `device` occurs here
+...
+1046 |                             pipeline("flash_index_key_qmv")?,
+     |                             -------- borrow later captured here by closure
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0505]: cannot move out of `library` because it is borrowed
+    --> native/src/gpu.rs:992:31
+     |
+ 786 |             let pipeline = |name: &str| -> Result<_> {
+     |                            ------------------------- borrow of `library` occurs here
+ 787 |                 let function = library
+     |                                ------- borrow occurs due to use in closure
+...
+ 992 |                 ar20_library: library,
+     |                               ^^^^^^^ move out of `library` occurs here
+...
+1046 |                             pipeline("flash_index_key_qmv")?,
+     |                             -------- borrow later captured here by closure
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

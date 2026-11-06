@@ -1,0 +1,15 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+error[E0505]: cannot move out of `records` because it is borrowed
+   --> native/src/gpu/ar34_indirect_hot_tests.rs:256:10
+    |
+138 |     let make = |map| ResidentSnapshot::for_test(map, records.iter().cloned().map(Some).collect());
+    |                ----- borrow of `records` occurs here ------- borrow occurs due to use in closure
+...
+256 |     drop(records);
+    |          ^^^^^^^ move out of `records` occurs here
+...
+285 |             gpu.submit_resident_hot_inner(&x, &ids, make(full_map)?, Storage::StorageModeShared)?;
+    |                                                     ---- borrow later used here
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

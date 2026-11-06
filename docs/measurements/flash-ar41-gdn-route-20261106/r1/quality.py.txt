@@ -1,0 +1,30 @@
+"""One selected physical regression using the previously qualified supervisor."""
+import hashlib,json,os,runpy,signal,subprocess,time
+from pathlib import Path
+ROOT=Path.cwd();OUT=ROOT/'docs/measurements/flash-ar41-gdn-route-20261106';PLAN=OUT/'plan.json'
+P=json.loads(PLAN.read_text());sha=lambda p:hashlib.sha256(Path(p).read_bytes()).hexdigest()
+for f,h in P['source_files'].items():assert sha(ROOT/f)==h,f
+for f,h in P['model']['metadata'].items():assert sha(ROOT/f)==h,f
+for a in [P['engine'],P['libtest']]:assert sha(a['path'])==a['sha256']
+R=runpy.run_path(P['supervisor']['path']);assert sha(P['supervisor']['path'])==P['supervisor']['sha256']
+C=runpy.run_path('scripts/profile_native_ar.py');env=C['environment']();env['MLXL3_FLASH_MODEL']=P['model']['path'];env['MLXL3_NATIVE_GDN_ROUTE_CHAIN']='0'
+cmd=[P['libtest']['path'],'gpu::gdn::gdn_route_tests::physical_gdn_route_preserves_states_and_removes_36_commands','--exact','--ignored','--nocapture','--test-threads=1']
+r={'status':'running','parity':False,'joined':False,'command':cmd,'environment':{k:v for k,v in env.items() if k.startswith('MLXL3_')},'plan_sha256':sha(PLAN)};child=None;t=time.monotonic()
+def save():(OUT/'quality.json').write_text(json.dumps(r,indent=2)+'\n')
+def stop(signum,frame):raise KeyboardInterrupt('quality interrupted')
+signal.signal(signal.SIGTERM,stop);save()
+try:
+ with (OUT/'quality.log').open('x') as log:
+  child=subprocess.Popen(cmd,stdout=log,stderr=subprocess.STDOUT,env=env,start_new_session=True);r['pid']=child.pid;save();code=child.wait(timeout=180)
+ assert code==0,f'libtest exit {code}'
+ log=(OUT/'quality.log').read_text();assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in log
+ data=R['D']['marker'](log,'AR41_GDN_ROUTE');assert data['parity'] and data['state_words']==57606144 and len(data['cases'])==2
+ assert all(c['uses']==36 and c['candidate_commands']+36==c['baseline_commands'] for c in data['cases'])
+ r.update(status='validated_physical_regression',parity=True,evidence=data)
+except BaseException as e:r.update(status='failed',parity=False,error=repr(e));raise
+finally:
+ r.update(joined=R['safe_stop'](child),seconds=time.monotonic()-t)
+ if not r['joined']:r.update(status='failed_cleanup',parity=False)
+ save()
+ with (ROOT/'opti.md').open('a') as f:f.write('\nAR41 physique CLOS '+r['status']+' parity='+str(r['parity'])+' joined='+str(r['joined'])+' ; vitesse nonmesurée.\n')
+print(r['status'],r['joined'])

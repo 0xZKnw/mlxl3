@@ -1,0 +1,19 @@
+# AR42 — P03 numerical workspace + P08 short-context K-only index
+
+Base a5a6a454 (PR156 P02). Two opt-in adaptations, measured together above P02 ON. Native Flash Next AR only; no MTP/DFlash. Defaults remain unchanged until qualification/composition completes.
+
+P03 leases the five numerical T05 buffers (281,600 bytes per Metal instance), under the existing exclusive transaction. H and any submitted F must be physically terminal before recycling; unsubmitted F prevents recycling. Argument buffer and map remain fresh. Reset drains layers before clearing the spare. The existing auxiliary reserve covers this bounded pool; this is allocation size, not measured process RAM.
+
+P08 retains canonical fixed K2/CB2/NT1/split1 resident 2560→640 arithmetic, dispatching eight groups for the final K128. Other formats and trace fall back. The indexer keeps its tail/block history and switches to full QK at offset2051 (2052 positions). No new sparse threshold. Component tests cover offsets2046–2053; no full-model generation of2052 tokens.
+
+Correction precedes speed: three selected release physical tests, each one passed/zero ignored, process joined. Workspace compares256000 finite Half words with independent canonical projections (53 bindings), detects wrong-pointer mutation, poisons recycled buffers, checks committed/unsubmitted consumers and reset. It reuses15 workspaces and reduces actual buffer requests7→2/transaction. Index compares128 finite Half words to full640 projection, plus tail/blocks/positions and trace fallback. Model composition checks two tokens, full248320 logits,40960B hidden,84 continuation tensors/case and57606144 finite state words,36 P02 uses/token and positive workspace/index counters. Error injection at P/previousMoE/layer20, rollback/retry/export restoration and existing profiling ancestry pass. Independent archive: initial full-logit digest and first state tensor only; remaining comparisons use the full baseline path, not independent archived states.
+
+CPU:68 flash_support +4 device_hot_policy tests passed,0ignored. Metadata/inventory11 tests+2subtests. Clippy strict --features chat --all-targets, rustfmt, release CLI/libtest pass. Three actual CPU Kani harnesses cover exact workspace layouts/storage, terminal lifecycle and index geometry/last H128 bounds. No proof of Metal, allocation or concurrency. Standalone CBMC absent; actual Metal source compiled by release tests. The earlier broad-geometry proof is kept separately from the corrected strict geometry proof. General suites omitted per user request.
+
+Evidence: [release QA](quality.json), [source/binary/model freeze](quality-plan.json), [speed freeze](speed-plan.json), [speed controller](speed.py.txt), [quality controller](quality.py.txt), [failed first release](r1/quality.json). Debug failures and corrected test-only readback/profiling scopes are recorded in opti.md; copied logs preserve failures. Initial CPU final run67passed/1failed was a stale prototype expectation, corrected to the strict supported format; source production geometry unchanged.
+
+Protocol: M5/24GiB, Qwen3.8-Flash-Next EXL3avg2.05/H4 checkpoint65c89531, MAIN87,128generated/127decode,ctx4096,3GiB53slots/layer,4readers,depth0,prefix0,T0/topk1/penalty1. Warmup1+measure1 per arm, control/candidate/control. Existing13AR defaults+AR2+T05, P02 ON in every arm; only workspace/index flags change. No cooling pause, swap guard, app closure, concurrent compiler/prover/model, or installed-app replacement. Temperature not measured.
+
+## Result
+
+Control 9.91355 / candidate 9.86286 / control 9.84488 tok/s. Pooled controls Σtokens/Σdecode_seconds: 9.87910 tok/s; candidate -0.164%, control drift -0.693%. All six full128 outputs match golden and children join. **No established speed gain: P03/P08 remain opt-in, OFF by default.** Numerical qualification does not validate a boost. No warmup throughput included in this comparison.

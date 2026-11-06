@@ -1,0 +1,102 @@
+{
+  "status": "correctness_validated_speed_non_conclusive",
+  "decode_tps": [
+    10.132285093305907,
+    10.085712408004225,
+    10.019308667307495
+  ],
+  "pooled_control_tps": 10.075480188907921,
+  "candidate_delta_percent": 0.10155564702085673,
+  "control_drift_percent": -1.1150142831359067,
+  "measured_decode_counts53": [
+    6096,
+    42559,
+    18401
+  ],
+  "measured_decode_counts64": [
+    6096,
+    44843,
+    16117
+  ],
+  "miss_delta_percent": -12.412368892994941,
+  "logical_bytes53": 22964668812,
+  "logical_bytes64": 20114209404,
+  "release_memory": [
+    {
+      "mlx_active_bytes": 0,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 0,
+      "native_metal_allocated_bytes": 6614138880,
+      "process_compressed_lifetime_logical_bytes": 641417216,
+      "process_compressed_logical_bytes": 631193600,
+      "process_compressed_peak_logical_bytes": 631750656,
+      "process_decompressions": 20593,
+      "process_footprint_bytes": 7275780024,
+      "process_id": 23060,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7312922552,
+      "process_start_abstime": 291990790324
+    },
+    {
+      "mlx_active_bytes": 0,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 0,
+      "native_metal_allocated_bytes": 7280246784,
+      "process_compressed_lifetime_logical_bytes": 1047855104,
+      "process_compressed_logical_bytes": 1030635520,
+      "process_compressed_peak_logical_bytes": 1031520256,
+      "process_decompressions": 45672,
+      "process_footprint_bytes": 7944690024,
+      "process_id": 23087,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 8004049280,
+      "process_start_abstime": 293096474294
+    },
+    {
+      "mlx_active_bytes": 0,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 0,
+      "native_metal_allocated_bytes": 6614138880,
+      "process_compressed_lifetime_logical_bytes": 258195456,
+      "process_compressed_logical_bytes": 254230528,
+      "process_compressed_peak_logical_bytes": 254345216,
+      "process_decompressions": 249,
+      "process_footprint_bytes": 7272142728,
+      "process_id": 23120,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7300077448,
+      "process_start_abstime": 294197520021
+    }
+  ],
+  "additional_native_allocated_bytes": 666107904,
+  "additional_process_footprint_vs_control_mean_bytes": 670728648.0,
+  "pread_micro": {
+    "cases": [
+      {
+        "allocations": 10,
+        "early": false,
+        "first_pread_ns": 395625,
+        "last_allocation_ns": 305709,
+        "observed_overlap": false,
+        "preads": 10
+      },
+      {
+        "allocations": 10,
+        "early": true,
+        "first_pread_ns": 36500,
+        "last_allocation_ns": 83042,
+        "observed_overlap": true,
+        "preads": 10
+      }
+    ],
+    "limits": "host timestamps immediately before read_exact_at, instrumented temporary-file microcheck; not physical NAND or speed proof",
+    "parity": true
+  },
+  "defaults": {
+    "P02": "ON exact M5",
+    "P03/P08": "OFF",
+    "64-bank": "opt-in; default53 with cache budget preserved",
+    "P05": "OFF"
+  },
+  "limits": "two options measured together; host temporary-file I/O timing, not NAND; different instrumented count runs, not release TPS; compression correlation is not causation"
+}

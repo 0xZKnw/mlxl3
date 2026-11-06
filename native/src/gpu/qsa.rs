@@ -11,6 +11,7 @@ use std::{cell::Cell, collections::BTreeMap, rc::Rc};
 pub(super) struct Pipelines {
     index_rope: ComputePipelineState,
     pool: ComputePipelineState,
+    pool_key: Option<ComputePipelineState>,
     scores: ComputePipelineState,
     nax: std::cell::OnceCell<ComputePipelineState>,
     norm: ComputePipelineState,
@@ -34,10 +35,12 @@ impl Pipelines {
         gate: bool,
         chains: bool,
         prefetch: bool,
+        key_only: bool,
     ) -> Result<Self> {
         Ok(Self {
             index_rope: p("qsa_index_rope")?,
             pool: p("qsa_pool")?,
+            pool_key: key_only.then(|| p("qsa_pool_key")).transpose()?,
             scores: p("qsa_index_scores")?,
             nax: std::cell::OnceCell::new(),
             norm: p("qsa_norm")?,
@@ -151,7 +154,18 @@ impl Index<'_> {
         };
         let half = |n| MatrixView::output(gpu, FloatType::F16, 1, n, storage);
         let groups = |n: u32| MTLSize::new(u64::from(n), 1, 1);
-        let qk = self.qk.encode_row(cmd, x, storage)?;
+        let key_only = !trace && count <= 512 && gpu.qsa_index_key_only.get();
+        let key = if key_only {
+            self.qk.encode_index_key(cmd, x, storage)?
+        } else {
+            None
+        };
+        let compact = key.is_some();
+        let qk = if let Some(key) = key {
+            key
+        } else {
+            self.qk.encode_row(cmd, x, storage)?
+        };
         let prepare = |src: &MatrixView, gain: &Buffer, heads: u32, pos: u32| -> Result<_> {
             let norm = half(heads * 128)?;
             Metal::encode(
@@ -178,7 +192,14 @@ impl Index<'_> {
             let pool = half(128)?;
             Metal::encode(
                 cmd,
-                &gpu.qsa.pool,
+                if compact {
+                    gpu.qsa
+                        .pool_key
+                        .as_ref()
+                        .context("missing compact index pool")?
+                } else {
+                    &gpu.qsa.pool
+                },
                 &[old, &qk.buffer, &pool.buffer],
                 [128u32],
                 groups(4),
@@ -196,7 +217,13 @@ impl Index<'_> {
                 let old = state.tail.as_ref().context("missing partial index tail")?;
                 blit.copy_from_buffer(old, 0, &tail, 0, u64::from(rows) * 256);
             }
-            blit.copy_from_buffer(&qk.buffer, 1024, &tail, u64::from(rows) * 256, 256);
+            blit.copy_from_buffer(
+                &qk.buffer,
+                if compact { 0 } else { 1024 },
+                &tail,
+                u64::from(rows) * 256,
+                256,
+            );
             blit.end_encoding();
             (Some(tail), None)
         };
@@ -1873,3 +1900,7 @@ mod ar36_tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "index_key_tests.rs"]
+mod index_key_tests;

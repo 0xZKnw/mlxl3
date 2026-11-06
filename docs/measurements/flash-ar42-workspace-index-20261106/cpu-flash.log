@@ -1,0 +1,78 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.72s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/ar41/cargo-target/debug/deps/mlxl3_native-7cabd5082217ec5d)
+
+running 68 tests
+test flash_support::ar20_head_gates_require_the_actual_whole_private_capability ... ok
+test flash_support::ar10_whole_gdn_preserves_capability_and_private_guards ... ok
+test flash_support::ar10_qsa_gate_keeps_short_dense_private_domain ... ok
+test flash_support::ar20_resident_bundle_requires_exact_live_canonical_pair ... ok
+test flash_support::cross_layer_keeps_every_export_depth_and_consumer_fallback ... ok
+test flash_support::dense_prompt_rejects_partial_empty_and_overflowing_inputs ... ok
+test flash_support::ar20_qsa_chains_guard_keeps_short_dense_private_capable_domain ... ok
+test flash_support::draft_contract_tests::expert_output_strides_match_wide_arithmetic_and_reject_empty_or_overflow ... ok
+test flash_support::gdn_private_epilogue_keeps_public_trace_and_half_stream_fallbacks ... ok
+test flash_support::draft_contract_tests::draft_prefix_rejects_invalid_profiles_and_prefers_shorter_ties ... ok
+test flash_support::gdn_route_requires_every_producer_and_workspace_guard ... ok
+test flash_support::draft_contract_tests::expert_cohorts_fit_even_the_smallest_streaming_cache ... ok
+test flash_support::draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion ... ok
+test flash_support::hc_gate_chain_keeps_every_fallback_and_default_off ... ok
+test flash_support::hc_chain_flag_preserves_hardware_default_and_strict_overrides ... ok
+test flash_support::hc_kernels_default_off_and_reject_non_literals ... ok
+test flash_support::hc_write_norm_keeps_half_and_workspace_fallbacks ... ok
+test flash_support::draft_contract_tests::gpu_hot_wide_accepts_only_explicit_boolean_literals ... ok
+test flash_support::draft_contract_tests::draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes ... ok
+test flash_support::draft_contract_tests::fixed_draft_width_rejects_nonliteral_and_adaptive_controls ... ok
+test flash_support::moe_completion_requires_a_bounded_deferred_consumer ... ok
+test flash_support::index_key_grid_keeps_the_original_output_stride ... ok
+test flash_support::native_prefetch_room_rejects_invalid_ownership_counts ... ok
+test flash_support::ple_codeword_reads_four_symbols_across_column_zero ... ok
+test flash_support::prefill_heads_keep_the_final_row_of_every_call ... ok
+test flash_support::qsa_append_handles_empty_full_and_forked_prefixes ... ok
+test flash_support::qsa_attention_two_pass_boundary ... ok
+test flash_support::qsa_slab_forks_preserve_capacity_and_growth_is_capped ... ok
+test flash_support::immutable_flash_records_match_all_three_packed_intervals ... ok
+test flash_support::grouped_route_tests::grouped_dispatch_threshold_matches_wide_arithmetic_at_all_boundaries ... ok
+test flash_support::native_prepare_only_accepts_qualified_slot_layouts ... ok
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... ok
+test flash_support::tests::available_memory_accepts_older_complete_revisions ... ok
+test flash_support::slru::tests::slru_rejects_out_of_range_slots_and_demotes_the_oldest_protected ... ok
+test flash_support::tests::available_memory_rejects_truncated_and_oversized_snapshots ... ok
+test flash_support::tests::available_memory_query_returns_a_positive_snapshot ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test flash_support::slru::tests::slru_keeps_pending_generations_and_recovers_after_abandonment ... ok
+test flash_support::native_demand_deduplicates_reads_but_preserves_routes_and_fails_closed ... ok
+test flash_support::tests::delayed_completion_cannot_publish_a_recycled_expert_slot ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::disk_ranges_reject_empty_overflow_and_out_of_bounds ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test flash_support::slot_read_segments_initialize_every_byte_before_publication ... ok
+test flash_support::tests::fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending ... ok
+test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+test flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand ... ok
+test flash_support::tests::les_admission_retains_recent_unused_records_without_inventing_frequency ... ok
+test flash_support::sparse_qsa_positions_preserve_ties_and_current_tail ... ok
+test flash_support::draft_contract_tests::draft_prefix_matches_exhaustive_quarter_probability_outcomes ... ok
+test flash_support::tests::predictions_protect_victims_without_inventing_frequency_or_blocking_demand ... ok
+test flash_support::tests::publication_clock_exhaustion_frees_pending_without_a_false_hit ... ok
+test flash_support::tests::ready_snapshot_excludes_pending_failed_and_recycled_generations ... ok
+test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+test flash_support::tests::predictive_victims_replay_symbolic_case_and_all_protection_masks ... ok
+test flash_support::tests::per_layer_slots_preserve_budget_and_reject_malformed_profiles ... ok
+test flash_support::tests::slot_validation_and_les_controls_reject_invalid_inputs ... ok
+test flash_support::tests::speculative_admission_preserves_actual_cohort_space_and_failed_reservations ... ok
+test flash_support::tests::wide_cohorts_exclude_pending_slots_before_reserving ... ok
+test flash_support::tests::layer_slot_proof_fixture_matches_original_for_every_suffix ... ok
+test flash_support::draft_contract_tests::unique_prefix_matches_set_oracle_and_respects_pending_ownership ... ok
+test flash_support::tests::persistent_prefetch_sequences_preserve_cache_invariants ... ok
+test flash_support::tests::layer_slot_parser_preserves_all_two_byte_suffixes ... ok
+test flash_support::grouped_route_tests::grouped_routes_preserve_every_original_position_and_reject_invalid_slots ... ok
+test flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes ... ok
+test flash_support::slru::tests::slru_matches_independent_timestamp_oracle_with_churn_and_duplicates ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+test flash_support::tests::free_slots_precede_evictions_through_failed_and_duplicate_publications ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 380 filtered out; finished in 0.44s
+

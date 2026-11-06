@@ -63,6 +63,23 @@ pub(crate) fn ready_minimum_valid(minimum: usize, remaining: usize) -> bool {
     minimum <= remaining && (minimum > 0 || remaining == 0)
 }
 
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn shared_plan_valid(count: usize, owners: usize, extents_valid: bool) -> bool {
+    count <= 10 && count == owners && extents_valid
+}
+#[cfg(kani)]
+#[kani::proof]
+fn early_shared_plan_checks_all_structural_preconditions() {
+    let count: usize = kani::any();
+    let owners: usize = kani::any();
+    let extents: bool = kani::any();
+    assert_eq!(
+        shared_plan_valid(count, owners, extents),
+        count <= 10 && count == owners && extents
+    );
+    kani::cover!(count == 10 && shared_plan_valid(count, owners, extents));
+    kani::cover!(count == 0 && shared_plan_valid(count, owners, extents));
+}
 pub(crate) fn common_queue_flag(value: Option<&str>) -> Option<bool> {
     crate::flash_support::hc_chain_flag(value, false)
 }
@@ -147,7 +164,11 @@ impl Drop for Ticket {
         self.0.fetch_sub(1, Ordering::Release);
     }
 }
+#[cfg(test)]
+type SharedTrace = Arc<Mutex<Vec<(&'static str, Instant)>>>;
 struct Read {
+    #[cfg(test)]
+    shared_trace: Option<SharedTrace>,
     lease: SlotLease,
     file: File,
     offset: u64,
@@ -163,6 +184,8 @@ struct Read {
 impl Read {
     fn run(self) {
         let Read {
+            #[cfg(test)]
+            shared_trace,
             lease,
             file,
             offset,
@@ -175,6 +198,8 @@ impl Read {
             #[cfg(test)]
             wave_gate,
         } = self;
+        #[cfg(all(test, not(all(target_os = "macos", feature = "direct-metal"))))]
+        let _ = shared_trace;
         #[cfg(test)]
         let started = Instant::now();
         #[cfg(test)]
@@ -209,6 +234,10 @@ impl Read {
                     let target = unsafe {
                         std::slice::from_raw_parts_mut(destination.contents().cast::<u8>(), bytes)
                     };
+                    #[cfg(test)]
+                    if let Some(trace) = &shared_trace {
+                        trace.lock().unwrap().push(("pread", Instant::now()));
+                    }
                     file.read_exact_at(target, offset)?;
                 }
             }
@@ -459,6 +488,12 @@ fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
 mod readahead;
 
 pub(crate) struct ReadService {
+    #[cfg(test)]
+    shared_trace: std::cell::RefCell<Option<SharedTrace>>,
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    early_reads: bool,
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) early_batches: Cell<usize>,
     next: Cell<usize>,
     senders: Vec<SyncSender<ReadWork>>,
     workers: Vec<JoinHandle<()>>,
@@ -530,6 +565,17 @@ impl ReadService {
     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
+            #[cfg(test)]
+            shared_trace: std::cell::RefCell::new(None),
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            early_reads: match std::env::var("MLXL3_NATIVE_EARLY_READS") {
+                Ok(value) => common_queue_flag(Some(&value)),
+                Err(std::env::VarError::NotPresent) => Some(false),
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_EARLY_READS must be 0 or 1")?,
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            early_batches: Cell::new(0),
             next: Cell::new(0),
             senders: Vec::new(),
             workers: Vec::new(),
@@ -707,7 +753,16 @@ impl ReadService {
     ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), false)?;
         let owners = owners.into_iter();
-        ensure!(reads.len() == owners.len(), "record owner count mismatch");
+        ensure!(
+            shared_plan_valid(
+                reads.len(),
+                owners.len(),
+                reads
+                    .iter()
+                    .all(|r| direct_destination_valid(r.3, r.3 as u64, true))
+            ),
+            "invalid shared read plan"
+        );
         let reads = reads
             .into_iter()
             .zip(owners)
@@ -740,11 +795,22 @@ impl ReadService {
                         .set(self.fresh_destinations.get() + 1);
                     buffer
                 };
+                #[cfg(test)]
+                if let Some(trace) = self.shared_trace.borrow().as_ref() {
+                    trace.lock().unwrap().push(("allocation", Instant::now()));
+                }
                 Ok((lease, file, offset, bytes, ReadPayload::Shared(destination)))
-            })
-            .collect::<Result<Vec<_>>>()?;
+            });
+        let allow_split = self.split_enabled && device.name() == "Apple M5";
+        if self.early_reads {
+            #[cfg(test)]
+            if reads.len() > 0 {
+                self.early_batches.set(self.early_batches.get() + 1);
+            }
+            return self.start_fallible_payloads(reads, limit, false, allow_split);
+        }
         self.start_payloads(
-            reads.into_iter(),
+            reads.collect::<Result<Vec<_>>>()?.into_iter(),
             limit,
             false,
             self.split_enabled && device.name() == "Apple M5",
@@ -834,6 +900,15 @@ impl ReadService {
         background: bool,
         allow_split: bool,
     ) -> Result<ReadBatch> {
+        self.start_fallible_payloads(reads.map(Ok), limit, background, allow_split)
+    }
+    fn start_fallible_payloads(
+        &self,
+        reads: impl ExactSizeIterator<Item = Result<(SlotLease, File, u64, usize, ReadPayload)>>,
+        limit: Duration,
+        background: bool,
+        allow_split: bool,
+    ) -> Result<ReadBatch> {
         self.validate_start(reads.len(), background)?;
         let (result, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
@@ -844,9 +919,12 @@ impl ReadService {
             trace: Vec::new(),
         };
         let count = reads.len();
-        for (lease, file, offset, bytes, payload) in reads {
+        for item in reads {
+            let (lease, file, offset, bytes, payload) = item?;
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
+                #[cfg(test)]
+                shared_trace: self.shared_trace.borrow().clone(),
                 lease,
                 file,
                 offset,
@@ -1024,6 +1102,51 @@ mod tests {
     use std::{cell::RefCell, io::Write, rc::Rc};
     fn lease() -> Result<SlotLease> {
         Ok(DemandPlan::reserve(&Rc::new(RefCell::new(ExpertCache::new(10)?)), &[17])?.reads[0])
+    }
+    #[test]
+    fn early_enqueue_precedes_next_destination_and_drains_partial_failure() -> Result<()> {
+        let pool = ReadService::new_with_schedule(2, false)?;
+        let held = Arc::new(TestReadGate::default());
+        *pool.held_first.borrow_mut() = Some(held.clone());
+        let mut file = tempfile::tempfile()?;
+        file.write_all(b"abc")?;
+        let lease = lease()?;
+        let mut queued_before_second = false;
+        let reads = (0..2).map(|i| {
+            if i == 1 {
+                queued_before_second = pool.in_flight() == 1;
+                held.release();
+                anyhow::bail!("injected destination failure");
+            }
+            Ok((
+                lease,
+                file.try_clone()?,
+                0,
+                1,
+                ReadPayload::Bytes(Vec::new()),
+            ))
+        });
+        let result = pool.start_fallible_payloads(reads, Duration::from_secs(2), false, false);
+        held.release();
+        assert!(result.is_err() && queued_before_second && pool.in_flight() == 0);
+        *pool.held_first.borrow_mut() = None;
+        let mut batch = pool.start(
+            vec![(lease, file.try_clone()?, 1, 1)],
+            Duration::from_secs(2),
+        )?;
+        let rows = batch.ready(true)?;
+        assert!(matches!(&rows[0].1, ReadPayload::Bytes(v) if v == b"b"));
+        for count in [0, 1, 10, 11, usize::MAX] {
+            for owners in [0, 1, 10, usize::MAX] {
+                for extents in [false, true] {
+                    assert_eq!(
+                        shared_plan_valid(count, owners, extents),
+                        count <= 10 && count == owners && extents
+                    );
+                }
+            }
+        }
+        Ok(())
     }
     #[test]
     fn reads_distinct_owned_ranges_and_drains_eof_before_reuse() -> Result<()> {

@@ -794,6 +794,94 @@ impl<'a> FlashGdnLayer<'a> {
         self.forward_deferred(streams, next, depth, false)?
             .complete(self.attention.gpu)
     }
+    fn route_chain_eligible(&self, streams: &MatrixView, depth: usize) -> bool {
+        let gpu = self.attention.gpu;
+        crate::flash_support::gdn_route_eligible(
+            gpu.gdn_route_chain.get(),
+            gpu.hc_gdn_chain.get(),
+            self.residual
+                .moe
+                .device_hot_gate_eligible_for_encoding(depth),
+            streams.dtype == FloatType::F32,
+            gpu.hc_workspace_enabled.get(),
+        )
+    }
+
+    fn forward_route_chain(
+        &mut self,
+        streams: &MatrixView,
+        mut previous: Option<&mut DeferredHcWrite>,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
+        let gpu = self.attention.gpu;
+        ensure!(
+            std::ptr::eq(gpu, self.residual.mlp_hc.gpu)
+                && std::ptr::eq(gpu, self.residual.attn_hc.gpu),
+            "GDN route requires one Metal owner"
+        );
+        #[cfg(test)]
+        let scope = crate::flash_profile::span(if previous.is_some() {
+            "native.hc_gdn.cross_layer"
+        } else {
+            "native.hc_gdn.joined"
+        });
+        let command = gpu.queue.new_command_buffer().to_owned();
+        let (streams, read) = if let Some(write) = previous.as_deref() {
+            self.residual.attn_hc.encode_after_write(
+                &command,
+                &write.streams,
+                &write.branch,
+                &write.gate,
+            )?
+        } else {
+            (
+                streams.clone(),
+                self.residual
+                    .attn_hc
+                    .encode_read(&command, streams, false)?,
+            )
+        };
+        let gdn = self
+            .attention
+            .encode_for_consumer(&command, read.mixed(), false, true)?;
+        // These views stay GPU-only until the common GDN/P command completes.
+        let read = read.finish(false)?;
+        #[cfg(test)]
+        drop(scope);
+        let pending = self.residual.mlp_hc.submit_after_write_with_gate_on(
+            command,
+            &self.residual.attn_hc,
+            &streams,
+            &gdn.values,
+            read.gate
+                .as_ref()
+                .context("missing attention injection gate")?,
+            &self.residual.moe,
+        )?;
+        // Release the previous H/F owner before acquiring the next exclusive Hot lease.
+        if let Some(write) = previous.as_mut() {
+            write.finish_producer()?;
+        }
+        let (written, mlp_read, experts) = self.residual.moe.with_pending_gate(pending)?;
+        self.attention.finish(gdn)?;
+        #[cfg(test)]
+        {
+            gpu.gdn_route_uses.set(gpu.gdn_route_uses.get() + 1);
+            if previous.is_some() {
+                gpu.cross_layer_triples
+                    .set(gpu.cross_layer_triples.get() + 1);
+            } else {
+                gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + 1);
+            }
+        }
+        self.residual.final_write(
+            &written,
+            experts,
+            mlp_read.gate.as_ref().context("missing MLP injection")?,
+            defer_write,
+        )
+    }
+
     pub(super) fn forward_deferred(
         &mut self,
         streams: &MatrixView,
@@ -803,6 +891,9 @@ impl<'a> FlashGdnLayer<'a> {
     ) -> Result<LayerOutput> {
         let before = self.snapshot();
         let residual = (|| {
+            if self.route_chain_eligible(streams, depth) {
+                return self.forward_route_chain(streams, None, defer_write);
+            }
             let (read, attention) =
                 self.attention
                     .forward_after_hc(&self.residual.attn_hc, streams, false)?;
@@ -828,6 +919,10 @@ impl<'a> FlashGdnLayer<'a> {
     ) -> Result<LayerOutput> {
         let before = self.snapshot();
         let result = (|| {
+            if self.route_chain_eligible(&write.streams, 0) {
+                let streams = write.streams.clone();
+                return self.forward_route_chain(&streams, Some(&mut write), defer_write);
+            }
             let gpu = self.attention.gpu;
             #[cfg(test)]
             let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
@@ -1015,3 +1110,7 @@ mod ar10_gdn_tests;
 #[cfg(test)]
 #[path = "ar20_gdn_tests.rs"]
 mod ar20_gdn_tests;
+
+#[cfg(test)]
+#[path = "gdn_route_tests.rs"]
+mod gdn_route_tests;

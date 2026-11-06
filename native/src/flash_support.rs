@@ -4,6 +4,75 @@ use anyhow::Result;
 pub const PREFILL_CHUNK: usize = 8;
 
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn index_key_groups(
+    shape: [u32; 2],
+    format: [u32; 3],
+    splits: u32,
+    resident: bool,
+) -> Option<u32> {
+    (resident && shape == [2560, 640] && format == [2, 2, 1] && splits == 1).then_some(8)
+}
+
+#[test]
+fn index_key_grid_keeps_the_original_output_stride() {
+    assert_eq!(index_key_groups([2560, 640], [2, 2, 1], 1, true), Some(8));
+    for format in [[2, 0, 1], [2, 2, 2], [4, 2, 1], [7, 0, 1]] {
+        assert_eq!(index_key_groups([2560, 640], format, 1, true), None);
+    }
+    assert_eq!(index_key_groups([2560, 128], [2, 2, 1], 1, true), None);
+    assert_eq!(index_key_groups([2560, 640], [2, 2, 1], 2, true), None);
+    assert_eq!(index_key_groups([2560, 640], [2, 2, 1], 1, false), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn index_key_actual_geometry_stays_in_the_last_complete_h128() {
+    let shape: [u32; 2] = kani::any();
+    let format: [u32; 3] = kani::any();
+    let splits: u32 = kani::any();
+    let resident: bool = kani::any();
+    if let Some(groups) = index_key_groups(shape, format, splits, resident) {
+        assert!(resident && shape == [2560, 640] && matches!(splits, 1 | 2));
+        assert!(matches!(format[2], 1 | 2) && groups * format[2] == 8);
+        assert_eq!((32 + groups * format[2]) * 16, 640);
+        assert!(512u64 * 4 + (splits as u64 - 1) * 640 * 4 + 128 * 4 <= splits as u64 * 640 * 4);
+        kani::cover!(groups == 8);
+    }
+    kani::cover!(!resident && shape == [2560, 640] && format == [2, 2, 1] && splits == 1);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn gdn_route_eligible(
+    enabled: bool,
+    hc_gdn: bool,
+    device_hot: bool,
+    fp32: bool,
+    workspace: bool,
+) -> bool {
+    enabled && hc_gdn && device_hot && fp32 && !workspace
+}
+
+#[test]
+fn gdn_route_requires_every_producer_and_workspace_guard() {
+    for bits in 0u8..32 {
+        let b = |n: u32| bits & (1u8 << n) != 0;
+        assert_eq!(gdn_route_eligible(b(0), b(1), b(2), b(3), b(4)), bits == 15);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn gdn_route_admission_preserves_all_producer_guards() {
+    let b: [bool; 5] = kani::any();
+    let accepted = gdn_route_eligible(b[0], b[1], b[2], b[3], b[4]);
+    assert_eq!(accepted, b == [true, true, true, true, false]);
+    kani::cover!(accepted);
+    kani::cover!(!b[0] && b[1] && b[2] && b[3] && !b[4]);
+    kani::cover!(b[0] && !b[2] && b[1] && b[3] && !b[4]);
+    kani::cover!(b[0] && b[1] && b[2] && b[3] && b[4]);
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn prefill_head_required(row: usize, rows: usize, headonly: bool) -> Option<bool> {
     (row < rows).then(|| !headonly || row == rows - 1)
 }

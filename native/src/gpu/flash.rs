@@ -471,6 +471,16 @@ impl<'a> FlashNext<'a> {
         mut captures: Option<(&[usize], &mut Vec<MatrixView>)>,
     ) -> Result<MatrixView> {
         use super::gdn::LayerOutput;
+        struct RestoreRoute<'a>(&'a std::cell::Cell<bool>, bool);
+        impl Drop for RestoreRoute<'_> {
+            fn drop(&mut self) {
+                self.0.set(self.1);
+            }
+        }
+        // Exports retain the synchronous path, including on early errors.
+        let gpu = self.gpu;
+        let _route = (trace.is_some() || captures.is_some())
+            .then(|| RestoreRoute(&gpu.gdn_route_chain, gpu.gdn_route_chain.replace(false)));
         let mut streams = LayerOutput::Ready(self.streams(token)?);
         for i in 0..self.layers.len() {
             #[cfg(test)]

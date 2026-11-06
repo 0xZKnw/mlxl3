@@ -1,0 +1,21 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.64s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/ar41/cargo-target/debug/deps/mlxl3_native-7cabd5082217ec5d)
+
+running 1 test
+
+thread 'ssd_reads::tests::early_enqueue_precedes_next_destination_and_drains_partial_failure' (266545) panicked at native/src/ssd_reads.rs:1102:9:
+assertion failed: result.is_err() && queued_before_second && pool.in_flight() == 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test ssd_reads::tests::early_enqueue_precedes_next_destination_and_drains_partial_failure ... FAILED
+
+failures:
+
+failures:
+    ssd_reads::tests::early_enqueue_precedes_next_destination_and_drains_partial_failure
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`

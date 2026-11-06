@@ -66,6 +66,12 @@ kernel void flash_static_k4_nt2(FLASH_QMV_ARGUMENTS) {
 kernel void flash_fixed_k2_2560_640(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
+#define MLXL3_INDEX_KEY_TILES 1
+kernel void flash_index_key_qmv(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_INDEX_KEY_TILES
+
 #undef MLXL3_QMV_NT
 #define MLXL3_QMV_NT 2u
 kernel void flash_fixed_k2_nt2_2560_640(FLASH_QMV_ARGUMENTS) {

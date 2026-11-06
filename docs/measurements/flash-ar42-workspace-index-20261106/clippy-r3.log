@@ -1,0 +1,26 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0)
+error[E0599]: `checkpoint::Checkpoint` is not an iterator
+   --> native/src/gpu/index_key_tests.rs:21:25
+    |
+ 21 |     let c = Checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    |                         ^^^^^^^ `checkpoint::Checkpoint` is not an iterator
+    |
+   ::: native/src/checkpoint.rs:137:1
+    |
+137 | pub struct Checkpoint {
+    | --------------------- associated function or constant `inspect` not found for this struct because it doesn't satisfy `checkpoint::Checkpoint: std::iter::Iterator`
+    |
+    = note: the following trait bounds were not satisfied:
+            `checkpoint::Checkpoint: std::iter::Iterator`
+            which is required by `&mut checkpoint::Checkpoint: std::iter::Iterator`
+note: the trait `std::iter::Iterator` must be implemented
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/iter/traits/iterator.rs:42:0
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `inspect`, perhaps you need to implement one of them:
+            candidate #1: `futures_util::future::future::FutureExt`
+            candidate #2: `futures_util::stream::stream::StreamExt`
+            candidate #3: `rayon::iter::ParallelIterator`
+            candidate #4: `std::iter::Iterator`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
