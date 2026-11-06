@@ -127,6 +127,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpRememberedEnabled = false
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
+    @Published private(set) var accent: AppAccent = .neutral
+    @Published private(set) var conversationDensity: ConversationDensity = .comfortable
     @Published private(set) var loadModelOnStartup = true
     @Published private(set) var startupModelPath = ""
     @Published private(set) var completionNotificationsEnabled = false
@@ -206,6 +208,8 @@ final class StudioModel: ObservableObject {
         self.readingWidth = ConversationReadingWidth.load(from: preferences)
         self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
+        self.accent = AppAccent.load(from: preferences)
+        self.conversationDensity = ConversationDensity.load(from: preferences)
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
@@ -375,6 +379,24 @@ final class StudioModel: ObservableObject {
     func setTheme(_ value: AppTheme) {
         theme = value
         preferences.set(value.rawValue, forKey: AppTheme.preferenceKey)
+    }
+
+    func setAccent(_ value: AppAccent) {
+        accent = value
+        preferences.set(value.rawValue, forKey: AppAccent.preferenceKey)
+    }
+
+    func setConversationDensity(_ value: ConversationDensity) {
+        conversationDensity = value
+        preferences.set(value.rawValue, forKey: ConversationDensity.preferenceKey)
+    }
+
+    func resetAppearance() {
+        setTheme(.dark)
+        setAccent(.neutral)
+        setConversationDensity(.comfortable)
+        setReadingWidth(.centered)
+        setResponseTextSize(ResponseTextSize.defaultValue)
     }
 
     func setLoadModelOnStartup(_ value: Bool) {
@@ -615,6 +637,7 @@ final class StudioModel: ObservableObject {
     }
 
     var mcpConfigurationURL: URL {
+        if isPreview { return conversationFileURL.deletingLastPathComponent().appending(path: "mcp.json") }
         let environment = ProcessInfo.processInfo.environment
         let root: URL
         if let override = environment["MLXL3_HOME"], !override.isEmpty {

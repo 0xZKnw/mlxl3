@@ -44,6 +44,8 @@ extension StudioModel {
         check(AppTheme.load(from: preferences) == .dark, "Keep existing dark default")
         check(StartupModelPreference.load(from: preferences), "Keep existing auto-load default")
         let studio = make(preview: true)
+        check(studio.mcpConfigurationURL.deletingLastPathComponent() == file.deletingLastPathComponent(),
+              "UI preview MCP configuration must stay in the disposable workspace")
         studio.draft = "Unsent text"; let conversation = studio.selectedConversationID
         for theme in AppTheme.allCases {
             studio.setTheme(theme)
@@ -52,6 +54,28 @@ extension StudioModel {
                   "Changing appearance changed conversation or draft")
             check(!theme.title.isEmpty, "Missing theme title")
         }
+        for accent in AppAccent.allCases {
+            studio.setAccent(accent)
+            check(make(preview: true).accent == accent, "Accent not persisted")
+        }
+        for density in ConversationDensity.allCases {
+            studio.setConversationDensity(density)
+            check(make(preview: true).conversationDensity == density, "Density not persisted")
+        }
+        preferences.set("unknown", forKey: AppAccent.preferenceKey)
+        preferences.set(true, forKey: ConversationDensity.preferenceKey)
+        check(make(preview: true).accent == .neutral && make(preview: true).conversationDensity == .comfortable,
+              "Malformed appearance preference accepted")
+        studio.setLoadModelOnStartup(false)
+        studio.setStartupModelPath("/fixture/startup")
+        studio.resetAppearance()
+        let reset = make(preview: true)
+        check(reset.theme == .dark && reset.accent == .neutral && reset.conversationDensity == .comfortable
+              && reset.readingWidth == .centered && reset.responseTextSize == 15,
+              "Appearance reset did not persist defaults")
+        check(!reset.loadModelOnStartup && reset.startupModelPath == "/fixture/startup"
+              && studio.draft == "Unsent text" && studio.selectedConversationID == conversation,
+              "Appearance reset changed startup or conversation data")
         check(AppTheme.system.colorScheme == nil && AppTheme.light.colorScheme == .light
               && AppTheme.dark.colorScheme == .dark && AppTheme.midnightBlue.colorScheme == .dark, "Incorrect scheme mapping")
         for invalid in ["", "sepia", true, 4] as [Any] {
@@ -82,11 +106,11 @@ extension StudioModel {
         // Render actual settings and rich text, not a parallel palette implementation.
         _ = NSApplication.shared
         let host = NSHostingView(rootView: AppSettingsView().environmentObject(studio))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 650, height: 560),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 720),
                               styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
-        host.frame = NSRect(x: 0, y: 0, width: 650, height: 560)
+        host.frame = NSRect(x: 0, y: 0, width: 1000, height: 720)
         defer { window.close() }
         for theme in [AppTheme.light, .dark, .midnightBlue, .light] {
             studio.setTheme(theme)

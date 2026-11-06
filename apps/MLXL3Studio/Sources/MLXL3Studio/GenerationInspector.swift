@@ -8,19 +8,23 @@ struct GenerationInspector: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Génération", "Generation"))
-                        .font(.system(size: 23, weight: .regular, design: .serif))
-                    Text(L("Paramètres du modèle", "Model settings"))
-                        .font(.system(size: 11))
+                    Text(L("Paramètres", "Settings"))
+                        .font(.system(size: 27, weight: .regular, design: .serif))
+                    Text(studio.selectedModel?.name ?? L("Aucun modèle sélectionné", "No model selected"))
+                        .lineLimit(2)
+                        .font(.system(size: 13))
                         .foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
-                Button { studio.showInspector = false } label: {
+                Button {
+                    studio.showInspector = false
+                } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: 13, weight: .bold))
+                        .frame(width: 34, height: 34)
                 }
                 .buttonStyle(RoundGlassButtonStyle())
+                .accessibilityLabel(L("Fermer les paramètres du modèle", "Close model settings"))
             }
             .padding(.top, 25)
             .padding(.horizontal, 18)
@@ -28,18 +32,16 @@ struct GenerationInspector: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 28) {
+                    VStack(spacing: 16) {
                         SettingCard(title: L("Contexte", "Context"), icon: "chart.bar") {
                             Text(studio.contextLabel + " tokens")
-                                .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                                .font(.system(size: 13, weight: .medium)).monospacedDigit()
                             if let limit = studio.activeContextLimit, limit > 0 {
                                 ProgressView(value: min(Double(studio.contextUsed ?? 0) / Double(limit), 1))
                                     .tint(StudioTheme.accent)
                             }
-                            TextField(L("Limite en tokens (0 = auto)", "Token limit (0 = auto)"),
-                                      value: $studio.contextLengthDraft, format: .number.grouping(.never))
-                                .textFieldStyle(.roundedBorder)
-                            .disabled(studio.isGenerating || studio.modelContextLimit == nil)
+                            ContextLimitField(value: $studio.contextLengthDraft, maximum: studio.modelContextLimit)
+                                .disabled(studio.isGenerating || studio.modelContextLimit == nil)
                             if let cache = studio.draftContextBytes, let model = studio.modelResidentBytes {
                                 VStack(alignment: .leading, spacing: 7) {
                                     HStack {
@@ -47,98 +49,140 @@ struct GenerationInspector: View {
                                         Spacer()
                                         Text(memory(model + cache)).monospacedDigit()
                                     }
-                                    .font(.system(size: 12, weight: .semibold))
-                                    Text(L("Modèle \(memory(model)) + cache \(memory(cache))", "Model \(memory(model)) + cache \(memory(cache))"))
-                                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
-                                        .monospacedDigit()
-                                    Text(L("Estimation à contexte plein · 1 conversation. Hors buffers de calcul, autres caches et macOS.", "Estimate at full context · 1 conversation. Excludes compute buffers, other caches and macOS."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    Text(
+                                        L(
+                                            "Modèle \(memory(model)) + cache \(memory(cache))",
+                                            "Model \(memory(model)) + cache \(memory(cache))")
+                                    )
+                                    .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet)
+                                    .monospacedDigit()
+                                    Text(
+                                        L(
+                                            "Estimation à contexte plein · 1 conversation. Hors buffers de calcul, autres caches et macOS.",
+                                            "Estimate at full context · 1 conversation. Excludes compute buffers, other caches and macOS."
+                                        )
+                                    )
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                     if model + cache > Double(ProcessInfo.processInfo.physicalMemory) * 0.85 {
-                                        Label(L("Peu de marge mémoire pour le calcul et macOS.", "Little memory headroom for compute and macOS."), systemImage: "exclamationmark.triangle")
-                                            .font(.caption).foregroundStyle(.orange)
+                                        Label(
+                                            L(
+                                                "Peu de marge mémoire pour le calcul et macOS.",
+                                                "Little memory headroom for compute and macOS."),
+                                            systemImage: "exclamationmark.triangle"
+                                        )
+                                        .font(.system(size: 12)).foregroundStyle(.orange)
                                     }
                                 }
                                 .padding(10)
                                 .background(StudioTheme.contrast.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                             } else {
                                 Text(L("Estimation mémoire indisponible", "Memory estimate unavailable"))
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                             }
                             Menu(L("Préréglages", "Presets")) {
                                 Button(L("Automatique", "Automatic")) { studio.contextLengthDraft = 0 }
-                                ForEach([2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144].filter {
-                                    $0 <= (studio.modelContextLimit ?? 0)
-                                }, id: \.self) { length in
+                                ForEach(
+                                    [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144].filter {
+                                        $0 <= (studio.modelContextLimit ?? 0)
+                                    }, id: \.self
+                                ) { length in
                                     Button(length.formatted()) { studio.contextLengthDraft = length }
                                 }
                             }
                             .disabled(studio.isGenerating || studio.modelContextLimit == nil)
                             if let advised = studio.recommendedContextLength {
-                                Button(L("Utiliser le contexte conseillé : \(advised.formatted()) tokens",
-                                         "Use recommended context: \(advised.formatted()) tokens")) {
+                                Button(
+                                    L(
+                                        "Utiliser le contexte conseillé : \(advised.formatted()) tokens",
+                                        "Use recommended context: \(advised.formatted()) tokens")
+                                ) {
                                     studio.contextLengthDraft = advised
                                 }
-                                .font(.caption)
+                                .font(.system(size: 12))
                                 .disabled(studio.isGenerating || studio.isTuningMTP)
-                                Text(L("Estimation prudente avec la mémoire du moteur observée, le cache MTP si compatible, 512 Mio pour les caches et au moins 25 % / 4 Gio pour macOS et le calcul. Les autres apps peuvent réduire la marge. Enregistrer pour appliquer.",
-                                       "Conservative estimate using observed engine memory, compatible MTP cache, 512 MiB for caches and at least 25% / 4 GiB for macOS and compute. Other apps may reduce headroom. Save to apply."))
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                Text(
+                                    L(
+                                        "Estimation prudente avec la mémoire du moteur observée, le cache MTP si compatible, 512 Mio pour les caches et au moins 25 % / 4 Gio pour macOS et le calcul. Les autres apps peuvent réduire la marge. Enregistrer pour appliquer.",
+                                        "Conservative estimate using observed engine memory, compatible MTP cache, 512 MiB for caches and at least 25% / 4 GiB for macOS and compute. Other apps may reduce headroom. Save to apply."
+                                    )
+                                )
+                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                             }
                             if let maximum = studio.modelContextLimit {
-                                Text(L("Maximum du modèle : \(maximum.formatted()) tokens", "Model maximum: \(maximum.formatted()) tokens"))
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                Text(
+                                    L(
+                                        "Maximum du modèle : \(maximum.formatted()) tokens",
+                                        "Model maximum: \(maximum.formatted()) tokens")
+                                )
+                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                             }
                             Button(action: studio.saveContextAndReload) {
                                 Text(L("Enregistrer et recharger le modèle", "Save and reload model"))
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(size: 13, weight: .medium))
                                     .frame(maxWidth: .infinity).padding(.vertical, 10)
                             }
                             .buttonStyle(GlassPillButtonStyle())
                             .disabled(!studio.canSaveContext)
-                            Text(L("0 = maximum du modèle. Le rechargement libère le cache, pas l’historique. La mémoire augmente avec le contexte réellement utilisé.", "0 = model maximum. Reloading clears the cache, not your history. Memory grows with the context actually used."))
-                                .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            Text(
+                                L(
+                                    "0 = maximum du modèle. Le rechargement libère le cache, pas l’historique. La mémoire augmente avec le contexte réellement utilisé.",
+                                    "0 = model maximum. Reloading clears the cache, not your history. Memory grows with the context actually used."
+                                )
+                            )
+                            .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                         }
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
-                            SliderSetting(
-                                label: L("Température", "Temperature"),
-                                value: Binding(get: { studio.samplingTemperature }, set: { studio.temperature = $0 }),
-                                range: 0...1.5,
-                                format: "%.2f"
-                            )
-                            Divider().overlay(StudioTheme.contrast.opacity(0.08))
-                            VStack(spacing: 9) {
-                                HStack {
-                                    Text("Top K")
-                                    Spacer()
-                                    Text("\(studio.samplingTopK)").monospacedDigit()
-                                }
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(StudioTheme.secondary)
-                                Slider(
+                            VStack(spacing: 16) {
+                                SliderSetting(
+                                    label: L("Température", "Temperature"),
                                     value: Binding(
-                                        get: { Double(studio.samplingTopK) },
-                                        set: { studio.topK = Int($0.rounded()) }
-                                    ),
-                                    in: 0...200,
-                                    step: 1
+                                        get: { studio.samplingTemperature }, set: { studio.temperature = $0 }),
+                                    range: 0...1.5,
+                                    format: "%.2f"
                                 )
-                                .tint(StudioTheme.contrast.opacity(0.88))
+                                Divider().overlay(StudioTheme.contrast.opacity(0.08))
+                                VStack(spacing: 9) {
+                                    HStack {
+                                        Text("Top K")
+                                        Spacer()
+                                        Text("\(studio.samplingTopK)").monospacedDigit()
+                                    }
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(StudioTheme.secondary)
+                                    // Keep integer values without macOS drawing 201 overlapping tick marks.
+                                    Slider(
+                                        value: Binding(
+                                            get: { Double(studio.samplingTopK) },
+                                            set: { studio.topK = Int($0.rounded()) }
+                                        ),
+                                        in: 0...200
+                                    )
+                                    .tint(StudioTheme.accent)
+                                    .accessibilityLabel("Top K")
+                                }
+                                Divider().overlay(StudioTheme.contrast.opacity(0.08))
+                                SliderSetting(
+                                    label: L("Répétition", "Repetition"),
+                                    value: Binding(
+                                        get: { studio.samplingRepetitionPenalty },
+                                        set: { studio.repetitionPenalty = $0 }),
+                                    range: 1...1.3,
+                                    format: "%.2f"
+                                )
                             }
-                            Divider().overlay(StudioTheme.contrast.opacity(0.08))
-                            SliderSetting(
-                                label: L("Répétition", "Repetition"),
-                                value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 }),
-                                range: 1...1.3,
-                                format: "%.2f"
-                            )
+                            .disabled(studio.samplingLocked)
                             if studio.samplingLocked {
                                 let mode = studio.dflash2Applicable ? "DFlash2" : "MTP"
-                                Label(L("\(mode) utilise le mode greedy. Désactive \(mode) pour modifier ces paramètres.",
-                                        "\(mode) uses greedy sampling. Disable \(mode) to change these settings."), systemImage: "lock")
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                Label(
+                                    L(
+                                        "\(mode) utilise le mode greedy. Désactive \(mode) pour modifier ces paramètres.",
+                                        "\(mode) uses greedy sampling. Disable \(mode) to change these settings."),
+                                    systemImage: "lock"
+                                )
+                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                             }
                         }
-                        .disabled(studio.samplingLocked)
 
                         if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {
                             SettingCard(title: L("Accélération MTP", "MTP acceleration"), icon: "bolt.fill") {
@@ -148,65 +192,112 @@ struct GenerationInspector: View {
 
                         if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {
                             SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill") {
-                                Toggle(studio.dflash2Available
-                                       ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
-                                       : L("Préférence DFlash2 (inactive pour ce modèle)", "DFlash2 preference (inactive for this model)"), isOn: Binding(
-                                    get: { studio.dflash2Enabled || studio.dflashDownloading },
-                                    set: { studio.setDFlash2Enabled($0) }
-                                )).font(.system(size: 11))
-                                .disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)
-                                    && (!studio.dflash2Available || !studio.engineState.isReady)))
+                                Toggle(
+                                    studio.dflash2Available
+                                        ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
+                                        : L(
+                                            "Préférence DFlash2 (inactive pour ce modèle)",
+                                            "DFlash2 preference (inactive for this model)"),
+                                    isOn: Binding(
+                                        get: { studio.dflash2Enabled || studio.dflashDownloading },
+                                        set: { studio.setDFlash2Enabled($0) }
+                                    )
+                                ).font(.system(size: 13))
+                                    .disabled(
+                                        studio.isGenerating
+                                            || (!(studio.dflash2Enabled || studio.dflashDownloading)
+                                                && (!studio.dflash2Available || !studio.engineState.isReady))
+                                    )
                                 if !studio.dflash2Available {
-                                    Text(L("Préférence DFlash2 conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
-                                           "DFlash2 preference saved; unavailable for this model. You can turn it off here."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    Text(
+                                        L(
+                                            "Préférence DFlash2 conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
+                                            "DFlash2 preference saved; unavailable for this model. You can turn it off here."
+                                        )
+                                    )
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 }
                                 MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)
                                 if studio.dflashDownloading {
-                                    ProgressView(value: studio.dflashDownloadTotal > 0 ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
-                                    Text(L("Téléchargement et préparation du draft…", "Downloading and preparing the draft…"))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
-                                    Button(L("Annuler la préparation", "Cancel preparation")) { studio.setDFlash2Enabled(false) }
-                                        .buttonStyle(GlassPillButtonStyle())
+                                    ProgressView(
+                                        value: studio.dflashDownloadTotal > 0
+                                            ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
+                                    Text(
+                                        L(
+                                            "Téléchargement et préparation du draft…",
+                                            "Downloading and preparing the draft…")
+                                    )
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                                    Button(L("Annuler la préparation", "Cancel preparation")) {
+                                        studio.setDFlash2Enabled(false)
+                                    }
+                                    .buttonStyle(GlassPillButtonStyle())
                                 }
-                                if let error = studio.dflashDownloadError { Text(error).font(.caption).foregroundStyle(.red) }
+                                if let error = studio.dflashDownloadError {
+                                    Text(error).font(.system(size: 12)).foregroundStyle(.red)
+                                }
                                 if studio.selectedModel?.modelType == "qwen4_exp" {
-                                    Button(L("Télécharger le draft compatible", "Download the compatible draft"), action: studio.downloadCompatibleDFlashDraft)
-                                        .buttonStyle(GlassPillButtonStyle())
-                                        .disabled(!studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating || studio.dflashDownloading)
-                                    Text(L("Draft Flash Next : environ 1,2 Go. Chaque token est vérifié par la cible.",
-                                           "Flash Next draft: about 1.2 GB. The target verifies every token."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    Button(
+                                        L("Télécharger le draft compatible", "Download the compatible draft"),
+                                        action: studio.downloadCompatibleDFlashDraft
+                                    )
+                                    .buttonStyle(GlassPillButtonStyle())
+                                    .disabled(
+                                        !studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating
+                                            || studio.dflashDownloading)
+                                    Text(
+                                        L(
+                                            "Draft Flash Next : environ 1,2 Go. Chaque token est vérifié par la cible.",
+                                            "Flash Next draft: about 1.2 GB. The target verifies every token.")
+                                    )
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 } else {
-                                    Text(L("Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
-                                           "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
-                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    Text(
+                                        L(
+                                            "Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                            "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."
+                                        )
+                                    )
+                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 }
-                                Button(L("Choisir un draft local…", "Choose a local draft…"), action: studio.chooseDFlashDraft)
-                                    .buttonStyle(GlassPillButtonStyle()).disabled(!studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
+                                Button(
+                                    L("Choisir un draft local…", "Choose a local draft…"),
+                                    action: studio.chooseDFlashDraft
+                                )
+                                .buttonStyle(GlassPillButtonStyle()).disabled(
+                                    !studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
                             }
                             .id("dflash-tuning")
                         }
 
                         if let runtime = studio.runtimeIdentity, !runtime.isEmpty {
                             Text(L("Moteur chargé : ", "Loaded engine: ") + runtime)
-                                .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 .textSelection(.enabled)
                         }
 
-                        Button(L("Projets et profils enregistrés", "Projects and saved profiles")) { studio.showWorkspace = true }
-                    if studio.selectedMode != .agent {
-                      SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
-                        TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced)).frame(minHeight: 80)
-                        Text(L("Schéma JSON optionnel. Une réponse non conforme échoue explicitement ; le texte est livré après validation. MCP est désactivé pour cette requête. Vide = texte libre.", "Optional JSON schema. Invalid output fails explicitly; text is delivered after validation. MCP is disabled for this request. Empty = free text.")).font(.caption).foregroundStyle(.secondary)
-                        Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
-                      }
-                    }
-                    SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
+                        Button(L("Projets et profils enregistrés", "Projects and saved profiles")) {
+                            studio.showWorkspace = true
+                        }
+                        if studio.selectedMode != .agent {
+                            SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
+                                TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced))
+                                    .frame(minHeight: 80)
+                                Text(
+                                    L(
+                                        "Schéma JSON optionnel. Une réponse non conforme échoue explicitement ; le texte est livré après validation. MCP est désactivé pour cette requête. Vide = texte libre.",
+                                        "Optional JSON schema. Invalid output fails explicitly; text is delivered after validation. MCP is disabled for this request. Empty = free text."
+                                    )
+                                ).font(.system(size: 12)).foregroundStyle(.secondary)
+                                Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
+                            }
+                        }
+                        SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
                             TextEditor(text: $studio.systemPrompt)
-                                .font(.system(size: 11.5))
+                                .font(.system(size: 13))
                                 .scrollContentBackground(.hidden)
-                                .frame(minHeight: 88)
+                                .frame(height: 150)
+                                .accessibilityLabel(L("Instruction système", "System instruction"))
                                 .padding(9)
                                 .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
                                 .overlay {
@@ -216,7 +307,7 @@ struct GenerationInspector: View {
                                 .overlay(alignment: .topLeading) {
                                     if studio.systemPrompt.isEmpty {
                                         Text(L("Comportement optionnel du modèle…", "Optional model behavior…"))
-                                            .font(.system(size: 11.5))
+                                            .font(.system(size: 13))
                                             .foregroundStyle(StudioTheme.quiet)
                                             .padding(.horizontal, 14)
                                             .padding(.vertical, 15)
@@ -227,72 +318,100 @@ struct GenerationInspector: View {
 
                         if studio.selectedMode == .agent {
                             SettingCard(title: L("Sandbox native", "Native sandbox"), icon: "lock.shield") {
-                                Text(L("Dossier privé par tâche · réseau bloqué · aucun serveur MCP externe.", "Private task folder · network blocked · no external MCP servers."))
-                                Text(L("5 s par commande · 32 Kio de sortie · outils système macOS.", "5 s per command · 32 KiB captured output · macOS system tools."))
-                                Text(L("\(studio.mcpToolCount) outil connecté", "\(studio.mcpToolCount) connected tool"))
-                                ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in Text(studio.mcpErrors[key] ?? "").foregroundStyle(.red) }
-                            }.font(.caption)
+                                Text(
+                                    L(
+                                        "Dossier privé par tâche · réseau bloqué · aucun serveur MCP externe.",
+                                        "Private task folder · network blocked · no external MCP servers."))
+                                Text(
+                                    L(
+                                        "5 s par commande · 32 Kio de sortie · outils système macOS.",
+                                        "5 s per command · 32 KiB captured output · macOS system tools."))
+                                Text(
+                                    L("\(studio.mcpToolCount) outil connecté", "\(studio.mcpToolCount) connected tool"))
+                                ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in
+                                    Text(studio.mcpErrors[key] ?? "").foregroundStyle(.red)
+                                }
+                            }.font(.system(size: 12))
                         } else {
-                          SettingCard(title: "MCP", icon: "shippingbox") {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(L("\(studio.mcpServerCount) serveur\(studio.mcpServerCount == 1 ? "" : "s") connecté\(studio.mcpServerCount == 1 ? "" : "s")", "\(studio.mcpServerCount) connected server\(studio.mcpServerCount == 1 ? "" : "s")"))
-                                        .font(.system(size: 11, weight: .semibold))
-                                    Text(L("\(studio.mcpToolCount) outil\(studio.mcpToolCount == 1 ? "" : "s") disponible\(studio.mcpToolCount == 1 ? "" : "s")", "\(studio.mcpToolCount) available tool\(studio.mcpToolCount == 1 ? "" : "s")"))
-                                        .font(.system(size: 9.5, weight: .medium))
+                            SettingCard(title: "MCP", icon: "shippingbox") {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(
+                                            L(
+                                                "\(studio.mcpServerCount) serveur\(studio.mcpServerCount == 1 ? "" : "s") connecté\(studio.mcpServerCount == 1 ? "" : "s")",
+                                                "\(studio.mcpServerCount) connected server\(studio.mcpServerCount == 1 ? "" : "s")"
+                                            )
+                                        )
+                                        .font(.system(size: 13, weight: .semibold))
+                                        Text(
+                                            L(
+                                                "\(studio.mcpToolCount) outil\(studio.mcpToolCount == 1 ? "" : "s") disponible\(studio.mcpToolCount == 1 ? "" : "s")",
+                                                "\(studio.mcpToolCount) available tool\(studio.mcpToolCount == 1 ? "" : "s")"
+                                            )
+                                        )
+                                        .font(.system(size: 13, weight: .medium))
                                         .foregroundStyle(StudioTheme.quiet)
+                                    }
+                                    Spacer()
+                                    Circle()
+                                        .fill(studio.mcpServerCount > 0 ? Color.green : StudioTheme.quiet)
+                                        .frame(width: 7, height: 7)
                                 }
-                                Spacer()
-                                Circle()
-                                    .fill(studio.mcpServerCount > 0 ? Color.green : StudioTheme.quiet)
-                                    .frame(width: 7, height: 7)
-                            }
 
-                            if let error = studio.mcpErrors.sorted(by: { $0.key < $1.key }).first {
-                                Text("\(error.key) · \(error.value)")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
-                                    .lineLimit(3)
-                            }
-
-                            HStack(spacing: 8) {
-                                Button(action: { studio.showMCPManager = true }) {
-                                    Label(L("Configurer", "Configure"), systemImage: "doc.text")
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 29)
+                                if let error = studio.mcpErrors.sorted(by: { $0.key < $1.key }).first {
+                                    Text("\(error.key) · \(error.value)")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
+                                        .lineLimit(3)
                                 }
-                                .buttonStyle(GlassPillButtonStyle())
 
-                                Button(action: studio.reloadMCPServers) {
-                                    Image(systemName: "arrow.clockwise")
-                                        .frame(width: 29, height: 29)
+                                HStack(spacing: 8) {
+                                    Button(action: { studio.showMCPManager = true }) {
+                                        Label(L("Configurer", "Configure"), systemImage: "doc.text")
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 29)
+                                    }
+                                    .buttonStyle(GlassPillButtonStyle())
+
+                                    Button(action: studio.reloadMCPServers) {
+                                        Image(systemName: "arrow.clockwise")
+                                            .frame(width: 29, height: 29)
+                                    }
+                                    .buttonStyle(RoundGlassButtonStyle())
+                                    .disabled(studio.isGenerating)
+                                    .help(L("Recharger les serveurs MCP", "Reload MCP servers"))
                                 }
-                                .buttonStyle(RoundGlassButtonStyle())
-                                .disabled(studio.isGenerating)
-                                .help(L("Recharger les serveurs MCP", "Reload MCP servers"))
-                            }
 
-                            Text(L("Les outils MCP locaux restent sur ce Mac. Exa et les serveurs distants peuvent recevoir ta requête et leur résultat.", "Local MCP tools stay on this Mac. Exa and remote servers may receive your request and return data."))
-                                .font(.system(size: 8.5, weight: .medium))
+                                Text(
+                                    L(
+                                        "Les outils MCP locaux restent sur ce Mac. Exa et les serveurs distants peuvent recevoir ta requête et leur résultat.",
+                                        "Local MCP tools stay on this Mac. Exa and remote servers may receive your request and return data."
+                                    )
+                                )
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(StudioTheme.quiet)
                                 .fixedSize(horizontal: false, vertical: true)
-                          }
+                            }
                         }
 
                         if let model = studio.selectedModel {
                             SettingCard(title: L("Modèle actif", "Active model"), icon: "cpu") {
                                 InspectorValue(label: "Architecture", value: model.architectureLabel)
-                                InspectorValue(label: L("Quantification", "Quantization"), value: model.bits.map { String(format: "EXL3 %.2f BPW", $0) } ?? "EXL3")
+                                InspectorValue(
+                                    label: L("Quantification", "Quantization"),
+                                    value: model.bits.map { String(format: "EXL3 %.2f BPW", $0) } ?? "EXL3")
                                 InspectorValue(label: L("Poids", "Weights"), value: model.size)
                                 InspectorValue(label: "Modules", value: "\(model.modules)")
                             }
                         }
                     }
-                    .padding(.horizontal, 13)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 20)
                 }
                 .onChange(of: studio.isTuningMTP, initial: true) { _, running in
-                    if studio.isTuningDFlash || (!running && (studio.dflashDownloadError != nil || !studio.dflashTuneRows.isEmpty)) {
+                    if studio.isTuningDFlash
+                        || (!running && (studio.dflashDownloadError != nil || !studio.dflashTuneRows.isEmpty))
+                    {
                         proxy.scrollTo("dflash-tuning", anchor: .top)
                     } else if running || studio.mtpError != nil || !studio.mtpTuneRows.isEmpty {
                         proxy.scrollTo("mtp-tuning", anchor: .top)
@@ -312,7 +431,7 @@ struct GenerationInspector: View {
     }
 }
 
-private struct SettingCard<Content: View>: View {
+struct SettingCard<Content: View>: View {
     let title: String
     let icon: String
     @ViewBuilder let content: Content
@@ -325,13 +444,16 @@ private struct SettingCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
+            Label(title, systemImage: icon)
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(StudioTheme.ink)
             content
         }
-        .padding(.horizontal, 8)
+        .font(.system(size: 13))
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 0.7))
     }
 }
 
@@ -348,9 +470,10 @@ private struct SliderSetting: View {
                 Spacer()
                 Text(String(format: format, value)).monospacedDigit()
             }
-            .font(.system(size: 11, weight: .medium))
+            .font(.system(size: 13, weight: .medium))
             .foregroundStyle(StudioTheme.secondary)
             Slider(value: $value, in: range)
+                .accessibilityLabel(label)
                 .tint(StudioTheme.contrast.opacity(0.88))
         }
     }
@@ -369,6 +492,38 @@ private struct InspectorValue: View {
                 .foregroundStyle(StudioTheme.contrast.opacity(0.78))
                 .multilineTextAlignment(.trailing)
         }
-        .font(.system(size: 10, weight: .medium))
+        .font(.system(size: 13, weight: .medium))
+    }
+}
+
+/// Keep invalid input visible and invalidate the draft instead of reusing a stale valid number.
+struct ContextLimitField: View {
+    @Binding var value: Int
+    let maximum: Int?
+    @State private var text = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("Limite en tokens", "Token limit")).fontWeight(.medium)
+            TextField(L("0 = automatique", "0 = automatic"), text: $text)
+                .textFieldStyle(.plain).monospacedDigit().padding(11)
+                .background(Color.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(StudioTheme.edge))
+                .accessibilityLabel(L("Limite en tokens", "Token limit"))
+                .accessibilityIdentifier("settings.contextLimit")
+                .onChange(of: text) { value = Int(text) ?? -1 }
+            if let maximum, value < 0 || value > maximum {
+                Text(
+                    L(
+                        "Saisissez un entier de 0 à \(maximum.formatted()).",
+                        "Enter a whole number from 0 to \(maximum.formatted()).")
+                )
+                .font(.system(size: 12)).foregroundStyle(.orange)
+            }
+        }
+        .onAppear { text = String(value) }
+        .onChange(of: value) {
+            if value >= 0 && Int(text) != value { text = String(value) }
+        }
     }
 }

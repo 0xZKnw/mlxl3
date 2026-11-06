@@ -25,13 +25,34 @@ enum StudioTheme {
 
     static let blueAccent = Color(red: 0.31, green: 0.66, blue: 1)
     static func canvas(for theme: AppTheme) -> Color {
-        theme == .midnightBlue ? Color(red: 0.10, green: 0.145, blue: 0.205) : canvas
+        switch theme {
+        case .midnightBlue: Color(red: 0.10, green: 0.145, blue: 0.205)
+        case .graphite: Color(red: 0.14, green: 0.15, blue: 0.17)
+        case .forest: Color(red: 0.08, green: 0.14, blue: 0.12)
+        case .plum: Color(red: 0.15, green: 0.10, blue: 0.16)
+        case .paper: Color(red: 0.97, green: 0.95, blue: 0.90)
+        default: canvas
+        }
     }
     static func sidebar(for theme: AppTheme) -> Color {
-        theme == .midnightBlue ? Color(red: 0.065, green: 0.095, blue: 0.14) : sidebar
+        switch theme {
+        case .midnightBlue: Color(red: 0.065, green: 0.095, blue: 0.14)
+        case .graphite: Color(red: 0.10, green: 0.11, blue: 0.13)
+        case .forest: Color(red: 0.05, green: 0.10, blue: 0.08)
+        case .plum: Color(red: 0.10, green: 0.065, blue: 0.11)
+        case .paper: Color(red: 0.92, green: 0.89, blue: 0.82)
+        default: sidebar
+        }
     }
     static func composer(for theme: AppTheme) -> Color {
-        theme == .midnightBlue ? Color(red: 0.13, green: 0.19, blue: 0.27) : composer
+        switch theme {
+        case .midnightBlue: Color(red: 0.13, green: 0.19, blue: 0.27)
+        case .graphite: Color(red: 0.19, green: 0.20, blue: 0.23)
+        case .forest: Color(red: 0.12, green: 0.19, blue: 0.16)
+        case .plum: Color(red: 0.21, green: 0.15, blue: 0.22)
+        case .paper: Color(red: 1, green: 0.99, blue: 0.96)
+        default: composer
+        }
     }
 
 }
@@ -48,10 +69,10 @@ extension EnvironmentValues {
 }
 
 extension View {
-    func studioAppearance(_ theme: AppTheme) -> some View {
+    func studioAppearance(_ theme: AppTheme, accent: AppAccent = .neutral) -> some View {
         environment(\.studioAppTheme, theme)
             .preferredColorScheme(theme.colorScheme)
-            .tint(theme == .midnightBlue ? StudioTheme.blueAccent : nil)
+            .tint(accent == .neutral && theme == .midnightBlue ? StudioTheme.blueAccent : accent.color)
     }
 }
 
@@ -226,5 +247,56 @@ struct StatusDot: View {
             .fill(color)
             .frame(width: 7, height: 7)
             .accessibilityLabel(state.label)
+    }
+}
+
+/// Explicit sizing avoids the system glass button's extra padding and accent fill.
+struct StudioToolbarStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(StudioTheme.ink)
+            .background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 9))
+            .glassEffect(.clear.interactive(enabled), in: RoundedRectangle(cornerRadius: 9))
+            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
+    }
+}
+
+struct StudioBackButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(L("Retour", "Back"), systemImage: "arrow.left")
+                .font(.system(size: 13, weight: .medium))
+                .padding(.horizontal, 12).frame(height: 36)
+        }
+        .buttonStyle(StudioToolbarStyle())
+        .keyboardShortcut(.cancelAction)
+        .help(L("Revenir à l’écran précédent · Échap", "Return to the previous screen · Escape"))
+    }
+}
+
+struct StudioPanelHeader: View {
+    let title: String
+    let detail: String
+    let close: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 20) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title).font(.system(size: 32, weight: .regular, design: .serif))
+                    .contentTransition(.opacity)
+                Text(detail).font(.system(size: 13)).foregroundStyle(StudioTheme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            StudioBackButton(action: close)
+        }
+        .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 22)
     }
 }
