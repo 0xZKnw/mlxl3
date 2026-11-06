@@ -576,7 +576,7 @@ impl Attention {
             Some(previous) => Array::concatenate(&[previous, &v], 2)?,
             None => v,
         };
-        let mut out = if let Some(window) = self.window {
+        let attended = if let Some(window) = self.window {
             let key_count = keys.shape()[2];
             let mask = crate::lfm3::sliding_mask(time, key_count, window)?.astype(q.dtype())?;
             Array::sdpa_mask(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), &mask)?
@@ -588,17 +588,22 @@ impl Attention {
                 (self.head_dim as f32).powf(-0.5),
                 time > 1,
             )?
-        }
-        .transpose(&[0, 2, 1, 3])?;
-        if let Some(gate) = &self.gate {
-            out = out.mul(
-                &gate
-                    .forward(x)?
-                    .sigmoid()?
-                    .reshape(&[1, time, self.heads, 1])?,
-            )?;
-        }
-        let out = out.reshape(&[1, time, self.heads * self.head_dim])?;
+        };
+        let out = if let Some(projection) = &self.gate {
+            let gate = projection.forward(x)?;
+            if attended.dtype() == Dtype::Float16 && gate.dtype() == Dtype::Float16 {
+                crate::lfm3_kernels::attention_gate(&attended, &gate)?
+            } else {
+                attended
+                    .transpose(&[0, 2, 1, 3])?
+                    .mul(&gate.sigmoid()?.reshape(&[1, time, self.heads, 1])?)?
+                    .reshape(&[1, time, self.heads * self.head_dim])?
+            }
+        } else {
+            attended
+                .transpose(&[0, 2, 1, 3])?
+                .reshape(&[1, time, self.heads * self.head_dim])?
+        };
         // Keep W-1 past keys: the next query itself occupies the last window slot.
         let start = self
             .window
@@ -624,6 +629,7 @@ struct ShortConv {
     state: Option<Array>,
     dim: i32,
     length: i32,
+    lfm3: bool,
 }
 
 impl ShortConv {
@@ -671,6 +677,7 @@ impl ShortConv {
             state: None,
             dim,
             length,
+            lfm3: config.model_type == "lfm3",
         })
     }
 
@@ -681,14 +688,25 @@ impl ShortConv {
             .context("LFM2 convolution input must have time")?;
         ensure!(time > 0, "empty LFM2 convolution input");
         let bcx = self.input.forward(x)?;
+        let state = match &self.state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, self.length - 1, self.dim], bcx.dtype())?,
+        };
+        if self.lfm3
+            && time == 1
+            && self.length == 7
+            && self.bias.is_none()
+            && bcx.dtype() == Dtype::Float16
+        {
+            let (mixed, next_state) =
+                crate::lfm3_kernels::short_conv_step(&bcx, &state, &self.weight)?;
+            self.state = Some(next_state);
+            return self.output.forward(&mixed);
+        }
         let b = bcx.slice(2, 0, self.dim)?;
         let c = bcx.slice(2, self.dim, 2 * self.dim)?;
         let projected_x = bcx.slice(2, 2 * self.dim, 3 * self.dim)?;
         let bx = b.mul(&projected_x)?;
-        let state = match &self.state {
-            Some(state) => state.try_clone()?,
-            None => Array::zeros_dtype(&[1, self.length - 1, self.dim], bx.dtype())?,
-        };
         let bx = Array::concatenate(&[&state, &bx], 1)?;
         let mut conv = bx.conv1d(&self.weight, self.dim)?;
         if let Some(bias) = &self.bias {

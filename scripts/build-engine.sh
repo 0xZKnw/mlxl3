@@ -25,11 +25,13 @@ if [[ ! -x "${cargo_bin}" ]]; then
 fi
 
 backend="${MLXL3_ENGINE_BACKEND:-mlx}"
+engine_binary="${CARGO_TARGET_DIR:-${repo_dir}/target}/release/mlxl3-rs"
+package_backend="${backend}"
 case "${backend}" in
     metal)
         MACOSX_DEPLOYMENT_TARGET=26.2 "${cargo_bin}" build --release --locked --no-default-features --features direct-metal,chat --manifest-path "${repo_dir}/Cargo.toml"
         ;;
-    mlx)
+    mlx|hybrid)
         if [[ -z "${mlx_root}" ]]; then
             mlx_candidates=("${repo_dir}"/.venv/lib/python*/site-packages/mlx(N))
             mlx_root="${mlx_candidates[1]:-}"
@@ -39,15 +41,52 @@ case "${backend}" in
             exit 2
         fi
         MLXL3_MLX_ROOT="${mlx_root}" MACOSX_DEPLOYMENT_TARGET=26.2 \
-            "${cargo_bin}" build --release --locked --features mlx,chat --manifest-path "${repo_dir}/Cargo.toml"
+            "${cargo_bin}" build --release --locked --features mlx,chat --bin mlxl3-rs --manifest-path "${repo_dir}/Cargo.toml"
+        if [[ "${backend}" == hybrid ]]; then
+            helper_dir="${repo_dir}/build/hybrid-helpers"
+            install -d "${helper_dir}"
+            install -m 755 "${engine_binary}" "${helper_dir}/mlx"
+            MACOSX_DEPLOYMENT_TARGET=26.2 "${cargo_bin}" build --release --locked --no-default-features --features direct-metal,chat --bin mlxl3-rs --manifest-path "${repo_dir}/Cargo.toml"
+            install -m 755 "${engine_binary}" "${helper_dir}/metal"
+            for helper in mlx metal; do
+                codesign --force --sign - "${helper_dir}/${helper}"
+                lipo "${helper_dir}/${helper}" -verify_arch arm64
+                codesign --verify --strict "${helper_dir}/${helper}"
+                otool -L "${helper_dir}/${helper}" > "${helper_dir}/${helper}-dependencies.txt"
+                DYLD_LIBRARY_PATH="${mlx_root}/lib" DYLD_PRINT_LIBRARIES=1 "${helper_dir}/${helper}" runtime-info > "${helper_dir}/${helper}-runtime.json" 2> "${helper_dir}/${helper}-dyld.txt"
+            done
+            "${python_bin}" - "${helper_dir}" <<'CHECK'
+import json,sys
+from pathlib import Path
+root=Path(sys.argv[1])
+infos={name:json.loads((root/f'{name}-runtime.json').read_text()) for name in ('mlx','metal')}
+assert infos['mlx']['version']==infos['metal']['version']
+assert infos['mlx']['commit']==infos['metal']['commit']
+for name,info in infos.items():
+    assert info['backend']==name and info['mlx_enabled']==(name=='mlx')
+    assert info['chat_enabled'] and info['architecture']=='aarch64'
+    linked=(root/f'{name}-dependencies.txt').read_text().lower()
+    loaded=(root/f'{name}-dyld.txt').read_text().lower()
+    assert loaded.strip()
+    if name=='metal':
+        assert 'metal.framework' in linked
+        assert not any(lib in linked+loaded for lib in ('libmlx.','libjaccl.','mlx.metallib'))
+    else:
+        assert 'libmlx.' in linked and 'libmlx.' in loaded
+CHECK
+            MLXL3_MLX_HELPER="${helper_dir}/mlx" MLXL3_METAL_HELPER="${helper_dir}/metal" MACOSX_DEPLOYMENT_TARGET=26.2 \
+                "${cargo_bin}" build --release --locked --no-default-features --features hybrid-dispatch --bin mlxl3-hybrid --manifest-path "${repo_dir}/Cargo.toml"
+            engine_binary="${CARGO_TARGET_DIR:-${repo_dir}/target}/release/mlxl3-hybrid"
+            package_backend=mlx
+        fi
         ;;
-    *) print -u2 "MLXL3_ENGINE_BACKEND doit être metal ou mlx."; exit 2 ;;
+    *) print -u2 "MLXL3_ENGINE_BACKEND doit être metal, mlx ou hybrid."; exit 2 ;;
 esac
 rm -rf "${runtime_dist_dir}"
 install -d "${runtime_dist_dir}"
-install -m 755 "${CARGO_TARGET_DIR:-${repo_dir}/target}/release/mlxl3-rs" "${runtime_dist_dir}/mlxl3"
+install -m 755 "${engine_binary}" "${runtime_dist_dir}/mlxl3"
 components=(mlxl3)
-if [[ "${backend}" == mlx ]]; then
+if [[ "${package_backend}" == mlx ]]; then
     install -m 755 "${mlx_root}/lib/libmlx.dylib" "${runtime_dist_dir}/libmlx.dylib"
     install -m 755 "${mlx_root}/lib/libjaccl.dylib" "${runtime_dist_dir}/libjaccl.dylib"
     install -m 644 "${mlx_root}/lib/mlx.metallib" "${runtime_dist_dir}/mlx.metallib"
@@ -74,4 +113,4 @@ assert loaded.strip(), 'dynamic loader did not emit its dependency evidence'
 assert not any(name in linked+loaded for name in ('libmlx.', 'libjaccl.', 'mlx.metallib'))
 CHECK
 fi
-"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist" --backend "${backend}"
+"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist" --backend "${package_backend}"

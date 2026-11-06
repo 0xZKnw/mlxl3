@@ -7,6 +7,7 @@ mod ar10_defaults;
 mod ar33_codeword_table_tests;
 #[cfg(feature = "mlx")]
 pub mod array;
+pub mod backend;
 pub mod checkpoint;
 pub mod codec;
 #[cfg(any(feature = "mlx", test, kani))]
@@ -84,6 +85,8 @@ pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;
+#[cfg(feature = "mlx")]
+mod lfm3_kernels;
 #[cfg(feature = "mlx")]
 mod lfm3_vision;
 #[cfg(feature = "mlx")]

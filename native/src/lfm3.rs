@@ -6,6 +6,24 @@ pub fn window_contains(query: u32, key: u32, window: u32) -> bool {
     key <= query && query - key < window
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn short_conv_sizes(dim: i32) -> Option<[i32; 2]> {
+    if dim <= 0 {
+        return None;
+    }
+    dim.checked_mul(7)?;
+    Some([dim.checked_mul(3)?, dim.checked_mul(6)?])
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn attention_gate_sizes(time: i32, heads: i32, dim: i32) -> Option<[i32; 2]> {
+    if time <= 0 || heads <= 0 || dim <= 0 {
+        return None;
+    }
+    let gates = time.checked_mul(heads)?;
+    Some([gates, gates.checked_mul(dim)?])
+}
+
 /// Raster coordinates to the merge-block order used by the vision checkpoint.
 pub fn patch_index(row: u32, column: u32, height: u32, width: u32, merge: u32) -> Option<u32> {
     if merge == 0
@@ -293,6 +311,38 @@ pub(crate) use runtime::{Rope, rotate, sliding_mask};
 mod tests {
     use super::*;
     #[test]
+    fn fused_kernel_sizes_reject_invalid_and_overflowing_buffers() {
+        assert_eq!(short_conv_sizes(2048), Some([6144, 12288]));
+        assert_eq!(
+            short_conv_sizes(i32::MAX / 7),
+            Some([920350134, 1840700268])
+        );
+        for dim in [i32::MIN, -1, 0, i32::MAX / 7 + 1, i32::MAX] {
+            assert!(short_conv_sizes(dim).is_none());
+        }
+        assert_eq!(attention_gate_sizes(257, 16, 128), Some([4112, 526336]));
+        for shape in [
+            (0, 16, 128),
+            (1, -1, 128),
+            (1, 16, 0),
+            (i32::MAX, 2, 1),
+            (1, 2, i32::MAX),
+        ] {
+            assert!(attention_gate_sizes(shape.0, shape.1, shape.2).is_none());
+        }
+        for time in 1..32 {
+            for heads in 1..16 {
+                for dim in [1, 7, 32, 128] {
+                    let gates = i64::from(time) * i64::from(heads);
+                    assert_eq!(
+                        attention_gate_sizes(time, heads, dim),
+                        Some([gates as i32, (gates * i64::from(dim)) as i32])
+                    );
+                }
+            }
+        }
+    }
+    #[test]
     fn window_counts_query_and_excludes_future() {
         for q in 0..300 {
             for k in 0..300 {
@@ -367,4 +417,44 @@ fn lfm3_patch_index_is_in_bounds() {
         assert!(r < h && c < w && m > 0);
         kani::cover!(h == 4 && w == 6 && m == 2 && r == 3 && c == 5 && i == 23);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm3_short_conv_buffers_are_bounded() {
+    let dim: i32 = kani::any();
+    let sizes = short_conv_sizes(dim);
+    assert_eq!(
+        sizes.is_some(),
+        dim > 0 && i64::from(dim) * 7 <= i64::from(i32::MAX)
+    );
+    if let Some([input, state]) = sizes {
+        assert_eq!(i64::from(input), i64::from(dim) * 3);
+        assert_eq!(i64::from(state), i64::from(dim) * 6);
+        assert!(state == 2 * input && state > dim);
+        kani::cover!(dim == 2048);
+    }
+    kani::cover!(dim == i32::MAX && sizes.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm3_attention_gate_buffers_are_bounded() {
+    let time: i32 = kani::any();
+    let heads: i32 = kani::any();
+    let dim: i32 = kani::any();
+    let gates = i64::from(time) * i64::from(heads);
+    let valid = time > 0
+        && heads > 0
+        && dim > 0
+        && gates <= i64::from(i32::MAX)
+        && gates * i64::from(dim) <= i64::from(i32::MAX);
+    let sizes = attention_gate_sizes(time, heads, dim);
+    assert_eq!(sizes.is_some(), valid);
+    if let Some([gate_count, output]) = sizes {
+        assert!(gate_count > 0 && output >= gate_count);
+        assert_eq!(i64::from(output), i64::from(gate_count) * i64::from(dim));
+        kani::cover!(time == 257 && heads == 16 && dim == 128);
+    }
+    kani::cover!(time == i32::MAX && heads == 2 && sizes.is_none());
 }

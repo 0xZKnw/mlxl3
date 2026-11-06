@@ -11,9 +11,10 @@
     "ponyexl3": 3
   },
   ".github/workflows/rust.yml": {
-    "MLXL3_MLX_ROOT": 8,
+    "MLXL3_MLX_ROOT": 9,
     "array::tests": 2,
-    "mlx": 14
+    "mlx": 16,
+    "mlx_enabled": 1
   },
   "Cargo.toml": {
     "mlx": 1
@@ -1480,9 +1481,15 @@
     "shader mlxl3_test_later_gpu_work": 1,
     "shader mlxl3_test_scheduled_route_ids": 1
   },
+  "native/src/backend.rs": {
+    ".take": 1
+  },
   "native/src/checkpoint.rs": {
     ".finish": 1,
     "mlx": 1
+  },
+  "native/src/cli.rs": {
+    "mlx": 2
   },
   "native/src/codec.rs": {
     ".to_f32": 2,
@@ -1581,7 +1588,8 @@
     ".log_probs": 2,
     ".memory_stats": 3,
     ".retained_bytes": 2,
-    ".take": 3
+    ".take": 3,
+    "config MLXL3_NATIVE_FLASH_ONLY": 1
   },
   "native/src/embedding.rs": {
     ".dtype": 1,
@@ -2240,17 +2248,29 @@
     ".finish": 4,
     ".take": 2
   },
+  "native/src/hybrid_main.rs": {
+    ".take": 1,
+    "config MLXL3_BUILD_PROFILE": 1,
+    "config MLXL3_BUILD_REVISION": 1,
+    "config MLXL3_METAL_HELPER": 1,
+    "config MLXL3_METAL_HELPER_SHA256": 1,
+    "config MLXL3_MLX_HELPER": 1,
+    "config MLXL3_MLX_HELPER_SHA256": 1,
+    "config MLXL3_NATIVE_FLASH_ONLY": 2,
+    "mlx": 1,
+    "mlx_enabled": 1
+  },
   "native/src/lfm2.rs": {
     ".add": 8,
     ".astype": 8,
     ".broadcast_to": 3,
     ".conv1d": 1,
     ".div": 2,
-    ".dtype": 8,
+    ".dtype": 11,
     ".eval": 6,
     ".matmul": 3,
     ".mul": 5,
-    ".reshape": 11,
+    ".reshape": 12,
     ".rms_norm": 10,
     ".rope": 2,
     ".shape": 28,
@@ -2261,7 +2281,7 @@
     ".take": 2,
     ".to_bytes": 2,
     ".to_f32": 1,
-    ".transpose": 13,
+    ".transpose": 14,
     ".try_clone": 2,
     "Array::concatenate": 6,
     "Array::from_f16_bits": 2,
@@ -2304,7 +2324,35 @@
     ".transpose": 1,
     "Array::concatenate": 2,
     "Array::from_f32": 3,
-    "mlx": 3
+    "mlx": 5
+  },
+  "native/src/lfm3_kernels.rs": {
+    ".dtype": 3,
+    ".shape": 5,
+    "array::metal_kernel": 2,
+    "shader ../shaders/lfm3_attention_gate.metal": 1,
+    "shader ../shaders/lfm3_short_conv.metal": 1,
+    "shader mlxl3_lfm3_conv_step7_{dim}_v2": 1,
+    "shader mlxl3_lfm3_gate_{time}_{heads}_{dim}_v1": 1
+  },
+  "native/src/lfm3_kernels_tests.rs": {
+    ".astype": 2,
+    ".chat_greedy_ids": 1,
+    ".conv1d": 1,
+    ".exp": 1,
+    ".mul": 3,
+    ".reshape": 1,
+    ".shape": 2,
+    ".sigmoid": 1,
+    ".slice": 4,
+    ".sum": 1,
+    ".to_f16_bits": 5,
+    ".to_f32": 9,
+    ".transpose": 3,
+    "Array::concatenate": 1,
+    "Array::from_f16_bits": 5,
+    "Array::zeros_dtype": 2,
+    "config MLXL3_LFM3_REFERENCE": 1
   },
   "native/src/lfm3_vision.rs": {
     ".add": 3,
@@ -2323,7 +2371,7 @@
     "Array::sdpa": 1
   },
   "native/src/lib.rs": {
-    "mlx": 26
+    "mlx": 27
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2531,7 +2579,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 200,
+    "mlx": 201,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -3297,9 +3345,9 @@
     "MLXL3_MLX_ROOT": 3,
     "libjaccl.dylib": 3,
     "libmlx.dylib": 4,
-    "mlx": 6,
-    "mlx.metallib": 4,
-    "mlx_enabled": 1
+    "mlx": 14,
+    "mlx.metallib": 5,
+    "mlx_enabled": 2
   },
   "scripts/build-quantizer.sh": {
     "mlx": 1,

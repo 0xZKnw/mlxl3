@@ -20,6 +20,7 @@ def project(tmp_path):
         "Cargo.toml",
         "LICENSES/MTPLX-NOTICE.txt",
         "LICENSES/Apache-2.0.txt",
+        "LICENSES/MLX-VLM-MIT.txt",
         "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
     ]:
         destination = tmp_path / name
@@ -30,11 +31,13 @@ def project(tmp_path):
     executable = tmp_path / "target/release/mlxl3-rs"
     executable.parent.mkdir(parents=True)
     executable.write_text(
-        "#!/usr/bin/env python3\nimport json,os,sys\n"
-        "print(os.environ.get('FIXTURE_RUNTIME', json.dumps({'backend':'metal',"
-        "'mlx_enabled':False,'chat_enabled':True,'architecture':'aarch64'})))\n"
+        "#!/usr/bin/env python3\nimport json,os,sys\nfrom pathlib import Path\n"
+        "mlx=Path(sys.argv[0]).name=='mlx'\n"
+        "print(os.environ.get('FIXTURE_RUNTIME', json.dumps({'backend':'mlx' if mlx else 'metal',"
+        "'mlx_enabled':mlx,'chat_enabled':True,'architecture':'aarch64',"
+        "'version':'2.0.3','commit':'fixture'})))\n"
         "print('dyld: /System/Library/Frameworks/Metal.framework/Metal '+"
-        "os.environ.get('FIXTURE_LOADED',''),file=sys.stderr)\n"
+        "('libmlx.dylib ' if mlx else '')+os.environ.get('FIXTURE_LOADED',''),file=sys.stderr)\n"
     )
     executable.chmod(0o755)
     tool = tools / "tool.py"
@@ -42,8 +45,13 @@ def project(tmp_path):
         "#!/usr/bin/env python3\nimport json,os,sys\nfrom pathlib import Path\n"
         "name=Path(sys.argv[0]).name\n"
         "if name=='uname': print('arm64')\n"
-        "elif name=='cargo': Path(os.environ['FIXTURE_CARGO_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
-        "elif name=='otool': print('/System/Library/Frameworks/Metal.framework/Metal '+os.environ.get('FIXTURE_LINKED',''))\n"
+        "elif name=='cargo':\n"
+        " Path(os.environ['FIXTURE_CARGO_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
+        " if 'hybrid-dispatch' in sys.argv:\n"
+        "  assert all(Path(os.environ[k]).is_file() for k in ('MLXL3_MLX_HELPER','MLXL3_METAL_HELPER'))\n"
+        "  Path(os.environ['CARGO_TARGET_DIR'],'release/mlxl3-hybrid').write_text('compiled dispatcher fixture')\n"
+        "elif name=='otool': print('/System/Library/Frameworks/Metal.framework/Metal '+"
+        "('libmlx.dylib ' if Path(sys.argv[-1]).name=='mlx' else '')+os.environ.get('FIXTURE_LINKED',''))\n"
     )
     tool.chmod(0o755)
     for name in ["cargo", "uname", "codesign", "lipo", "otool"]:
@@ -144,3 +152,39 @@ def test_legacy_builder_requires_reference_libraries_before_compiling(project):
     result = run(project, MLXL3_ENGINE_BACKEND="mlx")
     assert result.returncode != 0 and "MLX natif introuvable" in result.stderr
     assert not (root / "cargo.json").exists()
+
+
+def test_hybrid_builder_embeds_verified_helpers_and_preserves_schema_one(project):
+    root, _ = project
+    mlx = root / "reference/lib"
+    mlx.mkdir(parents=True)
+    for name in ["libmlx.dylib", "libjaccl.dylib", "mlx.metallib"]:
+        (mlx / name).write_bytes(name.encode())
+    result = run(project, MLXL3_ENGINE_BACKEND="hybrid", MLXL3_MLX_ROOT=str(mlx.parent))
+    assert result.returncode == 0, result.stderr
+    args = json.loads((root / "cargo.json").read_text())
+    assert "--no-default-features" in args
+    assert args[args.index("--features") + 1] == "hybrid-dispatch"
+    assert args[args.index("--bin") + 1] == "mlxl3-hybrid"
+    runtime = root / "build/rust-runtime"
+    assert (runtime / "mlxl3").read_text() == "compiled dispatcher fixture"
+    data = json.loads((runtime / "engine.json").read_text())
+    assert data["schema"] == 1 and "backend" not in data
+    assert set(data["files"]) == {"mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib"}
+
+
+def test_hybrid_builder_rejects_native_mlx_dependency_before_embedding(project):
+    root, _ = project
+    mlx = root / "reference/lib"
+    mlx.mkdir(parents=True)
+    for name in ["libmlx.dylib", "libjaccl.dylib", "mlx.metallib"]:
+        (mlx / name).write_bytes(name.encode())
+    result = run(
+        project,
+        MLXL3_ENGINE_BACKEND="hybrid",
+        MLXL3_MLX_ROOT=str(mlx.parent),
+        FIXTURE_LINKED="libmlx.dylib",
+    )
+    assert result.returncode != 0
+    assert not (root / "dist").exists()
+    assert not (root / "target/release/mlxl3-hybrid").exists()

@@ -54,6 +54,7 @@ def test_archive_reproducible_and_hashes_match(runtime, tmp_path):
         assert manifest["architecture"] == "arm64"
         assert "Powered by MTPLX" in manifest["notices"]["MTPLX"]
         assert "Apache License" in manifest["notices"]["Apache-2.0"]
+        assert "MIT License" in manifest["notices"]["MLX-VLM"]
         assert "Copyright 2026 Theinruj Toranavikrai" in manifest["notices"]["PonyExl3"]
         for name in engine.FILES:
             member = archive.getmember(name)
@@ -134,7 +135,7 @@ def cli_project(tmp_path):
     info.write_bytes(plistlib.dumps({"CFBundleShortVersionString": "1.4.4"}))
     notices = root / "LICENSES"
     notices.mkdir()
-    for name in ("MTPLX-NOTICE.txt", "Apache-2.0.txt"):
+    for name in ("MTPLX-NOTICE.txt", "Apache-2.0.txt", "MLX-VLM-MIT.txt"):
         shutil.copyfile(
             Path(engine.__file__).resolve().parents[1] / "LICENSES" / name, notices / name
         )
