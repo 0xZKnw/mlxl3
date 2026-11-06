@@ -334,7 +334,10 @@ mod tests {
                 temporary.eval()?;
             }
             // Configuration errors must propagate after the allocator is selected, without weights.
-            std::fs::write(directory.path().join("config.json"), "{}")?;
+            std::fs::write(
+                directory.path().join("config.json"),
+                r#"{"text_config":{}}"#,
+            )?;
             let checkpoint = Checkpoint {
                 path: directory.path().to_owned(),
                 model_type: kind.to_owned(),
