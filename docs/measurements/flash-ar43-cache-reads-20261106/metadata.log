@@ -1,0 +1,17 @@
+..........F                                                            [100%]
+=================================== FAILURES ===================================
+___ NativeCoverageTest.test_repository_inventory_matches_reviewed_reference ____
+
+self = <test_native_coverage.NativeCoverageTest testMethod=test_repository_inventory_matches_reviewed_reference>
+
+    def test_repository_inventory_matches_reviewed_reference(self):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT)], capture_output=True, text=True, check=False, timeout=20
+        )
+>       self.assertEqual(result.returncode, 0, result.stderr)
+E       AssertionError: 1 != 0 : native/src/ssd_reads/record_reuse_tests.rs: .try_clone 1 -> 2
+
+tests/test_native_coverage.py:19: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_native_coverage.py::NativeCoverageTest::test_repository_inventory_matches_reviewed_reference
+1 failed, 10 passed, 2 subtests passed in 1.05s

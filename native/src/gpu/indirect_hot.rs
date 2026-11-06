@@ -21,6 +21,7 @@ impl Drop for WorkspaceLease {
 }
 
 pub(super) struct Pipelines {
+    slots: usize,
     stages: [ComputePipelineState; 5],
     argument: metal::ArgumentEncoder,
     dummy: Buffer,
@@ -40,6 +41,7 @@ impl Pipelines {
         library: &metal::Library,
         pipeline: &impl Fn(&str) -> Result<ComputePipelineState>,
         enabled: bool,
+        slots: usize,
     ) -> Result<Option<Self>> {
         if !enabled {
             return Ok(None);
@@ -67,6 +69,7 @@ impl Pipelines {
             return Ok(None);
         }
         Ok(Some(Self {
+            slots,
             stages,
             argument,
             dummy: buffer(
@@ -238,6 +241,9 @@ impl Metal {
         }
         Ok(())
     }
+    pub(super) fn device_hot_slots(&self) -> usize {
+        self.indirect_hot.as_ref().map_or(0, |p| p.slots)
+    }
     pub(super) fn device_resident_route_enabled(&self) -> bool {
         self.indirect_hot.is_some()
             && self.routed_nt2_gu.get()
@@ -302,12 +308,14 @@ impl Metal {
                 "invalid resident route input/ID buffer"
             );
             ensure!(
-                snapshot.records().len() == 53,
-                "resident snapshot must contain53slots"
+                snapshot.records().len() == self.device_hot_slots(),
+                "resident snapshot must match the compiled argument bank"
             );
             for &slot in snapshot.map() {
                 ensure!(
-                    slot == u32::MAX || slot < 53 && snapshot.records()[slot as usize].is_some(),
+                    slot == u32::MAX
+                        || (slot as usize) < self.device_hot_slots()
+                            && snapshot.records()[slot as usize].is_some(),
                     "resident map names an empty or out-of-range slot"
                 );
             }
@@ -349,7 +357,7 @@ impl Metal {
             for (slot, record) in records.iter().enumerate() {
                 #[cfg(test)]
                 let record = if p.wrong_binding.get() {
-                    &records[(slot + 1) % 53]
+                    &records[(slot + 1) % self.device_hot_slots()]
                 } else {
                     record
                 };

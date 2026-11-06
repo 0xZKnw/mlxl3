@@ -1,0 +1,35 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/ar41/cargo-target/debug/deps/mlxl3_native-7cabd5082217ec5d)
+
+running 26 tests
+test ssd_reads::common_queue_tests::common_queue_free_worker_finishes_later_records_while_first_is_held ... ok
+test ssd_reads::common_queue_tests::common_queue_policy_defaults_off_and_rejects_non_literals ... ok
+test ssd_reads::dedicated_readahead_requires_qualified_source_and_exact_inode ... ok
+test ssd_reads::direct_tests::direct_destination_and_policy_reject_every_unqualified_boundary ... ok
+test ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes ... ignored, physical Apple Shared buffers and owned SSD workers; run alone
+test ssd_reads::readahead::tests::physical_ar20_dedicated_readahead_preserves_inode_bytes_and_original_description ... ignored, Darwin F_RDAHEAD actual descriptor/byte/error oracle; run alone
+test ssd_reads::record_reuse_tests::physical_ar43_early_reads_preserve_bytes_and_ownership ... ignored, physical early Shared read path, reuse/EOF/invalid owners
+test ssd_reads::record_reuse_tests::physical_record_reuse_preserves_bytes_and_rejects_invalid_owners ... ignored, physical Metal Shared destinations: A11 reuse/EOF/fallback/recovery
+test ssd_reads::record_reuse_tests::record_reuse_requires_quiescence_and_foreground_ownership ... ok
+test ssd_reads::split_record_tests::physical_isolated_shared_record_uses_two_pieces_and_preserves_every_byte ... ignored, physical Metal Shared record: A12 two ranges and one publication
+test ssd_reads::split_record_tests::split_record_overlaps_both_jobs_and_never_publishes_after_one_piece ... ok
+test ssd_reads::split_record_tests::split_record_ranges_are_disjoint_complete_and_bounded ... ok
+test ssd_reads::split_record_tests::split_record_timeout_and_partial_enqueue_retain_owner_until_both_jobs_end ... ok
+test ssd_reads::split_record_tests::split_record_whole_bytes_eof_and_retry_use_one_logical_completion ... ok
+test ssd_reads::tests::a_record_uses_the_first_tensor_offset_and_checks_the_full_pinned_extent ... ok
+test ssd_reads::tests::early_enqueue_precedes_next_destination_and_drains_partial_failure ... ok
+test ssd_reads::tests::four_background_workers_poll_without_blocking_and_recover_after_timeout ... ok
+test ssd_reads::tests::reads_distinct_owned_ranges_and_drains_eof_before_reuse ... ok
+test ssd_reads::tests::refused_allocation_returns_a_failure_and_releases_the_reader ... ok
+test ssd_reads::tests::reversed_completions_and_deadlines_keep_ownership ... ok
+test ssd_reads::tests::timeout_preserves_the_real_worker_and_rejects_reuse_until_drain ... ok
+test ssd_reads::tests::unavailable_cohorts_and_reader_counts_fail_without_io ... ok
+test ssd_reads::wave_tests::extra_wave_policy_keeps_the_threshold_cap_and_strict_hardware_flag ... ok
+test ssd_reads::wave_tests::ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completions ... ok
+test ssd_reads::wave_tests::ready_min_waits_for_two_then_returns_before_the_held_tail ... ok
+test ssd_reads::wave_tests::real_workers_release_middle_before_tail_without_new_reads_or_workers ... ok
+
+test result: ok. 21 passed; 0 failed; 5 ignored; 0 measured; 427 filtered out; finished in 0.12s
+

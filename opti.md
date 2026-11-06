@@ -27105,3 +27105,53 @@ AR42 vitesse workspace-index validated_output ; brut /Users/justin/.codex/worktr
 AR42 vitesse control-after validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar42-workspace-index-20261106/control-after/report.json
 
 AR42 CLOS NON CONCLUANT vitesse / correctionVALIDÉE : release3gatesPASS,68+4CPU/11metadata+2subtests,Clippy/fmt/releasePASS,Kani3réelsPASSgéométriecorrigée. AR128 P02ON : 9.91354900595736 / 9.862855920595234 / 9.844882855963315tok/s, vscontrôlespoolés-0.164%,dérive-0.693%. Sixsorties128golden/tousjoints. Pasdegainétabli,P03/P08OFFpardéfaut, prototypeoptionnelcorrectnumériquementconservépourrevue ; pasinstallation/merge. [Rapport](docs/measurements/flash-ar42-workspace-index-20261106/README.md). Aucunessaiencours. CIprécédentePR156consultée : buildLinux/inventairePASS ; DesktopSwiftchecktype-timeoutdansResponseUIpréexistant, Kaniancienharness600stimeouts/process_erroretICEtests, nonvert. FichiershorsdiffAR41, noncorrigésdansoptimisation.
+
+## AR43-P01-P05 — AVANT modification, 2026-11-06
+
+SuiteautoriséeAR40/#150, source04d42828. AR42P03/P08neutresOFF ; baselineP02ON,T05+AR2+13défauts,53slots/cache3GiB. P01 : capacité64stricte opt-in MLXL3_NATIVE_DEVICE_HOT_SLOTS=64, cache3.625GiB(64slots), mêmeT05effectif. SourceMetalesttoujourscompiléedepuissourceembarquée(gpu.rs783), pasdemetallibexternepourceskernels : unmacrocapacité53/64uniquegénéréaveclacapacitéhostgarantitABI, pasduplicatede5kernels. Snapshot/bitsetu64bornésà64, pas80/107. Hypothèseconditionnelleannexe#150~12%missesenmoins, coût11×48records=658950336B(~0.614GiB) ; pasgainTPSprésumé.
+
+P05 : préparerlesdescripteursetvalidertouslesextents/ownercountavanttravail, puisallouer/réutiliserunenqueueàlafois. CorefallibleiteratorréutiliseReadBatch/Ticket/Drop/deadlineexistants ; erreurmilieudebatchdrainecequiestdéjàenqueuedouconserveownershipworkerencasdetimedout. FlagstrictMLXL3_NATIVE_EARLY_READS opt-inpourcomparaison. Régressiondéterministevraifichier/premierticketretenu : premièrelectureenqueuedavantallocation2, erreurallocation2etcleanup/retry, gardeextents etownererrorsavantjobs.
+
+Vérificationminimale : helpersCPU/Kaniréelsadmission53/64etbornesbitset/plan, Clippy/fmt/builddirectchat/inventaire. Composant64tousbindingsavecoraclecanoniqueindépendant, physiqueSharedreused/EOF/errors, modèle2tokenslogits/états/recoveryetcompteurT05/P02positifsà64, puisuniqueécranCLI128goldencontrol53/64+early/control53,warm1+mesure1. Pascompil/proof/modèleconcurrentGPU, MTP/DFlashOFF, MAIN87/readers4/depth0/prefix0/ctx4096/T0identiques, conditionexternesobservéesseulement. ActiverpardéfautP02déjàqualifiéM5 ; P01/P05uniquementsiqualificationpositive, sinonopt-inexplicite. Aucunmerge/release/appinstallée. EN COURS source, vitesseNONMESURÉE.
+
+AR43 CPU26passés(5hot+21reads),5physiquesignorésnoncomptés ; Clippydirectchat+CPUstrictPASS,Kani2réelsPASS. Vérificationrégressionpréenregistrée : mutationtemporairecollecteavantpremierenqueuedanscorefallible, testpremierticketdoitéchouer ; restaureravantgelsGPU. Qualificationphysiquecomposants/modèleenDEBUGexactsource +CLIrelease128 ; pasrebuildlibtestreleaseinutileàlademandedetestsminimaux.
+
+AR43 bank64 CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR43 reads CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR43 model CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR43 physiqueDEBUG3gatesPASS1test/0ignoré/452filtréschacun :64slots/163840Halfcanonique/281600comparées,16Hréels+stale/retirebit63/mutant ; Sharedreuse2/fresh2/EOF/invalidplan ; modèle57606144motsétatsexacts,36P02prises/token etcontrôleP02defaultsansoverridePASS. RégressioncollectmutationRED/restauréeGREEN. MétadonnéespremièrerelanceFAILED10passés/1écart .try_clone dûauxtestsinvalidplanajoutésaprèsinventaire, référencerevueetmiseàjour ; pasruntimechangé. CPUKani85checks0fail/6covers(capacité)et1check0fail/2covers(plan) ; aucuneconcurrence/Metalprouvée.
+
+AR43 vitesse control-before validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar43-cache-reads-20261106/control-before/report.json
+
+AR43 vitesse cache64-early validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar43-cache-reads-20261106/cache64-early/report.json
+
+AR43 vitesse control-after validated_output ; brut /Users/justin/.codex/worktrees/flash-ar40-triage-20261106/mix-stq1_0/docs/measurements/flash-ar43-cache-reads-20261106/control-after/report.json
+
+## AR43-AUDIT — revue demandée avant publication
+
+PropriétéhistoriqueAR43àrevérifier : neutralitémesuréen'est-ellequ'unfallback53/flagP05inactif ? LectureABI/callers/requests/readyAVANTnouveaucontrôle. ReçusCLIexécutésmontrent53/64/53slotsréels etallocations6614138880/7280246784/6614138880B. submit_shared_fresh→submit_shared→start_shared→start_shared_reusing atteintbienlecorelazy ; pasbypassT05. Lacunedepreuveidentifiée : QAmodèlecompteP02maisnepubliepaslesprisesP05/T05globales. Ajouterseulementcompteurs#[cfgtest]etassertionspositivesréelles, rejoueruniquegate modèleDEBUG10s ; aucunchangementexécutablerelease, pasnouvellemesuredevitessejustifiéesauféchec. Lesdeuxflagsrestentmesurésensemble : résultatnepermetpasderejeterindividuellementP01ouP05. Chercherrisquesretirebit63/ABI/ownerDrop/queues etvalidationavantallocation ; conserverpreuveancienne.
+
+AR43 model CLOS validated_physical_gate parity=True joined=True ; vitesseNONMESURÉE.
+
+AR43-AUDIT4 — avant contrôles du tableau : diagnostic natif MAIN87 warm128+mesure128 une fois53/earlyOFF puis64/earlyON, compteurs T05/P02/misses et golden128, sans profiler ni vitesse diagnostique. Micro séparé10records Shared temporaires : timestamps test-only juste avant read_exact_at et après allocation, OFF/ON, scheduler libre, aucun délai forcé ni assertion de timing ON. Relever RAM/compression/allocations des CLI release déjà exécutés. Aucun runtime release modifié, ni Kani helper CPU touché.
+
+AR43-AUDIT4 pread validated_observation parity=True joined=True ; observationciblée,pasTPS.
+
+AR43-AUDIT4 slots53 failed parity=False joined=True ; observationciblée,pasTPS.
+
+AR43-AUDIT4 microPASS :10recordsvaleursintégralesexacts, premierpreadOFF395625ns/aprèsfinalloc305709ns ; ON36500ns/avantfinalloc83042ns. UneobservationinstrumentéeOFFpuisON, pasboostquantifié. Counts53FAILEDavantdecodeaprèsprefill : helperforward_greedyexigeunflagdevicegreedyquiestOFFdansleCLIgelé. CorrectionHARNAISSEULEutiliseforward→greedy_from_logits, commelaCLI, sansactiverunflagdifférent. Microvalidénonrejoué ; relanceruniquementcounts53/64. TentativeClippyCPU--all-targets échouesurvision_inputconfiguréchat(absent)dansopenai_transport/mainpréexistants, pasrégressionAR ; variantepertinente--no-default-features--libmaintenue.
+
+AR43-AUDIT4 slots53 failed parity=False joined=True ; observationciblée,pasTPS.
+
+AR43-AUDIT4 countsR2FAILEDencoreavantdecode : greedy_from_logitsestégalementunhelperDEVICE-greedy(etnonhost), lectureduvraicallerCLI direct_bridge::select33–55faitavantnouvellecorrection. Harnaiscorrigéexactementgpu.flash_log_probs→speculative::greedy_log_prob_idàT0/penalty1 ; nespasremplacerparargmaxbrut(numericaltiesFP16), aucunflagactivé. R1/R2conservés, aucunrésultatdemissesfabriqué. Retestcountsuniquement.
+
+AR43-AUDIT4 slots53 validated_observation parity=True joined=True ; observationciblée,pasTPS.
+
+AR43-AUDIT4 slots64 validated_observation parity=True joined=True ; observationciblée,pasTPS.
+
+AR43 CLOS : audit4PASS, missesdecode53=18401,64=16117(-12.412%),6096H/4572P02chaquephase,128tokensgoldenexacts. MicrohostpreadavantfinallocONPASS. Allocation+666107904B,compressionplusforteobservée,causalitéNONPROUVÉE. TPS[10.132285093305907, 10.085712408004225, 10.019308667307495],vscontrôlespoolés+0.102%NONCONCLUANT. CorrectionVALIDÉE,P01/P05opt-inOFFdéfaut ; P02ONexactM5qualifiéAR41. ÉchecspréfillharnaisR1/R2etClippyvariantelargepréexistanteconservés. SourceReleasegelée20e039d7inchangéepartest-onlyaudit. [Rapport](docs/measurements/flash-ar43-cache-reads-20261106/README.md). Aucunessaiencours,tousprocessusjoints ; publicationPRenpréparation,pasmerge/release/appinstallée.
+
+AR43 publication EFFECTIVE : PR158 https://github.com/0xZKnw/mlxl3/pull/158 empilée sur PR157/156, sources/rapport1c7a1c3f. P02 défautON exactM5 ;53slots etP05OFF par défaut, options64/P05numériquementqualifiéesmaisgainTPSnonconcluant. Aucuneapp/moteurinstalléremplacé, pasmerge/release. Tousessaisclosetprocessusjoints,7sélectionsphysiquesPASS/2tentativesharnaisFAILEDconservées. CIduheadpubliéàinspecter, aucunvertannoncé.

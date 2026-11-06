@@ -1,0 +1,42 @@
+"""Three selected physical gates; existing frozen cleanup/marker helpers."""
+import hashlib,json,os,runpy,signal,subprocess,time
+from pathlib import Path
+ROOT=Path.cwd();OUT=ROOT/'docs/measurements/flash-ar43-cache-reads-20261106';P=json.loads((OUT/'quality-plan.json').read_text());sha=lambda p:hashlib.sha256(Path(p).read_bytes()).hexdigest()
+for f,h in P['source_files'].items():assert sha(ROOT/f)==h,f
+for f,h in P['model']['metadata'].items():assert sha(f)==h,f
+for f,h in P['fixture_files'].items():assert sha(f)==h,f
+for h in P['fixture_headers']:
+ with Path(h['path']).open('rb') as f:
+  assert int.from_bytes(f.read(8),'little')==h['header_bytes']
+  assert hashlib.sha256(f.read(h['header_bytes'])).hexdigest()==h['header_sha256']
+for r in P['fixture_ranges']:
+ with Path(r['path']).open('rb') as f:
+  f.seek(r['offset']); data=f.read(r['bytes'])
+ assert len(data)==r['bytes'] and hashlib.sha256(data).hexdigest()==r['sha256']
+assert sha(P['libtest']['path'])==P['libtest']['sha256']
+assert sha(P['supervisor']['path'])==P['supervisor']['sha256']
+R=runpy.run_path(P['supervisor']['path']);C=runpy.run_path('scripts/profile_native_ar.py');env=C['environment']();env.update(MLXL3_FLASH_MODEL=P['model']['path'],MLXL3_ROUTED_SCRATCH_FIXTURES=P['fixtures'],MLXL3_NATIVE_HOT_WORKSPACE='0',MLXL3_NATIVE_QSA_INDEX_KEY_ONLY='0',MLXL3_NATIVE_DEVICE_HOT_SLOTS='64',MLXL3_NATIVE_EARLY_READS='1',MLXL3_SSD_CACHE_GIB='3.625');env.pop('MLXL3_NATIVE_GDN_ROUTE_CHAIN',None)
+specs=[('bank64','gpu::indirect_hot::tests::physical_ar43_hot64_preserves_all_canonical_contributions','AR34_INDIRECT_HOT'),('reads','ssd_reads::record_reuse_tests::physical_ar43_early_reads_preserve_bytes_and_ownership','AR10_RECORD_REUSE'),('model','gpu::gdn::gdn_route_tests::physical_ar43_cache64_keeps_states_and_error_recovery','AR43_COMPOSITION')]
+rows=[];child=None
+signal.signal(signal.SIGTERM,lambda *args: (_ for _ in ()).throw(KeyboardInterrupt('quality interrupted')))
+for name,test,marker in specs:
+ r={'phase':name,'status':'running','parity':False,'joined':False,'command':[P['libtest']['path'],test,'--exact','--ignored','--nocapture','--test-threads=1'],'environment':{k:v for k,v in env.items() if k.startswith('MLXL3_')},'plan_sha256':sha(OUT/'quality-plan.json')};rows.append(r);child=None;t=time.monotonic()
+ def save():(OUT/'quality.json').write_text(json.dumps(rows,indent=2)+'\n')
+ save()
+ try:
+  with (OUT/(name+'.log')).open('x') as f:
+   child=subprocess.Popen(r['command'],env=env,stdout=f,stderr=subprocess.STDOUT,start_new_session=True);r['pid']=child.pid;save();code=child.wait(timeout=180)
+  text=(OUT/(name+'.log')).read_text();assert code==0,f'libtest exit {code}'
+  assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+  data=R['D']['marker'](text,marker);assert data['parity']
+  if name=='bank64':assert data['slots']==64 and data['canonical_half_words']==163840 and data['compared_half_words']==281600 and data['actual_hot_submissions']==16
+  if name=='reads':assert data['reused']==2 and data['fresh']==2 and data['eof_recovery']
+  if name=='model':assert data['state_words']==57606144 and len(data['cases'])==2
+  r.update(status='validated_physical_gate',parity=True,evidence=data)
+ except BaseException as e:r.update(status='failed',parity=False,error=repr(e));raise
+ finally:
+  r.update(joined=R['safe_stop'](child),seconds=time.monotonic()-t)
+  if not r['joined']:r.update(status='failed_cleanup',parity=False)
+  save()
+  with (ROOT/'opti.md').open('a') as f:f.write('\nAR43 '+name+' CLOS '+r['status']+' parity='+str(r['parity'])+' joined='+str(r['joined'])+' ; vitesseNONMESURÉE.\n')
+ print(name,r['status'],flush=True)

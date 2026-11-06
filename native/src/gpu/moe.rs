@@ -271,7 +271,8 @@ impl<'a> FlashMoeRow<'a> {
             depth,
             self.prefetcher.is_some(),
             self.record_reuse_enabled,
-        ) || self.gpu.moe_finish_mix.get()
+        ) || self.record_backings.len() != self.gpu.device_hot_slots()
+            || self.gpu.moe_finish_mix.get()
             || !self.gpu.expert_ar_enabled[3].get()
         {
             return false;

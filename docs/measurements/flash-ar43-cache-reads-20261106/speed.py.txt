@@ -1,0 +1,24 @@
+"""Three fixed arms through the qualified native capture controller; no trace."""
+import hashlib,json,runpy,sys
+from pathlib import Path
+ROOT=Path.cwd();OUT=ROOT/'docs/measurements/flash-ar43-cache-reads-20261106';P=OUT/'speed-plan.json'
+assert all(x['parity'] and x['joined'] for x in json.loads((OUT/'quality.json').read_text()))
+C=runpy.run_path(str(ROOT/'scripts/profile_native_ar.py'));original=C['environment'];records=[]
+for name,value in [('control-before','0'),('cache64-early','1'),('control-after','0')]:
+ def environment():
+  base=original();env={**base,'MLXL3_NATIVE_HOT_WORKSPACE':'0','MLXL3_NATIVE_QSA_INDEX_KEY_ONLY':'0','MLXL3_NATIVE_DEVICE_HOT_SLOTS':('64' if value=='1' else '53'),'MLXL3_NATIVE_EARLY_READS':value,'MLXL3_SSD_CACHE_GIB':('3.625' if value=='1' else '3')}
+  env.pop('MLXL3_NATIVE_GDN_ROUTE_CHAIN',None)
+  assert env['MLXL3_NATIVE_DEVICE_HOT_SLOTS']==('64' if value=='1' else '53')
+  return env
+ C['run'].__globals__['environment']=environment
+ try:
+  r=C['run'](P,OUT/name,'control',300)
+  assert r['parity'] and r['all_children_joined']
+  stats=r['evidence']['complete'][-1]['stats']
+  records.append({'arm':name,'flag':value,'status':'validated_output','stats':stats})
+  print(name,stats['decode_tps'],flush=True)
+ except BaseException as e:
+  records.append({'arm':name,'flag':value,'status':'failed','error':repr(e)});raise
+ finally:
+  (OUT/'speed.json').write_text(json.dumps(records,indent=2,allow_nan=False)+'\n')
+  with (ROOT/'opti.md').open('a') as f:f.write('\nAR43 vitesse '+name+' '+records[-1]['status']+' ; brut '+str(OUT/name/'report.json')+'\n')

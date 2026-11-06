@@ -1902,6 +1902,7 @@
     "config MLXL3_NATIVE_CODEWORD_TABLE": 1,
     "config MLXL3_NATIVE_CROSS_LAYER": 1,
     "config MLXL3_NATIVE_DEVICE_GREEDY": 1,
+    "config MLXL3_NATIVE_DEVICE_HOT_SLOTS": 1,
     "config MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": 1,
     "config MLXL3_NATIVE_EXPERT_AXIS_QMV": 1,
     "config MLXL3_NATIVE_EXPERT_GU_PREPARE": 1,
@@ -2073,7 +2074,9 @@
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/gdn_route_tests.rs": {
-    "config MLXL3_FLASH_MODEL": 1
+    ".memory_stats": 1,
+    "config MLXL3_AR43_TOKEN_HASH": 1,
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/gpu/gdn_uar_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1,
@@ -3226,11 +3229,12 @@
   },
   "native/src/ssd_reads.rs": {
     ".add": 1,
-    ".ready": 11,
+    ".ready": 12,
     ".run": 3,
-    ".start": 8,
+    ".start": 9,
     ".take": 2,
-    ".try_clone": 13,
+    ".try_clone": 15,
+    "config MLXL3_NATIVE_EARLY_READS": 1,
     "config MLXL3_NATIVE_READ_SPLIT": 1,
     "config MLXL3_SSD_DYNAMIC_READERS": 1
   },
@@ -3248,8 +3252,8 @@
     "config MLXL3_NATIVE_EXPERT_READAHEAD_OFF": 1
   },
   "native/src/ssd_reads/record_reuse_tests.rs": {
-    ".ready": 2,
-    ".try_clone": 1
+    ".ready": 3,
+    ".try_clone": 3
   },
   "native/src/ssd_reads/split_record_tests.rs": {
     ".ready": 6,
