@@ -3,7 +3,9 @@ use super::{ChatMtpHead, RoundDraft, prefix, prompt_cache_budget};
 use anyhow::{Context, Result, bail, ensure};
 use mlxl3_native::{
     checkpoint::Checkpoint,
-    gpu::{FlashMtpSession, FlashNext, FlashTraceTensor, Metal, Qwen35, QwenSnapshot},
+    gpu::{
+        FlashMtpSession, FlashNext, FlashTraceTensor, Metal, Qwen35, QwenMtpSession, QwenSnapshot,
+    },
 };
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -66,17 +68,28 @@ impl<'a> NativeChatModel<'a> {
         penalty: f32,
         speculative: bool,
     ) -> bool {
-        self.flash()
-            .is_ok_and(|f| f.device_greedy_eligible(temperature, top_k, penalty, speculative))
+        match self {
+            Self::Flash(f) => f.device_greedy_eligible(temperature, top_k, penalty, speculative),
+            Self::Qwen(q) => q.device_greedy_eligible(temperature, top_k, penalty, speculative),
+        }
     }
     pub(crate) fn device_greedy_counts(&self) -> [u64; 2] {
-        self.flash().map_or([0; 2], FlashNext::device_greedy_counts)
+        match self {
+            Self::Flash(f) => f.device_greedy_counts(),
+            Self::Qwen(q) => q.device_greedy_counts(),
+        }
     }
     pub(crate) fn greedy_from_logits(&self, logits: &[u16]) -> Result<u32> {
-        self.flash()?.greedy_from_logits(logits)
+        match self {
+            Self::Flash(f) => f.greedy_from_logits(logits),
+            Self::Qwen(q) => q.greedy_from_logits(logits),
+        }
     }
     pub(crate) fn forward_greedy(&mut self, token: u32) -> Result<u32> {
-        self.flash_mut()?.forward_greedy(token)
+        match self {
+            Self::Flash(f) => f.forward_greedy(token),
+            Self::Qwen(q) => q.forward_greedy(token),
+        }
     }
     pub(crate) fn forward_trace(&mut self, t: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
         match self {
@@ -125,13 +138,12 @@ impl<'a> NativeChatModel<'a> {
     }
     pub(crate) fn memory_ledger(&self, head: Option<&ChatMtpHead>) -> Result<Value> {
         match self {
-            Self::Flash(f) => Ok(serde_json::to_value(f.memory_ledger(head)?)?),
-            Self::Qwen(q) => {
-                ensure!(head.is_none(), "unexpected native Qwen speculative head");
-                Ok(
-                    json!({"backend":"direct-metal","model_family":"qwen3_5_moe","memory":q.memory_stats()?,"active_state_payload_bytes":q.snapshot().retained_bytes()}),
-                )
-            }
+            Self::Flash(f) => Ok(serde_json::to_value(
+                f.memory_ledger(head.and_then(ChatMtpHead::as_flash))?,
+            )?),
+            Self::Qwen(q) => Ok(
+                json!({"backend":"direct-metal","model_family":"qwen3_5_moe","memory":q.memory_stats()?,"active_state_payload_bytes":q.snapshot().retained_bytes()}),
+            ),
         }
     }
     pub(crate) fn release_idle_state(&mut self) -> Result<()> {
@@ -173,7 +185,7 @@ pub(crate) fn ledger(
     match model {
         NativeChatModel::Flash(f) => prefix::ledger(
             f,
-            head,
+            head.and_then(ChatMtpHead::as_flash),
             draft,
             cache.and_then(|c| match c {
                 PromptCache::Flash(c) => Some(c),
@@ -213,6 +225,42 @@ pub(crate) fn admit_request(
         model.admit_request(positions)
     }
 }
+pub(crate) enum NativeMtpSession {
+    Flash(FlashMtpSession),
+    Qwen(QwenMtpSession),
+}
+
+impl NativeMtpSession {
+    pub(crate) fn advance(
+        &mut self,
+        model: &mut NativeChatModel<'_>,
+        head: &mut ChatMtpHead<'_>,
+        anchor: u32,
+        limit: u32,
+        remaining: usize,
+        eos: &[u32],
+    ) -> Result<Vec<u32>> {
+        match (self, model, head) {
+            (Self::Flash(session), NativeChatModel::Flash(model), ChatMtpHead::Flash(head)) => {
+                Ok(vec![
+                    session.advance(model, head, anchor, limit, remaining)?,
+                ])
+            }
+            (Self::Qwen(session), NativeChatModel::Qwen(model), ChatMtpHead::Qwen(head)) => {
+                session.advance(model, head, anchor, limit, remaining, eos)
+            }
+            _ => bail!("MTP session, target and head do not match"),
+        }
+    }
+
+    pub(crate) fn stats(&self) -> (usize, usize, usize, Option<[usize; 4]>) {
+        match self {
+            Self::Flash(s) => (s.proposed, s.accepted, s.proposed, None),
+            Self::Qwen(s) => s.stats(),
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn prefill(
     model: &mut NativeChatModel,
@@ -224,11 +272,16 @@ pub(crate) fn prefill(
     conversation: &str,
     reuse: bool,
     cancelled: &AtomicBool,
-) -> Result<(Vec<u16>, usize, Option<FlashMtpSession>)> {
+) -> Result<(Vec<u16>, usize, Option<NativeMtpSession>)> {
     if let NativeChatModel::Flash(f) = model {
         let mut saved = match cache.take() {
             Some(PromptCache::Flash(c)) => Some(c),
             _ => None,
+        };
+        let head = match head {
+            Some(ChatMtpHead::Flash(head)) => Some(head.as_mut()),
+            Some(ChatMtpHead::Qwen(_)) => bail!("Qwen MTP requires a native Qwen target"),
+            None => None,
         };
         let result = prefix::prefill(
             f,
@@ -242,11 +295,24 @@ pub(crate) fn prefill(
             cancelled,
         );
         *cache = saved.map(PromptCache::Flash);
-        return result;
+        return result.map(|(logits, cached, session)| {
+            (logits, cached, session.map(NativeMtpSession::Flash))
+        });
     }
     let NativeChatModel::Qwen(q) = model else {
         unreachable!()
     };
+    if let Some(ChatMtpHead::Qwen(head)) = head {
+        ensure!(draft.is_none(), "Choose either MTP or DFlash2");
+        *cache = None;
+        let operation =
+            QwenMtpSession::prefill(q, head, tokens, depth, || cancelled.load(Ordering::Relaxed));
+        if operation.is_err() {
+            q.reset();
+        }
+        return operation
+            .map(|(logits, session)| (logits, 0, Some(NativeMtpSession::Qwen(session))));
+    }
     let previous = cache
         .take()
         .and_then(|c| match c {
@@ -276,9 +342,9 @@ pub(crate) fn prefill(
             q.reset();
             (None, 0)
         };
-        for &token in &tokens[cached..] {
-            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-            logits = Some(q.forward(token)?);
+        let suffix = &tokens[cached..];
+        if !suffix.is_empty() {
+            logits = Some(q.prefill_cancellable(suffix, || cancelled.load(Ordering::Relaxed))?);
         }
         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
         let logits = logits.context("empty native Qwen suffix")?;

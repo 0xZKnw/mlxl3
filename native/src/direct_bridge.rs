@@ -1,12 +1,29 @@
 //! Resident Flash bridge over the native Metal session.
 use super::*;
 use mlxl3_native::{
-    gpu::{FlashMtpHead, Metal},
+    gpu::{FlashMtpHead, Metal, QwenMtpHead},
     tokenizer::ChatTokenizer,
 };
 use std::path::Path;
 
-pub(super) type ChatMtpHead<'a> = FlashMtpHead<'a>;
+pub(super) enum ChatMtpHead<'a> {
+    Flash(Box<FlashMtpHead<'a>>),
+    Qwen(Box<QwenMtpHead>),
+}
+
+impl<'a> ChatMtpHead<'a> {
+    fn as_flash(&self) -> Option<&FlashMtpHead<'a>> {
+        match self {
+            Self::Flash(head) => Some(head),
+            Self::Qwen(_) => None,
+        }
+    }
+    fn reset(&mut self) {
+        if let Self::Flash(head) = self {
+            head.reset();
+        }
+    }
+}
 #[path = "direct_model.rs"]
 mod model;
 #[path = "native_prompt_cache.rs"]
@@ -43,25 +60,34 @@ fn prepare_head<'a>(
     requested: &str,
     c: &checkpoint::Checkpoint,
     model: &NativeChatModel<'a>,
-    head: &mut Option<(String, FlashMtpHead<'a>)>,
+    head: &mut Option<(String, ChatMtpHead<'a>)>,
 ) -> Result<bool> {
-    let model = model.flash()?;
-    anyhow::ensure!(
-        mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
-        "Flash request memory budget supports AR only"
-    );
     anyhow::ensure!(
         !requested.trim().is_empty(),
         "MTP head folder is not configured"
     );
     let path = registry::expand_home(Path::new(requested))?.canonicalize()?;
-    anyhow::ensure!(path == c.path, "Flash MTP requires the target checkpoint");
+    if let NativeChatModel::Flash(model) = model {
+        anyhow::ensure!(
+            mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
+            "Flash request memory budget supports AR only"
+        );
+        anyhow::ensure!(path == c.path, "Flash MTP requires the target checkpoint");
+    }
     let revision = checkpoint::artifact_key(&path)?;
     if head.as_ref().is_some_and(|(key, _)| *key == revision) {
         return Ok(false);
     }
     *head = None;
-    *head = Some((revision, FlashMtpHead::load(c, model)?));
+    let loaded = match model {
+        NativeChatModel::Flash(model) => {
+            ChatMtpHead::Flash(Box::new(FlashMtpHead::load(c, model)?))
+        }
+        NativeChatModel::Qwen(model) => {
+            ChatMtpHead::Qwen(Box::new(QwenMtpHead::load(&path, model)?))
+        }
+    };
+    *head = Some((revision, loaded));
     Ok(true)
 }
 
@@ -107,6 +133,11 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let limit = model.context_limit();
     let speculative = model.is_flash()
         && mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit());
+    let mtp_max_depth = match &model {
+        NativeChatModel::Flash(_) => usize::from(speculative),
+        NativeChatModel::Qwen(q) if q.mtp_available()? => 3,
+        NativeChatModel::Qwen(_) => 0,
+    };
     anyhow::ensure!(
         requested >= 0 && requested as u32 <= limit,
         "invalid requested context length"
@@ -116,8 +147,30 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     } else {
         requested as u32
     } as usize;
+    let (
+        qwen_device_kv,
+        qwen_prefill_last_head,
+        qwen_group_expert_qmv,
+        qwen_group_expert_stages,
+        qwen_device_greedy,
+        context_memory_profile,
+    ) = match &model {
+        NativeChatModel::Qwen(q) => {
+            let device_kv = q.device_kv_enabled();
+            let (bytes, step) = if device_kv { (61440, 64) } else { (20480, 1) };
+            (
+                Some(device_kv),
+                Some(q.prefill_last_head_enabled()),
+                Some(q.grouped_expert_qmv_enabled()),
+                Some(q.grouped_expert_stages_enabled()),
+                Some(q.device_greedy_enabled()),
+                json!({"fixed_bytes":30u64*(32*128*128*4+3*8192*2),"layers":[{"bytes_per_token":bytes,"step":step,"max_tokens":null}]}),
+            )
+        }
+        NativeChatModel::Flash(_) => (None, None, None, None, None, Value::Null),
+    };
     let size = c.size_bytes as f64 / 1e9;
-    let mut head: Option<(String, FlashMtpHead)> = None;
+    let mut head: Option<(String, ChatMtpHead)> = None;
     let mut draft: Option<(String, usize, RoundDraft)> = None;
     let mut prompt_cache: Option<PromptCache> = None;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
@@ -129,7 +182,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":speculative,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":if speculative {1} else {0},"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":if model.is_flash(){Value::Null}else{json!({"fixed_bytes":30u64*(32*128*128*4+3*8192*2),"layers":[{"bytes_per_token":20480,"step":1,"max_tokens":null}]})},"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -174,7 +227,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         head = None;
                     }
                     emit_event(
-                        json!({"type":"mtp_status","request_id":id,"mtp_active":head.is_some(),"mtp_head_path":head.as_ref().map(|_|&path),"memory":model.memory_stats()?}),
+                        json!({"type":"mtp_status","request_id":id,"mtp_active":head.is_some(),"mtp_head_path":head.as_ref().map(|_|if model.is_flash(){path.as_path()}else{Path::new(&request.mtp_head_path)}),"memory":model.memory_stats()?}),
                     )
                 }
                 "set_dflash" => {
@@ -197,7 +250,8 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                 "generate" => {
                     cancelled.store(false, Ordering::Relaxed);
                     anyhow::ensure!(
-                        model.is_flash() || !(request.mtp || request.dflash2),
+                        model.is_flash()
+                            || !(request.dflash2 || (request.mtp && mtp_max_depth == 0)),
                         "native Qwen MTP/DFlash is not supported yet"
                     );
                     anyhow::ensure!(
@@ -214,7 +268,10 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     let started = Instant::now();
                     let active = request.mtp && request.greedy_unpenalized();
                     let draft_seconds = if active {
-                        anyhow::ensure!(request.mtp_depth == 1, "Flash MTP supports depth 1");
+                        anyhow::ensure!(
+                            (1..=mtp_max_depth).contains(&request.mtp_depth),
+                            "native MTP depth exceeds the model capability"
+                        );
                         if prepare_head(&request.mtp_head_path, &c, &model, &mut head)? {
                             prompt_cache = None;
                             started.elapsed().as_secs_f64()

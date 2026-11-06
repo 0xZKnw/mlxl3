@@ -3213,6 +3213,7 @@ fn bridge_generate_round(
     let started = Instant::now();
     #[cfg(not(feature = "mlx"))]
     let device_greedy = tools.is_empty()
+        && (!buffer_output || model.is_flash())
         && model.device_greedy_eligible(
             temperature,
             top_k,
@@ -3323,13 +3324,18 @@ fn bridge_generate_round(
     let mut dflash_next = None;
     #[cfg(not(feature = "mlx"))]
     let mut device_greedy_next = None;
+    #[cfg(not(feature = "mlx"))]
+    let mut mtp_pending = std::collections::VecDeque::new();
     let mut eos_observed = false;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
         }
-        let next = if let Some(token) = dflash_next.take() {
+        let pending = dflash_next.take();
+        #[cfg(not(feature = "mlx"))]
+        let pending = mtp_pending.pop_front().or(pending);
+        let next = if let Some(token) = pending {
             token
         } else {
             #[cfg(feature = "mlx")]
@@ -3444,13 +3450,16 @@ fn bridge_generate_round(
                 }
             }
             #[cfg(not(feature = "mlx"))]
-            if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
-                dflash_next = Some(session.advance(
-                    model.flash_mut()?,
+            if !mtp_pending.is_empty() {
+                continue;
+            } else if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
+                mtp_pending.extend(session.advance(
+                    model,
                     head,
                     next,
                     u32::try_from(context_limit)?,
                     budget - generated.len(),
+                    tokenizer.eos_ids(),
                 )?);
             } else if let Some(draft) = draft {
                 dflash_next = Some(draft.advance(
@@ -3564,11 +3573,13 @@ fn bridge_generate_round(
         #[cfg(not(feature = "mlx"))]
         memory: model.memory_stats().ok(),
         #[cfg(not(feature = "mlx"))]
-        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
+        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.stats().0),
         #[cfg(not(feature = "mlx"))]
-        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
+        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.stats().1),
         #[cfg(not(feature = "mlx"))]
-        mtp_blocks: mtp_session.as_ref().map(|s| s.proposed),
+        mtp_blocks: mtp_session.as_ref().map(|s| s.stats().2),
+        #[cfg(not(feature = "mlx"))]
+        mtp_depth_blocks: mtp_session.as_ref().and_then(|s| s.stats().3),
         #[cfg(not(feature = "mlx"))]
         dflash_proposed_tokens: draft.map(|s| s.stats().0),
         #[cfg(not(feature = "mlx"))]

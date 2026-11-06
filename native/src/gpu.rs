@@ -30,7 +30,7 @@ pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod qwen_gdn;
 pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
 mod qwen;
-pub use qwen::{Qwen35, QwenSnapshot};
+pub use qwen::{Qwen35, QwenMtpHead, QwenMtpSession, QwenSnapshot};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
@@ -377,6 +377,14 @@ pub struct Metal {
     #[cfg(test)]
     flash_static_submissions: [std::cell::Cell<u64>; 5],
     dense_qmv: [[ComputePipelineState; 3]; 2],
+    mapped_qmv: Option<[[ComputePipelineState; 2]; 2]>,
+    qwen_expert_stages: Option<[ComputePipelineState; 3]>,
+    #[cfg(test)]
+    qwen_expert_stage_dispatches: std::cell::Cell<usize>,
+    #[cfg(test)]
+    mapped_qmv_groups: std::cell::Cell<usize>,
+    #[cfg(test)]
+    mapped_qmv_singles: std::cell::Cell<usize>,
     dense_finish: ComputePipelineState,
     mapped_glu: ComputePipelineState,
     mapped_mix: ComputePipelineState,
@@ -837,6 +845,28 @@ impl Metal {
                     pipeline("dense_qmv_s8_n4")?,
                 ],
             ];
+            let mapped_qmv = if qualified_m5
+                && std::env::var("MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV").as_deref() == Ok("1")
+                && device.argument_buffers_support() == metal::MTLArgumentBuffersTier::Tier2
+            {
+                Some([
+                    [pipeline("mapped_qmv_s4_n2")?, pipeline("mapped_qmv_s4_n4")?],
+                    [pipeline("mapped_qmv_s8_n2")?, pipeline("mapped_qmv_s8_n4")?],
+                ])
+            } else {
+                None
+            };
+            let qwen_expert_stages = if mapped_qmv.is_some()
+                && std::env::var("MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES").as_deref() == Ok("1")
+            {
+                Some([
+                    pipeline("qwen_stage_prepare")?,
+                    pipeline("qwen_stage_glu")?,
+                    pipeline("qwen_stage_finish")?,
+                ])
+            } else {
+                None
+            };
             let dense_finish = pipeline("dense_finish128")?;
             let mapped_glu = pipeline("mapped_glu")?;
             let mapped_mix = pipeline("mapped_mix")?;
@@ -1070,6 +1100,14 @@ impl Metal {
                 #[cfg(test)]
                 flash_static_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 dense_qmv,
+                mapped_qmv,
+                qwen_expert_stages,
+                #[cfg(test)]
+                qwen_expert_stage_dispatches: std::cell::Cell::new(0),
+                #[cfg(test)]
+                mapped_qmv_groups: std::cell::Cell::new(0),
+                #[cfg(test)]
+                mapped_qmv_singles: std::cell::Cell::new(0),
                 dense_finish,
                 mapped_glu,
                 mapped_mix,

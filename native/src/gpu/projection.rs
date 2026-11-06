@@ -13,6 +13,9 @@ use metal::{
     foreign_types::{ForeignType, ForeignTypeRef},
 };
 
+#[path = "qwen_stages.rs"]
+mod qwen_stages;
+
 pub struct FlashProjection<'a> {
     metal: &'a Metal,
     packed: Buffer,
@@ -2229,6 +2232,8 @@ pub struct MappedSwitchGlu<'a> {
     intermediate: u32,
     gu_plan: [u32; 3],
     down_plan: [u32; 3],
+    grouped_qmv: bool,
+    grouped_stages: bool,
 }
 
 impl<'a> MappedSwitchGlu<'a> {
@@ -2306,7 +2311,33 @@ impl<'a> MappedSwitchGlu<'a> {
             intermediate,
             gu_plan,
             down_plan,
+            grouped_qmv: false,
+            grouped_stages: false,
         })
+    }
+
+    pub(super) fn enable_grouped_qmv(&mut self, enabled: bool) {
+        self.grouped_qmv = enabled
+            && self.gpu.mapped_qmv.is_some()
+            && self.experts.len() == 256
+            && self.top_k == 8
+            && self.hidden == 2048
+            && self.intermediate == 512;
+    }
+
+    pub(super) fn grouped_qmv_enabled(&self) -> bool {
+        self.grouped_qmv
+    }
+
+    pub(super) fn enable_grouped_stages(&mut self, enabled: bool) {
+        self.grouped_stages = enabled
+            && self.gpu.qwen_expert_stages.is_some()
+            && self.gu_plan[0] == 1
+            && self.down_plan[0] == 1;
+    }
+
+    pub(super) fn grouped_stages_enabled(&self) -> bool {
+        self.grouped_qmv && self.grouped_stages
     }
 
     pub fn hidden_size(&self) -> u32 {
@@ -2314,6 +2345,16 @@ impl<'a> MappedSwitchGlu<'a> {
     }
 
     pub fn forward(&self, x: &MatrixView, ids: &[u32], scores: &MatrixView) -> Result<MatrixView> {
+        self.gpu.command(|cmd| self.encode_row(cmd, x, ids, scores))
+    }
+
+    pub(super) fn encode_row(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        ids: &[u32],
+        scores: &MatrixView,
+    ) -> Result<MatrixView> {
         use super::view::FloatType;
         ensure!(
             x.shape() == [1, self.hidden]
@@ -2332,26 +2373,109 @@ impl<'a> MappedSwitchGlu<'a> {
             "foreign mapped expert storage"
         );
         let gpu = self.gpu;
-        gpu.command(|cmd| {
-            let stack = MatrixView::output(
-                gpu,
-                FloatType::F16,
-                self.top_k,
-                self.hidden,
+        let stack = MatrixView::output(
+            gpu,
+            FloatType::F16,
+            self.top_k,
+            self.hidden,
+            Storage::StorageModePrivate,
+        )?;
+        let prepare = |p: &FlashProjection<'_>| -> Result<Buffer> {
+            let prepared = buffer(
+                &gpu.device,
+                u64::from(p.input) * 2,
                 Storage::StorageModePrivate,
             )?;
+            let scale = MatrixView::column_scales(&p.suh, p.offsets.suh, 1, p.input)?;
+            gpu.encode_prepare_view(cmd, x, &scale, &prepared)?;
+            Ok(prepared)
+        };
+        let glu = |expert: &FlashExpert<'_>, gate: &Buffer, up: &Buffer| -> Result<Buffer> {
+            let activated = buffer(
+                &gpu.device,
+                u64::from(self.intermediate) * 2,
+                Storage::StorageModePrivate,
+            )?;
+            ensure!(
+                gpu.mapped_glu.thread_execution_width() == 32
+                    && gpu.mapped_glu.max_total_threads_per_threadgroup() >= 128,
+                "unsupported mapped GLU threadgroup"
+            );
+            Metal::encode_bound(
+                cmd,
+                &gpu.mapped_glu,
+                [
+                    (gate, 0),
+                    (up, 0),
+                    (&expert.gate.svh, expert.gate.offsets.svh),
+                    (&expert.up.svh, expert.up.offsets.svh),
+                    (&expert.down.suh, expert.down.offsets.suh),
+                    (&activated, 0),
+                ]
+                .into_iter(),
+                [self.intermediate, self.gu_plan[0]],
+                MTLSize::new(u64::from(self.intermediate / 128), 1, 1),
+                128,
+            );
+            Ok(activated)
+        };
+        let finish = |expert: &FlashExpert<'_>, route: usize, raw: &Buffer| -> Result<()> {
+            let offset = u64::from(
+                contracts::mapped_expert_row_offset(
+                    u32::try_from(route)?,
+                    self.hidden,
+                    u32::try_from(stack.buffer.length() / 2)?,
+                )
+                .context("invalid mapped output row")?,
+            ) * 2;
+            Metal::encode_bound(
+                cmd,
+                &gpu.dense_finish,
+                [
+                    (raw, 0),
+                    (&expert.down.svh, expert.down.offsets.svh),
+                    (&expert.down.svh, expert.down.offsets.svh),
+                    (&stack.buffer, offset),
+                ]
+                .into_iter(),
+                [self.down_plan[0], 0, 0, 0, self.hidden],
+                MTLSize::new(u64::from(self.hidden / 128), 1, 1),
+                64,
+            );
+            Ok(())
+        };
+        if self.grouped_stages_enabled() {
+            qwen_stages::encode(self, cmd, x, ids, &stack)?;
+        } else if self.grouped_qmv {
+            let mut inputs = Vec::with_capacity(ids.len() * 2);
+            for &id in ids {
+                let expert = &self.experts[id as usize];
+                for projection in [&expert.gate, &expert.up] {
+                    inputs.push(MappedRawJob::new(
+                        projection,
+                        prepare(projection)?,
+                        self.gu_plan[0],
+                    )?);
+                }
+            }
+            encode_mapped_qmv_group(gpu, cmd, &inputs, self.gu_plan)?;
+            let mut down = Vec::with_capacity(ids.len());
             for (route, &id) in ids.iter().enumerate() {
                 let expert = &self.experts[id as usize];
-                let prepare = |p: &FlashProjection<'_>| -> Result<Buffer> {
-                    let prepared = buffer(
-                        &gpu.device,
-                        u64::from(p.input) * 2,
-                        Storage::StorageModePrivate,
-                    )?;
-                    let scale = MatrixView::column_scales(&p.suh, p.offsets.suh, 1, p.input)?;
-                    gpu.encode_prepare_view(cmd, x, &scale, &prepared)?;
-                    Ok(prepared)
-                };
+                let activated = glu(expert, &inputs[2 * route].raw, &inputs[2 * route + 1].raw)?;
+                down.push(MappedRawJob::new(
+                    &expert.down,
+                    activated,
+                    self.down_plan[0],
+                )?);
+            }
+            encode_mapped_qmv_group(gpu, cmd, &down, self.down_plan)?;
+            for (route, (&id, job)) in ids.iter().zip(&down).enumerate() {
+                finish(&self.experts[id as usize], route, &job.raw)?;
+            }
+        } else {
+            for (route, &id) in ids.iter().enumerate() {
+                let expert = &self.experts[id as usize];
                 let gate =
                     expert
                         .gate
@@ -2359,84 +2483,171 @@ impl<'a> MappedSwitchGlu<'a> {
                 let up = expert
                     .up
                     .encode_mapped_raw(cmd, &prepare(&expert.up)?, self.gu_plan)?;
-                let activated = buffer(
-                    &gpu.device,
-                    u64::from(self.intermediate) * 2,
-                    Storage::StorageModePrivate,
-                )?;
-                ensure!(
-                    gpu.mapped_glu.thread_execution_width() == 32
-                        && gpu.mapped_glu.max_total_threads_per_threadgroup() >= 128,
-                    "unsupported mapped GLU threadgroup"
-                );
-                Metal::encode_bound(
-                    cmd,
-                    &gpu.mapped_glu,
-                    [
-                        (&gate, 0),
-                        (&up, 0),
-                        (&expert.gate.svh, expert.gate.offsets.svh),
-                        (&expert.up.svh, expert.up.offsets.svh),
-                        (&expert.down.suh, expert.down.offsets.suh),
-                        (&activated, 0),
-                    ]
-                    .into_iter(),
-                    [self.intermediate, self.gu_plan[0]],
-                    MTLSize::new(u64::from(self.intermediate / 128), 1, 1),
-                    128,
-                );
+                let activated = glu(expert, &gate, &up)?;
                 let raw = expert
                     .down
                     .encode_mapped_raw(cmd, &activated, self.down_plan)?;
-                let offset = u64::from(
-                    contracts::mapped_expert_row_offset(
-                        u32::try_from(route)?,
-                        self.hidden,
-                        u32::try_from(stack.buffer.length() / 2)?,
-                    )
-                    .context("invalid mapped output row")?,
-                ) * 2;
-                Metal::encode_bound(
-                    cmd,
-                    &gpu.dense_finish,
-                    [
-                        (&raw, 0),
-                        (&expert.down.svh, expert.down.offsets.svh),
-                        (&expert.down.svh, expert.down.offsets.svh),
-                        (&stack.buffer, offset),
-                    ]
-                    .into_iter(),
-                    [self.down_plan[0], 0, 0, 0, self.hidden],
-                    MTLSize::new(u64::from(self.hidden / 128), 1, 1),
-                    64,
-                );
+                finish(expert, route, &raw)?;
             }
-            let output = MatrixView::output(
-                gpu,
-                FloatType::F16,
-                1,
-                self.hidden,
-                Storage::StorageModeShared,
-            )?;
-            ensure!(
-                gpu.mapped_mix.thread_execution_width() == 32
-                    && gpu.mapped_mix.max_total_threads_per_threadgroup() >= 128,
-                "unsupported mapped expert reduction threadgroup"
-            );
-            Metal::encode(
-                cmd,
-                &gpu.mapped_mix,
-                &[&stack.buffer, &scores.buffer, &output.buffer],
-                [self.hidden, self.top_k],
-                MTLSize::new(u64::from(self.hidden.div_ceil(128)), 1, 1),
-                128,
-            );
-            Ok(output)
+        }
+        let output = MatrixView::output(
+            gpu,
+            FloatType::F16,
+            1,
+            self.hidden,
+            Storage::StorageModeShared,
+        )?;
+        ensure!(
+            gpu.mapped_mix.thread_execution_width() == 32
+                && gpu.mapped_mix.max_total_threads_per_threadgroup() >= 128,
+            "unsupported mapped expert reduction threadgroup"
+        );
+        Metal::encode(
+            cmd,
+            &gpu.mapped_mix,
+            &[&stack.buffer, &scores.buffer, &output.buffer],
+            [self.hidden, self.top_k],
+            MTLSize::new(u64::from(self.hidden.div_ceil(128)), 1, 1),
+            128,
+        );
+        Ok(output)
+    }
+}
+
+struct MappedRawJob<'a, 'gpu> {
+    projection: &'a FlashProjection<'gpu>,
+    prepared: Buffer,
+    raw: Buffer,
+}
+
+impl<'a, 'gpu> MappedRawJob<'a, 'gpu> {
+    fn new(projection: &'a FlashProjection<'gpu>, prepared: Buffer, splits: u32) -> Result<Self> {
+        let raw = projection.mapped_raw_output(splits)?;
+        Ok(Self {
+            projection,
+            prepared,
+            raw,
         })
     }
 }
 
+fn encode_mapped_qmv_group(
+    gpu: &Metal,
+    cmd: &CommandBufferRef,
+    jobs: &[MappedRawJob<'_, '_>],
+    [splits, nt, groups]: [u32; 3],
+) -> Result<()> {
+    let p = jobs.first().context("empty mapped QMV group")?.projection;
+    ensure!(
+        matches!(jobs.len(), 8 | 16)
+            && matches!(nt, 2 | 4)
+            && matches!(groups, 4 | 8)
+            && splits > 0
+            && p.output.is_multiple_of(16 * nt),
+        "invalid mapped QMV dispatch geometry"
+    );
+    let mut descriptors = Vec::with_capacity(jobs.len());
+    let mut reads: Vec<&metal::ResourceRef> = Vec::with_capacity(3 * jobs.len());
+    let mut writes: Vec<&metal::ResourceRef> = Vec::with_capacity(jobs.len());
+    let address = |buffer: &Buffer, offset, bytes, align| {
+        crate::qwen35_config::native_qwen_qmv_binding(
+            buffer.gpu_address(),
+            offset,
+            bytes,
+            buffer.length(),
+            align,
+        )
+        .context("mapped QMV binding is out of bounds")
+    };
+    for job in jobs {
+        let q = job.projection;
+        ensure!(
+            std::ptr::eq(q.metal, gpu)
+                && (q.input, q.output, q.k, q.cb) == (p.input, p.output, p.k, p.cb),
+            "incompatible mapped QMV group"
+        );
+        let input_bytes = u64::from(q.input) * 2;
+        let packed_bytes = u64::from(q.input) * u64::from(q.output) * u64::from(q.k) / 8;
+        let output_bytes = u64::from(q.output) * 2;
+        let raw_bytes = u64::from(q.output) * u64::from(splits) * 4;
+        descriptors.push([
+            address(&job.prepared, 0, input_bytes, 4)?,
+            address(&q.packed, q.offsets.trellis, packed_bytes, 4)?,
+            address(&q.svh, q.offsets.svh, output_bytes, 2)?,
+            address(&job.raw, 0, raw_bytes, 4)?,
+        ]);
+        reads.push(&job.prepared);
+        reads.push(&q.packed);
+        reads.push(&q.svh);
+        writes.push(&job.raw);
+    }
+    dispatch_mapped_qmv(
+        gpu,
+        cmd,
+        p,
+        [splits, nt, groups],
+        &descriptors,
+        [&reads, &writes],
+    )
+}
+
+fn dispatch_mapped_qmv(
+    gpu: &Metal,
+    cmd: &CommandBufferRef,
+    p: &FlashProjection<'_>,
+    [splits, nt, groups]: [u32; 3],
+    descriptors: &[[u64; 4]],
+    [reads, writes]: [&[&metal::ResourceRef]; 2],
+) -> Result<()> {
+    let states = gpu
+        .mapped_qmv
+        .as_ref()
+        .context("mapped QMV Tier 2 pipelines unavailable")?;
+    let pipeline = &states[usize::from(groups == 8)][usize::from(nt == 4)];
+    ensure!(
+        pipeline.thread_execution_width() == 32
+            && pipeline.max_total_threads_per_threadgroup() >= u64::from(groups * 32),
+        "unsupported grouped mapped QMV threadgroup"
+    );
+    let arguments = upload(&gpu.device, descriptors)?;
+    let params = [1, p.k, p.cb as u32, p.input, p.output];
+    let encoder = cmd.new_compute_command_encoder();
+    encoder.set_compute_pipeline_state(pipeline);
+    encoder.set_buffer(0, Some(&arguments), 0);
+    encoder.set_bytes(
+        1,
+        std::mem::size_of_val(&params) as u64,
+        params.as_ptr().cast(),
+    );
+    encoder.use_resources(reads, metal::MTLResourceUsage::Read);
+    encoder.use_resources(writes, metal::MTLResourceUsage::Write);
+    encoder.dispatch_thread_groups(
+        MTLSize::new(
+            u64::from(p.output / 16 / nt),
+            descriptors.len() as u64,
+            u64::from(splits),
+        ),
+        MTLSize::new(u64::from(groups * 32), 1, 1),
+    );
+    encoder.end_encoding();
+    #[cfg(test)]
+    gpu.mapped_qmv_groups.set(gpu.mapped_qmv_groups.get() + 1);
+    Ok(())
+}
+
 impl FlashProjection<'_> {
+    fn mapped_raw_output(&self, splits: u32) -> Result<Buffer> {
+        let partials = self
+            .output
+            .checked_mul(splits)
+            .context("mapped raw output overflow")?;
+        buffer(
+            &self.metal.device,
+            u64::from(partials) * 4,
+            Storage::StorageModePrivate,
+        )
+    }
+
     fn encode_mapped_raw(
         &self,
         cmd: &CommandBufferRef,
@@ -2444,15 +2655,7 @@ impl FlashProjection<'_> {
         [splits, nt, groups]: [u32; 3],
     ) -> Result<Buffer> {
         let gpu = self.metal;
-        let partials = self
-            .output
-            .checked_mul(splits)
-            .context("mapped raw output overflow")?;
-        let raw = buffer(
-            &gpu.device,
-            u64::from(partials) * 4,
-            Storage::StorageModePrivate,
-        )?;
+        let raw = self.mapped_raw_output(splits)?;
         let p = &gpu.dense_qmv[usize::from(groups == 8)][nt.trailing_zeros() as usize];
         ensure!(
             p.thread_execution_width() == 32
@@ -2473,6 +2676,8 @@ impl FlashProjection<'_> {
             MTLSize::new(u64::from(self.output / 16 / nt), 1, u64::from(splits)),
             (groups * 32) as usize,
         );
+        #[cfg(test)]
+        gpu.mapped_qmv_singles.set(gpu.mapped_qmv_singles.get() + 1);
         Ok(raw)
     }
 }
@@ -2480,6 +2685,134 @@ impl FlashProjection<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical M5 and Qwen checkpoint: grouped experts and dispatch counters"]
+    fn grouped_qwen_expert_qmv_preserves_route_order_and_bits() -> Result<()> {
+        let model = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_NATIVE_MODEL")?);
+        let checkpoint = crate::checkpoint::inspect(&model)?;
+        let gpu = Metal::new()?;
+        let x = (0..2048)
+            .map(|i| f16::from_f32(((i * 29 % 193) as f32 - 96.) / 64.).to_bits())
+            .collect::<Vec<_>>();
+        let scores = (1..=8)
+            .map(|i| f16::from_f32(i as f32 / 36.).to_bits())
+            .collect::<Vec<_>>();
+        let view = |words: &[u16]| -> Result<MatrixView> {
+            let width = u32::try_from(words.len())?;
+            gpu.f16_storage(words)?
+                .matrix(crate::tensor_layout::MatrixLayout {
+                    shape: [1, width],
+                    strides: [i64::from(width), 1],
+                    offset: 0,
+                })
+        };
+        let x = view(&x)?;
+        let scores = view(&scores)?;
+        let mut compared = 0;
+        for layer in [0, 35] {
+            let prefix = format!("model.language_model.layers.{layer}.mlp.experts");
+            let mut bank = MappedSwitchGlu::load(
+                &gpu,
+                &checkpoint,
+                &prefix,
+                256,
+                8,
+                ["gate_proj", "up_proj", "down_proj"],
+            )?;
+            for routes in [[255, 0, 71, 3, 96, 18, 9, 87], [4, 4, 2, 255, 2, 9, 9, 0]] {
+                bank.enable_grouped_qmv(false);
+                let singles = gpu.mapped_qmv_singles.get();
+                let expected = bank.forward(&x, &routes, &scores)?.read_output()?;
+                assert_eq!(gpu.mapped_qmv_singles.get() - singles, 24);
+                bank.enable_grouped_qmv(true);
+                assert!(bank.grouped_qmv_enabled());
+                let groups = gpu.mapped_qmv_groups.get();
+                let singles = gpu.mapped_qmv_singles.get();
+                let actual = bank.forward(&x, &routes, &scores)?.read_output()?;
+                assert_eq!(gpu.mapped_qmv_groups.get() - groups, 2);
+                assert_eq!(gpu.mapped_qmv_singles.get(), singles);
+                assert_eq!(actual.len(), 2048);
+                assert!(actual.iter().all(|&v| f16::from_bits(v as u16).is_finite()));
+                assert_eq!(actual, expected);
+                compared += actual.len();
+                let mut invalid = routes;
+                invalid[7] = 256;
+                assert!(bank.forward(&x, &invalid, &scores).is_err());
+                assert_eq!(gpu.mapped_qmv_groups.get() - groups, 2);
+            }
+        }
+        println!("{compared} exact expert output words, 24 to 2 QMV dispatches");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical M5 and Qwen checkpoint: compare complete grouped expert stages"]
+    fn grouped_qwen_expert_stages_preserve_the_qmv_only_result() -> Result<()> {
+        let path = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_NATIVE_MODEL")?);
+        let c = crate::checkpoint::inspect(&path)?;
+        let gpu = Metal::new()?;
+        let f16s = (0..4096)
+            .map(|i| f16::from_f32(((i * 17 % 193) as f32 - 96.) / 128.).to_bits())
+            .collect::<Vec<_>>();
+        // Production accepts an arbitrary validated row view, including non-unit stride.
+        let x = gpu
+            .f16_storage(&f16s)?
+            .matrix(crate::tensor_layout::MatrixLayout {
+                shape: [1, 2048],
+                strides: [0, 2],
+                offset: 1,
+            })?;
+        let score_words = (1..=8)
+            .map(|i| f16::from_f32(i as f32 / 36.).to_bits())
+            .collect::<Vec<_>>();
+        let scores = gpu
+            .f16_storage(&score_words)?
+            .matrix(crate::tensor_layout::MatrixLayout {
+                shape: [1, 8],
+                strides: [8, 1],
+                offset: 0,
+            })?;
+        let mut compared = 0;
+        for layer in [0, 35] {
+            let prefix = format!("model.language_model.layers.{layer}.mlp.experts");
+            let mut bank = MappedSwitchGlu::load(
+                &gpu,
+                &c,
+                &prefix,
+                256,
+                8,
+                ["gate_proj", "up_proj", "down_proj"],
+            )?;
+            bank.enable_grouped_qmv(true);
+            assert!(bank.grouped_qmv_enabled());
+            for routes in [[255, 0, 71, 3, 96, 18, 9, 87], [4, 4, 2, 255, 2, 9, 9, 0]] {
+                bank.enable_grouped_stages(false);
+                let control = bank.forward(&x, &routes, &scores)?.read_output()?;
+                bank.enable_grouped_stages(true);
+                assert!(bank.grouped_stages_enabled());
+                let before = gpu.qwen_expert_stage_dispatches.get();
+                let qmv = gpu.mapped_qmv_groups.get();
+                let candidate = bank.forward(&x, &routes, &scores)?.read_output()?;
+                assert_eq!(gpu.qwen_expert_stage_dispatches.get() - before, 3);
+                assert_eq!(gpu.mapped_qmv_groups.get() - qmv, 2);
+                assert_eq!(candidate.len(), 2048);
+                assert!(
+                    candidate
+                        .iter()
+                        .all(|&v| f16::from_bits(v as u16).is_finite())
+                );
+                assert_eq!(candidate, control);
+                let mut invalid = routes;
+                invalid[4] = 256;
+                assert!(bank.forward(&x, &invalid, &scores).is_err());
+                assert_eq!(gpu.qwen_expert_stage_dispatches.get() - before, 3);
+                compared += candidate.len();
+            }
+        }
+        println!("{compared} exact words, 3 additional grouped stage dispatches per row");
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Metal: independent real Qwen routed-GLU rounding counterexample"]

@@ -33,6 +33,16 @@ impl Metal {
         y: &MatrixView,
         op: u32,
     ) -> Result<MatrixView> {
+        self.command(|cmd| self.encode_model_binary(cmd, x, y, op))
+    }
+
+    pub(super) fn encode_model_binary(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        y: &MatrixView,
+        op: u32,
+    ) -> Result<MatrixView> {
         let [rows, cols] = x.shape();
         let [yr, yc] = y.shape();
         ensure!(
@@ -50,32 +60,37 @@ impl Metal {
                 && y.buffer.device().registry_id() == self.device.registry_id(),
             "foreign binary storage"
         );
-        self.command(|cmd| {
-            let out =
-                MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
-            Self::encode(
-                cmd,
-                &self.model_ops.binary,
-                &[&x.buffer, &y.buffer, &out.buffer],
-                [
-                    i64::from(rows),
-                    i64::from(cols),
-                    x.layout.offset,
-                    x.layout.strides[0],
-                    x.layout.strides[1],
-                    y.layout.offset,
-                    if yr == 1 { 0 } else { y.layout.strides[0] },
-                    if yc == 1 { 0 } else { y.layout.strides[1] },
-                    i64::from(op),
-                ],
-                MTLSize::new(u64::from(rows) * u64::from(cols).div_ceil(32), 1, 1),
-                32,
-            );
-            Ok(out)
-        })
+        let out = MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
+        Self::encode(
+            cmd,
+            &self.model_ops.binary,
+            &[&x.buffer, &y.buffer, &out.buffer],
+            [
+                i64::from(rows),
+                i64::from(cols),
+                x.layout.offset,
+                x.layout.strides[0],
+                x.layout.strides[1],
+                y.layout.offset,
+                if yr == 1 { 0 } else { y.layout.strides[0] },
+                if yc == 1 { 0 } else { y.layout.strides[1] },
+                i64::from(op),
+            ],
+            MTLSize::new(u64::from(rows) * u64::from(cols).div_ceil(32), 1, 1),
+            32,
+        );
+        Ok(out)
     }
 
     pub(super) fn model_softmax(&self, x: &MatrixView) -> Result<MatrixView> {
+        self.command(|cmd| self.encode_model_softmax(cmd, x))
+    }
+
+    pub(super) fn encode_model_softmax(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+    ) -> Result<MatrixView> {
         let [rows, cols] = x.shape();
         ensure!(
             rows > 0
@@ -84,24 +99,21 @@ impl Metal {
                 && x.buffer.device().registry_id() == self.device.registry_id(),
             "invalid native softmax input"
         );
-        self.command(|cmd| {
-            let out =
-                MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
-            Self::encode(
-                cmd,
-                &self.model_ops.softmax,
-                &[&x.buffer, &out.buffer],
-                [
-                    i64::from(cols),
-                    x.layout.offset,
-                    x.layout.strides[0],
-                    x.layout.strides[1],
-                ],
-                MTLSize::new(u64::from(rows), 1, 1),
-                cols.div_ceil(4).div_ceil(32) as usize * 32,
-            );
-            Ok(out)
-        })
+        let out = MatrixView::output(self, FloatType::F16, rows, cols, Storage::StorageModeShared)?;
+        Self::encode(
+            cmd,
+            &self.model_ops.softmax,
+            &[&x.buffer, &out.buffer],
+            [
+                i64::from(cols),
+                x.layout.offset,
+                x.layout.strides[0],
+                x.layout.strides[1],
+            ],
+            MTLSize::new(u64::from(rows), 1, 1),
+            cols.div_ceil(4).div_ceil(32) as usize * 32,
+        );
+        Ok(out)
     }
 
     pub fn encode_model_rms(

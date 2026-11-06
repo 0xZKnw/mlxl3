@@ -19,6 +19,15 @@ impl Metal {
         cmd: &CommandBufferRef,
         logits: &Buffer,
     ) -> Result<Buffer> {
+        self.encode_normalized_greedy(cmd, logits, false)
+    }
+
+    pub(super) fn encode_normalized_greedy(
+        &self,
+        cmd: &CommandBufferRef,
+        logits: &Buffer,
+        strict_raw_logits: bool,
+    ) -> Result<Buffer> {
         ensure!(
             self.device_greedy_available()
                 && self.owns_command_queue(cmd)
@@ -42,7 +51,7 @@ impl Metal {
                 .as_ref()
                 .context("missing device greedy pipeline")?,
             &[logits, &lse, &selected],
-            [248_320u32],
+            [248_320u32, u32::from(strict_raw_logits)],
             MTLSize::new(1, 1, 1),
             1024,
         );
