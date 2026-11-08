@@ -1,0 +1,20 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-issue162)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.79s
+     Running unittests native/src/lib.rs (/tmp/issue162-hub-target/debug/deps/mlxl3_native-3dfca109c7e1f72c)
+
+running 12 tests
+test hub::tests::cancelled_complete_checkpoint_is_neither_reused_nor_published ... ok
+test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+test hub::tests::checkpoint_metadata_requires_the_correct_digest_family ... ok
+test hub::tests::checkpoint_resume_keeps_only_shorter_partials ... ok
+test hub::tests::checkpoint_identity_validates_payload_not_just_length ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test hub::tests::flash_sidecars_stay_in_the_variant_folder_and_do_not_match_quantized_names ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test hub::tests::preview_reports_architecture_and_keeps_hybrid_cache_unknown ... ok
+test hub::tests::flash_variants_include_present_sidecars_and_exact_total ... ok
+test hub::tests::selected_flash_variant_assembles_into_an_inspectable_checkpoint ... ok
+test hub::tests::checkpoint_transfer_verifies_resume_corruption_and_late_cancellation ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 320 filtered out; finished in 0.76s
+

@@ -1,0 +1,21 @@
+test_kani_manifest (unittest.loader._FailedTest.test_kani_manifest) ... ERROR
+
+======================================================================
+ERROR: test_kani_manifest (unittest.loader._FailedTest.test_kani_manifest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_kani_manifest
+Traceback (most recent call last):
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/unittest/loader.py", line 137, in loadTestsFromName
+    module = __import__(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/f0ba1f683224/mlxl3-issue162/tests/test_kani_manifest.py", line 7, in <module>
+    from test_kani_ci import (
+  File "/workspace/scratch/f0ba1f683224/mlxl3-issue162/tests/test_kani_ci.py", line 13, in <module>
+    import pytest
+ModuleNotFoundError: No module named 'pytest'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (errors=1)
