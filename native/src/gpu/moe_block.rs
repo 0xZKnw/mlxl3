@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 thread_local! {
     // One-shot deterministic cancellation after a genuinely submitted/waited wave.
     static CANCEL_AFTER_WAVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static CANCEL_AFTER_READ_BATCH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 impl FlashMoeRow<'_> {
@@ -127,36 +128,39 @@ impl FlashMoeRow<'_> {
                     .context("missing block demand consumer")?;
                 read_bytes[entry.consumers[0].row] += EXPERT_BYTES;
             }
-            let records = plan
-                .reads
-                .iter()
-                .map(|&lease| (lease, self.records[lease.expert as usize].clone()));
-            let mut reads = if self.gpu.ssd_direct_enabled {
-                self.gpu
-                    .readers()?
-                    .submit_shared_fresh(records, &self.gpu.device)?
-            } else {
-                self.gpu.readers()?.submit(records)?
-            };
-            for (lease, payload) in reads.ready(true)? {
-                let backing = self.gpu.completed_record(payload)?;
-                let expert = FlashExpert::from_backing(self.gpu, &backing)?;
-                ensure!(plan.publish(lease), "stale Flash block SSD completion");
-                self.slots.borrow_mut()[lease.slot] = Some(expert);
-                // Deliberately no recyclable ownership: block implementation
-                // uses fresh immutable records and waits before every eviction.
-            }
-            ensure!(reads.remaining() == 0, "incomplete Flash block SSD wave");
-            check_cancelled()?;
-            #[cfg(test)]
-            for (lease, _, _) in &reads.trace {
-                let entry = cohort
-                    .iter()
-                    .find(|entry| u32::from(entry.expert) == lease.expert)
-                    .context("missing completed block read consumer")?;
-                timelines[entry.consumers[0].row].push(serde_json::json!({
-                    "event": "block_read", "expert": lease.expert, "slot": lease.slot
-                }));
+            // Cache reservation width is independent of reader queue width.
+            // Keep the full plan alive (including every initially hot expert),
+            // but never submit more than one AR cohort to the reader pool.
+            for batch in plan.reads.chunks(TOP_K) {
+                check_cancelled()?;
+                let records = batch.iter().map(|&lease| (lease, self.records[lease.expert as usize].clone()));
+                let mut reads = if self.gpu.ssd_direct_enabled {
+                    self.gpu.readers()?.submit_shared_fresh(records, &self.gpu.device)?
+                } else {
+                    self.gpu.readers()?.submit(records)?
+                };
+                for (lease, payload) in reads.ready(true)? {
+                    let backing = self.gpu.completed_record(payload)?;
+                    let expert = FlashExpert::from_backing(self.gpu, &backing)?;
+                    ensure!(plan.publish(lease), "stale Flash block SSD completion");
+                    self.slots.borrow_mut()[lease.slot] = Some(expert);
+                    // Fresh immutable records; no live GPU generation is reused.
+                }
+                ensure!(reads.remaining() == 0, "incomplete Flash block SSD batch");
+                #[cfg(test)]
+                if plan.reads.len() > TOP_K && CANCEL_AFTER_READ_BATCH.with(|inject| inject.replace(false)) {
+                    cancelled.store(true, Ordering::Relaxed);
+                }
+                check_cancelled()?;
+                #[cfg(test)]
+                for (lease, _, _) in &reads.trace {
+                    let entry = cohort.iter().find(|entry| u32::from(entry.expert) == lease.expert)
+                        .context("missing completed block read consumer")?;
+                    timelines[entry.consumers[0].row].push(serde_json::json!({
+                        "event": "block_read", "expert": lease.expert, "slot": lease.slot,
+                        "batch_size": batch.len()
+                    }));
+                }
             }
             objc::rc::autoreleasepool(|| -> Result<()> {
                 let command = self.gpu.queue.new_command_buffer().to_owned();
@@ -284,6 +288,7 @@ mod tests {
         let checkpoint = checkpoint::inspect(std::path::Path::new(&path))?;
         let gpu = Metal::new()?;
         let prefix = "model.language_model.layers.0.mlp";
+        let mut wide_cold_case = false;
         for capacity in [10, 20, 40] {
             let mut block = FlashMoeRow::load(&gpu, &checkpoint, prefix, capacity)?;
             ensure!(
@@ -338,20 +343,15 @@ mod tests {
                             ensure!(out.hits == 0);
                             for event in &out.timeline {
                                 if event["event"] == "block_read" {
-                                    reads
-                                        .push(event["expert"].as_u64().context("missing read ID")?
-                                            as u32);
+                                    let batch_size = event["batch_size"].as_u64().context("missing read batch size")?;
+                                    ensure!((1..=TOP_K as u64).contains(&batch_size));
+                                    reads.push(event["expert"].as_u64().context("missing read ID")? as u32);
                                 }
                             }
                         }
-                        ensure!(
-                            reads.len() == union.len()
-                                && reads.iter().copied().collect::<BTreeSet<_>>() == union
-                        );
-                        ensure!(
-                            actual.iter().map(|out| out.read_bytes).sum::<u64>()
-                                == union.len() as u64 * EXPERT_BYTES
-                        );
+                        wide_cold_case |= capacity > TOP_K && union.len() > TOP_K;
+                        ensure!(reads.len() == union.len() && reads.iter().copied().collect::<BTreeSet<_>>() == union);
+                        ensure!(actual.iter().map(|out| out.read_bytes).sum::<u64>() == union.len() as u64 * EXPERT_BYTES);
                         if repeated {
                             ensure!(union.len() == TOP_K);
                             let hot = block.forward_block(&rows[..width])?;
@@ -363,6 +363,22 @@ mod tests {
                                 ensure!(out.read()? == expected[row].1);
                             }
                         }
+                    }
+                    if capacity > TOP_K && expected.iter().flat_map(|(ids, _)| ids.iter().copied()).collect::<BTreeSet<_>>().len() > TOP_K {
+                        block.clear_test_cache()?;
+                        let cancelled = AtomicBool::new(false);
+                        CANCEL_AFTER_READ_BATCH.with(|inject| inject.set(true));
+                        let stopped = block.forward_block_cancellable(&rows, &cancelled);
+                        CANCEL_AFTER_READ_BATCH.with(|inject| inject.set(false));
+                        ensure!(stopped.is_err() && cancelled.load(Ordering::Relaxed));
+                        ensure!(block.last.is_empty());
+                        gpu.ensure_reads_idle()?;
+                        let cache = block.cache.borrow();
+                        ensure!(cache.available_slots() == capacity);
+                        ensure!(cache.ready_slot_snapshot().iter().all(Option::is_none));
+                        drop(cache);
+                        let recovered = block.forward_block(&rows)?;
+                        for (row, out) in recovered.iter().enumerate() { ensure!(out.read()? == expected[row].1); }
                     }
                     block.clear_test_cache()?;
                     let before = block.cache.borrow().ready_slot_snapshot();
@@ -416,6 +432,7 @@ mod tests {
                 }
             }
         }
+        ensure!(wide_cold_case, "fixture must exercise more than ten cold experts in a wide cache");
         Ok(())
     }
 }
