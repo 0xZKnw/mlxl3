@@ -27223,3 +27223,116 @@ Le test CPU paresseux couvre séparément erreur successeur accepté et absence
 d'appel sur rejet. Cette fixture physique ne simule pas une erreur après mutation
 cible ; contrôle physique complet NON EXÉCUTÉ. CI6578fee : fmt/Clippy/testsCPU PASS,
 autres jobs en cours ; pas de gain mesuré. Relance CI sur correction fixture.
+
+## MTP-M2-20261108 — préenregistrement
+
+Base PR161 `5da869888ac58bd1548054c38ddb2ac14fce0b7d`, issue160 M2.
+Hypothèse : le rattrapage MTP nécessite K/V et index QSA retenus, pas Q principal,
+attention, gate ni projection de sortie. Conserver mêmes projections K/V,
+normalisation/rope, index tail/blocks et publication transactionnelle ; index Q
+ne sera calculé que si nécessaire à la voie de référence, sans scores pendant catch-up.
+Avant modifications : AGENTS/opti et QSA AR36 relus ; skill formal-proof et référence
+Rust non disponibles au catalogue ni chemins locaux. Aucune nouvelle dépendance.
+Protocole : comparaison physique state words et prochain forward contre ancien
+forward à sortie jetée, f16/f32, offsets 0/3/31/32/1023/2050/2051, index/non-index,
+fork/growth, erreurs avant/après encodage ; fmt/Clippy/tests et tentative Kani.
+Pas de mesure de vitesse avant correction. Cloud sans Rust/Metal/checkpoint connu,
+contrôles physiques à exécuter explicitement sur Mac. Statut EN COURS, non publié.
+
+## MTP-ISSUE160-20261108 — préenregistrement intégration PR161
+
+Demande explicite : intégrer les travaux de l'issue160 dans la PR161, sans merge.
+Base isolée5da869888ac58bd1548054c38ddb2ac14fce0b7d ; modifications des autres
+checkouts préservées. Historique M1/#152/AR43 et issue160 enrichie relus. Prévoir
+lots indépendants : M2 catch-up K/V-only, M3 sélecteur normalisé GPU, M4 staging
+transactionnel layer-major borné, M0/M5/M6 contrats mémoire/cohortes/politique,
+M1 prompt dernière tête. Garder les expériences non qualifiées hors défauts.
+Protocole avant modification : lecture callers/ownership, tests CPU déterministes
+et harnais Kani sur fonctions réelles, compilation Metal/macOS si outil disponible,
+fixtures physiques ignorées explicitement sans checkpoint ; validation numérique
+physique avant benchmark ou activation. Matériel cloud sans cargo/Metal ; Mac
+connecté à inspecter sans lancer benchmark. Skill formal-proof indisponible dans
+catalogue cloud, recherche sur Mac en cours. Aucun tok/s mesuré ni gain promis.
+État EN COURS, aucune publication supplémentaire ni app installée modifiée.
+
+## MTP-POLICY-20261108 — préenregistrement
+
+Base PR161 5da8698, issue160 M0/M5/M6. Construire des politiques CPU bornées
+pour admission prospective (octets disjoints et pic retenu), cohortes d'experts
+préservant l'ordre de contributions par ligne, profondeur choisie avant draft
+à partir des cycles mesurés et lookup de suffixe borné au contexte de requête.
+Aucune suppression de la garde AR-only, aucune allocation GPU/admission de runtime
+promise par ces helpers. Intégration runtime à vérifier séparément par le parent.
+Protocole : tests déterministes/exhaustifs bornés, arithmétique checked, Kani réel,
+fmt/Clippy/tests ; aucun benchmark/Metal. Rechercher formal-proof-skill/Rust avant
+édition. Pas de gain tok/s mesuré, statut EN COURS.
+### MTP-ISSUE160-SHARED-QMV — planned, physical validation pending
+- Read canonical native Flash reduction and historical MB2 findings (63V/120/19232); prior component parity does not establish native model speed. Add opt-in canonical MB2 NT1/NT2 for two to four target rows; B4 uses two MB2 groups. MB4 NT2 would exceed 32 KiB reference scratch, so do not instantiate it.
+- Preserve SG4, input-tile order, row-then-group reduction, split order and FP16 boundaries. Exclude MTP hidden's distinct reduction, generic and routed-record paths. Default unchanged. Multirow projection dispatch does not alone turn the layer-major scalar verifier into a batched verifier.
+- Planned checks: production dispatch selection CPU tests and Kani harness, native Metal component parity required before enablement. Cloud lacks Rust/Metal; no speed or parity claim until actually run.
+
+### MTP-M2-20261108 — candidat KV-only, non qualifié physiquement
+
+- Implémentation : `FlashQsaLayer::extend` utilise un append K/V dédié sous `MLXL3_NATIVE_MTP_KV_ONLY=1`, désactivé par défaut. Le chemin conserve les projections K/V, RMS/RoPE canoniques, les clés/tails/blocs de l’index et la publication après réussite de commande. Il omet projection Q principale, attention, gate, sortie et scores de sélection de l’index. La projection qk de l’index reste volontairement canonique hors optimisation key-only existante.
+- Deux tests physiques ignorés ajoutés : égalité exacte de l’état retenu et de la requête suivante contre le chemin canonique, entrées F16/F32, frontières de pooling/croissance/sélection sparse, fork après restauration, erreurs avant publication et capacité épuisée ; second test via `FlashQsaLayer::extend` et continuation de couche réelle. Ce sont des comparaisons de non-régression contre le chemin canonique, pas une preuve indépendante des shaders.
+- Validation cloud : `git diff --check` passe. Tentatives `cargo fmt --check`, tests Rust et Kani bloquées : `cargo: command not found`. Rustfmt, compilation, contrôles physiques sur checkpoint et contrôle négatif sont à exécuter sur le Mac avant qualification. Aucun résultat Metal, débit ou preuve Kani nouvelle n’est revendiqué. Les politiques CPU de croissance/fork existantes sont réutilisées sans modification.
+- Shared-QMV implementation/checkpoint: strict opt-in M5 `MLXL3_NATIVE_FLASH_VERIFY_QMV=1`, canonical MB2 NT1/NT2 PSOs and production selector tests/Kani plus ignored physical B2/B3/B4 fixture parity test added. `git diff --check` passed; Rust/Metal execution remains pending in cloud (tools unavailable). Verifier currently calls scalar layer forwards: this batched-projection capability is not yet a weight-reusing model verifier. No speed or physical parity claim, default stays off.
+## MTP-M4-20261108 — préenregistrement
+
+Base PR161 `5da869888ac58bd1548054c38ddb2ac14fce0b7d`, issue160 M4/R1/R3/R4.
+Relus AGENTS/opti M1 et AR43, contrats QwenVerification et snapshots Flash.
+Hypothèse distincte des anciens verify_pair : staging layer-major natif 1..4
+lignes avec snapshots par préfixe, restauration de l'état engagé avant retour,
+commit consommant et Drop sans publication. Première version conserve kernels
+scalaires exacts : aucun partage EXL3/débit/économie SSD annoncé.
+Protocole avant code : réutiliser gardes CPU/Kani native_block_end et
+native_retained_prefix ; tests physiques ignorés explicitement logits/états
+vs forwards scalaires, tous keep, Drop, erreurs et continuation. lookahead SSD
+et budget mémoire spéculatif non qualifiés refusés. Pas de benchmark sans parité.
+Skill formal-proof/Rust introuvable dans catalogue et chemins disponibles ;
+Rust/Metal/checkpoint indisponibles dans cloud. Vérification physique à exécuter.
+
+Implémentation : `FlashVerification` emprunte exclusivement la cible, logits et
+hidden par préfixe, commit consommant keep0..B ; restauration initiale avant
+retour même en erreur. stage_block/cancellable 1..4, couches extérieures et lignes
+intérieures, kernels scalaires canoniques, écritures différées inter-couches
+complétées avant changement de ligne. Cancellation avant chaque ligne/head.
+Tests physiques ajoutés : `layer_major_verification_matches_scalar_prefixes_and_continuations`
+(toutes largeurs et tous keep, alignements QSA1..4, logits complets, hidden,
+GDN et K/V/index/tail QSA byte exacts, quatre continuations tracées),
+`dropped_invalid_failed_and_cancelled_blocks_preserve_target` (Drop, commit
+invalide, IDs/taille invalides, cancellation et erreur après couche3). Non exécutés.
+`git diff --check` passe. `cargo fmt --check` et `cargo kani --help` impossibles
+ici : cargo absent. Worker Mac a ensuite trouvé et lu le skill formal-proof/Rust.
+Gardes CPU/Kani existantes réutilisées, pas de preuve Metal annoncée. Pas de
+benchmark, partage EXL3/SSD ni qualification mémoire spéculative ajoutés par ce
+staging. Matrice physique exhaustive longue ; rollback peut être lancé d'abord.
+
+## MTP-POLICY-20261108 — préenregistrement
+
+Base PR161 5da8698, issue160 M0/M5/M6. Construire des politiques CPU bornées
+pour admission prospective (octets disjoints et pic retenu), cohortes d'experts
+préservant l'ordre de contributions par ligne, profondeur choisie avant draft
+à partir des cycles mesurés et lookup de suffixe borné au contexte de requête.
+Aucune suppression de la garde AR-only, aucune allocation GPU/admission de runtime
+promise par ces helpers. Intégration runtime à vérifier séparément par le parent.
+Protocole : tests déterministes/exhaustifs bornés, arithmétique checked, Kani réel,
+fmt/Clippy/tests ; aucun benchmark/Metal. Rechercher formal-proof-skill/Rust avant
+édition. Pas de gain tok/s mesuré, statut EN COURS.
+
+MTP-POLICY local — implémentation des quatre APIs bornées dans
+native/src/speculation_plan.rs, export lib.rs. Admission reste un calcul prospectif,
+pas une suppression de native_speculation_permitted. Statistiques de profondeur
+interdisent mélange de profondeurs et overflow ; suffix lookup est request-local,
+greedy-only et plafonné à3tokens/32ordre/4096historique. Cohortes restituent les
+consommateurs(row,rank) et des vagues bornées, pas une scheduler I/O déjà branché.
+Tests déterministes et recherche exhaustive binaire jusqu'à10tokens ajoutés ;
+harnais Kani mémoire/admission et accumulateur sur fonctions réelles. Tentatives
+cargo fmt/test/Kani BLOQUÉES : cargo command not found dans cloud. Diff-check PASS,
+pas preuve de compilation/correction. Mac cargo+Kani disponibles signalés par
+worker environnement ; transfert/validation finale à faire par l'intégrateur.
+
+### MTP-INTEGRATION-20261108 — candidat en revue, qualification en attente
+- Chemin existant depth1 conservé par défaut. Préfill conserve toutes les lignes hidden vérifiées pour catch-up mais calcule uniquement la dernière tête vocabulaire ; EOS vérifié arrête la seconde passe inutile. Les snapshots ne sont pas assimilés à une simple longueur de cache.
+- `MLXL3_NATIVE_MTP_DEVICE_GREEDY=1` utilise le sélecteur Half normalisé existant si ses pipelines GPU sont disponibles (initialisation `MLXL3_NATIVE_DEVICE_GREEDY=1` également nécessaire), sinon référence canonique. `MLXL3_NATIVE_MTP_BLOCK_VERIFY=1` branche réellement le staging B2 dans la session : commit1 au rejet/EOS, commit2 et réparation draft par hidden vérifié à l'acceptation. Prototype scalaire layer-major, sélection cible host normalisée, lookahead non nul refusé ; il paie les deux lignes même au rejet et ne revendique aucun gain.
+- Revue indépendante avant compilation : conversions Option/Result corrigées et parsing strict des nouveaux flags ajouté. Tests et compilation Mac/CI en attente ; aucune qualification physique ni débit annoncé. Admission mémoire, cohortes SSD et adaptation sont des fondations CPU non encore branchées, pas une réalisation complète de M0/M5/M6. Depth2/3 et partage des experts cible restent à intégrer après validation du contrat transactionnel.

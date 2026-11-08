@@ -304,3 +304,59 @@ fn native_fixed_qmv_key_checks_complete_shape_split_and_format() {
         kani::cover!(splits == 2 && setting == Some(true));
     }
 }
+
+/// Optional canonical MB2 target path. B3/B4 use two groups with row-tail guards.
+/// The caller excludes generic, routed, and special MTP-hidden projections.
+pub(crate) fn verify_rows_key(rows: u32, nt: u32, k: u32, eligible: bool) -> Option<usize> {
+    if eligible && (2..=4).contains(&rows) && (2..=6).contains(&k) {
+        match nt {
+            1 => Some(0),
+            2 => Some(1),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+#[test]
+fn verify_rows_dispatch_preserves_scalar_and_unsupported_paths() {
+    for eligible in [false, true] {
+        for rows in [0, 1, 2, 3, 4, 5, u32::MAX] {
+            for nt in [0, 1, 2, 3, u32::MAX] {
+                for k in [0, 1, 2, 3, 4, 5, 6, 7, u32::MAX] {
+                    let actual = verify_rows_key(rows, nt, k, eligible);
+                    let supported = eligible && rows >= 2 && rows <= 4
+                        && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
+                    assert_eq!(actual.is_some(), supported);
+                    if let Some(key) = actual {
+                        assert_eq!(key, (nt - 1) as usize);
+                        assert!(rows.div_ceil(2) * 2 >= rows);
+                        assert!(rows.div_ceil(2) <= 2);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_rows_dispatch_is_bounded_and_opt_in() {
+    let rows: u32 = kani::any();
+    let nt: u32 = kani::any();
+    let k: u32 = kani::any();
+    let eligible: bool = kani::any();
+    let actual = verify_rows_key(rows, nt, k, eligible);
+    let supported = eligible && rows >= 2 && rows <= 4
+        && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
+    assert_eq!(actual.is_some(), supported);
+    if let Some(key) = actual {
+        assert!(key < 2);
+        assert_eq!(key, (nt - 1) as usize);
+        assert!(rows.div_ceil(2) * 2 >= rows);
+        assert!(rows.div_ceil(2) <= 2);
+        kani::cover!(rows == 3 && nt == 2);
+        kani::cover!(rows == 4 && nt == 1);
+    }
+}

@@ -17,6 +17,10 @@ use std::{cell::RefCell, os::unix::fs::FileExt, rc::Rc};
 mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
+#[path = "flash_verify.rs"]
+mod verify;
+pub use verify::FlashVerification;
+
 pub(super) enum Layer<'a> {
     Gdn(Box<FlashGdnLayer<'a>>),
     Ple(Box<FlashPleLayer<'a>>),

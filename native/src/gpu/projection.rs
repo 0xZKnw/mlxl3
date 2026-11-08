@@ -751,7 +751,23 @@ impl<'a> FlashProjection<'a> {
             gpu.routed_nt2_gu.get(),
             gpu.routed_nt2_down.get(),
         );
-        let (pipeline, third, groups) = if let Some(key) = routed_nt2 {
+        let verify_rows = crate::flash_qmv::verify_rows_key(
+            batch,
+            self.nt,
+            self.k,
+            gpu.flash_verify_qmv.is_some()
+                && !self.generic
+                && !self.mtp_hidden
+                && !self.routed_record,
+        );
+        let (pipeline, third, groups) = if let Some(key) = verify_rows {
+            (
+                &gpu.flash_verify_qmv.as_ref().context("missing verify QMV pipelines")?[key],
+                (&self.svh, self.offsets.svh),
+                contracts::flash_reference_groups(self.output, self.nt)
+                    .context("invalid verify QMV grid")?,
+            )
+        } else if let Some(key) = routed_nt2 {
             (
                 &gpu.routed_nt2_pipelines
                     .as_ref()
@@ -802,7 +818,13 @@ impl<'a> FlashProjection<'a> {
             [batch, self.k, self.cb as u32, self.input, self.output],
             MTLSize::new(
                 u64::from(groups),
-                if self.mtp_hidden { 1 } else { u64::from(batch) },
+                if self.mtp_hidden {
+                    1
+                } else if verify_rows.is_some() {
+                    u64::from(batch.div_ceil(2))
+                } else {
+                    u64::from(batch)
+                },
                 u64::from(self.splits),
             ),
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
@@ -820,7 +842,9 @@ impl<'a> FlashProjection<'a> {
             count.set(count.get() + 1);
         }
         #[cfg(test)]
-        if let Some(key) = routed_nt2 {
+        if verify_rows.is_some() {
+            // Do not count the optional shared kernel as a static/fixed PSO use.
+        } else if let Some(key) = routed_nt2 {
             gpu.routed_nt2_uses[key].set(gpu.routed_nt2_uses[key].get() + 1);
         } else if let Some(key) = self.fixed_key {
             let count = &gpu.flash_fixed_submissions[usize::from(key)];
@@ -3158,3 +3182,62 @@ mod ar20_finish_mix_tests;
 #[cfg(test)]
 #[path = "resident_scratch_tests.rs"]
 mod resident_scratch_tests;
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical M5 Metal and MLXL3_NT2_FIXTURES; enable MLXL3_NATIVE_FLASH_VERIFY_QMV=1"]
+fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct Case {
+        path: std::path::PathBuf,
+        prefix: String,
+        x: Vec<u16>,
+        generic: bool,
+    }
+    let root = std::path::PathBuf::from(
+        std::env::var_os("MLXL3_NT2_FIXTURES").context("fixtures required")?,
+    );
+    let cases: Vec<Case> =
+        serde_json::from_slice(&std::fs::read(root.join("native-cases.json"))?)?;
+    let gpu = Metal::new()?;
+    ensure!(gpu.flash_verify_qmv.is_some(), "shared verify kernels must be enabled");
+    let mut compared = 0;
+    for case in cases.iter().filter(|case| !case.generic) {
+        let checkpoint = crate::checkpoint::inspect(&case.path)?;
+        let mut layer = FlashProjection::load(&gpu, &checkpoint, &case.prefix)?;
+        if layer.mtp_hidden || !(2..=6).contains(&layer.k) {
+            continue;
+        }
+        ensure!(case.x.len() >= layer.input as usize, "missing fixture input row");
+        // Explicit canonical controls, independent of static/fixed PSO settings.
+        layer.static_key = None;
+        layer.fixed_key = None;
+        for nt in [1, 2] {
+            if contracts::flash_reference_groups(layer.output, nt).is_none() {
+                continue;
+            }
+            layer.nt = nt;
+            for rows in 2..=4 {
+                let mut input = Vec::new();
+                let mut expected = Vec::new();
+                for row in 0..rows {
+                    let mut x = case.x[..layer.input as usize].to_vec();
+                    // Distinct finite rows catch cross-row contamination and B3 tail errors.
+                    if row != 0 {
+                        for (i, value) in x.iter_mut().enumerate() {
+                            *value = f16::from_f32(((i + row * 31) % 127) as f32 / 128. - 0.5).to_bits();
+                        }
+                    }
+                    expected.extend(layer.submit(&x)?.read()?);
+                    input.extend(x);
+                }
+                let actual = layer.submit(&input)?.read()?;
+                ensure!(actual == expected, "shared rows differ: {} NT{nt} B{rows}", case.prefix);
+                compared += actual.len();
+            }
+        }
+    }
+    ensure!(compared > 0, "no eligible fixtures exercised");
+    println!("shared target QMV: {compared} exact FP16 output words");
+    Ok(())
+}

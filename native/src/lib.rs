@@ -122,6 +122,7 @@ mod resident_scratch_policy;
 pub mod router;
 pub mod runtime_stats;
 pub mod speculative;
+pub mod speculation_plan;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;
 #[cfg(any(

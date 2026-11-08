@@ -24,7 +24,7 @@ mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
-pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
+pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor, FlashVerification};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod qwen_gdn;
@@ -399,6 +399,7 @@ pub struct Metal {
     mapped_glu: ComputePipelineState,
     mapped_mix: ComputePipelineState,
     mtp_hidden_qmv: ComputePipelineState,
+    flash_verify_qmv: Option<[ComputePipelineState; 2]>,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
@@ -956,6 +957,14 @@ impl Metal {
                 )?,
             ];
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
+            let flash_verify_qmv = if hc_kernel_setting("MLXL3_NATIVE_FLASH_VERIFY_QMV")? {
+                Some([
+                    pipeline("flash_verify_qmv_mb2")?,
+                    pipeline("flash_verify_qmv_mb2_nt2")?,
+                ])
+            } else {
+                None
+            };
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(
@@ -1158,6 +1167,7 @@ impl Metal {
                 mapped_glu,
                 mapped_mix,
                 mtp_hidden_qmv,
+                flash_verify_qmv,
                 mtp_norm,
                 mtp_combine,
                 finish128_pipeline,

@@ -17,6 +17,8 @@ pub struct FlashMtpHead<'a> {
     layer: FlashQsaLayer<'a>,
     mixer: FlashHc<'a>,
     eps: f32,
+    device_greedy: bool,
+    block_verify: bool,
 }
 
 impl<'a> FlashMtpHead<'a> {
@@ -37,6 +39,15 @@ impl<'a> FlashMtpHead<'a> {
             "Flash MTP requires one draft layer"
         );
         let gpu = target.gpu;
+        let experimental = |name: &str| -> Result<bool> {
+            let value = match std::env::var(name) {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::flash_support::hc_kernel_flag(value.as_deref(), true)
+                .with_context(|| format!("{name} must be 0 or 1"))
+        };
         let gain = |name, width| checkpoint_float_weight(gpu, c, name, &[width], FloatType::F32);
         let embedding_fc = FlashProjection::load(gpu, c, "mtp.fc_embedding")?;
         let hidden_fc = FlashProjection::load(gpu, c, "mtp.fc_hidden")?;
@@ -61,6 +72,9 @@ impl<'a> FlashMtpHead<'a> {
             )?,
             mixer: FlashHc::load(gpu, c, "mtp.hyper_connection_mixer", config.eps, false)?,
             eps: config.eps,
+            device_greedy: experimental("MLXL3_NATIVE_MTP_DEVICE_GREEDY")?
+                && gpu.device_greedy_available(),
+            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY")?,
         })
     }
 
@@ -171,8 +185,35 @@ impl<'a> FlashMtpHead<'a> {
         result
     }
 
+    /// Normalized Half selection is identical to the canonical host selector.
+    /// This remains separately opt-in from ordinary AR device greedy admission.
+    fn propose(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<u32> {
+        if !self.device_greedy {
+            return target.greedy_id(&self.forward(target, hidden, token)?);
+        }
+        let streams = self.mixed(target, hidden, token)?;
+        let before = self.layer.snapshot();
+        let result = (|| {
+            let output = self.layer.forward(&streams)?;
+            let mixed = self.mixer.read(&output, false)?.mixed;
+            target.gpu.device_greedy_head(&target.head, &mixed, false).map(|v| v.0)
+        })();
+        if result.is_err() {
+            self.layer.restore(&before)?;
+        }
+        result
+    }
+
     pub fn reset(&mut self) {
         self.layer.reset();
+    }
+}
+
+impl FlashNext<'_> {
+    fn greedy_id(&self, logits: &[u16]) -> Result<u32> {
+        let normalized = self.gpu.flash_log_probs(logits)?;
+        crate::speculative::greedy_log_prob_id(&normalized)
+            .context("invalid Flash MTP probabilities")
     }
 }
 
@@ -247,7 +288,7 @@ impl FlashMtpSession {
         *self = Self::default();
         let result = (|| {
             let mut logits = None;
-            for &token in tokens {
+            for (index, &token) in tokens.iter().enumerate() {
                 ensure!(
                     !cancelled.load(std::sync::atomic::Ordering::Relaxed),
                     "generation cancelled"
@@ -255,7 +296,9 @@ impl FlashMtpSession {
                 if let Some(hidden) = target.last_hidden() {
                     head.extend(target, hidden, token)?;
                 }
-                logits = Some(target.forward(token)?);
+                // All verified hidden rows still feed the draft catch-up. Only
+                // the final prompt row needs the expensive vocabulary head.
+                logits = target.prefill_inner(&[token], None, None, index + 1 == tokens.len())?;
             }
             logits.context("empty Flash MTP prefill")
         })();
@@ -273,6 +316,19 @@ impl FlashMtpSession {
         anchor: u32,
         context_limit: u32,
         output_remaining: usize,
+    ) -> Result<u32> {
+        self.advance_with_eos(target, head, anchor, context_limit, output_remaining, &[])
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn advance_with_eos(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        anchor: u32,
+        context_limit: u32,
+        output_remaining: usize,
+        eos: &[u32],
     ) -> Result<u32> {
         ensure!(
             output_remaining > 0
@@ -312,30 +368,75 @@ impl FlashMtpSession {
             .clone();
         let target_before = target.snapshot();
         let head_before = head.layer.snapshot();
-        let gpu = target.gpu;
-        let greedy = |logits: Vec<u16>| -> Result<u32> {
-            let log_probs = gpu.flash_log_probs(&logits)?;
-            crate::speculative::greedy_log_prob_id(&log_probs)
-                .context("invalid Flash MTP probabilities")
+        let device_greedy = head.device_greedy;
+        let select = |target: &mut FlashNext, token| -> Result<u32> {
+            if device_greedy {
+                target.forward_greedy(token)
+            } else {
+                let logits = target.forward(token)?;
+                target.greedy_id(&logits)
+            }
         };
         let result = (|| {
             if width == 0 {
                 head.extend(target, &hidden, anchor)?;
-                return greedy(target.forward(anchor)?);
+                return select(target, anchor);
             }
-            let proposal = greedy(head.forward(target, &hidden, anchor)?)?;
-            let first = greedy(target.forward(anchor)?)?;
-            let cutoff = target.snapshot();
+            let proposal = head.propose(target, &hidden, anchor)?;
+            if head.block_verify {
+                // Explicit research path: canonical scalar kernels scheduled
+                // layer-major. It pays for both rows even on rejection; no
+                // shared-weight or throughput claim is implied by this flag.
+                let gpu = target.gpu;
+                let staged = target.stage_block(&[anchor, proposal])?;
+                let first = crate::speculative::greedy_log_prob_id(
+                    &gpu.flash_log_probs(&staged.logits()[0])?,
+                ).context("invalid Flash MTP probabilities")?;
+                let accepted = first == proposal;
+                if !accepted || eos.contains(&first) {
+                    staged.commit(1)?;
+                    self.proposed += 1;
+                    self.accepted += usize::from(accepted);
+                    return Ok(first);
+                }
+                let bonus = crate::speculative::greedy_log_prob_id(
+                    &gpu.flash_log_probs(&staged.logits()[1])?,
+                ).context("invalid Flash MTP probabilities")?;
+                let retained_hidden = staged
+                    .prefix_hidden(1)
+                    .context("missing verified anchor hidden row")?
+                    .clone();
+                staged.commit(2)?;
+                head.extend(target, &retained_hidden, proposal)?;
+                self.pending = Some((
+                    proposal,
+                    bonus,
+                    target.last_hidden().context("missing verified bonus row")?.clone(),
+                ));
+                self.proposed += 1;
+                self.accepted += 1;
+                return Ok(proposal);
+            }
+            let first = select(target, anchor)?;
+            // EOS is emitted without advancing its discarded successor. The
+            // retained target/head prefix is the ordinary prefix before EOS.
+            if eos.contains(&first) {
+                self.proposed += 1;
+                self.accepted += usize::from(first == proposal);
+                return Ok(first);
+            }
+            let retained_hidden = (first == proposal)
+                .then(|| target.last_hidden().cloned())
+                .flatten();
             // A rejected proposal must not trigger another target pass (and SSD reads).
             // The first pass already leaves the exact retained anchor prefix in place.
             let choice = crate::speculative::greedy_accept_one(proposal, first, || {
-                greedy(target.forward(proposal)?)
+                select(target, proposal)
             })?;
             if choice.accepted_draft_tokens != 0 {
                 head.extend(
                     target,
-                    cutoff
-                        .hidden
+                    retained_hidden
                         .as_ref()
                         .context("missing retained hidden row")?,
                     proposal,
@@ -641,4 +742,115 @@ impl FlashMtpHead<'_> {
         self.layer.record_memory(backings)?;
         self.mixer.record_memory(backings)
     }
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash checkpoint; production scalar/B2 session and EOS rollback parity"]
+fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
+    use std::{path::Path, sync::atomic::AtomicBool};
+    fn copy_session(session: &FlashMtpSession) -> FlashMtpSession {
+        FlashMtpSession {
+            pending: session.pending.clone(),
+            proposed: session.proposed,
+            accepted: session.accepted,
+        }
+    }
+    fn same_session(a: &FlashMtpSession, b: &FlashMtpSession) -> Result<()> {
+        ensure!(a.proposed == b.proposed && a.accepted == b.accepted);
+        ensure!(
+            a.pending.as_ref().map(|(anchor, token, _)| (*anchor, *token))
+                == b.pending.as_ref().map(|(anchor, token, _)| (*anchor, *token))
+        );
+        Ok(())
+    }
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let gpu = Metal::new()?;
+    let mut target = FlashNext::load(&gpu, &c, 32)?;
+    ensure!(target.lookahead_depth == 0 && target.prefetcher.is_none());
+    let mut head = FlashMtpHead::load(&c, &target)?;
+    head.device_greedy = false;
+    let mut session = FlashMtpSession::default();
+    let cancelled = AtomicBool::new(false);
+    let mut seen_accept = false;
+    let mut seen_reject = false;
+    let mut seen_pending = false;
+    for budget in [1usize, 2, 3, 17] {
+        let logits = session.prefill(&mut target, &mut head, &[248044, 78768, 11], &cancelled)?;
+        let mut anchor = target.greedy_id(&logits)?;
+        let limit = 3 + budget as u32;
+        for index in 0..budget {
+            let before = target.snapshot();
+            let draft_before = head.layer.snapshot();
+            let session_before = copy_session(&session);
+            seen_pending |= session.pending.is_some();
+            head.block_verify = false;
+            let wanted = session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[])?;
+            let after = target.snapshot();
+            let draft_after = head.layer.snapshot();
+            let wanted_session = copy_session(&session);
+            let wanted_draft = head.layer.retained_half_words()?;
+            let wanted_hidden = target.last_hidden().context("missing scalar MTP hidden")?.export_bytes(&gpu)?;
+            let wanted_continuation = target.forward_trace(7)?;
+            seen_accept |= session.accepted > session_before.accepted;
+            seen_reject |= session.proposed > session_before.proposed && session.accepted == session_before.accepted;
+            target.restore(&before)?;
+            head.layer.restore(&draft_before)?;
+            session = copy_session(&session_before);
+            head.block_verify = true;
+            let actual = session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[])?;
+            ensure!(actual == wanted && target.offset == after.offset);
+            same_session(&session, &wanted_session)?;
+            ensure!(head.layer.retained_half_words()? == wanted_draft);
+            ensure!(target.last_hidden().context("missing B2 hidden")?.export_bytes(&gpu)? == wanted_hidden);
+            if let Some((_, _, row)) = &session.pending {
+                ensure!(target.last_hidden().is_some_and(|hidden| std::ptr::eq::<metal::BufferRef>(hidden.buffer.as_ref(), row.buffer.as_ref())));
+            }
+            let actual_continuation = target.forward_trace(7)?;
+            ensure!(actual_continuation.0 == wanted_continuation.0);
+            ensure!(!actual_continuation.1.is_empty() && actual_continuation.1.len() == wanted_continuation.1.len());
+            for (actual, wanted) in actual_continuation.1.iter().zip(&wanted_continuation.1) {
+                ensure!(actual.name == wanted.name && actual.shape == wanted.shape && actual.data == wanted.data);
+            }
+            // Force the independently selected first result to be EOS. This
+            // covers accepted and rejected proposals without relying on a
+            // model naturally emitting EOS within a short test transcript.
+            if session_before.pending.is_none() {
+                target.restore(&before)?;
+                head.layer.restore(&draft_before)?;
+                session = copy_session(&session_before);
+                head.block_verify = false;
+                ensure!(session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[wanted])? == wanted);
+                let eos_state = target.snapshot();
+                let eos_session = copy_session(&session);
+                let eos_draft = head.layer.retained_half_words()?;
+                let eos_hidden = target.last_hidden().context("missing scalar EOS hidden")?.export_bytes(&gpu)?;
+                let eos_continuation = target.forward_trace(7)?;
+                target.restore(&before)?;
+                head.layer.restore(&draft_before)?;
+                session = copy_session(&session_before);
+                head.block_verify = true;
+                ensure!(session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[wanted])? == wanted);
+                ensure!(session.pending.is_none() && target.offset == before.offset + 1 && target.offset == eos_state.offset);
+                same_session(&session, &eos_session)?;
+                ensure!(head.layer.retained_half_words()? == eos_draft);
+                ensure!(target.last_hidden().context("missing B2 EOS hidden")?.export_bytes(&gpu)? == eos_hidden);
+                let actual_continuation = target.forward_trace(7)?;
+                ensure!(actual_continuation.0 == eos_continuation.0);
+                ensure!(!actual_continuation.1.is_empty() && actual_continuation.1.len() == eos_continuation.1.len());
+                for (actual, wanted) in actual_continuation.1.iter().zip(&eos_continuation.1) {
+                    ensure!(actual.name == wanted.name && actual.shape == wanted.shape && actual.data == wanted.data);
+                }
+            }
+            // Restore the ordinary accepted/rejected result, including the
+            // pending handle's exact target backing, before the next call.
+            target.restore(&after)?;
+            head.layer.restore(&draft_after)?;
+            session = wanted_session;
+            anchor = wanted;
+        }
+        ensure!(session.pending.is_none() && target.offset == limit);
+    }
+    ensure!(seen_accept && seen_reject && seen_pending, "checkpoint fixture must exercise all MTP decisions");
+    Ok(())
 }

@@ -142,6 +142,21 @@ impl Index<'_> {
         x: &MatrixView,
         domain: (f32, bool),
     ) -> Result<EncodedIndex> {
+        self.encode_for_query(gpu, cmd, slab, state, x, domain, true)
+    }
+    // Catch-up retains index keys and pooled blocks, but does not select blocks
+    // for a query whose attention output will never be consumed.
+    #[allow(clippy::too_many_arguments)]
+    fn encode_for_query(
+        &self,
+        gpu: &Metal,
+        cmd: &CommandBufferRef,
+        slab: &Slab,
+        state: &FlashQsaState,
+        x: &MatrixView,
+        domain: (f32, bool),
+        query_required: bool,
+    ) -> Result<EncodedIndex> {
         let (eps, trace) = domain;
         let offset = state.offset;
         let rows = offset % 4;
@@ -227,7 +242,7 @@ impl Index<'_> {
             blit.end_encoding();
             (Some(tail), None)
         };
-        let scores = if count > 512 {
+        let scores = if query_required && count > 512 {
             let queries = prepare(&qk, &self.q_norm, 4, offset)?;
             let scores =
                 MatrixView::output(gpu, FloatType::F32, 1, count, Storage::StorageModeShared)?;
@@ -625,6 +640,64 @@ impl<'a> FlashQsa<'a> {
         })?;
         self.publish(prepared, index, attention)
     }
+    /// Append only state consumed by a later query. Publication occurs after
+    /// the command completes; a failed append leaves the committed prefix intact.
+    fn extend_kv(&mut self, x: &MatrixView) -> Result<()> {
+        let gpu = self.gpu;
+        ensure!(
+            x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
+            "invalid Flash QSA catch-up input shape or device"
+        );
+        let prepared = self.prepare_append()?;
+        let offset = prepared.before.offset;
+        let encoded = gpu.command(|cmd| {
+            let index = self.index.as_ref().map(|index| {
+                index.encode_for_query(
+                    gpu, cmd, &prepared.slab, &prepared.before, x,
+                    (self.eps, false), false,
+                )
+            }).transpose()?;
+            #[cfg(test)]
+            ensure!(
+                !self.fail_after_index_encode.replace(false),
+                "injected QSA catch-up failure after index encoding"
+            );
+            let storage = Storage::StorageModePrivate;
+            let k = self.k.encode_row(cmd, x, storage)?;
+            let v = self.v.encode_row(cmd, x, storage)?;
+            let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+            Metal::encode(
+                cmd, &gpu.qsa.norm, &[&k.buffer, &self.k_norm, &norm.buffer],
+                [256, self.eps.to_bits(), 256], MTLSize::new(2, 1, 1), 32,
+            );
+            let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+            Metal::encode(
+                cmd, &gpu.qsa.rope, &[&norm.buffer, &self.freq, &rotated.buffer],
+                [offset, 2], MTLSize::new(14, 1, 1), 32,
+            );
+            let blit = cmd.new_blit_command_encoder();
+            blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
+            blit.copy_from_buffer(&v.buffer, 0, &prepared.slab.values, prepared.at, 1024);
+            blit.end_encoding();
+            Ok(index)
+        })?;
+        #[cfg(test)]
+        ensure!(
+            !self.fail_after_append.replace(false),
+            "injected QSA catch-up failure before publication"
+        );
+        // No query/scores are emitted by encode_for_query(false). Only the tail
+        // is retained here; pooling has already written the new complete block.
+        if let Some(index) = encoded {
+            ensure!(index.score_view.is_none(), "catch-up unexpectedly encoded scores");
+            self.state.tail = index.tail;
+        }
+        prepared.slab.published.set(offset + 1);
+        self.state.slab = prepared.slab;
+        self.state.offset = offset + 1;
+        Ok(())
+    }
+
     pub(super) fn prepare_append(&self) -> Result<PreparedQsa> {
         let gpu = self.gpu;
         let offset = self.state.offset;
@@ -1019,6 +1092,7 @@ impl<'a> FlashQsa<'a> {
 
 pub struct FlashQsaLayer<'a> {
     attention: FlashQsa<'a>,
+    kv_only_catchup: bool,
     pub(super) residual: super::gdn::LayerResidual<'a>,
 }
 impl<'a> FlashQsaLayer<'a> {
@@ -1031,7 +1105,14 @@ impl<'a> FlashQsaLayer<'a> {
         capacity: u32,
         slots: usize,
     ) -> Result<Self> {
+        let kv_only_catchup = match std::env::var("MLXL3_NATIVE_MTP_KV_ONLY") {
+            Ok(value) => qsa_chain_policy::setting(Some(&value), true),
+            Err(std::env::VarError::NotPresent) => Some(false),
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_MTP_KV_ONLY must be 0 or 1")?;
         Ok(Self {
+            kv_only_catchup,
             attention: FlashQsa::load(
                 gpu,
                 c,
@@ -1090,7 +1171,11 @@ impl<'a> FlashQsaLayer<'a> {
     }
     pub(super) fn extend(&mut self, streams: &MatrixView) -> Result<()> {
         let mixed = self.residual.attention_input(streams)?;
-        self.attention.forward(&mixed, false)?;
+        if self.kv_only_catchup {
+            self.attention.extend_kv(&mixed)?;
+        } else {
+            self.attention.forward(&mixed, false)?;
+        }
         Ok(())
     }
     pub fn snapshot(&self) -> FlashQsaState {
@@ -1722,6 +1807,126 @@ mod ar36_tests {
                 && candidate.state.slab.published.get() == length
         );
         Ok(a.values().map(Vec::len).sum())
+    }
+
+    #[test]
+    #[ignore = "physical MTP KV-only catch-up versus canonical attention, states, continuation and errors; exclusive GPU"]
+    fn physical_mtp_kv_only_matches_attention_state_and_next_query() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QSA_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let prefix = "mtp.layers.0.self_attn";
+        let mut control = FlashQsa::load(&gpu, &c, prefix, 1e-6, 1e7, 4096)?;
+        let mut candidate = FlashQsa::load(&gpu, &c, prefix, 1e-6, 1e7, 4096)?;
+        let mut compared = 0usize;
+        for key_only in [false, true] {
+            // True is only available when initialized with the matching option.
+            if key_only && gpu.qsa.pool_key.is_none() {
+                continue;
+            }
+            gpu.qsa_index_key_only.set(key_only);
+            for fp32 in [false, true] {
+                let x = input(&gpu, fp32, 83)?;
+                let next = input(&gpu, fp32, 181)?;
+                for offset in [0, 1, 2, 3, 31, 32, 1023, 1024, 2050, 2051, 2052] {
+                    seed(&mut control, offset)?;
+                    seed(&mut candidate, offset)?;
+                    control.forward(&x, false)?;
+                    candidate.extend_kv(&x)?;
+                    let expected = retained(&gpu, &control.state)?;
+                    let actual = retained(&gpu, &candidate.state)?;
+                    ensure!(!expected.is_empty() && actual == expected);
+                    compared += actual.values().map(Vec::len).sum::<usize>();
+                    ensure!(candidate.state.offset == offset + 1);
+                    let expected_next = control.forward(&next, false)?.values.read_output()?;
+                    let actual_next = candidate.forward(&next, false)?.values.read_output()?;
+                    ensure!(expected_next.len() == 2560 && actual_next == expected_next);
+                    ensure!(retained(&gpu, &control.state)? == retained(&gpu, &candidate.state)?);
+                }
+            }
+        }
+        ensure!(compared > 100_000);
+        // Rewinding and taking a different suffix must fork, not overwrite the
+        // old branch's retained keys/values/pooled blocks.
+        let x = input(&gpu, true, 83)?;
+        let y = input(&gpu, true, 181)?;
+        seed(&mut candidate, 3)?;
+        let before = candidate.snapshot();
+        candidate.extend_kv(&x)?;
+        let branch = candidate.snapshot();
+        let branch_words = retained(&gpu, &branch)?;
+        candidate.restore(&before)?;
+        candidate.extend_kv(&y)?;
+        ensure!(!Rc::ptr_eq(&branch.slab, &candidate.state.slab));
+        ensure!(retained(&gpu, &branch)? == branch_words);
+        seed(&mut control, 3)?;
+        control.forward(&y, false)?;
+        ensure!(retained(&gpu, &control.state)? == retained(&gpu, &candidate.state)?);
+
+        // A command encoding failure and a post-command/pre-publication failure
+        // leave the prior prefix usable; retry must match the ordinary path.
+        for fail_after_command in [false, true] {
+            seed(&mut candidate, 3)?;
+            let before = candidate.snapshot();
+            let words = retained(&gpu, &before)?;
+            if fail_after_command {
+                candidate.fail_after_append.set(true);
+            } else {
+                candidate.fail_after_index_encode.set(true);
+            }
+            ensure!(candidate.extend_kv(&x).is_err());
+            ensure!(candidate.state.offset == 3 && before.slab.published.get() == 3);
+            ensure!(retained(&gpu, &before)? == words);
+            candidate.extend_kv(&x)?;
+            seed(&mut control, 3)?;
+            control.forward(&x, false)?;
+            ensure!(retained(&gpu, &control.state)? == retained(&gpu, &candidate.state)?);
+        }
+        // Unindexed QSA uses the same KV path without manufacturing index state.
+        control.index = None;
+        candidate.index = None;
+        seed(&mut control, 3)?;
+        seed(&mut candidate, 3)?;
+        control.forward(&x, false)?;
+        candidate.extend_kv(&x)?;
+        ensure!(retained(&gpu, &control.state)? == retained(&gpu, &candidate.state)?);
+        seed(&mut candidate, 4096)?;
+        let before = candidate.snapshot();
+        ensure!(candidate.extend_kv(&x).is_err());
+        ensure!(candidate.state.offset == before.offset);
+        ensure!(Rc::ptr_eq(&candidate.state.slab, &before.slab));
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical production FlashQsaLayer MTP catch-up path; exclusive GPU"]
+    fn physical_mtp_layer_extend_uses_kv_only_and_preserves_next_output() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QSA_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut control = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 1)?;
+        let mut candidate = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 1)?;
+        control.kv_only_catchup = false;
+        candidate.kv_only_catchup = true;
+        for salt in [3usize, 11, 29, 43] {
+            let values = (0..10240)
+                .map(|i| ((i * 17 + salt) % 257) as f32 / 237. - 0.5)
+                .collect::<Vec<_>>();
+            let streams = gpu.f32_storage(&values)?.matrix(MatrixLayout {
+                shape: [1, 10240], strides: [10240, 1], offset: 0,
+            })?;
+            control.extend(&streams)?;
+            candidate.extend(&streams)?;
+            ensure!(control.retained_half_words()? == candidate.retained_half_words()?);
+        }
+        let values = (0..10240).map(|i| (i % 127) as f32 / 113. - 0.5).collect::<Vec<_>>();
+        let streams = gpu.f32_storage(&values)?.matrix(MatrixLayout {
+            shape: [1, 10240], strides: [10240, 1], offset: 0,
+        })?;
+        let expected = control.forward(&streams)?.read_output()?;
+        let actual = candidate.forward(&streams)?.read_output()?;
+        ensure!(expected.len() == 10240 && expected.iter().any(|&v| v != 0));
+        ensure!(expected == actual);
+        ensure!(control.retained_half_words()? == candidate.retained_half_words()?);
+        Ok(())
     }
 
     fn frozen_words(root: &Path, descriptor: &serde_json::Value) -> Result<Vec<u32>> {
