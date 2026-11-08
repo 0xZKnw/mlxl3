@@ -319,6 +319,38 @@ pub(crate) fn verify_rows_key(rows: u32, nt: u32, k: u32, eligible: bool) -> Opt
     }
 }
 
+pub(crate) fn verify_row_count(rows: usize, nt: u32, k: u32, eligible: bool) -> bool {
+    (2..=4).contains(&rows) && verify_rows_key(rows as u32, nt, k, eligible).is_some()
+}
+
+#[test]
+fn verify_row_count_rejects_wide_host_counts_before_narrowing() {
+    for rows in [0, 1, 5, usize::MAX, (u32::MAX as usize).saturating_add(3)] {
+        assert!(!verify_row_count(rows, 1, 2, true));
+    }
+    for rows in 2..=4 {
+        assert!(verify_row_count(rows, 1, 2, true));
+        assert!(!verify_row_count(rows, 1, 2, false));
+        assert!(!verify_row_count(rows, 4, 2, true));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_host_row_count_preserves_bounded_projection_dispatch() {
+    let rows: usize = kani::any();
+    let nt: u32 = kani::any();
+    let k: u32 = kani::any();
+    let enabled: bool = kani::any();
+    let actual = verify_row_count(rows, nt, k, enabled);
+    assert_eq!(
+        actual,
+        rows >= 2 && rows <= 4 && enabled && k >= 2 && k <= 6 && (nt == 1 || nt == 2)
+    );
+    kani::cover!(actual && rows == 3 && nt == 2);
+    kani::cover!(!actual && rows > u32::MAX as usize);
+}
+
 #[test]
 fn verify_rows_dispatch_preserves_scalar_and_unsupported_paths() {
     for eligible in [false, true] {

@@ -812,7 +812,7 @@ impl<'a> FlashHc<'a> {
         self.gpu
             .command(|cmd| self.encode_write(cmd, streams, branch, gate))
     }
-    fn encode_write(
+    pub(super) fn encode_write(
         &self,
         cmd: &metal::CommandBufferRef,
         streams: &MatrixView,

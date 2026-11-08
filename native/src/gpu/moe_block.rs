@@ -1,11 +1,13 @@
 //! Opt-in block SSD reuse. Every wave is complete before cache slots are reused.
 //! Ready experts reuse the qualified AR axis; each row keeps canonical rank mixing.
 use super::*;
+use crate::gpu::RouteOutput;
 use crate::speculation_plan::{ExpertCohort, MAX_ROWS, TOP_K, resident_expert_cohorts};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(test)]
 thread_local! {
+    static ROUTED_CONSUMER_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     // One-shot deterministic cancellation after a genuinely submitted/waited wave.
     static CANCEL_AFTER_INITIAL_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static CANCEL_AFTER_WAVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -40,9 +42,23 @@ impl FlashMoeRow<'_> {
         self.forward_block_cancellable(rows, &AtomicBool::new(false))
     }
 
+    #[cfg(test)]
     pub(in crate::gpu) fn forward_block_cancellable(
         &mut self,
         rows: &[MatrixView],
+        cancelled: &AtomicBool,
+    ) -> Result<Vec<MoeOutput>> {
+        self.forward_block_routed_cancellable(
+            rows,
+            (0..rows.len()).map(|_| None).collect(),
+            cancelled,
+        )
+    }
+
+    pub(in crate::gpu) fn forward_block_routed_cancellable(
+        &mut self,
+        rows: &[MatrixView],
+        routing: Vec<Option<RouteOutput>>,
         cancelled: &AtomicBool,
     ) -> Result<Vec<MoeOutput>> {
         let check_cancelled = || -> Result<()> {
@@ -52,8 +68,8 @@ impl FlashMoeRow<'_> {
         check_cancelled()?;
         ensure!(self.block_eligible(), "unsupported Flash block SSD mode");
         ensure!(
-            (1..=MAX_ROWS).contains(&rows.len()),
-            "Flash SSD block expects 1..4 rows"
+            (1..=MAX_ROWS).contains(&rows.len()) && routing.len() == rows.len(),
+            "Flash SSD block expects 1..4 rows with matching routes"
         );
         for x in rows {
             ensure!(
@@ -76,9 +92,12 @@ impl FlashMoeRow<'_> {
         let mut ids = Vec::with_capacity(rows.len());
         // RouteOutput has no draining Drop. Finish each submitted route before
         // another fallible submission, including error/cancellation paths.
-        for x in rows {
+        for (x, route) in rows.iter().zip(routing) {
             check_cancelled()?;
-            let route = self.gate.submit(x)?;
+            let route = match route {
+                Some(route) => route,
+                None => self.gate.submit(x)?,
+            };
             ids.push(route.indices()?);
             routed.push(route);
         }
@@ -104,6 +123,7 @@ impl FlashMoeRow<'_> {
         let initially_hot = |expert: u16| resident.contains(&expert);
         let cohorts = resident_expert_cohorts(&routes, width, &resident)
             .context("invalid Flash block expert cohort")?;
+        let access = self.cache.borrow_mut().block_access(&routes)?;
         // Consume all initially resident experts in the first wave before any
         // later reservation can evict them. Rank ordering is independent of this.
         let hits = routes
@@ -148,7 +168,7 @@ impl FlashMoeRow<'_> {
                 .iter()
                 .map(|entry| u32::from(entry.expert))
                 .collect::<Vec<_>>();
-            let plan = DemandPlan::reserve(&self.cache, &requested)?;
+            let plan = DemandPlan::reserve_block(&self.cache, &requested, &access)?;
             // The previous wave was drained, including on failure. Drop all old
             // projection views before transferring backing ownership to readers.
             let mut owners = Vec::with_capacity(plan.reads.len());
@@ -318,12 +338,12 @@ impl FlashMoeRow<'_> {
         check_cancelled()?;
         let shared = shared.context("missing block shared expert outputs")?;
         let mut outputs = Vec::with_capacity(rows.len());
+        let command = self.gpu.queue.new_command_buffer().to_owned();
         for (row, x) in rows.iter().enumerate() {
             check_cancelled()?;
             let output = objc::rc::autoreleasepool(|| -> Result<MoeOutput> {
                 let dtype = usize::from(x.dtype == FloatType::F32);
                 let weights = routed[row].completed_scores()?;
-                let command = self.gpu.queue.new_command_buffer().to_owned();
                 let shared = &shared[row];
                 let multiplier =
                     MatrixView::output(self.gpu, x.dtype, 1, 1, Storage::StorageModePrivate)?;
@@ -369,14 +389,11 @@ impl FlashMoeRow<'_> {
                     MTLSize::new(80, 1, 1),
                     32,
                 );
-                self.last.push(command.clone());
-                command.commit();
-                self.drain_commands()?;
                 Ok(MoeOutput {
                     spin_wait_enabled: self.gpu.spin_wait_enabled,
                     #[cfg(test)]
                     spin_wait_stats: self.gpu.spin_wait_stats.clone(),
-                    commands: vec![command],
+                    commands: vec![command.clone()],
                     hot: RefCell::new(None),
                     hot_error: RefCell::new(None),
                     values,
@@ -394,6 +411,9 @@ impl FlashMoeRow<'_> {
             })?;
             outputs.push(output);
         }
+        self.last.push(command.clone());
+        command.commit();
+        self.drain_commands()?;
         check_cancelled()?;
         guard.commit();
         Ok(outputs)
@@ -413,13 +433,78 @@ impl FlashMoeRow<'_> {
         contributions: &mut [[Option<Buffer>; TOP_K]],
     ) -> Result<()> {
         let slots = self.slots.borrow();
+        let batch_consumers =
+            crate::flash_qmv::shared_verify_enabled(self.gpu.flash_verify_qmv.is_some());
+        let mut packed_rows: [Option<MatrixView>; 16] = std::array::from_fn(|_| None);
+        if batch_consumers {
+            for (entry, &(slot, _)) in cohort.iter().zip(routes) {
+                if entry.consumers.len() < 2 || !ready.contains(&slot) {
+                    continue;
+                }
+                let expert = slots[slot]
+                    .as_ref()
+                    .context("missing ready consumer expert")?;
+                let inputs = entry
+                    .consumers
+                    .iter()
+                    .map(|c| &rows[c.row])
+                    .collect::<Vec<_>>();
+                let mask = entry
+                    .consumers
+                    .iter()
+                    .fold(0usize, |mask, c| mask | (1 << c.row));
+                if packed_rows[mask].is_none() {
+                    packed_rows[mask] = Some(expert.pack_consumer_rows(command, &inputs)?);
+                }
+                let values = expert.encode_view(
+                    command,
+                    packed_rows[mask].as_ref().expect("packed consumers"),
+                    Storage::StorageModePrivate,
+                )?;
+                ensure!(
+                    values.length() == entry.consumers.len() as u64 * 5120,
+                    "invalid consumer expert output"
+                );
+                for (index, consumer) in entry.consumers.iter().enumerate() {
+                    ensure!(
+                        contributions[consumer.row][consumer.rank].is_none(),
+                        "duplicate batched expert contribution"
+                    );
+                    let (output, offset) = if let Some(slab) = &slabs[consumer.row] {
+                        (
+                            slab.clone(),
+                            crate::expert_ar_policy::prefix(
+                                consumer.rank,
+                                TOP_K,
+                                2560,
+                                slab.length(),
+                            )
+                            .context("invalid batched contribution prefix")?,
+                        )
+                    } else {
+                        (
+                            buffer(&self.gpu.device, 5120, Storage::StorageModePrivate)?,
+                            0,
+                        )
+                    };
+                    let blit = command.new_blit_command_encoder();
+                    blit.copy_from_buffer(&values, index as u64 * 5120, &output, offset, 5120);
+                    blit.end_encoding();
+                    contributions[consumer.row][consumer.rank] = Some(output);
+                }
+                #[cfg(test)]
+                ROUTED_CONSUMER_BATCHES.with(|count| count.set(count.get() + 1));
+            }
+        }
         for (row, x) in rows.iter().enumerate() {
             let selected = cohort
                 .iter()
                 .zip(routes)
                 .flat_map(|(entry, &(slot, _))| {
                     entry.consumers.iter().filter_map(move |consumer| {
-                        (consumer.row == row && ready.contains(&slot))
+                        (consumer.row == row
+                            && ready.contains(&slot)
+                            && !(batch_consumers && entry.consumers.len() > 1))
                             .then_some((slot, consumer.rank))
                     })
                 })
@@ -525,14 +610,70 @@ mod tests {
                             Ok((out.indices.clone(), out.read()?))
                         })
                         .collect::<Result<Vec<_>>>()?;
+                    if capacity == TOP_K && !fp32 && !repeated {
+                        let before = block.cache.borrow().ready_slot_snapshot();
+                        let gates = gpu.gate_commands.get();
+                        ensure!(
+                            block
+                                .forward_block_routed_cancellable(
+                                    &rows,
+                                    (1..rows.len()).map(|_| None).collect(),
+                                    &AtomicBool::new(false),
+                                )
+                                .is_err()
+                        );
+                        ensure!(block.cache.borrow().ready_slot_snapshot() == before);
+                        ensure!(gpu.gate_commands.get() == gates);
+                        gpu.ensure_reads_idle()?;
+                    }
                     for width in 1..=MAX_ROWS {
                         block.clear_test_cache()?;
                         let axis_before = gpu.expert_ar_uses[3].get();
+                        let fused_before = gpu.expert_ar_uses[0].get();
+                        let dual_before = gpu.expert_ar_uses[1].get();
+                        let batches_before = ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get);
                         let actual = block.forward_block(&rows[..width])?;
-                        if gpu.expert_ar_enabled[3].get() {
+                        if repeated
+                            && width > 1
+                            && crate::flash_qmv::shared_verify_enabled(
+                                gpu.flash_verify_qmv.is_some(),
+                            )
+                        {
                             ensure!(
-                                gpu.expert_ar_uses[3].get() > axis_before,
-                                "block path bypassed enabled expert-axis encoder"
+                                ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get) > batches_before,
+                                "common routed experts did not execute multirow QMV"
+                            );
+                        }
+                        if gpu.expert_ar_enabled[3].get() {
+                            if repeated
+                                && width > 1
+                                && gpu.expert_ar_enabled[1].get()
+                                && crate::flash_qmv::shared_verify_enabled(
+                                    gpu.flash_verify_qmv.is_some(),
+                                )
+                            {
+                                ensure!(
+                                    gpu.expert_ar_uses[1].get() > dual_before,
+                                    "batched routed experts lost the qualified dual input preparation"
+                                );
+                            }
+                            if repeated
+                                && width > 1
+                                && gpu.expert_ar_enabled[0].get()
+                                && crate::flash_qmv::shared_verify_enabled(
+                                    gpu.flash_verify_qmv.is_some(),
+                                )
+                            {
+                                ensure!(
+                                    gpu.expert_ar_uses[0].get() > fused_before,
+                                    "batched routed experts lost the qualified up/SwiGLU finish"
+                                );
+                            }
+                            ensure!(
+                                gpu.expert_ar_uses[3].get() > axis_before
+                                    || ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get)
+                                        > batches_before,
+                                "block path bypassed both expert-axis and consumer batching"
                             );
                         }
                         ensure!(
@@ -614,7 +755,12 @@ mod tests {
                     // clear_test_cache, invalidation intentionally retains the
                     // recyclable backing allocations for the next reservation.
                     if block.record_reuse_enabled && gpu.ssd_direct_enabled {
-                        block.forward_block(&rows[..1])?;
+                        // Invalidation preserves ages, so fill even unused slots first.
+                        for _ in 0..capacity.div_ceil(TOP_K) {
+                            block.cache.borrow_mut().invalidate();
+                            block.forward_block(&rows[..1])?;
+                        }
+                        ensure!(block.record_backings.iter().all(Option::is_some));
                         block.cache.borrow_mut().invalidate();
                         let reused_before = gpu.readers()?.reused_destinations.get();
                         let recovered = block.forward_block(&rows[..1])?;

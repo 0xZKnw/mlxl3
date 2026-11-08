@@ -16,11 +16,36 @@ pub struct FlashVerification<'model, 'gpu> {
     model: &'model mut FlashNext<'gpu>,
     prefixes: Vec<FlashSnapshot>,
     logits: Vec<Vec<u16>>,
+    publications: Vec<super::super::qsa::VerificationPublication>,
 }
 
 impl FlashVerification<'_, '_> {
     pub fn logits(&self) -> &[Vec<u16>] {
         &self.logits
+    }
+
+    pub(super) fn greedy(&mut self, retained: usize, device: bool) -> Result<u32> {
+        let index = crate::qwen35_config::native_retained_prefix(retained, self.prefixes.len())
+            .flatten()
+            .context("invalid verification head row")?;
+        let hidden = self.prefixes[index]
+            .hidden
+            .as_ref()
+            .context("missing verification hidden row")?;
+        let mixed = self.model.mixer.read(hidden, false)?.mixed;
+        #[cfg(test)]
+        {
+            self.model.target_head_calls += 1;
+        }
+        if device {
+            self.model
+                .gpu
+                .device_greedy_head(&self.model.head, &mixed, false)
+                .map(|value| value.0)
+        } else {
+            let logits = self.model.head.submit_fp16_view(&mixed)?.read()?;
+            self.model.greedy_id(&logits)
+        }
     }
 
     /// Hidden state after `retained` input rows, for repairing the draft using
@@ -30,11 +55,21 @@ impl FlashVerification<'_, '_> {
         self.prefixes.get(index)?.hidden.as_ref()
     }
 
-    pub fn commit(self, retained: usize) -> Result<()> {
+    pub fn commit(mut self, retained: usize) -> Result<()> {
         let index = crate::qwen35_config::native_retained_prefix(retained, self.prefixes.len())
             .context("Flash commit exceeds verified block")?;
         if let Some(index) = index {
             self.model.restore(&self.prefixes[index])?;
+            self.prefixes.clear();
+            let mut marks = self.publications.iter_mut();
+            for layer in &self.model.layers {
+                if let super::Layer::Qsa(layer) = layer {
+                    marks
+                        .next()
+                        .expect("one QSA publication mark per layer")
+                        .retain(layer);
+                }
+            }
         }
         Ok(())
     }
@@ -51,6 +86,23 @@ impl<'gpu> FlashNext<'gpu> {
         &mut self,
         tokens: &[u32],
         cancelled: &AtomicBool,
+    ) -> Result<FlashVerification<'_, 'gpu>> {
+        self.stage_block_heads(tokens, cancelled, true)
+    }
+
+    pub(super) fn stage_block_headless(
+        &mut self,
+        tokens: &[u32],
+        cancelled: &AtomicBool,
+    ) -> Result<FlashVerification<'_, 'gpu>> {
+        self.stage_block_heads(tokens, cancelled, false)
+    }
+
+    fn stage_block_heads(
+        &mut self,
+        tokens: &[u32],
+        cancelled: &AtomicBool,
+        heads: bool,
     ) -> Result<FlashVerification<'_, 'gpu>> {
         let end =
             crate::qwen35_config::native_block_end(tokens, 248_320, self.offset, self.context)
@@ -81,7 +133,15 @@ impl<'gpu> FlashNext<'gpu> {
         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
         self.ensure_fixed_residency()?;
         let before = self.snapshot();
-        let operation = self.stage_block_inner(tokens, end, cancelled);
+        let publications = self
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                super::Layer::Qsa(layer) => Some(layer.verification_publication()),
+                _ => None,
+            })
+            .collect();
+        let operation = self.stage_block_inner(tokens, end, cancelled, heads);
         // All snapshots here were made by this same target and its layers.
         // Restore even after a late layer/head/cancellation error. A successful
         // handle never needs fallible GPU work in Drop.
@@ -91,6 +151,7 @@ impl<'gpu> FlashNext<'gpu> {
             model: self,
             prefixes,
             logits,
+            publications,
         })
     }
 
@@ -99,6 +160,7 @@ impl<'gpu> FlashNext<'gpu> {
         tokens: &[u32],
         end: u32,
         cancelled: &AtomicBool,
+        heads: bool,
     ) -> Result<(Vec<FlashSnapshot>, Vec<Vec<u16>>)> {
         let mut prefixes = (self.offset + 1..=end)
             .map(|offset| FlashSnapshot {
@@ -115,12 +177,21 @@ impl<'gpu> FlashNext<'gpu> {
         let gpu = self.gpu;
         for (index, layer) in self.layers.iter_mut().enumerate() {
             if self.verify_ssd_cohorts {
+                ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                let projected = layer.prepare_block_inputs(&rows)?;
+                ensure!(
+                    projected
+                        .as_ref()
+                        .is_none_or(|rows_prepared| rows_prepared.len() == rows.len()),
+                    "incomplete GDN block projections"
+                );
+                let mut projected = projected.map(Vec::into_iter);
                 let mut prepared = Vec::with_capacity(rows.len());
                 for ((row, &token), prefix) in rows.iter().zip(tokens).zip(&mut prefixes) {
                     ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
                     prepared.push(
                         layer
-                            .prepare_moe(row, token)
+                            .prepare_moe(row, token, projected.as_mut().and_then(Iterator::next))
                             .with_context(|| format!("preparing Flash cohort layer {index}"))?,
                     );
                     // Only attention/PLE carries temporal state. MoE and final
@@ -131,15 +202,24 @@ impl<'gpu> FlashNext<'gpu> {
                     .iter()
                     .map(|row| row.mixed.clone())
                     .collect::<Vec<_>>();
-                let experts = layer.moe().forward_block_cancellable(&mixed, cancelled)?;
+                let routing = prepared.iter_mut().map(|row| row.routing.take()).collect();
+                let experts = layer
+                    .moe()
+                    .forward_block_routed_cancellable(&mixed, routing, cancelled)?;
                 ensure!(
                     experts.len() == rows.len(),
                     "incomplete Flash cohort outputs"
                 );
-                for ((row, prepared), experts) in rows.iter_mut().zip(prepared).zip(experts) {
-                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-                    *row = layer.finish_prepared(prepared, experts)?;
-                }
+                rows = gpu.command(|cmd| {
+                    prepared
+                        .iter()
+                        .zip(&experts)
+                        .map(|(row, experts)| {
+                            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                            layer.finish_prepared(cmd, row, experts)
+                        })
+                        .collect::<Result<Vec<_>>>()
+                })?;
                 #[cfg(test)]
                 ensure!(
                     gpu.cross_layer_fail_after.get() != Some(index),
@@ -166,6 +246,10 @@ impl<'gpu> FlashNext<'gpu> {
         let mut logits = Vec::with_capacity(rows.len());
         for (row, prefix) in rows.into_iter().zip(&mut prefixes) {
             ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+            if !heads {
+                prefix.hidden = Some(row);
+                continue;
+            }
             let mixed = self.mixer.read(&row, false)?.mixed;
             #[cfg(test)]
             {
@@ -345,6 +429,96 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "physical checkpoint; lazy heads, exact GPU selectors and external QSA future snapshots"]
+    fn lazy_heads_and_publication_retirement_preserve_external_snapshots() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 64)?;
+        model.prefill(&[248044, 78768, 11])?;
+        let root = model.snapshot();
+        let root_state = retained_state(&model)?;
+        let first_logits = model.forward(1)?;
+        let first = model.greedy_id(&first_logits)?;
+        let retained = model.snapshot();
+        let expected_retained_state = retained_state(&model)?;
+        let second_logits = model.forward(2)?;
+        let second = model.greedy_id(&second_logits)?;
+        let future = model.snapshot();
+        let future_state = retained_state(&model)?;
+        let continuation = model.forward(7)?;
+        {
+            model.restore(&root)?;
+            for device in [false, true] {
+                if device && !gpu.device_greedy_available() {
+                    continue;
+                }
+                model.restore(&root)?;
+                let heads_before = model.target_head_calls;
+                let mut staged = model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?;
+                ensure!(staged.logits().is_empty());
+                ensure!(staged.greedy(0, device).is_err() && staged.greedy(3, device).is_err());
+                ensure!(staged.greedy(1, device)? == first);
+                ensure!(staged.greedy(2, device)? == second);
+                staged.commit(1)?;
+                ensure!(model.target_head_calls - heads_before == 2);
+                ensure!(retained_state(&model)? == expected_retained_state);
+                ensure!(model.forward(2)? == second_logits);
+                model.restore(&future)?;
+                ensure!(retained_state(&model)? == future_state);
+                ensure!(model.forward(7)? == continuation);
+            }
+        }
+        model.restore(&root)?;
+        drop(model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?);
+        ensure!(retained_state(&model)? == root_state);
+        drop(retained);
+        for keep in 0..=2 {
+            model.reset();
+            model.prefill(&[248044, 78768, 11])?;
+            let identities = model
+                .layers
+                .iter()
+                .filter_map(|layer| match layer {
+                    Layer::Qsa(layer) => Some(layer.verification_slab().0),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let calls = model.target_head_calls;
+            let mut staged = model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?;
+            if keep == 1 {
+                ensure!(staged.greedy(1, false)? == first);
+            }
+            staged.commit(keep)?;
+            ensure!(model.target_head_calls - calls == usize::from(keep == 1));
+            for (layer, identity) in model
+                .layers
+                .iter()
+                .filter_map(|layer| match layer {
+                    Layer::Qsa(layer) => Some(layer),
+                    _ => None,
+                })
+                .zip(&identities)
+            {
+                ensure!(layer.verification_slab() == (*identity, 3 + keep as u32));
+            }
+            model.forward(7)?;
+            for (layer, identity) in model
+                .layers
+                .iter()
+                .filter_map(|layer| match layer {
+                    Layer::Qsa(layer) => Some(layer),
+                    _ => None,
+                })
+                .zip(&identities)
+            {
+                ensure!(layer.verification_slab().0 == *identity);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Flash checkpoint; SSD cohort temporal preparation and prefix rollback"]
     fn ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace() -> Result<()> {
         let c =
@@ -353,6 +527,7 @@ mod tests {
         // Run with cohort-compatible flags externally. Do not hide unsupported
         // settings by mutating them during load or silently selecting fallback.
         let mut model = FlashNext::load(&gpu, &c, 64)?;
+        ensure!(gpu.hc_chain.get() && gpu.hc_gate_chain.get());
         ensure!(
             model
                 .layers
@@ -380,7 +555,26 @@ mod tests {
                 }
                 model.restore(&root)?;
                 model.verify_ssd_cohorts = true;
+                let joint_before = gpu.hc_gate_chain_pairs.get();
+                let gdn_before = crate::gpu::FlashGdnLayer::block_projection_count();
+                let standalone_before = gpu.gate_commands.get();
+                let expected_joint = width * model.layers.len();
                 let cohort = model.stage_block(tokens)?;
+                if crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some()) {
+                    eprintln!(
+                        "GDN projection batches: width={width}, keep={keep}, layers={}",
+                        crate::gpu::FlashGdnLayer::block_projection_count() - gdn_before
+                    );
+                    ensure!(
+                        crate::gpu::FlashGdnLayer::block_projection_count() > gdn_before,
+                        "GDN target projections did not use actual token batching"
+                    );
+                }
+                ensure!(
+                    gpu.hc_gate_chain_pairs.get() - joint_before == expected_joint
+                        && gpu.gate_commands.get() == standalone_before,
+                    "SSD cohort lost the canonical joint HC/router producer"
+                );
                 ensure!(cohort.logits() == logits && logits.len() == width);
                 cohort.commit(keep)?;
                 ensure!(retained_state(&model)? == expected_state);
@@ -399,6 +593,25 @@ mod tests {
                 model.restore(&root)?;
             }
         }
+        let joint_enabled = gpu.hc_gate_chain.replace(false);
+        let fallback = (|| -> Result<()> {
+            model.verify_ssd_cohorts = false;
+            let reference = model.stage_block(&[1, 2])?;
+            let logits = reference.logits().to_vec();
+            drop(reference);
+            model.verify_ssd_cohorts = true;
+            let joint_before = gpu.hc_gate_chain_pairs.get();
+            let standalone_before = gpu.gate_commands.get();
+            let cohort = model.stage_block(&[1, 2])?;
+            ensure!(cohort.logits() == logits);
+            ensure!(gpu.hc_gate_chain_pairs.get() == joint_before);
+            ensure!(gpu.gate_commands.get() > standalone_before);
+            drop(cohort);
+            ensure!(retained_state(&model)? == root_state);
+            Ok(())
+        })();
+        gpu.hc_gate_chain.set(joint_enabled);
+        fallback?;
         // Reject workspace retention before preparing even the first layer.
         gpu.hc_workspace_enabled.set(true);
         let rejected = model.stage_block(&[1, 2]).is_err();

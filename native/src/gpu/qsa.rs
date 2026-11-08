@@ -95,6 +95,33 @@ impl Slab {
     }
 }
 
+/// Exclusive verification owns every publication made after this mark.
+pub(super) struct VerificationPublication {
+    slab: Rc<Slab>,
+    protected: u32,
+}
+impl VerificationPublication {
+    pub(super) fn retain(&mut self, layer: &FlashQsaLayer<'_>) {
+        let state = &layer.attention.state;
+        let high = crate::flash_support::qsa_retained_high_water(
+            self.protected,
+            state.offset,
+            Rc::ptr_eq(&self.slab, &state.slab),
+        );
+        if Rc::ptr_eq(&self.slab, &state.slab) {
+            self.protected = high;
+        } else {
+            // A fork/growth created inside the exclusive borrow has no external future snapshots.
+            state.slab.published.set(high);
+        }
+    }
+}
+impl Drop for VerificationPublication {
+    fn drop(&mut self) {
+        self.slab.published.set(self.protected);
+    }
+}
+
 #[derive(Clone)]
 pub struct FlashQsaState {
     owner: Rc<()>,
@@ -350,6 +377,27 @@ pub(super) struct PendingQsa {
     payload: Option<(PreparedQsa, Option<EncodedIndex>, AttentionStep, MatrixView)>,
     #[cfg(test)]
     reject_publication: bool,
+}
+
+pub(super) struct PendingCatchup {
+    command: CommandBuffer,
+    payload: Option<(
+        PreparedQsa,
+        Option<EncodedIndex>,
+        super::hc::ReadBuffers,
+        MatrixView,
+    )>,
+}
+impl Drop for PendingCatchup {
+    fn drop(&mut self) {
+        let status = self.command.status();
+        if matches!(
+            status,
+            MTLCommandBufferStatus::Committed | MTLCommandBufferStatus::Scheduled
+        ) {
+            self.command.wait_until_completed();
+        }
+    }
 }
 impl Drop for PendingQsa {
     fn drop(&mut self) {
@@ -643,61 +691,81 @@ impl<'a> FlashQsa<'a> {
     /// Append only state consumed by a later query. Publication occurs after
     /// the command completes; a failed append leaves the committed prefix intact.
     fn extend_kv(&mut self, x: &MatrixView) -> Result<()> {
+        let prepared = self.prepare_append()?;
+        let encoded = self
+            .gpu
+            .command(|cmd| self.encode_extend_kv(cmd, x, &prepared))?;
+        self.publish_extend_kv(prepared, encoded)
+    }
+
+    fn encode_extend_kv(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        prepared: &PreparedQsa,
+    ) -> Result<Option<EncodedIndex>> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
             "invalid Flash QSA catch-up input shape or device"
         );
-        let prepared = self.prepare_append()?;
         let offset = prepared.before.offset;
-        let encoded = gpu.command(|cmd| {
-            let index = self
-                .index
-                .as_ref()
-                .map(|index| {
-                    index.encode_for_query(
-                        gpu,
-                        cmd,
-                        &prepared.slab,
-                        &prepared.before,
-                        x,
-                        (self.eps, false),
-                        false,
-                    )
-                })
-                .transpose()?;
-            #[cfg(test)]
-            ensure!(
-                !self.fail_after_index_encode.replace(false),
-                "injected QSA catch-up failure after index encoding"
-            );
-            let storage = Storage::StorageModePrivate;
-            let k = self.k.encode_row(cmd, x, storage)?;
-            let v = self.v.encode_row(cmd, x, storage)?;
-            let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
-            Metal::encode(
-                cmd,
-                &gpu.qsa.norm,
-                &[&k.buffer, &self.k_norm, &norm.buffer],
-                [256, self.eps.to_bits(), 256],
-                MTLSize::new(2, 1, 1),
-                32,
-            );
-            let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
-            Metal::encode(
-                cmd,
-                &gpu.qsa.rope,
-                &[&norm.buffer, &self.freq, &rotated.buffer],
-                [offset, 2],
-                MTLSize::new(14, 1, 1),
-                32,
-            );
-            let blit = cmd.new_blit_command_encoder();
-            blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
-            blit.copy_from_buffer(&v.buffer, 0, &prepared.slab.values, prepared.at, 1024);
-            blit.end_encoding();
-            Ok(index)
-        })?;
+
+        let index = self
+            .index
+            .as_ref()
+            .map(|index| {
+                index.encode_for_query(
+                    gpu,
+                    cmd,
+                    &prepared.slab,
+                    &prepared.before,
+                    x,
+                    (self.eps, false),
+                    false,
+                )
+            })
+            .transpose()?;
+        #[cfg(test)]
+        ensure!(
+            !self.fail_after_index_encode.replace(false),
+            "injected QSA catch-up failure after index encoding"
+        );
+        let storage = Storage::StorageModePrivate;
+        let k = self.k.encode_row(cmd, x, storage)?;
+        let v = self.v.encode_row(cmd, x, storage)?;
+        let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+        Metal::encode(
+            cmd,
+            &gpu.qsa.norm,
+            &[&k.buffer, &self.k_norm, &norm.buffer],
+            [256, self.eps.to_bits(), 256],
+            MTLSize::new(2, 1, 1),
+            32,
+        );
+        let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+        Metal::encode(
+            cmd,
+            &gpu.qsa.rope,
+            &[&norm.buffer, &self.freq, &rotated.buffer],
+            [offset, 2],
+            MTLSize::new(14, 1, 1),
+            32,
+        );
+        let blit = cmd.new_blit_command_encoder();
+        blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
+        blit.copy_from_buffer(&v.buffer, 0, &prepared.slab.values, prepared.at, 1024);
+        blit.end_encoding();
+        Ok(index)
+    }
+
+    fn publish_extend_kv(
+        &mut self,
+        prepared: PreparedQsa,
+        encoded: Option<EncodedIndex>,
+    ) -> Result<()> {
+        let offset = prepared.before.offset;
+
         #[cfg(test)]
         ensure!(
             !self.fail_after_append.replace(false),
@@ -1116,6 +1184,65 @@ pub struct FlashQsaLayer<'a> {
     pub(super) residual: super::gdn::LayerResidual<'a>,
 }
 impl<'a> FlashQsaLayer<'a> {
+    #[cfg(test)]
+    pub(super) fn fail_catchup_after_encode_for_test(&self) {
+        self.attention.fail_after_append.set(true);
+    }
+
+    pub(super) fn kv_only_catchup(&self) -> bool {
+        self.kv_only_catchup
+    }
+
+    pub(super) fn prepare_catchup(&self) -> Result<PreparedQsa> {
+        ensure!(
+            self.kv_only_catchup,
+            "encoded catchup requires KV-only mode"
+        );
+        self.attention.prepare_append()
+    }
+
+    pub(super) fn encode_catchup(
+        &self,
+        cmd: &CommandBufferRef,
+        streams: MatrixView,
+        prepared: PreparedQsa,
+    ) -> Result<PendingCatchup> {
+        let read = self.residual.encode_attention_input(cmd, &streams)?;
+        let index = self
+            .attention
+            .encode_extend_kv(cmd, read.mixed(), &prepared)?;
+        Ok(PendingCatchup {
+            command: cmd.to_owned(),
+            payload: Some((prepared, index, read, streams)),
+        })
+    }
+
+    pub(super) fn finish_catchup(&mut self, mut pending: PendingCatchup) -> Result<()> {
+        ensure!(
+            pending.command.status() == MTLCommandBufferStatus::Completed,
+            "catchup producer did not complete"
+        );
+        let (prepared, index, _read, _streams) = pending
+            .payload
+            .take()
+            .context("catchup already published")?;
+        self.attention.publish_extend_kv(prepared, index)
+    }
+
+    #[cfg(test)]
+    pub(super) fn verification_slab(&self) -> (usize, u32) {
+        (
+            Rc::as_ptr(&self.attention.state.slab) as usize,
+            self.attention.state.slab.published.get(),
+        )
+    }
+
+    pub(super) fn verification_publication(&self) -> VerificationPublication {
+        let slab = self.attention.state.slab.clone();
+        let protected = slab.published.get();
+        VerificationPublication { slab, protected }
+    }
+
     pub fn load(
         gpu: &'a Metal,
         c: &Checkpoint,

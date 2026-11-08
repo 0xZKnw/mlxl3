@@ -41,7 +41,6 @@ fn run<'a>(
 ) -> Result<Value> {
     ensure!(arm < ARMS.len() && budget >= 2 && prompt.len() + budget < 4096);
     head.block_verify = arm >= 2;
-    head.device_greedy = false;
     target.verify_ssd_cohorts = arm >= 3;
     let _shared_override = crate::flash_qmv::SharedVerifyOverride::new(arm == 4);
     let cancel = AtomicBool::new(false);
@@ -143,7 +142,7 @@ fn matched_mtp_campaign() -> Result<()> {
     );
     let capacities = slots(&mut target);
     let mut head = FlashMtpHead::load(&c, &target)?;
-    let mut report = json!({"status":"incomplete","runtime_base":"830bb38a9039fb56f2474a3735a5872d51efaaee","controlled_baseline_not_shipped_best":true,"smoke":smoke,"context":4096,"budget":budget,"slots":capacities,"first_requests":[],"warmups":[],"runs":[],"actual_os_disk_traffic_measured":false,"all_hit": "not qualified by streaming campaign","draft_resident_for_all_arms":true});
+    let mut report = json!({"status":"incomplete","runtime_base":"see frozen binary/source manifest","controlled_baseline_not_shipped_best":true,"smoke":smoke,"context":4096,"budget":budget,"slots":capacities,"first_requests":[],"warmups":[],"runs":[],"actual_os_disk_traffic_measured":false,"all_hit": "not qualified by streaming campaign","draft_fixed_tensors_resident":true,"draft_experts_conditioned_for_all_arms":true,"mtp_device_greedy":head.device_greedy});
     let save = |report: &Value| -> Result<()> {
         std::fs::write(&output, serde_json::to_vec_pretty(report)?)?;
         Ok(())
@@ -180,13 +179,18 @@ fn matched_mtp_campaign() -> Result<()> {
                         &mut target,
                         &mut head,
                         &prompt,
-                        0,
+                        1,
                         budget,
                         tokenizer.eos_ids(),
                     )?;
                     ensure!(
                         condition["tokens"] == expected,
                         "conditioning differs from golden"
+                    );
+                    let draft_ready = head.layer.residual.moe.campaign_ready_experts();
+                    ensure!(
+                        draft_ready > 0,
+                        "common conditioning did not warm draft experts"
                     );
                     let sample = run(
                         &mut target,
@@ -206,7 +210,7 @@ fn matched_mtp_campaign() -> Result<()> {
                     );
                     let key = if round == 0 { "warmups" } else { "runs" };
                     report[key].as_array_mut().unwrap().push(
-                        json!({"prompt":label,"round":round,"position":position,"sample":sample}),
+                        json!({"prompt":label,"round":round,"position":position,"draft_ready_experts_after_conditioning":draft_ready,"sample":sample}),
                     );
                     save(&report)?;
                     eprintln!("campaign {label} round{round} arm{} complete", ARMS[arm]);

@@ -21,6 +21,12 @@ pub struct FlashMtpHead<'a> {
     block_verify: bool,
 }
 
+struct EncodedMtpInput {
+    mixed: MatrixView,
+    #[cfg(test)]
+    parts: Vec<(&'static str, MatrixView)>,
+}
+
 impl<'a> FlashMtpHead<'a> {
     pub fn load(c: &Checkpoint, target: &FlashNext<'a>) -> Result<Self> {
         ensure!(
@@ -39,13 +45,13 @@ impl<'a> FlashMtpHead<'a> {
             "Flash MTP requires one draft layer"
         );
         let gpu = target.gpu;
-        let experimental = |name: &str| -> Result<bool> {
+        let experimental = |name: &str, default: bool| -> Result<bool> {
             let value = match std::env::var(name) {
                 Ok(value) => Some(value),
                 Err(std::env::VarError::NotPresent) => None,
                 Err(error) => return Err(error.into()),
             };
-            crate::flash_support::hc_kernel_flag(value.as_deref(), true)
+            crate::flash_support::hc_chain_flag(value.as_deref(), default)
                 .with_context(|| format!("{name} must be 0 or 1"))
         };
         let gain = |name, width| checkpoint_float_weight(gpu, c, name, &[width], FloatType::F32);
@@ -72,13 +78,37 @@ impl<'a> FlashMtpHead<'a> {
             )?,
             mixer: FlashHc::load(gpu, c, "mtp.hyper_connection_mixer", config.eps, false)?,
             eps: config.eps,
-            device_greedy: experimental("MLXL3_NATIVE_MTP_DEVICE_GREEDY")?
-                && gpu.device_greedy_available(),
-            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY")?,
+            device_greedy: experimental(
+                "MLXL3_NATIVE_MTP_DEVICE_GREEDY",
+                gpu.device_greedy_available(),
+            )? && gpu.device_greedy_available(),
+            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY", false)?,
         })
     }
 
     fn mixed(&self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<MatrixView> {
+        let input = target
+            .gpu
+            .command(|cmd| self.encode_mixed(cmd, target, hidden, token))?;
+        #[cfg(test)]
+        if let Some(dir) = std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS") {
+            for (name, row) in input.parts {
+                std::fs::write(
+                    std::path::Path::new(&dir).join(format!("{token}-{name}.bin")),
+                    row.export_bytes(target.gpu)?,
+                )?;
+            }
+        }
+        Ok(input.mixed)
+    }
+
+    fn encode_mixed(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        target: &FlashNext,
+        hidden: &MatrixView,
+        token: u32,
+    ) -> Result<EncodedMtpInput> {
         let gpu = target.gpu;
         ensure!(
             Rc::ptr_eq(&self.owner, &target.owner),
@@ -92,79 +122,66 @@ impl<'a> FlashMtpHead<'a> {
                 && hidden.buffer.device().registry_id() == gpu.device.registry_id(),
             "invalid Flash MTP hidden row"
         );
-        let embedding = gpu
-            .f16_storage(&target.embedding_bits(token)?)?
-            .matrix(MatrixLayout {
-                shape: [1, 2560],
-                strides: [2560, 1],
-                offset: 0,
-            })?;
+        let embedding = target.embedding_view(token)?;
         let private = Storage::StorageModePrivate;
         #[cfg(test)]
         let capture =
             std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").map(std::path::PathBuf::from);
         #[cfg(test)]
         let mut parts = Vec::new();
-        let result = gpu.command(|cmd| {
-            let norm =
-                gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
-            let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
-            let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
-            ensure!(
-                gpu.mtp_norm.thread_execution_width() == 32
-                    && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
-                "unsupported Flash MTP reduction"
-            );
-            Metal::encode(
-                cmd,
-                &gpu.mtp_norm,
-                &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
-                [self.eps.to_bits()],
-                MTLSize::new(1, 1, 1),
-                1024,
-            );
-            normalized.layout = MatrixLayout {
-                shape: [4, 2560],
-                strides: [2560, 1],
-                offset: 0,
-            };
-            let projected_hidden = self.hidden_fc.encode_rows(cmd, &normalized, private)?;
-            let mixed = MatrixView::output(gpu, FloatType::F16, 1, 10240, private)?;
-            Metal::encode(
-                cmd,
-                &gpu.mtp_combine,
-                &[
-                    &projected_embedding.buffer,
-                    &projected_hidden.buffer,
-                    &mixed.buffer,
-                ],
-                [2560u32],
-                MTLSize::new(320, 1, 1),
-                32,
-            );
-            #[cfg(test)]
-            if capture.is_some() {
-                parts.extend([
-                    ("embedding", embedding),
-                    ("embedding_norm", norm),
-                    ("embedding_fc", projected_embedding),
-                    ("hidden_norm", normalized),
-                    ("hidden_fc", projected_hidden),
-                    ("mixed", mixed.clone()),
-                ]);
-            }
-            Ok(mixed)
-        })?;
+
+        let norm =
+            gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
+        let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
+        let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
+        ensure!(
+            gpu.mtp_norm.thread_execution_width() == 32
+                && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
+            "unsupported Flash MTP reduction"
+        );
+        Metal::encode(
+            cmd,
+            &gpu.mtp_norm,
+            &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
+            [self.eps.to_bits()],
+            MTLSize::new(1, 1, 1),
+            1024,
+        );
+        normalized.layout = MatrixLayout {
+            shape: [4, 2560],
+            strides: [2560, 1],
+            offset: 0,
+        };
+        let projected_hidden = self.hidden_fc.encode_rows(cmd, &normalized, private)?;
+        let mixed = MatrixView::output(gpu, FloatType::F16, 1, 10240, private)?;
+        Metal::encode(
+            cmd,
+            &gpu.mtp_combine,
+            &[
+                &projected_embedding.buffer,
+                &projected_hidden.buffer,
+                &mixed.buffer,
+            ],
+            [2560u32],
+            MTLSize::new(320, 1, 1),
+            32,
+        );
         #[cfg(test)]
-        if let Some(dir) = capture {
-            for (name, row) in parts {
-                std::fs::write(
-                    dir.join(format!("{token}-{name}.bin")),
-                    row.export_bytes(gpu)?,
-                )?;
-            }
+        if capture.is_some() {
+            parts.extend([
+                ("embedding", embedding),
+                ("embedding_norm", norm),
+                ("embedding_fc", projected_embedding),
+                ("hidden_norm", normalized),
+                ("hidden_fc", projected_hidden),
+                ("mixed", mixed.clone()),
+            ]);
         }
-        Ok(result)
+        Ok(EncodedMtpInput {
+            mixed,
+            #[cfg(test)]
+            parts,
+        })
     }
     pub fn forward(
         &mut self,
@@ -213,7 +230,7 @@ impl<'a> FlashMtpHead<'a> {
 }
 
 impl FlashNext<'_> {
-    fn greedy_id(&self, logits: &[u16]) -> Result<u32> {
+    pub(super) fn greedy_id(&self, logits: &[u16]) -> Result<u32> {
         let normalized = self.gpu.flash_log_probs(logits)?;
         crate::speculative::greedy_log_prob_id(&normalized)
             .context("invalid Flash MTP probabilities")
@@ -239,6 +256,15 @@ impl FlashMtpHead<'_> {
         self.layer.restore(state)
     }
     fn extend(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<()> {
+        let capture = cfg!(test) && std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").is_some();
+        if self.layer.kv_only_catchup() && !capture {
+            let prepared = self.layer.prepare_catchup()?;
+            let pending = target.gpu.command(|cmd| {
+                let streams = self.encode_mixed(cmd, target, hidden, token)?.mixed;
+                self.layer.encode_catchup(cmd, streams, prepared)
+            })?;
+            return self.layer.finish_catchup(pending);
+        }
         self.layer.extend(&self.mixed(target, hidden, token)?)
     }
 }
@@ -428,12 +454,9 @@ impl FlashMtpSession {
                 // Explicit research path: canonical scalar kernels scheduled
                 // layer-major. It pays for both rows even on rejection; no
                 // shared-weight or throughput claim is implied by this flag.
-                let gpu = target.gpu;
-                let staged = target.stage_block_cancellable(&[anchor, proposal], cancelled)?;
-                let first = crate::speculative::greedy_log_prob_id(
-                    &gpu.flash_log_probs(&staged.logits()[0])?,
-                )
-                .context("invalid Flash MTP probabilities")?;
+                let mut staged = target.stage_block_headless(&[anchor, proposal], cancelled)?;
+                let first = staged.greedy(1, device_greedy)?;
+                check_cancelled()?;
                 let accepted = first == proposal;
                 if !accepted || eos.contains(&first) {
                     staged.commit(1)?;
@@ -441,10 +464,8 @@ impl FlashMtpSession {
                     self.accepted += usize::from(accepted);
                     return Ok(first);
                 }
-                let bonus = crate::speculative::greedy_log_prob_id(
-                    &gpu.flash_log_probs(&staged.logits()[1])?,
-                )
-                .context("invalid Flash MTP probabilities")?;
+                let bonus = staged.greedy(2, device_greedy)?;
+                check_cancelled()?;
                 let retained_hidden = staged
                     .prefix_hidden(1)
                     .context("missing verified anchor hidden row")?
@@ -1194,6 +1215,60 @@ mod optimization_regression_tests {
             checked += 1;
         }
         ensure!(checked == steps.len() && checked >= 4);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical checkpoint; fused draft catchup, bounded embedding cache and failure publication"]
+    fn encoded_catchup_matches_separate_producers_and_embedding_rows() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut target = FlashNext::load(&gpu, &c, 64)?;
+        target.prefill(&[248044, 78768, 11])?;
+        let hidden = target.last_hidden().unwrap().clone();
+        let mut head = FlashMtpHead::load(&c, &target)?;
+        ensure!(
+            head.layer.kv_only_catchup(),
+            "enable KV-only catchup for this test"
+        );
+        for token in [0, 1, 2, 3, 4, 248319] {
+            let bits = target.embedding_bits(token)?;
+            let view = target.embedding_view(token)?;
+            ensure!(
+                view.export_bytes(&gpu)?
+                    == bits
+                        .iter()
+                        .flat_map(|v| v.to_le_bytes())
+                        .collect::<Vec<_>>()
+            );
+            ensure!(std::ptr::eq::<metal::BufferRef>(
+                target.embedding_view(token)?.buffer.as_ref(),
+                view.buffer.as_ref()
+            ));
+            ensure!(target.embedding_rows.borrow().len() <= 4);
+        }
+        ensure!(target.embedding_view(248320).is_err());
+        for token in [1, 2, 3, 4, 7, 8, 9, 10] {
+            let before = head.layer.snapshot();
+            let commands = gpu.helper_commands.get();
+            let mixed = head.mixed(&target, &hidden, token)?;
+            head.layer.extend(&mixed)?;
+            let legacy_commands = gpu.helper_commands.get() - commands;
+            let expected = head.layer.retained_half_words()?;
+            let offset = head.layer.offset();
+            head.layer.restore(&before)?;
+            let commands = gpu.helper_commands.get();
+            head.extend(&target, &hidden, token)?;
+            ensure!(gpu.helper_commands.get() - commands < legacy_commands);
+            ensure!(head.layer.offset() == offset && head.layer.retained_half_words()? == expected);
+        }
+        let before = head.layer.snapshot();
+        let words = head.layer.retained_half_words()?;
+        let before_offset = head.layer.offset();
+        head.layer.fail_catchup_after_encode_for_test();
+        ensure!(head.extend(&target, &hidden, 11).is_err());
+        ensure!(head.layer.offset() == before_offset && head.layer.retained_half_words()? == words);
+        head.layer.restore(&before)?;
         Ok(())
     }
 }

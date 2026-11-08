@@ -54,22 +54,40 @@ impl<'a> Layer<'a> {
             Self::Qsa(a) => &mut a.residual.moe,
         }
     }
-    fn prepare_moe(&mut self, row: &MatrixView, token: u32) -> Result<super::gdn::PreparedMoeRow> {
+    fn prepare_moe(
+        &mut self,
+        row: &MatrixView,
+        token: u32,
+        projected: Option<super::gdn::PreparedGdnRow>,
+    ) -> Result<super::gdn::PreparedMoeRow> {
         match self {
-            Self::Gdn(layer) => layer.prepare_moe(row),
+            Self::Gdn(layer) => match projected {
+                Some(projected) => layer.prepare_moe_projected(row, projected),
+                None => layer.prepare_moe(row),
+            },
             Self::Ple(layer) => layer.prepare_moe(row, token),
             Self::Qsa(layer) => layer.prepare_moe(row),
         }
     }
+    fn prepare_block_inputs(
+        &self,
+        rows: &[MatrixView],
+    ) -> Result<Option<Vec<super::gdn::PreparedGdnRow>>> {
+        match self {
+            Self::Gdn(layer) => layer.prepare_block_inputs(rows),
+            _ => Ok(None),
+        }
+    }
     fn finish_prepared(
         &self,
-        row: super::gdn::PreparedMoeRow,
-        experts: super::MoeOutput,
+        cmd: &metal::CommandBufferRef,
+        row: &super::gdn::PreparedMoeRow,
+        experts: &super::MoeOutput,
     ) -> Result<MatrixView> {
         match self {
-            Self::Gdn(layer) => layer.residual.finish_prepared(row, experts),
-            Self::Ple(layer) => layer.body.residual.finish_prepared(row, experts),
-            Self::Qsa(layer) => layer.residual.finish_prepared(row, experts),
+            Self::Gdn(layer) => layer.residual.finish_prepared(cmd, row, experts),
+            Self::Ple(layer) => layer.body.residual.finish_prepared(cmd, row, experts),
+            Self::Qsa(layer) => layer.residual.finish_prepared(cmd, row, experts),
         }
     }
     fn snapshot(&self) -> State {
@@ -163,6 +181,12 @@ pub struct FlashTraceTensor {
     pub shape: Vec<u32>,
     pub data: Vec<u8>,
 }
+struct EmbeddingRow {
+    token: u32,
+    bits: Vec<u16>,
+    view: Option<MatrixView>,
+}
+
 pub struct FlashNext<'a> {
     pub(super) fixed_residency: Option<super::fixed_residency::FixedResidency>,
     pub(super) fixed_residency_checked: bool,
@@ -178,6 +202,7 @@ pub struct FlashNext<'a> {
     pub(super) hidden: Option<MatrixView>,
     pub(super) gpu: &'a Metal,
     embed: TensorInfo,
+    embedding_rows: RefCell<Vec<EmbeddingRow>>,
     pub(super) layers: Vec<Layer<'a>>,
     pub(super) mixer: FlashHc<'a>,
     pub(super) head: FlashProjection<'a>,
@@ -330,6 +355,7 @@ impl<'a> FlashNext<'a> {
             hidden: None,
             gpu,
             embed,
+            embedding_rows: RefCell::new(Vec::new()),
             layers,
             mixer,
             head,
@@ -394,17 +420,74 @@ impl<'a> FlashNext<'a> {
     }
 
     fn embedding_bits(&self, token: u32) -> Result<Vec<u16>> {
+        if let Some(row) = self
+            .embedding_rows
+            .borrow()
+            .iter()
+            .find(|row| row.token == token)
+        {
+            return Ok(row.bits.clone());
+        }
         let (file, base) = self.embed.source()?;
         let at = row_offset(base, u64::from(token), 248320, 5120)
             .context("token outside Flash vocabulary or embedding offset overflow")?;
         let mut bytes = [0u8; 5120];
         file.read_exact_at(&mut bytes, at)?;
-        Ok(bytes
+        let bits = bytes
             .as_chunks::<2>()
             .0
             .iter()
             .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_bits())
-            .collect())
+            .collect::<Vec<_>>();
+        let mut rows = self.embedding_rows.borrow_mut();
+        if rows.len() == 4 {
+            rows.remove(0);
+        }
+        rows.push(EmbeddingRow {
+            token,
+            bits: bits.clone(),
+            view: None,
+        });
+        Ok(bits)
+    }
+
+    fn embedding_view(&self, token: u32) -> Result<MatrixView> {
+        if let Some(view) = self
+            .embedding_rows
+            .borrow()
+            .iter()
+            .find(|row| row.token == token)
+            .and_then(|row| row.view.clone())
+        {
+            return Ok(view);
+        }
+        let bits = self.embedding_bits(token)?;
+        let view = self.gpu.f16_storage(&bits)?.matrix(MatrixLayout {
+            shape: [1, 2560],
+            strides: [2560, 1],
+            offset: 0,
+        })?;
+        if let Some(row) = self
+            .embedding_rows
+            .borrow_mut()
+            .iter_mut()
+            .find(|row| row.token == token)
+        {
+            row.view = Some(view.clone());
+        }
+        Ok(view)
+    }
+
+    pub(super) fn record_embedding_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+    ) -> Result<()> {
+        for row in self.embedding_rows.borrow().iter() {
+            if let Some(view) = &row.view {
+                backings.record("embedding_cache", &view.buffer)?;
+            }
+        }
+        Ok(())
     }
     fn streams(&self, token: u32) -> Result<MatrixView> {
         let values: Vec<_> = self

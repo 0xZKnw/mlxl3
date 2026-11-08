@@ -8,6 +8,81 @@ pub(crate) fn eligible(routed: bool, extents: [[u32; 3]; 3]) -> bool {
     routed && extents == crate::flash_expert_scratch::EXTENTS
 }
 
+/// Only exact row multiples enter fused preparation/finish; scratch remains scalar.
+pub(crate) fn row_fusions_eligible(routed: bool, extents: [[u32; 3]; 3]) -> bool {
+    let rows = extents[0][0] / 2560;
+    routed
+        && (1..=4).contains(&rows)
+        && extents
+            .iter()
+            .zip(crate::flash_expert_scratch::EXTENTS)
+            .all(|(actual, one)| {
+                actual
+                    .iter()
+                    .zip(one)
+                    .all(|(&value, one)| value == one * rows)
+            })
+}
+
+#[test]
+fn fused_up_admits_multirow_records_without_enabling_scalar_scratch() {
+    for rows in 1..=4 {
+        let extents =
+            crate::flash_expert_scratch::EXTENTS.map(|shape| shape.map(|value| value * rows));
+        assert!(row_fusions_eligible(true, extents));
+        assert!(!row_fusions_eligible(false, extents));
+        assert_eq!(eligible(true, extents), rows == 1);
+        for stage in 0..3 {
+            for column in 0..3 {
+                let mut invalid = extents;
+                invalid[stage][column] += 1;
+                assert!(!row_fusions_eligible(true, invalid));
+            }
+        }
+    }
+    for rows in [0, 5, 1000] {
+        assert!(!row_fusions_eligible(
+            true,
+            crate::flash_expert_scratch::EXTENTS.map(|shape| shape.map(|v| v * rows))
+        ));
+    }
+    assert!(!row_fusions_eligible(true, [[u32::MAX; 3]; 3]));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(40)]
+fn multirow_up_finish_keeps_exact_row_extents_and_bounds() {
+    let extents: [[u32; 3]; 3] = kani::any();
+    let routed: bool = kani::any();
+    let selected = row_fusions_eligible(routed, extents);
+    let rows = extents[0][0] / 2560;
+    if selected {
+        assert!(routed && rows >= 1 && rows <= 4);
+        assert_eq!(
+            extents,
+            [
+                [2560 * rows, 640 * rows, 640 * rows],
+                [2560 * rows, 640 * rows, 640 * rows],
+                [640 * rows, 2560 * rows, 2560 * rows]
+            ]
+        );
+        assert!(extents[0][2] * 2 <= 5120);
+        assert!(extents[0][0] * 4 <= 40960);
+        let row: u32 = kani::any();
+        if row < rows {
+            assert!(
+                u64::from(row) * 5120 + u64::from(extents[0][0]) * 2 + 5120
+                    <= u64::from(extents[0][0]) * 4
+            );
+            kani::cover!(rows == 4 && row == 3);
+        }
+        kani::cover!(rows == 1);
+        kani::cover!(rows == 4);
+    }
+    kani::cover!(!selected && routed);
+}
+
 pub(crate) fn cohort(count: usize, destinations: usize) -> bool {
     count > 0 && count <= 10 && count == destinations
 }

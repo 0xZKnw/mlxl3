@@ -359,6 +359,17 @@ impl<'a> FlashProjection<'a> {
     pub(super) fn dimensions(&self) -> [u32; 2] {
         [self.input, self.output]
     }
+
+    pub(super) fn supports_verify_rows(&self, rows: usize) -> bool {
+        crate::flash_qmv::verify_row_count(
+            rows,
+            self.nt,
+            self.k,
+            crate::flash_qmv::shared_verify_enabled(self.metal.flash_verify_qmv.is_some())
+                && !self.generic
+                && !self.mtp_hidden,
+        )
+    }
     pub(super) fn encode_row(
         &self,
         cmd: &CommandBufferRef,
@@ -757,8 +768,7 @@ impl<'a> FlashProjection<'a> {
             self.k,
             crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
                 && !self.generic
-                && !self.mtp_hidden
-                && !self.routed_record,
+                && !self.mtp_hidden,
         );
         let (pipeline, third, groups) = if let Some(key) = verify_rows {
             #[cfg(test)]
@@ -1625,6 +1635,62 @@ impl<'a> FlashExpert<'a> {
         self.encode_into(cmd, Activation::View(x), extents, storage, destination)
     }
 
+    pub(super) fn pack_consumer_rows(
+        &self,
+        cmd: &CommandBufferRef,
+        rows: &[&MatrixView],
+    ) -> Result<MatrixView> {
+        let gpu = self.gate.metal;
+        ensure!(
+            (2..=4).contains(&rows.len()) && self.routed,
+            "invalid expert consumer batch"
+        );
+        let dtype = rows[0].dtype;
+        let element_bytes = if dtype == super::view::FloatType::F32 {
+            4u64
+        } else {
+            2
+        };
+        let row_bytes = 2560 * element_bytes;
+        let mut offsets = Vec::with_capacity(rows.len());
+        for row in rows {
+            let offset = u64::try_from(row.layout.offset)
+                .context("negative expert row offset")?
+                .checked_mul(element_bytes)
+                .context("expert row byte offset overflow")?;
+            ensure!(
+                row.shape() == [1, 2560]
+                    && row.dtype == dtype
+                    && row.layout.strides[1] == 1
+                    && row.buffer.device().registry_id() == gpu.device.registry_id()
+                    && offset
+                        .checked_add(row_bytes)
+                        .is_some_and(|end| end <= row.buffer.length()),
+                "invalid packed expert consumer row"
+            );
+            offsets.push(offset);
+        }
+        let packed = MatrixView::output(
+            gpu,
+            dtype,
+            rows.len() as u32,
+            2560,
+            Storage::StorageModePrivate,
+        )?;
+        let blit = cmd.new_blit_command_encoder();
+        for (index, (row, offset)) in rows.iter().zip(offsets).enumerate() {
+            blit.copy_from_buffer(
+                &row.buffer,
+                offset,
+                &packed.buffer,
+                index as u64 * row_bytes,
+                row_bytes,
+            );
+        }
+        blit.end_encoding();
+        Ok(packed)
+    }
+
     /// Only experts already returned by the current ready cohort enter this grid.
     pub(super) fn encode_ready_cohort(
         cmd: &CommandBufferRef,
@@ -2011,11 +2077,11 @@ impl<'a> FlashExpert<'a> {
             gpu.flash_expert_scratch_setting,
         )
         .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_ROUTED_SCRATCH must be 0 or 1"))?;
-        let eligible = crate::expert_ar_policy::eligible(
+        let fused_rows = crate::expert_ar_policy::row_fusions_eligible(
             self.routed,
             [gate_extents, up_extents, down_extents],
         );
-        let dual = eligible && gpu.expert_ar_enabled[1].get();
+        let dual = fused_rows && gpu.expert_ar_enabled[1].get();
         let pair = if reuse {
             let [prepared, partial] = crate::flash_expert_scratch::CAPACITIES;
             Some((
@@ -2031,7 +2097,11 @@ impl<'a> FlashExpert<'a> {
         };
         let scratch = pair.as_ref().map(|(prepared, partial)| (prepared, partial));
         let owned_dual = if dual && pair.is_none() {
-            Some(buffer(&gpu.device, 10240, Storage::StorageModePrivate)?)
+            Some(buffer(
+                &gpu.device,
+                u64::from(gate_extents[0]) * 4,
+                Storage::StorageModePrivate,
+            )?)
         } else {
             None
         };
@@ -2053,25 +2123,39 @@ impl<'a> FlashExpert<'a> {
                     x.dtype == super::view::FloatType::F32,
                 ),
             };
-            ensure!(prepared.length() >= 10240, "short dual preparation");
-            Metal::encode_bound(
-                cmd,
-                gpu.expert_gu_prepare
-                    .as_ref()
-                    .context("expert dual preparation pipeline was not loaded")?,
-                [
-                    (input, 0),
-                    (&self.gate.suh, self.gate.offsets.suh),
-                    (&self.up.suh, self.up.offsets.suh),
-                    (prepared, 0),
-                ]
-                .into_iter(),
-                [offset, stride, i64::from(fp32), 2560],
-                MTLSize::new(20, 1, 1),
-                64,
+            ensure!(
+                prepared.length() >= u64::from(gate_extents[0]) * 4,
+                "short dual preparation"
             );
-            #[cfg(test)]
-            gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+            for row in 0..gate_extents[0] / 2560 {
+                let offset = match x {
+                    Activation::View(view) => {
+                        view.layout
+                            .row(row)
+                            .context("dual preparation row outside view")?
+                            .offset
+                    }
+                    Activation::Contiguous(_) => offset + i64::from(row) * 2560,
+                };
+                Metal::encode_bound(
+                    cmd,
+                    gpu.expert_gu_prepare
+                        .as_ref()
+                        .context("expert dual preparation pipeline was not loaded")?,
+                    [
+                        (input, 0),
+                        (&self.gate.suh, self.gate.offsets.suh),
+                        (&self.up.suh, self.up.offsets.suh),
+                        (prepared, u64::from(row) * 5120),
+                    ]
+                    .into_iter(),
+                    [offset, stride, i64::from(fp32), i64::from(gate_extents[0])],
+                    MTLSize::new(20, 1, 1),
+                    64,
+                );
+                #[cfg(test)]
+                gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
+            }
         }
         let gate = self.gate.encode_expert_stage(
             cmd,
@@ -2084,10 +2168,7 @@ impl<'a> FlashExpert<'a> {
                 ..Default::default()
             },
         )?;
-        let fused_up = crate::expert_ar_policy::eligible(
-            self.routed,
-            [gate_extents, up_extents, down_extents],
-        ) && gpu.expert_ar_enabled[0].get();
+        let fused_up = fused_rows && gpu.expert_ar_enabled[0].get();
         #[cfg(test)]
         let mut up_id = 0;
         let activated = if fused_up {
@@ -2099,7 +2180,7 @@ impl<'a> FlashExpert<'a> {
                 scratch,
                 ExpertStage {
                     gate: Some(&gate),
-                    prepared: prepared.map(|b| (b, 5120)),
+                    prepared: prepared.map(|b| (b, u64::from(gate_extents[0]) * 2)),
                     ..Default::default()
                 },
             )?;
@@ -2114,7 +2195,7 @@ impl<'a> FlashExpert<'a> {
                 Storage::StorageModePrivate,
                 scratch,
                 ExpertStage {
-                    prepared: prepared.map(|b| (b, 5120)),
+                    prepared: prepared.map(|b| (b, u64::from(gate_extents[0]) * 2)),
                     ..Default::default()
                 },
             )?;

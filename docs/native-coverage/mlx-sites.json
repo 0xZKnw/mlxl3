@@ -2066,14 +2066,14 @@
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/flash_verify.rs": {
-    ".take": 1,
-    "config MLXL3_FLASH_MODEL": 3
+    ".take": 2,
+    "config MLXL3_FLASH_MODEL": 4
   },
   "native/src/gpu/gate.rs": {
     ".transpose": 1
   },
   "native/src/gpu/gdn.rs": {
-    ".finish": 7,
+    ".finish": 9,
     ".shape": 2,
     ".take": 1,
     ".transpose": 5,
@@ -2158,14 +2158,14 @@
     ".shape": 1,
     ".take": 3,
     ".transpose": 3,
-    "array::from_fn": 2,
+    "array::from_fn": 3,
     "config MLXL3_MOE_CHECKPOINT": 1
   },
   "native/src/gpu/mtp.rs": {
     ".shape": 1,
     ".to_f32": 4,
-    "config MLXL3_FLASH_MODEL": 6,
-    "config MLXL3_FLASH_MTP_DIRECT_PARTS": 1,
+    "config MLXL3_FLASH_MODEL": 7,
+    "config MLXL3_FLASH_MTP_DIRECT_PARTS": 3,
     "config MLXL3_FLASH_MTP_REFERENCE": 2,
     "config MLXL3_FLASH_MTP_SESSION_ORACLE": 1,
     "config MLXL3_NATIVE_MTP_BLOCK_VERIFY": 1,
@@ -2189,7 +2189,7 @@
     ".ready": 1
   },
   "native/src/gpu/projection.rs": {
-    ".shape": 8,
+    ".shape": 9,
     ".swiglu": 2,
     ".to_f32": 2,
     ".transpose": 1,
@@ -2204,7 +2204,7 @@
     ".finish": 3,
     ".shape": 3,
     ".sum": 1,
-    ".take": 3,
+    ".take": 4,
     ".transpose": 17,
     "array::from_fn": 1,
     "config MLXL3_FLASH_ATTENTION_REFERENCE": 1,

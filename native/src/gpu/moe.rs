@@ -865,6 +865,16 @@ impl FlashMoeRow<'_> {
     pub(super) fn campaign_slots(&self) -> usize {
         self.slots.borrow().len()
     }
+
+    #[cfg(test)]
+    pub(super) fn campaign_ready_experts(&self) -> usize {
+        self.cache
+            .borrow()
+            .ready_slot_snapshot()
+            .iter()
+            .flatten()
+            .count()
+    }
     #[cfg(test)]
     pub(super) fn slru_counts(&self) -> (bool, usize) {
         let cache = self.cache.borrow();

@@ -70,6 +70,22 @@ struct PendingGdn {
     steps: Option<[(&'static str, MatrixView); 11]>,
 }
 
+struct GdnProjections {
+    input: MatrixView,
+    qkv: MatrixView,
+    z: MatrixView,
+}
+
+pub(super) struct PreparedGdnRow {
+    read: super::FlashHcRead,
+    pending: PendingGdn,
+}
+
+#[cfg(test)]
+thread_local! {
+    static BLOCK_PROJECTION_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub type FlashGdnOutput = super::FlashAttentionOutput;
 
 pub(super) struct DeferredHcWrite {
@@ -268,6 +284,18 @@ impl<'a> FlashGdn<'a> {
         trace: bool,
         private_f32_consumer: bool,
     ) -> Result<PendingGdn> {
+        self.encode_for_consumer_prepared(cmd, x, trace, private_f32_consumer, None, None)
+    }
+
+    fn encode_for_consumer_prepared(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+        private_f32_consumer: bool,
+        projected: Option<&GdnProjections>,
+        previous: Option<&Frame>,
+    ) -> Result<PendingGdn> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -301,7 +329,7 @@ impl<'a> FlashGdn<'a> {
             })
         };
         let g = |x, y, z| MTLSize::new(x, y, z);
-        let prev = match &self.state.frame {
+        let prev = match previous.or(self.state.frame.as_ref()) {
             Some(previous) => previous.clone(),
             None => {
                 let zero = frame()?;
@@ -314,28 +342,35 @@ impl<'a> FlashGdn<'a> {
             }
         };
         let next = frame()?;
-        let input = half(2560)?;
-        Metal::encode(
-            cmd,
-            &p.from[usize::from(x.dtype == FloatType::F32)],
-            &[&x.buffer, &input.buffer],
-            [x.layout.offset, x.layout.strides[1]],
-            g(80, 1, 1),
-            32,
-        );
-        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
-            gpu.gdn_resident_bundle.get(),
-            trace,
-            private_f32_consumer,
-        ) {
+        let input = if let Some(projected) = projected {
+            projected.input.clone()
+        } else {
+            let input = half(2560)?;
+            Metal::encode(
+                cmd,
+                &p.from[usize::from(x.dtype == FloatType::F32)],
+                &[&x.buffer, &input.buffer],
+                [x.layout.offset, x.layout.strides[1]],
+                g(80, 1, 1),
+                32,
+            );
+            input
+        };
+        let pair = if projected.is_none()
+            && crate::flash_support::gdn_private_epilogue_eligible(
+                gpu.gdn_resident_bundle.get(),
+                trace,
+                private_f32_consumer,
+            ) {
             self.qkv
                 .encode_resident_pair(&self.z, cmd, &input, storage)?
         } else {
             None
         };
-        let [qkv, z] = match pair {
-            Some(pair) => pair,
-            None => [
+        let [qkv, z] = match (projected, pair) {
+            (Some(projected), _) => [projected.qkv.clone(), projected.z.clone()],
+            (_, Some(pair)) => pair,
+            _ => [
                 self.qkv.encode_row(cmd, &input, storage)?,
                 self.z.encode_row(cmd, &input, storage)?,
             ],
@@ -603,6 +638,7 @@ impl<'a> FlashGdn<'a> {
 /// HC workspace must be disabled while these rows are retained.
 pub(super) struct PreparedMoeRow {
     pub(super) mixed: MatrixView,
+    pub(super) routing: Option<super::RouteOutput>,
     streams: MatrixView,
     gate: MatrixView,
 }
@@ -641,6 +677,14 @@ impl<'a> LayerResidual<'a> {
     pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
         Ok(self.attn_hc.read(streams, false)?.mixed)
     }
+
+    pub(super) fn encode_attention_input(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        streams: &MatrixView,
+    ) -> Result<super::hc::ReadBuffers> {
+        self.attn_hc.encode_read(cmd, streams, false)
+    }
     pub(super) fn prepare_moe(
         &self,
         streams: &MatrixView,
@@ -669,11 +713,24 @@ impl<'a> LayerResidual<'a> {
             .gate
             .as_ref()
             .context("missing attention injection gate")?;
-        let (streams, mlp_read) =
-            self.mlp_hc
-                .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
+        let (streams, mlp_read, routing) = if self.moe.joint_gate_eligible(0) {
+            let (streams, read, routing) = self.mlp_hc.read_after_write_with_gate(
+                &self.attn_hc,
+                streams,
+                &attention.values,
+                gate,
+                &self.moe,
+            )?;
+            (streams, read, Some(routing))
+        } else {
+            let (streams, read) =
+                self.mlp_hc
+                    .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
+            (streams, read, None)
+        };
         Ok(PreparedMoeRow {
             mixed: mlp_read.mixed,
+            routing,
             streams,
             gate: mlp_read.gate.context("missing MLP injection gate")?,
         })
@@ -681,11 +738,20 @@ impl<'a> LayerResidual<'a> {
 
     pub(super) fn finish_prepared(
         &self,
-        row: PreparedMoeRow,
-        experts: super::MoeOutput,
+        cmd: &metal::CommandBufferRef,
+        row: &PreparedMoeRow,
+        experts: &super::MoeOutput,
     ) -> Result<MatrixView> {
-        self.final_write(&row.streams, experts, &row.gate, false)?
-            .complete(self.mlp_hc.gpu)
+        let branch = experts.completed()?;
+        let output = self
+            .mlp_hc
+            .encode_write(cmd, &row.streams, branch, &row.gate)?;
+        #[cfg(test)]
+        self.mlp_hc
+            .gpu
+            .hc_final_writes
+            .set(self.mlp_hc.gpu.hc_final_writes.get() + 1);
+        Ok(output)
     }
 
     pub(super) fn forward(
@@ -796,6 +862,130 @@ pub struct FlashGdnLayer<'a> {
     attention: FlashGdn<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
+    #[cfg(test)]
+    pub(super) fn block_projection_count() -> usize {
+        BLOCK_PROJECTION_BATCHES.with(std::cell::Cell::get)
+    }
+
+    pub(super) fn prepare_block_inputs(
+        &self,
+        rows: &[MatrixView],
+    ) -> Result<Option<Vec<PreparedGdnRow>>> {
+        let gpu = self.attention.gpu;
+        if !self.attention.qkv.supports_verify_rows(rows.len())
+            || !self.attention.z.supports_verify_rows(rows.len())
+        {
+            return Ok(None);
+        }
+        ensure!(
+            !gpu.hc_workspace_enabled.get(),
+            "GDN block inputs require owned HC rows"
+        );
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.gdn.block_projections");
+        let (reads, _projections, pending) = gpu.command(|cmd| {
+            let reads = rows
+                .iter()
+                .map(|row| self.residual.encode_attention_input(cmd, row))
+                .collect::<Result<Vec<_>>>()?;
+            let packed = MatrixView::output(
+                gpu,
+                FloatType::F16,
+                rows.len() as u32,
+                2560,
+                Storage::StorageModePrivate,
+            )?;
+            let mut inputs = Vec::with_capacity(rows.len());
+            for (i, read) in reads.iter().enumerate() {
+                let x = read.mixed();
+                let input =
+                    MatrixView::output(gpu, FloatType::F16, 1, 2560, Storage::StorageModePrivate)?;
+                Metal::encode(
+                    cmd,
+                    &gpu.gdn.from[usize::from(x.dtype == FloatType::F32)],
+                    &[&x.buffer, &input.buffer],
+                    [x.layout.offset, x.layout.strides[1]],
+                    MTLSize::new(80, 1, 1),
+                    32,
+                );
+                let blit = cmd.new_blit_command_encoder();
+                blit.copy_from_buffer(&input.buffer, 0, &packed.buffer, i as u64 * 5120, 5120);
+                blit.end_encoding();
+                inputs.push(input);
+            }
+            let qkv = self
+                .attention
+                .qkv
+                .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
+            let z = self
+                .attention
+                .z
+                .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
+            let mut projections = Vec::with_capacity(rows.len());
+            for (i, input) in inputs.into_iter().enumerate() {
+                let q =
+                    MatrixView::output(gpu, FloatType::F16, 1, 10240, Storage::StorageModePrivate)?;
+                let gate =
+                    MatrixView::output(gpu, FloatType::F16, 1, 6144, Storage::StorageModePrivate)?;
+                let blit = cmd.new_blit_command_encoder();
+                blit.copy_from_buffer(&qkv.buffer, i as u64 * 20480, &q.buffer, 0, 20480);
+                blit.copy_from_buffer(&z.buffer, i as u64 * 12288, &gate.buffer, 0, 12288);
+                blit.end_encoding();
+                projections.push(GdnProjections {
+                    input,
+                    qkv: q,
+                    z: gate,
+                });
+            }
+            let mut pending: Vec<PendingGdn> = Vec::with_capacity(rows.len());
+            for (i, (read, projected)) in reads.iter().zip(&projections).enumerate() {
+                let step = self.attention.encode_for_consumer_prepared(
+                    cmd,
+                    read.mixed(),
+                    false,
+                    rows[i].dtype == FloatType::F32,
+                    Some(projected),
+                    pending.last().map(|p| &p.next),
+                )?;
+                pending.push(step);
+            }
+            Ok((reads, projections, pending))
+        })?;
+        #[cfg(test)]
+        {
+            BLOCK_PROJECTION_BATCHES.with(|count| count.set(count.get() + 1));
+            gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + rows.len());
+        }
+        let prepared = reads
+            .into_iter()
+            .zip(pending)
+            .map(|(read, pending)| {
+                Ok(PreparedGdnRow {
+                    read: read.finish(false)?,
+                    pending,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Some(prepared))
+    }
+
+    pub(super) fn prepare_moe_projected(
+        &mut self,
+        streams: &MatrixView,
+        row: PreparedGdnRow,
+    ) -> Result<PreparedMoeRow> {
+        let before = self.snapshot();
+        let result = (|| {
+            let attention = self.attention.finish(row.pending)?;
+            self.residual
+                .prepare_after_attention(streams, row.read, attention)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
+    }
+
     pub fn load(
         gpu: &'a Metal,
         c: &Checkpoint,

@@ -151,6 +151,7 @@ impl FlashNext<'_> {
         );
         self.head.record_memory(&mut backings)?;
         self.mixer.record_memory(&mut backings)?;
+        self.record_embedding_memory(&mut backings)?;
         for layer in &self.layers {
             layer.record_memory(&mut backings)?;
         }
