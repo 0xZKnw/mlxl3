@@ -249,11 +249,9 @@ impl NativeMtpSession {
         eos: &[u32],
     ) -> Result<Vec<u32>> {
         match (self, model, head) {
-            (Self::Flash(session), NativeChatModel::Flash(model), ChatMtpHead::Flash(head)) => {
-                Ok(vec![
-                    session.advance_with_eos(model, head, anchor, limit, remaining, eos)?,
-                ])
-            }
+            (Self::Flash(session), NativeChatModel::Flash(model), ChatMtpHead::Flash(head)) => Ok(
+                vec![session.advance_with_eos(model, head, anchor, limit, remaining, eos)?],
+            ),
             (Self::Qwen(session), NativeChatModel::Qwen(model), ChatMtpHead::Qwen(head)) => {
                 session.advance(model, head, anchor, limit, remaining, eos)
             }

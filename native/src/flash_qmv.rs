@@ -326,8 +326,10 @@ fn verify_rows_dispatch_preserves_scalar_and_unsupported_paths() {
             for nt in [0, 1, 2, 3, u32::MAX] {
                 for k in [0, 1, 2, 3, 4, 5, 6, 7, u32::MAX] {
                     let actual = verify_rows_key(rows, nt, k, eligible);
-                    let supported = eligible && rows >= 2 && rows <= 4
-                        && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
+                    let supported = eligible
+                        && (2..=4).contains(&rows)
+                        && (2..=6).contains(&k)
+                        && (nt == 1 || nt == 2);
                     assert_eq!(actual.is_some(), supported);
                     if let Some(key) = actual {
                         assert_eq!(key, (nt - 1) as usize);
@@ -348,8 +350,7 @@ fn verify_rows_dispatch_is_bounded_and_opt_in() {
     let k: u32 = kani::any();
     let eligible: bool = kani::any();
     let actual = verify_rows_key(rows, nt, k, eligible);
-    let supported = eligible && rows >= 2 && rows <= 4
-        && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
+    let supported = eligible && rows >= 2 && rows <= 4 && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
     assert_eq!(actual.is_some(), supported);
     if let Some(key) = actual {
         assert!(key < 2);

@@ -24,7 +24,9 @@ mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
-pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor, FlashVerification};
+pub use flash::{
+    FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor, FlashVerification,
+};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod qwen_gdn;

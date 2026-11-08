@@ -762,7 +762,9 @@ impl<'a> FlashProjection<'a> {
         );
         let (pipeline, third, groups) = if let Some(key) = verify_rows {
             (
-                &gpu.flash_verify_qmv.as_ref().context("missing verify QMV pipelines")?[key],
+                &gpu.flash_verify_qmv
+                    .as_ref()
+                    .context("missing verify QMV pipelines")?[key],
                 (&self.svh, self.offsets.svh),
                 contracts::flash_reference_groups(self.output, self.nt)
                     .context("invalid verify QMV grid")?,
@@ -3197,10 +3199,12 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
     let root = std::path::PathBuf::from(
         std::env::var_os("MLXL3_NT2_FIXTURES").context("fixtures required")?,
     );
-    let cases: Vec<Case> =
-        serde_json::from_slice(&std::fs::read(root.join("native-cases.json"))?)?;
+    let cases: Vec<Case> = serde_json::from_slice(&std::fs::read(root.join("native-cases.json"))?)?;
     let gpu = Metal::new()?;
-    ensure!(gpu.flash_verify_qmv.is_some(), "shared verify kernels must be enabled");
+    ensure!(
+        gpu.flash_verify_qmv.is_some(),
+        "shared verify kernels must be enabled"
+    );
     let mut compared = 0;
     for case in cases.iter().filter(|case| !case.generic) {
         let checkpoint = crate::checkpoint::inspect(&case.path)?;
@@ -3208,7 +3212,10 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
         if layer.mtp_hidden || !(2..=6).contains(&layer.k) {
             continue;
         }
-        ensure!(case.x.len() >= layer.input as usize, "missing fixture input row");
+        ensure!(
+            case.x.len() >= layer.input as usize,
+            "missing fixture input row"
+        );
         // Explicit canonical controls, independent of static/fixed PSO settings.
         layer.static_key = None;
         layer.fixed_key = None;
@@ -3225,14 +3232,19 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
                     // Distinct finite rows catch cross-row contamination and B3 tail errors.
                     if row != 0 {
                         for (i, value) in x.iter_mut().enumerate() {
-                            *value = f16::from_f32(((i + row * 31) % 127) as f32 / 128. - 0.5).to_bits();
+                            *value =
+                                f16::from_f32(((i + row * 31) % 127) as f32 / 128. - 0.5).to_bits();
                         }
                     }
                     expected.extend(layer.submit(&x)?.read()?);
                     input.extend(x);
                 }
                 let actual = layer.submit(&input)?.read()?;
-                ensure!(actual == expected, "shared rows differ: {} NT{nt} B{rows}", case.prefix);
+                ensure!(
+                    actual == expected,
+                    "shared rows differ: {} NT{nt} B{rows}",
+                    case.prefix
+                );
                 compared += actual.len();
             }
         }

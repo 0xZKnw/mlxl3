@@ -51,8 +51,9 @@ impl<'gpu> FlashNext<'gpu> {
         tokens: &[u32],
         cancelled: &AtomicBool,
     ) -> Result<FlashVerification<'_, 'gpu>> {
-        let end = crate::qwen35_config::native_block_end(tokens, 248_320, self.offset, self.context)
-            .context("Flash block must fit the context and contain 1 to 4 valid tokens")?;
+        let end =
+            crate::qwen35_config::native_block_end(tokens, 248_320, self.offset, self.context)
+                .context("Flash block must fit the context and contain 1 to 4 valid tokens")?;
         // A block can retain multiple full recurrent frames and QSA slab forks.
         // Do not bypass the existing AR-only memory admission until its
         // prospective speculative accounting has been qualified.
@@ -129,7 +130,9 @@ impl<'gpu> FlashNext<'gpu> {
             let values = self.head.submit_fp16_view(&mixed)?.read()?;
             ensure!(
                 values.len() == 248_320
-                    && values.iter().all(|&value| half::f16::from_bits(value).is_finite()),
+                    && values
+                        .iter()
+                        .all(|&value| half::f16::from_bits(value).is_finite()),
                 "nonfinite or incomplete Flash verification logits"
             );
             prefix.hidden = Some(row);
@@ -142,9 +145,9 @@ impl<'gpu> FlashNext<'gpu> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Layer;
     use super::*;
     use crate::gpu::{FlashTraceTensor, Metal};
-    use super::super::Layer;
     use std::collections::BTreeMap;
 
     fn retained_state(model: &FlashNext<'_>) -> Result<BTreeMap<String, Vec<u8>>> {
@@ -154,9 +157,15 @@ mod tests {
                 state.insert(format!("gdn_{index}"), recurrent.export_bytes(model.gpu)?);
             }
             if let Layer::Qsa(layer) = layer {
-                state.insert(format!("offset_{index}"), layer.offset().to_le_bytes().to_vec());
+                state.insert(
+                    format!("offset_{index}"),
+                    layer.offset().to_le_bytes().to_vec(),
+                );
                 for (name, words) in layer.retained_half_words()? {
-                    state.insert(format!("qsa_{index}_{name}"), words.into_iter().flat_map(u16::to_le_bytes).collect());
+                    state.insert(
+                        format!("qsa_{index}_{name}"),
+                        words.into_iter().flat_map(u16::to_le_bytes).collect(),
+                    );
                 }
             }
         }
@@ -179,7 +188,8 @@ mod tests {
     #[test]
     #[ignore = "physical Flash checkpoint; exclusive Apple GPU; full scalar-vs-block logits/state oracle"]
     fn layer_major_verification_matches_scalar_prefixes_and_continuations() -> Result<()> {
-        let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
         let mut model = FlashNext::load(&gpu, &c, 64)?;
         // Prefix lengths 1..4 exercise every raw QSA tail alignment; width
@@ -194,15 +204,21 @@ mod tests {
                 let mut scalar_prefixes = vec![root.clone()];
                 for &token in tokens {
                     let logits = model.forward(token)?;
-                    ensure!(logits.len() == 248_320 && logits.iter().all(|&v| half::f16::from_bits(v).is_finite()));
+                    ensure!(
+                        logits.len() == 248_320
+                            && logits.iter().all(|&v| half::f16::from_bits(v).is_finite())
+                    );
                     expected_logits.push(logits);
                     scalar_prefixes.push(model.snapshot());
                 }
                 model.restore(&root)?;
-                for keep in 0..=width {
-                    model.restore(&scalar_prefixes[keep])?;
+                for (keep, scalar_prefix) in scalar_prefixes.iter().enumerate().take(width + 1) {
+                    model.restore(scalar_prefix)?;
                     let expected_state = retained_state(&model)?;
-                    let expected_hidden = model.last_hidden().context("missing scalar hidden")?.export_bytes(&gpu)?;
+                    let expected_hidden = model
+                        .last_hidden()
+                        .context("missing scalar hidden")?
+                        .export_bytes(&gpu)?;
                     let mut expected_continuation = Vec::new();
                     for token in [7, 8, 9, 10] {
                         expected_continuation.push(model.forward_trace(token)?);
@@ -210,15 +226,32 @@ mod tests {
                     model.restore(&root)?;
                     let block = model.stage_block(tokens)?;
                     ensure!(block.logits() == expected_logits);
-                    ensure!(block.prefix_hidden(0).is_none() && block.prefix_hidden(width + 1).is_none());
+                    ensure!(
+                        block.prefix_hidden(0).is_none()
+                            && block.prefix_hidden(width + 1).is_none()
+                    );
                     if keep > 0 {
-                        ensure!(block.prefix_hidden(keep).context("missing verified hidden")?.export_bytes(&gpu)? == expected_hidden);
+                        ensure!(
+                            block
+                                .prefix_hidden(keep)
+                                .context("missing verified hidden")?
+                                .export_bytes(&gpu)?
+                                == expected_hidden
+                        );
                     }
                     block.commit(keep)?;
                     ensure!(model.offset() == root.offset + keep as u32);
                     ensure!(retained_state(&model)? == expected_state);
-                    ensure!(model.last_hidden().context("missing committed hidden")?.export_bytes(&gpu)? == expected_hidden);
-                    for (token, (wanted_logits, wanted_trace)) in [7, 8, 9, 10].into_iter().zip(expected_continuation) {
+                    ensure!(
+                        model
+                            .last_hidden()
+                            .context("missing committed hidden")?
+                            .export_bytes(&gpu)?
+                            == expected_hidden
+                    );
+                    for (token, (wanted_logits, wanted_trace)) in
+                        [7, 8, 9, 10].into_iter().zip(expected_continuation)
+                    {
                         let (actual_logits, actual_trace) = model.forward_trace(token)?;
                         ensure!(actual_logits == wanted_logits);
                         same_trace(&actual_trace, &wanted_trace)?;
@@ -233,7 +266,8 @@ mod tests {
     #[test]
     #[ignore = "physical Flash checkpoint; exclusive Apple GPU; staging rollback and cancellation"]
     fn dropped_invalid_failed_and_cancelled_blocks_preserve_target() -> Result<()> {
-        let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
         let mut model = FlashNext::load(&gpu, &c, 32)?;
         model.prefill(&[248044, 78768, 11])?;

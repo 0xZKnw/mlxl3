@@ -651,12 +651,21 @@ impl<'a> FlashQsa<'a> {
         let prepared = self.prepare_append()?;
         let offset = prepared.before.offset;
         let encoded = gpu.command(|cmd| {
-            let index = self.index.as_ref().map(|index| {
-                index.encode_for_query(
-                    gpu, cmd, &prepared.slab, &prepared.before, x,
-                    (self.eps, false), false,
-                )
-            }).transpose()?;
+            let index = self
+                .index
+                .as_ref()
+                .map(|index| {
+                    index.encode_for_query(
+                        gpu,
+                        cmd,
+                        &prepared.slab,
+                        &prepared.before,
+                        x,
+                        (self.eps, false),
+                        false,
+                    )
+                })
+                .transpose()?;
             #[cfg(test)]
             ensure!(
                 !self.fail_after_index_encode.replace(false),
@@ -667,13 +676,21 @@ impl<'a> FlashQsa<'a> {
             let v = self.v.encode_row(cmd, x, storage)?;
             let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
             Metal::encode(
-                cmd, &gpu.qsa.norm, &[&k.buffer, &self.k_norm, &norm.buffer],
-                [256, self.eps.to_bits(), 256], MTLSize::new(2, 1, 1), 32,
+                cmd,
+                &gpu.qsa.norm,
+                &[&k.buffer, &self.k_norm, &norm.buffer],
+                [256, self.eps.to_bits(), 256],
+                MTLSize::new(2, 1, 1),
+                32,
             );
             let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
             Metal::encode(
-                cmd, &gpu.qsa.rope, &[&norm.buffer, &self.freq, &rotated.buffer],
-                [offset, 2], MTLSize::new(14, 1, 1), 32,
+                cmd,
+                &gpu.qsa.rope,
+                &[&norm.buffer, &self.freq, &rotated.buffer],
+                [offset, 2],
+                MTLSize::new(14, 1, 1),
+                32,
             );
             let blit = cmd.new_blit_command_encoder();
             blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
@@ -689,7 +706,10 @@ impl<'a> FlashQsa<'a> {
         // No query/scores are emitted by encode_for_query(false). Only the tail
         // is retained here; pooling has already written the new complete block.
         if let Some(index) = encoded {
-            ensure!(index.score_view.is_none(), "catch-up unexpectedly encoded scores");
+            ensure!(
+                index.score_view.is_none(),
+                "catch-up unexpectedly encoded scores"
+            );
             self.state.tail = index.tail;
         }
         prepared.slab.published.set(offset + 1);
@@ -1911,15 +1931,21 @@ mod ar36_tests {
                 .map(|i| ((i * 17 + salt) % 257) as f32 / 237. - 0.5)
                 .collect::<Vec<_>>();
             let streams = gpu.f32_storage(&values)?.matrix(MatrixLayout {
-                shape: [1, 10240], strides: [10240, 1], offset: 0,
+                shape: [1, 10240],
+                strides: [10240, 1],
+                offset: 0,
             })?;
             control.extend(&streams)?;
             candidate.extend(&streams)?;
             ensure!(control.retained_half_words()? == candidate.retained_half_words()?);
         }
-        let values = (0..10240).map(|i| (i % 127) as f32 / 113. - 0.5).collect::<Vec<_>>();
+        let values = (0..10240)
+            .map(|i| (i % 127) as f32 / 113. - 0.5)
+            .collect::<Vec<_>>();
         let streams = gpu.f32_storage(&values)?.matrix(MatrixLayout {
-            shape: [1, 10240], strides: [10240, 1], offset: 0,
+            shape: [1, 10240],
+            strides: [10240, 1],
+            offset: 0,
         })?;
         let expected = control.forward(&streams)?.read_output()?;
         let actual = candidate.forward(&streams)?.read_output()?;

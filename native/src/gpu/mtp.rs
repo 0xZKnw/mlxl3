@@ -196,7 +196,10 @@ impl<'a> FlashMtpHead<'a> {
         let result = (|| {
             let output = self.layer.forward(&streams)?;
             let mixed = self.mixer.read(&output, false)?.mixed;
-            target.gpu.device_greedy_head(&target.head, &mixed, false).map(|v| v.0)
+            target
+                .gpu
+                .device_greedy_head(&target.head, &mixed, false)
+                .map(|v| v.0)
         })();
         if result.is_err() {
             self.layer.restore(&before)?;
@@ -391,7 +394,8 @@ impl FlashMtpSession {
                 let staged = target.stage_block(&[anchor, proposal])?;
                 let first = crate::speculative::greedy_log_prob_id(
                     &gpu.flash_log_probs(&staged.logits()[0])?,
-                ).context("invalid Flash MTP probabilities")?;
+                )
+                .context("invalid Flash MTP probabilities")?;
                 let accepted = first == proposal;
                 if !accepted || eos.contains(&first) {
                     staged.commit(1)?;
@@ -401,7 +405,8 @@ impl FlashMtpSession {
                 }
                 let bonus = crate::speculative::greedy_log_prob_id(
                     &gpu.flash_log_probs(&staged.logits()[1])?,
-                ).context("invalid Flash MTP probabilities")?;
+                )
+                .context("invalid Flash MTP probabilities")?;
                 let retained_hidden = staged
                     .prefix_hidden(1)
                     .context("missing verified anchor hidden row")?
@@ -411,7 +416,10 @@ impl FlashMtpSession {
                 self.pending = Some((
                     proposal,
                     bonus,
-                    target.last_hidden().context("missing verified bonus row")?.clone(),
+                    target
+                        .last_hidden()
+                        .context("missing verified bonus row")?
+                        .clone(),
                 ));
                 self.proposed += 1;
                 self.accepted += 1;
@@ -759,8 +767,12 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
     fn same_session(a: &FlashMtpSession, b: &FlashMtpSession) -> Result<()> {
         ensure!(a.proposed == b.proposed && a.accepted == b.accepted);
         ensure!(
-            a.pending.as_ref().map(|(anchor, token, _)| (*anchor, *token))
-                == b.pending.as_ref().map(|(anchor, token, _)| (*anchor, *token))
+            a.pending
+                .as_ref()
+                .map(|(anchor, token, _)| (*anchor, *token))
+                == b.pending
+                    .as_ref()
+                    .map(|(anchor, token, _)| (*anchor, *token))
         );
         Ok(())
     }
@@ -785,32 +797,68 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
             let session_before = copy_session(&session);
             seen_pending |= session.pending.is_some();
             head.block_verify = false;
-            let wanted = session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[])?;
+            let wanted = session.advance_with_eos(
+                &mut target,
+                &mut head,
+                anchor,
+                limit,
+                budget - index,
+                &[],
+            )?;
             let after = target.snapshot();
             let draft_after = head.layer.snapshot();
             let wanted_session = copy_session(&session);
             let wanted_draft = head.layer.retained_half_words()?;
-            let wanted_hidden = target.last_hidden().context("missing scalar MTP hidden")?.export_bytes(&gpu)?;
+            let wanted_hidden = target
+                .last_hidden()
+                .context("missing scalar MTP hidden")?
+                .export_bytes(&gpu)?;
             let wanted_continuation = target.forward_trace(7)?;
             seen_accept |= session.accepted > session_before.accepted;
-            seen_reject |= session.proposed > session_before.proposed && session.accepted == session_before.accepted;
+            seen_reject |= session.proposed > session_before.proposed
+                && session.accepted == session_before.accepted;
             target.restore(&before)?;
             head.layer.restore(&draft_before)?;
             session = copy_session(&session_before);
             head.block_verify = true;
-            let actual = session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[])?;
+            let actual = session.advance_with_eos(
+                &mut target,
+                &mut head,
+                anchor,
+                limit,
+                budget - index,
+                &[],
+            )?;
             ensure!(actual == wanted && target.offset == after.offset);
             same_session(&session, &wanted_session)?;
             ensure!(head.layer.retained_half_words()? == wanted_draft);
-            ensure!(target.last_hidden().context("missing B2 hidden")?.export_bytes(&gpu)? == wanted_hidden);
+            ensure!(
+                target
+                    .last_hidden()
+                    .context("missing B2 hidden")?
+                    .export_bytes(&gpu)?
+                    == wanted_hidden
+            );
             if let Some((_, _, row)) = &session.pending {
-                ensure!(target.last_hidden().is_some_and(|hidden| std::ptr::eq::<metal::BufferRef>(hidden.buffer.as_ref(), row.buffer.as_ref())));
+                ensure!(target.last_hidden().is_some_and(
+                    |hidden| std::ptr::eq::<metal::BufferRef>(
+                        hidden.buffer.as_ref(),
+                        row.buffer.as_ref()
+                    )
+                ));
             }
             let actual_continuation = target.forward_trace(7)?;
             ensure!(actual_continuation.0 == wanted_continuation.0);
-            ensure!(!actual_continuation.1.is_empty() && actual_continuation.1.len() == wanted_continuation.1.len());
+            ensure!(
+                !actual_continuation.1.is_empty()
+                    && actual_continuation.1.len() == wanted_continuation.1.len()
+            );
             for (actual, wanted) in actual_continuation.1.iter().zip(&wanted_continuation.1) {
-                ensure!(actual.name == wanted.name && actual.shape == wanted.shape && actual.data == wanted.data);
+                ensure!(
+                    actual.name == wanted.name
+                        && actual.shape == wanted.shape
+                        && actual.data == wanted.data
+                );
             }
             // Force the independently selected first result to be EOS. This
             // covers accepted and rejected proposals without relying on a
@@ -820,26 +868,64 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
                 head.layer.restore(&draft_before)?;
                 session = copy_session(&session_before);
                 head.block_verify = false;
-                ensure!(session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[wanted])? == wanted);
+                ensure!(
+                    session.advance_with_eos(
+                        &mut target,
+                        &mut head,
+                        anchor,
+                        limit,
+                        budget - index,
+                        &[wanted]
+                    )? == wanted
+                );
                 let eos_state = target.snapshot();
                 let eos_session = copy_session(&session);
                 let eos_draft = head.layer.retained_half_words()?;
-                let eos_hidden = target.last_hidden().context("missing scalar EOS hidden")?.export_bytes(&gpu)?;
+                let eos_hidden = target
+                    .last_hidden()
+                    .context("missing scalar EOS hidden")?
+                    .export_bytes(&gpu)?;
                 let eos_continuation = target.forward_trace(7)?;
                 target.restore(&before)?;
                 head.layer.restore(&draft_before)?;
                 session = copy_session(&session_before);
                 head.block_verify = true;
-                ensure!(session.advance_with_eos(&mut target, &mut head, anchor, limit, budget - index, &[wanted])? == wanted);
-                ensure!(session.pending.is_none() && target.offset == before.offset + 1 && target.offset == eos_state.offset);
+                ensure!(
+                    session.advance_with_eos(
+                        &mut target,
+                        &mut head,
+                        anchor,
+                        limit,
+                        budget - index,
+                        &[wanted]
+                    )? == wanted
+                );
+                ensure!(
+                    session.pending.is_none()
+                        && target.offset == before.offset + 1
+                        && target.offset == eos_state.offset
+                );
                 same_session(&session, &eos_session)?;
                 ensure!(head.layer.retained_half_words()? == eos_draft);
-                ensure!(target.last_hidden().context("missing B2 EOS hidden")?.export_bytes(&gpu)? == eos_hidden);
+                ensure!(
+                    target
+                        .last_hidden()
+                        .context("missing B2 EOS hidden")?
+                        .export_bytes(&gpu)?
+                        == eos_hidden
+                );
                 let actual_continuation = target.forward_trace(7)?;
                 ensure!(actual_continuation.0 == eos_continuation.0);
-                ensure!(!actual_continuation.1.is_empty() && actual_continuation.1.len() == eos_continuation.1.len());
+                ensure!(
+                    !actual_continuation.1.is_empty()
+                        && actual_continuation.1.len() == eos_continuation.1.len()
+                );
                 for (actual, wanted) in actual_continuation.1.iter().zip(&eos_continuation.1) {
-                    ensure!(actual.name == wanted.name && actual.shape == wanted.shape && actual.data == wanted.data);
+                    ensure!(
+                        actual.name == wanted.name
+                            && actual.shape == wanted.shape
+                            && actual.data == wanted.data
+                    );
                 }
             }
             // Restore the ordinary accepted/rejected result, including the
@@ -851,6 +937,9 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
         }
         ensure!(session.pending.is_none() && target.offset == limit);
     }
-    ensure!(seen_accept && seen_reject && seen_pending, "checkpoint fixture must exercise all MTP decisions");
+    ensure!(
+        seen_accept && seen_reject && seen_pending,
+        "checkpoint fixture must exercise all MTP decisions"
+    );
     Ok(())
 }

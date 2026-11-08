@@ -266,9 +266,16 @@ mod tests {
         assert_eq!(plan.admitted_depth(3, 0, 4, 600), None);
         assert_eq!(plan.admitted_depth(3, 4, 0, 600), None);
         assert_eq!(plan.peak_bytes(MAX_DEPTH + 1), None);
-        let overflow = MemoryPlan { base_bytes: u64::MAX, reserve_bytes: 1, ..plan };
+        let overflow = MemoryPlan {
+            base_bytes: u64::MAX,
+            reserve_bytes: 1,
+            ..plan
+        };
         assert_eq!(overflow.admitted_depth(3, 4, 4, u64::MAX), None);
-        let prefix_overflow = MemoryPlan { prefix_state_bytes_per_row: u64::MAX, ..plan };
+        let prefix_overflow = MemoryPlan {
+            prefix_state_bytes_per_row: u64::MAX,
+            ..plan
+        };
         assert_eq!(prefix_overflow.admitted_depth(3, 4, 4, u64::MAX), Some(0));
     }
 
@@ -297,7 +304,12 @@ mod tests {
         assert!(!stats[0].record(4, 100, 1));
         assert!(!stats[0].record(1, 100, 1));
         assert_eq!(stats[0], before);
-        let mut overflow = DepthStats { depth: Some(1), cycles: u64::MAX, wall_ns: 1, emitted: 1 };
+        let mut overflow = DepthStats {
+            depth: Some(1),
+            cycles: u64::MAX,
+            wall_ns: 1,
+            emitted: 1,
+        };
         let before = overflow;
         assert!(!overflow.record(1, 2, 2));
         assert_eq!(overflow, before);
@@ -350,7 +362,10 @@ mod tests {
         assert!(suffix_proposals(&[1, 1], 100, 32, 3, &[]).is_empty());
         assert!(suffix_proposals(&[], usize::MAX, usize::MAX, usize::MAX, &[]).is_empty());
         // At equal suffix length prefer the most recent completed occurrence.
-        assert_eq!(suffix_proposals(&[1, 2, 8, 1, 2, 9, 1, 2], 100, 2, 1, &[]), vec![9]);
+        assert_eq!(
+            suffix_proposals(&[1, 2, 8, 1, 2, 9, 1, 2], 100, 2, 1, &[]),
+            vec![9]
+        );
     }
 
     #[test]
@@ -375,9 +390,17 @@ mod tests {
                             }
                         }
                     }
-                    let expected = candidates.into_iter().max().map_or_else(Vec::new, |(order, _, end)| {
-                        tail[end..tail.len() - order].iter().take(3).copied().collect()
-                    });
+                    let expected =
+                        candidates
+                            .into_iter()
+                            .max()
+                            .map_or_else(Vec::new, |(order, _, end)| {
+                                tail[end..tail.len() - order]
+                                    .iter()
+                                    .take(3)
+                                    .copied()
+                                    .collect()
+                            });
                     assert_eq!(suffix_proposals(&history, lookback, 3, 3, &[]), expected);
                 }
             }
@@ -419,7 +442,12 @@ mod proofs {
 
     #[kani::proof]
     fn invalid_sample_preserves_statistics() {
-        let mut stats = DepthStats { depth: kani::any(), cycles: kani::any(), wall_ns: kani::any(), emitted: kani::any() };
+        let mut stats = DepthStats {
+            depth: kani::any(),
+            cycles: kani::any(),
+            wall_ns: kani::any(),
+            emitted: kani::any(),
+        };
         let before = stats;
         let depth: usize = kani::any();
         let ns: u64 = kani::any();
