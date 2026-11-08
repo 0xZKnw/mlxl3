@@ -542,94 +542,6 @@ impl<'a> FlashProjection<'a> {
         Ok(Some(output))
     }
 
-    fn prepare_mtp_hidden(
-        &self,
-        cmd: &CommandBufferRef,
-        hidden: &MatrixView,
-        gain: &Buffer,
-        eps: f32,
-    ) -> Result<Buffer> {
-        let gpu = self.metal;
-        ensure!(
-            self.mtp_hidden
-                && self.offsets.suh == 0
-                && self.input == 2560
-                && crate::native_executor::mtp_norm_prepare_rows(
-                    hidden.shape(),
-                    hidden.dtype == super::view::FloatType::F32,
-                    hidden.buffer.length()
-                )
-                .is_some()
-                && hidden.layout.offset == 0
-                && hidden.layout.strides[1] == 1
-                && hidden.buffer.device().registry_id() == gpu.device.registry_id()
-                && gain.device().registry_id() == gpu.device.registry_id()
-                && gain.length() == 10240 * 4
-                && eps.is_finite()
-                && eps > 0.,
-            "invalid fused MTP hidden normalization"
-        );
-        let factor = buffer(&gpu.device, 4, Storage::StorageModePrivate)?;
-        let prepared = buffer(&gpu.device, 10240 * 2, Storage::StorageModePrivate)?;
-        Metal::encode(
-            cmd,
-            &gpu.mtp_norm_factor,
-            &[&hidden.buffer, &factor],
-            [eps.to_bits()],
-            MTLSize::new(1, 1, 1),
-            1024,
-        );
-        Metal::encode(
-            cmd,
-            &gpu.mtp_norm_prepare,
-            &[&hidden.buffer, gain, &factor, &self.suh, &prepared],
-            [] as [u32; 0],
-            MTLSize::new(80, 1, 1),
-            64,
-        );
-        #[cfg(test)]
-        gpu.mtp_norm_prepare_uses
-            .set(gpu.mtp_norm_prepare_uses.get() + 1);
-        Ok(prepared)
-    }
-
-    pub(super) fn encode_mtp_hidden_normalized(
-        &self,
-        cmd: &CommandBufferRef,
-        hidden: &MatrixView,
-        gain: &Buffer,
-        eps: f32,
-        storage: Storage,
-    ) -> Result<MatrixView> {
-        let prepared = self.prepare_mtp_hidden(cmd, hidden, gain, eps)?;
-        let mut rows = hidden.clone();
-        rows.layout = crate::tensor_layout::MatrixLayout {
-            shape: [4, 2560],
-            strides: [2560, 1],
-            offset: 0,
-        };
-        let output = self.encode_expert_stage(
-            cmd,
-            Activation::View(&rows),
-            self.view_extents(&rows)?,
-            storage,
-            None,
-            ExpertStage {
-                prepared: Some((&prepared, 0)),
-                ..ExpertStage::default()
-            },
-        )?;
-        Ok(MatrixView {
-            buffer: output,
-            layout: crate::tensor_layout::MatrixLayout {
-                shape: [4, self.output],
-                strides: [i64::from(self.output), 1],
-                offset: 0,
-            },
-            dtype: super::view::FloatType::F16,
-        })
-    }
-
     pub(super) fn encode_rows(
         &self,
         cmd: &CommandBufferRef,
@@ -3690,7 +3602,3 @@ fn physical_up_swiglu_prepare_matches_materialized_half_boundaries() -> Result<(
 
 #[path = "consumer_cohort.rs"]
 mod consumer_cohort;
-
-#[cfg(test)]
-#[path = "mtp_prepare_tests.rs"]
-mod mtp_prepare_tests;

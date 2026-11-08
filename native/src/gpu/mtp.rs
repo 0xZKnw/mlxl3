@@ -134,54 +134,34 @@ impl<'a> FlashMtpHead<'a> {
         let embedding = target.embedding_view(token)?;
         let private = Storage::StorageModePrivate;
         #[cfg(test)]
-        let capture = std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").is_some();
-        #[cfg(not(test))]
-        let capture = false;
+        let capture =
+            std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").map(std::path::PathBuf::from);
         #[cfg(test)]
         let mut parts = Vec::new();
 
         let norm =
             gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
         let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
-        let normalized = if !gpu.mtp_norm_prepare_enabled || capture {
-            let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
-            ensure!(
-                gpu.mtp_norm.thread_execution_width() == 32
-                    && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
-                "unsupported Flash MTP reduction"
-            );
-            Metal::encode(
-                cmd,
-                &gpu.mtp_norm,
-                &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
-                [self.eps.to_bits()],
-                MTLSize::new(1, 1, 1),
-                1024,
-            );
-            normalized.layout = MatrixLayout {
-                shape: [4, 2560],
-                strides: [2560, 1],
-                offset: 0,
-            };
-            Some(normalized)
-        } else {
-            None
+        let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
+        ensure!(
+            gpu.mtp_norm.thread_execution_width() == 32
+                && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
+            "unsupported Flash MTP reduction"
+        );
+        Metal::encode(
+            cmd,
+            &gpu.mtp_norm,
+            &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
+            [self.eps.to_bits()],
+            MTLSize::new(1, 1, 1),
+            1024,
+        );
+        normalized.layout = MatrixLayout {
+            shape: [4, 2560],
+            strides: [2560, 1],
+            offset: 0,
         };
-        let projected_hidden = if gpu.mtp_norm_prepare_enabled {
-            self.hidden_fc.encode_mtp_hidden_normalized(
-                cmd,
-                hidden,
-                &self.hidden_gain,
-                self.eps,
-                private,
-            )?
-        } else {
-            self.hidden_fc.encode_rows(
-                cmd,
-                normalized.as_ref().context("missing normalized hidden")?,
-                private,
-            )?
-        };
+        let projected_hidden = self.hidden_fc.encode_rows(cmd, &normalized, private)?;
         let mixed = MatrixView::output(gpu, FloatType::F16, 1, 10240, private)?;
         Metal::encode(
             cmd,
@@ -196,15 +176,12 @@ impl<'a> FlashMtpHead<'a> {
             32,
         );
         #[cfg(test)]
-        if capture {
+        if capture.is_some() {
             parts.extend([
                 ("embedding", embedding),
                 ("embedding_norm", norm),
                 ("embedding_fc", projected_embedding),
-                (
-                    "hidden_norm",
-                    normalized.context("missing captured normalized hidden")?,
-                ),
+                ("hidden_norm", normalized),
                 ("hidden_fc", projected_hidden),
                 ("mixed", mixed.clone()),
             ]);
@@ -1066,13 +1043,6 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
         seen_accept && seen_reject && seen_pending,
         "checkpoint fixture must exercise all MTP decisions"
     );
-    if gpu.mtp_norm_prepare_enabled {
-        ensure!(gpu.mtp_norm_prepare_uses.get() > 0);
-        println!(
-            "fused MTP norm/prepare dispatches: {}",
-            gpu.mtp_norm_prepare_uses.get()
-        );
-    }
     Ok(())
 }
 
