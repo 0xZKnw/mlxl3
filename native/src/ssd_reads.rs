@@ -254,6 +254,15 @@ impl Read {
     }
 }
 
+#[cfg(test)]
+thread_local! { static CAMPAIGN_READS: std::cell::Cell<Option<(u64,u64)>> = const { std::cell::Cell::new(None) }; }
+#[cfg(test)]
+pub(crate) fn campaign_reads(enabled: bool) -> (u64, u64) {
+    CAMPAIGN_READS
+        .replace(enabled.then_some((0, 0)))
+        .unwrap_or_default()
+}
+
 enum ReadWork {
     Whole(Read),
     Part {
@@ -992,11 +1001,23 @@ impl ReadService {
         Ok(batch)
     }
     fn enqueue(&self, work: ReadWork) -> Result<()> {
+        #[cfg(test)]
+        let bytes = match &work {
+            ReadWork::Whole(read) => read.bytes as u64,
+            ReadWork::Part { record, index, .. } => record.ranges[*index][1] as u64,
+        };
         let worker = self.next.get();
         self.next.set((worker + 1) % self.workers.len());
         self.senders[if self.dynamic { 0 } else { worker }]
             .try_send(work)
             .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
+        #[cfg(test)]
+        if let Some((total, jobs)) = CAMPAIGN_READS.get() {
+            CAMPAIGN_READS.set(Some((
+                total.checked_add(bytes).expect("campaign byte overflow"),
+                jobs.checked_add(1).expect("campaign job overflow"),
+            )));
+        }
         #[cfg(test)]
         if self.dynamic {
             self.dynamic_submissions

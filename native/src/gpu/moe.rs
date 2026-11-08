@@ -862,6 +862,10 @@ impl<'a> FlashMoeRow<'a> {
 
 impl FlashMoeRow<'_> {
     #[cfg(test)]
+    pub(super) fn campaign_slots(&self) -> usize {
+        self.slots.borrow().len()
+    }
+    #[cfg(test)]
     pub(super) fn slru_counts(&self) -> (bool, usize) {
         let cache = self.cache.borrow();
         (cache.slru_enabled(), cache.slru_reservations())

@@ -27384,3 +27384,35 @@ qualified in the explicitly tested modes. No throughput or memory-peak benchmark
 was run. Recursive depth 2/3, adaptive runtime policy and prospective admission
 remain unqualified. All validation processes completed; no merge or installation.
 See [public qualification summary](docs/measurements/mtp-issue160-20261108/README.md).
+
+### MTP-M0-R1-CAMPAIGN — preregistration, before diagnostic code
+Frozen runtime source 830bb38a, existing MAIN/HOLD text corpus, context 4096,
+128 generated tokens (127 decode), greedy canonical normalized selection.
+Controlled cohort-compatible baseline, not shipped-best AR. One target load
+with normal admission, fixed per-layer capacities checked across arms; no forced
+cache, OS purge or wiring change. Five arms AR/D1/B2scalar/B2SSD/sharedB2SSD,
+five Latin rotations after warmups, exact full-token golden parity required.
+Common AR conditioning precedes every measured arm. Drafts loaded separately
+and accounted explicitly; existing DFlash checkpoint only, no downloads.
+Test-only counters report submitted expert-read bytes, not physical disk traffic.
+Cycle wall time and useful tokens separate from optional profiling; sampled memory
+separate from process-lifetime peak. First request reported separately; all-hit
+requires measured zero submitted reads or remains unavailable. Estimate 25–45 min,
+not a performance claim. Raw evidence local; only sanitized summaries publish.
+Before measurements: compile/lint, deterministic helper tests and smoke parity,
+stop on mismatch/error. No compiler/prover concurrent with measured GPU work.
+
+MTP-M0-R1 campaign stopped on the latest user request after one complete MAIN
+measured rotation, following warmups. All five arms matched the same 128-token
+AR golden. Controlled cohort-compatible AR 8.0285, D1 7.6708, scalar B2 6.5978,
+SSD B2 4.7507, shared SSD B2 4.7404 tok/s. These are individual samples, not
+medians or shipped-best AR comparisons. Same naturally admitted 11 slots/layer;
+no admission override. Remaining rotations/HOLD/DFlash/all-hit not executed.
+The owned benchmark was terminated and reaped after the fifth record was saved;
+raw report explicitly marks the protocol truncated on request. No process remains.
+Release diagnostic compiled; strict Clippy and deterministic rotation test passed.
+No speed gain established; preserve slower results for review. Public-safe summary:
+[preliminary speed](docs/measurements/mtp-issue160-20261108/speed-preliminary.json).
+Focused native inventory check matches 300 files; all six inventory tests pass after
+registering the implemented runtime and test-only diagnostic references. The full
+standard suite was not rerun for the diagnostic-only source additions.

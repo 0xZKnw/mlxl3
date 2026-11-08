@@ -2,7 +2,7 @@
 
 Qualified runtime source: `830bb38a9039fb56f2474a3735a5872d51efaaee`, PR #161.
 
-No throughput benchmark was run. No speed improvement or target tokens/second result is established.
+The correctness campaign below did not measure throughput. A later user-requested preliminary speed test is recorded at the end; it found regressions in its controlled configuration, not a speed improvement.
 
 ## Passed controls
 
@@ -39,8 +39,27 @@ Negative control: temporarily omitting the KV-only K append caused the retained-
 
 ## Remaining limits
 
-- No throughput, SSD bandwidth or memory-peak benchmark was executed. Test durations are not performance measurements.
+- Correctness-test durations are not performance measurements. The separate preliminary speed test does not establish physical SSD bandwidth or instantaneous memory peaks.
 - Recursive depth-2/depth-3 MTP, adaptive-depth runtime integration and prospective-budget admission are not qualified by this report.
 - The original stock MTP-session oracle test and a separate full bridge/CLI generation campaign were not executed here.
 - Numerical parity applies to the tested configuration and explicit flags, not every model or flag composition. Experimental paths remain opt-in.
 - No merge, release or installation occurred.
+
+
+## Preliminary speed test, stopped for review
+
+The user subsequently requested a speed test, then requested ending work for PR review. One complete MAIN rotation was retained; the planned remaining rotations, HOLD, DFlash and all-hit studies were not run. This is **one measured sample per arm**, after one warmup per arm, not medians or a completed statistical campaign.
+
+Release-mode diagnostic on the qualified runtime, context 4096, 128 generated tokens / 127 decode tokens, exact full-token parity, the same loaded target and naturally admitted 11 cache slots per layer:
+
+- Controlled AR: **8.0285 tok/s**.
+- Scalar MTP D1: **7.6708 tok/s**.
+- B2 scalar verification: **6.5978 tok/s**.
+- B2 with SSD cohorts: **4.7507 tok/s**.
+- B2 with SSD cohorts and shared QMV: **4.7404 tok/s**.
+
+All MTP arms accepted 54 of 72 proposals. High acceptance did not produce a speedup here. SSD cohorts reduced submitted expert-read bytes relative to scalar B2, but ran slower. This requires performance investigation rather than a claim that the new paths are faster.
+
+**This AR control is cohort-compatible, not shipped-best AR.** Hot routing, workspace, deferred execution and finish-mix were held off across every arm; the MTP head remained resident across arms. Automatic admission was not overridden. Common AR conditioning preceded each arm. The wall measurements include diagnostic cycle bookkeeping and boundary memory samples; they are not a standalone CLI result. Reader-request bytes are not physical SSD traffic.
+
+See `speed-preliminary.json` for exact individual measurements and limits. The diagnostic implementation is test-only in `native/src/gpu/mtp_campaign.rs`; raw local evidence is not published. No default experimental activation, merge or release follows from these results.

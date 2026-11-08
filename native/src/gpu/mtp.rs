@@ -1125,3 +1125,7 @@ mod optimization_regression_tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "chat"))]
+#[path = "mtp_campaign.rs"]
+mod campaign;
