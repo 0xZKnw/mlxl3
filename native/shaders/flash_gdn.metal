@@ -131,3 +131,77 @@ kernel void ar20_gdn_whole_head_gates(AR20_WHOLE_GDN_ARGS) {
 #undef MLXL3_GDN_HEAD_GATES
 }
 #undef AR20_WHOLE_GDN_ARGS
+
+#define TEMPORAL_GDN_ARGS const device half* all_qkv [[buffer(0)]],const device half* all_z [[buffer(1)]], \
+    const device half* all_a [[buffer(2)]],const device half* all_b [[buffer(3)]],const device half* initial_history [[buffer(4)]], \
+    const device half* weight [[buffer(5)]],const device float* a_log [[buffer(6)]],const device half* dt_bias [[buffer(7)]], \
+    const device float* initial_state [[buffer(8)]],device half* history0 [[buffer(9)]],device float* state0 [[buffer(10)]], \
+    const device float* gain [[buffer(11)]],device half* all_gated [[buffer(12)]], \
+    device half* history1 [[buffer(13)]],device float* state1 [[buffer(14)]], \
+    device half* history2 [[buffer(15)]],device float* state2 [[buffer(16)]], \
+    device half* history3 [[buffer(17)]],device float* state3 [[buffer(18)]],constant uint* params [[buffer(19)]], \
+    uint lid [[thread_index_in_threadgroup]],uint h [[threadgroup_position_in_grid]]
+
+kernel void flash_gdn_temporal_b2(TEMPORAL_GDN_ARGS) {
+#define TEMPORAL_ROWS 2u
+
+    const uint local_row = (lid / 32u) * 8u + (lid % 32u) / 4u;
+    const uint column = (lid % 4u) * 32u;
+    float state[32];
+    for (uint i = 0; i < 32u; ++i)
+        state[i] = initial_state[(h * 128u + local_row) * 128u + column + i];
+    device half* histories[4] = {history0,history1,history2,history3};
+    device float* states[4] = {state0,state1,state2,state3};
+    for (uint r = 0; r < TEMPORAL_ROWS; ++r) {
+        if (r >= params[1]) break;
+        const device half* qkv = all_qkv + r * 10240u;
+        const device half* z = all_z + r * 6144u;
+        const device half* a = all_a + r * 48u;
+        const device half* b = all_b + r * 48u;
+        const device float* state_in = initial_state;
+        device half* history_out = histories[r];
+        device float* state_out = states[r];
+        device half* gated = all_gated + r * 6144u;
+#define MLXL3_GDN_HEAD_GATES 0
+#define MLXL3_GDN_EXTERNAL_STATE 1
+#define MLXL3_GDN_HISTORY(t,c) ((r+uint(t)<3u)?initial_history[(r+uint(t))*10240u+(c)]:all_qkv[(r+uint(t)-3u)*10240u+(c)])
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HISTORY
+#undef MLXL3_GDN_EXTERNAL_STATE
+#undef MLXL3_GDN_HEAD_GATES
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+#undef TEMPORAL_ROWS
+}
+kernel void flash_gdn_temporal_b4(TEMPORAL_GDN_ARGS) {
+#define TEMPORAL_ROWS 4u
+
+    const uint local_row = (lid / 32u) * 8u + (lid % 32u) / 4u;
+    const uint column = (lid % 4u) * 32u;
+    float state[32];
+    for (uint i = 0; i < 32u; ++i)
+        state[i] = initial_state[(h * 128u + local_row) * 128u + column + i];
+    device half* histories[4] = {history0,history1,history2,history3};
+    device float* states[4] = {state0,state1,state2,state3};
+    for (uint r = 0; r < TEMPORAL_ROWS; ++r) {
+        if (r >= params[1]) break;
+        const device half* qkv = all_qkv + r * 10240u;
+        const device half* z = all_z + r * 6144u;
+        const device half* a = all_a + r * 48u;
+        const device half* b = all_b + r * 48u;
+        const device float* state_in = initial_state;
+        device half* history_out = histories[r];
+        device float* state_out = states[r];
+        device half* gated = all_gated + r * 6144u;
+#define MLXL3_GDN_HEAD_GATES 0
+#define MLXL3_GDN_EXTERNAL_STATE 1
+#define MLXL3_GDN_HISTORY(t,c) ((r+uint(t)<3u)?initial_history[(r+uint(t))*10240u+(c)]:all_qkv[(r+uint(t)-3u)*10240u+(c)])
+#include "flash_gdn_whole.metal"
+#undef MLXL3_GDN_HISTORY
+#undef MLXL3_GDN_EXTERNAL_STATE
+#undef MLXL3_GDN_HEAD_GATES
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+#undef TEMPORAL_ROWS
+}
+#undef TEMPORAL_GDN_ARGS

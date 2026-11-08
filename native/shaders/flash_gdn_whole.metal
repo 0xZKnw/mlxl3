@@ -1,3 +1,7 @@
+#ifndef MLXL3_GDN_HISTORY
+#define MLXL3_GDN_HISTORY(t,c) history[(t)*10240+(c)]
+#define MLXL3_GDN_DEFAULT_HISTORY 1
+#endif
 
     const uint sg=lid/32,ln=lid%32,hk=h/3;
     threadgroup half tq[128],tk[128],tv[128],ty[128];
@@ -8,7 +12,7 @@
             uint channel=channel_head*128+ln*4+i;
             float acc=0.0f;
             for(uint t=0;t<4;++t) {
-                half x=t<3?history[t*10240+channel]:qkv[channel];
+                half x=t<3?MLXL3_GDN_HISTORY(t,channel):qkv[channel];
                 acc+=float(x)*float(weight[channel*4+t]);
             }
             half x=half(acc);
@@ -20,7 +24,7 @@
             sum+=squared;
             // Shared Q/K heads have exactly one history owner; each V head is unique.
             if(sg==2 || h%3==0) for(uint t=0;t<3;++t)
-                history_out[t*10240+channel]=t<2?history[(t+1)*10240+channel]:qkv[channel];
+                history_out[t*10240+channel]=t<2?MLXL3_GDN_HISTORY(t+1,channel):qkv[channel];
             if(sg==2)tv[ln*4+i]=value;
         }
         if(sg<2) {
@@ -100,3 +104,8 @@
             gated[at+i]=half(product);
         }
     }
+
+#ifdef MLXL3_GDN_DEFAULT_HISTORY
+#undef MLXL3_GDN_HISTORY
+#undef MLXL3_GDN_DEFAULT_HISTORY
+#endif

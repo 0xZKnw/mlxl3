@@ -1911,7 +1911,9 @@
     "config MLXL3_NATIVE_FIXED_RESIDENCY": 1,
     "config MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS": 1,
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
+    "config MLXL3_NATIVE_FLASH_GDN_TEMPORAL": 1,
     "config MLXL3_NATIVE_FLASH_GLU_DOWN": 1,
+    "config MLXL3_NATIVE_FLASH_GPU_SEGMENTS": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
     "config MLXL3_NATIVE_FLASH_VERIFY_QMV": 1,
     "config MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED": 1,
@@ -2080,16 +2082,21 @@
     ".transpose": 1
   },
   "native/src/gpu/gdn.rs": {
-    ".finish": 9,
+    ".finish": 11,
     ".shape": 2,
     ".take": 1,
-    ".transpose": 5,
-    "config MLXL3_GDN_MODEL": 1
+    ".transpose": 6,
+    "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_GDN_MODEL": 1,
+    "config MLXL3_NATIVE_FLASH_FRAME_ARENA": 1
   },
   "native/src/gpu/gdn_route_tests.rs": {
     ".memory_stats": 1,
     "config MLXL3_AR43_TOKEN_HASH": 1,
     "config MLXL3_FLASH_MODEL": 2
+  },
+  "native/src/gpu/gdn_temporal.rs": {
+    ".shape": 3
   },
   "native/src/gpu/gdn_uar_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1,
@@ -2284,6 +2291,9 @@
     ".to_f32": 2,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 3
+  },
+  "native/src/gpu/segment.rs": {
+    ".take": 1
   },
   "native/src/gpu/ssd_direct_tests.rs": {
     "config MLXL3_FLASH_MODEL": 2

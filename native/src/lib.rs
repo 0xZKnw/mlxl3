@@ -65,6 +65,8 @@ pub(crate) mod flash_profile;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod flash_qmv;
 pub mod flash_support;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod frame_arena;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(any(feature = "mlx", test, kani))]

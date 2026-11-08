@@ -8,7 +8,7 @@ Local branch `codex/issue164-native-executor`, based on `b5dfaa1b`. No push, rel
 | L1 | N01 specialized MB2, N03 fused down preparation | Implemented locally, opt-in | N01 Kani 142 / 5 covers; resident physical 11,538,432 exact words. N03 independent 128,000 prepared words; component + composed prefix checks pass |
 | L2 | N02 experts × consumers | Implemented locally, opt-in | Component dispatch assertions and B2–B4 every-prefix model oracle pass |
 | L3 | N05 sliding reads; separate N13 priority | N05 implemented locally, opt-in; N13 pending | Sliding whole-record credits; 22 CPU tests and bounded Kani; composed model gate passes |
-| L4 | N04 temporal GDN; N06 segments; bounded N09 arena | Pending | Preserve every prefix state and external snapshots |
+| L4 | N04 temporal GDN; N06 segments; bounded N09 arena | Implemented locally, opt-in | GDN temporal B2/B4 (B3 masked), first joined HC/router segment, 9-frame arena; composed every-prefix physical gate passes |
 | L5 | N07 common plan/transaction; N08 QSA/PLE; N14 memory admission | Pending | Keep B1 optimizations, connect actual resource accounting |
 | L6 | N10 draft debt; N11 real D0–D3 session; conditional N12 | Pending | Target exactness, recursive hidden provenance, full transition costs |
 | L7 | N15 prefill; conditional N16/N17/N18 | Pending | No automatic promotion of approximations or unprofiled hardware changes |

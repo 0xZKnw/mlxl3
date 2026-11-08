@@ -377,6 +377,11 @@ pub struct Metal {
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: Option<ComputePipelineState>,
     expert_down_prepare: Option<ComputePipelineState>,
+    segment_enabled: bool,
+    segment_pending: std::cell::Cell<usize>,
+    segment_failed: std::cell::Cell<bool>,
+    #[cfg(test)]
+    segment_submissions: std::cell::Cell<u64>,
     #[cfg(test)]
     expert_down_prepare_uses: std::cell::Cell<u64>,
     expert_gu_prepare: Option<ComputePipelineState>,
@@ -1034,6 +1039,7 @@ impl Metal {
                 gdn_joint_ab,
                 gdn_whole,
                 gdn_head_gates,
+                hc_kernel_setting("MLXL3_NATIVE_FLASH_GDN_TEMPORAL")? && qualified_m5,
             )?;
             let logsumexp = cached_pipeline("flash_logsumexp")?;
             let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
@@ -1196,6 +1202,11 @@ impl Metal {
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
                 expert_down_prepare,
+                segment_enabled: hc_kernel_setting("MLXL3_NATIVE_FLASH_GPU_SEGMENTS")?,
+                segment_pending: std::cell::Cell::new(0),
+                segment_failed: std::cell::Cell::new(false),
+                #[cfg(test)]
+                segment_submissions: std::cell::Cell::new(0),
                 #[cfg(test)]
                 expert_down_prepare_uses: std::cell::Cell::new(0),
                 expert_gu_prepare,
@@ -1278,6 +1289,7 @@ impl Metal {
     }
 
     fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
+        ensure!(!self.segment_failed.get(), "previous GPU segment failed");
         objc::rc::autoreleasepool(|| {
             let cmd = self.queue.new_command_buffer();
             #[cfg(test)]
@@ -1601,3 +1613,6 @@ mod ar20_capture_tests;
 #[cfg(test)]
 #[path = "gpu/ar30_greedy_tests.rs"]
 mod ar30_greedy_tests;
+
+#[path = "gpu/segment.rs"]
+mod segment;

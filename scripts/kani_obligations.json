@@ -449,6 +449,9 @@
     "ssd_reads::early_shared_plan_checks_all_structural_preconditions",
     "flash_qmv::verify_specialization_keys_preserve_admission_and_table_bounds",
     "expert_ar_policy::consumer_grid_preserves_expert_and_odd_row_bounds",
-    "ssd_reads::window::sliding_credits_bound_whole_jobs_and_pending_descriptors"
+    "ssd_reads::window::sliding_credits_bound_whole_jobs_and_pending_descriptors",
+    "frame_arena::generation_renewal_requires_exclusive_pool_ownership_without_wrap",
+    "frame_arena::temporal_shape_admission_keeps_rows_and_pipeline_indices_bounded",
+    "frame_arena::gpu_segment_admission_never_wraps_or_overcommits_after_a_fault"
   ]
 }

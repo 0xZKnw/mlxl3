@@ -557,10 +557,24 @@ mod tests {
                 model.verify_ssd_cohorts = true;
                 let joint_before = gpu.hc_gate_chain_pairs.get();
                 let gdn_before = crate::gpu::FlashGdnLayer::block_projection_count();
+                let temporal_before = crate::gpu::FlashGdnLayer::temporal_batch_count();
+                let segments_before = gpu.segment_submissions.get();
                 let standalone_before = gpu.gate_commands.get();
                 let expected_joint = width * model.layers.len();
                 let specialized_before = gpu.flash_verify_specialized_uses.get();
                 let cohort = model.stage_block(tokens)?;
+                if gpu.gdn.temporal.is_some() && gpu.gdn_whole.get() {
+                    let delta = crate::gpu::FlashGdnLayer::temporal_batch_count() - temporal_before;
+                    ensure!(delta > 0, "temporal GDN kernel was not reached");
+                    eprintln!("temporal GDN batches: {delta}");
+                }
+                if gpu.segment_enabled {
+                    ensure!(
+                        gpu.segment_submissions.get() > segments_before
+                            && gpu.segment_pending.get() == 0,
+                        "GDN/HC/router segment was not retired"
+                    );
+                }
                 if gpu.flash_verify_specialized.is_some()
                     && crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
                 {
