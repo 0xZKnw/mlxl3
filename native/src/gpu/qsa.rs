@@ -1254,7 +1254,7 @@ impl<'a> FlashQsaLayer<'a> {
     ) -> Result<Self> {
         let kv_only_catchup = match std::env::var("MLXL3_NATIVE_MTP_KV_ONLY") {
             Ok(value) => qsa_chain_policy::setting(Some(&value), true),
-            Err(std::env::VarError::NotPresent) => Some(false),
+            Err(std::env::VarError::NotPresent) => Some(gpu.flash_defaults),
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_MTP_KV_ONLY must be 0 or 1")?;

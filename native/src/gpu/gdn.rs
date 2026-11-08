@@ -208,8 +208,12 @@ impl<'a> FlashGdn<'a> {
             Err(std::env::VarError::NotPresent) => None,
             Err(error) => return Err(anyhow::anyhow!("invalid frame arena setting: {error}")),
         };
-        let arena = crate::flash_support::hc_kernel_flag(arena, gpu.device_name() == "Apple M5")
-            .context("MLXL3_NATIVE_FLASH_FRAME_ARENA must be 0 or 1")?;
+        let arena = crate::native_executor::default_flag(
+            arena,
+            gpu.device_name() == "Apple M5",
+            gpu.flash_defaults,
+        )
+        .context("MLXL3_NATIVE_FLASH_FRAME_ARENA must be 0 or 1")?;
         Ok(Self {
             gpu,
             frame_pool: arena.then(|| std::cell::RefCell::new(Vec::new())),

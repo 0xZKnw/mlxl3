@@ -254,6 +254,10 @@ impl<'a> FlashNext<'a> {
             .sum()
     }
 
+    pub(super) fn default_block_verification(&self) -> bool {
+        self.gpu.flash_defaults && self.verify_ssd_cohorts
+    }
+
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
         #[cfg(feature = "chat")]
@@ -363,8 +367,13 @@ impl<'a> FlashNext<'a> {
                     Err(std::env::VarError::NotPresent) => None,
                     Err(error) => return Err(error.into()),
                 };
-                crate::flash_support::hc_kernel_flag(value.as_deref(), true)
-                    .context("MLXL3_NATIVE_MTP_SSD_COHORTS must be 0 or 1")?
+                crate::flash_support::hc_chain_flag(
+                    value.as_deref(),
+                    gpu.flash_defaults
+                        && lookahead_depth == 0
+                        && layers.iter_mut().all(|layer| layer.moe().block_eligible()),
+                )
+                .context("MLXL3_NATIVE_MTP_SSD_COHORTS must be 0 or 1")?
             },
             #[cfg(feature = "chat")]
             prefill_heads,

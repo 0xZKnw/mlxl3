@@ -1,6 +1,6 @@
 # Issue164 — native executor implementation
 
-Local branch `codex/issue164-native-executor`, based on `b5dfaa1b`. No push, release or installed application replacement. Speed campaign deferred until composition is complete at the user’s request. Correctness checks remain required.
+PR161 now includes the runtime implementation through `8b3bf72e` and the subsequent qualified M5 default promotion. The user authorized integration and merge without waiting for hosted CI. No release or installed application replacement. Historical local checkpoint below is retained; current speed/default evidence: [pilot report](measurements/issue164-speed-20261108/README.md).
 
 | Lot | Items | State | Evidence / next gate |
 |---|---|---|---|
@@ -15,7 +15,7 @@ Local branch `codex/issue164-native-executor`, based on `b5dfaa1b`. No push, rel
 
 Detailed protocol, failures and raw evidence: `opti.md` and local `build/issue164-20261108/`. This file tracks implementation, not a claim that the complete issue is qualified or that its speed target has been reached.
 
-## Verified local checkpoint
+## Historical opt-in checkpoint (before default promotion)
 
 The complete issue is **not implemented**. The remaining lots have not been started. N01–N05 and the bounded frame arena N09 have local implementations; N06 has its first GDN→HC/router segment, and N07 has common contracts and the owned Hot/workspace/deferred/finish paths. N14 connects conservative prospective admission with the live memory ledger. All new switches default to off.
 
@@ -24,3 +24,7 @@ Release library: **365 passed / 133 ignored**. Strict Clippy passes. Physical B2
 N08, N10, N11, N13 and N15 remain unimplemented. N12/N16/N17/N18 are conditional experiments requiring later profiles. The remaining N06 scheduling stages and the full N07 executor redesign are also pending. The old Hot+finish/mix combination still fails closed; predictive prefetch guards remain. No speed campaign, gain claim, push, release or application replacement.
 
 The final native CLI builds with `direct-metal,chat`. A short production bridge correctness check confirms identical AR/MTP text and token hash (`c10b2a835cb93ad6`), including warmups. Its incidental throughput statistics are not a performance qualification. Manifest/inventory checks: 11 passed / 44 Linux-only skipped / 2 subtests passed; Ruff passes. CrossHair is unavailable for the proof-manifest expectation data. Full Kani, the remaining ignored physical suite and new Metal debug validation are not executed at this checkpoint. Local artifact identities and receipts are in `build/issue164-20261108/final-identity.json`.
+
+## Current default promotion
+
+Implemented compatible paths are enabled automatically on exact Apple M5, with strict explicit overrides and legacy defaults for budgeted/lookahead configurations. Actual per-layer eligibility controls automatic SSD cohorts and block verification. MTP itself remains a request option. The MAIN64 pilot measures10.35tok/s optimized MTP,8.36same-binary ablation mean,9.76AR; all text identical. Controls drift3%, small sample and differing AR/MTP draft memory limit the comparison. Raw plans, failed budget preflight, measurements, conditions and verification receipts are in the linked report. The pending issue164 lots above remain pending.

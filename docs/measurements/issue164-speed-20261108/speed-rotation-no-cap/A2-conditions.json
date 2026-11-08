@@ -1,0 +1,115 @@
+{
+  "name": "A2",
+  "configuration": "A",
+  "mtp": true,
+  "status": "passed",
+  "started": 1794161825.04593,
+  "quiet_checks": 1,
+  "before": {
+    "power": {
+      "exit": 0,
+      "output": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "output": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "pressure": {
+      "exit": 0,
+      "output": "The system has 25769803776 (1572864 pages with a page size of 16384).\nSystem-wide memory free percentage: 77%\n",
+      "stderr": ""
+    },
+    "vm": {
+      "exit": 0,
+      "output": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   465782.\nPages active:                                 355048.\nPages inactive:                               363412.\nPages speculative:                               270.\nPages throttled:                                   0.\nPages wired down:                             148998.\nPages purgeable:                                2172.\n\"Translation faults\":                      802546813.\nPages copy-on-write:                        22354906.\nPages zero filled:                        1129377254.\nPages reactivated:                          23638555.\nPages purged:                                4742583.\nFile-backed pages:                            529618.\nAnonymous pages:                              189112.\nPages stored in compressor:                   373570.\nPages occupied by compressor:                 185188.\nDecompressions:                            180620464.\nCompressions:                              196769642.\nPageins:                                   233550866.\nPageouts:                                      97651.\nSwapins:                                      158163.\nSwapouts:                                     360326.\nPages tagged:                                 102955.\nPages tagged resident:                         74226.\nPages tagged compressed:                       28729.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4028.\nPages tag-storage free:                         6643.\nPages tag-storage non-tag pageable:            38335.\nPages tag-storage non-tag wired:                  17.\nBytes of compressed tags:                    4756736.\nTagged compressions:                         1227621.\nTagged decompressions:                       1136120.\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "output": "vm.swapusage: total = 1024.00M  used = 132.44M  free = 891.56M  (encrypted)\n",
+      "stderr": ""
+    },
+    "apps": []
+  },
+  "stats": {
+    "cached_prompt_tokens": 0,
+    "context_limit": 4096,
+    "context_used": 151,
+    "decode_seconds": 7.654306792,
+    "decode_tokens": 63,
+    "decode_tps": 8.230660425820048,
+    "dflash_accepted_tokens": null,
+    "dflash_block_seconds": 0.0,
+    "dflash_blocks": null,
+    "dflash_lookup_blocks": null,
+    "dflash_profile": null,
+    "dflash_proposed_tokens": null,
+    "draft_load_seconds": 0.0,
+    "elapsed_seconds": 18.081131375,
+    "end_to_end_ttft_seconds": 10.426805166,
+    "evaluated_prompt_tokens": 87,
+    "generated_tokens": 64,
+    "memory": {
+      "mlx_active_bytes": 0,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 0,
+      "native_metal_allocated_bytes": 6832390144,
+      "process_compressed_lifetime_logical_bytes": 13626425344,
+      "process_compressed_logical_bytes": 1809514496,
+      "process_compressed_peak_logical_bytes": 2073034752,
+      "process_decompressions": 952401,
+      "process_footprint_bytes": 7477418032,
+      "process_id": 47554,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7607687216,
+      "process_start_abstime": 2710416702865
+    },
+    "model_size_gb": 62.815131785,
+    "mtp_accepted_tokens": 28,
+    "mtp_blocks": 34,
+    "mtp_depth_blocks": null,
+    "mtp_lookup_blocks": null,
+    "mtp_proposed_tokens": 34,
+    "prefill_seconds": 10.425866083,
+    "prefill_tps": 8.34463048991764,
+    "prepare_seconds": 0.000277167,
+    "prompt_tokens": 87,
+    "round_count": 1,
+    "tool_rounds": 0,
+    "tool_seconds": 0.0,
+    "ttft_seconds": 10.426799416
+  },
+  "token_hash": "d7c2f53d11d70633",
+  "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'",
+  "seconds": 38.435473918914795,
+  "after": {
+    "power": {
+      "exit": 0,
+      "output": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "output": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "pressure": {
+      "exit": 0,
+      "output": "The system has 25769803776 (1572864 pages with a page size of 16384).\nSystem-wide memory free percentage: 76%\n",
+      "stderr": ""
+    },
+    "vm": {
+      "exit": 0,
+      "output": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   460083.\nPages active:                                 355079.\nPages inactive:                               365351.\nPages speculative:                               360.\nPages throttled:                                   0.\nPages wired down:                             152019.\nPages purgeable:                                   3.\n\"Translation faults\":                      803816441.\nPages copy-on-write:                        22360987.\nPages zero filled:                        1132909261.\nPages reactivated:                          23662057.\nPages purged:                                4742977.\nFile-backed pages:                            533257.\nAnonymous pages:                              187533.\nPages stored in compressor:                   375972.\nPages occupied by compressor:                 185806.\nDecompressions:                            181597306.\nCompressions:                              197805053.\nPageins:                                   235618245.\nPageouts:                                      97947.\nSwapins:                                      158163.\nSwapouts:                                     360326.\nPages tagged:                                 103085.\nPages tagged resident:                         74299.\nPages tagged compressed:                       28786.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4020.\nPages tag-storage free:                         7106.\nPages tag-storage non-tag pageable:            37903.\nPages tag-storage non-tag wired:                  17.\nBytes of compressed tags:                    4761664.\nTagged compressions:                         1228299.\nTagged decompressions:                       1136620.\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "output": "vm.swapusage: total = 1024.00M  used = 132.44M  free = 891.56M  (encrypted)\n",
+      "stderr": ""
+    },
+    "apps": []
+  }
+}

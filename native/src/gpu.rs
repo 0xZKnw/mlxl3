@@ -378,6 +378,7 @@ pub struct Metal {
     expert_up_finish: Option<ComputePipelineState>,
     expert_down_prepare: Option<ComputePipelineState>,
     common_executor: bool,
+    flash_defaults: bool,
     segment_enabled: bool,
     segment_pending: std::cell::Cell<usize>,
     segment_failed: std::cell::Cell<bool>,
@@ -492,6 +493,7 @@ impl Metal {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
+            let flash_defaults = crate::native_executor::defaults(qualified_m5);
             let fixed_residency_enabled = match std::env::var("MLXL3_NATIVE_FIXED_RESIDENCY") {
                 Ok(value) => crate::flash_support::hc_kernel_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -506,7 +508,23 @@ impl Metal {
                     Err(std::env::VarError::NotPresent) => None,
                     Err(error) => return Err(error.into()),
                 };
-                crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
+                let default = flash_defaults
+                    && match name {
+                        "MLXL3_NATIVE_FLASH_COMMON_EXECUTOR"
+                        | "MLXL3_NATIVE_FLASH_VERIFY_QMV"
+                        | "MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED"
+                        | "MLXL3_NATIVE_FLASH_GLU_DOWN"
+                        | "MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS"
+                        | "MLXL3_NATIVE_FLASH_GDN_TEMPORAL"
+                        | "MLXL3_NATIVE_FLASH_GPU_SEGMENTS"
+                        | "MLXL3_NATIVE_DEVICE_GREEDY" => true,
+                        "MLXL3_NATIVE_HOT_WORKSPACE" => {
+                            std::env::var_os("MLXL3_NATIVE_MOE_FINISH_MIX")
+                                .is_none_or(|value| value != "1")
+                        }
+                        _ => false,
+                    };
+                crate::native_executor::default_flag(value.as_deref(), qualified_m5, default)
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
@@ -562,9 +580,10 @@ impl Metal {
             .context("MLXL3_NATIVE_MOE_DEFERRED must be 0 or 1")?;
             let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
                 Ok(value) => crate::hc_workspace_policy::flag(Some(&value), qualified_m5),
-                Err(std::env::VarError::NotPresent) => {
-                    crate::hc_workspace_policy::flag(None, qualified_m5)
-                }
+                Err(std::env::VarError::NotPresent) => crate::hc_workspace_policy::flag(
+                    Some(if flash_defaults { "1" } else { "0" }),
+                    qualified_m5,
+                ),
                 Err(error) => return Err(error.into()),
             }
             .context("MLXL3_NATIVE_HC_WORKSPACE must be 0 or 1")?;
@@ -1203,6 +1222,7 @@ impl Metal {
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
                 expert_down_prepare,
+                flash_defaults,
                 common_executor: hc_kernel_setting("MLXL3_NATIVE_FLASH_COMMON_EXECUTOR")?,
                 segment_enabled: hc_kernel_setting("MLXL3_NATIVE_FLASH_GPU_SEGMENTS")?,
                 segment_pending: std::cell::Cell::new(0),

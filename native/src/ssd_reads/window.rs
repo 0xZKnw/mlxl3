@@ -148,11 +148,13 @@ impl Drop for ReadWindow<'_> {
     }
 }
 
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub(crate) enum BlockReads<'a> {
     Batch(ReadBatch),
     Window(ReadWindow<'a>),
 }
 
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
 impl BlockReads<'_> {
     pub(crate) fn remaining(&self) -> usize {
         match self {

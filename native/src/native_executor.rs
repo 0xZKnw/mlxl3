@@ -49,6 +49,16 @@ fn plans_reject_invalid_contexts_and_bound_every_role() {
         }
         assert!(plan.prefix_bytes() > 0);
     }
+    assert_eq!(draft_capacity_bytes(0), None);
+    assert_eq!(draft_capacity_bytes(u32::MAX), None);
+    assert_eq!(
+        draft_capacity_bytes(4096),
+        Some(512 * crate::flash_support::EXPERT_BYTES + 8_651_520)
+    );
+    assert_eq!(draft_reserve_after(100, 200, true), Some(300));
+    assert_eq!(draft_reserve_after(300, 200, false), Some(100));
+    assert_eq!(draft_reserve_after(u64::MAX, 1, true), None);
+    assert_eq!(draft_reserve_after(100, 200, false), None);
     for active in [0, 1, 3, 4, usize::MAX] {
         for owned in [false, true] {
             assert_eq!(
@@ -61,7 +71,34 @@ fn plans_reject_invalid_contexts_and_bound_every_role() {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::unwind(10)]
 fn native_plan_admission_and_resource_bounds_cover_all_roles() {
+    let m5: bool = kani::any();
+    let budget: bool = kani::any();
+    let lookahead: bool = kani::any();
+    let disabled: bool = kani::any();
+    let profile = default_profile(m5, budget, lookahead, disabled);
+    assert_eq!(profile, m5 && !budget && !lookahead && !disabled);
+    kani::cover!(profile);
+    kani::cover!(m5 && budget && !profile);
+    kani::cover!(m5 && lookahead && !profile);
+    kani::cover!(m5 && disabled && !profile);
+    let bytes: [u8; 2] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 3);
+    assert_eq!(default_flag(None, m5, profile), Some(profile));
+    if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+        assert_eq!(
+            default_flag(Some(value), m5, profile),
+            match value {
+                "0" => Some(false),
+                "1" => Some(m5),
+                _ => None,
+            }
+        );
+        kani::cover!(value == "1" && m5);
+        kani::cover!(value == "0" && profile);
+        kani::cover!(value == "é");
+    }
     let kind: u8 = kani::any();
     let context: u32 = kani::any();
     let rows: usize = kani::any();
@@ -141,4 +178,38 @@ pub(crate) fn draft_capacity_bytes(context: u32) -> Option<u64> {
     LayerPlan::new(Role::Qsa, context)?
         .prefix_bytes()
         .checked_add(512 * crate::flash_support::EXPERT_BYTES)
+}
+
+/// Keep unqualified budget/prefetch combinations on their existing defaults.
+pub(crate) fn default_profile(m5: bool, budgeted: bool, lookahead: bool, disabled: bool) -> bool {
+    m5 && !budgeted && !lookahead && !disabled
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn defaults(m5: bool) -> bool {
+    default_profile(
+        m5,
+        std::env::var_os("MLXL3_FLASH_REQUEST_MIB").is_some(),
+        std::env::var_os("MLXL3_SSD_LOOKAHEAD_DEPTH").is_some_and(|value| value != "0"),
+        std::env::var_os("MLXL3_NATIVE_FLASH_COMMON_EXECUTOR").is_some_and(|value| value == "0"),
+    )
+}
+
+pub(crate) fn default_flag(value: Option<&str>, m5: bool, default: bool) -> Option<bool> {
+    crate::flash_support::hc_chain_flag(value, default).map(|on| on && m5)
+}
+
+#[test]
+fn measured_defaults_preserve_overrides_and_compatibility() {
+    for bits in 0..16 {
+        let [m5, budget, lookahead, disabled] = [0, 1, 2, 3].map(|bit| bits & (1 << bit) != 0);
+        assert_eq!(default_profile(m5, budget, lookahead, disabled), bits == 1);
+        assert_eq!(default_flag(None, m5, true), Some(m5));
+        assert_eq!(default_flag(None, m5, false), Some(false));
+        assert_eq!(default_flag(Some("0"), m5, true), Some(false));
+        assert_eq!(default_flag(Some("1"), m5, false), Some(m5));
+        for bad in ["", "01", "true", " 1", "1\n", "é"] {
+            assert_eq!(default_flag(Some(bad), m5, true), None);
+        }
+    }
 }

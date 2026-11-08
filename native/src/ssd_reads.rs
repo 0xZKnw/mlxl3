@@ -569,7 +569,13 @@ impl ReadService {
         .context("MLXL3_NATIVE_READ_SPLIT must be 0 or 1")?;
         let window_enabled = match std::env::var("MLXL3_NATIVE_FLASH_READ_WINDOW") {
             Ok(value) => crate::ar10_defaults::flag(Some(&value), qualified_default),
-            Err(std::env::VarError::NotPresent) => Some(false),
+            Err(std::env::VarError::NotPresent) => {
+                #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+                let default = crate::native_executor::defaults(qualified_default);
+                #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+                let default = false;
+                Some(default)
+            }
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_FLASH_READ_WINDOW must be 0 or 1")?;
@@ -1429,4 +1435,5 @@ mod split_record_tests;
 
 #[path = "ssd_reads/window.rs"]
 mod window;
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub(crate) use window::BlockReads;

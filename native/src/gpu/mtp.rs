@@ -88,7 +88,10 @@ impl<'a> FlashMtpHead<'a> {
                 "MLXL3_NATIVE_MTP_DEVICE_GREEDY",
                 gpu.device_greedy_available(),
             )? && gpu.device_greedy_available(),
-            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY", false)?,
+            block_verify: experimental(
+                "MLXL3_NATIVE_MTP_BLOCK_VERIFY",
+                target.default_block_verification(),
+            )?,
         })
     }
 

@@ -20,6 +20,10 @@ fn only_an_unshared_frame_can_advance_its_generation() {
     assert_eq!(reusable_epoch(Rc::strong_count(&owner), 9), Some(10));
     assert_eq!(reusable_epoch(1, u64::MAX), None);
     assert_eq!(FRAME_BYTES, 3207168);
+    assert_eq!(CAPACITY, 9);
+    assert!(segment_admitted(0, false) && segment_admitted(1, false));
+    assert!(!segment_admitted(2, false) && !segment_admitted(usize::MAX, false));
+    assert!(!segment_admitted(0, true));
 }
 
 #[cfg(kani)]
