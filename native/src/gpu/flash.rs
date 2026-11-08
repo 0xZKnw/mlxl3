@@ -33,6 +33,18 @@ enum State {
     Qsa(FlashQsaState),
 }
 impl<'a> Layer<'a> {
+    fn plan(&self, context: u32) -> Result<crate::native_executor::LayerPlan> {
+        use crate::native_executor::{LayerPlan, Role};
+        LayerPlan::new(
+            match self {
+                Self::Gdn(_) => Role::Gdn,
+                Self::Ple(_) => Role::Ple,
+                Self::Qsa(_) => Role::Qsa,
+            },
+            context,
+        )
+        .context("invalid native layer plan")
+    }
     fn forward(
         &mut self,
         x: &MatrixView,
@@ -204,11 +216,13 @@ pub struct FlashNext<'a> {
     embed: TensorInfo,
     embedding_rows: RefCell<Vec<EmbeddingRow>>,
     pub(super) layers: Vec<Layer<'a>>,
+    pub(super) layer_plans: Vec<crate::native_executor::LayerPlan>,
     pub(super) mixer: FlashHc<'a>,
     pub(super) head: FlashProjection<'a>,
     pub(super) context: u32,
     offset: u32,
     pub(super) request_limit: Option<u64>,
+    pub(super) draft_capacity_reserve: Rc<std::cell::Cell<u64>>,
 }
 impl<'a> FlashNext<'a> {
     #[cfg(test)]
@@ -332,7 +346,13 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         gpu.admit_load(request_limit, total_slots)?;
+        let layer_plans = layers
+            .iter()
+            .map(|layer| layer.plan(context))
+            .collect::<Result<Vec<_>>>()?;
         let mut model = Self {
+            layer_plans,
+            draft_capacity_reserve: Rc::new(std::cell::Cell::new(0)),
             fixed_residency: None,
             fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
@@ -598,6 +618,10 @@ impl<'a> FlashNext<'a> {
             .then(|| RestoreRoute(&gpu.gdn_route_chain, gpu.gdn_route_chain.replace(false)));
         let mut streams = LayerOutput::Ready(self.streams(token)?);
         for i in 0..self.layers.len() {
+            ensure!(
+                self.layer_plans[i].admits(1),
+                "native B1 layer plan rejected the row"
+            );
             #[cfg(test)]
             let _layer = crate::flash_profile::span("native.layer");
             #[cfg(test)]

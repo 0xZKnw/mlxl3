@@ -52,9 +52,36 @@ impl Backings {
     }
 }
 
+pub(super) struct DraftBudget {
+    total: std::rc::Rc<std::cell::Cell<u64>>,
+    charged: u64,
+}
+impl DraftBudget {
+    pub(super) fn new(total: &std::rc::Rc<std::cell::Cell<u64>>, context: u32) -> Result<Self> {
+        let charged = crate::native_executor::draft_capacity_bytes(context)
+            .context("invalid draft capacity forecast")?;
+        let next = crate::native_executor::draft_reserve_after(total.get(), charged, true)
+            .context("draft bank reserve overflow")?;
+        total.set(next);
+        Ok(Self {
+            total: total.clone(),
+            charged,
+        })
+    }
+}
+impl Drop for DraftBudget {
+    fn drop(&mut self) {
+        self.total.set(
+            crate::native_executor::draft_reserve_after(self.total.get(), self.charged, false)
+                .expect("balanced draft bank reserve"),
+        );
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct MemoryLedger {
     request_limit_bytes: Option<u64>,
+    prospective_draft_capacity_reserve_bytes: u64,
     program_cache: serde_json::Value,
     expert_slots_by_layer: Vec<usize>,
     resident_experts: usize,
@@ -135,6 +162,121 @@ impl FlashNext<'_> {
     pub fn request_memory_limit(&self) -> Option<u64> {
         self.request_limit
     }
+    /// Legacy paths remain AR-only under a budget; common transactions admit before allocation.
+    pub fn speculation_permitted(&self) -> bool {
+        self.request_limit.is_none() || self.gpu.common_executor
+    }
+    pub(super) fn admit_draft_load(
+        &self,
+        checkpoint: &crate::checkpoint::Checkpoint,
+    ) -> Result<()> {
+        let Some(limit) = self.request_limit else {
+            return Ok(());
+        };
+        ensure!(
+            self.gpu.common_executor,
+            "budgeted draft requires the common executor"
+        );
+        let weights = checkpoint
+            .tensors
+            .iter()
+            .filter(|(name, _)| name.starts_with("mtp."))
+            .try_fold(0u64, |sum, (_, tensor)| {
+                sum.checked_add(tensor.data_offsets[1].checked_sub(tensor.data_offsets[0])?)
+            })
+            .context("draft weight forecast overflow")?;
+        let ledger = self.memory_ledger(None)?;
+        let reserve = weights
+            .checked_add(
+                crate::native_executor::draft_capacity_bytes(self.context)
+                    .context("invalid draft capacity forecast")?,
+            )
+            .and_then(|n| n.checked_add(self.draft_capacity_reserve.get()))
+            .and_then(|n| {
+                n.checked_add(
+                    ledger
+                        .expert_bank_capacity_bytes
+                        .saturating_sub(ledger.expert_bank_backing_bytes),
+                )
+            })
+            .context("draft load reserve overflow")?;
+        ensure!(
+            fits(self.gpu.observed_memory()?, reserve, limit),
+            "Flash memory budget cannot admit draft weights and expert banks"
+        );
+        Ok(())
+    }
+    pub(super) fn native_speculation_plan(&self) -> Result<crate::speculation_plan::MemoryPlan> {
+        let ledger = self.memory_ledger(None)?;
+        let prefixes = self
+            .layer_plans
+            .iter()
+            .try_fold(0u64, |sum, plan| sum.checked_add(plan.prefix_bytes()))
+            .context("native prefix reserve overflow")?;
+        // Conservative scratch forecast, not an allocation or an observed peak.
+        let projection = (2560u64 * 4 + 640 * 4 + 2560 * 4 + 2560 * 2) * 10;
+        let attention = u64::from(self.context)
+            .checked_mul(24 * 256 * 2)
+            .context("attention reserve overflow")?;
+        let scratch = attention
+            .checked_add(projection)
+            .and_then(|n| n.checked_mul(4))
+            .and_then(|n| n.checked_add(248320 * 8))
+            .context("verification scratch reserve overflow")?;
+        Ok(crate::speculation_plan::MemoryPlan {
+            base_bytes: self.gpu.observed_memory()?,
+            reserve_bytes: ledger
+                .expert_bank_capacity_bytes
+                .saturating_sub(ledger.expert_bank_backing_bytes)
+                .checked_add(self.draft_capacity_reserve.get())
+                .context("draft bank forecast overflow")?,
+            verify_scratch_bytes: scratch,
+            prefix_state_bytes_per_row: prefixes,
+            retained_expert_generations_bytes: 40 * crate::flash_support::EXPERT_BYTES
+                + if self.gpu.device_resident_route_enabled() {
+                    4 * crate::device_hot_policy::RESERVE_BYTES
+                } else {
+                    0
+                },
+            ..Default::default()
+        })
+    }
+    pub fn admitted_mtp_depth(
+        &self,
+        requested: usize,
+        context_remaining: usize,
+        output_remaining: usize,
+    ) -> Result<usize> {
+        if !self.speculation_permitted() {
+            return Ok(0);
+        }
+        let Some(limit) = self.request_limit else {
+            return Ok(requested
+                .min(3)
+                .min(context_remaining.saturating_sub(1))
+                .min(output_remaining.saturating_sub(1)));
+        };
+        Ok(self
+            .native_speculation_plan()?
+            .admitted_depth(requested, context_remaining, output_remaining, limit)
+            .unwrap_or(0))
+    }
+    pub(super) fn admit_native_block(&self, rows: usize) -> Result<()> {
+        ensure!((1..=4).contains(&rows), "invalid native block row count");
+        if let Some(limit) = self.request_limit {
+            ensure!(
+                self.gpu.common_executor,
+                "Flash request memory budget supports AR only"
+            );
+            let plan = self.native_speculation_plan()?;
+            ensure!(
+                plan.peak_bytes(rows.saturating_sub(1).max(1))
+                    .is_some_and(|peak| peak <= limit),
+                "Flash request memory budget cannot retain the requested block"
+            );
+        }
+        Ok(())
+    }
     pub fn memory_ledger(&self, mtp: Option<&FlashMtpHead>) -> Result<MemoryLedger> {
         self.memory_ledger_with_prefix(mtp, None, None)
     }
@@ -192,6 +334,7 @@ impl FlashNext<'_> {
         let draft_slots = backings.slots.split_off(self.layers.len());
         Ok(MemoryLedger {
             request_limit_bytes: self.request_limit,
+            prospective_draft_capacity_reserve_bytes: self.draft_capacity_reserve.get(),
             program_cache: serde_json::json!({"kind":"static_metal_pipelines","hits":null,"creations":null,"evictions":null,"entries":null,"retained_host_object_bytes":null,"cached_tensor_bytes":0}),
             expert_slots_by_layer: backings.slots,
             resident_experts: backings.resident_experts,
@@ -529,4 +672,48 @@ mod tests {
         );
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash checkpoint; common executor request and draft admission"]
+fn physical_common_budget_admits_before_mutation_and_releases_draft_capacity() -> Result<()> {
+    let checkpoint =
+        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let gpu = Metal::new()?;
+    ensure!(gpu.common_executor, "common executor must be enabled");
+    let mut target = FlashNext::load(&gpu, &checkpoint, 64)?;
+    target.prefill(&[248044, 78768, 11])?;
+    let before = target.snapshot();
+    let hidden = target
+        .last_hidden()
+        .context("missing target hidden")?
+        .export_bytes(&gpu)?;
+    ensure!(!hidden.is_empty() && target.draft_capacity_reserve.get() == 0);
+    target.request_limit = Some(1);
+    ensure!(target.admitted_mtp_depth(3, 61, 16)? == 0);
+    ensure!(target.stage_block(&[1, 2, 3, 4]).is_err());
+    ensure!(FlashMtpHead::load(&checkpoint, &target).is_err());
+    ensure!(
+        target.offset() == before.position()
+            && target.draft_capacity_reserve.get() == 0
+            && target.last_hidden().unwrap().export_bytes(&gpu)? == hidden
+    );
+    target.request_limit = Some(24 * 1024u64.pow(3));
+    ensure!(target.admitted_mtp_depth(3, 61, 16)? == 3);
+    drop(target.stage_block(&[1, 2, 3, 4])?);
+    ensure!(
+        target.offset() == before.position()
+            && target.last_hidden().unwrap().export_bytes(&gpu)? == hidden
+    );
+    let head = FlashMtpHead::load(&checkpoint, &target)?;
+    ensure!(
+        target.draft_capacity_reserve.get()
+            == crate::native_executor::draft_capacity_bytes(64).unwrap()
+    );
+    let ledger = target.memory_ledger(Some(&head))?;
+    ensure!(ledger.prospective_draft_capacity_reserve_bytes == target.draft_capacity_reserve.get());
+    drop(head);
+    ensure!(target.draft_capacity_reserve.get() == 0);
+    Ok(())
 }

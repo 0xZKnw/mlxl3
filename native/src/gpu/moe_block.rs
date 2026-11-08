@@ -24,10 +24,12 @@ impl FlashMoeRow<'_> {
     /// Caller checks this before preparing any stateful row. Rechecked below.
     pub(in crate::gpu) fn block_eligible(&self) -> bool {
         self.prefetcher.is_none()
-            && !self.gpu.device_resident_route_enabled()
-            && !self.gpu.hc_workspace_enabled.get()
-            && !self.gpu.moe_deferred.get()
-            && !self.gpu.moe_finish_mix.get()
+            && (!self.gpu.device_resident_route_enabled()
+                || self.gpu.common_executor && self.device_hot_gate_eligible_for_encoding(0))
+            && (self.gpu.common_executor
+                || (!self.gpu.hc_workspace_enabled.get()
+                    && !self.gpu.moe_deferred.get()
+                    && !self.gpu.moe_finish_mix.get()))
             && self.gpu.moe_switch.iter().all(|switch| {
                 switch.thread_execution_width() == 32
                     && switch.max_total_threads_per_threadgroup() >= 512
@@ -88,6 +90,12 @@ impl FlashMoeRow<'_> {
             );
         }
         self.drain_commands()?;
+        let device_hot = self.gpu.common_executor && self.gpu.device_resident_route_enabled();
+        ensure!(
+            !device_hot || rows.iter().all(|row| row.dtype == FloatType::F32),
+            "private Hot rows require F32 inputs"
+        );
+        let mut hot_outputs = Vec::with_capacity(rows.len());
         let mut routed = Vec::with_capacity(rows.len());
         let mut ids = Vec::with_capacity(rows.len());
         // RouteOutput has no draining Drop. Finish each submitted route before
@@ -98,7 +106,25 @@ impl FlashMoeRow<'_> {
                 Some(route) => route,
                 None => self.gate.submit(x)?,
             };
-            ids.push(route.indices()?);
+            let hot = if device_hot {
+                let snapshot = ResidentSnapshot::from_cache(
+                    self.cache.borrow().ready_slot_snapshot(),
+                    &self.record_backings,
+                )?;
+                Some(
+                    self.gpu
+                        .submit_resident_hot_block(x, route.device_indices(), snapshot)?,
+                )
+            } else {
+                None
+            };
+            let indices = route.indices()?;
+            if let Some(hot) = &hot {
+                hot.snapshot()
+                    .validate_routes(&self.cache.borrow().ready_slot_snapshot(), &indices)?;
+            }
+            hot_outputs.push(hot);
+            ids.push(indices);
             routed.push(route);
         }
         let routes = ids
@@ -131,17 +157,22 @@ impl FlashMoeRow<'_> {
             .map(|row| row.iter().filter(|&&id| initially_hot(id)).count())
             .collect::<Vec<_>>();
         let mut read_bytes = vec![0u64; rows.len()];
+        let finish_mix = self.gpu.common_executor
+            && self.gpu.moe_finish_mix.get()
+            && rows[0].dtype == FloatType::F32;
+        let mut pending_finishes: Vec<[Option<PendingExpertFinish>; TOP_K]> = (0..rows.len())
+            .map(|_| std::array::from_fn(|_| None))
+            .collect();
         let mut contributions: Vec<[Option<Buffer>; TOP_K]> = (0..rows.len())
             .map(|_| std::array::from_fn(|_| None))
             .collect();
         // Each rank owns a fixed output slice, independent of completion order.
         // Reuse the same qualified AR policy/offset contract, rather than placing
         // outputs in SSD completion order and accidentally changing reduction.
-        let slabs = rows
+        let mut slabs = rows
             .iter()
             .map(|_| {
-                self.gpu.expert_ar_enabled[2]
-                    .get()
+                (self.gpu.expert_ar_enabled[2].get() && !finish_mix && !device_hot)
                     .then(|| {
                         let backing = buffer(&self.gpu.device, 51200, Storage::StorageModePrivate)?;
                         #[cfg(test)]
@@ -151,6 +182,17 @@ impl FlashMoeRow<'_> {
                     .transpose()
             })
             .collect::<Result<Vec<_>>>()?;
+        for (row, hot) in hot_outputs.iter().enumerate() {
+            if let Some(hot) = hot {
+                let slab = hot.contribution(0)?.0.clone();
+                for (rank, &expert) in routes[row].iter().enumerate() {
+                    if initially_hot(expert) {
+                        contributions[row][rank] = Some(slab.clone());
+                    }
+                }
+                slabs[row] = Some(slab);
+            }
+        }
         #[cfg(test)]
         let mut timelines = vec![Vec::new(); rows.len()];
         let guard = ExpertFill::new(&self.cache);
@@ -244,7 +286,7 @@ impl FlashMoeRow<'_> {
                                 )
                             })
                         };
-                        let hot = if batch_index == 0 {
+                        let hot = if batch_index == 0 && !device_hot {
                             plan.routes
                                 .iter()
                                 .filter_map(|&(slot, hit)| hit.then_some(slot))
@@ -269,6 +311,7 @@ impl FlashMoeRow<'_> {
                                 &hot,
                                 &slabs,
                                 &mut contributions,
+                                &mut pending_finishes,
                             )?;
                             self.last.push(command.clone());
                             command.commit();
@@ -304,7 +347,7 @@ impl FlashMoeRow<'_> {
                                     self.slots.borrow_mut()[lease.slot] = Some(expert);
                                     if reuse && direct {
                                         self.record_backings[lease.slot] =
-                                            Some(RecordBacking::new(backing, false));
+                                            Some(RecordBacking::new(backing, device_hot));
                                     }
                                     ready.push(lease.slot);
                                 }
@@ -317,6 +360,7 @@ impl FlashMoeRow<'_> {
                                     &ready,
                                     &slabs,
                                     &mut contributions,
+                                    &mut pending_finishes,
                                 )?;
                                 self.last.push(command.clone());
                                 command.commit();
@@ -377,44 +421,66 @@ impl FlashMoeRow<'_> {
                     MTLSize::new(1, 1, 1),
                     512,
                 );
-                let mut bindings = contributions[row]
-                    .iter()
-                    .enumerate()
-                    .map(|(rank, term)| {
-                        let buffer = term
-                            .as_ref()
-                            .context("missing canonical block contribution")?;
-                        let offset = slabs[row]
-                            .as_ref()
-                            .map(|slab| {
-                                crate::expert_ar_policy::prefix(rank, TOP_K, 2560, slab.length())
+                if finish_mix {
+                    let terms = pending_finishes[row]
+                        .iter()
+                        .map(|term| {
+                            term.as_ref()
+                                .context("missing canonical block pending finish")
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    PendingExpertFinish::encode_mix(
+                        self.gpu,
+                        &command,
+                        &terms,
+                        shared,
+                        [weights, &multiplier, &values],
+                    )?;
+                } else {
+                    let mut bindings = contributions[row]
+                        .iter()
+                        .enumerate()
+                        .map(|(rank, term)| {
+                            let buffer = term
+                                .as_ref()
+                                .context("missing canonical block contribution")?;
+                            let offset = slabs[row]
+                                .as_ref()
+                                .map(|slab| {
+                                    crate::expert_ar_policy::prefix(
+                                        rank,
+                                        TOP_K,
+                                        2560,
+                                        slab.length(),
+                                    )
                                     .context("invalid canonical block contribution prefix")
-                            })
-                            .transpose()?
-                            .unwrap_or(0);
-                        Ok((buffer, offset))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                bindings.extend([
-                    (shared, 0),
-                    (&weights.buffer, 0),
-                    (&multiplier.buffer, 0),
-                    (&values.buffer, 0),
-                ]);
-                Metal::encode_bound(
-                    &command,
-                    &self.gpu.moe_mix[dtype],
-                    bindings.into_iter(),
-                    [2560u32],
-                    MTLSize::new(80, 1, 1),
-                    32,
-                );
+                                })
+                                .transpose()?
+                                .unwrap_or(0);
+                            Ok((buffer, offset))
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    bindings.extend([
+                        (shared, 0),
+                        (&weights.buffer, 0),
+                        (&multiplier.buffer, 0),
+                        (&values.buffer, 0),
+                    ]);
+                    Metal::encode_bound(
+                        &command,
+                        &self.gpu.moe_mix[dtype],
+                        bindings.into_iter(),
+                        [2560u32],
+                        MTLSize::new(80, 1, 1),
+                        32,
+                    );
+                }
                 Ok(MoeOutput {
                     spin_wait_enabled: self.gpu.spin_wait_enabled,
                     #[cfg(test)]
                     spin_wait_stats: self.gpu.spin_wait_stats.clone(),
                     commands: vec![command.clone()],
-                    hot: RefCell::new(None),
+                    hot: RefCell::new(hot_outputs[row].take()),
                     hot_error: RefCell::new(None),
                     values,
                     indices: ids[row].clone(),
@@ -431,9 +497,19 @@ impl FlashMoeRow<'_> {
             })?;
             outputs.push(output);
         }
+        for output in &outputs {
+            if let Some(hot) = output.hot.borrow_mut().as_mut() {
+                hot.retain_consumer(&command)?;
+            }
+        }
         self.last.push(command.clone());
         command.commit();
-        self.drain_commands()?;
+        if !self.gpu.common_executor
+            || !self.gpu.moe_deferred.get()
+            || cancelled.load(Ordering::Relaxed)
+        {
+            self.drain_commands()?;
+        }
         check_cancelled()?;
         guard.commit();
         Ok(outputs)
@@ -451,10 +527,15 @@ impl FlashMoeRow<'_> {
         ready: &[usize],
         slabs: &[Option<Buffer>],
         contributions: &mut [[Option<Buffer>; TOP_K]],
+        pending_finishes: &mut [[Option<PendingExpertFinish>; TOP_K]],
     ) -> Result<()> {
         let slots = self.slots.borrow();
+        let finish_mix = self.gpu.common_executor
+            && self.gpu.moe_finish_mix.get()
+            && rows[0].dtype == FloatType::F32;
         let batch_consumers =
-            crate::flash_qmv::shared_verify_enabled(self.gpu.flash_verify_qmv.is_some());
+            crate::flash_qmv::shared_verify_enabled(self.gpu.flash_verify_qmv.is_some())
+                && (!finish_mix || self.gpu.expert_consumer_qmv.is_some());
         let mut packed_rows: [Option<MatrixView>; 16] = std::array::from_fn(|_| None);
         let consumer_grid = batch_consumers && self.gpu.expert_consumer_qmv.is_some();
         if consumer_grid {
@@ -491,42 +572,46 @@ impl FlashMoeRow<'_> {
                     if packed.is_none() {
                         *packed = Some(experts[0].pack_consumer_rows(command, &inputs)?);
                     }
-                    let targets = group
-                        .iter()
-                        .map(|(entry, _)| {
-                            entry
-                                .consumers
-                                .iter()
-                                .map(|c| -> Result<_> {
-                                    ensure!(
-                                        contributions[c.row][c.rank].is_none(),
-                                        "duplicate consumer contribution"
-                                    );
-                                    if let Some(slab) = &slabs[c.row] {
-                                        Ok((
-                                            slab.clone(),
-                                            crate::expert_ar_policy::prefix(
-                                                c.rank,
-                                                TOP_K,
-                                                2560,
-                                                slab.length(),
-                                            )
-                                            .context("invalid consumer destination")?,
-                                        ))
-                                    } else {
-                                        Ok((
-                                            buffer(
-                                                &self.gpu.device,
-                                                5120,
-                                                Storage::StorageModePrivate,
-                                            )?,
-                                            0,
-                                        ))
-                                    }
-                                })
-                                .collect::<Result<Vec<_>>>()
-                        })
-                        .collect::<Result<Vec<_>>>()?;
+                    let targets = if finish_mix {
+                        Vec::new()
+                    } else {
+                        group
+                            .iter()
+                            .map(|(entry, _)| {
+                                entry
+                                    .consumers
+                                    .iter()
+                                    .map(|c| -> Result<_> {
+                                        ensure!(
+                                            contributions[c.row][c.rank].is_none(),
+                                            "duplicate consumer contribution"
+                                        );
+                                        if let Some(slab) = &slabs[c.row] {
+                                            Ok((
+                                                slab.clone(),
+                                                crate::expert_ar_policy::prefix(
+                                                    c.rank,
+                                                    TOP_K,
+                                                    2560,
+                                                    slab.length(),
+                                                )
+                                                .context("invalid consumer destination")?,
+                                            ))
+                                        } else {
+                                            Ok((
+                                                buffer(
+                                                    &self.gpu.device,
+                                                    5120,
+                                                    Storage::StorageModePrivate,
+                                                )?,
+                                                0,
+                                            ))
+                                        }
+                                    })
+                                    .collect::<Result<Vec<_>>>()
+                            })
+                            .collect::<Result<Vec<_>>>()?
+                    };
                     let bindings = targets
                         .iter()
                         .map(|destinations| {
@@ -536,12 +621,22 @@ impl FlashMoeRow<'_> {
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
-                    FlashExpert::encode_consumer_cohort(
+                    let pending = FlashExpert::encode_consumer_cohort(
                         command,
                         packed.as_ref().expect("packed consumers"),
                         &experts,
                         &bindings,
+                        finish_mix,
                     )?;
+                    for ((entry, _), terms) in group.iter().zip(pending) {
+                        for (consumer, term) in entry.consumers.iter().zip(terms) {
+                            ensure!(
+                                pending_finishes[consumer.row][consumer.rank].is_none(),
+                                "duplicate pending finish"
+                            );
+                            pending_finishes[consumer.row][consumer.rank] = Some(term);
+                        }
+                    }
                     for ((entry, _), destinations) in group.iter().zip(targets) {
                         for (c, (buffer, _)) in entry.consumers.iter().zip(destinations) {
                             contributions[c.row][c.rank] = Some(buffer);
@@ -654,6 +749,26 @@ impl FlashMoeRow<'_> {
                         .transpose()
                 })
                 .collect::<Result<Vec<_>>>()?;
+            if finish_mix {
+                let values = FlashExpert::encode_ready_cohort_pending(
+                    command,
+                    x,
+                    &experts,
+                    &(0..experts.len()).map(|_| None).collect::<Vec<_>>(),
+                )?;
+                ensure!(
+                    values.len() == selected.len(),
+                    "incomplete pending finish cohort"
+                );
+                for ((_, rank), term) in selected.into_iter().zip(values) {
+                    ensure!(
+                        pending_finishes[row][rank].is_none(),
+                        "duplicate pending finish"
+                    );
+                    pending_finishes[row][rank] = Some(term);
+                }
+                continue;
+            }
             let values = FlashExpert::encode_ready_cohort(
                 command,
                 x,

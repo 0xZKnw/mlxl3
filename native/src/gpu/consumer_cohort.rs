@@ -7,15 +7,17 @@ impl FlashExpert<'_> {
         x: &MatrixView,
         experts: &[&Self],
         destinations: &[Vec<(&Buffer, u64)>],
-    ) -> Result<()> {
+        pending_finish: bool,
+    ) -> Result<Vec<Vec<PendingExpertFinish>>> {
         let rows = x.shape()[0];
         crate::expert_ar_policy::consumer_grid(experts.len(), rows)
             .context("invalid expert/consumer grid")?;
         ensure!(
-            destinations.len() == experts.len()
-                && destinations
-                    .iter()
-                    .all(|outputs| outputs.len() == rows as usize),
+            pending_finish
+                || (destinations.len() == experts.len()
+                    && destinations
+                        .iter()
+                        .all(|outputs| outputs.len() == rows as usize)),
             "incomplete expert/consumer destinations"
         );
         let gpu = experts[0].gate.metal;
@@ -179,6 +181,25 @@ impl FlashExpert<'_> {
             }
         }
         Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, [rows * 640, rows], &partial)?;
+        #[cfg(test)]
+        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n * u64::from(rows));
+        if pending_finish {
+            return Ok(experts
+                .iter()
+                .enumerate()
+                .map(|(index, expert)| {
+                    (0..rows)
+                        .map(|row| PendingExpertFinish {
+                            partial: partial.clone(),
+                            partial_offset: (index as u64 * u64::from(rows) + u64::from(row))
+                                * 10240,
+                            svh: expert.down.svh.clone(),
+                            svh_offset: expert.down.offsets.svh,
+                        })
+                        .collect()
+                })
+                .collect());
+        }
         for (index, expert) in experts.iter().enumerate() {
             for (row, &(dest, offset)) in destinations[index].iter().enumerate() {
                 expert.down.encode_finish(
@@ -193,8 +214,6 @@ impl FlashExpert<'_> {
                 )?;
             }
         }
-        #[cfg(test)]
-        gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n * u64::from(rows));
-        Ok(())
+        Ok(Vec::new())
     }
 }

@@ -12,14 +12,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// returned. Drop, `commit(0)` and an invalid commit therefore publish no prefix.
 /// Cache residency and allocation high-water marks are not transactional state.
 #[must_use = "a staged block must be committed explicitly; dropping it keeps the original prefix"]
-pub struct FlashVerification<'model, 'gpu> {
+pub struct BlockTxn<'model, 'gpu> {
     model: &'model mut FlashNext<'gpu>,
     prefixes: Vec<FlashSnapshot>,
     logits: Vec<Vec<u16>>,
     publications: Vec<super::super::qsa::VerificationPublication>,
 }
 
-impl FlashVerification<'_, '_> {
+pub type FlashVerification<'model, 'gpu> = BlockTxn<'model, 'gpu>;
+
+impl BlockTxn<'_, '_> {
     pub fn logits(&self) -> &[Vec<u16>] {
         &self.logits
     }
@@ -107,13 +109,14 @@ impl<'gpu> FlashNext<'gpu> {
         let end =
             crate::qwen35_config::native_block_end(tokens, 248_320, self.offset, self.context)
                 .context("Flash block must fit the context and contain 1 to 4 valid tokens")?;
-        // A block can retain multiple full recurrent frames and QSA slab forks.
-        // Do not bypass the existing AR-only memory admission until its
-        // prospective speculative accounting has been qualified.
+        // Admit all owned prefixes and prospective scratch before temporal mutation.
         ensure!(
-            crate::flash_memory::native_speculation_permitted(self.request_limit),
-            "Flash request memory budget supports AR only"
+            self.layer_plans
+                .iter()
+                .all(|plan| plan.admits(tokens.len())),
+            "native block layer plan rejected the shape"
         );
+        self.admit_native_block(tokens.len())?;
         // Scalar lookahead assumes the next scheduled consumer is the next
         // layer, not another row of this layer. Keep it out of this prototype.
         ensure!(
@@ -145,9 +148,15 @@ impl<'gpu> FlashNext<'gpu> {
         // All snapshots here were made by this same target and its layers.
         // Restore even after a late layer/head/cancellation error. A successful
         // handle never needs fallible GPU work in Drop.
+        if operation.is_err() {
+            // Retire every producer, even if an earlier layer reports a GPU fault.
+            for layer in &mut self.layers {
+                let _ = layer.moe().drain();
+            }
+        }
         self.restore(&before)?;
         let (prefixes, logits) = operation?;
-        Ok(FlashVerification {
+        Ok(BlockTxn {
             model: self,
             prefixes,
             logits,
@@ -220,6 +229,9 @@ impl<'gpu> FlashNext<'gpu> {
                         })
                         .collect::<Result<Vec<_>>>()
                 })?;
+                for output in &experts {
+                    output.completed()?;
+                }
                 #[cfg(test)]
                 ensure!(
                     gpu.cross_layer_fail_after.get() != Some(index),
@@ -559,10 +571,32 @@ mod tests {
                 let gdn_before = crate::gpu::FlashGdnLayer::block_projection_count();
                 let temporal_before = crate::gpu::FlashGdnLayer::temporal_batch_count();
                 let segments_before = gpu.segment_submissions.get();
+                let hot_before = gpu.device_hot_submissions();
+                let finish_before = gpu.moe_finish_mix_uses.get();
+                let workspace_before = gpu.hc_workspace_uses.get();
                 let standalone_before = gpu.gate_commands.get();
                 let expected_joint = width * model.layers.len();
                 let specialized_before = gpu.flash_verify_specialized_uses.get();
                 let cohort = model.stage_block(tokens)?;
+                if gpu.common_executor && gpu.device_resident_route_enabled() {
+                    ensure!(
+                        gpu.device_hot_submissions() > hot_before
+                            && gpu.device_resident_route_available(),
+                        "private Hot producers were not executed or retired"
+                    );
+                }
+                if gpu.common_executor && gpu.moe_finish_mix.get() {
+                    ensure!(
+                        gpu.moe_finish_mix_uses.get() > finish_before,
+                        "block finish/mix was not executed"
+                    );
+                }
+                if gpu.common_executor && gpu.hc_workspace_enabled.get() {
+                    ensure!(
+                        gpu.hc_workspace_uses.get() > workspace_before,
+                        "owned HC workspace leases were not executed"
+                    );
+                }
                 if gpu.gdn.temporal.is_some() && gpu.gdn_whole.get() {
                     let delta = crate::gpu::FlashGdnLayer::temporal_batch_count() - temporal_before;
                     ensure!(delta > 0, "temporal GDN kernel was not reached");
@@ -643,7 +677,7 @@ mod tests {
         gpu.hc_workspace_enabled.set(true);
         let rejected = model.stage_block(&[1, 2]).is_err();
         gpu.hc_workspace_enabled.set(false);
-        ensure!(rejected && model.offset == root.offset);
+        ensure!(rejected != gpu.common_executor && model.offset == root.offset);
         ensure!(retained_state(&model)? == root_state);
         gpu.cross_layer_fail_after.set(Some(3));
         let failed = model.stage_block(&[1, 2]).is_err();

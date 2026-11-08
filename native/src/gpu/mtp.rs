@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 pub struct FlashMtpHead<'a> {
     owner: Rc<()>,
+    _budget: crate::gpu::memory::DraftBudget,
     embedding_gain: Buffer,
     hidden_gain: Buffer,
     embedding_fc: FlashProjection<'a>,
@@ -30,9 +31,10 @@ struct EncodedMtpInput {
 impl<'a> FlashMtpHead<'a> {
     pub fn load(c: &Checkpoint, target: &FlashNext<'a>) -> Result<Self> {
         ensure!(
-            crate::flash_memory::native_speculation_permitted(target.request_memory_limit()),
+            target.speculation_permitted(),
             "Flash request memory budget supports AR only"
         );
+        target.admit_draft_load(c)?;
         ensure!(
             target.checkpoint_path == c.path,
             "MTP requires the target checkpoint"
@@ -63,6 +65,10 @@ impl<'a> FlashMtpHead<'a> {
         );
         Ok(Self {
             owner: target.owner.clone(),
+            _budget: crate::gpu::memory::DraftBudget::new(
+                &target.draft_capacity_reserve,
+                target.context,
+            )?,
             embedding_gain: gain("mtp.pre_fc_norm_embedding.weight", 2560)?,
             hidden_gain: gain("mtp.pre_fc_norm_hidden.weight", 10240)?,
             embedding_fc,

@@ -771,7 +771,7 @@ impl<'a> LayerResidual<'a> {
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
     ) -> Result<PreparedMoeRow> {
         ensure!(
-            !self.mlp_hc.gpu.hc_workspace_enabled.get(),
+            (!self.mlp_hc.gpu.hc_workspace_enabled.get() || self.mlp_hc.gpu.common_executor),
             "cohort rows require owned HC activations"
         );
         let read = self.attn_hc.read(streams, false)?;
@@ -786,7 +786,7 @@ impl<'a> LayerResidual<'a> {
         attention: super::FlashAttentionOutput,
     ) -> Result<PreparedMoeRow> {
         ensure!(
-            !self.mlp_hc.gpu.hc_workspace_enabled.get(),
+            (!self.mlp_hc.gpu.hc_workspace_enabled.get() || self.mlp_hc.gpu.common_executor),
             "cohort rows require owned HC activations"
         );
         let gate = read
@@ -822,7 +822,11 @@ impl<'a> LayerResidual<'a> {
         row: &PreparedMoeRow,
         experts: &super::MoeOutput,
     ) -> Result<MatrixView> {
-        let branch = experts.completed()?;
+        let branch = if self.mlp_hc.gpu.common_executor {
+            experts.values_for_gpu()
+        } else {
+            experts.completed()?
+        };
         let output = self
             .mlp_hc
             .encode_write(cmd, &row.streams, branch, &row.gate)?;
@@ -962,7 +966,7 @@ impl<'a> FlashGdnLayer<'a> {
             return Ok(None);
         }
         ensure!(
-            !gpu.hc_workspace_enabled.get(),
+            (!gpu.hc_workspace_enabled.get() || gpu.common_executor),
             "GDN block inputs require owned HC rows"
         );
         #[cfg(test)]
@@ -1282,7 +1286,7 @@ impl<'a> FlashGdnLayer<'a> {
 
     pub(super) fn prepare_moe(&mut self, streams: &MatrixView) -> Result<PreparedMoeRow> {
         ensure!(
-            !self.attention.gpu.hc_workspace_enabled.get(),
+            (!self.attention.gpu.hc_workspace_enabled.get() || self.attention.gpu.common_executor),
             "cohort rows require owned HC activations"
         );
         let before = self.snapshot();

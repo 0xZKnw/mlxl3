@@ -69,7 +69,7 @@ fn prepare_head<'a>(
     let path = registry::expand_home(Path::new(requested))?.canonicalize()?;
     if let NativeChatModel::Flash(model) = model {
         anyhow::ensure!(
-            mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
+            model.speculation_permitted(),
             "Flash request memory budget supports AR only"
         );
         anyhow::ensure!(path == c.path, "Flash MTP requires the target checkpoint");
@@ -134,7 +134,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let speculative = model.is_flash()
         && mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit());
     let mtp_max_depth = match &model {
-        NativeChatModel::Flash(_) => usize::from(speculative),
+        NativeChatModel::Flash(model) => usize::from(model.speculation_permitted()),
         NativeChatModel::Qwen(q) if q.mtp_available()? => 3,
         NativeChatModel::Qwen(_) => 0,
     };
