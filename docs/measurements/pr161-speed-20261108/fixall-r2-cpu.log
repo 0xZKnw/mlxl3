@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0)
+error: failed to run custom build command for `mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0)`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/Documents/mlxl3-pr161-validation/target/debug/build/mlxl3-native-640cdbb668c40748/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rustc-check-cfg=cfg(mlxl3_hybrid_payload)
+  cargo:rerun-if-env-changed=MLXL3_MLX_HELPER
+  cargo:rerun-if-env-changed=MLXL3_METAL_HELPER
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=unknown
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+  cargo:rerun-if-changed=native/ffi/flash_prepare.h
+
+  --- stderr
+  xcrun: error: missing DEVELOPER_DIR path: /Applications/Xcode.app/ContentsDeveloper
+
+  thread 'main' (2004886) panicked at build.rs:5:5:
+  native compiler failed: "/usr/bin/clang++" "-std=c++17" "-arch" "arm64" "-O2" "-c" "native/ffi/process_stats.cpp" "-o" "/Users/justin/Documents/mlxl3-pr161-validation/target/debug/build/mlxl3-native-fd84ca4b48c8763e/out/process_stats.o"
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,0 +1,208 @@
+{
+  "status": "passed",
+  "binary": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+    "sha256": "222fcf31875cd1b701dda58d3ce3edffa3f4eee0e201b62f35b032d05465196a",
+    "base": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+    "patch_sha256": "894be20a23a518e8ae2f245b053fd3b7af7d8e74512ec043fa042aef36327c61",
+    "regolith_source": "92a523f036092df5a072d24db1cb4823863ca862"
+  },
+  "common_env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+  },
+  "results": [
+    {
+      "name": "model-qmv-off",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+        "gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "0",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 28062,
+      "reaped": true,
+      "seconds": 24.953047332999997,
+      "exit_code": 0
+    },
+    {
+      "name": "model-qmv-on",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+        "gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 28075,
+      "reaped": true,
+      "seconds": 25.026874665999998,
+      "exit_code": 0
+    },
+    {
+      "name": "component",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+        "gpu::moe::block::tests::block_experts_read_once_and_recover_after_failed_fill",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 28099,
+      "reaped": true,
+      "seconds": 1.5258381670000034,
+      "exit_code": 0
+    },
+    {
+      "name": "cancel",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+        "gpu::flash::mtp::mtp_request_cancel_rolls_back_after_ssd_submission",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 28107,
+      "reaped": true,
+      "seconds": 2.206348417000001,
+      "exit_code": 0
+    },
+    {
+      "name": "b2-eos",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-test",
+        "gpu::flash::mtp::block_verification_matches_scalar_mtp_and_eos_prefixes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 28117,
+      "reaped": true,
+      "seconds": 27.273983291999997,
+      "exit_code": 0
+    }
+  ],
+  "standard_checks": {
+    "library": {
+      "passed": 354,
+      "failed": 0,
+      "ignored": 127,
+      "log": "hcroute-lib-tests.log"
+    },
+    "inventory": {
+      "passed": 6,
+      "subtests_passed": 2,
+      "log": "hcroute-inventory-tests-final.log"
+    },
+    "clippy": {
+      "status": "passed",
+      "command": "cargo clippy --locked --all-targets --features chat -- -D warnings",
+      "log": "hcroute-clippy.log"
+    },
+    "fmt": {
+      "status": "passed",
+      "command": "cargo fmt --all --check"
+    },
+    "kani": {
+      "status": "harness_not_exposed",
+      "gpu_properties_verified": 0,
+      "log": "hcroute-kani.log"
+    }
+  }
+}

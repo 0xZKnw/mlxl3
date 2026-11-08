@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "tensor_layout::row_bindings_match_wide_arithmetic_without_overflow",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "60s"
+  ],
+  "status": "completed",
+  "domain": "Actual row-byte-offset helper; symbolic u32 shape[2],i64 strides[2]/offset,u64 item/allocation; no assumptions; not GPU wiring proof",
+  "returncode": 0,
+  "reaped": true,
+  "seconds": 3.9610502910000003,
+  "obligations": {
+    "SUCCESS": 83,
+    "SATISFIED": 4
+  }
+}

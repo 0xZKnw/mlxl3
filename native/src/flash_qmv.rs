@@ -304,3 +304,258 @@ fn native_fixed_qmv_key_checks_complete_shape_split_and_format() {
         kani::cover!(splits == 2 && setting == Some(true));
     }
 }
+
+/// Optional canonical MB2 target path. B3/B4 use two groups with row-tail guards.
+/// The caller excludes generic, routed, and special MTP-hidden projections.
+pub(crate) fn verify_rows_key(rows: u32, nt: u32, k: u32, eligible: bool) -> Option<usize> {
+    if eligible && (2..=4).contains(&rows) && (2..=6).contains(&k) {
+        match nt {
+            1 => Some(0),
+            2 => Some(1),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+pub(crate) fn verify_row_count(rows: usize, nt: u32, k: u32, eligible: bool) -> bool {
+    (2..=4).contains(&rows) && verify_rows_key(rows as u32, nt, k, eligible).is_some()
+}
+
+/// MB2 reuses the qualified B1 constants; fixed dimensions take priority.
+pub(crate) fn verify_specialized_key(
+    rows: u32,
+    static_key: Option<usize>,
+    fixed_key: Option<u8>,
+    enabled: bool,
+) -> Option<usize> {
+    if !enabled || !(2..=4).contains(&rows) {
+        return None;
+    }
+    match fixed_key {
+        Some(key) if key < 2 => Some(5 + usize::from(key)),
+        Some(_) => None,
+        None => static_key.filter(|&key| key < 5),
+    }
+}
+
+#[test]
+fn verify_specializations_preserve_keys_priority_and_all_fallbacks() {
+    for rows in 0..=5 {
+        for enabled in [false, true] {
+            for key in 0..7 {
+                assert_eq!(
+                    verify_specialized_key(rows, Some(key), None, enabled),
+                    (enabled && (2..=4).contains(&rows) && key < 5).then_some(key)
+                );
+            }
+            for key in 0..=2 {
+                assert_eq!(
+                    verify_specialized_key(rows, Some(0), Some(key), enabled),
+                    (enabled && (2..=4).contains(&rows) && key < 2).then_some(5 + usize::from(key))
+                );
+            }
+        }
+    }
+    assert_eq!(
+        verify_specialized_key(2, Some(usize::MAX), None, true),
+        None
+    );
+    assert_eq!(verify_specialized_key(2, None, None, true), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_specialization_keys_preserve_admission_and_table_bounds() {
+    let rows: u32 = kani::any();
+    let plain: Option<usize> = kani::any();
+    let fixed: Option<u8> = kani::any();
+    let enabled: bool = kani::any();
+    let selected = verify_specialized_key(rows, plain, fixed, enabled);
+    let expected = if enabled && rows >= 2 && rows <= 4 {
+        match fixed {
+            Some(0) => Some(5),
+            Some(1) => Some(6),
+            Some(_) => None,
+            None => match plain {
+                Some(0..=4) => plain,
+                _ => None,
+            },
+        }
+    } else {
+        None
+    };
+    assert_eq!(selected, expected);
+    if let Some(key) = selected {
+        assert!(key < 7);
+    }
+    kani::cover!(selected == Some(5));
+    kani::cover!(selected == Some(6) && rows == 3);
+    kani::cover!(selected == Some(4) && rows == 4);
+    kani::cover!(selected.is_none() && !enabled && fixed == Some(0));
+    kani::cover!(selected.is_none() && rows == 1);
+}
+
+#[test]
+fn verify_row_count_rejects_wide_host_counts_before_narrowing() {
+    for rows in [0, 1, 5, usize::MAX, (u32::MAX as usize).saturating_add(3)] {
+        assert!(!verify_row_count(rows, 1, 2, true));
+    }
+    for rows in 2..=4 {
+        assert!(verify_row_count(rows, 1, 2, true));
+        assert!(!verify_row_count(rows, 1, 2, false));
+        assert!(!verify_row_count(rows, 4, 2, true));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_host_row_count_preserves_bounded_projection_dispatch() {
+    let rows: usize = kani::any();
+    let nt: u32 = kani::any();
+    let k: u32 = kani::any();
+    let enabled: bool = kani::any();
+    let actual = verify_row_count(rows, nt, k, enabled);
+    assert_eq!(
+        actual,
+        rows >= 2 && rows <= 4 && enabled && k >= 2 && k <= 6 && (nt == 1 || nt == 2)
+    );
+    kani::cover!(actual && rows == 3 && nt == 2);
+    kani::cover!(!actual && rows > u32::MAX as usize);
+}
+
+#[test]
+fn verify_rows_dispatch_preserves_scalar_and_unsupported_paths() {
+    for eligible in [false, true] {
+        for rows in [0, 1, 2, 3, 4, 5, u32::MAX] {
+            for nt in [0, 1, 2, 3, u32::MAX] {
+                for k in [0, 1, 2, 3, 4, 5, 6, 7, u32::MAX] {
+                    let actual = verify_rows_key(rows, nt, k, eligible);
+                    let supported = eligible
+                        && (2..=4).contains(&rows)
+                        && (2..=6).contains(&k)
+                        && (nt == 1 || nt == 2);
+                    assert_eq!(actual.is_some(), supported);
+                    if let Some(key) = actual {
+                        assert_eq!(key, (nt - 1) as usize);
+                        assert!(rows.div_ceil(2) * 2 >= rows);
+                        assert!(rows.div_ceil(2) <= 2);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_rows_dispatch_is_bounded_and_opt_in() {
+    let rows: u32 = kani::any();
+    let nt: u32 = kani::any();
+    let k: u32 = kani::any();
+    let eligible: bool = kani::any();
+    let actual = verify_rows_key(rows, nt, k, eligible);
+    let supported = eligible && rows >= 2 && rows <= 4 && k >= 2 && k <= 6 && (nt == 1 || nt == 2);
+    assert_eq!(actual.is_some(), supported);
+    if let Some(key) = actual {
+        assert!(key < 2);
+        assert_eq!(key, (nt - 1) as usize);
+        assert!(rows.div_ceil(2) * 2 >= rows);
+        assert!(rows.div_ceil(2) <= 2);
+        kani::cover!(rows == 3 && nt == 2);
+        kani::cover!(rows == 4 && nt == 1);
+    }
+}
+
+// A campaign may disable the optional path even when its pipelines are loaded.
+// Packing and dispatch must use this same decision, not pipeline presence alone.
+pub(crate) fn shared_verify_enabled(pipelines_loaded: bool) -> bool {
+    #[cfg(test)]
+    let allowed = SHARED_VERIFY_OVERRIDE.get();
+    #[cfg(not(test))]
+    let allowed = true;
+    pipelines_loaded && allowed
+}
+
+#[cfg(test)]
+thread_local! {
+    static SHARED_VERIFY_OVERRIDE: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+#[cfg(test)]
+pub(crate) struct SharedVerifyOverride {
+    previous: bool,
+    // The override belongs to its creating thread, including during unwinding.
+    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+#[cfg(test)]
+impl SharedVerifyOverride {
+    pub(crate) fn new(enabled: bool) -> Self {
+        Self {
+            previous: SHARED_VERIFY_OVERRIDE.replace(enabled),
+            _thread: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(test)]
+impl Drop for SharedVerifyOverride {
+    fn drop(&mut self) {
+        SHARED_VERIFY_OVERRIDE.set(self.previous);
+    }
+}
+
+#[test]
+fn shared_verify_override_restores_nested_and_error_scopes() {
+    assert!(shared_verify_enabled(true));
+    {
+        let _disabled = SharedVerifyOverride::new(false);
+        assert!(!shared_verify_enabled(true));
+        let fail = || -> Result<(), ()> {
+            let _enabled = SharedVerifyOverride::new(true);
+            assert!(shared_verify_enabled(true));
+            assert!(!shared_verify_enabled(false));
+            Err(())
+        };
+        assert!(fail().is_err());
+        assert!(!shared_verify_enabled(true));
+    }
+    assert!(shared_verify_enabled(true));
+    assert!(!shared_verify_enabled(false));
+    let _ = std::panic::catch_unwind(|| {
+        let _disabled = SharedVerifyOverride::new(false);
+        panic!("exercise unwinding restoration");
+    });
+    assert!(shared_verify_enabled(true));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn shared_verify_requires_loaded_pipelines() {
+    let loaded: bool = kani::any();
+    assert_eq!(shared_verify_enabled(loaded), loaded);
+    kani::cover!(loaded);
+    kani::cover!(!loaded);
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+thread_local! {
+    static SHARED_PATH_COUNTS: std::cell::Cell<(u64, u64)> = const { std::cell::Cell::new((0, 0)) };
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn note_shared_path(packing: bool) {
+    let (packed, dispatched) = shared_path_counts();
+    SHARED_PATH_COUNTS.set(if packing {
+        (packed + 1, dispatched)
+    } else {
+        (packed, dispatched + 1)
+    });
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn shared_path_counts() -> (u64, u64) {
+    SHARED_PATH_COUNTS.get()
+}

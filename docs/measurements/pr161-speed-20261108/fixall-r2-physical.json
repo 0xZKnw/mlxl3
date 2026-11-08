@@ -1,0 +1,223 @@
+{
+  "status": "passed",
+  "binary": {
+    "base": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+    "source_patch_sha256": "26e9b790bf2acf7d002946c1356e36eb0b931d094f6e46dc187bcc70ec1b0551",
+    "test": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+      "sha256": "f09affc11abadfd908105b2bfc5f9b287428d3572ff1237bff5815746c2118a7"
+    },
+    "scope": "R1 composition + GDN qkv/z batching and ordered GPU recurrent frame chain; not physically qualified yet",
+    "cli": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-cli",
+      "sha256": "a237f74b8f2b31a4a2e802ac6aef8876341b75500a49661d822748947e90ef95"
+    }
+  },
+  "common_env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+    "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_OVERLAP": "1"
+  },
+  "results": [
+    {
+      "name": "model-on",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+        "gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+        "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_OVERLAP": "1"
+      },
+      "status": "passed",
+      "quiet_checks": 9,
+      "pid": 33317,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 24.389971458993386
+    },
+    {
+      "name": "model-off",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+        "gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "0",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+        "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_OVERLAP": "1"
+      },
+      "status": "passed",
+      "quiet_checks": 8,
+      "pid": 33346,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 23.718575791994226
+    },
+    {
+      "name": "lazy-qsa",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+        "gpu::flash::verify::tests::lazy_heads_and_publication_retirement_preserve_external_snapshots",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+        "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_OVERLAP": "1"
+      },
+      "status": "passed",
+      "quiet_checks": 2,
+      "pid": 33368,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 5.157945792001556
+    },
+    {
+      "name": "cancel",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+        "gpu::flash::mtp::mtp_request_cancel_rolls_back_after_ssd_submission",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+        "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_OVERLAP": "1"
+      },
+      "status": "passed",
+      "quiet_checks": 1,
+      "pid": 33379,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 2.0089178749913117
+    },
+    {
+      "name": "b2-eos",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r2-test",
+        "gpu::flash::mtp::block_verification_matches_scalar_mtp_and_eos_prefixes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+        "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+        "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+        "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+        "MLXL3_NATIVE_MOE_DEFERRED": "0",
+        "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+        "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+        "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_OVERLAP": "1"
+      },
+      "status": "passed",
+      "quiet_checks": 9,
+      "pid": 33388,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 25.816257790997042
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "expert_ar_policy::multirow_up_finish_keeps_exact_row_extents_and_bounds",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "60s"
+  ],
+  "status": "failed_or_timeout",
+  "returncode": 1,
+  "reaped": true,
+  "seconds": 4.354192625003634,
+  "domain": "actual new fused-up guard; unrestrictedbool/u32[3][3],unwind12,noassumptions; GPU implementation remains physically tested, not formally proved"
+}

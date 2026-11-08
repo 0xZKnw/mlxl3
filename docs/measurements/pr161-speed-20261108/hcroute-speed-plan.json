@@ -1,0 +1,47 @@
+{
+  "status": "preregistered",
+  "workload": "MAIN32/31decode, ctx4096, T0/topk1/penalty1/prefix_reuseOFF",
+  "cache_gib": 3,
+  "expected_slots_per_layer": 53,
+  "reason_for_cache": "automatic quality loads now admit46slots at10.62GiB available; use the established supported3GiB cache for both binaries, no forced90-slot admission",
+  "condition": "one real MTP32 warmup per process, retaining target and draft expert caches; no harnais clear between warmup and measured response",
+  "schedule": [
+    "A1 baseline",
+    "B candidate",
+    "A2 baseline"
+  ],
+  "repeats": 1,
+  "timeout_seconds_per_response": 180,
+  "no_full_campaign": true,
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+    "MLXL3_NATIVE_MTP_SSD_COHORTS": "1"
+  },
+  "base": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/frozen-cli",
+    "sha256": "2a8d36a93f7683ee02c756e527e7b16698667ee841bfebb9160d192dcb41c87a",
+    "bytes": 11538336
+  },
+  "candidate": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/hcroute-final-cli",
+    "sha256": "37a71512c54d14aa66b9283ed304d738e1225107578fc6d6a9b4359ff8bfafcc",
+    "base": "ebacd5ec",
+    "patch": "894be20a23a518e8ae2f245b053fd3b7af7d8e74512ec043fa042aef36327c61"
+  },
+  "limits": [
+    "one candidate point, two control points; short diagnostic, not a sustained universal gain",
+    "not comparable to historical90slots/cold-draft128 campaign"
+  ]
+}

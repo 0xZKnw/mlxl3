@@ -1371,6 +1371,13 @@ pub struct ExpertCache {
     pub prefetch_hits: u64,
 }
 
+/// Logical token accesses survive physical read deduplication and wave splitting.
+pub(crate) struct BlockAccess {
+    clock: u64,
+    ages: [u64; 512],
+    uses: [u8; 512],
+}
+
 /// Unfilled demand reservations must never survive an error or unwind.
 #[cfg(any(
     feature = "mlx",
@@ -1436,7 +1443,61 @@ impl ExpertCache {
     }
 
     pub fn reserve(&mut self, ids: &[u32]) -> Result<Vec<(usize, bool)>, CacheError> {
+        self.reserve_access(ids, None)
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn block_access(
+        &mut self,
+        rows: &[[u16; crate::speculation_plan::TOP_K]],
+    ) -> Result<BlockAccess, CacheError> {
+        if rows.is_empty()
+            || rows.len() > crate::speculation_plan::MAX_ROWS
+            || rows.iter().any(|row| {
+                row.iter()
+                    .enumerate()
+                    .any(|(i, &id)| id >= 512 || row[..i].contains(&id))
+            })
+        {
+            return Err(CacheError::InvalidIds);
+        }
+        self.clock
+            .checked_add(rows.len() as u64)
+            .ok_or(CacheError::Clock)?;
+        let mut access = BlockAccess {
+            clock: 0,
+            ages: [0; 512],
+            uses: [0; 512],
+        };
+        for row in rows {
+            self.clock += 1;
+            if self.clock.is_multiple_of(16) {
+                for count in &mut self.counts {
+                    *count /= 2;
+                }
+            }
+            for &id in row {
+                let id = usize::from(id);
+                self.counts[id] = self.counts[id].saturating_add(1);
+                access.ages[id] = self.clock;
+                access.uses[id] += 1;
+            }
+        }
+        access.clock = self.clock;
+        Ok(access)
+    }
+
+    fn reserve_access(
+        &mut self,
+        ids: &[u32],
+        access: Option<&BlockAccess>,
+    ) -> Result<Vec<(usize, bool)>, CacheError> {
         if ids.is_empty() || ids.iter().any(|&id| id >= 512) {
+            return Err(CacheError::InvalidIds);
+        }
+        if access.is_some_and(|access| {
+            access.clock != self.clock || ids.iter().any(|&id| access.uses[id as usize] == 0)
+        }) {
             return Err(CacheError::InvalidIds);
         }
         let mut unique = Vec::with_capacity(ids.len().min(512));
@@ -1452,8 +1513,10 @@ impl ExpertCache {
         if unique.len() > self.available_slots() {
             return Err(CacheError::Capacity);
         }
-        self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
-        if self.clock.is_multiple_of(16) {
+        if access.is_none() {
+            self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
+        }
+        if access.is_none() && self.clock.is_multiple_of(16) {
             for count in &mut self.counts {
                 *count /= 2;
             }
@@ -1467,7 +1530,9 @@ impl ExpertCache {
                 if seen[word] & bit == 0 {
                     seen[word] |= bit;
                     if let Some(slot) = self.keys.iter().position(|&key| key == Some(id)) {
-                        assert!(slru.touch(slot, true));
+                        for _ in 0..access.map_or(1, |a| a.uses[id as usize]) {
+                            assert!(slru.touch(slot, true));
+                        }
                     }
                 }
             }
@@ -1488,9 +1553,14 @@ impl ExpertCache {
                 && let Some(slru) = &mut self.slru
             {
                 assert!(slru.touch(slot, false));
+                for _ in 1..access.map_or(1, |a| a.uses[id as usize]) {
+                    assert!(slru.touch(slot, true));
+                }
             }
-            self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
-            self.ages[slot] = self.clock;
+            if access.is_none() {
+                self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
+            }
+            self.ages[slot] = access.map_or(self.clock, |a| a.ages[id as usize]);
             reserved.push((id, slot, present.is_some()));
         }
         Ok(ids
@@ -1745,8 +1815,24 @@ impl DemandPlan {
         cache: &Rc<RefCell<ExpertCache>>,
         ids: &[u32],
     ) -> Result<Self, CacheError> {
+        Self::reserve_access(cache, ids, None)
+    }
+
+    pub(crate) fn reserve_block(
+        cache: &Rc<RefCell<ExpertCache>>,
+        ids: &[u32],
+        access: &BlockAccess,
+    ) -> Result<Self, CacheError> {
+        Self::reserve_access(cache, ids, Some(access))
+    }
+
+    fn reserve_access(
+        cache: &Rc<RefCell<ExpertCache>>,
+        ids: &[u32],
+        access: Option<&BlockAccess>,
+    ) -> Result<Self, CacheError> {
         let guard = ExpertFill::new(cache);
-        let routes = cache.borrow_mut().reserve(ids)?;
+        let routes = cache.borrow_mut().reserve_access(ids, access)?;
         let mut plan = Self {
             cache: cache.clone(),
             routes,
@@ -1780,6 +1866,80 @@ impl Drop for DemandPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn block_access_preserves_logical_frequency_and_next_route_retention() -> Result<()> {
+        for shift in [0u16, 1, 497] {
+            let rows = [
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(|id| id + shift),
+                [0, 1, 2, 3, 4, 10, 11, 12, 13, 14].map(|id| id + shift),
+            ];
+            for slots in [10, 11, 15, 20, 53, 90] {
+                let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
+                let access = cache.borrow_mut().block_access(&rows)?;
+                let cohorts =
+                    crate::speculation_plan::resident_expert_cohorts(&rows, slots, &[]).unwrap();
+                let mut reads = 0;
+                for wave in &cohorts.waves {
+                    let ids = cohorts.cohorts[wave.clone()]
+                        .iter()
+                        .map(|c| u32::from(c.expert))
+                        .collect::<Vec<_>>();
+                    let plan = DemandPlan::reserve_block(&cache, &ids, &access)?;
+                    reads += plan.reads.len();
+                    for &lease in &plan.reads {
+                        assert!(plan.publish(lease));
+                    }
+                }
+                assert_eq!(reads, 15);
+                assert_eq!(cache.borrow().clock, 2);
+                for id in 0..15 {
+                    assert_eq!(
+                        cache.borrow().counts[usize::from(shift) + id],
+                        if id < 5 { 2 } else { 1 }
+                    );
+                }
+                let next = DemandPlan::reserve(&cache, &rows[1].map(u32::from))?;
+                assert!(next.reads.is_empty(), "slots={slots}, shift={shift}");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn block_access_checks_errors_before_mutation_and_keeps_token_decay() -> Result<()> {
+        let mut cache = ExpertCache::new(11)?;
+        let row = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        cache.clock = 14;
+        cache.counts[0] = 10;
+        let access = cache.block_access(&[row, row])?;
+        assert_eq!(cache.clock, 16);
+        assert_eq!(cache.counts[0], 6);
+        assert_eq!(access.ages[0], 16);
+        assert_eq!(access.uses[0], 2);
+        let mut four_rows = ExpertCache::new(10)?;
+        let four = four_rows.block_access(&[row; 4])?;
+        assert_eq!(
+            (
+                four_rows.clock,
+                four_rows.counts[0],
+                four.uses[0],
+                four.ages[0]
+            ),
+            (4, 4, 4, 4)
+        );
+        let counts = cache.counts;
+        for invalid in [Vec::new(), vec![[512; 10]], vec![[0; 10]], vec![row; 5]] {
+            assert!(cache.block_access(&invalid).is_err());
+            assert_eq!((cache.clock, cache.counts), (16, counts));
+        }
+        assert!(cache.reserve_access(&[511], Some(&access)).is_err());
+        cache.reserve(&[511])?;
+        assert!(cache.reserve_access(&[0], Some(&access)).is_err());
+        cache.clock = u64::MAX;
+        assert!(cache.block_access(&[row]).is_err());
+        assert_eq!(cache.clock, u64::MAX);
+        Ok(())
+    }
     #[test]
     fn ready_snapshot_excludes_pending_failed_and_recycled_generations() -> Result<()> {
         let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
@@ -3433,6 +3593,70 @@ pub(crate) fn qsa_append(offset: u32, published: u32, capacity: u32) -> Option<(
         && offset <= published
         && published <= capacity)
         .then(|| (u64::from(offset) * 1024, offset < published))
+}
+
+/// An original slab may still have external future snapshots; a new slab cannot.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn qsa_retained_high_water(protected: u32, retained: u32, original: bool) -> u32 {
+    if original {
+        protected.max(retained)
+    } else {
+        retained
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verified_qsa_retirement_never_discards_external_future() {
+    let protected: u32 = kani::any();
+    let retained: u32 = kani::any();
+    let original: bool = kani::any();
+    let high = qsa_retained_high_water(protected, retained, original);
+    assert!(high >= retained);
+    assert!(!original || high >= protected);
+    assert!(original || high == retained);
+    assert!(high == protected || high == retained);
+    kani::cover!(original && protected > retained);
+    kani::cover!(original && retained > protected);
+    kani::cover!(!original && protected > retained);
+}
+
+#[test]
+fn verified_qsa_retirement_preserves_external_marks_and_new_prefixes() {
+    for protected in [0, 1, 31, 32, u32::MAX] {
+        for retained in [0, 1, 31, 32, u32::MAX] {
+            assert_eq!(
+                qsa_retained_high_water(protected, retained, true),
+                if protected > retained {
+                    protected
+                } else {
+                    retained
+                }
+            );
+            assert_eq!(
+                qsa_retained_high_water(protected, retained, false),
+                retained
+            );
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn logical_block_access_counts_shared_consumers() {
+    let shift = u16::from(kani::any::<u8>());
+    let row = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(|id| id + shift);
+    let mut cache = ExpertCache::new(11).unwrap();
+    let access = cache.block_access(&[row, row]).unwrap();
+    assert_eq!(cache.clock, 2);
+    for id in row {
+        assert_eq!(cache.counts[usize::from(id)], 2);
+        assert_eq!(access.uses[usize::from(id)], 2);
+        assert_eq!(access.ages[usize::from(id)], 2);
+    }
+    kani::cover!(shift == 0);
+    kani::cover!(shift == 255);
 }
 
 #[cfg(kani)]

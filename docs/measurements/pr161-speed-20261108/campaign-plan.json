@@ -1,0 +1,54 @@
+{
+  "source": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+  "base": "28cf4c210490f9a028e9bdda5b1e067e1cdbca13",
+  "binary": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/frozen-test",
+    "sha256": "de0ce519e5d8b41890f47a0c9968223ad5ef12c375f9abc39067226b30672709",
+    "bytes": 12111792
+  },
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_MTP_CAMPAIGN_OUTPUT": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/campaign.json"
+  },
+  "command_suffix": [
+    "gpu::flash::mtp::campaign::matched_mtp_campaign",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 5400,
+  "maximum_process_rss_bytes": 12884901888,
+  "maximum_system_swapout_delta_bytes": 268435456,
+  "power_mode_must_stay_constant": true,
+  "slots": "automatic admission, fixed/check across every arm, report actual capacities",
+  "warmups": {
+    "MAIN": 5,
+    "HOLD": 5
+  },
+  "measured_samples": {
+    "MAIN": 25,
+    "HOLD": 25
+  },
+  "rotation": "five Latin rotations per prompt",
+  "full_sequence_parity": true,
+  "runtime_base_field_in_harness": "Historical hardcoded 830bb38a; actual revision is this manifest source and verified binary digest",
+  "limits": [
+    "Controlled cohort-compatible AR, not fastest shipped AR",
+    "Cycle bookkeeping and per-token boundary memory samples included",
+    "SSD submitted read bytes are not physical NAND bytes",
+    "sampled maxima are not instantaneous memory peaks",
+    "No change to quantization, context 4096 or output budget 128"
+  ]
+}

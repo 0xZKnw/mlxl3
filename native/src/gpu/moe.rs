@@ -16,6 +16,11 @@ use metal::{
 };
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
+#[path = "moe_block.rs"]
+mod block;
+#[path = "moe/shared_block.rs"]
+mod shared_block;
+
 #[path = "prefetch.rs"]
 mod prefetch;
 pub(super) use prefetch::PrefetchPool;
@@ -857,6 +862,20 @@ impl<'a> FlashMoeRow<'a> {
 
 impl FlashMoeRow<'_> {
     #[cfg(test)]
+    pub(super) fn campaign_slots(&self) -> usize {
+        self.slots.borrow().len()
+    }
+
+    #[cfg(test)]
+    pub(super) fn campaign_ready_experts(&self) -> usize {
+        self.cache
+            .borrow()
+            .ready_slot_snapshot()
+            .iter()
+            .flatten()
+            .count()
+    }
+    #[cfg(test)]
     pub(super) fn slru_counts(&self) -> (bool, usize) {
         let cache = self.cache.borrow();
         (cache.slru_enabled(), cache.slru_reservations())
@@ -880,18 +899,14 @@ impl FlashMoeRow<'_> {
         self.drain_commands()
     }
     fn drain_commands(&mut self) -> Result<()> {
-        let mut failure = None;
-        for command in &self.last {
+        crate::gpu_wait_policy::retire_commands(&mut self.last, |command| {
             self.gpu.wait_command(command);
-            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
-                failure = Some(anyhow::anyhow!("Flash MoE command failed during drain"));
-            }
-        }
-        if let Some(error) = failure {
-            return Err(error);
-        }
-        self.last.clear();
-        Ok(())
+            ensure!(
+                command.status() == MTLCommandBufferStatus::Completed,
+                "Flash MoE command failed during drain"
+            );
+            Ok(())
+        })
     }
     #[cfg(test)]
     pub(super) fn clear_test_cache(&mut self) -> Result<()> {

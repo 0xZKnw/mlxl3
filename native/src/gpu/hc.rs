@@ -89,6 +89,9 @@ pub(super) struct ReadBuffers {
     _workspace: Option<workspace::Lease>,
 }
 impl ReadBuffers {
+    pub(super) fn injection_gate(&self) -> Result<&MatrixView> {
+        self.gate.as_ref().context("missing HC injection gate")
+    }
     pub(super) fn mixed(&self) -> &MatrixView {
         &self.mixed
     }
@@ -812,7 +815,7 @@ impl<'a> FlashHc<'a> {
         self.gpu
             .command(|cmd| self.encode_write(cmd, streams, branch, gate))
     }
-    fn encode_write(
+    pub(super) fn encode_write(
         &self,
         cmd: &metal::CommandBufferRef,
         streams: &MatrixView,

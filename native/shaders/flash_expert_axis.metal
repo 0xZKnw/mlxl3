@@ -17,10 +17,10 @@ struct ExpertAxisParams { Params p; uint trellis; uint svh; uint stride; };
     const device half* xhat = prepared + expert * ep.stride; \
     const device uint* trellis = reinterpret_cast<const device uint*>(records[expert] + ep.trellis); \
     const device half* svh = reinterpret_cast<const device half*>(records[expert] + ep.svh); \
-    device float* yhat = partial + expert * uint(OUTPUT_DIMS); \
+    device float* yhat = partial + expert * ep.p.count * uint(OUTPUT_DIMS); \
     constant Params& p = ep.p; \
-    uint3 threadgroup_position_in_grid = uint3(axis_group.x,0,0); \
-    uint3 grid_size = uint3(axis_grid.x,1,1);
+    uint3 threadgroup_position_in_grid = uint3(axis_group.x,axis_group.y,0); \
+    uint3 grid_size = uint3(axis_grid.x,axis_grid.y,1);
 
 #undef K
 #define K 2
@@ -46,12 +46,30 @@ kernel void flash_axis_k2_2560_640_nt1(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+kernel void flash_consumers_k2_2560_640_nt1(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 1u
+
 #undef MLXL3_QMV_NT
 #define MLXL3_QMV_NT 2u
 kernel void flash_axis_k2_2560_640_nt2(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+kernel void flash_consumers_k2_2560_640_nt2(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 1u
+
 #undef INPUT_DIMS
 #define INPUT_DIMS 640u
 #undef OUTPUT_DIMS
@@ -66,12 +84,30 @@ kernel void flash_axis_k2_640_2560_nt1(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+kernel void flash_consumers_k2_640_2560_nt1(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 1u
+
 #undef MLXL3_QMV_NT
 #define MLXL3_QMV_NT 2u
 kernel void flash_axis_k2_640_2560_nt2(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+kernel void flash_consumers_k2_640_2560_nt2(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 1u
+
 #undef EXPERT_AXIS_ARGS
 #undef EXPERT_AXIS_LOCALS
 #undef INPUT_DIMS

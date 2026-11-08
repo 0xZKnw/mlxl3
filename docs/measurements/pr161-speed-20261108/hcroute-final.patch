@@ -1,0 +1,206 @@
+diff --git a/native/src/gpu/flash_verify.rs b/native/src/gpu/flash_verify.rs
+index 4187d04e..a1ae82dc 100644
+--- a/native/src/gpu/flash_verify.rs
++++ b/native/src/gpu/flash_verify.rs
+@@ -131,7 +131,10 @@ impl<'gpu> FlashNext<'gpu> {
+                     .iter()
+                     .map(|row| row.mixed.clone())
+                     .collect::<Vec<_>>();
+-                let experts = layer.moe().forward_block_cancellable(&mixed, cancelled)?;
++                let routing = prepared.iter_mut().map(|row| row.routing.take()).collect();
++                let experts = layer
++                    .moe()
++                    .forward_block_routed_cancellable(&mixed, routing, cancelled)?;
+                 ensure!(
+                     experts.len() == rows.len(),
+                     "incomplete Flash cohort outputs"
+@@ -353,6 +356,7 @@ mod tests {
+         // Run with cohort-compatible flags externally. Do not hide unsupported
+         // settings by mutating them during load or silently selecting fallback.
+         let mut model = FlashNext::load(&gpu, &c, 64)?;
++        ensure!(gpu.hc_chain.get() && gpu.hc_gate_chain.get());
+         ensure!(
+             model
+                 .layers
+@@ -380,7 +384,15 @@ mod tests {
+                 }
+                 model.restore(&root)?;
+                 model.verify_ssd_cohorts = true;
++                let joint_before = gpu.hc_gate_chain_pairs.get();
++                let standalone_before = gpu.gate_commands.get();
++                let expected_joint = width * model.layers.len();
+                 let cohort = model.stage_block(tokens)?;
++                ensure!(
++                    gpu.hc_gate_chain_pairs.get() - joint_before == expected_joint
++                        && gpu.gate_commands.get() == standalone_before,
++                    "SSD cohort lost the canonical joint HC/router producer"
++                );
+                 ensure!(cohort.logits() == logits && logits.len() == width);
+                 cohort.commit(keep)?;
+                 ensure!(retained_state(&model)? == expected_state);
+@@ -399,6 +411,25 @@ mod tests {
+                 model.restore(&root)?;
+             }
+         }
++        let joint_enabled = gpu.hc_gate_chain.replace(false);
++        let fallback = (|| -> Result<()> {
++            model.verify_ssd_cohorts = false;
++            let reference = model.stage_block(&[1, 2])?;
++            let logits = reference.logits().to_vec();
++            drop(reference);
++            model.verify_ssd_cohorts = true;
++            let joint_before = gpu.hc_gate_chain_pairs.get();
++            let standalone_before = gpu.gate_commands.get();
++            let cohort = model.stage_block(&[1, 2])?;
++            ensure!(cohort.logits() == logits);
++            ensure!(gpu.hc_gate_chain_pairs.get() == joint_before);
++            ensure!(gpu.gate_commands.get() > standalone_before);
++            drop(cohort);
++            ensure!(retained_state(&model)? == root_state);
++            Ok(())
++        })();
++        gpu.hc_gate_chain.set(joint_enabled);
++        fallback?;
+         // Reject workspace retention before preparing even the first layer.
+         gpu.hc_workspace_enabled.set(true);
+         let rejected = model.stage_block(&[1, 2]).is_err();
+diff --git a/native/src/gpu/gdn.rs b/native/src/gpu/gdn.rs
+index a48ebe39..af0a70a2 100644
+--- a/native/src/gpu/gdn.rs
++++ b/native/src/gpu/gdn.rs
+@@ -603,6 +603,7 @@ impl<'a> FlashGdn<'a> {
+ /// HC workspace must be disabled while these rows are retained.
+ pub(super) struct PreparedMoeRow {
+     pub(super) mixed: MatrixView,
++    pub(super) routing: Option<super::RouteOutput>,
+     streams: MatrixView,
+     gate: MatrixView,
+ }
+@@ -669,11 +670,24 @@ impl<'a> LayerResidual<'a> {
+             .gate
+             .as_ref()
+             .context("missing attention injection gate")?;
+-        let (streams, mlp_read) =
+-            self.mlp_hc
+-                .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
++        let (streams, mlp_read, routing) = if self.moe.joint_gate_eligible(0) {
++            let (streams, read, routing) = self.mlp_hc.read_after_write_with_gate(
++                &self.attn_hc,
++                streams,
++                &attention.values,
++                gate,
++                &self.moe,
++            )?;
++            (streams, read, Some(routing))
++        } else {
++            let (streams, read) =
++                self.mlp_hc
++                    .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
++            (streams, read, None)
++        };
+         Ok(PreparedMoeRow {
+             mixed: mlp_read.mixed,
++            routing,
+             streams,
+             gate: mlp_read.gate.context("missing MLP injection gate")?,
+         })
+diff --git a/native/src/gpu/moe_block.rs b/native/src/gpu/moe_block.rs
+index 8bd135b5..75a99b09 100644
+--- a/native/src/gpu/moe_block.rs
++++ b/native/src/gpu/moe_block.rs
+@@ -1,6 +1,7 @@
+ //! Opt-in block SSD reuse. Every wave is complete before cache slots are reused.
+ //! Ready experts reuse the qualified AR axis; each row keeps canonical rank mixing.
+ use super::*;
++use crate::gpu::RouteOutput;
+ use crate::speculation_plan::{ExpertCohort, MAX_ROWS, TOP_K, resident_expert_cohorts};
+ use std::sync::atomic::{AtomicBool, Ordering};
+ 
+@@ -40,10 +41,24 @@ impl FlashMoeRow<'_> {
+         self.forward_block_cancellable(rows, &AtomicBool::new(false))
+     }
+ 
++    #[cfg(test)]
+     pub(in crate::gpu) fn forward_block_cancellable(
+         &mut self,
+         rows: &[MatrixView],
+         cancelled: &AtomicBool,
++    ) -> Result<Vec<MoeOutput>> {
++        self.forward_block_routed_cancellable(
++            rows,
++            (0..rows.len()).map(|_| None).collect(),
++            cancelled,
++        )
++    }
++
++    pub(in crate::gpu) fn forward_block_routed_cancellable(
++        &mut self,
++        rows: &[MatrixView],
++        routing: Vec<Option<RouteOutput>>,
++        cancelled: &AtomicBool,
+     ) -> Result<Vec<MoeOutput>> {
+         let check_cancelled = || -> Result<()> {
+             ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+@@ -52,8 +67,8 @@ impl FlashMoeRow<'_> {
+         check_cancelled()?;
+         ensure!(self.block_eligible(), "unsupported Flash block SSD mode");
+         ensure!(
+-            (1..=MAX_ROWS).contains(&rows.len()),
+-            "Flash SSD block expects 1..4 rows"
++            (1..=MAX_ROWS).contains(&rows.len()) && routing.len() == rows.len(),
++            "Flash SSD block expects 1..4 rows with matching routes"
+         );
+         for x in rows {
+             ensure!(
+@@ -76,9 +91,12 @@ impl FlashMoeRow<'_> {
+         let mut ids = Vec::with_capacity(rows.len());
+         // RouteOutput has no draining Drop. Finish each submitted route before
+         // another fallible submission, including error/cancellation paths.
+-        for x in rows {
++        for (x, route) in rows.iter().zip(routing) {
+             check_cancelled()?;
+-            let route = self.gate.submit(x)?;
++            let route = match route {
++                Some(route) => route,
++                None => self.gate.submit(x)?,
++            };
+             ids.push(route.indices()?);
+             routed.push(route);
+         }
+@@ -525,6 +543,22 @@ mod tests {
+                             Ok((out.indices.clone(), out.read()?))
+                         })
+                         .collect::<Result<Vec<_>>>()?;
++                    if capacity == TOP_K && !fp32 && !repeated {
++                        let before = block.cache.borrow().ready_slot_snapshot();
++                        let gates = gpu.gate_commands.get();
++                        ensure!(
++                            block
++                                .forward_block_routed_cancellable(
++                                    &rows,
++                                    (1..rows.len()).map(|_| None).collect(),
++                                    &AtomicBool::new(false),
++                                )
++                                .is_err()
++                        );
++                        ensure!(block.cache.borrow().ready_slot_snapshot() == before);
++                        ensure!(gpu.gate_commands.get() == gates);
++                        gpu.ensure_reads_idle()?;
++                    }
+                     for width in 1..=MAX_ROWS {
+                         block.clear_test_cache()?;
+                         let axis_before = gpu.expert_ar_uses[3].get();
+@@ -614,7 +648,12 @@ mod tests {
+                     // clear_test_cache, invalidation intentionally retains the
+                     // recyclable backing allocations for the next reservation.
+                     if block.record_reuse_enabled && gpu.ssd_direct_enabled {
+-                        block.forward_block(&rows[..1])?;
++                        // Invalidation preserves ages, so fill even unused slots first.
++                        for _ in 0..capacity.div_ceil(TOP_K) {
++                            block.cache.borrow_mut().invalidate();
++                            block.forward_block(&rows[..1])?;
++                        }
++                        ensure!(block.record_backings.iter().all(Option::is_some));
+                         block.cache.borrow_mut().invalidate();
+                         let reused_before = gpu.readers()?.reused_destinations.get();
+                         let recovered = block.forward_block(&rows[..1])?;

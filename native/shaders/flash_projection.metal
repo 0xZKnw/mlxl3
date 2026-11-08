@@ -38,6 +38,24 @@ kernel void flash_reference_qmv_nt2(FLASH_QMV_ARGUMENTS) {
 #undef MLXL3_QMV_NT
 #define MLXL3_QMV_NT 1u
 
+// Canonical two-row target verification: decode each weight once, but retain
+// every row's scalar SG4 accumulation and split/FP16 boundaries. B4 uses two
+// groups, avoiding the >32 KiB scratch footprint of MB4+NT2.
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+kernel void flash_verify_qmv_mb2(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 2u
+kernel void flash_verify_qmv_mb2_nt2(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 1u
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 1u
+
 #include "flash_static_qmv.metal"
 #include "flash_expert_axis.metal"
 #include "flash_gdn_resident.metal"

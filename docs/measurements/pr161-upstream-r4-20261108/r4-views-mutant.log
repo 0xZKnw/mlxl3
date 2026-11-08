@@ -1,0 +1,13 @@
+
+running 1 test
+test gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace ... GDN projection batches: width=2, keep=0, layers=35
+Error: Condition failed: `cohort.logits() == logits && logits.len() == width`
+FAILED
+
+failures:
+
+failures:
+    gpu::flash::verify::tests::ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 488 filtered out; finished in 3.70s
+

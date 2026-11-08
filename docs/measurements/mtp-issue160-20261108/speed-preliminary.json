@@ -1,0 +1,88 @@
+{
+  "status": "truncated_on_user_request",
+  "runtime_source": "830bb38a9039fb56f2474a3735a5872d51efaaee",
+  "build": "release-mode test-only diagnostic, not standalone CLI",
+  "prompt": "MAIN from scripts/benchmark-flash-bridge.py",
+  "context": 4096,
+  "cache_slots_per_layer": 11,
+  "arms_share_loaded_target_and_resident_mtp_head": true,
+  "controlled_ar_not_shipped_best": true,
+  "flags_common": {
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1"
+  },
+  "measured_repetitions_per_arm": 1,
+  "planned_repetitions_per_arm": 5,
+  "warmups_per_arm": 1,
+  "exact_full_token_parity": true,
+  "statistics": "individual samples, no medians or significance claims",
+  "samples": [
+    {
+      "arm": "ar",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "decode_seconds": 15.81865475,
+      "decode_tps": 8.028495596314851,
+      "proposed": 0,
+      "accepted": 0,
+      "submitted_expert_read_bytes": 45533717820,
+      "submitted_read_jobs": 36658
+    },
+    {
+      "arm": "d1",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "decode_seconds": 16.556299958,
+      "decode_tps": 7.670796030645339,
+      "proposed": 72,
+      "accepted": 54,
+      "submitted_expert_read_bytes": 45815768532,
+      "submitted_read_jobs": 36900
+    },
+    {
+      "arm": "b2",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "decode_seconds": 19.248845417,
+      "decode_tps": 6.597798322378206,
+      "proposed": 72,
+      "accepted": 54,
+      "submitted_expert_read_bytes": 51683920956,
+      "submitted_read_jobs": 41670
+    },
+    {
+      "arm": "b2_ssd",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "decode_seconds": 26.732863709,
+      "decode_tps": 4.750706897040875,
+      "proposed": 72,
+      "accepted": 54,
+      "submitted_expert_read_bytes": 48824725464,
+      "submitted_read_jobs": 39549
+    },
+    {
+      "arm": "b2_ssd_shared",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "decode_seconds": 26.7907255,
+      "decode_tps": 4.740446465326219,
+      "proposed": 72,
+      "accepted": 54,
+      "submitted_expert_read_bytes": 48793525164,
+      "submitted_read_jobs": 39521
+    }
+  ],
+  "limitations": [
+    "Common AR conditioning before each arm; automatic cache admission unchanged.",
+    "The wall timing includes diagnostic cycle bookkeeping and memory samples; this is not a shipped CLI benchmark.",
+    "Submitted expert-record bytes are logical reader requests, not physical SSD traffic.",
+    "No isolated draft/verifier/head GPU timing or instantaneous memory peak was established.",
+    "Remaining MAIN rotations, HOLD, DFlash and all-hit tests were not run after the user requested ending the campaign.",
+    "The experiment shows regression in this controlled configuration, not a general performance ranking for all cache sizes."
+  ]
+}

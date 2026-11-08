@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "flash_support::verified_qsa_retirement_never_discards_external_future",
+    "--harness",
+    "flash_support::logical_block_access_counts_shared_consumers",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "60s"
+  ],
+  "status": "driver_success",
+  "returncode": 0,
+  "reaped": true,
+  "seconds": 39.69478745799279,
+  "reviewed": {
+    "harnesses_passed": 2,
+    "success": 1216,
+    "unreachable": 13,
+    "covers_satisfied": 5,
+    "bounds": "block access: u8 ID shift0..255,2identical10expertrows,initialclock0,unwind12; highwater: unrestricted u32,u32,bool. No assumptions.",
+    "unreachable_review": "stdlib constant arithmetic/alignment/allocator checks and literal-divisor modulo16 path; all user assertions reachable. Decay/overflow/error branches outside bounded block-access domain covered by deterministic CPU tests only.",
+    "not_proved": "GPU/Metal/FFI, cache eviction/lease concurrency, transaction guard provenance, complete model or all source paths"
+  }
+}

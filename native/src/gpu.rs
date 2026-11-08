@@ -24,7 +24,9 @@ mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
-pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
+pub use flash::{
+    FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor, FlashVerification,
+};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod qwen_gdn;
@@ -374,8 +376,21 @@ pub struct Metal {
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: Option<ComputePipelineState>,
+    expert_down_prepare: Option<ComputePipelineState>,
+    common_executor: bool,
+    flash_defaults: bool,
+    segment_enabled: bool,
+    segment_pending: std::cell::Cell<usize>,
+    segment_failed: std::cell::Cell<bool>,
+    #[cfg(test)]
+    segment_submissions: std::cell::Cell<u64>,
+    #[cfg(test)]
+    expert_down_prepare_uses: std::cell::Cell<u64>,
     expert_gu_prepare: Option<ComputePipelineState>,
     expert_axis_qmv: Option<[[ComputePipelineState; 2]; 2]>,
+    expert_consumer_qmv: Option<[[ComputePipelineState; 2]; 2]>,
+    #[cfg(test)]
+    expert_consumer_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
     expert_axis_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
@@ -399,6 +414,10 @@ pub struct Metal {
     mapped_glu: ComputePipelineState,
     mapped_mix: ComputePipelineState,
     mtp_hidden_qmv: ComputePipelineState,
+    flash_verify_qmv: Option<[ComputePipelineState; 2]>,
+    flash_verify_specialized: Option<[ComputePipelineState; 7]>,
+    #[cfg(test)]
+    flash_verify_specialized_uses: std::cell::Cell<[u64; 7]>,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
@@ -474,6 +493,7 @@ impl Metal {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
+            let flash_defaults = crate::native_executor::defaults(qualified_m5);
             let fixed_residency_enabled = match std::env::var("MLXL3_NATIVE_FIXED_RESIDENCY") {
                 Ok(value) => crate::flash_support::hc_kernel_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -488,7 +508,23 @@ impl Metal {
                     Err(std::env::VarError::NotPresent) => None,
                     Err(error) => return Err(error.into()),
                 };
-                crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
+                let default = flash_defaults
+                    && match name {
+                        "MLXL3_NATIVE_FLASH_COMMON_EXECUTOR"
+                        | "MLXL3_NATIVE_FLASH_VERIFY_QMV"
+                        | "MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED"
+                        | "MLXL3_NATIVE_FLASH_GLU_DOWN"
+                        | "MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS"
+                        | "MLXL3_NATIVE_FLASH_GDN_TEMPORAL"
+                        | "MLXL3_NATIVE_FLASH_GPU_SEGMENTS"
+                        | "MLXL3_NATIVE_DEVICE_GREEDY" => true,
+                        "MLXL3_NATIVE_HOT_WORKSPACE" => {
+                            std::env::var_os("MLXL3_NATIVE_MOE_FINISH_MIX")
+                                .is_none_or(|value| value != "1")
+                        }
+                        _ => false,
+                    };
+                crate::native_executor::default_flag(value.as_deref(), qualified_m5, default)
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let spin_wait_enabled = hc_kernel_setting("MLXL3_NATIVE_GPU_SPIN_WAIT")?;
@@ -544,9 +580,10 @@ impl Metal {
             .context("MLXL3_NATIVE_MOE_DEFERRED must be 0 or 1")?;
             let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
                 Ok(value) => crate::hc_workspace_policy::flag(Some(&value), qualified_m5),
-                Err(std::env::VarError::NotPresent) => {
-                    crate::hc_workspace_policy::flag(None, qualified_m5)
-                }
+                Err(std::env::VarError::NotPresent) => crate::hc_workspace_policy::flag(
+                    Some(if flash_defaults { "1" } else { "0" }),
+                    qualified_m5,
+                ),
                 Err(error) => return Err(error.into()),
             }
             .context("MLXL3_NATIVE_HC_WORKSPACE must be 0 or 1")?;
@@ -897,6 +934,11 @@ impl Metal {
             let expert_up_finish = expert_ar_enabled[0]
                 .then(|| pipeline("flash_up_finish_swiglu"))
                 .transpose()?;
+            let expert_down_prepare = (hc_kernel_setting("MLXL3_NATIVE_FLASH_GLU_DOWN")?
+                && qualified_m5
+                && expert_ar_enabled[0])
+                .then(|| pipeline("flash_up_finish_swiglu_prepare"))
+                .transpose()?;
             let expert_gu_prepare = expert_ar_enabled[1]
                 .then(|| pipeline("flash_dual_gu_prepare"))
                 .transpose()?;
@@ -956,6 +998,51 @@ impl Metal {
                 )?,
             ];
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
+            let flash_verify_qmv = if hc_kernel_setting("MLXL3_NATIVE_FLASH_VERIFY_QMV")? {
+                Some([
+                    pipeline("flash_verify_qmv_mb2")?,
+                    pipeline("flash_verify_qmv_mb2_nt2")?,
+                ])
+            } else {
+                None
+            };
+            let specialized = hc_kernel_setting("MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED")?;
+            let expert_consumer_qmv = (hc_kernel_setting("MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS")?
+                && qualified_m5
+                && expert_axis_qmv.is_some()
+                && flash_verify_qmv.is_some())
+            .then(|| -> Result<_> {
+                Ok([
+                    [
+                        pipeline("flash_consumers_k2_2560_640_nt1")?,
+                        pipeline("flash_consumers_k2_2560_640_nt2")?,
+                    ],
+                    [
+                        pipeline("flash_consumers_k2_640_2560_nt1")?,
+                        pipeline("flash_consumers_k2_640_2560_nt2")?,
+                    ],
+                ])
+            })
+            .transpose()?;
+            let flash_verify_specialized = if specialized && flash_verify_qmv.is_some() {
+                let states = [
+                    pipeline("flash_verify_static_k2_nt1")?,
+                    pipeline("flash_verify_static_k3_nt1")?,
+                    pipeline("flash_verify_static_k3_nt2")?,
+                    pipeline("flash_verify_static_k4_nt1")?,
+                    pipeline("flash_verify_static_k4_nt2")?,
+                    pipeline("flash_verify_fixed_k2_2560_640")?,
+                    pipeline("flash_verify_fixed_k2_640_2560")?,
+                ];
+                ensure!(
+                    states.iter().all(|p| p.thread_execution_width() == 32
+                        && p.max_total_threads_per_threadgroup() >= 128),
+                    "unsupported specialized MB2 geometry"
+                );
+                Some(states)
+            } else {
+                None
+            };
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(
@@ -972,6 +1059,7 @@ impl Metal {
                 gdn_joint_ab,
                 gdn_whole,
                 gdn_head_gates,
+                hc_kernel_setting("MLXL3_NATIVE_FLASH_GDN_TEMPORAL")? && qualified_m5,
             )?;
             let logsumexp = cached_pipeline("flash_logsumexp")?;
             let device_greedy_pipeline = hc_kernel_setting("MLXL3_NATIVE_DEVICE_GREEDY")?
@@ -1133,8 +1221,21 @@ impl Metal {
                 #[cfg(test)]
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
+                expert_down_prepare,
+                flash_defaults,
+                common_executor: hc_kernel_setting("MLXL3_NATIVE_FLASH_COMMON_EXECUTOR")?,
+                segment_enabled: hc_kernel_setting("MLXL3_NATIVE_FLASH_GPU_SEGMENTS")?,
+                segment_pending: std::cell::Cell::new(0),
+                segment_failed: std::cell::Cell::new(false),
+                #[cfg(test)]
+                segment_submissions: std::cell::Cell::new(0),
+                #[cfg(test)]
+                expert_down_prepare_uses: std::cell::Cell::new(0),
                 expert_gu_prepare,
                 expert_axis_qmv,
+                expert_consumer_qmv,
+                #[cfg(test)]
+                expert_consumer_dispatches: std::cell::Cell::new(0),
                 #[cfg(test)]
                 expert_axis_dispatches: std::cell::Cell::new(0),
                 #[cfg(test)]
@@ -1158,6 +1259,10 @@ impl Metal {
                 mapped_glu,
                 mapped_mix,
                 mtp_hidden_qmv,
+                flash_verify_qmv,
+                flash_verify_specialized,
+                #[cfg(test)]
+                flash_verify_specialized_uses: std::cell::Cell::new([0; 7]),
                 mtp_norm,
                 mtp_combine,
                 finish128_pipeline,
@@ -1206,6 +1311,7 @@ impl Metal {
     }
 
     fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
+        ensure!(!self.segment_failed.get(), "previous GPU segment failed");
         objc::rc::autoreleasepool(|| {
             let cmd = self.queue.new_command_buffer();
             #[cfg(test)]
@@ -1529,3 +1635,6 @@ mod ar20_capture_tests;
 #[cfg(test)]
 #[path = "gpu/ar30_greedy_tests.rs"]
 mod ar30_greedy_tests;
+
+#[path = "gpu/segment.rs"]
+mod segment;
