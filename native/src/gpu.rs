@@ -419,6 +419,11 @@ pub struct Metal {
     #[cfg(test)]
     flash_verify_specialized_uses: std::cell::Cell<[u64; 7]>,
     mtp_norm: ComputePipelineState,
+    mtp_norm_prepare_enabled: bool,
+    mtp_norm_factor: ComputePipelineState,
+    mtp_norm_prepare: ComputePipelineState,
+    #[cfg(test)]
+    mtp_norm_prepare_uses: std::cell::Cell<u64>,
     mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
     prepare_view_pipeline: ComputePipelineState,
@@ -1044,6 +1049,16 @@ impl Metal {
                 None
             };
             let mtp_norm = pipeline("mtp_hidden_norm")?;
+            let mtp_norm_prepare_enabled = hc_kernel_setting("MLXL3_NATIVE_MTP_NORM_PREPARE")?;
+            let mtp_norm_factor = pipeline("mtp_hidden_factor_only")?;
+            let mtp_norm_prepare = pipeline("mtp_hidden_norm_prepare")?;
+            ensure!(
+                mtp_norm_factor.thread_execution_width() == 32
+                    && mtp_norm_factor.max_total_threads_per_threadgroup() >= 1024
+                    && mtp_norm_prepare.thread_execution_width() == 32
+                    && mtp_norm_prepare.max_total_threads_per_threadgroup() >= 64,
+                "unsupported MTP normalization/preparation pipelines"
+            );
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(
                 &cached_pipeline,
@@ -1264,6 +1279,11 @@ impl Metal {
                 #[cfg(test)]
                 flash_verify_specialized_uses: std::cell::Cell::new([0; 7]),
                 mtp_norm,
+                mtp_norm_prepare_enabled,
+                mtp_norm_factor,
+                mtp_norm_prepare,
+                #[cfg(test)]
+                mtp_norm_prepare_uses: std::cell::Cell::new(0),
                 mtp_combine,
                 finish128_pipeline,
                 prepare_view_pipeline,

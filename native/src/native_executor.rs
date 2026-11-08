@@ -73,6 +73,23 @@ fn plans_reject_invalid_contexts_and_bound_every_role() {
 #[kani::proof]
 #[kani::unwind(10)]
 fn native_plan_admission_and_resource_bounds_cover_all_roles() {
+    let shape: [u32; 2] = kani::any();
+    let fp32: bool = kani::any();
+    let bytes: u64 = kani::any();
+    let result = mtp_norm_prepare_rows(shape, fp32, bytes);
+    assert_eq!(
+        result.is_some(),
+        fp32 && shape == [1, 10240] && bytes >= 40960
+    );
+    if let Some(rows) = result {
+        assert_eq!(rows, [4, 2560]);
+        assert_eq!(
+            u64::from(rows[0]) * u64::from(rows[1]),
+            u64::from(shape[0]) * u64::from(shape[1])
+        );
+    }
+    kani::cover!(result.is_some());
+    kani::cover!(!fp32 && shape == [1, 10240] && result.is_none());
     let m5: bool = kani::any();
     let budget: bool = kani::any();
     let lookahead: bool = kani::any();
@@ -211,5 +228,32 @@ fn measured_defaults_preserve_overrides_and_compatibility() {
         for bad in ["", "01", "true", " 1", "1\n", "é"] {
             assert_eq!(default_flag(Some(bad), m5, true), None);
         }
+    }
+}
+
+pub(crate) fn mtp_norm_prepare_rows(shape: [u32; 2], fp32: bool, bytes: u64) -> Option<[u32; 2]> {
+    (fp32 && shape == [1, 10240] && bytes >= 40960).then_some([4, 2560])
+}
+
+#[test]
+fn mtp_norm_prepare_accepts_only_the_complete_contiguous_stream_shape() {
+    assert_eq!(mtp_norm_prepare_rows([1, 10240], true, 40959), None);
+    assert_eq!(
+        mtp_norm_prepare_rows([1, 10240], true, u64::MAX),
+        Some([4, 2560])
+    );
+    assert_eq!(
+        mtp_norm_prepare_rows([1, 10240], true, 40960),
+        Some([4, 2560])
+    );
+    assert_eq!(mtp_norm_prepare_rows([1, 10240], false, 40960), None);
+    for shape in [
+        [0, 10240],
+        [2, 10240],
+        [1, 2560],
+        [1, 0],
+        [u32::MAX, u32::MAX],
+    ] {
+        assert_eq!(mtp_norm_prepare_rows(shape, true, 40960), None);
     }
 }
