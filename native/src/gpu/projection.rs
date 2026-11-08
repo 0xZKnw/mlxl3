@@ -1,6 +1,4 @@
 //! Resident Flash EXL3 weights and a single retained Metal submission.
-#[cfg(test)]
-thread_local! { pub(super) static CAMPAIGN_SHARED_QMV: std::cell::Cell<bool> = const { std::cell::Cell::new(true) }; }
 use super::{MatrixView, Metal, buffer, upload};
 use crate::{
     checkpoint::{Checkpoint, TensorInfo},
@@ -757,22 +755,14 @@ impl<'a> FlashProjection<'a> {
             batch,
             self.nt,
             self.k,
-            gpu.flash_verify_qmv.is_some()
-                && {
-                    #[cfg(test)]
-                    {
-                        CAMPAIGN_SHARED_QMV.get()
-                    }
-                    #[cfg(not(test))]
-                    {
-                        true
-                    }
-                }
+            crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
                 && !self.generic
                 && !self.mtp_hidden
                 && !self.routed_record,
         );
         let (pipeline, third, groups) = if let Some(key) = verify_rows {
+            #[cfg(test)]
+            crate::flash_qmv::note_shared_path(false);
             (
                 &gpu.flash_verify_qmv
                     .as_ref()

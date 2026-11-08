@@ -149,9 +149,13 @@ import SwiftUI
       bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(),
       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-    let ink = stride(from: 0, to: bytes.count, by: 4).filter {
-      Int(bytes[$0]) + Int(bytes[$0 + 1]) + Int(bytes[$0 + 2]) > 300
-    }.count
+    var ink: Int = 0
+    for offset in stride(from: 0, to: bytes.count, by: 4) {
+      let red: Int = Int(bytes[offset])
+      let green: Int = Int(bytes[offset + 1])
+      let blue: Int = Int(bytes[offset + 2])
+      if red + green + blue > 300 { ink += 1 }
+    }
     guard ink > 100 else {
       throw NSError(
         domain: "MarkdownTableRegression", code: 6,

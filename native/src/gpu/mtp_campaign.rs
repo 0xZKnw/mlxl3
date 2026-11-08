@@ -43,7 +43,7 @@ fn run<'a>(
     head.block_verify = arm >= 2;
     head.device_greedy = false;
     target.verify_ssd_cohorts = arm >= 3;
-    crate::gpu::projection::CAMPAIGN_SHARED_QMV.set(arm == 4);
+    let _shared_override = crate::flash_qmv::SharedVerifyOverride::new(arm == 4);
     let cancel = AtomicBool::new(false);
     let mut session = FlashMtpSession::default();
     let begin = Instant::now();
@@ -62,6 +62,7 @@ fn run<'a>(
     let mut max_metal = initial_memory.native_metal_allocated_bytes;
     let mut calls = Vec::new();
     crate::ssd_reads::campaign_reads(true);
+    let paths_before = crate::flash_qmv::shared_path_counts();
     let decode = Instant::now();
     while ids.len() < budget {
         let proposed = session.proposed;
@@ -90,8 +91,19 @@ fn run<'a>(
     let (bytes, jobs) = crate::ssd_reads::campaign_reads(false);
     ensure!(seconds.is_finite() && seconds > 0. && ids.len() == budget);
     let memory = target.memory_stats()?;
+    let paths_after = crate::flash_qmv::shared_path_counts();
+    let packed = paths_after.0 - paths_before.0;
+    let dispatched = paths_after.1 - paths_before.1;
+    ensure!(
+        arm == 4 || (packed == 0 && dispatched == 0),
+        "QMV OFF arm executed the shared packed path"
+    );
+    ensure!(
+        arm != 4 || session.proposed == 0 || (packed > 0 && dispatched > 0),
+        "QMV ON arm did not exercise packing and specialized dispatch"
+    );
     Ok(
-        json!({"arm":ARMS[arm],"tokens":ids,"generated_tokens":budget,"decode_tokens":budget-1,"decode_seconds":seconds,"decode_tps":(budget-1) as f64/seconds,"prefill_seconds":prefill,"proposed":session.proposed,"accepted":session.accepted,"submitted_expert_read_bytes":bytes,"submitted_read_jobs":jobs,"actual_disk_bytes":null,"cycle_calls":calls,"sampled_process_footprint_max":max_footprint,"sampled_metal_allocated_max":max_metal,"process_lifetime_peak_not_arm_peak":memory.process_lifetime_peak_bytes,"memory_start":initial_memory,"memory_end":memory}),
+        json!({"arm":ARMS[arm],"tokens":ids,"generated_tokens":budget,"decode_tokens":budget-1,"decode_seconds":seconds,"decode_tps":(budget-1) as f64/seconds,"prefill_seconds":prefill,"proposed":session.proposed,"accepted":session.accepted,"submitted_expert_read_bytes":bytes,"submitted_read_jobs":jobs,"actual_disk_bytes":null,"shared_packed_blocks":packed,"shared_qmv_dispatches":dispatched,"cycle_calls":calls,"sampled_process_footprint_max":max_footprint,"sampled_metal_allocated_max":max_metal,"process_lifetime_peak_not_arm_peak":memory.process_lifetime_peak_bytes,"memory_start":initial_memory,"memory_end":memory}),
     )
 }
 #[test]
@@ -204,7 +216,6 @@ fn matched_mtp_campaign() -> Result<()> {
         Ok(())
     })();
     crate::ssd_reads::campaign_reads(false);
-    crate::gpu::projection::CAMPAIGN_SHARED_QMV.set(true);
     report["status"] = if result.is_ok() {
         json!("complete")
     } else {

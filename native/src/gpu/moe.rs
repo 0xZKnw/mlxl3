@@ -889,18 +889,14 @@ impl FlashMoeRow<'_> {
         self.drain_commands()
     }
     fn drain_commands(&mut self) -> Result<()> {
-        let mut failure = None;
-        for command in &self.last {
+        crate::gpu_wait_policy::retire_commands(&mut self.last, |command| {
             self.gpu.wait_command(command);
-            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
-                failure = Some(anyhow::anyhow!("Flash MoE command failed during drain"));
-            }
-        }
-        if let Some(error) = failure {
-            return Err(error);
-        }
-        self.last.clear();
-        Ok(())
+            ensure!(
+                command.status() == MTLCommandBufferStatus::Completed,
+                "Flash MoE command failed during drain"
+            );
+            Ok(())
+        })
     }
     #[cfg(test)]
     pub(super) fn clear_test_cache(&mut self) -> Result<()> {

@@ -385,6 +385,44 @@ class NativeArProfileTests(unittest.TestCase):
                 report = self.failed(timeout=timeout, tool=f"invalid-timeout-{i}")
                 self.assertNotIn("pid", report)
 
+    def test_cleanup_receives_fresh_budget_after_expired_run_deadline(self):
+        with (
+            patch.object(PROFILE.time, "monotonic", side_effect=[100.0, 200.0]),
+            patch.object(PROFILE, "checked_files", side_effect=ValueError("slow preflight")),
+            patch.object(PROFILE, "cleanup", return_value=True) as cleanup,
+        ):
+            self.failed(timeout=0.6)
+        self.assertEqual(cleanup.call_args.args[2], 201.0)
+
+    def test_cleanup_reaps_direct_child_when_process_discovery_fails(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        state = {"alive": True, "waits": 0}
+
+        def wait(**_):
+            state["waits"] += 1
+            state["alive"] = False
+            return 0
+
+        child = SimpleNamespace(pid=123, wait=wait, poll=lambda: None if state["alive"] else 0)
+        with (
+            patch.object(PROFILE, "process_rows", side_effect=OSError("ps unavailable")),
+            patch.object(PROFILE.os, "killpg") as group,
+        ):
+            with self.assertRaises(OSError):
+                PROFILE.cleanup(child, target, time.monotonic() + 1)
+            self.assertGreaterEqual(state["waits"], 1)
+            group.assert_called_once_with(123, signal.SIGTERM)
+
+    def test_cleanup_snapshot_timeout_respects_remaining_budget(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        child = SimpleNamespace(pid=123, wait=lambda **_: 0, poll=lambda: 0)
+        with patch.object(PROFILE, "process_rows", return_value={}) as rows:
+            self.assertTrue(PROFILE.cleanup(child, target, time.monotonic() + 0.05))
+            self.assertGreaterEqual(rows.call_count, 3)
+            for call in rows.call_args_list:
+                self.assertGreater(call.kwargs["timeout"], 0)
+                self.assertLessEqual(call.kwargs["timeout"], 0.05)
+
     def test_cleanup_revalidates_reused_pid_and_never_kills_another_group(self):
         target = "/engine --registry /unique/registry.json bridge /model --context-length 4096"
         original = {456: (1, 456, target)}

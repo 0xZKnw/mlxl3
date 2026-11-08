@@ -361,3 +361,95 @@ fn verify_rows_dispatch_is_bounded_and_opt_in() {
         kani::cover!(rows == 4 && nt == 1);
     }
 }
+
+// A campaign may disable the optional path even when its pipelines are loaded.
+// Packing and dispatch must use this same decision, not pipeline presence alone.
+pub(crate) fn shared_verify_enabled(pipelines_loaded: bool) -> bool {
+    #[cfg(test)]
+    let allowed = SHARED_VERIFY_OVERRIDE.get();
+    #[cfg(not(test))]
+    let allowed = true;
+    pipelines_loaded && allowed
+}
+
+#[cfg(test)]
+thread_local! {
+    static SHARED_VERIFY_OVERRIDE: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+#[cfg(test)]
+pub(crate) struct SharedVerifyOverride {
+    previous: bool,
+    // The override belongs to its creating thread, including during unwinding.
+    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+#[cfg(test)]
+impl SharedVerifyOverride {
+    pub(crate) fn new(enabled: bool) -> Self {
+        Self {
+            previous: SHARED_VERIFY_OVERRIDE.replace(enabled),
+            _thread: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(test)]
+impl Drop for SharedVerifyOverride {
+    fn drop(&mut self) {
+        SHARED_VERIFY_OVERRIDE.set(self.previous);
+    }
+}
+
+#[test]
+fn shared_verify_override_restores_nested_and_error_scopes() {
+    assert!(shared_verify_enabled(true));
+    {
+        let _disabled = SharedVerifyOverride::new(false);
+        assert!(!shared_verify_enabled(true));
+        let fail = || -> Result<(), ()> {
+            let _enabled = SharedVerifyOverride::new(true);
+            assert!(shared_verify_enabled(true));
+            assert!(!shared_verify_enabled(false));
+            Err(())
+        };
+        assert!(fail().is_err());
+        assert!(!shared_verify_enabled(true));
+    }
+    assert!(shared_verify_enabled(true));
+    assert!(!shared_verify_enabled(false));
+    let _ = std::panic::catch_unwind(|| {
+        let _disabled = SharedVerifyOverride::new(false);
+        panic!("exercise unwinding restoration");
+    });
+    assert!(shared_verify_enabled(true));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn shared_verify_requires_loaded_pipelines() {
+    let loaded: bool = kani::any();
+    assert_eq!(shared_verify_enabled(loaded), loaded);
+    kani::cover!(loaded);
+    kani::cover!(!loaded);
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+thread_local! {
+    static SHARED_PATH_COUNTS: std::cell::Cell<(u64, u64)> = const { std::cell::Cell::new((0, 0)) };
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn note_shared_path(packing: bool) {
+    let (packed, dispatched) = shared_path_counts();
+    SHARED_PATH_COUNTS.set(if packing {
+        (packed + 1, dispatched)
+    } else {
+        (packed, dispatched + 1)
+    });
+}
+
+#[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn shared_path_counts() -> (u64, u64) {
+    SHARED_PATH_COUNTS.get()
+}

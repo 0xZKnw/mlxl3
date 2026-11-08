@@ -56,12 +56,16 @@ impl FlashMoeRow<'_> {
         // Cohort scheduling alone must not opt into numerical batching.
         // Preserve the exact existing scalar invocation unless the independent
         // M5 shared-QMV switch was explicitly enabled during Metal creation.
-        if gpu.flash_verify_qmv.is_none() || rows.len() == 1 {
+        if !crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
+            || rows.len() == 1
+        {
             return rows
                 .iter()
                 .map(|row| self.shared.encode_view(cmd, row, storage))
                 .collect();
         }
+        #[cfg(test)]
+        crate::flash_qmv::note_shared_path(true);
         let packed = MatrixView::output(
             gpu,
             dtype,
@@ -112,7 +116,7 @@ mod tests {
         let checkpoint =
             checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
-        let batched_enabled = gpu.flash_verify_qmv.is_some();
+        let pipelines_loaded = gpu.flash_verify_qmv.is_some();
         let moe = FlashMoeRow::load(&gpu, &checkpoint, "model.language_model.layers.0.mlp", 10)?;
         for fp32 in [false, true] {
             let mut rows = Vec::new();
@@ -140,25 +144,35 @@ mod tests {
                 .iter()
                 .map(|row| moe.shared.submit_fp16_view(row)?.read())
                 .collect::<Result<Vec<_>>>()?;
-            for count in 1..=4 {
-                let before = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
-                let actual = gpu.command(|cmd| {
-                    moe.encode_shared_block(cmd, &rows[..count], Storage::StorageModeShared)
-                })?;
-                ensure!(actual.len() == count);
-                let after = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
-                ensure!(after - before == usize::from(batched_enabled && count > 1));
-                for (index, output) in actual.iter().enumerate() {
-                    ensure!(output.length() == 5120);
+            for enabled in [false, true] {
+                let _override = crate::flash_qmv::SharedVerifyOverride::new(enabled);
+                for count in 1..=4 {
+                    let before = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
+                    let paths_before = crate::flash_qmv::shared_path_counts();
+                    let actual = gpu.command(|cmd| {
+                        moe.encode_shared_block(cmd, &rows[..count], Storage::StorageModeShared)
+                    })?;
+                    ensure!(actual.len() == count);
+                    let after = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
                     ensure!(
-                        Metal::read(output, 2560) == expected[index],
-                        "shared block B{count} row{index} fp32={fp32}"
+                        after - before == usize::from(pipelines_loaded && enabled && count > 1)
                     );
-                    for other in &actual[..index] {
-                        ensure!(!std::ptr::eq::<metal::BufferRef>(
-                            output.as_ref(),
-                            other.as_ref()
-                        ));
+                    let paths_after = crate::flash_qmv::shared_path_counts();
+                    let expected_packing = pipelines_loaded && enabled && count > 1;
+                    ensure!(paths_after.0 - paths_before.0 == u64::from(expected_packing));
+                    ensure!((paths_after.1 > paths_before.1) == expected_packing);
+                    for (index, output) in actual.iter().enumerate() {
+                        ensure!(output.length() == 5120);
+                        ensure!(
+                            Metal::read(output, 2560) == expected[index],
+                            "shared block B{count} row{index} fp32={fp32}"
+                        );
+                        for other in &actual[..index] {
+                            ensure!(!std::ptr::eq::<metal::BufferRef>(
+                                output.as_ref(),
+                                other.as_ref()
+                            ));
+                        }
                     }
                 }
             }

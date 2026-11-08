@@ -256,7 +256,7 @@ impl Read {
 
 #[cfg(test)]
 thread_local! { static CAMPAIGN_READS: std::cell::Cell<Option<(u64,u64)>> = const { std::cell::Cell::new(None) }; }
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos", feature = "direct-metal", feature = "chat"))]
 pub(crate) fn campaign_reads(enabled: bool) -> (u64, u64) {
     CAMPAIGN_READS
         .replace(enabled.then_some((0, 0)))

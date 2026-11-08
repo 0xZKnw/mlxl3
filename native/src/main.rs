@@ -3337,6 +3337,7 @@ fn bridge_generate_round(
                     u32::try_from(context_limit)?,
                     budget - generated.len(),
                     tokenizer.eos_ids(),
+                    cancelled,
                 )?);
             } else if let Some(draft) = draft {
                 dflash_next = Some(draft.advance(

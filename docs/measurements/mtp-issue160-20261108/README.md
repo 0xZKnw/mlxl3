@@ -63,3 +63,13 @@ All MTP arms accepted 54 of 72 proposals. High acceptance did not produce a spee
 **This AR control is cohort-compatible, not shipped-best AR.** Hot routing, workspace, deferred execution and finish-mix were held off across every arm; the MTP head remained resident across arms. Automatic admission was not overridden. Common AR conditioning preceded each arm. The wall measurements include diagnostic cycle bookkeeping and boundary memory samples; they are not a standalone CLI result. Reader-request bytes are not physical SSD traffic.
 
 See `speed-preliminary.json` for exact individual measurements and limits. The diagnostic implementation is test-only in `native/src/gpu/mtp_campaign.rs`; raw local evidence is not published. No default experimental activation, merge or release follows from these results.
+
+## Review correction: preliminary QMV ablation
+
+The original `b2_ssd` arm disabled the specialized shared QMV dispatch but still
+packed rows because the pipelines remained loaded. Its raw measurements remain
+historical evidence for that hybrid diagnostic configuration, **not** the public
+QMV-OFF path. They cannot isolate the full public flag effect. The reconstruction
+uses one effective predicate for packing and dispatch, restores overrides with a
+scope guard, and records actual path counters. Fresh physical parity and a new
+controlled campaign are required; the old measurements do not validate this code.

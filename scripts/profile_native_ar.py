@@ -193,9 +193,9 @@ def validate_bridge(path, engine, model, golden, tokens=32, *, warmup=True):
     return {"ready": row, "complete": selected}
 
 
-def process_rows():
+def process_rows(timeout=1.0):
     output = subprocess.check_output(
-        ["/bin/ps", "-ww", "-axo", "pid=,ppid=,pgid=,args="], text=True, timeout=1
+        ["/bin/ps", "-ww", "-axo", "pid=,ppid=,pgid=,args="], text=True, timeout=timeout
     )
     return {
         int(p): (int(parent), int(group), args)
@@ -210,42 +210,64 @@ def cleanup(child, target, deadline):
         return True
     known = {}
     registry = target.split(" --registry ", 1)[1].split(" bridge ", 1)[0]
+    discovery_error = None
+
+    def snapshot():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("process cleanup confirmation deadline exceeded")
+        return process_rows(timeout=min(0.25, remaining))
+
     for sig in (signal.SIGTERM, signal.SIGKILL):
-        alive = child.poll() is None
-        rows = process_rows()
-        owned = {
-            pid
-            for pid, (parent, group, args) in rows.items()
-            if (alive and group == child.pid) or args == target or known.get(pid) == args
-        }
-        while extra := {pid for pid, (parent, _, _) in rows.items() if parent in owned} - owned:
-            owned |= extra
-        known.update({pid: rows[pid][2] for pid in owned})
-        # After reap the numeric PGID may be recycled; only retained identities remain ours.
-        if child.poll() is None:
-            try:
-                os.killpg(child.pid, sig)
-            except ProcessLookupError:
-                pass
-        for pid in owned:
-            current = process_rows().get(pid)
-            if current is not None and current[2] == known[pid]:
+        try:
+            alive = child.poll() is None
+            rows = snapshot()
+            owned = {
+                pid
+                for pid, (parent, group, args) in rows.items()
+                if (alive and group == child.pid) or args == target or known.get(pid) == args
+            }
+            while extra := {pid for pid, (parent, _, _) in rows.items() if parent in owned} - owned:
+                owned |= extra
+            known.update({pid: rows[pid][2] for pid in owned})
+            for pid in owned:
+                current = snapshot().get(pid)
+                if current is not None and current[2] == known[pid]:
+                    try:
+                        os.kill(pid, sig)
+                    except ProcessLookupError:
+                        pass
+        except (OSError, subprocess.SubprocessError, TimeoutError) as error:
+            discovery_error = error
+        finally:
+            # Discovery failure must not skip signalling/waiting our direct child.
+            # After reap, never signal its potentially recycled numeric PGID.
+            if child.poll() is None:
                 try:
-                    os.kill(pid, sig)
+                    os.killpg(child.pid, sig)
                 except ProcessLookupError:
                     pass
-        try:
-            child.wait(timeout=max(0.01, min(0.2, deadline - time.monotonic())))
-        except subprocess.TimeoutExpired:
-            pass
+            try:
+                child.wait(timeout=max(0.001, min(0.1, deadline - time.monotonic())))
+            except subprocess.TimeoutExpired:
+                pass
     while time.monotonic() < deadline:
-        rows = process_rows()
+        rows = snapshot()
         if child.poll() is not None and not any(
             group == child.pid or args == target or known.get(pid) == args or registry in args
             for pid, (_, group, args) in rows.items()
         ):
+            # An earlier failed snapshot could have missed detached descendants.
+            if discovery_error is not None:
+                raise RuntimeError(
+                    "process discovery failed; descendant cleanup unconfirmed"
+                ) from discovery_error
             return True
-        time.sleep(0.02)
+        time.sleep(min(0.02, max(0.0, deadline - time.monotonic())))
+    if discovery_error is not None:
+        raise RuntimeError(
+            "process discovery failed; descendant cleanup unconfirmed"
+        ) from discovery_error
     return False
 
 
@@ -445,7 +467,9 @@ def run(plan_path, out, mode, timeout=120.0):
         raise
     finally:
         try:
-            report["all_children_joined"] = cleanup(child, target, deadline)
+            # Cleanup has its own one-second ceiling after generation/preflight.
+            # A consumed generation deadline is not evidence that cleanup failed.
+            report["all_children_joined"] = cleanup(child, target, time.monotonic() + 1.0)
         except BaseException as error:  # noqa: BLE001 -- Preserve cleanup failure beside original.
             report["cleanup_error"] = repr(error)
         if not report["all_children_joined"]:

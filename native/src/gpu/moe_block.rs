@@ -1,17 +1,24 @@
 //! Opt-in block SSD reuse. Every wave is complete before cache slots are reused.
-//! Expert arithmetic and each row's rank-ordered mix remain scalar/canonical.
+//! Ready experts reuse the qualified AR axis; each row keeps canonical rank mixing.
 use super::*;
-use crate::speculation_plan::{MAX_ROWS, TOP_K, resident_expert_cohorts};
+use crate::speculation_plan::{ExpertCohort, MAX_ROWS, TOP_K, resident_expert_cohorts};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(test)]
 thread_local! {
     // One-shot deterministic cancellation after a genuinely submitted/waited wave.
+    static CANCEL_AFTER_INITIAL_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static CANCEL_AFTER_WAVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static CANCEL_AFTER_READ_BATCH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 impl FlashMoeRow<'_> {
+    /// One-shot session rollback probe, also resettable when preflight exits early.
+    #[cfg(test)]
+    pub(in crate::gpu) fn set_cancel_after_initial_submit_for_test(enabled: bool) {
+        CANCEL_AFTER_INITIAL_SUBMIT.with(|inject| inject.set(enabled));
+    }
+
     /// Caller checks this before preparing any stateful row. Rechecked below.
     pub(in crate::gpu) fn block_eligible(&self) -> bool {
         self.prefetcher.is_none()
@@ -107,9 +114,33 @@ impl FlashMoeRow<'_> {
         let mut contributions: Vec<[Option<Buffer>; TOP_K]> = (0..rows.len())
             .map(|_| std::array::from_fn(|_| None))
             .collect();
+        // Each rank owns a fixed output slice, independent of completion order.
+        // Reuse the same qualified AR policy/offset contract, rather than placing
+        // outputs in SSD completion order and accidentally changing reduction.
+        let slabs = rows
+            .iter()
+            .map(|_| {
+                self.gpu.expert_ar_enabled[2]
+                    .get()
+                    .then(|| {
+                        let backing = buffer(&self.gpu.device, 51200, Storage::StorageModePrivate)?;
+                        #[cfg(test)]
+                        self.gpu.expert_ar_uses[2].set(self.gpu.expert_ar_uses[2].get() + 1);
+                        Ok::<_, anyhow::Error>(backing)
+                    })
+                    .transpose()
+            })
+            .collect::<Result<Vec<_>>>()?;
         #[cfg(test)]
         let mut timelines = vec![Vec::new(); rows.len()];
         let guard = ExpertFill::new(&self.cache);
+        let reuse = crate::ssd_reads::record_reuse_eligible(
+            self.record_reuse_enabled && self.gpu.ssd_direct_enabled,
+            0,
+            self.prefetcher.is_some(),
+            true, // Entry drain and each wave drain precede owner transfer.
+        );
+        let mut shared = None;
         for wave in &cohorts.waves {
             check_cancelled()?;
             let cohort = &cohorts.cohorts[wave.clone()];
@@ -118,98 +149,174 @@ impl FlashMoeRow<'_> {
                 .map(|entry| u32::from(entry.expert))
                 .collect::<Vec<_>>();
             let plan = DemandPlan::reserve(&self.cache, &requested)?;
-            // No submitted command still refers to these slot generations.
+            // The previous wave was drained, including on failure. Drop all old
+            // projection views before transferring backing ownership to readers.
+            let mut owners = Vec::with_capacity(plan.reads.len());
             for lease in &plan.reads {
-                self.slots.borrow_mut()[lease.slot] = None;
-                self.record_backings[lease.slot] = None;
+                let old_views = self.slots.borrow_mut()[lease.slot].take();
+                let owner = self.record_backings[lease.slot].take();
+                drop(old_views);
+                owners.push(if reuse {
+                    owner.and_then(RecordBacking::into_reusable)
+                } else {
+                    None
+                });
                 let entry = cohort
                     .iter()
                     .find(|entry| u32::from(entry.expert) == lease.expert)
                     .context("missing block demand consumer")?;
                 read_bytes[entry.consumers[0].row] += EXPERT_BYTES;
             }
-            // Cache reservation width is independent of reader queue width.
-            // Keep the full plan alive (including every initially hot expert),
-            // but never submit more than one AR cohort to the reader pool.
-            for batch in plan.reads.chunks(TOP_K) {
-                check_cancelled()?;
-                let records = batch
-                    .iter()
-                    .map(|&lease| (lease, self.records[lease.expert as usize].clone()));
-                let mut reads = if self.gpu.ssd_direct_enabled {
-                    self.gpu
-                        .readers()?
-                        .submit_shared_fresh(records, &self.gpu.device)?
-                } else {
-                    self.gpu.readers()?.submit(records)?
-                };
-                for (lease, payload) in reads.ready(true)? {
-                    let backing = self.gpu.completed_record(payload)?;
-                    let expert = FlashExpert::from_backing(self.gpu, &backing)?;
-                    ensure!(plan.publish(lease), "stale Flash block SSD completion");
-                    self.slots.borrow_mut()[lease.slot] = Some(expert);
-                    // Fresh immutable records; no live GPU generation is reused.
-                }
-                ensure!(reads.remaining() == 0, "incomplete Flash block SSD batch");
-                #[cfg(test)]
-                if plan.reads.len() > TOP_K
-                    && CANCEL_AFTER_READ_BATCH.with(|inject| inject.replace(false))
-                {
-                    cancelled.store(true, Ordering::Relaxed);
-                }
-                check_cancelled()?;
-                #[cfg(test)]
-                for (lease, _, _) in &reads.trace {
-                    let entry = cohort
-                        .iter()
-                        .find(|entry| u32::from(entry.expert) == lease.expert)
-                        .context("missing completed block read consumer")?;
-                    timelines[entry.consumers[0].row].push(serde_json::json!({
-                        "event": "block_read", "expert": lease.expert, "slot": lease.slot,
-                        "batch_size": batch.len()
-                    }));
-                }
-            }
-            objc::rc::autoreleasepool(|| -> Result<()> {
-                let command = self.gpu.queue.new_command_buffer().to_owned();
-                {
-                    let slots = self.slots.borrow();
-                    for (entry, &(slot, _)) in cohort.iter().zip(&plan.routes) {
-                        let expert = slots[slot].as_ref().context("missing Flash block expert")?;
-                        for consumer in &entry.consumers {
-                            check_cancelled()?;
-                            ensure!(
-                                contributions[consumer.row][consumer.rank].is_none(),
-                                "duplicate block contribution"
-                            );
-                            contributions[consumer.row][consumer.rank] =
-                                Some(expert.encode_view_into(
+            // Keep the entire cache reservation pinned, but bound each reader
+            // submission to TOP_K. Submit I/O before shared/resident GPU work.
+            // Even an all-hot wave runs the initial command exactly once.
+            let wave_result = objc::rc::autoreleasepool(|| -> Result<()> {
+                let submitted = (|| -> Result<()> {
+                    let batch_count = plan.reads.len().div_ceil(TOP_K).max(1);
+                    for batch_index in 0..batch_count {
+                        check_cancelled()?;
+                        let start = (batch_index * TOP_K).min(plan.reads.len());
+                        let end = (start + TOP_K).min(plan.reads.len());
+                        let batch = &plan.reads[start..end];
+                        let mut reads = if batch.is_empty() {
+                            None
+                        } else {
+                            let records = batch.iter().enumerate().map(|(index, &lease)| {
+                                (lease, self.records[lease.expert as usize].clone(), index)
+                            });
+                            Some(if self.gpu.ssd_direct_enabled {
+                                if reuse {
+                                    self.gpu.readers()?.submit_shared_reusing(
+                                        records.map(|(lease, record, index)| {
+                                            (lease, record, owners[start + index].take())
+                                        }),
+                                        &self.gpu.device,
+                                    )?
+                                } else {
+                                    self.gpu.readers()?.submit_shared(
+                                        records.map(|(lease, record, _)| (lease, record)),
+                                        &self.gpu.device,
+                                    )?
+                                }
+                            } else {
+                                self.gpu
+                                    .readers()?
+                                    .submit(records.map(|(lease, record, _)| (lease, record)))?
+                            })
+                        };
+                        let hot = if batch_index == 0 {
+                            plan.routes
+                                .iter()
+                                .filter_map(|&(slot, hit)| hit.then_some(slot))
+                                .collect::<Vec<_>>()
+                        } else {
+                            Vec::new()
+                        };
+                        if shared.is_none() || !hot.is_empty() {
+                            let command = self.gpu.queue.new_command_buffer().to_owned();
+                            if shared.is_none() {
+                                shared = Some(self.encode_shared_block(
                                     &command,
-                                    &rows[consumer.row],
+                                    rows,
                                     Storage::StorageModePrivate,
-                                    None,
                                 )?);
+                            }
+                            self.encode_block_ready(
+                                &command,
+                                rows,
+                                cohort,
+                                &plan.routes,
+                                &hot,
+                                &slabs,
+                                &mut contributions,
+                            )?;
+                            self.last.push(command.clone());
+                            command.commit();
+                            #[cfg(test)]
+                            timelines[0].push(serde_json::json!({
+                                "event": "block_initial_submit", "cold_reads": batch.len(),
+                                "resident_experts": hot.len()
+                            }));
+                            #[cfg(test)]
+                            if CANCEL_AFTER_INITIAL_SUBMIT.with(|inject| inject.replace(false)) {
+                                cancelled.store(true, Ordering::Relaxed);
+                            }
                         }
+                        if let Some(reads) = &mut reads {
+                            while reads.remaining() > 0 {
+                                check_cancelled()?;
+                                // Consume ready completions without waiting for the
+                                // whole batch. Their compute overlaps the tail I/O.
+                                let completed = reads.ready(false)?;
+                                check_cancelled()?;
+                                let mut ready = Vec::with_capacity(completed.len());
+                                for (lease, payload) in completed {
+                                    let direct = matches!(
+                                        &payload,
+                                        crate::ssd_reads::ReadPayload::Shared(_)
+                                    );
+                                    let backing = self.gpu.completed_record(payload)?;
+                                    let expert = FlashExpert::from_backing(self.gpu, &backing)?;
+                                    ensure!(
+                                        plan.publish(lease),
+                                        "stale Flash block SSD completion"
+                                    );
+                                    self.slots.borrow_mut()[lease.slot] = Some(expert);
+                                    if reuse && direct {
+                                        self.record_backings[lease.slot] =
+                                            Some(RecordBacking::new(backing, false));
+                                    }
+                                    ready.push(lease.slot);
+                                }
+                                let command = self.gpu.queue.new_command_buffer().to_owned();
+                                self.encode_block_ready(
+                                    &command,
+                                    rows,
+                                    cohort,
+                                    &plan.routes,
+                                    &ready,
+                                    &slabs,
+                                    &mut contributions,
+                                )?;
+                                self.last.push(command.clone());
+                                command.commit();
+                            }
+                            #[cfg(test)]
+                            for (lease, _, _) in &reads.trace {
+                                let entry = cohort
+                                    .iter()
+                                    .find(|entry| u32::from(entry.expert) == lease.expert)
+                                    .context("missing completed block read consumer")?;
+                                timelines[entry.consumers[0].row].push(serde_json::json!({
+                                    "event": "block_read", "expert": lease.expert,
+                                    "slot": lease.slot, "batch_size": batch.len()
+                                }));
+                            }
+                        }
+                        #[cfg(test)]
+                        if plan.reads.len() > TOP_K
+                            && CANCEL_AFTER_READ_BATCH.with(|inject| inject.replace(false))
+                        {
+                            cancelled.store(true, Ordering::Relaxed);
+                        }
+                        check_cancelled()?;
                     }
-                }
-                self.last.push(command.clone());
-                command.commit();
-                self.drain_commands()
-            })?;
+                    Ok(())
+                })();
+                // Retire all submitted work while this autorelease pool is
+                // still alive, before error propagation releases cache leases.
+                let drained = self.drain_commands();
+                submitted?;
+                drained
+            });
+            wave_result?;
             #[cfg(test)]
             if CANCEL_AFTER_WAVE.with(|inject| inject.replace(false)) {
                 cancelled.store(true, Ordering::Relaxed);
             }
         }
         check_cancelled()?;
-        let shared = objc::rc::autoreleasepool(|| -> Result<Vec<Buffer>> {
-            let command = self.gpu.queue.new_command_buffer().to_owned();
-            let shared = self.encode_shared_block(&command, rows, Storage::StorageModePrivate)?;
-            self.last.push(command.clone());
-            command.commit();
-            self.drain_commands()?;
-            Ok(shared)
-        })?;
+        let shared = shared.context("missing block shared expert outputs")?;
         let mut outputs = Vec::with_capacity(rows.len());
         for (row, x) in rows.iter().enumerate() {
             check_cancelled()?;
@@ -232,10 +339,20 @@ impl FlashMoeRow<'_> {
                 );
                 let mut bindings = contributions[row]
                     .iter()
-                    .map(|term| {
-                        term.as_ref()
-                            .map(|buffer| (buffer, 0u64))
-                            .context("missing canonical block contribution")
+                    .enumerate()
+                    .map(|(rank, term)| {
+                        let buffer = term
+                            .as_ref()
+                            .context("missing canonical block contribution")?;
+                        let offset = slabs[row]
+                            .as_ref()
+                            .map(|slab| {
+                                crate::expert_ar_policy::prefix(rank, TOP_K, 2560, slab.length())
+                                    .context("invalid canonical block contribution prefix")
+                            })
+                            .transpose()?
+                            .unwrap_or(0);
+                        Ok((buffer, offset))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 bindings.extend([
@@ -280,6 +397,78 @@ impl FlashMoeRow<'_> {
         check_cancelled()?;
         guard.commit();
         Ok(outputs)
+    }
+
+    /// Batch only already-ready experts for each row. The existing expert-axis
+    /// encoder retains its scalar fallback and qualified precision boundaries.
+    #[allow(clippy::too_many_arguments)]
+    fn encode_block_ready(
+        &self,
+        command: &metal::CommandBufferRef,
+        rows: &[MatrixView],
+        cohort: &[ExpertCohort],
+        routes: &[(usize, bool)],
+        ready: &[usize],
+        slabs: &[Option<Buffer>],
+        contributions: &mut [[Option<Buffer>; TOP_K]],
+    ) -> Result<()> {
+        let slots = self.slots.borrow();
+        for (row, x) in rows.iter().enumerate() {
+            let selected = cohort
+                .iter()
+                .zip(routes)
+                .flat_map(|(entry, &(slot, _))| {
+                    entry.consumers.iter().filter_map(move |consumer| {
+                        (consumer.row == row && ready.contains(&slot))
+                            .then_some((slot, consumer.rank))
+                    })
+                })
+                .collect::<Vec<_>>();
+            if selected.is_empty() {
+                continue;
+            }
+            let experts = selected
+                .iter()
+                .map(|&(slot, rank)| {
+                    ensure!(
+                        contributions[row][rank].is_none(),
+                        "duplicate block contribution"
+                    );
+                    slots[slot]
+                        .as_ref()
+                        .context("missing ready Flash block expert")
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let targets = selected
+                .iter()
+                .map(|&(_, rank)| {
+                    slabs[row]
+                        .as_ref()
+                        .map(|slab| {
+                            let offset =
+                                crate::expert_ar_policy::prefix(rank, TOP_K, 2560, slab.length())
+                                    .context("invalid canonical block contribution prefix")?;
+                            Ok((slab, offset))
+                        })
+                        .transpose()
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let values = FlashExpert::encode_ready_cohort(
+                command,
+                x,
+                &experts,
+                &targets,
+                Storage::StorageModePrivate,
+            )?;
+            ensure!(
+                values.len() == selected.len(),
+                "incomplete block ready cohort"
+            );
+            for ((_, rank), value) in selected.into_iter().zip(values) {
+                contributions[row][rank] = Some(value);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -338,7 +527,21 @@ mod tests {
                         .collect::<Result<Vec<_>>>()?;
                     for width in 1..=MAX_ROWS {
                         block.clear_test_cache()?;
+                        let axis_before = gpu.expert_ar_uses[3].get();
                         let actual = block.forward_block(&rows[..width])?;
+                        if gpu.expert_ar_enabled[3].get() {
+                            ensure!(
+                                gpu.expert_ar_uses[3].get() > axis_before,
+                                "block path bypassed enabled expert-axis encoder"
+                            );
+                        }
+                        ensure!(
+                            actual[0].timeline.first().is_some_and(|event| {
+                                event["event"] == "block_initial_submit"
+                                    && event["cold_reads"].as_u64().is_some_and(|n| n > 0)
+                            }),
+                            "cold block must submit initial GPU work before collecting reads"
+                        );
                         let union = expected[..width]
                             .iter()
                             .flat_map(|(ids, _)| ids.iter().copied())
@@ -406,6 +609,43 @@ mod tests {
                         for (row, out) in recovered.iter().enumerate() {
                             ensure!(out.read()? == expected[row].1);
                         }
+                    }
+                    // Force misses while preserving retired record owners. Unlike
+                    // clear_test_cache, invalidation intentionally retains the
+                    // recyclable backing allocations for the next reservation.
+                    if block.record_reuse_enabled && gpu.ssd_direct_enabled {
+                        block.forward_block(&rows[..1])?;
+                        block.cache.borrow_mut().invalidate();
+                        let reused_before = gpu.readers()?.reused_destinations.get();
+                        let recovered = block.forward_block(&rows[..1])?;
+                        ensure!(
+                            gpu.readers()?.reused_destinations.get() > reused_before,
+                            "block misses did not reuse retired record owners"
+                        );
+                        ensure!(recovered[0].read()? == expected[0].1);
+                    }
+                    block.clear_test_cache()?;
+                    let cancelled = AtomicBool::new(false);
+                    CANCEL_AFTER_INITIAL_SUBMIT.with(|inject| inject.set(true));
+                    let stopped = block.forward_block_cancellable(&rows, &cancelled);
+                    CANCEL_AFTER_INITIAL_SUBMIT.with(|inject| inject.set(false));
+                    ensure!(stopped.is_err() && cancelled.load(Ordering::Relaxed));
+                    ensure!(
+                        block.last.is_empty(),
+                        "early cancellation left submitted GPU work"
+                    );
+                    gpu.ensure_reads_idle()?;
+                    ensure!(
+                        block
+                            .cache
+                            .borrow()
+                            .ready_slot_snapshot()
+                            .iter()
+                            .all(Option::is_none)
+                    );
+                    let recovered = block.forward_block(&rows)?;
+                    for (row, out) in recovered.iter().enumerate() {
+                        ensure!(out.read()? == expected[row].1);
                     }
                     block.clear_test_cache()?;
                     let before = block.cache.borrow().ready_slot_snapshot();

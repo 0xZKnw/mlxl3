@@ -2156,13 +2156,15 @@
   "native/src/gpu/moe_block.rs": {
     ".ready": 1,
     ".shape": 1,
+    ".take": 3,
+    ".transpose": 3,
     "array::from_fn": 2,
     "config MLXL3_MOE_CHECKPOINT": 1
   },
   "native/src/gpu/mtp.rs": {
     ".shape": 1,
     ".to_f32": 4,
-    "config MLXL3_FLASH_MODEL": 5,
+    "config MLXL3_FLASH_MODEL": 6,
     "config MLXL3_FLASH_MTP_DIRECT_PARTS": 1,
     "config MLXL3_FLASH_MTP_REFERENCE": 2,
     "config MLXL3_FLASH_MTP_SESSION_ORACLE": 1,
@@ -2179,8 +2181,9 @@
   },
   "native/src/gpu/ple.rs": {
     ".shape": 1,
-    ".transpose": 1,
-    "config MLXL3_PLE_MODEL": 1
+    ".sum": 1,
+    ".transpose": 4,
+    "config MLXL3_PLE_MODEL": 2
   },
   "native/src/gpu/prefetch.rs": {
     ".ready": 1

@@ -333,6 +333,38 @@ impl FlashMtpSession {
         output_remaining: usize,
         eos: &[u32],
     ) -> Result<u32> {
+        self.advance_with_eos_cancellable(
+            target,
+            head,
+            anchor,
+            context_limit,
+            output_remaining,
+            eos,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+    }
+
+    /// Cancellation rolls back semantic target/draft/session state. Physical
+    /// reads and submitted GPU work still retire before their owners are reused.
+    #[allow(clippy::too_many_arguments)]
+    pub fn advance_with_eos_cancellable(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        anchor: u32,
+        context_limit: u32,
+        output_remaining: usize,
+        eos: &[u32],
+        cancelled: &std::sync::atomic::AtomicBool,
+    ) -> Result<u32> {
+        let check_cancelled = || -> Result<()> {
+            ensure!(
+                !cancelled.load(std::sync::atomic::Ordering::Relaxed),
+                "generation cancelled"
+            );
+            Ok(())
+        };
+        check_cancelled()?;
         ensure!(
             output_remaining > 0
                 && anchor < 248320
@@ -353,6 +385,7 @@ impl FlashMtpSession {
                 "pending Flash MTP token belongs to a different prefix"
             );
             let verified = *token;
+            check_cancelled()?;
             self.pending = None;
             return Ok(verified);
         }
@@ -371,14 +404,18 @@ impl FlashMtpSession {
             .clone();
         let target_before = target.snapshot();
         let head_before = head.layer.snapshot();
+        let session_before = (self.pending.clone(), self.proposed, self.accepted);
         let device_greedy = head.device_greedy;
         let select = |target: &mut FlashNext, token| -> Result<u32> {
-            if device_greedy {
-                target.forward_greedy(token)
+            check_cancelled()?;
+            let token = if device_greedy {
+                target.forward_greedy(token)?
             } else {
                 let logits = target.forward(token)?;
-                target.greedy_id(&logits)
-            }
+                target.greedy_id(&logits)?
+            };
+            check_cancelled()?;
+            Ok(token)
         };
         let result = (|| {
             if width == 0 {
@@ -386,12 +423,13 @@ impl FlashMtpSession {
                 return select(target, anchor);
             }
             let proposal = head.propose(target, &hidden, anchor)?;
+            check_cancelled()?;
             if head.block_verify {
                 // Explicit research path: canonical scalar kernels scheduled
                 // layer-major. It pays for both rows even on rejection; no
                 // shared-weight or throughput claim is implied by this flag.
                 let gpu = target.gpu;
-                let staged = target.stage_block(&[anchor, proposal])?;
+                let staged = target.stage_block_cancellable(&[anchor, proposal], cancelled)?;
                 let first = crate::speculative::greedy_log_prob_id(
                     &gpu.flash_log_probs(&staged.logits()[0])?,
                 )
@@ -466,9 +504,20 @@ impl FlashMtpSession {
                 proposal
             })
         })();
+        let result = result.and_then(|token| {
+            check_cancelled()?;
+            Ok(token)
+        });
         if result.is_err() {
-            target.restore(&target_before)?;
-            head.layer.restore(&head_before)?;
+            self.pending = session_before.0;
+            self.proposed = session_before.1;
+            self.accepted = session_before.2;
+            // Attempt both restores even if one fails; never leave the draft
+            // advanced merely because the target restore reported an error.
+            let target_restore = target.restore(&target_before);
+            let head_restore = head.layer.restore(&head_before);
+            target_restore?;
+            head_restore?;
         }
         result
     }
@@ -795,6 +844,29 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
             let before = target.snapshot();
             let draft_before = head.layer.snapshot();
             let session_before = copy_session(&session);
+            // Cancellation must not consume an already-verified pending token
+            // or change counters/target/draft state.
+            let hidden_before_cancel = target.last_hidden().unwrap().export_bytes(&gpu)?;
+            let draft_before_cancel = head.layer.retained_half_words()?;
+            cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+            ensure!(
+                session
+                    .advance_with_eos_cancellable(
+                        &mut target,
+                        &mut head,
+                        anchor,
+                        limit,
+                        budget - index,
+                        &[],
+                        &cancelled
+                    )
+                    .is_err()
+            );
+            same_session(&session, &session_before)?;
+            ensure!(target.offset == before.offset);
+            ensure!(target.last_hidden().unwrap().export_bytes(&gpu)? == hidden_before_cancel);
+            ensure!(head.layer.retained_half_words()? == draft_before_cancel);
+            cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
             seen_pending |= session.pending.is_some();
             head.block_verify = false;
             let wanted = session.advance_with_eos(
@@ -1129,3 +1201,67 @@ mod optimization_regression_tests {
 #[cfg(all(test, feature = "chat"))]
 #[path = "mtp_campaign.rs"]
 mod campaign;
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash checkpoint; production MTP cancellation after GPU submission"]
+fn mtp_request_cancel_rolls_back_after_ssd_submission() -> Result<()> {
+    use std::{
+        path::Path,
+        sync::atomic::{AtomicBool, Ordering},
+    };
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let gpu = Metal::new()?;
+    let mut target = FlashNext::load(&gpu, &c, 32)?;
+    ensure!(target.lookahead_depth == 0 && target.prefetcher.is_none());
+    target.verify_ssd_cohorts = true;
+    let mut head = FlashMtpHead::load(&c, &target)?;
+    head.block_verify = true;
+    let mut session = FlashMtpSession::default();
+    let cancelled = AtomicBool::new(false);
+    let logits = session.prefill(&mut target, &mut head, &[248044, 78768, 11], &cancelled)?;
+    let anchor = target.greedy_id(&logits)?;
+    let before = target.snapshot();
+    let draft_before = head.layer.retained_half_words()?;
+    let hidden_before = target.last_hidden().unwrap().export_bytes(&gpu)?;
+    let expected_next = target.forward_trace(anchor)?;
+    target.restore(&before)?;
+    super::FlashMoeRow::set_cancel_after_initial_submit_for_test(true);
+    let result = session.advance_with_eos_cancellable(
+        &mut target,
+        &mut head,
+        anchor,
+        32,
+        4,
+        &[],
+        &cancelled,
+    );
+    super::FlashMoeRow::set_cancel_after_initial_submit_for_test(false);
+    ensure!(
+        result.is_err() && cancelled.load(Ordering::Relaxed),
+        "cancellation injection not exercised"
+    );
+    ensure!(
+        target.offset == before.offset
+            && session.proposed == 0
+            && session.accepted == 0
+            && session.pending.is_none()
+    );
+    ensure!(head.layer.retained_half_words()? == draft_before);
+    ensure!(target.last_hidden().unwrap().export_bytes(&gpu)? == hidden_before);
+    cancelled.store(false, Ordering::Relaxed);
+    let actual_next = target.forward_trace(anchor)?;
+    ensure!(
+        actual_next.0 == expected_next.0
+            && !actual_next.1.is_empty()
+            && actual_next.1.len() == expected_next.1.len()
+    );
+    for (actual, expected) in actual_next.1.iter().zip(expected_next.1) {
+        ensure!(
+            actual.name == expected.name
+                && actual.shape == expected.shape
+                && actual.data == expected.data
+        );
+    }
+    Ok(())
+}
