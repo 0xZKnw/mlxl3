@@ -27177,3 +27177,35 @@ AR43-AUDIT4 slots64 validated_observation parity=True joined=True ; observationc
 AR43 CLOS : audit4PASS, missesdecode53=18401,64=16117(-12.412%),6096H/4572P02chaquephase,128tokensgoldenexacts. MicrohostpreadavantfinallocONPASS. Allocation+666107904B,compressionplusforteobservée,causalitéNONPROUVÉE. TPS[10.132285093305907, 10.085712408004225, 10.019308667307495],vscontrôlespoolés+0.102%NONCONCLUANT. CorrectionVALIDÉE,P01/P05opt-inOFFdéfaut ; P02ONexactM5qualifiéAR41. ÉchecspréfillharnaisR1/R2etClippyvariantelargepréexistanteconservés. SourceReleasegelée20e039d7inchangéepartest-onlyaudit. [Rapport](docs/measurements/flash-ar43-cache-reads-20261106/README.md). Aucunessaiencours,tousprocessusjoints ; publicationPRenpréparation,pasmerge/release/appinstallée.
 
 AR43 publication EFFECTIVE : PR158 https://github.com/0xZKnw/mlxl3/pull/158 empilée sur PR157/156, sources/rapport1c7a1c3f. P02 défautON exactM5 ;53slots etP05OFF par défaut, options64/P05numériquementqualifiéesmaisgainTPSnonconcluant. Aucuneapp/moteurinstalléremplacé, pasmerge/release. Tousessaisclosetprocessusjoints,7sélectionsphysiquesPASS/2tentativesharnaisFAILEDconservées. CIduheadpubliéàinspecter, aucunvertannoncé.
+
+## MTP-M1-20261108 — préenregistrement
+
+Base `28cf4c210490f9a028e9bdda5b1e067e1cdbca13`, issue #160 M1 / #152 G03.
+Hypothèse : après le premier forward cible D1, un rejet rend inutile le second
+forward sur la proposition. Garder le préfixe après l'ancre, le cache draft et
+les compteurs inchangés ; conserver rollback externe sur erreur et bonus pending.
+Changement prévu : acceptation D1 paresseuse, contrôleur CPU utilisé en production,
+tests déterministes rejet/acceptation/erreur et harnais Kani symbolique.
+Protocole : format/Clippy/tests CPU/Kani, puis contrôle physique Flash MTP vs AR
+incluant rejet et continuation avant tout benchmark. Matériel cloud Linux sans
+Metal/checkpoint ; vitesse NON MESURÉE. Skill formal-proof absent du catalogue et
+des chemins disponibles, référence Rust indisponible ; limites à consigner.
+État : EN COURS code local, aucun push/merge/app installée.
+
+MTP-M1 CLOS — code local préparé, vérification BLOQUÉE. Diff limité à
+`FlashMtpSession::advance` et au contrôleur CPU paresseux `greedy_accept_one`.
+Le premier forward et le draft sont identiques ; sur rejet le target reste au
+préfixe après ancre sans second forward ni restore cutoff. Sur acceptation,
+second forward, catch-up et pending restent identiques. Rollback externe sur
+erreur et budget largeur zéro conservés. Test CPU ajouté : 64 couples IDs,
+équivalence à greedy_accept et zéro appel du successeur sur rejet, erreur propagée
+seulement sur acceptation. Harnais Kani sans hypothèse sur IDs symboliques u32.
+`cargo fmt --check`, `cargo test --no-default-features --lib greedy_one`,
+`cargo kani --lib --no-default-features --harness greedy_one_successor_is_evaluated_iff_accepted`
+tentés : tous BLOQUÉS (`cargo: command not found`). Skill formal-proof/Rust
+introuvable. `git diff --check` PASS, ce n'est pas une validation Rust/Metal.
+Test physique existant `gpu::mtp::speculative_commits_match_stock_sequence_and_ordinary_state`
+NON EXÉCUTÉ (GPU Apple, checkpoint et oracle indisponibles) ; il exige acceptation
+et rejet non vides, budgets, pending, continuation et rollback. EOS réel/bridge,
+Clippy/build et suite complète NON EXÉCUTÉS. Aucun gain mesuré, aucun test annoncé
+passé, aucun push/PR/merge/release/app installée. Aucun essai encore en cours.

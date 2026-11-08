@@ -326,12 +326,12 @@ impl FlashMtpSession {
             let proposal = greedy(head.forward(target, &hidden, anchor)?)?;
             let first = greedy(target.forward(anchor)?)?;
             let cutoff = target.snapshot();
-            let second = greedy(target.forward(proposal)?)?;
-            let choice = crate::speculative::greedy_accept(&[proposal], &[first, second])
-                .context("invalid Flash MTP verification")?;
-            if choice.accepted_draft_tokens == 0 {
-                target.restore(&cutoff)?;
-            } else {
+            // A rejected proposal must not trigger another target pass (and SSD reads).
+            // The first pass already leaves the exact retained anchor prefix in place.
+            let choice = crate::speculative::greedy_accept_one(proposal, first, || {
+                greedy(target.forward(proposal)?)
+            })?;
+            if choice.accepted_draft_tokens != 0 {
                 head.extend(
                     target,
                     cutoff
