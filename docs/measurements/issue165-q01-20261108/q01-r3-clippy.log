@@ -1,0 +1,21 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0)
+error[E0308]: mismatched types
+   --> native/src/gpu.rs:504:17
+    |
+503 |             let numerical_profile = crate::native_executor::NumericalProfile::parse(
+    |                                     ----------------------------------------------- arguments to this function are incorrect
+504 |                 profile_value.as_deref(),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^ expected `Option<&[u8]>`, found `Option<&str>`
+    |
+    = note: expected enum `std::option::Option<&[u8]>`
+               found enum `std::option::Option<&str>`
+note: associated function defined here
+   --> native/src/native_executor.rs:249:19
+    |
+249 |     pub(crate) fn parse(value: Option<&[u8]>, m5: bool) -> Option<Self> {
+    |                   ^^^^^ --------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

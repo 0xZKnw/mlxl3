@@ -1936,6 +1936,7 @@
     "config MLXL3_NATIVE_MOE_DEFERRED": 1,
     "config MLXL3_NATIVE_MOE_FINISH_MIX": 2,
     "config MLXL3_NATIVE_MUL1_SWAR": 1,
+    "config MLXL3_NATIVE_PROFILE": 1,
     "config MLXL3_NATIVE_QMV_COOPERATIVE": 1,
     "config MLXL3_NATIVE_QMV_K_PRELOAD": 1,
     "config MLXL3_NATIVE_QSA_CHAINS": 1,
@@ -2046,6 +2047,16 @@
   "native/src/gpu/device_hot_cache.rs": {
     ".ready": 1,
     ".take": 1
+  },
+  "native/src/gpu/fast_profile_tests.rs": {
+    ".exp": 3,
+    ".memory_stats": 1,
+    ".transpose": 3,
+    "config MLXL3_FLASH_MODEL": 2,
+    "config MLXL3_NATIVE_PROFILE_OUTPUT": 1,
+    "config MLXL3_NATIVE_QUALITY_CORPUS": 1,
+    "config MLXL3_NATIVE_QUALITY_OUTPUT": 1,
+    "config MLXL3_NATIVE_QUALITY_REFERENCE": 1
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,

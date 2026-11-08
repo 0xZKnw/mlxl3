@@ -1,0 +1,38 @@
+[
+  {
+    "domain": "francais",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "Une bibliothèque municipale prête des livres à ses lecteurs. Pour savoir quels ouvrages proposer, elle conserve un historique limité des emprunts. Un livre souvent demandé reste sur une étagère proche de l'accueil, tandis qu'un volume rarement consulté retourne dans la réserve. Cette organisation ressemble à un cache informatique : les données les plus utiles restent disponibles rapidement, et les autres doivent être cherchées dans un stockage plus lent. La fréquence ne suffit pourtant pas toujours. Un ouvrage très populaire l'année dernière peut ne plus intéresser personne. Il faut donc tenir compte des demandes récentes et éviter qu'un ancien succès occupe indéfiniment une place précieuse. Lorsqu'un lecteur rend un livre, le bibliothécaire met à jour son registre avant de traiter la demande suivante. Cette règle garantit que deux employés consultant le même registre prennent des décisions compatibles. Le registre décrit la disponibilité logique ; le déplacement physique des ouvrages peut prendre un peu plus de temps."
+  },
+  {
+    "domain": "code",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "def merge_sorted(left: list[int], right: list[int]) -> list[int]:\n    result = []\n    i = j = 0\n    while i < len(left) and j < len(right):\n        if left[i] <= right[j]:\n            result.append(left[i])\n            i += 1\n        else:\n            result.append(right[j])\n            j += 1\n    result.extend(left[i:])\n    result.extend(right[j:])\n    return result\n\nassert merge_sorted([], []) == []\nassert merge_sorted([1, 3, 3], [2, 3]) == [1, 2, 3, 3, 3]\nassert merge_sorted([-5, 0], [-2, 7]) == [-5, -2, 0, 7]\n\n# Each input is already sorted. The loop consumes exactly one element at each iteration.\n# Equal elements from the left input keep their original relative order.\n"
+  },
+  {
+    "domain": "mathematiques",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "On place trois boules rouges et deux boules bleues dans une urne. On tire une première boule sans la remettre, puis une seconde. La probabilité de tirer deux boules rouges est (3/5) multiplié par (2/4), soit 3/10. Pour obtenir exactement une boule rouge, on additionne deux cas disjoints : rouge puis bleue, ou bleue puis rouge. Le premier cas a pour probabilité (3/5)(2/4), et le second (2/5)(3/4). Leur somme vaut 3/5. Enfin, deux boules bleues ont une probabilité de (2/5)(1/4), soit 1/10. Les trois probabilités totalisent bien un. Cet exemple illustre pourquoi la seconde probabilité dépend du premier résultat : le contenu de l'urne change après le tirage. Si chaque boule était remise immédiatement, les deux tirages seraient indépendants et les fractions seraient différentes."
+  },
+  {
+    "domain": "outils_json",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "Le client demande de créer un rendez-vous le 12 décembre à 14 heures, pendant trente minutes, dans le fuseau Europe/Paris. Le service doit d'abord vérifier la disponibilité et utiliser un identifiant de requête pour éviter les doublons. La réponse structurée attendue est :\n{\"request_id\":\"meeting-42\",\"action\":\"check_availability\",\"start\":\"2026-12-12T14:00:00+01:00\",\"end\":\"2026-12-12T14:30:00+01:00\",\"timezone\":\"Europe/Paris\",\"participants\":[\"alice@example.test\",\"bob@example.test\"]}\nSi le créneau est occupé, le service renvoie {\"status\":\"conflict\",\"created\":false}. Il ne doit pas annoncer que le rendez-vous existe. Si la même requête arrive deux fois après une création réussie, la seconde réponse réutilise l'identifiant du rendez-vous au lieu d'en créer un autre. Une réponse JSON valide ne contient ni commentaire, ni virgule finale, et les valeurs booléennes sont écrites true ou false en minuscules."
+  },
+  {
+    "domain": "nombres_negations",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "Le registre indique que le lot A contient 120 pièces, dont 7 défectueuses. Le lot B en contient 85, dont 3 défectueuses. Il y a donc 205 pièces au total et 10 défauts constatés, sans compter deux pièces qui n'ont pas encore été inspectées. Ces deux pièces ne doivent pas être déclarées défectueuses uniquement parce que leur état est inconnu. Une commande demande exactement 150 pièces conformes, pas au moins 150 pièces quelconques. Le numéro de suivi est AB-001709, avec deux zéros avant 1709, et le montant de la facture est 1 024,50 euros. La remise de 10 % porte sur ce montant avant les frais de livraison de 8 euros. Elle vaut 102,45 euros ; le nouveau total est donc 930,05 euros. Aucune livraison n'est prévue le dimanche. Le lundi reste possible, sauf si le transporteur annonce explicitement une fermeture."
+  },
+  {
+    "domain": "dialogue_long",
+    "prefix_tokens": 16,
+    "score_tokens": 64,
+    "text": "Utilisateur : Je prépare un voyage avec ma sœur et ses deux enfants. Nous arrivons mardi soir et repartons vendredi matin. Notre priorité est de limiter les changements d'hôtel.\nAssistant : Gardez une base unique et prévoyez deux journées complètes, mercredi et jeudi. Le mardi soir peut servir à vous installer.\nUtilisateur : Ma sœur ne souhaite pas conduire. Les enfants ont huit et onze ans. Nous préférons une activité calme le premier jour et une promenade le second.\nAssistant : Choisissez un quartier accessible en transports. Une visite courte avec des pauses convient au mercredi ; une promenade adaptable à la météo peut être prévue jeudi.\nUtilisateur : Finalement, le train retour est jeudi à 18 heures. Qu'est-ce qui change ?\nAssistant : Vous n'avez plus que le mercredi comme journée complète. Le jeudi matin permet une sortie proche, mais il faut garder le temps de récupérer les bagages et de rejoindre la gare. Le souhait de rester dans le même hôtel et l'absence de voiture ne changent pas."
+  }
+]

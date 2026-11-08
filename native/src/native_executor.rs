@@ -71,7 +71,7 @@ fn plans_reject_invalid_contexts_and_bound_every_role() {
 
 #[cfg(kani)]
 #[kani::proof]
-#[kani::unwind(10)]
+#[kani::unwind(13)]
 fn native_plan_admission_and_resource_bounds_cover_all_roles() {
     let m5: bool = kani::any();
     let budget: bool = kani::any();
@@ -99,6 +99,31 @@ fn native_plan_admission_and_resource_bounds_cover_all_roles() {
         kani::cover!(value == "0" && profile);
         kani::cover!(value == "é");
     }
+    let bytes: [u8; 12] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 13);
+    let value = &bytes[..length];
+    let parsed = NumericalProfile::parse(Some(value), m5);
+    assert_eq!(
+        parsed,
+        match value {
+            b"exact" => Some(NumericalProfile::Exact),
+            b"parallel-v1" if m5 => Some(NumericalProfile::ParallelV1),
+            _ => None,
+        }
+    );
+    if let Some(profile) = parsed {
+        assert_eq!(
+            NumericalProfile::parse(Some(profile.name().as_bytes()), m5),
+            parsed
+        );
+        assert_eq!(
+            profile.reference_accumulation() == 1,
+            profile == NumericalProfile::Exact
+        );
+    }
+    kani::cover!(value == b"parallel-v1" && parsed.is_some());
+    kani::cover!(value == b"parallel-v1" && !m5 && parsed.is_none());
+    kani::cover!(value == b"exact" && parsed.is_some());
     let kind: u8 = kani::any();
     let context: u32 = kani::any();
     let rows: usize = kani::any();
@@ -211,5 +236,69 @@ fn measured_defaults_preserve_overrides_and_compatibility() {
         for bad in ["", "01", "true", " 1", "1\n", "é"] {
             assert_eq!(default_flag(Some(bad), m5, true), None);
         }
+    }
+}
+
+/// Immutable numerical target; prefixes belong to the model owner that loaded it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NumericalProfile {
+    Exact,
+    ParallelV1,
+}
+impl NumericalProfile {
+    pub(crate) fn parse(value: Option<&[u8]>, m5: bool) -> Option<Self> {
+        match value {
+            None | Some(b"exact") => Some(Self::Exact),
+            Some(b"parallel-v1") if m5 => Some(Self::ParallelV1),
+            _ => None,
+        }
+    }
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Exact => "exact",
+            Self::ParallelV1 => "parallel-v1",
+        }
+    }
+    pub(crate) fn reference_accumulation(self) -> u8 {
+        u8::from(self == Self::Exact)
+    }
+}
+
+#[test]
+fn numerical_profile_is_explicit_versioned_and_hardware_qualified() {
+    for m5 in [false, true] {
+        assert_eq!(
+            NumericalProfile::parse(None, m5),
+            Some(NumericalProfile::Exact)
+        );
+        assert_eq!(
+            NumericalProfile::parse(Some(b"exact"), m5),
+            Some(NumericalProfile::Exact)
+        );
+        assert_eq!(
+            NumericalProfile::parse(Some(b"parallel-v1"), m5),
+            m5.then_some(NumericalProfile::ParallelV1)
+        );
+        for bad in [
+            "",
+            "fast",
+            "parallel",
+            "parallel-v2",
+            " parallel-v1",
+            "exact\n",
+            "é",
+        ] {
+            assert_eq!(NumericalProfile::parse(Some(bad.as_bytes()), m5), None);
+        }
+    }
+    for profile in [NumericalProfile::Exact, NumericalProfile::ParallelV1] {
+        assert_eq!(
+            NumericalProfile::parse(Some(profile.name().as_bytes()), true),
+            Some(profile)
+        );
+        assert_eq!(
+            profile.reference_accumulation(),
+            u8::from(profile == NumericalProfile::Exact)
+        );
     }
 }

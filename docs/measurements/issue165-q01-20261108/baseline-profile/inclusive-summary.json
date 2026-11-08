@@ -1,0 +1,193 @@
+{
+  "interpretation": "inclusive host spans; nested/overlapping, not exclusive GPU durations or additive speedup",
+  "modes": {
+    "ar": {
+      "native.production_output_step": {
+        "count": 7,
+        "inclusive_host_ms": 747.354208
+      },
+      "native.upload_copy": {
+        "count": 14,
+        "inclusive_host_ms": 0.04283300000000001
+      },
+      "native.layer": {
+        "count": 336,
+        "inclusive_host_ms": 717.4662599999996
+      },
+      "native.hc_gdn.joined": {
+        "count": 14,
+        "inclusive_host_ms": 11.222374000000004
+      },
+      "native.central_encode": {
+        "count": 875,
+        "inclusive_host_ms": 32.49562600000001
+      },
+      "native.hc.encode_read": {
+        "count": 679,
+        "inclusive_host_ms": 7.100668000000006
+      },
+      "native.hc.workspace.norm": {
+        "count": 679,
+        "inclusive_host_ms": 0.6902249999999966
+      },
+      "native.hc.workspace.gemv": {
+        "count": 1358,
+        "inclusive_host_ms": 0.7119679999999995
+      },
+      "native.hc.workspace.activation": {
+        "count": 679,
+        "inclusive_host_ms": 0.32754300000000064
+      },
+      "native.hc.result.mixed": {
+        "count": 679,
+        "inclusive_host_ms": 1.726783999999998
+      },
+      "native.hc.result.gate_gemv": {
+        "count": 672,
+        "inclusive_host_ms": 1.6059599999999972
+      },
+      "native.hc.result.gate_activation": {
+        "count": 672,
+        "inclusive_host_ms": 1.3291199999999956
+      },
+      "native.central_wait": {
+        "count": 875,
+        "inclusive_host_ms": 411.60338999999976
+      },
+      "native.gpu_interval": {
+        "count": 1760,
+        "inclusive_host_ms": 0.9063749999999995
+      },
+      "native.hc.chain_write_read_gate": {
+        "count": 336,
+        "inclusive_host_ms": 115.80211700000002
+      },
+      "native.hc.encode_write": {
+        "count": 672,
+        "inclusive_host_ms": 7.45492300000001
+      },
+      "native.route_readback_copy": {
+        "count": 336,
+        "inclusive_host_ms": 0.06858600000000005
+      },
+      "native.ssd_timeline": {
+        "count": 336,
+        "inclusive_host_ms": 1.0080869999999984
+      },
+      "native.moe_wait": {
+        "count": 336,
+        "inclusive_host_ms": 34.500236999999984
+      },
+      "native.hc.write_separate": {
+        "count": 98,
+        "inclusive_host_ms": 18.436210000000006
+      },
+      "native.hc_gdn.cross_layer": {
+        "count": 238,
+        "inclusive_host_ms": 200.32323999999994
+      },
+      "native.hc.read_separate": {
+        "count": 91,
+        "inclusive_host_ms": 25.42800900000001
+      }
+    },
+    "mtp": {
+      "native.production_output_step": {
+        "count": 7,
+        "inclusive_host_ms": 683.808624
+      },
+      "native.central_encode": {
+        "count": 540,
+        "inclusive_host_ms": 17.239205000000002
+      },
+      "native.upload_copy": {
+        "count": 309,
+        "inclusive_host_ms": 0.07690800000000002
+      },
+      "native.central_wait": {
+        "count": 540,
+        "inclusive_host_ms": 209.93782200000012
+      },
+      "native.gpu_interval": {
+        "count": 1247,
+        "inclusive_host_ms": 0.439449999999995
+      },
+      "native.hc.read_separate": {
+        "count": 97,
+        "inclusive_host_ms": 27.530501
+      },
+      "native.hc.encode_read": {
+        "count": 692,
+        "inclusive_host_ms": 8.307291
+      },
+      "native.hc.workspace.norm": {
+        "count": 692,
+        "inclusive_host_ms": 1.5045389999999994
+      },
+      "native.hc.workspace.gemv": {
+        "count": 1384,
+        "inclusive_host_ms": 1.5120409999999875
+      },
+      "native.hc.workspace.activation": {
+        "count": 692,
+        "inclusive_host_ms": 0.6438209999999988
+      },
+      "native.hc.result.mixed": {
+        "count": 692,
+        "inclusive_host_ms": 1.376928999999996
+      },
+      "native.hc.result.gate_gemv": {
+        "count": 682,
+        "inclusive_host_ms": 1.3542789999999982
+      },
+      "native.hc.result.gate_activation": {
+        "count": 682,
+        "inclusive_host_ms": 1.2140449999999965
+      },
+      "native.hc.chain_write_read_gate": {
+        "count": 129,
+        "inclusive_host_ms": 46.265503000000024
+      },
+      "native.hc.encode_write": {
+        "count": 678,
+        "inclusive_host_ms": 5.542056000000005
+      },
+      "native.route_readback_copy": {
+        "count": 339,
+        "inclusive_host_ms": 0.22854699999999997
+      },
+      "native.ssd_timeline": {
+        "count": 51,
+        "inclusive_host_ms": 0.09966900000000005
+      },
+      "native.moe_wait": {
+        "count": 339,
+        "inclusive_host_ms": 14.875167999999992
+      },
+      "native.hc.write_separate": {
+        "count": 17,
+        "inclusive_host_ms": 3.0192099999999993
+      },
+      "native.gdn.block_projections": {
+        "count": 105,
+        "inclusive_host_ms": 159.00237599999997
+      },
+      "native.hot.complete": {
+        "count": 288,
+        "inclusive_host_ms": 0.09071300000000007
+      },
+      "native.hc_gdn.joined": {
+        "count": 8,
+        "inclusive_host_ms": 6.9039150000000005
+      },
+      "native.layer": {
+        "count": 48,
+        "inclusive_host_ms": 96.51866799999996
+      },
+      "native.hc_gdn.cross_layer": {
+        "count": 34,
+        "inclusive_host_ms": 27.31658299999999
+      }
+    }
+  }
+}

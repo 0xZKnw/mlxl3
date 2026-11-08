@@ -379,6 +379,7 @@ pub struct Metal {
     expert_down_prepare: Option<ComputePipelineState>,
     common_executor: bool,
     flash_defaults: bool,
+    numerical_profile: crate::native_executor::NumericalProfile,
     segment_enabled: bool,
     segment_pending: std::cell::Cell<usize>,
     segment_failed: std::cell::Cell<bool>,
@@ -494,6 +495,16 @@ impl Metal {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
             let flash_defaults = crate::native_executor::defaults(qualified_m5);
+            let profile_value = match std::env::var("MLXL3_NATIVE_PROFILE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            let numerical_profile = crate::native_executor::NumericalProfile::parse(
+                profile_value.as_deref().map(str::as_bytes),
+                qualified_m5,
+            )
+            .context("MLXL3_NATIVE_PROFILE must be exact or parallel-v1 (Apple M5 required)")?;
             let fixed_residency_enabled = match std::env::var("MLXL3_NATIVE_FIXED_RESIDENCY") {
                 Ok(value) => crate::flash_support::hc_kernel_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -677,6 +688,12 @@ impl Metal {
             }
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
+            let flash_reference_reduction = include_str!("../shaders/flash_reference_reduction.h")
+                .replacen(
+                    "#define MLXL3_REFERENCE_ACCUMULATION 1",
+                    "#define MLXL3_REFERENCE_ACCUMULATION MLXL3_FLASH_REFERENCE_ACCUMULATION",
+                    1,
+                );
             let source = include_str!("../shaders/exl3.metal")
                 .replace(
                     "#include \"indirect_hot.metal\"",
@@ -712,7 +729,7 @@ impl Metal {
                 )
                 .replace(
                     "#include \"flash_reference_reduction.h\"",
-                    include_str!("../shaders/flash_reference_reduction.h"),
+                    &flash_reference_reduction,
                 )
                 .replace(
                     "#include \"router_topk.h\"",
@@ -824,7 +841,10 @@ impl Metal {
             };
             let hot_slots = crate::device_hot_policy::capacity(hot_slots_value.as_deref())
                 .context("MLXL3_NATIVE_DEVICE_HOT_SLOTS must be 53 or 64")?;
-            let source = format!("#define MLXL3_DEVICE_HOT_SLOTS {hot_slots}u\n{source}");
+            let reference_accumulation = numerical_profile.reference_accumulation();
+            let source = format!(
+                "#define MLXL3_DEVICE_HOT_SLOTS {hot_slots}u\n#define MLXL3_FLASH_REFERENCE_ACCUMULATION {reference_accumulation}\n{source}"
+            );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -1223,6 +1243,7 @@ impl Metal {
                 expert_up_finish,
                 expert_down_prepare,
                 flash_defaults,
+                numerical_profile,
                 common_executor: hc_kernel_setting("MLXL3_NATIVE_FLASH_COMMON_EXECUTOR")?,
                 segment_enabled: hc_kernel_setting("MLXL3_NATIVE_FLASH_GPU_SEGMENTS")?,
                 segment_pending: std::cell::Cell::new(0),
@@ -1638,3 +1659,6 @@ mod ar30_greedy_tests;
 
 #[path = "gpu/segment.rs"]
 mod segment;
+
+#[cfg(test)]
+mod fast_profile_tests;

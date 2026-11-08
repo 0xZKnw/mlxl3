@@ -1,0 +1,77 @@
+{
+  "status": "complete_short_pilot",
+  "tokens_per_response": 32,
+  "quality": {
+    "status": "passed_screen",
+    "ppl_ratio": 0.9965043377802973,
+    "tokens": 384,
+    "domains": {
+      "francais": {
+        "tokens": 64,
+        "ppl_ratio": 0.9831581456906522,
+        "kl": 0.00724780928649968,
+        "top1": 0.9375
+      },
+      "code": {
+        "tokens": 64,
+        "ppl_ratio": 1.0003257655965039,
+        "kl": 6.234329602354903e-05,
+        "top1": 1.0
+      },
+      "mathematiques": {
+        "tokens": 64,
+        "ppl_ratio": 0.9918205271513211,
+        "kl": 0.00100213399897831,
+        "top1": 0.984375
+      },
+      "outils_json": {
+        "tokens": 64,
+        "ppl_ratio": 0.9961458929284039,
+        "kl": 0.010434166632214385,
+        "top1": 0.96875
+      },
+      "nombres_negations": {
+        "tokens": 64,
+        "ppl_ratio": 1.013121673438681,
+        "kl": 0.004585189370779362,
+        "top1": 0.984375
+      },
+      "dialogue_long": {
+        "tokens": 64,
+        "ppl_ratio": 0.9947012801525582,
+        "kl": 0.0026872921378015536,
+        "top1": 1.0
+      }
+    }
+  },
+  "modes": {
+    "mtp": {
+      "exact": [
+        10.934921857379951,
+        10.760138252156986
+      ],
+      "parallel": [
+        10.903021989057182,
+        10.88887320930175
+      ],
+      "exact_mean": 10.84753005476847,
+      "parallel_mean": 10.895947599179465,
+      "gain_percent": 0.4463462573188304,
+      "control_drift_percent": -1.5983983013559744
+    },
+    "baseline": {
+      "exact": [
+        9.110608556358867,
+        9.231707864093627
+      ],
+      "parallel": [
+        9.791622429985363,
+        9.659226764097102
+      ],
+      "exact_mean": 9.171158210226247,
+      "parallel_mean": 9.725424597041233,
+      "gain_percent": 6.043581128029762,
+      "control_drift_percent": 1.329212060705176
+    }
+  }
+}

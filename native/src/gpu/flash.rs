@@ -444,6 +444,10 @@ impl<'a> FlashNext<'a> {
     pub(crate) fn checkpoint_path(&self) -> &std::path::Path {
         &self.checkpoint_path
     }
+    pub fn numerical_profile(&self) -> &'static str {
+        self.gpu.numerical_profile.name()
+    }
+
     pub fn context_limit(&self) -> u32 {
         self.context
     }
