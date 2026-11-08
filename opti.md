@@ -27365,3 +27365,22 @@ worker environnement ; transfert/validation finale à faire par l'intégrateur.
 - Résultat physique c86d7f8e : fixture block_experts_read_once_and_recover_after_failed_fill échoue en6,6s, `native SSD demand exceeds one AR cohort`. Compilation et tests CPU ne couvraient pas cette limite réelle du reader(10lectures), distincte du nombre de slots cache(10/20/40).
 - Correction prévue : garder la réservation complète de chaque vague cache, qui protège les experts initialement résidents ; remplir ses leases par sous-lots séquentiels de10lectures au maximum, tous attendus avant commande GPU. Ne pas élargir la limite reader, ni tronquer arbitrairement la protection des résidents. Étendre fixture pour attester des sous-lots bornés et du passage effectif au-delà de10experts uniques. Refaire compilation/tests puis fixture physique avant toute mesure de débit ; statut EN COURS.
 - Correctif local : sous-lots reader `.chunks(TOP_K)` sous la même DemandPlan, chaque batch vidé et publié avant le suivant ; cancellation recontrôlée entre batches. Fixture exige au moins un cas cache>10/experts uniques>10, trace chaque taille de soumission<=10 et conserve l'oracle union/bytes ; injection après premier batch attendu, avant suivant, vérifie reader idle, aucun command GPU, tous slots disponibles, clés invalidées et récupération canonique. Diff-check passe ; exécution Mac du correctif en attente.
+
+
+### MTP-ISSUE160-QUALIFICATION — completed correctness checks
+
+Qualified source: 830bb38a9039fb56f2474a3735a5872d51efaaee.
+Strict Clippy passed. The complete serial standard suite passed 442 tests,
+with 128 ignored; selected physical tests were executed separately.
+The physical campaign passed 12 non-mutant invocations. Three initial failures
+were retained in the qualification summary and subsequently resolved: SSD read
+submission bound, invalid test-fixture cache capacity, and automatic load admission.
+The unchanged admission policy was retained. A deliberate KV cache-copy mutation
+failed its state oracle; exact source restoration and a passing rerun followed.
+Three focused bounded CPU Kani contracts passed; Metal and concurrency are not proven.
+Shared QMV, shared experts, SSD read-once/recovery, KV catch-up, staging rollback,
+final-head prefill, proposal selection, B2/EOS and full-model SSD integration were
+qualified in the explicitly tested modes. No throughput or memory-peak benchmark
+was run. Recursive depth 2/3, adaptive runtime policy and prospective admission
+remain unqualified. All validation processes completed; no merge or installation.
+See [public qualification summary](docs/measurements/mtp-issue160-20261108/README.md).
