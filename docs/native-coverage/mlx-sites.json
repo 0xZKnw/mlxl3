@@ -1894,7 +1894,7 @@
   },
   "native/src/gpu.rs": {
     ".to_f32": 2,
-    ".transpose": 7,
+    ".transpose": 9,
     "array::from_fn": 7,
     "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
@@ -1909,9 +1909,12 @@
     "config MLXL3_NATIVE_EXPERT_OUTPUT_SLAB": 1,
     "config MLXL3_NATIVE_EXPERT_UP_FINISH": 1,
     "config MLXL3_NATIVE_FIXED_RESIDENCY": 1,
+    "config MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS": 1,
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
+    "config MLXL3_NATIVE_FLASH_GLU_DOWN": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
     "config MLXL3_NATIVE_FLASH_VERIFY_QMV": 1,
+    "config MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED": 1,
     "config MLXL3_NATIVE_GDN_HALF_ELISION": 1,
     "config MLXL3_NATIVE_GDN_HEAD_GATES": 1,
     "config MLXL3_NATIVE_GDN_JOINT_AB": 1,
@@ -2023,6 +2026,9 @@
     ".transpose": 2,
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
   },
+  "native/src/gpu/consumer_cohort.rs": {
+    ".shape": 2
+  },
   "native/src/gpu/convert_matmul.rs": {
     ".shape": 3,
     "config MLX_ENABLE_TF32": 1,
@@ -2067,6 +2073,7 @@
   },
   "native/src/gpu/flash_verify.rs": {
     ".take": 2,
+    "array::from_fn": 1,
     "config MLXL3_FLASH_MODEL": 4
   },
   "native/src/gpu/gate.rs": {
@@ -2156,7 +2163,7 @@
   "native/src/gpu/moe_block.rs": {
     ".ready": 1,
     ".shape": 1,
-    ".take": 3,
+    ".take": 4,
     ".transpose": 3,
     "array::from_fn": 3,
     "config MLXL3_MOE_CHECKPOINT": 1
@@ -3269,6 +3276,7 @@
     ".take": 2,
     ".try_clone": 15,
     "config MLXL3_NATIVE_EARLY_READS": 1,
+    "config MLXL3_NATIVE_FLASH_READ_WINDOW": 1,
     "config MLXL3_NATIVE_READ_SPLIT": 1,
     "config MLXL3_SSD_DYNAMIC_READERS": 1
   },
@@ -3297,6 +3305,12 @@
   "native/src/ssd_reads/wave_tests.rs": {
     ".ready": 3,
     ".start": 1,
+    ".try_clone": 1
+  },
+  "native/src/ssd_reads/window.rs": {
+    ".ready": 6,
+    ".start": 1,
+    ".take": 1,
     ".try_clone": 1
   },
   "native/src/streaming.rs": {

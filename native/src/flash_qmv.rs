@@ -323,6 +323,80 @@ pub(crate) fn verify_row_count(rows: usize, nt: u32, k: u32, eligible: bool) -> 
     (2..=4).contains(&rows) && verify_rows_key(rows as u32, nt, k, eligible).is_some()
 }
 
+/// MB2 reuses the qualified B1 constants; fixed dimensions take priority.
+pub(crate) fn verify_specialized_key(
+    rows: u32,
+    static_key: Option<usize>,
+    fixed_key: Option<u8>,
+    enabled: bool,
+) -> Option<usize> {
+    if !enabled || !(2..=4).contains(&rows) {
+        return None;
+    }
+    match fixed_key {
+        Some(key) if key < 2 => Some(5 + usize::from(key)),
+        Some(_) => None,
+        None => static_key.filter(|&key| key < 5),
+    }
+}
+
+#[test]
+fn verify_specializations_preserve_keys_priority_and_all_fallbacks() {
+    for rows in 0..=5 {
+        for enabled in [false, true] {
+            for key in 0..7 {
+                assert_eq!(
+                    verify_specialized_key(rows, Some(key), None, enabled),
+                    (enabled && (2..=4).contains(&rows) && key < 5).then_some(key)
+                );
+            }
+            for key in 0..=2 {
+                assert_eq!(
+                    verify_specialized_key(rows, Some(0), Some(key), enabled),
+                    (enabled && (2..=4).contains(&rows) && key < 2).then_some(5 + usize::from(key))
+                );
+            }
+        }
+    }
+    assert_eq!(
+        verify_specialized_key(2, Some(usize::MAX), None, true),
+        None
+    );
+    assert_eq!(verify_specialized_key(2, None, None, true), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn verify_specialization_keys_preserve_admission_and_table_bounds() {
+    let rows: u32 = kani::any();
+    let plain: Option<usize> = kani::any();
+    let fixed: Option<u8> = kani::any();
+    let enabled: bool = kani::any();
+    let selected = verify_specialized_key(rows, plain, fixed, enabled);
+    let expected = if enabled && rows >= 2 && rows <= 4 {
+        match fixed {
+            Some(0) => Some(5),
+            Some(1) => Some(6),
+            Some(_) => None,
+            None => match plain {
+                Some(0..=4) => plain,
+                _ => None,
+            },
+        }
+    } else {
+        None
+    };
+    assert_eq!(selected, expected);
+    if let Some(key) = selected {
+        assert!(key < 7);
+    }
+    kani::cover!(selected == Some(5));
+    kani::cover!(selected == Some(6) && rows == 3);
+    kani::cover!(selected == Some(4) && rows == 4);
+    kani::cover!(selected.is_none() && !enabled && fixed == Some(0));
+    kani::cover!(selected.is_none() && rows == 1);
+}
+
 #[test]
 fn verify_row_count_rejects_wide_host_counts_before_narrowing() {
     for rows in [0, 1, 5, usize::MAX, (u32::MAX as usize).saturating_add(3)] {

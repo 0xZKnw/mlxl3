@@ -192,11 +192,20 @@ impl FlashMoeRow<'_> {
             // Even an all-hot wave runs the initial command exactly once.
             let wave_result = objc::rc::autoreleasepool(|| -> Result<()> {
                 let submitted = (|| -> Result<()> {
-                    let batch_count = plan.reads.len().div_ceil(TOP_K).max(1);
+                    let sliding = plan.reads.len() > TOP_K && self.gpu.readers()?.window_enabled;
+                    let batch_count = if sliding {
+                        1
+                    } else {
+                        plan.reads.len().div_ceil(TOP_K).max(1)
+                    };
                     for batch_index in 0..batch_count {
                         check_cancelled()?;
                         let start = (batch_index * TOP_K).min(plan.reads.len());
-                        let end = (start + TOP_K).min(plan.reads.len());
+                        let end = if sliding {
+                            plan.reads.len()
+                        } else {
+                            (start + TOP_K).min(plan.reads.len())
+                        };
                         let batch = &plan.reads[start..end];
                         let mut reads = if batch.is_empty() {
                             None
@@ -204,24 +213,35 @@ impl FlashMoeRow<'_> {
                             let records = batch.iter().enumerate().map(|(index, &lease)| {
                                 (lease, self.records[lease.expert as usize].clone(), index)
                             });
-                            Some(if self.gpu.ssd_direct_enabled {
-                                if reuse {
-                                    self.gpu.readers()?.submit_shared_reusing(
-                                        records.map(|(lease, record, index)| {
-                                            (lease, record, owners[start + index].take())
-                                        }),
-                                        &self.gpu.device,
-                                    )?
-                                } else {
-                                    self.gpu.readers()?.submit_shared(
-                                        records.map(|(lease, record, _)| (lease, record)),
-                                        &self.gpu.device,
-                                    )?
-                                }
+                            Some(if sliding {
+                                self.gpu.readers()?.submit_window(
+                                    records.map(|(lease, record, index)| {
+                                        (lease, record, owners[start + index].take())
+                                    }),
+                                    self.gpu.ssd_direct_enabled.then_some(&self.gpu.device),
+                                )?
                             } else {
-                                self.gpu
-                                    .readers()?
-                                    .submit(records.map(|(lease, record, _)| (lease, record)))?
+                                crate::ssd_reads::BlockReads::Batch(
+                                    if self.gpu.ssd_direct_enabled {
+                                        if reuse {
+                                            self.gpu.readers()?.submit_shared_reusing(
+                                                records.map(|(lease, record, index)| {
+                                                    (lease, record, owners[start + index].take())
+                                                }),
+                                                &self.gpu.device,
+                                            )?
+                                        } else {
+                                            self.gpu.readers()?.submit_shared(
+                                                records.map(|(lease, record, _)| (lease, record)),
+                                                &self.gpu.device,
+                                            )?
+                                        }
+                                    } else {
+                                        self.gpu.readers()?.submit(
+                                            records.map(|(lease, record, _)| (lease, record)),
+                                        )?
+                                    },
+                                )
                             })
                         };
                         let hot = if batch_index == 0 {
@@ -267,7 +287,7 @@ impl FlashMoeRow<'_> {
                                 check_cancelled()?;
                                 // Consume ready completions without waiting for the
                                 // whole batch. Their compute overlaps the tail I/O.
-                                let completed = reads.ready(false)?;
+                                let completed = reads.ready()?;
                                 check_cancelled()?;
                                 let mut ready = Vec::with_capacity(completed.len());
                                 for (lease, payload) in completed {
@@ -302,14 +322,14 @@ impl FlashMoeRow<'_> {
                                 command.commit();
                             }
                             #[cfg(test)]
-                            for (lease, _, _) in &reads.trace {
+                            for (lease, _, _) in reads.trace() {
                                 let entry = cohort
                                     .iter()
                                     .find(|entry| u32::from(entry.expert) == lease.expert)
                                     .context("missing completed block read consumer")?;
                                 timelines[entry.consumers[0].row].push(serde_json::json!({
                                     "event": "block_read", "expert": lease.expert,
-                                    "slot": lease.slot, "batch_size": batch.len()
+                                    "slot": lease.slot, "batch_size": batch.len().min(TOP_K), "sliding_window": sliding
                                 }));
                             }
                         }
@@ -436,7 +456,103 @@ impl FlashMoeRow<'_> {
         let batch_consumers =
             crate::flash_qmv::shared_verify_enabled(self.gpu.flash_verify_qmv.is_some());
         let mut packed_rows: [Option<MatrixView>; 16] = std::array::from_fn(|_| None);
-        if batch_consumers {
+        let consumer_grid = batch_consumers && self.gpu.expert_consumer_qmv.is_some();
+        if consumer_grid {
+            for (mask, packed) in packed_rows.iter_mut().enumerate().skip(1) {
+                if mask.count_ones() < 2 {
+                    continue;
+                }
+                let selected = cohort
+                    .iter()
+                    .zip(routes)
+                    .filter(|(entry, (slot, _))| {
+                        ready.contains(slot)
+                            && entry.consumers.iter().fold(0usize, |m, c| m | (1 << c.row)) == mask
+                    })
+                    .collect::<Vec<_>>();
+                for group in selected.chunks(TOP_K) {
+                    if group.is_empty() {
+                        continue;
+                    }
+                    let experts = group
+                        .iter()
+                        .map(|(_, (slot, _))| {
+                            slots[*slot]
+                                .as_ref()
+                                .context("missing expert/consumer record")
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let inputs = group[0]
+                        .0
+                        .consumers
+                        .iter()
+                        .map(|c| &rows[c.row])
+                        .collect::<Vec<_>>();
+                    if packed.is_none() {
+                        *packed = Some(experts[0].pack_consumer_rows(command, &inputs)?);
+                    }
+                    let targets = group
+                        .iter()
+                        .map(|(entry, _)| {
+                            entry
+                                .consumers
+                                .iter()
+                                .map(|c| -> Result<_> {
+                                    ensure!(
+                                        contributions[c.row][c.rank].is_none(),
+                                        "duplicate consumer contribution"
+                                    );
+                                    if let Some(slab) = &slabs[c.row] {
+                                        Ok((
+                                            slab.clone(),
+                                            crate::expert_ar_policy::prefix(
+                                                c.rank,
+                                                TOP_K,
+                                                2560,
+                                                slab.length(),
+                                            )
+                                            .context("invalid consumer destination")?,
+                                        ))
+                                    } else {
+                                        Ok((
+                                            buffer(
+                                                &self.gpu.device,
+                                                5120,
+                                                Storage::StorageModePrivate,
+                                            )?,
+                                            0,
+                                        ))
+                                    }
+                                })
+                                .collect::<Result<Vec<_>>>()
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let bindings = targets
+                        .iter()
+                        .map(|destinations| {
+                            destinations
+                                .iter()
+                                .map(|(buffer, offset)| (buffer, *offset))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect::<Vec<_>>();
+                    FlashExpert::encode_consumer_cohort(
+                        command,
+                        packed.as_ref().expect("packed consumers"),
+                        &experts,
+                        &bindings,
+                    )?;
+                    for ((entry, _), destinations) in group.iter().zip(targets) {
+                        for (c, (buffer, _)) in entry.consumers.iter().zip(destinations) {
+                            contributions[c.row][c.rank] = Some(buffer);
+                        }
+                    }
+                    #[cfg(test)]
+                    ROUTED_CONSUMER_BATCHES.with(|count| count.set(count.get() + group.len()));
+                }
+            }
+        }
+        if batch_consumers && !consumer_grid {
             for (entry, &(slot, _)) in cohort.iter().zip(routes) {
                 if entry.consumers.len() < 2 || !ready.contains(&slot) {
                     continue;
@@ -632,7 +748,38 @@ mod tests {
                         let fused_before = gpu.expert_ar_uses[0].get();
                         let dual_before = gpu.expert_ar_uses[1].get();
                         let batches_before = ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get);
+                        let specialized_before = gpu.flash_verify_specialized_uses.get();
+                        let consumer_before = gpu.expert_consumer_dispatches.get();
+                        let down_prepare_before = gpu.expert_down_prepare_uses.get();
                         let actual = block.forward_block(&rows[..width])?;
+                        if repeated && width > 1 && gpu.expert_consumer_qmv.is_some() {
+                            ensure!(
+                                gpu.expert_consumer_dispatches.get() > consumer_before,
+                                "expert/consumer QMV grid was not reached"
+                            );
+                        }
+                        if gpu.expert_down_prepare.is_some() {
+                            ensure!(
+                                gpu.expert_down_prepare_uses.get() > down_prepare_before,
+                                "fused down preparation was not reached"
+                            );
+                        }
+                        if repeated
+                            && width > 1
+                            && gpu.expert_consumer_qmv.is_none()
+                            && gpu.flash_verify_specialized.is_some()
+                            && crate::flash_qmv::shared_verify_enabled(
+                                gpu.flash_verify_qmv.is_some(),
+                            )
+                            && gpu.flash_fixed_setting != Some(false)
+                        {
+                            let counts = gpu.flash_verify_specialized_uses.get();
+                            ensure!(
+                                counts[5] > specialized_before[5]
+                                    && counts[6] > specialized_before[6],
+                                "routed consumer batches did not execute both fixed MB2 projections"
+                            );
+                        }
                         if repeated
                             && width > 1
                             && crate::flash_qmv::shared_verify_enabled(

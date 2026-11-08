@@ -66,6 +66,7 @@ enum Activation<'a> {
 struct ExpertStage<'a> {
     prepared: Option<(&'a Buffer, u64)>,
     gate: Option<&'a Buffer>,
+    down_scales: Option<(&'a Buffer, u64)>,
     destination: Option<(&'a Buffer, u64)>,
 }
 
@@ -533,8 +534,8 @@ impl<'a> FlashProjection<'a> {
             MTLSize::new(512, 1, 1),
             128,
         );
-        self.encode_finish(cmd, &partial[0], 0, &output[0].buffer, 0, 10240, None)?;
-        other.encode_finish(cmd, &partial[1], 0, &output[1].buffer, 0, 6144, None)?;
+        self.encode_finish(cmd, &partial[0], 0, &output[0].buffer, 0, 10240, None, None)?;
+        other.encode_finish(cmd, &partial[1], 0, &output[1].buffer, 0, 6144, None, None)?;
         #[cfg(test)]
         gpu.gdn_resident_bundle_uses
             .set(gpu.gdn_resident_bundle_uses.get() + 1);
@@ -773,10 +774,28 @@ impl<'a> FlashProjection<'a> {
         let (pipeline, third, groups) = if let Some(key) = verify_rows {
             #[cfg(test)]
             crate::flash_qmv::note_shared_path(false);
+            let specialized = crate::flash_qmv::verify_specialized_key(
+                batch,
+                self.static_key,
+                self.fixed_key,
+                gpu.flash_verify_specialized.is_some(),
+            );
+            #[cfg(test)]
+            if let Some(key) = specialized {
+                let mut counts = gpu.flash_verify_specialized_uses.get();
+                counts[key] += 1;
+                gpu.flash_verify_specialized_uses.set(counts);
+            }
             (
-                &gpu.flash_verify_qmv
-                    .as_ref()
-                    .context("missing verify QMV pipelines")?[key],
+                if let Some(selected) = specialized {
+                    &gpu.flash_verify_specialized
+                        .as_ref()
+                        .context("missing specialized verify QMV pipelines")?[selected]
+                } else {
+                    &gpu.flash_verify_qmv
+                        .as_ref()
+                        .context("missing verify QMV pipelines")?[key]
+                },
                 (&self.svh, self.offsets.svh),
                 contracts::flash_reference_groups(self.output, self.nt)
                     .context("invalid verify QMV grid")?,
@@ -844,7 +863,16 @@ impl<'a> FlashProjection<'a> {
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
                 .context("invalid projection kernel thread count")? as usize,
         );
-        self.encode_finish(cmd, partial, 0, &dest, dest_offset, outputs, stage.gate)?;
+        self.encode_finish(
+            cmd,
+            partial,
+            0,
+            &dest,
+            dest_offset,
+            outputs,
+            stage.gate,
+            stage.down_scales,
+        )?;
         #[cfg(test)]
         if gpu.ar33_codeword_table && self.cb == Codebook::Mul1 {
             let count = &gpu.ar33_codeword_table_uses[usize::from(self.routed_record)];
@@ -883,6 +911,7 @@ impl<'a> FlashProjection<'a> {
         dest_offset: u64,
         outputs: u32,
         gate: Option<&Buffer>,
+        down_scales: Option<(&Buffer, u64)>,
     ) -> Result<()> {
         let gpu = self.metal;
         ensure!(
@@ -904,6 +933,7 @@ impl<'a> FlashProjection<'a> {
                 .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
             (dest, dest_offset),
             gate.map_or((&self.svh, self.offsets.svh), |gate| (gate, 0)),
+            down_scales.unwrap_or((&self.svh, self.offsets.svh)),
         ];
         if let Some(gate) = gate {
             ensure!(
@@ -911,9 +941,25 @@ impl<'a> FlashProjection<'a> {
                 "invalid up finish gate"
             );
         }
+        if let Some((scales, offset)) = down_scales {
+            ensure!(
+                gate.is_some()
+                    && !self.generic
+                    && offset.is_multiple_of(2)
+                    && offset
+                        .checked_add(u64::from(self.output) * 2)
+                        .is_some_and(|end| end <= scales.length())
+                    && scales.device().registry_id() == gpu.device.registry_id(),
+                "invalid fused down preparation scales"
+            );
+        }
         Metal::encode_bound(
             cmd,
-            if gate.is_some() {
+            if down_scales.is_some() {
+                gpu.expert_down_prepare
+                    .as_ref()
+                    .context("fused down preparation pipeline was not loaded")?
+            } else if gate.is_some() {
                 gpu.expert_up_finish
                     .as_ref()
                     .context("expert up finish pipeline was not loaded")?
@@ -922,7 +968,13 @@ impl<'a> FlashProjection<'a> {
             } else {
                 &gpu.finish128_pipeline
             },
-            finish_bindings[..if gate.is_some() { 5 } else { 4 }]
+            finish_bindings[..if down_scales.is_some() {
+                6
+            } else if gate.is_some() {
+                5
+            } else {
+                4
+            }]
                 .iter()
                 .copied(),
             [
@@ -935,6 +987,11 @@ impl<'a> FlashProjection<'a> {
             MTLSize::new(u64::from(outputs / 128), 1, 1),
             64,
         );
+        #[cfg(test)]
+        if down_scales.is_some() {
+            gpu.expert_down_prepare_uses
+                .set(gpu.expert_down_prepare_uses.get() + 1);
+        }
         Ok(())
     }
 
@@ -1801,13 +1858,20 @@ impl<'a> FlashExpert<'a> {
                     .encode_input_into(cmd, Activation::View(x), &prepared, offset)?;
             }
         }
-        Self::encode_axis_qmv(cmd, experts, 0, &prepared, 0, stride, &partial)?;
+        Self::encode_axis_qmv(cmd, experts, 0, &prepared, 0, [stride, 1], &partial)?;
         let mut gates = Vec::with_capacity(n);
         for (index, expert) in experts.iter().enumerate() {
             let gate = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
-            expert
-                .gate
-                .encode_finish(cmd, &partial, index as u64 * 2560, &gate, 0, 640, None)?;
+            expert.gate.encode_finish(
+                cmd,
+                &partial,
+                index as u64 * 2560,
+                &gate,
+                0,
+                640,
+                None,
+                None,
+            )?;
             gates.push(gate);
         }
         if !dual {
@@ -1826,20 +1890,31 @@ impl<'a> FlashExpert<'a> {
             1,
             &prepared,
             if dual { 5120 } else { 0 },
-            stride,
+            [stride, 1],
             &partial,
         )?;
         let mut activations = Vec::with_capacity(n);
         for (index, expert) in experts.iter().enumerate() {
-            let up = buffer(&gpu.device, 1280, Storage::StorageModePrivate)?;
+            let down_prepared = fused && gpu.expert_down_prepare.is_some();
+            let up = if down_prepared {
+                prepared.clone()
+            } else {
+                buffer(&gpu.device, 1280, Storage::StorageModePrivate)?
+            };
             expert.up.encode_finish(
                 cmd,
                 &partial,
                 index as u64 * 2560,
                 &up,
-                0,
+                if down_prepared {
+                    index as u64 * 1280
+                } else {
+                    0
+                },
                 640,
                 fused.then_some(&gates[index]),
+                (fused && gpu.expert_down_prepare.is_some())
+                    .then_some((&expert.down.suh, expert.down.offsets.suh)),
             )?;
             let activated = if fused {
                 #[cfg(test)]
@@ -1851,6 +1926,9 @@ impl<'a> FlashExpert<'a> {
             activations.push(activated);
         }
         for (index, (expert, activation)) in experts.iter().zip(&activations).enumerate() {
+            if fused && gpu.expert_down_prepare.is_some() {
+                continue;
+            }
             expert.down.encode_input_into(
                 cmd,
                 Activation::Contiguous(activation),
@@ -1858,7 +1936,7 @@ impl<'a> FlashExpert<'a> {
                 index as u64 * 1280,
             )?;
         }
-        Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, 640, &partial)?;
+        Self::encode_axis_qmv(cmd, experts, 2, &prepared, 0, [640, 1], &partial)?;
         #[cfg(test)]
         gpu.expert_ar_uses[3].set(gpu.expert_ar_uses[3].get() + n as u64);
         if pending_finish {
@@ -1896,6 +1974,7 @@ impl<'a> FlashExpert<'a> {
                 &output,
                 offset,
                 2560,
+                None,
                 None,
             )?;
             outputs.push(output);
@@ -1935,7 +2014,7 @@ impl<'a> FlashExpert<'a> {
         stage: usize,
         prepared: &Buffer,
         offset: u64,
-        stride: u32,
+        [stride, rows]: [u32; 2],
         partial: &Buffer,
     ) -> Result<()> {
         let first = experts[0].axis_projection(stage);
@@ -1968,13 +2047,16 @@ impl<'a> FlashExpert<'a> {
         });
         Metal::encode_bound(
             cmd,
-            &gpu.expert_axis_qmv
-                .as_ref()
-                .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
+            &if rows > 1 {
+                gpu.expert_consumer_qmv.as_ref()
+            } else {
+                gpu.expert_axis_qmv.as_ref()
+            }
+            .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
                 [usize::from(nt == 2)],
             bindings.into_iter(),
             [
-                1,
+                rows,
                 2,
                 2,
                 first.input,
@@ -1988,7 +2070,7 @@ impl<'a> FlashExpert<'a> {
                     contracts::flash_reference_groups(first.output, nt)
                         .context("invalid axis grid")?,
                 ),
-                1,
+                u64::from(rows.div_ceil(2)),
                 experts.len() as u64,
             ),
             128,
@@ -2001,6 +2083,11 @@ impl<'a> FlashExpert<'a> {
         #[cfg(test)]
         gpu.expert_axis_dispatches
             .set(gpu.expert_axis_dispatches.get() + 1);
+        #[cfg(test)]
+        if rows > 1 {
+            gpu.expert_consumer_dispatches
+                .set(gpu.expert_consumer_dispatches.get() + 1);
+        }
         #[cfg(test)]
         if gpu.ar33_codeword_table {
             let count = &gpu.ar33_codeword_table_uses[1];
@@ -2180,6 +2267,10 @@ impl<'a> FlashExpert<'a> {
                 scratch,
                 ExpertStage {
                     gate: Some(&gate),
+                    down_scales: gpu
+                        .expert_down_prepare
+                        .as_ref()
+                        .map(|_| (&self.down.suh, self.down.offsets.suh)),
                     prepared: prepared.map(|b| (b, u64::from(gate_extents[0]) * 2)),
                     ..Default::default()
                 },
@@ -2215,6 +2306,8 @@ impl<'a> FlashExpert<'a> {
             scratch,
             ExpertStage {
                 destination,
+                prepared: (fused_up && gpu.expert_down_prepare.is_some())
+                    .then_some((&activated, 0)),
                 ..Default::default()
             },
         )?;
@@ -3308,6 +3401,8 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
             }
             layer.nt = nt;
             for rows in 2..=4 {
+                layer.static_key = None;
+                layer.fixed_key = None;
                 let mut input = Vec::new();
                 let mut expected = Vec::new();
                 for row in 0..rows {
@@ -3322,10 +3417,39 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
                     expected.extend(layer.submit(&x)?.read()?);
                     input.extend(x);
                 }
+                layer.static_key = static_key(&gpu, layer.k, layer.cb, nt, true)?;
+                layer.fixed_key = fixed_key(
+                    &gpu,
+                    [layer.input, layer.output],
+                    layer.splits,
+                    [layer.k, layer.cb as u32, nt],
+                    true,
+                )?;
+                let selected = crate::flash_qmv::verify_specialized_key(
+                    rows as u32,
+                    layer.static_key,
+                    layer.fixed_key,
+                    gpu.flash_verify_specialized.is_some(),
+                );
+                let before = gpu.flash_verify_specialized_uses.get();
                 let actual = layer.submit(&input)?.read()?;
                 ensure!(
+                    !expected.is_empty()
+                        && expected.len() == rows * layer.output as usize
+                        && expected
+                            .iter()
+                            .all(|&word| f16::from_bits(word).is_finite()),
+                    "invalid scalar reference"
+                );
+                if let Some(key) = selected {
+                    ensure!(
+                        gpu.flash_verify_specialized_uses.get()[key] > before[key],
+                        "selected specialized MB2 PSO was not dispatched"
+                    );
+                }
+                ensure!(
                     actual == expected,
-                    "shared rows differ: {} NT{nt} B{rows}",
+                    "shared rows differ: {} NT{nt} B{rows}, PSO={selected:?}",
                     case.prefix
                 );
                 compared += actual.len();
@@ -3333,6 +3457,148 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
         }
     }
     ensure!(compared > 0, "no eligible fixtures exercised");
-    println!("shared target QMV: {compared} exact FP16 output words");
+    let specialized = gpu.flash_verify_specialized_uses.get();
+    if gpu.flash_verify_specialized.is_some() {
+        ensure!(
+            specialized[..5].iter().all(|&count| count > 0),
+            "fixtures missed resident specialized PSOs: {specialized:?}"
+        );
+    }
+    println!("shared target QMV: {compared} exact FP16 output words; specialized={specialized:?}");
     Ok(())
 }
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Metal; enable MLXL3_NATIVE_FLASH_GLU_DOWN=1"]
+fn physical_up_swiglu_prepare_matches_materialized_half_boundaries() -> Result<()> {
+    let gpu = Metal::new()?;
+    let fused = gpu
+        .expert_down_prepare
+        .as_ref()
+        .context("fused pipeline required")?;
+    let mut words = 0;
+    for width in [640u32, 2560] {
+        for rows in 1..=4u32 {
+            for splits in [1u32, 2] {
+                for bias in [false, true] {
+                    let count = rows * width;
+                    let partials = gpu.f32_storage(
+                        &(0..count * splits)
+                            .map(|i| ((i * 17 % 127) as f32 - 63.) / 19.)
+                            .collect::<Vec<_>>(),
+                    )?;
+                    let partials = partials.matrix(crate::tensor_layout::MatrixLayout {
+                        shape: [1, count * splits],
+                        strides: [i64::from(count * splits), 1],
+                        offset: 0,
+                    })?;
+                    let scales = upload(
+                        &gpu.device,
+                        &(0..width)
+                            .map(|i| f16::from_f32(0.25 + (i % 23) as f32 / 31.).to_bits())
+                            .collect::<Vec<_>>(),
+                    )?;
+                    let biases = upload(
+                        &gpu.device,
+                        &(0..width)
+                            .map(|i| f16::from_f32((i % 29) as f32 / 53. - 0.25).to_bits())
+                            .collect::<Vec<_>>(),
+                    )?;
+                    let gate = upload(
+                        &gpu.device,
+                        &(0..count)
+                            .map(|i| f16::from_f32((i * 7 % 97) as f32 / 7. - 6.5).to_bits())
+                            .collect::<Vec<_>>(),
+                    )?;
+                    let down_suh = upload(
+                        &gpu.device,
+                        &(0..width)
+                            .map(|i| f16::from_f32((i % 67) as f32 / 41. - 0.75).to_bits())
+                            .collect::<Vec<_>>(),
+                    )?;
+                    let command = gpu.queue.new_command_buffer().to_owned();
+                    let up = buffer(
+                        &gpu.device,
+                        u64::from(count) * 2,
+                        Storage::StorageModePrivate,
+                    )?;
+                    let expected = buffer(
+                        &gpu.device,
+                        u64::from(count) * 2,
+                        Storage::StorageModeShared,
+                    )?;
+                    let actual = buffer(
+                        &gpu.device,
+                        u64::from(count) * 2,
+                        Storage::StorageModeShared,
+                    )?;
+                    Metal::encode_bound(
+                        &command,
+                        &gpu.finish128_pipeline,
+                        [(&partials.buffer, 0), (&scales, 0), (&biases, 0), (&up, 0)].into_iter(),
+                        [splits, 0, u32::from(bias), 0, width],
+                        MTLSize::new(u64::from(count / 128), 1, 1),
+                        64,
+                    );
+                    let activation =
+                        gpu.encode_swiglu(&command, &gate, &up, Storage::StorageModePrivate)?;
+                    Metal::encode_bound(
+                        &command,
+                        &gpu.prepare128_pipeline,
+                        [(&activation, 0), (&down_suh, 0), (&expected, 0)].into_iter(),
+                        [width],
+                        MTLSize::new(u64::from(count / 128), 1, 1),
+                        64,
+                    );
+                    Metal::encode_bound(
+                        &command,
+                        fused,
+                        [
+                            (&partials.buffer, 0),
+                            (&scales, 0),
+                            (&biases, 0),
+                            (&actual, 0),
+                            (&gate, 0),
+                            (&down_suh, 0),
+                        ]
+                        .into_iter(),
+                        [splits, 0, u32::from(bias), 0, width],
+                        MTLSize::new(u64::from(count / 128), 1, 1),
+                        64,
+                    );
+                    command.commit();
+                    let expected = ProjectionOutput {
+                        command: command.clone(),
+                        buffer: expected,
+                        count: count as usize,
+                    }
+                    .read()?;
+                    let actual = ProjectionOutput {
+                        command,
+                        buffer: actual,
+                        count: count as usize,
+                    }
+                    .read()?;
+                    ensure!(
+                        expected.len() == count as usize
+                            && !expected.is_empty()
+                            && expected.iter().all(|&v| f16::from_bits(v).is_finite())
+                            && expected.iter().any(|&v| v != 0),
+                        "invalid prepared oracle"
+                    );
+                    ensure!(
+                        actual == expected,
+                        "fused Half boundaries differ: width={width} B{rows} splits={splits} bias={bias}"
+                    );
+                    words += count;
+                }
+            }
+        }
+    }
+    println!("fused down preparation: {words} exact nonempty finite Half words");
+    Ok(())
+}
+
+#[path = "consumer_cohort.rs"]
+mod consumer_cohort;

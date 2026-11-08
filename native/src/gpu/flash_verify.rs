@@ -559,7 +559,20 @@ mod tests {
                 let gdn_before = crate::gpu::FlashGdnLayer::block_projection_count();
                 let standalone_before = gpu.gate_commands.get();
                 let expected_joint = width * model.layers.len();
+                let specialized_before = gpu.flash_verify_specialized_uses.get();
                 let cohort = model.stage_block(tokens)?;
+                if gpu.flash_verify_specialized.is_some()
+                    && crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
+                {
+                    let counts = gpu.flash_verify_specialized_uses.get();
+                    let delta =
+                        std::array::from_fn::<_, 7, _>(|i| counts[i] - specialized_before[i]);
+                    eprintln!("MB2 specialized PSOs: width={width}, keep={keep}, counts={delta:?}");
+                    ensure!(
+                        delta.iter().any(|&count| count > 0),
+                        "no specialized MB2 projection was reached"
+                    );
+                }
                 if crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some()) {
                     eprintln!(
                         "GDN projection batches: width={width}, keep={keep}, layers={}",

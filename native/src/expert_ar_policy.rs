@@ -292,3 +292,42 @@ fn finish_mix_preserves_actual_capability_and_record_view_bounds() {
     kani::cover!(finish_view_valid(p, l, v, m) && p > 0 && v > 0);
     kani::cover!(!finish_view_valid(p, l, v, m) && p == u64::MAX - 3);
 }
+
+/// Bound every dimension before allocating expert/consumer scratch.
+pub(crate) fn consumer_grid(experts: usize, rows: u32) -> Option<[u32; 2]> {
+    ((1..=10).contains(&experts) && (2..=4).contains(&rows))
+        .then_some([experts as u32, rows.div_ceil(2)])
+}
+
+#[test]
+fn consumer_grid_admits_only_bounded_nonempty_shapes() {
+    for experts in [0, 1, 10, 11, usize::MAX] {
+        for rows in [0, 1, 2, 3, 4, 5, u32::MAX] {
+            let actual = consumer_grid(experts, rows);
+            assert_eq!(
+                actual.is_some(),
+                (1..=10).contains(&experts) && (2..=4).contains(&rows)
+            );
+            if let Some([x, y]) = actual {
+                assert!(x <= 10 && (1..=2).contains(&y));
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn consumer_grid_preserves_expert_and_odd_row_bounds() {
+    let n: usize = kani::any();
+    let rows: u32 = kani::any();
+    let grid = consumer_grid(n, rows);
+    assert_eq!(grid.is_some(), n >= 1 && n <= 10 && rows >= 2 && rows <= 4);
+    if let Some([experts, pairs]) = grid {
+        assert!(u64::from(experts) * u64::from(rows) * 5120 <= 204800);
+        assert_eq!(experts as usize, n);
+        assert!(pairs * 2 >= rows && pairs * 2 - rows <= 1);
+    }
+    kani::cover!(n == 10 && rows == 3 && grid == Some([10, 2]));
+    kani::cover!(n == 1 && rows == 4 && grid == Some([1, 2]));
+    kani::cover!(n > 10 && grid.is_none());
+}

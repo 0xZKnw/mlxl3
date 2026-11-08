@@ -376,8 +376,14 @@ pub struct Metal {
     #[cfg(test)]
     expert_ar_uses: [std::cell::Cell<u64>; 4],
     expert_up_finish: Option<ComputePipelineState>,
+    expert_down_prepare: Option<ComputePipelineState>,
+    #[cfg(test)]
+    expert_down_prepare_uses: std::cell::Cell<u64>,
     expert_gu_prepare: Option<ComputePipelineState>,
     expert_axis_qmv: Option<[[ComputePipelineState; 2]; 2]>,
+    expert_consumer_qmv: Option<[[ComputePipelineState; 2]; 2]>,
+    #[cfg(test)]
+    expert_consumer_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
     expert_axis_dispatches: std::cell::Cell<u64>,
     #[cfg(test)]
@@ -402,6 +408,9 @@ pub struct Metal {
     mapped_mix: ComputePipelineState,
     mtp_hidden_qmv: ComputePipelineState,
     flash_verify_qmv: Option<[ComputePipelineState; 2]>,
+    flash_verify_specialized: Option<[ComputePipelineState; 7]>,
+    #[cfg(test)]
+    flash_verify_specialized_uses: std::cell::Cell<[u64; 7]>,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
@@ -900,6 +909,11 @@ impl Metal {
             let expert_up_finish = expert_ar_enabled[0]
                 .then(|| pipeline("flash_up_finish_swiglu"))
                 .transpose()?;
+            let expert_down_prepare = (hc_kernel_setting("MLXL3_NATIVE_FLASH_GLU_DOWN")?
+                && qualified_m5
+                && expert_ar_enabled[0])
+                .then(|| pipeline("flash_up_finish_swiglu_prepare"))
+                .transpose()?;
             let expert_gu_prepare = expert_ar_enabled[1]
                 .then(|| pipeline("flash_dual_gu_prepare"))
                 .transpose()?;
@@ -964,6 +978,43 @@ impl Metal {
                     pipeline("flash_verify_qmv_mb2")?,
                     pipeline("flash_verify_qmv_mb2_nt2")?,
                 ])
+            } else {
+                None
+            };
+            let specialized = hc_kernel_setting("MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED")?;
+            let expert_consumer_qmv = (hc_kernel_setting("MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS")?
+                && qualified_m5
+                && expert_axis_qmv.is_some()
+                && flash_verify_qmv.is_some())
+            .then(|| -> Result<_> {
+                Ok([
+                    [
+                        pipeline("flash_consumers_k2_2560_640_nt1")?,
+                        pipeline("flash_consumers_k2_2560_640_nt2")?,
+                    ],
+                    [
+                        pipeline("flash_consumers_k2_640_2560_nt1")?,
+                        pipeline("flash_consumers_k2_640_2560_nt2")?,
+                    ],
+                ])
+            })
+            .transpose()?;
+            let flash_verify_specialized = if specialized && flash_verify_qmv.is_some() {
+                let states = [
+                    pipeline("flash_verify_static_k2_nt1")?,
+                    pipeline("flash_verify_static_k3_nt1")?,
+                    pipeline("flash_verify_static_k3_nt2")?,
+                    pipeline("flash_verify_static_k4_nt1")?,
+                    pipeline("flash_verify_static_k4_nt2")?,
+                    pipeline("flash_verify_fixed_k2_2560_640")?,
+                    pipeline("flash_verify_fixed_k2_640_2560")?,
+                ];
+                ensure!(
+                    states.iter().all(|p| p.thread_execution_width() == 32
+                        && p.max_total_threads_per_threadgroup() >= 128),
+                    "unsupported specialized MB2 geometry"
+                );
+                Some(states)
             } else {
                 None
             };
@@ -1144,8 +1195,14 @@ impl Metal {
                 #[cfg(test)]
                 expert_ar_uses: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 expert_up_finish,
+                expert_down_prepare,
+                #[cfg(test)]
+                expert_down_prepare_uses: std::cell::Cell::new(0),
                 expert_gu_prepare,
                 expert_axis_qmv,
+                expert_consumer_qmv,
+                #[cfg(test)]
+                expert_consumer_dispatches: std::cell::Cell::new(0),
                 #[cfg(test)]
                 expert_axis_dispatches: std::cell::Cell::new(0),
                 #[cfg(test)]
@@ -1170,6 +1227,9 @@ impl Metal {
                 mapped_mix,
                 mtp_hidden_qmv,
                 flash_verify_qmv,
+                flash_verify_specialized,
+                #[cfg(test)]
+                flash_verify_specialized_uses: std::cell::Cell::new([0; 7]),
                 mtp_norm,
                 mtp_combine,
                 finish128_pipeline,
