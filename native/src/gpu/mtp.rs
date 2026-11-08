@@ -598,10 +598,13 @@ fn speculative_commits_match_stock_sequence_and_ordinary_state() -> Result<()> {
     let hidden_before = target.last_hidden().unwrap().export_bytes(&gpu)?;
     let short = super::first_embedding(&target.embed)?;
     let original = std::mem::replace(&mut target.embed, short);
+    // Fail on the anchor embedding itself. A missing proposal embedding is no
+    // longer a deterministic error: D1 rejection must skip that read entirely.
+    // The CPU lazy-successor test separately covers accepted-successor errors.
     let error = session
-        .advance(&mut target, &mut head, 0, 32, 3)
+        .advance(&mut target, &mut head, 1, 32, 3)
         .err()
-        .context("truncated verification succeeded")?;
+        .context("truncated anchor embedding succeeded")?;
     ensure!(
         error
             .downcast_ref::<std::io::Error>()

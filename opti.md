@@ -27215,3 +27215,11 @@ vérifiés identiques au local. CI Rust Linux premier passage FAILED sur rustfmt
 (harnais : if/else compact demandé). Correction strictement de format appliquée,
 aucun comportement changé ; contrôle suivant en CI. Les preuves physiques et
 mesures restent NON EXÉCUTÉES. Pas de merge ni activation/app installée.
+
+MTP-M1 fixture — après revue, correction test-only : l'ancien EOF sur proposition
+pouvait disparaître sur rejet D1 (comportement voulu). Ancre1 dans le fichier
+contenant seulement ligne0 garantit désormais l'erreur indépendamment du draft.
+Le test CPU paresseux couvre séparément erreur successeur accepté et absence
+d'appel sur rejet. Cette fixture physique ne simule pas une erreur après mutation
+cible ; contrôle physique complet NON EXÉCUTÉ. CI6578fee : fmt/Clippy/testsCPU PASS,
+autres jobs en cours ; pas de gain mesuré. Relance CI sur correction fixture.
