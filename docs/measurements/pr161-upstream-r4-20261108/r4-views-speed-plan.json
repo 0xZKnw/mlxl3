@@ -1,0 +1,79 @@
+{
+  "status": "preregistered_after_quality_before_speed",
+  "workload": {
+    "prompt": "MAIN",
+    "generated_tokens": 64,
+    "decode_tokens": 63,
+    "context": 4096,
+    "temperature": 0,
+    "top_k": 1,
+    "penalty": 1,
+    "prefix_reuse": false,
+    "cache_gib": 3,
+    "slots_per_layer": 53,
+    "readers": 4
+  },
+  "conditioning": "one same-mode64 warmup per process, retain expert caches into one measured64 response",
+  "schedule": [
+    {
+      "label": "A1",
+      "mtp": true,
+      "binary": "baseline"
+    },
+    {
+      "label": "B",
+      "mtp": true,
+      "binary": "candidate"
+    },
+    {
+      "label": "A2",
+      "mtp": true,
+      "binary": "baseline"
+    }
+  ],
+  "baseline": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r3-cli",
+    "sha256": "1a300305fb47378c14fb2a411e939c281e674ed79a23a46fb9fb84128dc79f18"
+  },
+  "candidate": {
+    "base": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+    "baseline": "fixall-r3-binaries.json",
+    "test": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/r4-views-test",
+      "sha256": "0a5c390cd18bb001d89676b1f85293e591dcbfb12480c1ae173db51c6a80ce4d"
+    },
+    "native_patch_sha256": "dcde7d49cebacfa48380faf3085fd9e2127b0c600795b02f48497774de9ff002",
+    "scope": "R3 composition + checked direct packed GDN row views; no shader or arithmetic changes; quality pending",
+    "cli": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/r4-views-cli",
+      "sha256": "46ea23d0304251da2d53b640265d9a0e39f90165239b4f5e1ec6ba6d175273fa"
+    }
+  },
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+    "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_OVERLAP": "1"
+  },
+  "quality": "seven normal physical PASS + real AR/MTP8 bridge PASS; wrong-row mutant detected;360libraryPASS/129ignored; actualCPUhelperKani83SUCCESS/4covers",
+  "limits": [
+    "one candidate point;short signal only;no AR speed claim",
+    "same settings/model/workload as R3;no gain addition",
+    "power/VM/footprint/compression observed;no thermal/physicalNANDtelemetry"
+  ],
+  "response_timeout_seconds": 180
+}

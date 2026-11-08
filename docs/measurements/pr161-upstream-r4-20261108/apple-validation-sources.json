@@ -1,0 +1,16 @@
+{
+  "api": {
+    "url": "https://developer.apple.com/documentation/xcode/validating-your-apps-metal-api-usage",
+    "source_sha256": "27652445db1da4b192ed73d58f20a3481c07137fa1f06ad161073c0a2529ae03",
+    "enabled": "MTL_DEBUG_LAYER=1"
+  },
+  "shader": {
+    "url": "https://developer.apple.com/documentation/xcode/validating-your-apps-metal-shader-usage",
+    "source_sha256": "f8f785f6b0658a4f8f8fa7b9996abe0c6bb785cfbe4b88d3c6bc4428ac6ad87a",
+    "enabled": [
+      "MTL_SHADER_VALIDATION=1",
+      "MTL_SHADER_VALIDATION_REPORT_TO_STDERR=1"
+    ],
+    "default": "All pipelines instrumented unless specifically overridden; debugging disabled for speed runs"
+  }
+}

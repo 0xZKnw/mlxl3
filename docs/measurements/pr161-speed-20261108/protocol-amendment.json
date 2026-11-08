@@ -1,0 +1,22 @@
+{
+  "status": "planned_bounded_pilot",
+  "recorded_utc": "2026-11-08T11:42:10.180207+00:00",
+  "initial_plan": "campaign-plan.json",
+  "reason": "Assistant reduces its own excessive first-test protocol after user asks why 50; user did not request 50 repetitions",
+  "measured_samples": 15,
+  "prompts": [
+    "MAIN"
+  ],
+  "repetitions_per_arm": 3,
+  "arms": [
+    "ar",
+    "d1",
+    "b2",
+    "b2_ssd",
+    "b2_ssd_shared"
+  ],
+  "warmups": 5,
+  "stop_after_saved_sample": 15,
+  "holdout_128_tokens": "not measured; 8-token smoke parity only",
+  "claims": "pilot medians/ranges only; not a completed original 50-sample campaign"
+}

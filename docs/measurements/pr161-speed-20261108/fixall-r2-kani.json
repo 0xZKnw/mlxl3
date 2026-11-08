@@ -1,0 +1,19 @@
+{
+  "status": "driver_success",
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "flash_qmv::verify_host_row_count_preserves_bounded_projection_dispatch",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "60s"
+  ],
+  "returncode": 0,
+  "reaped": true,
+  "seconds": 2.1537851670000236,
+  "domain": "actual host projection admission, unrestricted usize/u32/u32/bool, no assumptions; no Metal/recurrence proof"
+}

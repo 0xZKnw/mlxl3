@@ -1,0 +1,36 @@
+{
+  "quality": "validated_local",
+  "performance": "inconclusive_no_demonstrated_gain",
+  "integration": "local isolated worktree only; existing experimental MTP cohort path; no application install/push",
+  "binary": {
+    "base": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+    "baseline": "fixall-r3-binaries.json",
+    "test": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/r4-views-test",
+      "sha256": "0a5c390cd18bb001d89676b1f85293e591dcbfb12480c1ae173db51c6a80ce4d"
+    },
+    "native_patch_sha256": "dcde7d49cebacfa48380faf3085fd9e2127b0c600795b02f48497774de9ff002",
+    "scope": "R3 composition + checked direct packed GDN row views; no shader or arithmetic changes; quality pending",
+    "cli": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/r4-views-cli",
+      "sha256": "46ea23d0304251da2d53b640265d9a0e39f90165239b4f5e1ec6ba6d175273fa"
+    }
+  },
+  "full_native_inventory_patch_sha256": "f37a15637d145b792be89db8b398b7e12e5fdedd4dde5e747fd078f1b5065e4f",
+  "incremental_R3_to_R4_patch_sha256": "a05ef91bc948e0d67f96dd2d60a77e730574694ba70bf57d617063149e6e2528",
+  "checks": {
+    "release_library_passed": 360,
+    "release_library_ignored": 129,
+    "native_inventory_files": 300,
+    "inventory_tests": 6,
+    "inventory_subtests": 2,
+    "normal_physical_invocations_before_Metal_validation": 8,
+    "Metal_API_GPU_validation_invocations": 1,
+    "deliberate_wrong_offset_mutant_detected": true,
+    "bounded_CPU_Kani_success": 83,
+    "Kani_covers": 4,
+    "full_Kani_suite_run": false
+  },
+  "all_owned_processes_reaped": true,
+  "apps_closed": true
+}

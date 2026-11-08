@@ -1,0 +1,90 @@
+{
+  "status": "preregistered_after_final_quality_before_speed",
+  "workload": {
+    "prompt": "MAIN",
+    "generated_tokens": 64,
+    "decode_tokens": 63,
+    "context": 4096,
+    "temperature": 0,
+    "top_k": 1,
+    "penalty": 1,
+    "prefix_reuse": false,
+    "cache_gib": 3,
+    "slots_per_layer": 53,
+    "readers": 4
+  },
+  "conditioning": "one same-mode64 warmup per process, retain expert caches into one measured64 response",
+  "schedule": [
+    {
+      "label": "A1",
+      "mtp": true,
+      "binary": "baseline"
+    },
+    {
+      "label": "B",
+      "mtp": true,
+      "binary": "candidate"
+    },
+    {
+      "label": "A2",
+      "mtp": true,
+      "binary": "baseline"
+    },
+    {
+      "label": "AR",
+      "mtp": false,
+      "binary": "ar_reference"
+    }
+  ],
+  "baseline": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r1-cli",
+    "sha256": "dce643359e2f8c35892b948b9027aee63e36e1e7ea8c2e288e45b9e02cd68934"
+  },
+  "candidate": {
+    "base": "ebacd5ecdec128c249607eac264c28a4ba836ec2",
+    "source_patch_sha256": "017e946146f413da689c34069e6103fb67a431e75c37aacde7cb0cccad0e2af1",
+    "test": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r3-test",
+      "sha256": "4e467184f2f2f93642f5a76b567385cd42bc439ef8805b153759055aa6d7d30f"
+    },
+    "scope": "R1 + GDN ordered multirow projections + multirow GU prepare and up finish; numerical qualification pending",
+    "cli": {
+      "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/fixall-r3-cli",
+      "sha256": "1a300305fb47378c14fb2a411e939c281e674ed79a23a46fb9fb84128dc79f18"
+    }
+  },
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+    "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_OVERLAP": "1"
+  },
+  "quality": "R1 nine physical; R2 five; final R3 six plus final realbridge8 all PASS/reaped;359 release tests/129ignored",
+  "limits": [
+    "one candidate point; two oldB2 and two realAR controls; no stable universal gain claim",
+    "AR production unloads draft; same-mode MTP before/after matched draft residency only",
+    "RSS/power/VM/compression observed; no temperature or actual NAND telemetry",
+    "do not sum kernel or prior incompatible gains",
+    "R2 and R3 composed, no standalone gain inferred; compare R1/final within this pilot",
+    "single final candidate point; speed signal only"
+  ],
+  "response_timeout_seconds": 180,
+  "ar_reference": {
+    "path": "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/frozen-cli",
+    "sha256": "2a8d36a93f7683ee02c756e527e7b16698667ee841bfebb9160d192dcb41c87a"
+  }
+}

@@ -1,0 +1,37 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0)
+error[E0599]: no method named `as_ptr` found for struct `metal::Buffer` in the current scope
+    --> native/src/gpu/mtp.rs:1244:58
+     |
+1244 |             ensure!(target.embedding_view(token)?.buffer.as_ptr() == view.buffer.as_ptr());
+     |                                                          ^^^^^^ method not found in `metal::Buffer`
+     |
+    ::: /Users/justin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foreign-types-shared-0.3.1/src/lib.rs:42:8
+     |
+  42 |     fn as_ptr(&self) -> *mut Self::CType;
+     |        ------ the method is available for `metal::Buffer` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `ForeignType` which provides `as_ptr` is implemented but not in scope; perhaps you want to import it
+     |
+1042 +     use metal::foreign_types::ForeignType;
+     |
+
+error[E0599]: no method named `as_ptr` found for struct `metal::Buffer` in the current scope
+    --> native/src/gpu/mtp.rs:1244:82
+     |
+1244 |             ensure!(target.embedding_view(token)?.buffer.as_ptr() == view.buffer.as_ptr());
+     |                                                                                  ^^^^^^ method not found in `metal::Buffer`
+     |
+    ::: /Users/justin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foreign-types-shared-0.3.1/src/lib.rs:42:8
+     |
+  42 |     fn as_ptr(&self) -> *mut Self::CType;
+     |        ------ the method is available for `metal::Buffer` here
+     |
+     = help: items from traits can only be used if the trait is in scope
+help: trait `ForeignType` which provides `as_ptr` is implemented but not in scope; perhaps you want to import it
+     |
+1042 +     use metal::foreign_types::ForeignType;
+     |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

@@ -1,0 +1,42 @@
+{
+  "status": "inconclusive_no_demonstrated_gain",
+  "quality": "validated_numeric_and_Metal_API_GPU_checks",
+  "decision": "Keep bounded correct prototype local for future composition; no promotion/no stable gain claim; prior R3 frozen reference retained",
+  "decode_tps": {
+    "A1": 8.234075464791124,
+    "B": 8.116094722394765,
+    "A2": 8.133167798633474
+  },
+  "candidate_vs_reference_percent": {
+    "A1": -1.4328353304611352,
+    "A2": -0.20991914419346003
+  },
+  "control_drift_percent": -1.2254887217044597,
+  "both_apps_closed_before_and_after_every_arm": true,
+  "same_output": true,
+  "all_children_and_readers_joined": true,
+  "power": [
+    "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t85%; charging; 0:50 remaining present: true\n",
+    "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t86%; charging; 0:49 remaining present: true\n"
+  ],
+  "system_swap_deltas": {
+    "A1": {
+      "Swapins": 0,
+      "Swapouts": 0
+    },
+    "B": {
+      "Swapins": 0,
+      "Swapouts": 0
+    },
+    "A2": {
+      "Swapins": 0,
+      "Swapouts": 0
+    }
+  },
+  "limits": [
+    "Two separate short pilots, one candidate point in each; conditions changed so do not pool",
+    "No numerical/ownership/Metaldiagnostic bug found in exercised cases; GPU validation is not a proof",
+    "No perkernel/ISA cost attribution, appsclosure not claimed as a speedboost",
+    "No new ARspeed measurement or broadmodel quality evaluation"
+  ]
+}
