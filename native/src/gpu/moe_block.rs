@@ -133,9 +133,13 @@ impl FlashMoeRow<'_> {
             // but never submit more than one AR cohort to the reader pool.
             for batch in plan.reads.chunks(TOP_K) {
                 check_cancelled()?;
-                let records = batch.iter().map(|&lease| (lease, self.records[lease.expert as usize].clone()));
+                let records = batch
+                    .iter()
+                    .map(|&lease| (lease, self.records[lease.expert as usize].clone()));
                 let mut reads = if self.gpu.ssd_direct_enabled {
-                    self.gpu.readers()?.submit_shared_fresh(records, &self.gpu.device)?
+                    self.gpu
+                        .readers()?
+                        .submit_shared_fresh(records, &self.gpu.device)?
                 } else {
                     self.gpu.readers()?.submit(records)?
                 };
@@ -148,13 +152,17 @@ impl FlashMoeRow<'_> {
                 }
                 ensure!(reads.remaining() == 0, "incomplete Flash block SSD batch");
                 #[cfg(test)]
-                if plan.reads.len() > TOP_K && CANCEL_AFTER_READ_BATCH.with(|inject| inject.replace(false)) {
+                if plan.reads.len() > TOP_K
+                    && CANCEL_AFTER_READ_BATCH.with(|inject| inject.replace(false))
+                {
                     cancelled.store(true, Ordering::Relaxed);
                 }
                 check_cancelled()?;
                 #[cfg(test)]
                 for (lease, _, _) in &reads.trace {
-                    let entry = cohort.iter().find(|entry| u32::from(entry.expert) == lease.expert)
+                    let entry = cohort
+                        .iter()
+                        .find(|entry| u32::from(entry.expert) == lease.expert)
                         .context("missing completed block read consumer")?;
                     timelines[entry.consumers[0].row].push(serde_json::json!({
                         "event": "block_read", "expert": lease.expert, "slot": lease.slot,
@@ -343,15 +351,25 @@ mod tests {
                             ensure!(out.hits == 0);
                             for event in &out.timeline {
                                 if event["event"] == "block_read" {
-                                    let batch_size = event["batch_size"].as_u64().context("missing read batch size")?;
+                                    let batch_size = event["batch_size"]
+                                        .as_u64()
+                                        .context("missing read batch size")?;
                                     ensure!((1..=TOP_K as u64).contains(&batch_size));
-                                    reads.push(event["expert"].as_u64().context("missing read ID")? as u32);
+                                    reads
+                                        .push(event["expert"].as_u64().context("missing read ID")?
+                                            as u32);
                                 }
                             }
                         }
                         wide_cold_case |= capacity > TOP_K && union.len() > TOP_K;
-                        ensure!(reads.len() == union.len() && reads.iter().copied().collect::<BTreeSet<_>>() == union);
-                        ensure!(actual.iter().map(|out| out.read_bytes).sum::<u64>() == union.len() as u64 * EXPERT_BYTES);
+                        ensure!(
+                            reads.len() == union.len()
+                                && reads.iter().copied().collect::<BTreeSet<_>>() == union
+                        );
+                        ensure!(
+                            actual.iter().map(|out| out.read_bytes).sum::<u64>()
+                                == union.len() as u64 * EXPERT_BYTES
+                        );
                         if repeated {
                             ensure!(union.len() == TOP_K);
                             let hot = block.forward_block(&rows[..width])?;
@@ -364,7 +382,14 @@ mod tests {
                             }
                         }
                     }
-                    if capacity > TOP_K && expected.iter().flat_map(|(ids, _)| ids.iter().copied()).collect::<BTreeSet<_>>().len() > TOP_K {
+                    if capacity > TOP_K
+                        && expected
+                            .iter()
+                            .flat_map(|(ids, _)| ids.iter().copied())
+                            .collect::<BTreeSet<_>>()
+                            .len()
+                            > TOP_K
+                    {
                         block.clear_test_cache()?;
                         let cancelled = AtomicBool::new(false);
                         CANCEL_AFTER_READ_BATCH.with(|inject| inject.set(true));
@@ -378,7 +403,9 @@ mod tests {
                         ensure!(cache.ready_slot_snapshot().iter().all(Option::is_none));
                         drop(cache);
                         let recovered = block.forward_block(&rows)?;
-                        for (row, out) in recovered.iter().enumerate() { ensure!(out.read()? == expected[row].1); }
+                        for (row, out) in recovered.iter().enumerate() {
+                            ensure!(out.read()? == expected[row].1);
+                        }
                     }
                     block.clear_test_cache()?;
                     let before = block.cache.borrow().ready_slot_snapshot();
@@ -432,7 +459,10 @@ mod tests {
                 }
             }
         }
-        ensure!(wide_cold_case, "fixture must exercise more than ten cold experts in a wide cache");
+        ensure!(
+            wide_cold_case,
+            "fixture must exercise more than ten cold experts in a wide cache"
+        );
         Ok(())
     }
 }

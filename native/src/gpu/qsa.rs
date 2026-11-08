@@ -1936,8 +1936,8 @@ mod ar36_tests {
     fn physical_mtp_layer_extend_uses_kv_only_and_preserves_next_output() -> Result<()> {
         let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QSA_MODEL")?))?;
         let gpu = Metal::new()?;
-        let mut control = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 1)?;
-        let mut candidate = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 1)?;
+        let mut control = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 10)?;
+        let mut candidate = FlashQsaLayer::load(&gpu, &c, "mtp.layers.0", 1e-6, 1e7, 8, 10)?;
         control.kv_only_catchup = false;
         candidate.kv_only_catchup = true;
         for salt in [3usize, 11, 29, 43] {
