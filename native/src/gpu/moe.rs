@@ -16,6 +16,11 @@ use metal::{
 };
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
+#[path = "moe_block.rs"]
+mod block;
+#[path = "moe/shared_block.rs"]
+mod shared_block;
+
 #[path = "prefetch.rs"]
 mod prefetch;
 pub(super) use prefetch::PrefetchPool;

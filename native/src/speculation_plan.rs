@@ -196,6 +196,24 @@ pub fn expert_cohorts(routes: &[[u16; TOP_K]], max_inflight: usize) -> Option<Co
     Some(CohortPlan { cohorts, waves })
 }
 
+/// Put all already-resident consumers in the first wave, protecting them
+/// from cold reservations. `resident` must describe distinct live cache slots.
+/// Numerical reduction must still follow each consumer's original rank.
+pub fn resident_expert_cohorts(
+    routes: &[[u16; TOP_K]],
+    max_inflight: usize,
+    resident: &[u16],
+) -> Option<CohortPlan> {
+    if resident.len() > max_inflight
+        || resident.iter().enumerate().any(|(i, &id)| id >= EXPERTS || resident[..i].contains(&id))
+    {
+        return None;
+    }
+    let mut plan = expert_cohorts(routes, max_inflight)?;
+    plan.cohorts.sort_by_key(|cohort| !resident.contains(&cohort.expert));
+    Some(plan)
+}
+
 pub const MAX_SUFFIX_LOOKBACK: usize = 4096;
 pub const MAX_SUFFIX_ORDER: usize = 32;
 
@@ -463,5 +481,44 @@ mod proofs {
         }
         kani::cover!(recorded);
         kani::cover!(!recorded && before.cycles == u64::MAX);
+    }
+}
+
+#[cfg(test)]
+mod resident_cohort_tests {
+    use super::*;
+
+    #[test]
+    fn resident_routes_are_consumed_before_any_eviction() {
+        for width in 10..=40 {
+            let routes = std::array::from_fn::<_, 4, _>(|row| {
+                std::array::from_fn(|rank| (row * TOP_K + rank) as u16)
+            });
+            // Include the latest rows' hot experts: first-use order alone would
+            // evict these while executing the anchor's cold routes.
+            let resident = (40-width..40).map(|id| id as u16).collect::<Vec<_>>();
+            let plan = resident_expert_cohorts(&routes, width, &resident).unwrap();
+            let first = &plan.cohorts[plan.waves[0].clone()];
+            assert!(resident.iter().all(|id| first.iter().any(|entry| entry.expert == *id)));
+            let mut restored = [[u16::MAX; TOP_K]; MAX_ROWS];
+            let mut seen = Vec::new();
+            for wave in plan.waves {
+                assert!(wave.len() <= width);
+                for entry in &plan.cohorts[wave] {
+                    assert!(!seen.contains(&entry.expert));
+                    seen.push(entry.expert);
+                    for consumer in &entry.consumers {
+                        assert_eq!(restored[consumer.row][consumer.rank], u16::MAX);
+                        restored[consumer.row][consumer.rank] = entry.expert;
+                    }
+                }
+            }
+            assert_eq!(restored, routes);
+            assert_eq!(seen.len(), 40);
+        }
+        let routes = [std::array::from_fn(|rank| rank as u16)];
+        assert!(resident_expert_cohorts(&routes, 10, &[512]).is_none());
+        assert!(resident_expert_cohorts(&routes, 10, &[1, 1]).is_none());
+        assert!(resident_expert_cohorts(&routes, 1, &[1, 2]).is_none());
     }
 }

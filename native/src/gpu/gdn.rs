@@ -599,6 +599,14 @@ impl<'a> FlashGdn<'a> {
     }
 }
 
+/// Owned rows crossing the temporal attention / stateless MoE boundary.
+/// HC workspace must be disabled while these rows are retained.
+pub(super) struct PreparedMoeRow {
+    pub(super) mixed: MatrixView,
+    streams: MatrixView,
+    gate: MatrixView,
+}
+
 pub(super) struct LayerResidual<'a> {
     attn_hc: super::FlashHc<'a>,
     mlp_hc: super::FlashHc<'a>,
@@ -633,6 +641,43 @@ impl<'a> LayerResidual<'a> {
     pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
         Ok(self.attn_hc.read(streams, false)?.mixed)
     }
+    pub(super) fn prepare_moe(
+        &self,
+        streams: &MatrixView,
+        attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+    ) -> Result<PreparedMoeRow> {
+        ensure!(!self.mlp_hc.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
+        let read = self.attn_hc.read(streams, false)?;
+        let attention = attend(&read.mixed)?;
+        self.prepare_after_attention(streams, read, attention)
+    }
+
+    fn prepare_after_attention(
+        &self,
+        streams: &MatrixView,
+        read: super::FlashHcRead,
+        attention: super::FlashAttentionOutput,
+    ) -> Result<PreparedMoeRow> {
+        ensure!(!self.mlp_hc.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
+        let gate = read.gate.as_ref().context("missing attention injection gate")?;
+        let (streams, mlp_read) = self.mlp_hc.read_after_write(
+            &self.attn_hc, streams, &attention.values, gate,
+        )?;
+        Ok(PreparedMoeRow {
+            mixed: mlp_read.mixed,
+            streams,
+            gate: mlp_read.gate.context("missing MLP injection gate")?,
+        })
+    }
+
+    pub(super) fn finish_prepared(
+        &self,
+        row: PreparedMoeRow,
+        experts: super::MoeOutput,
+    ) -> Result<MatrixView> {
+        self.final_write(&row.streams, experts, &row.gate, false)?.complete(self.mlp_hc.gpu)
+    }
+
     pub(super) fn forward(
         &mut self,
         streams: &MatrixView,
@@ -880,6 +925,19 @@ impl<'a> FlashGdnLayer<'a> {
             mlp_read.gate.as_ref().context("missing MLP injection")?,
             defer_write,
         )
+    }
+
+    pub(super) fn prepare_moe(&mut self, streams: &MatrixView) -> Result<PreparedMoeRow> {
+        ensure!(!self.attention.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
+        let before = self.snapshot();
+        let result = (|| {
+            let (read, attention) = self.attention.forward_after_hc(&self.residual.attn_hc, streams, false)?;
+            self.residual.prepare_after_attention(streams, read, attention)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
     }
 
     pub(super) fn forward_deferred(

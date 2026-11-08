@@ -54,6 +54,20 @@ impl<'a> Layer<'a> {
             Self::Qsa(a) => &mut a.residual.moe,
         }
     }
+    fn prepare_moe(&mut self, row: &MatrixView, token: u32) -> Result<super::gdn::PreparedMoeRow> {
+        match self {
+            Self::Gdn(layer) => layer.prepare_moe(row),
+            Self::Ple(layer) => layer.prepare_moe(row, token),
+            Self::Qsa(layer) => layer.prepare_moe(row),
+        }
+    }
+    fn finish_prepared(&self, row: super::gdn::PreparedMoeRow, experts: super::MoeOutput) -> Result<MatrixView> {
+        match self {
+            Self::Gdn(layer) => layer.residual.finish_prepared(row, experts),
+            Self::Ple(layer) => layer.body.residual.finish_prepared(row, experts),
+            Self::Qsa(layer) => layer.residual.finish_prepared(row, experts),
+        }
+    }
     fn snapshot(&self) -> State {
         match self {
             Self::Gdn(a) => State::Gdn(a.snapshot()),
@@ -150,6 +164,7 @@ pub struct FlashNext<'a> {
     pub(super) fixed_residency_checked: bool,
     checkpoint_path: std::path::PathBuf,
     lookahead_depth: usize,
+    verify_ssd_cohorts: bool,
     #[cfg(feature = "chat")]
     pub(crate) prefill_heads: bool,
     #[cfg(test)]
@@ -293,6 +308,7 @@ impl<'a> FlashNext<'a> {
             fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
             lookahead_depth,
+            verify_ssd_cohorts: crate::gpu::hc_kernel_setting("MLXL3_NATIVE_MTP_SSD_COHORTS")?,
             #[cfg(feature = "chat")]
             prefill_heads,
             #[cfg(test)]

@@ -1,7 +1,8 @@
 //! Conservative layer-major Flash verification, with explicit prefix ownership.
 //!
-//! This stages scalar canonical kernels by layer. It is not yet an EXL3 weight-
-//! sharing kernel or an expert-cohort scheduler, and makes no throughput promise.
+//! The default stages scalar canonical kernels by layer. An explicit SSD cohort
+//! option groups stateless MoE reads after owned temporal preparation. Neither
+//! path promises throughput or a multirow EXL3 kernel.
 use super::{FlashNext, FlashSnapshot, MatrixView};
 use anyhow::{Context, Result, ensure};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -67,6 +68,13 @@ impl<'gpu> FlashNext<'gpu> {
             self.lookahead_depth == 0 && self.prefetcher.is_none(),
             "Flash block verification requires SSD lookahead disabled"
         );
+        if self.verify_ssd_cohorts {
+            // Preflight every layer before preparing any temporal state.
+            // Each MoE repeats this check defensively before doing I/O.
+            for layer in &mut self.layers {
+                ensure!(layer.moe().block_eligible(), "unsupported settings for Flash SSD cohorts");
+            }
+        }
         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
         self.ensure_fixed_residency()?;
         let before = self.snapshot();
@@ -103,6 +111,27 @@ impl<'gpu> FlashNext<'gpu> {
             .collect::<Result<Vec<_>>>()?;
         let gpu = self.gpu;
         for (index, layer) in self.layers.iter_mut().enumerate() {
+            if self.verify_ssd_cohorts {
+                let mut prepared = Vec::with_capacity(rows.len());
+                for ((row, &token), prefix) in rows.iter().zip(tokens).zip(&mut prefixes) {
+                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                    prepared.push(layer.prepare_moe(row, token)
+                        .with_context(|| format!("preparing Flash cohort layer {index}"))?);
+                    // Only attention/PLE carries temporal state. MoE and final
+                    // HC write cannot alter this canonical per-row prefix.
+                    prefix.layers.push(layer.snapshot());
+                }
+                let mixed = prepared.iter().map(|row| row.mixed.clone()).collect::<Vec<_>>();
+                let experts = layer.moe().forward_block_cancellable(&mixed, cancelled)?;
+                ensure!(experts.len() == rows.len(), "incomplete Flash cohort outputs");
+                for ((row, prepared), experts) in rows.iter_mut().zip(prepared).zip(experts) {
+                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                    *row = layer.finish_prepared(prepared, experts)?;
+                }
+                #[cfg(test)]
+                ensure!(gpu.cross_layer_fail_after.get() != Some(index), "injected late verification layer failure {index}");
+                continue;
+            }
             for ((row, &token), prefix) in rows.iter_mut().zip(tokens).zip(&mut prefixes) {
                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
                 // Complete each write before retaining its row. Cross-layer
@@ -299,4 +328,61 @@ mod tests {
         same_trace(&actual.1, &expected.1)?;
         Ok(())
     }
+
+    #[test]
+    #[ignore = "physical Flash checkpoint; SSD cohort temporal preparation and prefix rollback"]
+    fn ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace() -> Result<()> {
+        let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        // Run with cohort-compatible flags externally. Do not hide unsupported
+        // settings by mutating them during load or silently selecting fallback.
+        let mut model = FlashNext::load(&gpu, &c, 64)?;
+        ensure!(model.layers.iter_mut().all(|layer| layer.moe().block_eligible()));
+        model.prefill(&[248044, 78768, 11])?;
+        let root = model.snapshot();
+        let root_state = retained_state(&model)?;
+        for width in 2..=4 {
+            let tokens = &[1, 2, 3, 4][..width];
+            for keep in 0..=width {
+                model.verify_ssd_cohorts = false;
+                let reference = model.stage_block(tokens)?;
+                let logits = reference.logits().to_vec();
+                reference.commit(keep)?;
+                let expected_state = retained_state(&model)?;
+                let expected_hidden = model.last_hidden().context("missing scalar hidden")?.export_bytes(&gpu)?;
+                let mut continuation = Vec::new();
+                for token in [7, 8, 9, 10] {
+                    continuation.push(model.forward_trace(token)?);
+                }
+                model.restore(&root)?;
+                model.verify_ssd_cohorts = true;
+                let cohort = model.stage_block(tokens)?;
+                ensure!(cohort.logits() == logits && logits.len() == width);
+                cohort.commit(keep)?;
+                ensure!(retained_state(&model)? == expected_state);
+                ensure!(model.last_hidden().context("missing cohort hidden")?.export_bytes(&gpu)? == expected_hidden);
+                for (token, (logits, trace)) in [7, 8, 9, 10].into_iter().zip(continuation) {
+                    let (actual_logits, actual_trace) = model.forward_trace(token)?;
+                    ensure!(actual_logits == logits);
+                    same_trace(&actual_trace, &trace)?;
+                }
+                model.restore(&root)?;
+            }
+        }
+        // Reject workspace retention before preparing even the first layer.
+        gpu.hc_workspace_enabled.set(true);
+        let rejected = model.stage_block(&[1, 2]).is_err();
+        gpu.hc_workspace_enabled.set(false);
+        ensure!(rejected && model.offset == root.offset);
+        ensure!(retained_state(&model)? == root_state);
+        gpu.cross_layer_fail_after.set(Some(3));
+        let failed = model.stage_block(&[1, 2]).is_err();
+        gpu.cross_layer_fail_after.set(None);
+        ensure!(failed && model.offset == root.offset);
+        ensure!(retained_state(&model)? == root_state);
+        drop(model.stage_block(&[1, 2])?);
+        ensure!(retained_state(&model)? == root_state && model.offset == root.offset);
+        Ok(())
+    }
+
 }

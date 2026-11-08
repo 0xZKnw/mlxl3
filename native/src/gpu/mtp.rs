@@ -943,3 +943,127 @@ fn block_verification_matches_scalar_mtp_and_eos_prefixes() -> Result<()> {
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod optimization_regression_tests {
+    use super::*;
+    use std::{collections::BTreeMap, path::Path, sync::atomic::AtomicBool};
+
+    fn target_state(target: &FlashNext<'_>) -> Result<BTreeMap<String, Vec<u8>>> {
+        let mut state = BTreeMap::new();
+        state.insert("offset".into(), target.offset.to_le_bytes().to_vec());
+        state.insert("hidden".into(), target.last_hidden().context("missing target hidden")?.export_bytes(target.gpu)?);
+        for (index, layer) in target.layers.iter().enumerate() {
+            if let Some(row) = layer.recurrent() {
+                state.insert(format!("recurrent_{index}"), row.export_bytes(target.gpu)?);
+            }
+            if let super::super::Layer::Qsa(layer) = layer {
+                state.insert(format!("qsa_{index}_offset"), layer.offset().to_le_bytes().to_vec());
+                for (name, words) in layer.retained_half_words()? {
+                    state.insert(format!("qsa_{index}_{name}"), words.into_iter().flat_map(u16::to_le_bytes).collect());
+                }
+            }
+        }
+        ensure!(state.len() > 2 && state.values().all(|bytes| !bytes.is_empty()));
+        Ok(state)
+    }
+
+    #[test]
+    #[ignore = "physical Flash checkpoint; exact old/new prefill states and real vocabulary-head counts; exclusive GPU"]
+    fn final_head_only_prefill_matches_per_token_heads() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut target = FlashNext::load(&gpu, &c, 32)?;
+        let mut head = FlashMtpHead::load(&c, &target)?;
+        let cancelled = AtomicBool::new(false);
+        for prefix in [&[][..], &[248044, 78768, 11][..]] {
+            for suffix in [&[7][..], &[7, 19, 31, 13, 29][..]] {
+                target.reset();
+                head.reset();
+                let mut session = FlashMtpSession::default();
+                if !prefix.is_empty() {
+                    session.prefill(&mut target, &mut head, prefix, &cancelled)?;
+                }
+                let before = target.snapshot();
+                let draft_before = head.layer.snapshot();
+                let calls = target.target_head_calls;
+                let mut expected_logits = None;
+                for &token in suffix {
+                    if let Some(hidden) = target.last_hidden() {
+                        head.extend(&target, hidden, token)?;
+                    }
+                    expected_logits = Some(target.forward(token)?);
+                }
+                ensure!(target.target_head_calls - calls == suffix.len());
+                let expected_logits = expected_logits.context("empty control suffix")?;
+                ensure!(expected_logits.len() == 248320 && expected_logits.iter().all(|&v| half::f16::from_bits(v).is_finite()));
+                let expected_state = target_state(&target)?;
+                let expected_draft = head.layer.retained_half_words()?;
+                let expected_position = head.layer.offset();
+                target.restore(&before)?;
+                head.layer.restore(&draft_before)?;
+                let calls = target.target_head_calls;
+                let actual = session.extend_prefill(&mut target, &mut head, suffix, &cancelled)?;
+                ensure!(target.target_head_calls - calls == 1, "prefill must evaluate exactly one vocabulary head");
+                ensure!(actual == expected_logits);
+                ensure!(target_state(&target)? == expected_state);
+                ensure!(head.layer.offset() == expected_position && head.layer.retained_half_words()? == expected_draft);
+                ensure!(session.pending.is_none() && session.proposed == 0 && session.accepted == 0);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Flash checkpoint and held-out MTP oracle; explicitly enable MTP device greedy and its pipelines; exclusive GPU"]
+    fn device_proposal_matches_normalized_host_on_oracle_rows() -> Result<()> {
+        ensure!(std::env::var("MLXL3_NATIVE_MTP_DEVICE_GREEDY").as_deref() == Ok("1"), "explicitly enable MLXL3_NATIVE_MTP_DEVICE_GREEDY=1");
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MTP_REFERENCE")?);
+        let reference: serde_json::Value = serde_json::from_reader(std::fs::File::open(dir.join("reference.json"))?)?;
+        ensure!(reference["status"] == "complete" && reference["mode"] == "eval");
+        let steps = reference["mtp_steps"].as_array().context("missing oracle steps")?;
+        ensure!((4..=31).contains(&steps.len()));
+        let gpu = Metal::new()?;
+        let target = FlashNext::load(&gpu, &c, steps.len() as u32 + 1)?;
+        let mut head = FlashMtpHead::load(&c, &target)?;
+        ensure!(gpu.device_greedy_available() && head.device_greedy, "device greedy pipeline unavailable or disabled; test not qualified");
+        let read = |entry: &serde_json::Value, count: usize| -> Result<Vec<f32>> {
+            ensure!(entry["count"].as_u64() == Some(count as u64));
+            let name = entry["file"].as_str().context("missing oracle file")?;
+            ensure!(Path::new(name).components().count() == 1);
+            let bytes = std::fs::read(dir.join(name))?;
+            ensure!(bytes.len() == count * 4 && count > 0);
+            let values = bytes.as_chunks::<4>().0.iter().copied().map(f32::from_le_bytes).collect::<Vec<_>>();
+            ensure!(values.iter().all(|v| v.is_finite()));
+            Ok(values)
+        };
+        let mut checked = 0;
+        for (position, case) in steps.iter().enumerate() {
+            ensure!(case["position"] == position);
+            ensure!(case["input"]["shape"] == serde_json::json!([1, 1, 10240]));
+            let input = read(&case["input"], 10240)?;
+            let hidden = gpu.f32_storage(&input)?.matrix(MatrixLayout {
+                shape: [1, 10240], strides: [10240, 1], offset: 0,
+            })?;
+            let token = u32::try_from(case["token"].as_u64().context("missing oracle token")?)?;
+            let before = head.layer.snapshot();
+            let logits = head.forward(&target, &hidden, token)?;
+            let oracle = read(&case["logits"], 248320)?;
+            ensure!(logits.len() == oracle.len() && logits.iter().zip(&oracle).all(|(&a, &b)| half::f16::from_bits(a).to_f32().to_bits() == b.to_bits()), "canonical logits differ from independent oracle at {position}");
+            let expected = target.greedy_id(&logits)?;
+            let expected_state = head.layer.retained_half_words()?;
+            let expected_position = head.layer.offset();
+            head.layer.restore(&before)?;
+            let counts = target.device_greedy_counts();
+            let actual = head.propose(&target, &hidden, token)?;
+            let after = target.device_greedy_counts();
+            ensure!(after[0] == counts[0] + 1 && after[1] == counts[1] + 1, "proposal did not execute the GPU selector/head");
+            ensure!(actual == expected, "GPU proposal changed normalized greedy ID at {position}");
+            ensure!(head.layer.offset() == expected_position && head.layer.retained_half_words()? == expected_state);
+            checked += 1;
+        }
+        ensure!(checked == steps.len() && checked >= 4);
+        Ok(())
+    }
+}

@@ -1225,6 +1225,15 @@ impl<'a> FlashQsaLayer<'a> {
         self.forward_deferred(streams, next, depth, false)?
             .complete(self.attention.gpu)
     }
+    pub(super) fn prepare_moe(&mut self, streams: &MatrixView) -> Result<super::gdn::PreparedMoeRow> {
+        let before = self.snapshot();
+        let result = self.residual.prepare_moe(streams, |x| self.attention.forward(x, false));
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
+    }
+
     pub(super) fn forward_deferred(
         &mut self,
         streams: &MatrixView,
