@@ -1226,7 +1226,7 @@ fn mtp_request_cancel_rolls_back_after_ssd_submission() -> Result<()> {
     let hidden_before = target.last_hidden().unwrap().export_bytes(&gpu)?;
     let expected_next = target.forward_trace(anchor)?;
     target.restore(&before)?;
-    super::FlashMoeRow::set_cancel_after_initial_submit_for_test(true);
+    crate::gpu::FlashMoeRow::set_cancel_after_initial_submit_for_test(true);
     let result = session.advance_with_eos_cancellable(
         &mut target,
         &mut head,
@@ -1236,7 +1236,7 @@ fn mtp_request_cancel_rolls_back_after_ssd_submission() -> Result<()> {
         &[],
         &cancelled,
     );
-    super::FlashMoeRow::set_cancel_after_initial_submit_for_test(false);
+    crate::gpu::FlashMoeRow::set_cancel_after_initial_submit_for_test(false);
     ensure!(
         result.is_err() && cancelled.load(Ordering::Relaxed),
         "cancellation injection not exercised"
