@@ -205,12 +205,16 @@ pub fn resident_expert_cohorts(
     resident: &[u16],
 ) -> Option<CohortPlan> {
     if resident.len() > max_inflight
-        || resident.iter().enumerate().any(|(i, &id)| id >= EXPERTS || resident[..i].contains(&id))
+        || resident
+            .iter()
+            .enumerate()
+            .any(|(i, &id)| id >= EXPERTS || resident[..i].contains(&id))
     {
         return None;
     }
     let mut plan = expert_cohorts(routes, max_inflight)?;
-    plan.cohorts.sort_by_key(|cohort| !resident.contains(&cohort.expert));
+    plan.cohorts
+        .sort_by_key(|cohort| !resident.contains(&cohort.expert));
     Some(plan)
 }
 
@@ -496,10 +500,14 @@ mod resident_cohort_tests {
             });
             // Include the latest rows' hot experts: first-use order alone would
             // evict these while executing the anchor's cold routes.
-            let resident = (40-width..40).map(|id| id as u16).collect::<Vec<_>>();
+            let resident = (40 - width..40).map(|id| id as u16).collect::<Vec<_>>();
             let plan = resident_expert_cohorts(&routes, width, &resident).unwrap();
             let first = &plan.cohorts[plan.waves[0].clone()];
-            assert!(resident.iter().all(|id| first.iter().any(|entry| entry.expert == *id)));
+            assert!(
+                resident
+                    .iter()
+                    .all(|id| first.iter().any(|entry| entry.expert == *id))
+            );
             let mut restored = [[u16::MAX; TOP_K]; MAX_ROWS];
             let mut seen = Vec::new();
             for wave in plan.waves {

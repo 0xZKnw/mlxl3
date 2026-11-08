@@ -303,7 +303,11 @@ impl<'a> FlashPleLayer<'a> {
         self.forward_deferred(x, token, next, depth, false)?
             .complete(self.ple.gpu)
     }
-    pub(super) fn prepare_moe(&mut self, x: &MatrixView, token: u32) -> Result<super::gdn::PreparedMoeRow> {
+    pub(super) fn prepare_moe(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+    ) -> Result<super::gdn::PreparedMoeRow> {
         let before = self.snapshot();
         let result = (|| {
             let streams = self.ple.forward(x, token, false)?;

@@ -61,7 +61,11 @@ impl<'a> Layer<'a> {
             Self::Qsa(layer) => layer.prepare_moe(row),
         }
     }
-    fn finish_prepared(&self, row: super::gdn::PreparedMoeRow, experts: super::MoeOutput) -> Result<MatrixView> {
+    fn finish_prepared(
+        &self,
+        row: super::gdn::PreparedMoeRow,
+        experts: super::MoeOutput,
+    ) -> Result<MatrixView> {
         match self {
             Self::Gdn(layer) => layer.residual.finish_prepared(row, experts),
             Self::Ple(layer) => layer.body.residual.finish_prepared(row, experts),
@@ -308,7 +312,15 @@ impl<'a> FlashNext<'a> {
             fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
             lookahead_depth,
-            verify_ssd_cohorts: crate::gpu::hc_kernel_setting("MLXL3_NATIVE_MTP_SSD_COHORTS")?,
+            verify_ssd_cohorts: {
+                let value = match std::env::var("MLXL3_NATIVE_MTP_SSD_COHORTS") {
+                    Ok(value) => Some(value),
+                    Err(std::env::VarError::NotPresent) => None,
+                    Err(error) => return Err(error.into()),
+                };
+                crate::flash_support::hc_kernel_flag(value.as_deref(), true)
+                    .context("MLXL3_NATIVE_MTP_SSD_COHORTS must be 0 or 1")?
+            },
             #[cfg(feature = "chat")]
             prefill_heads,
             #[cfg(test)]

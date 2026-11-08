@@ -19,7 +19,10 @@ impl FlashMoeRow<'_> {
         storage: Storage,
     ) -> Result<Vec<Buffer>> {
         let gpu = self.gpu;
-        ensure!((1..=4).contains(&rows.len()), "shared block must contain 1 to 4 rows");
+        ensure!(
+            (1..=4).contains(&rows.len()),
+            "shared block must contain 1 to 4 rows"
+        );
         ensure!(
             gpu.owns_command_queue(cmd) && cmd.status() == MTLCommandBufferStatus::NotEnqueued,
             "shared block requires an unsubmitted command on its owner queue"
@@ -43,7 +46,9 @@ impl FlashMoeRow<'_> {
                 .checked_mul(element_bytes)
                 .context("shared block byte offset overflow")?;
             ensure!(
-                offset.checked_add(row_bytes).is_some_and(|end| end <= row.buffer.length()),
+                offset
+                    .checked_add(row_bytes)
+                    .is_some_and(|end| end <= row.buffer.length()),
                 "shared block row exceeds its backing"
             );
             offsets.push(offset);
@@ -52,18 +57,38 @@ impl FlashMoeRow<'_> {
         // Preserve the exact existing scalar invocation unless the independent
         // M5 shared-QMV switch was explicitly enabled during Metal creation.
         if gpu.flash_verify_qmv.is_none() || rows.len() == 1 {
-            return rows.iter().map(|row| self.shared.encode_view(cmd, row, storage)).collect();
+            return rows
+                .iter()
+                .map(|row| self.shared.encode_view(cmd, row, storage))
+                .collect();
         }
-        let packed = MatrixView::output(gpu, dtype, rows.len() as u32, 2560, Storage::StorageModePrivate)?;
+        let packed = MatrixView::output(
+            gpu,
+            dtype,
+            rows.len() as u32,
+            2560,
+            Storage::StorageModePrivate,
+        )?;
         let blit = cmd.new_blit_command_encoder();
         for (index, (row, offset)) in rows.iter().zip(offsets).enumerate() {
-            blit.copy_from_buffer(&row.buffer, offset, &packed.buffer, index as u64 * row_bytes, row_bytes);
+            blit.copy_from_buffer(
+                &row.buffer,
+                offset,
+                &packed.buffer,
+                index as u64 * row_bytes,
+                row_bytes,
+            );
         }
         blit.end_encoding();
-        let shared = self.shared.encode_view(cmd, &packed, Storage::StorageModePrivate)?;
+        let shared = self
+            .shared
+            .encode_view(cmd, &packed, Storage::StorageModePrivate)?;
         #[cfg(test)]
         BATCHED_SHARED_CALLS.with(|count| count.set(count.get() + 1));
-        ensure!(shared.length() == rows.len() as u64 * 5120, "invalid shared block output extent");
+        ensure!(
+            shared.length() == rows.len() as u64 * 5120,
+            "invalid shared block output extent"
+        );
         let outputs = (0..rows.len())
             .map(|_| buffer(&gpu.device, 5120, storage))
             .collect::<Result<Vec<_>>>()?;
@@ -84,7 +109,8 @@ mod tests {
     #[test]
     #[ignore = "physical Flash checkpoint; run shared QMV flag 0 and 1; exact shared-expert oracle"]
     fn shared_expert_block_matches_scalar_with_offset_rows() -> Result<()> {
-        let checkpoint = checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let checkpoint =
+            checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
         let batched_enabled = gpu.flash_verify_qmv.is_some();
         let moe = FlashMoeRow::load(&gpu, &checkpoint, "model.language_model.layers.0.mlp", 10)?;
@@ -97,43 +123,84 @@ mod tests {
                 let storage = if fp32 {
                     gpu.f32_storage(&values)?
                 } else {
-                    gpu.f16_storage(&values.iter().map(|v| half::f16::from_f32(*v).to_bits()).collect::<Vec<_>>())?
+                    gpu.f16_storage(
+                        &values
+                            .iter()
+                            .map(|v| half::f16::from_f32(*v).to_bits())
+                            .collect::<Vec<_>>(),
+                    )?
                 };
                 rows.push(storage.matrix(MatrixLayout {
-                    shape: [1, 2560], strides: [0, 1], offset: 7,
+                    shape: [1, 2560],
+                    strides: [0, 1],
+                    offset: 7,
                 })?);
             }
-            let expected = rows.iter()
+            let expected = rows
+                .iter()
                 .map(|row| moe.shared.submit_fp16_view(row)?.read())
                 .collect::<Result<Vec<_>>>()?;
             for count in 1..=4 {
                 let before = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
-                let actual = gpu.command(|cmd| moe.encode_shared_block(cmd, &rows[..count], Storage::StorageModeShared))?;
+                let actual = gpu.command(|cmd| {
+                    moe.encode_shared_block(cmd, &rows[..count], Storage::StorageModeShared)
+                })?;
                 ensure!(actual.len() == count);
                 let after = BATCHED_SHARED_CALLS.with(std::cell::Cell::get);
                 ensure!(after - before == usize::from(batched_enabled && count > 1));
                 for (index, output) in actual.iter().enumerate() {
                     ensure!(output.length() == 5120);
-                    ensure!(Metal::read(output, 2560) == expected[index], "shared block B{count} row{index} fp32={fp32}");
+                    ensure!(
+                        Metal::read(output, 2560) == expected[index],
+                        "shared block B{count} row{index} fp32={fp32}"
+                    );
                     for other in &actual[..index] {
-                        ensure!(!std::ptr::eq::<metal::BufferRef>(output.as_ref(), other.as_ref()));
+                        ensure!(!std::ptr::eq::<metal::BufferRef>(
+                            output.as_ref(),
+                            other.as_ref()
+                        ));
                     }
                 }
             }
             let cmd = gpu.queue.new_command_buffer();
-            ensure!(moe.encode_shared_block(cmd, &[], Storage::StorageModePrivate).is_err());
+            ensure!(
+                moe.encode_shared_block(cmd, &[], Storage::StorageModePrivate)
+                    .is_err()
+            );
             let too_many = vec![rows[0].clone(); 5];
-            ensure!(moe.encode_shared_block(cmd, &too_many, Storage::StorageModePrivate).is_err());
-            for (offset, stride, width) in [(-1, 1, 2560), (i64::MAX, 1, 2560), (0, 2, 2560), (0, 1, 2559)] {
+            ensure!(
+                moe.encode_shared_block(cmd, &too_many, Storage::StorageModePrivate)
+                    .is_err()
+            );
+            for (offset, stride, width) in [
+                (-1, 1, 2560),
+                (i64::MAX, 1, 2560),
+                (0, 2, 2560),
+                (0, 1, 2559),
+            ] {
                 let mut bad = rows[0].clone();
                 bad.layout.offset = offset;
                 bad.layout.strides[1] = stride;
                 bad.layout.shape[1] = width;
-                ensure!(moe.encode_shared_block(cmd, &[rows[0].clone(), bad], Storage::StorageModePrivate).is_err());
+                ensure!(
+                    moe.encode_shared_block(
+                        cmd,
+                        &[rows[0].clone(), bad],
+                        Storage::StorageModePrivate
+                    )
+                    .is_err()
+                );
             }
             let mut mixed = rows[0].clone();
             mixed.dtype = if fp32 { FloatType::F16 } else { FloatType::F32 };
-            ensure!(moe.encode_shared_block(cmd, &[rows[0].clone(), mixed], Storage::StorageModePrivate).is_err());
+            ensure!(
+                moe.encode_shared_block(
+                    cmd,
+                    &[rows[0].clone(), mixed],
+                    Storage::StorageModePrivate
+                )
+                .is_err()
+            );
             ensure!(cmd.status() == MTLCommandBufferStatus::NotEnqueued);
         }
         Ok(())

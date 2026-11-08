@@ -646,7 +646,10 @@ impl<'a> LayerResidual<'a> {
         streams: &MatrixView,
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
     ) -> Result<PreparedMoeRow> {
-        ensure!(!self.mlp_hc.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
+        ensure!(
+            !self.mlp_hc.gpu.hc_workspace_enabled.get(),
+            "cohort rows require owned HC activations"
+        );
         let read = self.attn_hc.read(streams, false)?;
         let attention = attend(&read.mixed)?;
         self.prepare_after_attention(streams, read, attention)
@@ -658,11 +661,17 @@ impl<'a> LayerResidual<'a> {
         read: super::FlashHcRead,
         attention: super::FlashAttentionOutput,
     ) -> Result<PreparedMoeRow> {
-        ensure!(!self.mlp_hc.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
-        let gate = read.gate.as_ref().context("missing attention injection gate")?;
-        let (streams, mlp_read) = self.mlp_hc.read_after_write(
-            &self.attn_hc, streams, &attention.values, gate,
-        )?;
+        ensure!(
+            !self.mlp_hc.gpu.hc_workspace_enabled.get(),
+            "cohort rows require owned HC activations"
+        );
+        let gate = read
+            .gate
+            .as_ref()
+            .context("missing attention injection gate")?;
+        let (streams, mlp_read) =
+            self.mlp_hc
+                .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
         Ok(PreparedMoeRow {
             mixed: mlp_read.mixed,
             streams,
@@ -675,7 +684,8 @@ impl<'a> LayerResidual<'a> {
         row: PreparedMoeRow,
         experts: super::MoeOutput,
     ) -> Result<MatrixView> {
-        self.final_write(&row.streams, experts, &row.gate, false)?.complete(self.mlp_hc.gpu)
+        self.final_write(&row.streams, experts, &row.gate, false)?
+            .complete(self.mlp_hc.gpu)
     }
 
     pub(super) fn forward(
@@ -928,11 +938,17 @@ impl<'a> FlashGdnLayer<'a> {
     }
 
     pub(super) fn prepare_moe(&mut self, streams: &MatrixView) -> Result<PreparedMoeRow> {
-        ensure!(!self.attention.gpu.hc_workspace_enabled.get(), "cohort rows require owned HC activations");
+        ensure!(
+            !self.attention.gpu.hc_workspace_enabled.get(),
+            "cohort rows require owned HC activations"
+        );
         let before = self.snapshot();
         let result = (|| {
-            let (read, attention) = self.attention.forward_after_hc(&self.residual.attn_hc, streams, false)?;
-            self.residual.prepare_after_attention(streams, read, attention)
+            let (read, attention) =
+                self.attention
+                    .forward_after_hc(&self.residual.attn_hc, streams, false)?;
+            self.residual
+                .prepare_after_attention(streams, read, attention)
         })();
         if result.is_err() {
             self.restore(&before)?;
