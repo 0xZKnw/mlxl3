@@ -27209,3 +27209,9 @@ NON EXÉCUTÉ (GPU Apple, checkpoint et oracle indisponibles) ; il exige accepta
 et rejet non vides, budgets, pending, continuation et rollback. EOS réel/bridge,
 Clippy/build et suite complète NON EXÉCUTÉS. Aucun gain mesuré, aucun test annoncé
 passé, aucun push/PR/merge/release/app installée. Aucun essai encore en cours.
+
+MTP-M1 publication autorisée EFFECTIVE : draft PR161, head initial56eba9c, blobs
+vérifiés identiques au local. CI Rust Linux premier passage FAILED sur rustfmt
+(harnais : if/else compact demandé). Correction strictement de format appliquée,
+aucun comportement changé ; contrôle suivant en CI. Les preuves physiques et
+mesures restent NON EXÉCUTÉES. Pas de merge ni activation/app installée.

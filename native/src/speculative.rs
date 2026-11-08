@@ -114,11 +114,7 @@ fn greedy_one_successor_is_evaluated_iff_accepted() {
     let mut calls = 0;
     let result = greedy_accept_one(proposal, first, || {
         calls += 1;
-        if fail {
-            Err(())
-        } else {
-            Ok(second)
-        }
+        if fail { Err(()) } else { Ok(second) }
     });
     assert_eq!(calls, usize::from(proposal == first));
     if first != proposal {
