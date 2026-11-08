@@ -1,3 +1,5 @@
+> **Withdrawn at the user’s request.** Q01 was never promoted to the engine default. Its optional runtime selector and numerical changes have been removed from the current branch; measurements below describe the archived7432d881 prototype only. The quality harness/metadata remain for subsequent Q02 candidates.
+
 # Issue165 — Q01 parallel reduction pilot
 
 Optional `MLXL3_NATIVE_PROFILE=parallel-v1`, exact Apple M5 only. Default remains `exact`. Profile selection is immutable per engine process and is reported in bridge ready metadata; model-owner checks isolate snapshots and the process-local prefix cache. The profile changes Flash reduction order, including Hot, static and MB2/expert-consumer kernels. Weights, decoding Half rounding, H128 and recurrent F32 are unchanged. Both prefill and decode use this first candidate, explicitly permitted under the user's relaxed experimental restrictions. No global fast-math.

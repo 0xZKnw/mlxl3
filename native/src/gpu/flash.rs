@@ -445,7 +445,7 @@ impl<'a> FlashNext<'a> {
         &self.checkpoint_path
     }
     pub fn numerical_profile(&self) -> &'static str {
-        self.gpu.numerical_profile.name()
+        "exact"
     }
 
     pub fn context_limit(&self) -> u32 {

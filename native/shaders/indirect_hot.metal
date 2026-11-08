@@ -58,10 +58,7 @@ kernel void device_hot_gu_prepare(const device float* input [[buffer(0)]],
 #undef K
 #define K 2
 #undef MLXL3_REFERENCE_ACCUMULATION
-#ifndef MLXL3_FLASH_REFERENCE_ACCUMULATION
-#define MLXL3_FLASH_REFERENCE_ACCUMULATION 1
-#endif
-#define MLXL3_REFERENCE_ACCUMULATION MLXL3_FLASH_REFERENCE_ACCUMULATION
+#define MLXL3_REFERENCE_ACCUMULATION 1
 #undef MLXL3_QMV_SG
 #define MLXL3_QMV_SG 4u
 #undef MLXL3_QMV_MB
