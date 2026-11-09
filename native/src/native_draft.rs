@@ -14,6 +14,7 @@ pub(crate) struct Draft {
     pub cache: Vec<(Matrix, Matrix)>,
     pub offset: usize,
     cache_capacity: usize,
+    projection_gpu: Option<crate::native_draft_gpu::Backend>,
 }
 impl Draft {
     pub fn load(path: &Path, kind: Kind) -> Result<Self> {
@@ -24,6 +25,19 @@ impl Draft {
             Ok(value) if value == "1" => true,
             _ => anyhow::bail!("MLXL3_NATIVE_DRAFT_COMPACT must be 0 or 1"),
         };
+        let gpu = match std::env::var("MLXL3_NATIVE_DRAFT_GPU") {
+            Err(std::env::VarError::NotPresent) => false,
+            Ok(value) if value == "0" => false,
+            Ok(value) if value == "1" => true,
+            _ => anyhow::bail!("MLXL3_NATIVE_DRAFT_GPU must be 0 or 1"),
+        };
+        ensure!(
+            !gpu || compact,
+            "draft GPU projection requires MLXL3_NATIVE_DRAFT_COMPACT=1"
+        );
+        let projection_gpu = gpu
+            .then(crate::native_draft_gpu::Backend::new)
+            .transpose()?;
         let weights = raw
             .tensors
             .iter()
@@ -44,6 +58,7 @@ impl Draft {
             cache: Vec::new(),
             offset: 0,
             cache_capacity: 0,
+            projection_gpu,
         })
     }
     fn quantize(&mut self) -> Result<()> {
@@ -59,10 +74,18 @@ impl Draft {
             .matrix()
     }
     fn linear(&self, x: &Matrix, prefix: &str) -> Result<Matrix> {
-        x.linear(&self.weight(&format!("{prefix}.weight"))?)
+        if let Some(gpu) = &self.projection_gpu {
+            let name = format!("{prefix}.weight");
+            let weight = self
+                .weights
+                .get(&name)
+                .with_context(|| format!("missing draft weight {name}"))?;
+            return gpu.linear(x, weight);
+        }
+        x.linear(self.weight(&format!("{prefix}.weight"))?.as_ref())
     }
     fn norm(&self, x: &Matrix, name: &str, width: usize) -> Result<Matrix> {
-        x.norm(&self.weight(name)?, width)
+        x.norm(self.weight(name)?.as_ref(), width)
     }
     fn rope(&self, mut x: Matrix, start: usize) -> Result<Matrix> {
         ensure!(
@@ -344,7 +367,8 @@ impl Draft {
             )?;
             let (normalized_mlp, residual) = attention.residual_norm(
                 &hidden,
-                &self.weight(&format!("{p}.post_attention_layernorm.weight"))?,
+                self.weight(&format!("{p}.post_attention_layernorm.weight"))?
+                    .as_ref(),
             )?;
             let (x, dynamic) = self.sublayer_input(&normalized_mlp, &format!("{p}.mlp_conv"))?;
             let gate = self.linear(&x, &format!("{p}.mlp.gate_proj"))?;
@@ -370,7 +394,8 @@ impl Draft {
             } else {
                 format!("layers.{}.input_layernorm.weight", layer + 1)
             };
-            (normalized, hidden) = mlp.residual_norm(&residual, &self.weight(&next_norm)?)?;
+            (normalized, hidden) =
+                mlp.residual_norm(&residual, self.weight(&next_norm)?.as_ref())?;
             if tracing {
                 trace.push(hidden.clone());
             }
@@ -647,6 +672,9 @@ pub struct MemoryPayload {
     pub weights_bytes: usize,
     /// Maximum transient FP32 operand; not retained and not process RSS.
     pub projection_decode_scratch_bytes: usize,
+    /// Observed peak of compact weights, parameters, input and output Metal buffers.
+    /// Logical buffer bytes, not process RSS or driver overhead.
+    pub projection_gpu_peak_bytes: u64,
     pub state_bytes: usize,
     pub pending_tokens_bytes: usize,
 }
@@ -750,6 +778,11 @@ impl Session {
         Ok(MemoryPayload {
             weights_bytes,
             projection_decode_scratch_bytes,
+            projection_gpu_peak_bytes: state
+                .draft
+                .projection_gpu
+                .as_ref()
+                .map_or(0, crate::native_draft_gpu::Backend::peak_bytes),
             state_bytes,
             pending_tokens_bytes: state
                 .pending
@@ -1412,6 +1445,7 @@ fn request_reset_discards_adaptation_counters_and_pending_prefix() -> Result<()>
                 cache: Vec::new(),
                 offset: 7,
                 cache_capacity: 2048,
+                projection_gpu: None,
             },
             options: crate::flash_draft_options::Options {
                 q4: true,

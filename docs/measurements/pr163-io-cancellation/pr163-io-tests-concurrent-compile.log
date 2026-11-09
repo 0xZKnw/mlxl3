@@ -1,0 +1,121 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+error[E0433]: cannot find `native_bf16` in the crate root
+   --> native/src/native_draft_gpu.rs:268:32
+    |
+268 |                         crate::native_bf16::round(
+    |                                ^^^^^^^^^^^ could not find `native_bf16` in the crate root
+    |
+note: found an item that was configured out
+   --> native/src/lib.rs:161:5
+    |
+160 | #[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
+    |           ------------------- the item is gated behind the `macos` feature
+161 | mod native_bf16;
+    |     ^^^^^^^^^^^
+
+error[E0433]: cannot find type `CompactWeight` in this scope
+   --> native/src/native_draft_gpu.rs:252:22
+    |
+252 |             payload: CompactWeight::from_bytes(&bytes)?,
+    |                      ^^^^^^^^^^^^^ use of undeclared type `CompactWeight`
+    |
+help: consider importing this enum
+    |
+238 +     use crate::draft_storage::CompactWeight;
+    |
+
+error[E0433]: cannot find type `CompactWeight` in this scope
+   --> native/src/native_draft_gpu.rs:283:22
+    |
+283 |             payload: CompactWeight::from_bytes(&[0x80, 0x3f, 0x80, 0x3f])?,
+    |                      ^^^^^^^^^^^^^ use of undeclared type `CompactWeight`
+    |
+help: consider importing this enum
+    |
+238 +     use crate::draft_storage::CompactWeight;
+    |
+
+error[E0433]: cannot find type `CompactWeight` in this scope
+   --> native/src/native_draft_gpu.rs:297:22
+    |
+297 |             payload: CompactWeight::Affine4 {
+    |                      ^^^^^^^^^^^^^ use of undeclared type `CompactWeight`
+    |
+help: consider importing this enum
+    |
+238 +     use crate::draft_storage::CompactWeight;
+    |
+
+warning: unused import: `super::*`
+   --> native/src/native_draft_gpu.rs:238:9
+    |
+238 |     use super::*;
+    |         ^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0107]: enum takes 2 generic arguments but 1 generic argument was supplied
+   --> native/src/native_draft_gpu.rs:242:76
+    |
+242 |     fn physical_compact_projection_formats_shapes_rounding_and_errors() -> Result<()> {
+    |                                                                            ^^^^^^ -- supplied 1 generic argument
+    |                                                                            |
+    |                                                                            expected 2 generic arguments
+    |
+help: add missing generic argument
+    |
+242 |     fn physical_compact_projection_formats_shapes_rounding_and_errors() -> Result<(), E> {
+    |                                                                                     +++
+
+error[E0433]: cannot find type `Backend` in this scope
+   --> native/src/native_draft_gpu.rs:243:23
+    |
+243 |         let backend = Backend::new()?;
+    |                       ^^^^^^^ use of undeclared type `Backend`
+
+error[E0433]: cannot find type `Matrix` in this scope
+   --> native/src/native_draft_gpu.rs:254:21
+    |
+254 |         let mut x = Matrix::new(2, 64, (0..128).map(|i| (i % 3) as f32 - 1.).collect())?;
+    |                     ^^^^^^ use of undeclared type `Matrix`
+
+error[E0433]: cannot find type `Matrix` in this scope
+   --> native/src/native_draft_gpu.rs:285:36
+    |
+285 |         let tied = backend.linear(&Matrix::new(2, 1, vec![1.00390625, 1.01171875])?, &tie)?;
+    |                                    ^^^^^^ use of undeclared type `Matrix`
+
+error[E0433]: cannot find type `Matrix` in this scope
+   --> native/src/native_draft_gpu.rs:289:26
+    |
+289 |                 .linear(&Matrix::new(1, 2, vec![1.; 2])?, &weight)
+    |                          ^^^^^^ use of undeclared type `Matrix`
+
+error[E0433]: cannot find type `Matrix` in this scope
+   --> native/src/native_draft_gpu.rs:304:26
+    |
+304 |                 .linear(&Matrix::new(1, 64, vec![1.; 64])?, &malformed)
+    |                          ^^^^^^ use of undeclared type `Matrix`
+
+error[E0433]: cannot find type `Weight` in this scope
+   --> native/src/native_draft_gpu.rs:280:19
+    |
+280 |         let tie = Weight::Compact {
+    |                   ^^^^^^ use of undeclared type `Weight`
+
+error[E0433]: cannot find type `Weight` in this scope
+   --> native/src/native_draft_gpu.rs:249:26
+    |
+249 |         let mut weight = Weight::Compact {
+    |                          ^^^^^^ use of undeclared type `Weight`
+
+error[E0433]: cannot find type `Weight` in this scope
+   --> native/src/native_draft_gpu.rs:294:25
+    |
+294 |         let malformed = Weight::Compact {
+    |                         ^^^^^^ use of undeclared type `Weight`
+
+Some errors have detailed explanations: E0107, E0433.
+For more information about an error, try `rustc --explain E0107`.
+warning: `mlxl3-native` (lib test) generated 1 warning
+error: could not compile `mlxl3-native` (lib test) due to 13 previous errors; 1 warning emitted

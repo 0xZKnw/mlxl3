@@ -7,7 +7,6 @@ use anyhow::{Context, Result, ensure};
 use std::{
     cell::Cell,
     fs::File,
-    os::unix::fs::FileExt,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -16,6 +15,13 @@ use std::{
     thread::JoinHandle,
     time::{Duration, Instant},
 };
+
+#[cfg(test)]
+use std::os::unix::fs::FileExt;
+
+#[path = "ssd_reads/cancellable_io.rs"]
+mod cancellable_io;
+use cancellable_io::ReadCancellation;
 
 pub(crate) enum ReadPayload {
     Bytes(Vec<u8>),
@@ -167,6 +173,7 @@ impl Drop for Ticket {
 #[cfg(test)]
 type SharedTrace = Arc<Mutex<Vec<(&'static str, Instant)>>>;
 struct Read {
+    cancellation: ReadCancellation,
     #[cfg(test)]
     shared_trace: Option<SharedTrace>,
     lease: SlotLease,
@@ -184,6 +191,7 @@ struct Read {
 impl Read {
     fn run(self) {
         let Read {
+            cancellation,
             #[cfg(test)]
             shared_trace,
             lease,
@@ -211,11 +219,12 @@ impl Read {
             gate.wait();
         }
         let result = (|| -> Result<ReadPayload> {
+            cancellation.check()?;
             match &mut payload {
                 ReadPayload::Bytes(destination) => {
                     destination.try_reserve_exact(bytes)?;
                     destination.resize(bytes, 0);
-                    file.read_exact_at(destination, offset)?;
+                    cancellation.read_exact_at(&file, destination, offset)?;
                 }
                 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
                 ReadPayload::Shared(destination) => {
@@ -238,7 +247,7 @@ impl Read {
                     if let Some(trace) = &shared_trace {
                         trace.lock().unwrap().push(("pread", Instant::now()));
                     }
-                    file.read_exact_at(target, offset)?;
+                    cancellation.read_exact_at(&file, target, offset)?;
                 }
             }
             Ok(payload)
@@ -319,6 +328,7 @@ impl SplitRecord {
                 && ranges[1][0].checked_add(ranges[1][1]) == Some(read.bytes),
             "invalid isolated record ranges"
         );
+        read.cancellation.check()?;
         let address = match &mut read.payload {
             ReadPayload::Bytes(bytes) => {
                 bytes.try_reserve_exact(read.bytes)?;
@@ -384,9 +394,10 @@ impl SplitRecord {
             }
         }
         let [begin, length] = self.ranges[index];
-        let offset = {
+        let (offset, cancellation) = {
             let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            state.read.as_ref().unwrap().offset
+            let read = state.read.as_ref().unwrap();
+            (read.offset, read.cancellation.clone())
         };
         let result = (|| -> Result<()> {
             let at = offset
@@ -406,7 +417,7 @@ impl SplitRecord {
             let target = unsafe {
                 std::slice::from_raw_parts_mut((self.address as *mut u8).add(begin), length)
             };
-            file.read_exact_at(target, at)?;
+            cancellation.read_exact_at(&file, target, at)?;
             Ok(())
         })();
         let completed = {
@@ -497,6 +508,8 @@ fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
 mod readahead;
 
 pub(crate) struct ReadService {
+    #[cfg(test)]
+    io_probe: std::cell::RefCell<Option<Arc<cancellable_io::ReadProbe>>>,
     cancelled: Arc<AtomicBool>,
     draining: Arc<AtomicBool>,
     #[cfg(test)]
@@ -596,6 +609,8 @@ impl ReadService {
     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
+            #[cfg(test)]
+            io_probe: std::cell::RefCell::new(None),
             cancelled: Arc::new(AtomicBool::new(false)),
             draining: Arc::new(AtomicBool::new(false)),
             #[cfg(test)]
@@ -972,6 +987,7 @@ impl ReadService {
         self.validate_start(reads.len(), background)?;
         let (result, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
             cancelled: Arc::clone(&self.cancelled),
             draining: Arc::clone(&self.draining),
@@ -1000,6 +1016,12 @@ impl ReadService {
             let (lease, file, offset, bytes, payload) = item?;
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
+                cancellation: ReadCancellation {
+                    requested: Arc::clone(&batch.cancelled),
+                    stopped: Arc::clone(&batch.io_cancelled),
+                    #[cfg(test)]
+                    probe: self.io_probe.borrow().clone(),
+                },
                 #[cfg(test)]
                 shared_trace: self.shared_trace.borrow().clone(),
                 lease,
@@ -1129,6 +1151,7 @@ fn batch_cancellation_is_irreversible_across_flag_reset() {
 }
 
 pub(crate) struct ReadBatch {
+    io_cancelled: Arc<AtomicBool>,
     receiver: Receiver<Completed>,
     cancelled: Arc<AtomicBool>,
     draining: Arc<AtomicBool>,
@@ -1141,16 +1164,21 @@ pub(crate) struct ReadBatch {
     wait_started: Option<Sender<()>>,
 }
 impl ReadBatch {
-    /// Logical cancellation detaches publication. Workers retain their file,
-    /// destination and active count until the actual syscall has completed.
+    /// Stop queued work and remaining read chunks as well as publication.
+    /// An active syscall retains its file, destination and ticket until return;
+    /// macOS does not guarantee interruption of an already executing file read.
     pub(crate) fn abandon(&mut self) {
+        self.io_cancelled.store(true, Ordering::Release);
         self.draining.store(true, Ordering::Release);
         self.abandoned = true;
         self.remaining = 0;
         self.receiver = mpsc::channel().1;
     }
     fn check_cancelled(&mut self) -> Result<()> {
-        if latch_cancellation(&mut self.abandoned, self.cancelled.load(Ordering::Acquire)) {
+        if latch_cancellation(
+            &mut self.abandoned,
+            self.cancelled.load(Ordering::Acquire) || self.io_cancelled.load(Ordering::Acquire),
+        ) {
             self.abandon();
             anyhow::bail!("generation cancelled");
         }
@@ -1238,6 +1266,7 @@ impl Drop for ReadBatch {
     fn drop(&mut self) {
         while self.remaining > 0 {
             if self.wait_next().is_err() {
+                self.abandon();
                 break;
             }
             self.remaining -= 1;
@@ -1250,7 +1279,7 @@ mod tests {
     use super::*;
     use crate::flash_support::{DemandPlan, ExpertCache};
     use std::{cell::RefCell, io::Write, rc::Rc};
-    fn lease() -> Result<SlotLease> {
+    pub(super) fn lease() -> Result<SlotLease> {
         Ok(DemandPlan::reserve(&Rc::new(RefCell::new(ExpertCache::new(10)?)), &[17])?.reads[0])
     }
     #[test]
@@ -1424,6 +1453,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let cancelled = Arc::new(AtomicBool::new(true));
         let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
             cancelled: cancelled.clone(),
             draining: Arc::new(AtomicBool::new(false)),
@@ -1552,6 +1582,7 @@ mod tests {
         let token = lease()?;
         let (sender, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
             cancelled: Arc::new(AtomicBool::new(false)),
             draining: Arc::new(AtomicBool::new(false)),
@@ -1574,6 +1605,7 @@ mod tests {
         );
         let (sender, receiver) = mpsc::channel();
         let mut timed = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
             cancelled: Arc::new(AtomicBool::new(false)),
             draining: Arc::new(AtomicBool::new(false)),
@@ -1595,6 +1627,10 @@ mod tests {
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/direct_tests.rs"]
 mod direct_tests;
+
+#[cfg(test)]
+#[path = "ssd_reads/cancellation_tests.rs"]
+mod cancellation_tests;
 
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/wave_tests.rs"]

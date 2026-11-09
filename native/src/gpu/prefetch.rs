@@ -30,7 +30,7 @@ pub(in crate::gpu) struct PrefetchPool<'a> {
     pub stats: PrefetchStats,
 }
 impl<'a> PrefetchPool<'a> {
-    pub(super) fn abandon(&mut self) {
+    pub(in crate::gpu) fn abandon(&mut self) {
         for mut job in self.pending.drain(..) {
             job.cache.borrow_mut().finish_lease(job.lease, false);
             job.read.abandon();

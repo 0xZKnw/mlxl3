@@ -1,0 +1,30 @@
+   Compiling serde_core v1.0.229
+   Compiling syn v2.0.119
+   Compiling serde v1.0.229
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+   Compiling serde_json v1.0.151
+   Compiling tokio-macros v2.6.1
+   Compiling zerocopy-derive v0.8.57
+   Compiling tokio v1.50.0
+   Compiling zerocopy v0.8.57
+   Compiling tokio-util v0.7.18
+   Compiling half v2.7.1
+   Compiling h2 v0.3.27
+   Compiling hyper v0.14.32
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 32.40s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-3dfca109c7e1f72c)
+
+running 5 tests
+test hub::install_transaction::tests::crash_boundary_child ... ok
+test hub::install_transaction::tests::registry_destination_and_request_mismatch_never_hide_or_delete_files ... ok
+
+running 1 test
+test hub::install_transaction::tests::failed_registration_retains_publication_and_retry_finishes ... ok
+test hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt ... ok
+
+running 1 test
+
+running 1 test
+test hub::install_transaction::tests::restart_reconciles_every_commit_boundary_without_network ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 390 filtered out; finished in 0.04s

@@ -508,10 +508,25 @@ fn ensure_checkpoint_file(
 }
 
 /// Rename is the commit point. Cancellation after it does not undo a successful
-/// installation; callers must finish registration (or roll the rename back).
+/// publication; callers must reconcile registration, never roll it back after an
+/// ambiguous error.
 fn publish_checkpoint(assembled: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<()> {
+    publish_checkpoint_with_sync(assembled, destination, cancelled, |parent| {
+        File::open(parent)?.sync_all()?;
+        Ok(())
+    })
+}
+
+fn publish_checkpoint_with_sync(
+    assembled: &Path,
+    destination: &Path,
+    cancelled: &AtomicBool,
+    mut sync: impl FnMut(&Path) -> Result<()>,
+) -> Result<()> {
     check_download_cancelled(cancelled)?;
     fs::rename(assembled, destination)?;
+    sync(destination.parent().context("destination has no parent")?)?;
+    sync(assembled.parent().context("assembly has no parent")?)?;
     Ok(())
 }
 
@@ -968,6 +983,7 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     temporary.write_all(b"\n")?;
     temporary.as_file().sync_all()?;
     temporary.persist(path).context("saving download state")?;
+    File::open(parent)?.sync_all()?;
     Ok(())
 }
 
@@ -1450,28 +1466,30 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
     })
 }
 
-// Called only while holding the download's exclusive lock. Invalidate the old
-// success marker before any fallible retry work, including metadata fetches.
-fn completed_download(stage: &Path, request: &PendingDownload) -> bool {
-    File::open(stage.join("completed.json"))
-        .ok()
-        .and_then(|file| serde_json::from_reader::<_, PendingDownload>(file).ok())
-        .is_some_and(|done| {
-            done.id == request.id
-                && done.repo == request.repo
-                && done.commit == request.commit
-                && done.folder == request.folder
-                && done.name == request.name
-                && done.destination == request.destination
-                && done.size_bytes == request.size_bytes
-        })
-}
+#[path = "hub/install_transaction.rs"]
+mod install_transaction;
+use install_transaction::{InstallTransaction, completed_download, recover_publication};
 
 fn begin_download_attempt(stage: &Path) -> Result<()> {
     match fs::remove_file(stage.join("completed.json")) {
-        Ok(()) => Ok(()),
+        Ok(()) => {
+            File::open(stage)?.sync_all()?;
+            Ok(())
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error.into()),
+    }
+}
+
+fn cleanup_download_stage(stage: &Path, remove: impl FnOnce(&Path) -> std::io::Result<()>) {
+    let result = remove(stage).and_then(|()| {
+        if let Some(parent) = stage.parent() {
+            File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    });
+    if let Err(error) = result {
+        eprintln!("checkpoint installed; could not remove download staging: {error}");
     }
 }
 
@@ -1495,6 +1513,11 @@ fn run_download(
         .open(lock_path)?;
     lock.try_lock_exclusive()
         .context("this variant is already downloading")?;
+    if let Some(entry) = recover_publication(&stage, request, registry_path)? {
+        cleanup_download_stage(&stage, |path| fs::remove_dir_all(path));
+        progress(request.size_bytes, request.size_bytes, "install");
+        return Ok((request.name.clone(), entry));
+    }
     begin_download_attempt(&stage)?;
     write_json(&stage.join("request.json"), request)?;
 
@@ -1589,25 +1612,17 @@ fn run_download(
         destination.parent() == Some(root.as_path()),
         "model destination escaped managed storage"
     );
+    // Persist intent and receipt before rename; any later error is recoverable.
+    let transaction = InstallTransaction::prepare(&stage, &assembled, request, registry_path)?;
     progress(request.size_bytes, request.size_bytes, "publication");
     publish_checkpoint(&assembled, &destination, &cancelled)?;
     progress(request.size_bytes, request.size_bytes, "install");
-    let entry = match crate::registry::register(registry_path, &request.name, &destination, false) {
-        Ok(entry) => entry,
-        Err(error) => {
-            fs::rename(&destination, &assembled)?;
-            return Err(error);
-        }
-    };
-    // A retained staging directory must not be offered for resume after commit.
-    if let Err(error) = write_json(&stage.join("completed.json"), request) {
-        eprintln!("checkpoint installed; could not mark staging completed: {error}");
-    }
+    // Registration may report an error after atomic replacement (e.g. fsync).
+    // Never roll back a published directory: restart reconciles its transaction.
+    let entry = transaction.register(registry_path, request)?;
     // Publication and registration succeeded; staging cleanup must not turn
     // a committed installation into a reported download failure.
-    if let Err(error) = fs::remove_dir_all(&stage) {
-        eprintln!("checkpoint installed; could not remove download staging: {error}");
-    }
+    cleanup_download_stage(&stage, |path| fs::remove_dir_all(path));
     progress(request.size_bytes, request.size_bytes, "install");
     Ok((request.name.clone(), entry))
 }
@@ -1672,6 +1687,10 @@ pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
 }
 
 fn pending_downloads_in(downloads: &Path) -> Result<Vec<PendingDownload>> {
+    download_requests_in(downloads, true)
+}
+
+fn download_requests_in(downloads: &Path, pending_only: bool) -> Result<Vec<PendingDownload>> {
     let Ok(entries) = fs::read_dir(downloads) else {
         return Ok(Vec::new());
     };
@@ -1684,7 +1703,7 @@ fn pending_downloads_in(downloads: &Path) -> Result<Vec<PendingDownload>> {
         let Ok(mut request) = serde_json::from_reader::<_, PendingDownload>(file) else {
             continue;
         };
-        if completed_download(&path, &request) {
+        if pending_only && completed_download(&path, &request) {
             continue;
         }
         request.retained_bytes = directory_bytes(&path.join("snapshot"));
@@ -1699,7 +1718,8 @@ pub fn resume_with_phase(
     registry_path: &Path,
     progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
-    let request = pending_downloads()?
+    // Read retained requests even if already committed: retry must be idempotent.
+    let request = download_requests_in(&managed_models_path()?.join(".downloads"), false)?
         .into_iter()
         .find(|request| request.id == id)
         .context("interrupted download not found")?;

@@ -737,6 +737,16 @@ impl QwenVerification<'_, '_> {
     }
 }
 
+// MTP is an independent strict opt-in, not part of the Qwen optimization profile.
+fn opt_in(name: &str) -> Result<bool> {
+    match std::env::var(name) {
+        Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
+        Err(std::env::VarError::NotPresent) => crate::flash_support::hc_chain_flag(None, false),
+        Err(error) => return Err(error.into()),
+    }
+    .with_context(|| format!("{name} must be 0 or 1"))
+}
+
 pub struct Qwen35<'a> {
     gpu: &'a Metal,
     profile: crate::qwen_profile::QwenProfile,

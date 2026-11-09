@@ -2320,6 +2320,11 @@
     ".finish": 4,
     ".take": 2
   },
+  "native/src/hub/install_transaction_tests.rs": {
+    "config MLXL3_MODELS_DIR": 1,
+    "config MLXL3_TRANSACTION_TEST_BOUNDARY": 3,
+    "config MLXL3_TRANSACTION_TEST_ROOT": 3
+  },
   "native/src/hub/redirect_download_tests.rs": {
     ".take": 1
   },
@@ -2758,11 +2763,16 @@
     ".log_probs": 2,
     ".retained_bytes": 1,
     ".rope": 4,
+    ".transpose": 1,
     "config MLXL3_FLASH_DRAFT_KIND": 1,
     "config MLXL3_FLASH_DRAFT_MODEL": 3,
     "config MLXL3_FLASH_DRAFT_ORACLE": 1,
     "config MLXL3_FLASH_MODEL": 2,
-    "config MLXL3_NATIVE_DRAFT_COMPACT": 1
+    "config MLXL3_NATIVE_DRAFT_COMPACT": 1,
+    "config MLXL3_NATIVE_DRAFT_GPU": 1
+  },
+  "native/src/native_draft_gpu.rs": {
+    ".to_f32": 2
   },
   "native/src/native_executor.rs": {
     "config MLXL3_FLASH_REQUEST_MIB": 1,
@@ -3321,6 +3331,11 @@
     "config MLXL3_NATIVE_FLASH_READ_WINDOW": 1,
     "config MLXL3_NATIVE_READ_SPLIT": 1,
     "config MLXL3_SSD_DYNAMIC_READERS": 1
+  },
+  "native/src/ssd_reads/cancellation_tests.rs": {
+    ".ready": 2,
+    ".start": 1,
+    ".try_clone": 1
   },
   "native/src/ssd_reads/common_queue_tests.rs": {
     ".ready": 1,

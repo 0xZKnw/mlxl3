@@ -1,0 +1,22 @@
+   Compiling mlxl3-native v2.0.4 (/tmp/pr163-download-mutant)
+    Finished `test` profile [unoptimized] target(s) in 11.21s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-08ebae1f05051d7d)
+
+running 1 test
+test hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt ... FAILED
+
+failures:
+
+---- hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt stdout ----
+
+thread 'hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt' (71) panicked at native/src/hub/install_transaction_tests.rs:186:5:
+assertion failed: !completed_download(&stage, &request)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 398 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

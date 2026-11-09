@@ -153,7 +153,7 @@ fn new_attempt_invalidates_completed_marker_even_with_same_identity() {
 }
 
 #[test]
-fn completed_retained_stage_is_hidden_and_failed_reinstall_is_visible() {
+fn legacy_completion_markers_never_hide_unverified_installations() {
     let root = tempfile::tempdir().unwrap();
     let stage = root.path().join("0123456789ab");
     fs::create_dir(&stage).unwrap();
@@ -170,7 +170,7 @@ fn completed_retained_stage_is_hidden_and_failed_reinstall_is_visible() {
     write_json(&stage.join("request.json"), &request).unwrap();
     assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
     write_json(&stage.join("completed.json"), &request).unwrap();
-    assert!(pending_downloads_in(root.path()).unwrap().is_empty());
+    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
     fs::write(stage.join("completed.json"), b"not JSON").unwrap();
     assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
     let mut foreign = serde_json::to_value(&request).unwrap();
@@ -182,5 +182,5 @@ fn completed_retained_stage_is_hidden_and_failed_reinstall_is_visible() {
     begin_download_attempt(&stage).unwrap();
     assert_eq!(pending_downloads_in(root.path()).unwrap()[0].id, request.id);
     write_json(&stage.join("completed.json"), &request).unwrap();
-    assert!(pending_downloads_in(root.path()).unwrap().is_empty());
+    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
 }

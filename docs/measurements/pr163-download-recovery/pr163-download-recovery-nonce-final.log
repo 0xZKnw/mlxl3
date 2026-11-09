@@ -1,0 +1,36 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized] target(s) in 10.47s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-08ebae1f05051d7d)
+
+running 7 tests
+test hub::install_transaction::tests::crash_boundary_child ... ok
+test hub::install_transaction::tests::registry_destination_and_request_mismatch_never_hide_or_delete_files ... ok
+
+running 1 test
+
+running 1 test
+test hub::install_transaction::tests::failed_registration_retains_publication_and_retry_finishes ... ok
+test hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt ... ok
+test hub::install_transaction::tests::directory_fsync_failures_after_rename_are_reconciled_without_rollback ... ok
+
+running 1 test
+test hub::install_transaction::tests::crash_boundary_child ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 398 filtered out; finished in 0.00s
+
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+test hub::install_transaction::tests::crash_boundary_child ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 398 filtered out; finished in 0.00s
+
+test hub::install_transaction::tests::restart_reconciles_every_commit_boundary_without_network ... ok
+test hub::install_transaction::tests::production_resume_completes_published_and_committed_crashes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 392 filtered out; finished in 0.04s

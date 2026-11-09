@@ -33,6 +33,7 @@ fn ready_min_waits_for_two_then_returns_before_the_held_tail() -> Result<()> {
     let (sender, receiver) = mpsc::channel();
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut batch = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
         cancelled: Arc::new(AtomicBool::new(false)),
         draining: Arc::new(AtomicBool::new(false)),
@@ -99,6 +100,7 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
     let (sender, receiver) = mpsc::channel();
     let deadline = Instant::now();
     let mut batch = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
         cancelled: Arc::new(AtomicBool::new(false)),
         draining: Arc::new(AtomicBool::new(false)),
@@ -134,6 +136,7 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
     let (sender, receiver) = mpsc::channel();
     drop(sender);
     let mut disconnected = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
         cancelled: Arc::new(AtomicBool::new(false)),
         draining: Arc::new(AtomicBool::new(false)),

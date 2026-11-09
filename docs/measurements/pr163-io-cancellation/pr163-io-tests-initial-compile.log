@@ -1,0 +1,28 @@
+    Blocking waiting for file lock on build directory
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+error[E0603]: function `lease` is private
+    --> native/src/ssd_reads/cancellation_tests.rs:44:28
+     |
+  44 |                     tests::lease()?,
+     |                            ^^^^^ private function
+     |
+note: the function `lease` is defined here
+    --> native/src/ssd_reads.rs:1281:5
+     |
+1281 |     fn lease() -> Result<SlotLease> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: function `lease` is private
+    --> native/src/ssd_reads/cancellation_tests.rs:80:28
+     |
+  80 |                     tests::lease()?,
+     |                            ^^^^^ private function
+     |
+note: the function `lease` is defined here
+    --> native/src/ssd_reads.rs:1281:5
+     |
+1281 |     fn lease() -> Result<SlotLease> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0603`.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

@@ -1,0 +1,56 @@
+    Blocking waiting for file lock on build directory
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+error[E0433]: cannot find `vision_input` in `mlxl3_native`
+   --> tests/../native/src/openai.rs:836:23
+    |
+836 |         mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
+    |                       ^^^^^^^^^^^^ could not find `vision_input` in `mlxl3_native`
+    |
+note: found an item that was configured out
+   --> native/src/lib.rs:168:9
+    |
+167 | #[cfg(feature = "chat")]
+    |       ---------------- the item is gated behind the `chat` feature
+168 | pub mod vision_input;
+    |         ^^^^^^^^^^^^
+
+error[E0433]: cannot find `vision_input` in `mlxl3_native`
+   --> native/src/openai.rs:836:23
+    |
+836 |         mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
+    |                       ^^^^^^^^^^^^ could not find `vision_input` in `mlxl3_native`
+    |
+note: found an item that was configured out
+   --> native/src/lib.rs:168:9
+    |
+167 | #[cfg(feature = "chat")]
+    |       ---------------- the item is gated behind the `chat` feature
+168 | pub mod vision_input;
+    |         ^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (test "openai_transport") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (bin "mlxl3-rs" test) due to 1 previous error
+error: this `if` statement can be collapsed
+  --> native/src/ssd_reads/cancellable_io.rs:54:13
+   |
+54 | /             if call == Some(0) {
+55 | |                 if let Some(gate) = self.probe.as_ref().and_then(|p| p.after_first.as_ref()) {
+56 | |                     gate.wait();
+57 | |                 }
+58 | |             }
+   | |_____________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+   = note: `-D clippy::collapsible-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+   |
+54 ~             if call == Some(0)
+55 ~                 && let Some(gate) = self.probe.as_ref().and_then(|p| p.after_first.as_ref()) {
+56 |                     gate.wait();
+57 ~                 }
+   |
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

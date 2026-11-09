@@ -153,6 +153,71 @@ import SwiftUI
                 }
             }
         }
+        // Production incremental path versus the independent full-source regex
+        // entry point. Exact runs include uncolored gaps and UTF-16 offsets.
+        let lexicalFixtures = [
+            ("swift", "let first = 1\r\n/* 😀\r\n comment */\r\nlet text = \"\"\"\nbody\n\"\"\"\nlet last = 2\n"),
+            ("python", "x = 1\n# comment\nx = '''multi\nline'''\nprint\n (x)\n"),
+            ("html", "<!-- \"quoted\ncomment\" -->\n<!DOCTYPE\nhtml>\n<div\nclass\n=\"😀\" data-1\n=\"v\" data-\n=\"v\">&amp;</div>\n"),
+            ("javascript", "const x1\n (arg);\nconst x = `multi\nline`;\nconst s = \"escaped\\\"quote\";\n"),
+            ("sql", "SELECT 'doubled''quote\ntext';\n/* multi\ncomment */\nSELECT 12;\n"),
+            ("yaml", "key: 'literal\\'\nnext: \"value\"\n<!-- invalid > comment -->\n"),
+            ("bash", "x='literal\\'\ny=\"escaped\\\"quote\"\n# end\n"),
+            ("json", "{\n\"key\": \"😀\",\n\"n\": 12\n}\n"),
+            ("swift", "let broken = \"slash\\\nquote\";\nlet next = 1\n"),
+            ("javascript", "// line\u{2028}\"multi\nline\";\nconst end = 1;\n")
+        ]
+        for (language, initial) in lexicalFixtures {
+            var text = initial
+            var cached: EditorLexicalCache.Cache?
+            var seed: UInt64 = 0x163
+            let insertions = ["", "😀", "\n", "\r\n", "/*", "*/", "\"", "'", "\\", "```", "\"\"\"", "<!--", "-->", ";", "("]
+            for iteration in 0..<80 {
+                let result = await Task.detached { [text, cached] in
+                    EditorLexicalCache.update(text, language: language, diff: false, previous: cached)
+                }.value
+                let whole = await Task.detached { [text] in
+                    SyntaxHighlighter.tokens(text, language: language, diff: false)
+                }.value
+                check(result.tokens == whole, "incremental/full lexer parity \(language), edit \(iteration)")
+                check(result.tokens.reduce(0) { $0 + $1.range.length } == text.utf16.count,
+                      "incremental UTF-16 coverage including surrogate pairs")
+                cached = result.cache
+                // Edit only Character boundaries; AppKit never cuts a surrogate
+                // pair. Replacements can nevertheless change UTF-16 length by two.
+                seed = seed &* 6364136223846793005 &+ 1
+                let indices = Array(text.indices) + [text.endIndex]
+                let start = Int(seed % UInt64(indices.count))
+                let end = min(start + (iteration % 3 == 0 ? 1 : 0), indices.count - 1)
+                text.replaceSubrange(indices[start]..<indices[end], with: insertions[iteration % insertions.count])
+            }
+        }
+        let regular = (0..<100).map { "let value\($0) = \($0);\n" }.joined()
+        let before = EditorLexicalCache.update(regular, language: "swift", diff: false)
+        let edited = regular.replacingOccurrences(of: "value50 = 50", with: "value50 = 500😀")
+        let after = EditorLexicalCache.update(edited, language: "swift", diff: false, previous: before.cache)
+        check(after.tokens == SyntaxHighlighter.tokens(edited, language: "swift", diff: false),
+              "shifted suffix colors preserve UTF-16 offsets")
+        check(after.scannedLines == 1 && after.lexedChunks == 1 && after.reusedChunks >= 99,
+              "a local neutral edit does not rerun the whole lexer")
+        let multiline = "let a = 1;\n/* start\ninside\n*/\nlet b = 2;\nlet c = 3;\n"
+        let multiBefore = EditorLexicalCache.update(multiline, language: "swift", diff: false)
+        let opened = multiline.replacingOccurrences(of: "/* start", with: "// start")
+        let multiAfter = EditorLexicalCache.update(opened, language: "swift", diff: false, previous: multiBefore.cache)
+        check(multiAfter.tokens == SyntaxHighlighter.tokens(opened, language: "swift", diff: false),
+              "removed opener propagates state through unchanged suffix")
+        check(multiAfter.scannedLines >= 3 && multiAfter.reusedChunks > 0,
+              "propagation reaches convergence instead of reusing stale line state")
+        let unclosed = multiline.replacingOccurrences(of: "*/", with: "  ")
+        let unclosedResult = EditorLexicalCache.update(unclosed, language: "swift", diff: false, previous: multiBefore.cache)
+        check(unclosedResult.tokens == SyntaxHighlighter.tokens(unclosed, language: "swift", diff: false),
+              "unclosed delimiter conservatively relexes suffix with original regex semantics")
+        let diffBefore = EditorLexicalCache.update("+😀\n-old\n@@ header\n", language: "swift", diff: true)
+        let diffText = "+😀\n+new\n@@ header\n"
+        check(EditorLexicalCache.update(diffText, language: "swift", diff: true, previous: diffBefore.cache).tokens
+              == SyntaxHighlighter.tokens(diffText, language: "swift", diff: true), "incremental diff line parity")
+        check(EditorLexicalCache.update(regular, language: "python", diff: false, previous: before.cache).reusedChunks == 0,
+              "language changes invalidate lexical cache")
         editor.string = "let old = 123"
         coordinator.resetLines(editor)
         coordinator.style(editor)

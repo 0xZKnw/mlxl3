@@ -178,7 +178,7 @@ def worker_engine(tmp_path):
 @pytest.mark.parametrize("k", range(2, 9))
 @pytest.mark.parametrize("cb", range(3))
 def test_owned_worker_reuses_one_child_across_bounded_batches(worker_engine, monkeypatch, k, cb):
-    import sys
+    import builtins
     from pathlib import Path
 
     from mlxl3_quantizer import native, process
@@ -198,11 +198,22 @@ def test_owned_worker_reuses_one_child_across_bounded_batches(worker_engine, mon
 
     monkeypatch.setattr(process.subprocess, "Popen", launch)
     values = np.arange(5 * 256, dtype=np.float32).reshape(5, 256)[:, ::-1]
-    decoded, states = native.converter_tiles(values, k, cb)
+    original_import = builtins.__import__
+
+    def no_mlx_import(name, *args, **kwargs):
+        if name == "mlx" or name.startswith("mlx."):
+            raise AssertionError("native worker must not import MLX")
+        return original_import(name, *args, **kwargs)
+
+    # Other tests may already have loaded MLX. Check this operation, not global history.
+    with monkeypatch.context() as imports:
+        imports.setattr(builtins, "__import__", no_mlx_import)
+        with pytest.raises(AssertionError, match="must not import MLX"):
+            builtins.__import__("mlx.core")
+        decoded, states = native.converter_tiles(values, k, cb)
     np.testing.assert_array_equal(decoded, values)
     assert states.shape == values.shape and not states.any()
     assert len(children) == 1 and children[0].poll() is not None
-    assert "mlx.core" not in sys.modules
 
 
 @pytest.mark.parametrize(

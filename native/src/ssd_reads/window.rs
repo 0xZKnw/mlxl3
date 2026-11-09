@@ -58,6 +58,7 @@ impl<'a> ReadWindow<'a> {
             destination,
             failed: false,
             batch: Some(ReadBatch {
+                io_cancelled: Arc::new(AtomicBool::new(false)),
                 receiver,
                 cancelled: Arc::clone(&pool.cancelled),
                 draining: Arc::clone(&pool.draining),

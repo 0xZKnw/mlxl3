@@ -307,7 +307,8 @@ mod tests {
 }
 
 /// Immutable weights keep projections compact; small elementwise operands remain
-/// dense. A projection materializes exactly one canonical FP32 SGEMM operand.
+/// dense. CPU projection materializes one canonical FP32 SGEMM operand; the
+/// experimental GPU backend reads the compact payload directly.
 #[derive(Clone, Debug)]
 pub(crate) enum Weight {
     Dense(Matrix),

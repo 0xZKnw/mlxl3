@@ -1,0 +1,496 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1151:17
+     |
+1151 |         None => assert!(!(2..=8).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1304:17
+     |
+1304 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:354:21
+    |
+354 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: constant `FLAGS` is never used
+ --> native/src/ar10_defaults.rs:4:18
+  |
+4 | pub(crate) const FLAGS: [&str; 13] = [
+  |                  ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `setting_value` is never used
+  --> native/src/ar10_defaults.rs:29:4
+   |
+29 | fn setting_value(value: std::result::Result<String, std::env::VarError>, m5: bool) -> Result<bool> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `setting` is never used
+  --> native/src/ar10_defaults.rs:38:15
+   |
+38 | pub(crate) fn setting(name: &str, qualified_m5: bool) -> Result<bool> {
+   |               ^^^^^^^
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `defines` is never used
+ --> native/src/ar20_kernel_policy.rs:9:15
+  |
+9 | pub(crate) fn defines(bits: u32) -> String {
+  |               ^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `capacity` is never used
+ --> native/src/device_hot_policy.rs:5:15
+  |
+5 | pub(crate) fn capacity(value: Option<&str>) -> Option<usize> {
+  |               ^^^^^^^^
+
+warning: enum `CompactWeight` is never used
+ --> native/src/draft_storage.rs:6:17
+  |
+6 | pub(crate) enum CompactWeight {
+  |                 ^^^^^^^^^^^^^
+
+warning: associated items `from_bytes`, `len`, `retained_bytes`, `decode`, and `quantize` are never used
+  --> native/src/draft_storage.rs:14:12
+   |
+13 | impl CompactWeight {
+   | ------------------ associated items in this implementation
+14 |     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+   |            ^^^^^^^^^^
+...
+28 |     pub fn len(&self) -> usize {
+   |            ^^^
+...
+34 |     pub fn retained_bytes(&self) -> Result<usize> {
+   |            ^^^^^^^^^^^^^^
+...
+44 |     pub fn decode(&self) -> Result<Vec<f32>> {
+   |            ^^^^^^
+...
+69 |     pub fn quantize(&mut self) -> Result<()> {
+   |            ^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `position`, `feature`, and `accepted` are never read
+   --> native/src/flash_draft_budget.rs:128:5
+    |
+127 | struct Label {
+    |        ----- fields in this struct
+128 |     position: usize,
+    |     ^^^^^^^^
+129 |     feature: f64,
+    |     ^^^^^^^
+130 |     accepted: bool,
+    |     ^^^^^^^^
+    |
+    = note: `Label` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `logit` is never used
+   --> native/src/flash_draft_budget.rs:149:4
+    |
+149 | fn logit(p: f64) -> f64 {
+    |    ^^^^^
+
+warning: function `sigmoid` is never used
+   --> native/src/flash_draft_budget.rs:153:4
+    |
+153 | fn sigmoid(z: f64) -> f64 {
+    |    ^^^^^^^
+
+warning: function `seed` is never used
+   --> native/src/flash_draft_budget.rs:157:4
+    |
+157 | fn seed(rows: f64) -> f64 {
+    |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:210:8
+    |
+205 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+...
+210 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+223 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+229 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+247 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+298 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+315 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: constant `CAPACITIES` is never used
+ --> native/src/flash_expert_scratch.rs:4:18
+  |
+4 | pub(crate) const CAPACITIES: [u64; 2] = [5120, 10240];
+  |                  ^^^^^^^^^^
+
+warning: methods `ready_slot_snapshot`, `enable_slru`, and `slru_enabled` are never used
+    --> native/src/flash_support.rs:1609:19
+     |
+1428 | impl ExpertCache {
+     | ---------------- methods in this implementation
+...
+1609 |     pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
+     |                   ^^^^^^^^^^^^^^^^^^^
+...
+1659 |     pub(crate) fn enable_slru(&mut self) {
+     |                   ^^^^^^^^^^^
+...
+1665 |     pub(crate) fn slru_enabled(&self) -> bool {
+     |                   ^^^^^^^^^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1809:19
+     |
+1809 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve`, `reserve_block`, `reserve_access`, and `publish` are never used
+    --> native/src/flash_support.rs:1817:19
+     |
+1816 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1817 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1824 |     pub(crate) fn reserve_block(
+     |                   ^^^^^^^^^^^^^
+...
+1832 |     fn reserve_access(
+     |        ^^^^^^^^^^^^^^
+...
+1854 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3840:15
+     |
+3840 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3907:15
+     |
+3907 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CAPACITY` is never used
+ --> native/src/frame_arena.rs:2:18
+  |
+2 | pub(crate) const CAPACITY: usize = 9;
+  |                  ^^^^^^^^
+
+warning: enum `ReadPayload` is never used
+  --> native/src/ssd_reads.rs:26:17
+   |
+26 | pub(crate) enum ReadPayload {
+   |                 ^^^^^^^^^^^
+
+warning: struct `Completed` is never constructed
+   --> native/src/ssd_reads.rs:149:19
+    |
+149 | pub(crate) struct Completed {
+    |                   ^^^^^^^^^
+
+warning: struct `Ticket` is never constructed
+   --> native/src/ssd_reads.rs:167:8
+    |
+167 | struct Ticket(Arc<AtomicUsize>);
+    |        ^^^^^^
+
+warning: struct `Read` is never constructed
+   --> native/src/ssd_reads.rs:175:8
+    |
+175 | struct Read {
+    |        ^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:192:8
+    |
+191 | impl Read {
+    | --------- method in this implementation
+192 |     fn run(self) {
+    |        ^^^
+
+warning: enum `ReadWork` is never used
+   --> native/src/ssd_reads.rs:275:6
+    |
+275 | enum ReadWork {
+    |      ^^^^^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:284:8
+    |
+283 | impl ReadWork {
+    | ------------- method in this implementation
+284 |     fn run(self) {
+    |        ^^^
+
+warning: struct `SplitState` is never constructed
+   --> native/src/ssd_reads.rs:296:8
+    |
+296 | struct SplitState {
+    |        ^^^^^^^^^^
+
+warning: struct `SplitRecord` is never constructed
+   --> native/src/ssd_reads.rs:304:8
+    |
+304 | struct SplitRecord {
+    |        ^^^^^^^^^^^
+
+warning: associated items `new` and `run_part` are never used
+   --> native/src/ssd_reads.rs:317:8
+    |
+316 | impl SplitRecord {
+    | ---------------- associated items in this implementation
+317 |     fn new(
+    |        ^^^
+...
+371 |     fn run_part(&self, index: usize, file: File) {
+    |        ^^^^^^^^
+
+warning: struct `ReadService` is never constructed
+   --> native/src/ssd_reads.rs:510:19
+    |
+510 | pub(crate) struct ReadService {
+    |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+    --> native/src/ssd_reads.rs:559:19
+     |
+ 554 | impl ReadService {
+     | ---------------- associated items in this implementation
+...
+ 559 |     pub(crate) fn new(readers: usize) -> Result<Self> {
+     |                   ^^^
+...
+ 574 |     fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 609 |     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^
+...
+ 737 |     pub(crate) fn in_flight(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+ 740 |     pub(crate) fn submit(
+     |                   ^^^^^^
+...
+ 891 |     fn sources(
+     |        ^^^^^^^
+...
+ 926 |     fn start(
+     |        ^^^^^
+...
+ 933 |     fn start_mode(
+     |        ^^^^^^^^^^
+...
+ 944 |     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+     |        ^^^^^^^^^^^^^^
+...
+ 971 |     fn start_payloads(
+     |        ^^^^^^^^^^^^^^
+...
+ 980 |     fn start_fallible_payloads(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1005 |     fn enqueue_payloads(
+     |        ^^^^^^^^^^^^^^^^
+...
+1093 |     fn enqueue(&self, work: ReadWork) -> Result<()> {
+     |        ^^^^^^^
+
+warning: struct `ReadBatch` is never constructed
+    --> native/src/ssd_reads.rs:1153:19
+     |
+1153 | pub(crate) struct ReadBatch {
+     |                   ^^^^^^^^^
+
+warning: multiple methods are never used
+    --> native/src/ssd_reads.rs:1170:19
+     |
+1166 | impl ReadBatch {
+     | -------------- methods in this implementation
+...
+1170 |     pub(crate) fn abandon(&mut self) {
+     |                   ^^^^^^^
+...
+1177 |     fn check_cancelled(&mut self) -> Result<()> {
+     |        ^^^^^^^^^^^^^^^
+...
+1187 |     fn wait_next(&mut self) -> Result<Completed> {
+     |        ^^^^^^^^^
+...
+1210 |     pub(crate) fn remaining(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+1213 |     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+     |                   ^^^^
+...
+1232 |     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^
+...
+1239 |     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^^^^^
+
+warning: struct `ReadCancellation` is never constructed
+  --> native/src/ssd_reads/cancellable_io.rs:21:19
+   |
+21 | pub(super) struct ReadCancellation {
+   |                   ^^^^^^^^^^^^^^^^
+
+warning: methods `check`, `read_exact_at`, and `read_with` are never used
+  --> native/src/ssd_reads/cancellable_io.rs:29:19
+   |
+28 | impl ReadCancellation {
+   | --------------------- methods in this implementation
+29 |     pub(super) fn check(&self) -> io::Result<()> {
+   |                   ^^^^^
+...
+40 |     pub(super) fn read_exact_at(
+   |                   ^^^^^^^^^^^^^
+...
+63 |     fn read_with(
+   |        ^^^^^^^^^
+
+warning: struct `Source` is never constructed
+  --> native/src/ssd_reads/window.rs:12:8
+   |
+12 | struct Source {
+   |        ^^^^^^
+
+warning: enum `Destination` is never used
+  --> native/src/ssd_reads/window.rs:21:6
+   |
+21 | enum Destination {
+   |      ^^^^^^^^^^^
+
+warning: struct `ReadWindow` is never constructed
+  --> native/src/ssd_reads/window.rs:27:19
+   |
+27 | pub(crate) struct ReadWindow<'a> {
+   |                   ^^^^^^^^^^
+
+warning: associated items `new`, `refill`, `remaining`, and `ready` are never used
+   --> native/src/ssd_reads/window.rs:39:8
+    |
+ 38 | impl<'a> ReadWindow<'a> {
+    | ----------------------- associated items in this implementation
+ 39 |     fn new(
+    |        ^^^
+...
+ 81 |     fn refill(&mut self) -> Result<()> {
+    |        ^^^^^^
+...
+123 |     pub(crate) fn remaining(&self) -> usize {
+    |                   ^^^^^^^^^
+...
+127 |     pub(crate) fn ready(&mut self) -> Result<Vec<(SlotLease, ReadPayload)>> {
+    |                   ^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized] target(s) in 7.24s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness ssd_reads::cancellable_io::ssd_read_submission_is_bounded_and_makes_progress...
+
+VERIFICATION RESULT:
+ ** 0 of 16 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.07998327s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.
