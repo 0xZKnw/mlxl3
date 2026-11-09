@@ -1040,6 +1040,9 @@ mod tests {
                 );
                 thread::sleep(POLL_INTERVAL);
             };
+            // Accepted sockets inherit O_NONBLOCK from the listener on some
+            // platforms (e.g. macOS); write_all would fail with WouldBlock.
+            socket.set_nonblocking(false).unwrap();
             socket
                 .set_read_timeout(Some(Duration::from_secs(2)))
                 .unwrap();

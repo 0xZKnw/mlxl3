@@ -1343,6 +1343,17 @@ final class StudioModel: ObservableObject {
     }
     func cancelDFlashTuning() { cancelMTPTuning() }
 
+    private func requestMTPOff() {
+        cancelMTPPreparation()
+        mtpEnabled = false
+        rememberMTP(false)
+        saveMTPSelection()
+        if mtpConfigureSupported && bridge.isRunning {
+            do { try configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
+            catch { mtpError = error.localizedDescription }
+        }
+    }
+
     private func cancelMTPPreparation() {
         mtpOperationID = UUID()
         mtpDownloadTask?.cancel()
@@ -1373,14 +1384,7 @@ final class StudioModel: ObservableObject {
     func setMTPEnabled(_ enabled: Bool) {
         guard !isGenerating else { return }
         if !enabled {
-            cancelMTPPreparation()
-            mtpEnabled = false
-            rememberMTP(false)
-            saveMTPSelection()
-            if mtpConfigureSupported && bridge.isRunning {
-                do { try configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
-                catch { mtpError = error.localizedDescription }
-            }
+            requestMTPOff()
             return
         }
         guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
