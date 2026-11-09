@@ -19,7 +19,9 @@ PARSER_HARNESS = (
 INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
-MEMORY_BYTES = 6 * 1024**3
+# kani-compiler codegen for this crate exceeds 6 GiB of address space on the
+# hosted runners; 12 GiB still bounds CBMC while leaving headroom to compile.
+MEMORY_BYTES = 12 * 1024**3
 OBLIGATIONS = Path(__file__).with_name("kani_obligations.json")
 
 
