@@ -1,14 +1,35 @@
 """Bounded tile conversion through the standalone native engine."""
 
+import contextlib
 import json
 import math
 import os
+import shutil
 import tempfile
 import threading
 from operator import index
 from pathlib import Path
 
 import numpy as np
+
+
+@contextlib.contextmanager
+def _request_directory(worker):
+    if worker is None:
+        with tempfile.TemporaryDirectory(prefix="mlxl3-native-tiles-") as directory:
+            yield Path(directory)
+    else:
+        process, root = worker
+        directory = root / str(process.request_id + 1)
+        directory.mkdir()
+        try:
+            yield directory
+        except BaseException:
+            # Reap before removing files a failed child may still be using.
+            process.close()
+            raise
+        finally:
+            shutil.rmtree(directory)
 
 
 def launch_tiles(values: int, k: int, codebook: int, scratch: int) -> int:
@@ -42,6 +63,7 @@ def quantize_tiles_native(
     max_scratch_bytes=256 * 1024 * 1024,
     timeout=300.0,
     cancel_check=None,
+    _worker=None,
 ):
     """Return finite FP32 decoded tiles and full uint16 states in kernel order.
 
@@ -68,30 +90,42 @@ def quantize_tiles_native(
         raise ValueError("native engine must be executable")
     if cancel_check is not None:
         cancel_check()
-    with tempfile.TemporaryDirectory(prefix="mlxl3-native-tiles-") as directory:
-        root = Path(directory)
+    with _request_directory(_worker) as root:
         source, output = root / "tiles.f32", root / "result"
         source.write_bytes(np.asarray(values, dtype="<f4").tobytes())
         from .process import run_native
 
-        response = run_native(
-            [
-                str(executable),
-                "quantize-tiles",
-                str(source),
-                str(output),
-                "--k",
-                str(k),
-                "--codebook",
-                str(cb),
-                "--max-scratch-bytes",
-                str(scratch),
-            ],
-            root=root,
-            timeout=timeout,
-            cancel_check=cancel_check,
-            label="tile conversion",
-        )
+        command = [
+            str(executable),
+            "quantize-tiles",
+            str(source),
+            str(output),
+            "--k",
+            str(k),
+            "--codebook",
+            str(cb),
+            "--max-scratch-bytes",
+            str(scratch),
+        ]
+        if _worker is not None:
+            response = _worker[0].request(timeout=timeout, cancel_check=cancel_check)
+            envelope = json.loads(response)
+            if (
+                not isinstance(envelope, dict)
+                or type(envelope.get("id")) is not int
+                or envelope["id"] != _worker[0].request_id
+                or set(envelope) != {"id", "report"}
+            ):
+                raise ValueError("foreign native tile worker response")
+            response = json.dumps(envelope["report"])
+        else:
+            response = run_native(
+                command,
+                root=root,
+                timeout=timeout,
+                cancel_check=cancel_check,
+                label="tile conversion",
+            )
         report_file = output / "report.json"
         if (
             output.is_symlink()
@@ -141,12 +175,25 @@ def quantize_tiles_native(
         states = np.fromfile(output / "states.u16", dtype="<u2").reshape(values.shape)
         if not np.isfinite(decoded).all():
             raise ValueError("nonfinite native tile output")
+        if cancel_check is not None:
+            cancel_check()
         return decoded, states
 
 
 _CONVERTER_LOCK = threading.Lock()
 # Keep each file well below the native command's 256 MiB protocol ceiling.
 _CONVERTER_TILE_BATCH = 65536
+
+
+@contextlib.contextmanager
+def _converter_lock(cancel_check):
+    while not _CONVERTER_LOCK.acquire(timeout=0.05):
+        cancel_check()
+    try:
+        cancel_check()
+        yield
+    finally:
+        _CONVERTER_LOCK.release()
 
 
 def converter_tiles(tiles, k, cb=0):
@@ -173,12 +220,45 @@ def converter_tiles(tiles, k, cb=0):
         raise RuntimeError(f"unsupported native converter configuration: {exc}") from exc
     decoded = np.empty_like(values)
     states = np.empty(values.shape, dtype=np.uint16)
-    with _CONVERTER_LOCK:
+    flag = os.environ.get("MLXL3_NATIVE_CONVERTER_WORKER", "0")
+    if flag not in {"0", "1"}:
+        raise RuntimeError("MLXL3_NATIVE_CONVERTER_WORKER must be 0 or 1")
+    with _converter_lock(raise_if_requested), contextlib.ExitStack() as stack:
+        worker = None
+        if flag == "1":
+            from .process import TileWorker
+
+            root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="mlxl3-worker-")))
+            try:
+                executable = Path(engine).expanduser().resolve(strict=True)
+            except OSError as exc:
+                raise RuntimeError(f"native converter service failed: {exc}") from exc
+            child = stack.enter_context(
+                TileWorker(
+                    [
+                        str(executable),
+                        "quantize-worker",
+                        str(root),
+                        "--k",
+                        str(k),
+                        "--codebook",
+                        str(cb),
+                        "--max-scratch-bytes",
+                        str(256 * 1024 * 1024),
+                    ]
+                )
+            )
+            worker = (child, root)
         for start in range(0, values.shape[0], batch):
             stop = min(start + batch, values.shape[0])
             try:
                 block, state = quantize_tiles_native(
-                    values[start:stop], k, cb, engine=engine, cancel_check=raise_if_requested
+                    values[start:stop],
+                    k,
+                    cb,
+                    engine=engine,
+                    cancel_check=raise_if_requested,
+                    **({"_worker": worker} if worker is not None else {}),
                 )
             except (OSError, ValueError) as exc:
                 # The driver treats ValueError/FileNotFoundError as an unsupported

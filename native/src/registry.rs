@@ -20,6 +20,9 @@ pub struct ModelEntry {
     pub size_bytes: u64,
     pub modules: usize,
     pub added_at: String,
+    /// Identity of the managed publication, absent for ordinary registrations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub installation_id: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -95,11 +98,44 @@ fn update<T>(
     temp.write_all(b"\n")?;
     temp.as_file().sync_all()?;
     temp.persist(path).context("saving registry")?;
-    File::open(parent)?.sync_all()?;
+    sync_registry_parent(parent)?;
     Ok(result)
 }
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static FAIL_REGISTRY_SYNC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn sync_registry_parent(parent: &Path) -> Result<()> {
+    #[cfg(test)]
+    if FAIL_REGISTRY_SYNC.get() {
+        anyhow::bail!("injected registry directory fsync failure after replacement");
+    }
+    File::open(parent)?.sync_all()?;
+    Ok(())
+}
+
 pub fn register(path: &Path, name: &str, model: &Path, force: bool) -> Result<ModelEntry> {
+    register_with_identity(path, name, model, force, None)
+}
+
+pub(crate) fn register_managed(
+    path: &Path,
+    name: &str,
+    model: &Path,
+    installation_id: &str,
+) -> Result<ModelEntry> {
+    register_with_identity(path, name, model, false, Some(installation_id.to_owned()))
+}
+
+fn register_with_identity(
+    path: &Path,
+    name: &str,
+    model: &Path,
+    force: bool,
+    installation_id: Option<String>,
+) -> Result<ModelEntry> {
     validate_name(name)?;
     let model = checkpoint::inspect(&expand_home(model)?)?;
     let entry = ModelEntry {
@@ -113,6 +149,7 @@ pub fn register(path: &Path, name: &str, model: &Path, force: bool) -> Result<Mo
         bits: model.bits,
         size_bytes: model.size_bytes,
         modules: model.modules.len(),
+        installation_id,
         added_at: time::OffsetDateTime::now_utc()
             .format(&time::format_description::well_known::Rfc3339)?,
     };

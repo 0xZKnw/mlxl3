@@ -2,7 +2,7 @@
   ".github/workflows/apple-compatibility.yml": {
     "MLXL3_MLX_ROOT": 1,
     "array::tests": 1,
-    "mlx": 5
+    "mlx": 6
   },
   ".github/workflows/check.yml": {
     "mlx": 1
@@ -1177,6 +1177,7 @@
     "mlxl3_decode_codeword": 1
   },
   "native/shaders/exl3.metal": {
+    "mlxl3_network_row": 1,
     "mlxl3_rank_row": 1
   },
   "native/shaders/flash_projection.metal": {
@@ -1202,6 +1203,7 @@
     "mlxl3_gdn_input": 1
   },
   "native/shaders/router_topk.h": {
+    "mlxl3_network_row": 1,
     "mlxl3_rank_row": 1
   },
   "native/src/affine.rs": {
@@ -1592,6 +1594,11 @@
     ".take": 3,
     "config MLXL3_NATIVE_FLASH_ONLY": 1
   },
+  "native/src/draft_storage.rs": {
+    ".retained_bytes": 2,
+    ".to_f32": 8,
+    "array::from_fn": 1
+  },
   "native/src/embedding.rs": {
     ".dtype": 1,
     ".pack_embedding": 1,
@@ -1894,7 +1901,7 @@
   },
   "native/src/gpu.rs": {
     ".to_f32": 2,
-    ".transpose": 9,
+    ".transpose": 10,
     "array::from_fn": 7,
     "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
@@ -1949,6 +1956,7 @@
     "config MLXL3_NATIVE_ROUTED_NT2_DOWN": 1,
     "config MLXL3_NATIVE_ROUTED_NT2_GU": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
+    "config MLXL3_NATIVE_ROUTER_NETWORK": 1,
     "config MLXL3_NATIVE_ROUTER_PAIR": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_NATIVE_TRELLIS_READER8": 1,
@@ -2147,6 +2155,7 @@
   },
   "native/src/gpu/model_ops.rs": {
     ".shape": 16,
+    ".to_f32": 1,
     ".transpose": 3,
     ".view": 4,
     "config MLXL3_MODEL_OPS_FIXTURE": 1
@@ -2247,16 +2256,8 @@
     ".take": 1,
     ".to_f32": 3,
     ".transpose": 2,
-    "config MLXL3_NATIVE_QWEN_DEVICE_GREEDY": 1,
-    "config MLXL3_NATIVE_QWEN_DEVICE_KV": 1,
-    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": 1,
-    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": 1,
-    "config MLXL3_NATIVE_QWEN_LAYER_CHAIN": 1,
-    "config MLXL3_NATIVE_QWEN_LAYER_JOIN": 1,
-    "config MLXL3_NATIVE_QWEN_MOE_JOIN": 1,
-    "config MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": 1,
     "config MLXL3_QWEN_NATIVE_ORACLE": 2,
-    "config MLXL3_QWEN_TEST_MODEL": 5
+    "config MLXL3_QWEN_TEST_MODEL": 6
   },
   "native/src/gpu/qwen/kv.rs": {
     ".shape": 1
@@ -2294,6 +2295,9 @@
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 3
   },
+  "native/src/gpu/router.rs": {
+    ".take": 1
+  },
   "native/src/gpu/segment.rs": {
     ".take": 1
   },
@@ -2302,6 +2306,9 @@
   },
   "native/src/gpu/ssd_wave_model_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/view.rs": {
+    ".add": 1
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -2312,6 +2319,17 @@
   "native/src/hub/dflash_download_tests.rs": {
     ".finish": 4,
     ".take": 2
+  },
+  "native/src/hub/install_transaction_tests.rs": {
+    "config MLXL3_MODELS_DIR": 2,
+    "config MLXL3_RETAINED_TEST_ERROR": 2,
+    "config MLXL3_RETAINED_TEST_OPERATION": 2,
+    "config MLXL3_RETAINED_TEST_ROOT": 2,
+    "config MLXL3_TRANSACTION_TEST_BOUNDARY": 3,
+    "config MLXL3_TRANSACTION_TEST_ROOT": 3
+  },
+  "native/src/hub/redirect_download_tests.rs": {
+    ".take": 1
   },
   "native/src/hybrid_main.rs": {
     ".take": 1,
@@ -2656,7 +2674,7 @@
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
-    ".take": 6
+    ".take": 5
   },
   "native/src/memory_policy.rs": {
     ".sum": 1
@@ -2740,16 +2758,24 @@
     "config MLXL3_QWEN_PIPELINE": 1
   },
   "native/src/native_bf16.rs": {
+    ".retained_bytes": 3,
     ".to_f32": 2
   },
   "native/src/native_draft.rs": {
     ".exp": 4,
     ".log_probs": 2,
+    ".retained_bytes": 1,
     ".rope": 4,
+    ".transpose": 1,
     "config MLXL3_FLASH_DRAFT_KIND": 1,
     "config MLXL3_FLASH_DRAFT_MODEL": 3,
     "config MLXL3_FLASH_DRAFT_ORACLE": 1,
-    "config MLXL3_FLASH_MODEL": 2
+    "config MLXL3_FLASH_MODEL": 2,
+    "config MLXL3_NATIVE_DRAFT_COMPACT": 1,
+    "config MLXL3_NATIVE_DRAFT_GPU": 1
+  },
+  "native/src/native_draft_gpu.rs": {
+    ".to_f32": 2
   },
   "native/src/native_executor.rs": {
     "config MLXL3_FLASH_REQUEST_MIB": 1,
@@ -2757,9 +2783,9 @@
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/native_prompt_cache.rs": {
-    ".retained_bytes": 4,
+    ".retained_bytes": 6,
     ".take": 1,
-    ".transpose": 1,
+    ".transpose": 4,
     "config MLXL3_EXPECT_PREFIX_CACHE": 1,
     "config MLXL3_FLASH_DRAFT_MODEL": 1,
     "config MLXL3_FLASH_MODEL": 1
@@ -2770,12 +2796,12 @@
     "mlx": 1
   },
   "native/src/openai_tests.rs": {
-    ".finish": 22,
+    ".finish": 23,
     ".take": 7,
     "config MLXL3_API_SIGNAL_FIXTURE": 1
   },
   "native/src/quantize.rs": {
-    ".take": 1
+    ".take": 2
   },
   "native/src/qwen35.rs": {
     ".add": 9,
@@ -3033,6 +3059,18 @@
     "config MLXL3_PROFILE_OUTPUT": 1,
     "config MLXL3_PROFILE_PROMPT_FILE": 1
   },
+  "native/src/qwen_profile.rs": {
+    "array::from_fn": 2,
+    "config MLXL3_NATIVE_QWEN_DEVICE_GREEDY": 1,
+    "config MLXL3_NATIVE_QWEN_DEVICE_KV": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV": 1,
+    "config MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES": 1,
+    "config MLXL3_NATIVE_QWEN_LAYER_CHAIN": 1,
+    "config MLXL3_NATIVE_QWEN_LAYER_JOIN": 1,
+    "config MLXL3_NATIVE_QWEN_MOE_JOIN": 1,
+    "config MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD": 1,
+    "config MLXL3_NATIVE_QWEN_PROFILE": 1
+  },
   "native/src/registry.rs": {
     "config MLXL3_HOME": 1
   },
@@ -3287,15 +3325,20 @@
   },
   "native/src/ssd_reads.rs": {
     ".add": 1,
-    ".ready": 12,
+    ".ready": 17,
     ".run": 3,
-    ".start": 9,
-    ".take": 2,
-    ".try_clone": 15,
+    ".start": 12,
+    ".take": 3,
+    ".try_clone": 17,
     "config MLXL3_NATIVE_EARLY_READS": 1,
     "config MLXL3_NATIVE_FLASH_READ_WINDOW": 1,
     "config MLXL3_NATIVE_READ_SPLIT": 1,
     "config MLXL3_SSD_DYNAMIC_READERS": 1
+  },
+  "native/src/ssd_reads/cancellation_tests.rs": {
+    ".ready": 2,
+    ".start": 1,
+    ".try_clone": 1
   },
   "native/src/ssd_reads/common_queue_tests.rs": {
     ".ready": 1,
@@ -3305,6 +3348,11 @@
   "native/src/ssd_reads/direct_tests.rs": {
     ".ready": 7,
     ".try_clone": 8
+  },
+  "native/src/ssd_reads/failure_tests.rs": {
+    ".ready": 8,
+    ".start": 6,
+    ".try_clone": 4
   },
   "native/src/ssd_reads/readahead.rs": {
     ".try_clone": 1,
@@ -3325,15 +3373,17 @@
     ".try_clone": 1
   },
   "native/src/ssd_reads/window.rs": {
-    ".ready": 6,
-    ".start": 1,
+    ".ready": 8,
+    ".start": 2,
     ".take": 1,
     ".try_clone": 1
   },
   "native/src/streaming.rs": {
-    ".finish": 5
+    ".finish": 6,
+    ".take": 3
   },
   "native/src/tokenizer.rs": {
+    ".finish": 1,
     "config MLXL3_FLASH_MODEL": 1,
     "config MLXL3_TEST_PYTHON": 1,
     "config MLXL3_TOKENIZER_MODEL": 1

@@ -17,6 +17,7 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod command_status;
 mod device_hot_cache;
 mod greedy;
 mod indirect_hot;
@@ -445,10 +446,15 @@ pub struct Metal {
     router_pair: gate::PairedDot,
     resident_scratch: crate::resident_scratch_policy::Budget,
     gate_softmax: [ComputePipelineState; 2],
+    // Owner-local: source/options/device are immutable; geometry is the only variable.
+    qwen_gdn_pipelines:
+        std::cell::RefCell<std::collections::BTreeMap<[u32; 4], std::rc::Rc<qwen_gdn::Pipelines>>>,
+    route_network: Option<[ComputePipelineState; 2]>,
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
     inverse: Buffer,
     readers: std::cell::OnceCell<crate::ssd_reads::ReadService>,
+    cancellation: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Metal {
@@ -479,14 +485,28 @@ impl Metal {
                 .unwrap_or_else(|_| "4".into())
                 .parse::<usize>()
                 .context("invalid SSD reader count")?;
+            let mut readers = crate::ssd_reads::ReadService::new_qualified(
+                count,
+                self.device.name() == "Apple M5",
+            )?;
+            readers.set_cancellation(self.cancellation_flag());
             self.readers
-                .set(crate::ssd_reads::ReadService::new_qualified(
-                    count,
-                    self.device.name() == "Apple M5",
-                )?)
+                .set(readers)
                 .map_err(|_| anyhow::anyhow!("native SSD readers already initialized"))?;
         }
         self.readers.get().context("missing native SSD readers")
+    }
+
+    /// Shared with the bridge's SIGUSR1 handler, demand and prefetch readers.
+    pub fn cancellation_flag(&self) -> std::sync::Arc<std::sync::atomic::AtomicBool> {
+        self.cancellation.clone()
+    }
+    pub(crate) fn check_cancelled(&self) -> Result<()> {
+        ensure!(
+            !self.cancellation.load(std::sync::atomic::Ordering::Acquire),
+            "generation cancelled"
+        );
+        Ok(())
     }
 
     pub fn new() -> Result<Self> {
@@ -985,6 +1005,14 @@ impl Metal {
             let moe_finish_mix_pipeline = moe_finish_mix
                 .then(|| pipeline("moe_finish_mix_float"))
                 .transpose()?;
+            let route_network = hc_kernel_setting("MLXL3_NATIVE_ROUTER_NETWORK")?
+                .then(|| -> Result<_> {
+                    Ok([
+                        pipeline("route_network_half")?,
+                        pipeline("route_network_float")?,
+                    ])
+                })
+                .transpose()?;
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
@@ -1292,10 +1320,13 @@ impl Metal {
                     "MLXL3_NATIVE_RESIDENT_SCRATCH",
                 )?),
                 gate_softmax,
+                qwen_gdn_pipelines: Default::default(),
+                route_network,
                 route_half,
                 route_float,
                 inverse,
                 readers: std::cell::OnceCell::new(),
+                cancellation: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             })
         })
     }
@@ -1330,11 +1361,7 @@ impl Metal {
             #[cfg(test)]
             let _wait = crate::flash_profile::span("native.central_wait");
             self.wait_command(cmd);
-            ensure!(
-                cmd.status() == MTLCommandBufferStatus::Completed,
-                "Metal command failed ({:?})",
-                cmd.status()
-            );
+            command_status::completed(cmd, "Metal execution")?;
             #[cfg(test)]
             crate::flash_profile::native_gpu_interval(cmd, "central");
             Ok(value)
@@ -1382,11 +1409,7 @@ impl Metal {
             );
             command.commit();
             self.wait_command(command);
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Metal command failed ({:?})",
-                command.status()
-            );
+            command_status::completed(command, "Metal execution")?;
             Ok(())
         })
     }

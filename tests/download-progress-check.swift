@@ -35,6 +35,27 @@ import Foundation
         huge.update(completed: 0, total: Double.greatestFiniteMagnitude, at: 0)
         huge.update(completed: Double.greatestFiniteMagnitude, total: Double.greatestFiniteMagnitude, at: 0.5)
         precondition(huge.fraction == 1 && huge.bytesPerSecond == nil, "Overflow displayed an infinite rate")
+        // Real tracker transitions: hashing/publication never masquerade as transfer completion.
+        var phased = ModelDownloadProgress(total: 100)
+        phased.update(completed: 10, total: 100, at: 1, phase: "download")
+        phased.update(completed: 60, total: 100, at: 2, phase: "download")
+        precondition(phased.bytesPerSecond == 50 && phased.fraction == 0.6)
+        for phase in ["verify", "publication", "publish", "install", "future-phase"] {
+            phased.update(completed: 100, total: 100, at: 3, phase: phase)
+            precondition(phased.fraction == nil && phased.bytesPerSecond == nil,
+                         "Non-transfer phase retained percent or throughput: " + phase)
+        }
+        phased.update(completed: 60, total: 100, at: 100, phase: "download")
+        precondition(phased.bytesPerSecond == nil && phased.fraction == 0.6,
+                     "Verification time contaminated resumed throughput")
+        phased.update(completed: 80, total: 100, at: 101, phase: "download")
+        precondition(phased.bytesPerSecond == 20)
+        phased.update(completed: 100, total: 100, at: 102, phase: "verify")
+        phased.update(completed: 100, total: 100, at: 103) // terminal installed event / legacy engine
+        precondition(phased.phase == .download && phased.fraction == 1 && phased.bytesPerSecond == nil)
+        precondition(ModelDownloadPhase(wireValue: "verify") == .verify)
+        precondition(ModelDownloadPhase(wireValue: "publication") == .publication)
+        precondition(ModelDownloadPhase(wireValue: "install") == .install)
         var cases = 0
         for initial in [0.0, 1, 1_000_000, 12_000_000_000] {
             for received in [0.0, 1, 500_000, 6_000_000_000, 12_000_000_001] {

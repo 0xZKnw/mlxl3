@@ -4,6 +4,7 @@ import Foundation
 /// one atomic pointer only after every file and the actual executable pass.
 enum EngineRuntimeStore {
   static let protocolVersion = 1
+  static let identityChanged = Notification.Name("MLXL3EngineIdentityChanged")
   static let runtimeFiles = Set(["mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib"])
   static let maximumFileBytes = 256 * 1_024 * 1_024
 
@@ -16,6 +17,7 @@ enum EngineRuntimeStore {
     let schema: Int
     let backend: String?
     let version: String
+    let releaseTag: String?
     let bridgeProtocol: Int
     let architecture: String
     let minimumMacOS: String
@@ -24,6 +26,7 @@ enum EngineRuntimeStore {
 
     enum CodingKeys: String, CodingKey {
       case schema, backend, version, architecture, files
+      case releaseTag = "release_tag"
       case bridgeProtocol = "bridge_protocol"
       case minimumMacOS = "minimum_macos"
       case minimumAppVersion = "minimum_app_version"
@@ -56,6 +59,8 @@ enum EngineRuntimeStore {
         let minimumOS = SemanticVersion(minimumMacOS),
         let os = SemanticVersion(osVersion), os >= minimumOS,
         expectedVersion == nil || version == expectedVersion,
+        releaseTag == nil || (EngineReleaseIdentity(releaseTag!)?.version == incoming
+          && EngineReleaseIdentity(releaseTag!)?.legacy == false),
         Set(files.keys) == runtimeFiles,
         files.values.allSatisfy({
           $0.size > 0 && $0.size <= maximumFileBytes
@@ -68,7 +73,19 @@ enum EngineRuntimeStore {
     }
   }
 
-  private struct Pointer: Codable { let version: String }
+  private struct Pointer: Codable {
+    let version: String
+    var releaseTag: String? = nil
+    var archiveSHA256: String? = nil
+    var manifestSHA256: String? = nil
+    var directoryName: String {
+      if let releaseTag, let archiveSHA256 { return releaseTag + "-" + archiveSHA256 }
+      return "v" + version
+    }
+    var displayVersion: String {
+      releaseTag.flatMap { EngineReleaseIdentity($0)?.rawValue } ?? version + "-legacy"
+    }
+  }
 
   static var osVersion: String {
     let os = ProcessInfo.processInfo.operatingSystemVersion
@@ -84,20 +101,19 @@ enum EngineRuntimeStore {
     if let resource = Bundle.main.resourceURL,
       let manifest = try? readManifest(resource.appendingPathComponent("runtime"))
     {
-      return manifest.version
+      return manifest.releaseTag.flatMap { EngineReleaseIdentity($0)?.rawValue } ?? manifest.version
     }
     return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
       ?? "1.2.0"
   }
 
   static func installedVersion() -> String {
-    guard
-      let executable = resolve(
-        appVersion: Bundle.main.object(
-          forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0"),
-      let manifest = try? readManifest(executable.deletingLastPathComponent())
+    let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0"
+    guard let executable = resolve(appVersion: appVersion),
+          let pointer = try? readPointer(root.appendingPathComponent("current.json")),
+          executable.deletingLastPathComponent().lastPathComponent == pointer.directoryName
     else { return bundledVersion }
-    return manifest.version
+    return pointer.displayVersion
   }
 
   static func resolve(
@@ -106,20 +122,22 @@ enum EngineRuntimeStore {
   ) -> URL? {
     do {
       let pointer = try readPointer(root.appendingPathComponent("current.json"))
-      guard let incoming = SemanticVersion(pointer.version),
-        let bundled = SemanticVersion(bundledVersion), incoming > bundled
+      guard let incoming = EngineReleaseIdentity(pointer.displayVersion),
+        let bundled = EngineReleaseIdentity(bundledVersion), incoming > bundled
       else { return nil }
-      let directory = root.appendingPathComponent("v" + pointer.version, isDirectory: true)
+      // Never mask an equally based bundle with unidentifiable historical bytes.
+      guard pointer.releaseTag != nil || incoming.version > bundled.version else { return nil }
+      let directory = root.appendingPathComponent(pointer.directoryName, isDirectory: true)
       guard
         !FileManager.default.fileExists(atPath: directory.appendingPathComponent("disabled").path)
       else { return nil }
-      try verify(directory, appVersion: appVersion, expectedVersion: pointer.version)
+      try verifyPointer(pointer, directory: directory, appVersion: appVersion)
       let executable = directory.appendingPathComponent("mlxl3")
       return FileManager.default.isExecutableFile(atPath: executable.path) ? executable : nil
     } catch { return nil }
   }
 
-  /// Called only when a managed executable fails before its first ready event.
+  /// Only executable/protocol defects justify persistent quarantine, never model/resource errors.
   /// Existing engines remain on disk for diagnostics; subsequent loads fall
   /// back to the bundled runtime without another download.
   @discardableResult
@@ -131,14 +149,40 @@ enum EngineRuntimeStore {
     do {
       try Data().write(
         to: active.deletingLastPathComponent().appendingPathComponent("disabled"), options: .atomic)
+      NotificationCenter.default.post(name: identityChanged, object: nil)
       return true
     } catch { return false }
+  }
+
+  static func isExecutableLaunchFailure(_ failure: Error) -> Bool {
+    let error = failure as NSError
+    // Foundation can wrap a resource failure in a generic executable-load error.
+    // That is not evidence that the installed binary is defective.
+    if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError,
+       underlying.domain == NSPOSIXErrorDomain,
+       [POSIXErrorCode.ENOMEM, .EAGAIN, .EMFILE, .ENFILE].contains(where: { Int($0.rawValue) == underlying.code }) {
+      return false
+    }
+    if error.domain == NSPOSIXErrorDomain {
+      return [POSIXErrorCode.ENOEXEC, .ENOENT, .EACCES].contains { Int($0.rawValue) == error.code }
+    }
+    if error.domain == NSCocoaErrorDomain {
+      return [CocoaError.Code.executableNotLoadable, .executableArchitectureMismatch,
+              .executableRuntimeMismatch, .executableLoad, .fileNoSuchFile,
+              .fileReadNoSuchFile, .fileReadNoPermission].contains { $0.rawValue == error.code }
+    }
+    return false
+  }
+
+  static func shouldQuarantine(receivedReady: Bool, protocolMismatch: Bool) -> Bool {
+    !receivedReady && protocolMismatch
   }
 
   static func useBundled(root: URL = root) throws {
     let pointer = root.appendingPathComponent("current.json")
     if FileManager.default.fileExists(atPath: pointer.path) {
       try FileManager.default.removeItem(at: pointer)
+      NotificationCenter.default.post(name: identityChanged, object: nil)
     }
   }
 
@@ -155,7 +199,25 @@ enum EngineRuntimeStore {
       SemanticVersion(pointer.version) != nil,
       pointer.version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 })
     else { throw EngineError.incompatible }
+    let fields = [pointer.releaseTag, pointer.archiveSHA256, pointer.manifestSHA256]
+    if fields.contains(where: { $0 != nil }) {
+      guard let tag = pointer.releaseTag, let identity = EngineReleaseIdentity(tag), !identity.legacy,
+            tag == "engine-v" + identity.rawValue, identity.version == SemanticVersion(pointer.version),
+            let archive = pointer.archiveSHA256, let manifest = pointer.manifestSHA256,
+            [archive, manifest].allSatisfy({ UpdateManager.validDigest("sha256:" + $0) && $0 == $0.lowercased() })
+      else { throw EngineError.incompatible }
+    }
     return pointer
+  }
+
+  private static func verifyPointer(_ pointer: Pointer, directory: URL, appVersion: String) throws {
+    try verify(directory, appVersion: appVersion, expectedVersion: pointer.version)
+    if let expected = pointer.manifestSHA256 {
+      guard try UpdateManager.sha256(at: directory.appendingPathComponent("engine.json")) == expected
+      else { throw EngineError.integrity }
+    }
+    if let tag = try readManifest(directory).releaseTag, let expected = pointer.releaseTag,
+       tag != expected { throw EngineError.integrity }
   }
 
   static func verify(_ directory: URL, appVersion: String, expectedVersion: String) throws {
@@ -237,6 +299,9 @@ enum EngineRuntimeStore {
   static func install(archive: URL, release: AppUpdateRelease, appVersion: String, root: URL = root)
     throws
   {
+    guard let identity = EngineReleaseIdentity(release.tag), !identity.legacy,
+          release.tag == "engine-v" + identity.rawValue, identity.version == SemanticVersion(release.version)
+    else { throw EngineError.incompatible }
     try requireRegularFile(archive, maximum: 1_500_000_000)
     guard
       release.asset.size
@@ -251,6 +316,7 @@ enum EngineRuntimeStore {
       archive: archive, directory: stageURL, releaseVersion: release.version, appVersion: appVersion
     )
     let manifest = try readManifest(stageURL)
+    guard manifest.releaseTag == nil || manifest.releaseTag == release.tag else { throw EngineError.incompatible }
     for name in manifest.runtimeFiles.sorted() where name != "mlx.metallib" {
       let file = stageURL.appendingPathComponent(name)
       _ = try UpdateManager.runProcess(
@@ -269,18 +335,35 @@ enum EngineRuntimeStore {
       else { throw EngineError.incompatible }
     }
     _ = try UpdateManager.runProcess(executable.path, arguments: ["list", "--json"])
-    let destination = root.appendingPathComponent("v" + release.version, isDirectory: true)
+    try publishValidatedStage(stageURL, release: release, appVersion: appVersion, root: root)
+  }
+
+  /// Commit only after install validates the archive, signatures and runtime-info.
+  /// Existing bytes must match the candidate manifest, not merely their own manifest.
+  static func publishValidatedStage(_ stageURL: URL, release: AppUpdateRelease,
+                                    appVersion: String, root: URL) throws {
+    guard let identity = EngineReleaseIdentity(release.tag), !identity.legacy,
+          release.tag == "engine-v" + identity.rawValue,
+          identity.version == SemanticVersion(release.version),
+          let digest = release.asset.digest, UpdateManager.validDigest(digest)
+    else { throw EngineError.incompatible }
+    let pointer = Pointer(version: release.version, releaseTag: release.tag,
+      archiveSHA256: String(digest.dropFirst(7)).lowercased(),
+      manifestSHA256: try UpdateManager.sha256(at: stageURL.appendingPathComponent("engine.json")))
+    try verifyPointer(pointer, directory: stageURL, appVersion: appVersion)
+    if let active = try? readPointer(root.appendingPathComponent("current.json")),
+       let previous = EngineReleaseIdentity(active.displayVersion), identity < previous {
+      throw EngineError.incompatible
+    }
+    let destination = root.appendingPathComponent(pointer.directoryName, isDirectory: true)
     if FileManager.default.fileExists(atPath: destination.path) {
-      try verify(destination, appVersion: appVersion, expectedVersion: release.version)
-      guard
-        !FileManager.default.fileExists(atPath: destination.appendingPathComponent("disabled").path)
-      else {
-        throw EngineError.incompatible
-      }
+      try verifyPointer(pointer, directory: destination, appVersion: appVersion)
+      guard !FileManager.default.fileExists(atPath: destination.appendingPathComponent("disabled").path)
+      else { throw EngineError.incompatible }
     } else {
       try FileManager.default.moveItem(at: stageURL, to: destination)
     }
-    try activate(version: release.version, appVersion: appVersion, root: root)
+    try writePointer(pointer, root: root)
   }
 
   static func activate(version: String, appVersion: String, root: URL) throws {
@@ -291,11 +374,16 @@ enum EngineRuntimeStore {
     else { throw EngineError.incompatible }
     try verify(
       root.appendingPathComponent("v" + version), appVersion: appVersion, expectedVersion: version)
+    try writePointer(Pointer(version: version), root: root)
+  }
+
+  private static func writePointer(_ value: Pointer, root: URL) throws {
     let pointer = root.appendingPathComponent("current.json")
     if let old = try? Data(contentsOf: pointer) {
       try old.write(to: root.appendingPathComponent("previous.json"), options: .atomic)
     }
-    try JSONEncoder().encode(Pointer(version: version)).write(to: pointer, options: .atomic)
+    try JSONEncoder().encode(value).write(to: pointer, options: .atomic)
+    NotificationCenter.default.post(name: identityChanged, object: nil)
   }
 }
 

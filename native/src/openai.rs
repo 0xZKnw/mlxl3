@@ -346,6 +346,7 @@ fn bridge_capabilities(ready: &Value) -> Value {
         "mtp_supported",
         "dflash_supported",
         "memory_saver_supported",
+        "images_supported",
     ] {
         if let Some(value) = ready[key].as_bool() {
             public.insert(key.into(), json!(value));
@@ -356,7 +357,7 @@ fn bridge_capabilities(ready: &Value) -> Value {
             public.insert(key.into(), json!(value));
         }
     }
-    for key in ["runtime_version", "mlx_version"] {
+    for key in ["runtime_version", "mlx_version", "backend"] {
         if let Some(value) = ready[key].as_str().filter(|s| {
             !s.is_empty()
                 && s.len() <= 64
@@ -370,11 +371,15 @@ fn bridge_capabilities(ready: &Value) -> Value {
 }
 
 fn api_capabilities(state: &State) -> Value {
+    let images = state.bridge_info["images_supported"]
+        .as_bool()
+        .unwrap_or(false);
     json!({"schema":1,"model":state.model,
-        "api":{"chat_completions":true,"stream":true,"stream_usage":true,"text_only":true,
+        "api":{"chat_completions":true,"stream":true,"stream_usage":true,"text_only":!images,
             "sampling":{"temperature":true,"top_k":true,"repetition_penalty":true,
                 "top_p":false,"frequency_penalty":false,"presence_penalty":false},
-            "stop_sequences":false,"tool_calls":false,"json_schema":false,"images":false,
+            "stop_sequences":false,"tool_calls":false,"json_schema":true,"validated_json":true,"constrained_decoding":false,
+            "response_formats":["text","json_object","json_schema"],"images":images,
             "seed":false,"logit_bias":false,"multiple_choices":false,"mtp":false,"dflash":false},
         "bridge":state.bridge_info})
 }
@@ -589,6 +594,22 @@ async fn handle_inner(request: Request<Body>, state: Arc<State>) -> Response<Bod
         Ok(input) => input,
         Err(err) => return error(StatusCode::BAD_REQUEST, err.to_string()),
     };
+    if !state.bridge_info["images_supported"]
+        .as_bool()
+        .unwrap_or(false)
+        && input["messages"].as_array().is_some_and(|messages| {
+            messages.iter().any(|m| {
+                m["content"]
+                    .as_array()
+                    .is_some_and(|parts| parts.iter().any(|p| p["type"] == "image_url"))
+            })
+        })
+    {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "This model does not support images",
+        );
+    }
     let request = match bridge_request(&input, &state.model) {
         Ok(request) => request,
         Err(err) => return error(StatusCode::BAD_REQUEST, err),
@@ -812,6 +833,7 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
         {
             return Err("MLXL3 requires text messages without tool calls".into());
         }
+        #[cfg(feature = "chat")]
         mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
         let content = match &message["content"] {
             Value::Array(parts) if parts.iter().all(|p| p["type"] == "text") => {

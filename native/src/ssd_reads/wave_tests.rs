@@ -33,10 +33,16 @@ fn ready_min_waits_for_two_then_returns_before_the_held_tail() -> Result<()> {
     let (sender, receiver) = mpsc::channel();
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut batch = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 3,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     sender.send(Completed::new(leases[0], Ok(vec![17])))?;
     let (started, entered) = mpsc::channel();
@@ -94,18 +100,39 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
     let (sender, receiver) = mpsc::channel();
     let deadline = Instant::now();
     let mut batch = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 2,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     assert!(batch.ready_min(0).is_err());
     assert!(batch.ready_min(3).is_err());
     assert_eq!(batch.remaining(), 2);
     sender.send(Completed::new(lease, Ok(vec![7])))?;
     assert!(batch.ready_min(2).is_err());
-    assert_eq!(batch.remaining(), 1);
+    assert_eq!(batch.remaining(), 0);
     assert_eq!(batch.deadline, deadline);
+    assert!(sender.send(Completed::new(lease, Ok(vec![9]))).is_err());
+    assert!(batch.ready_min(0).is_err());
+    // An independent failed batch preserves its own original payload error.
+    let (sender, receiver) = mpsc::channel();
+    let mut batch = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
+        receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
+        remaining: 1,
+        deadline,
+        trace: Vec::new(),
+        wait_started: None,
+    };
     sender.send(Completed::new(lease, Err(anyhow::anyhow!("injected EOF"))))?;
     assert!(
         format!(
@@ -118,16 +145,22 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
         .contains("injected EOF")
     );
     assert_eq!(batch.remaining(), 0);
-    assert!(batch.ready_min(0)?.is_empty());
+    assert!(batch.ready_min(0).is_err());
     assert!(batch.ready_min(1).is_err());
     drop(sender);
     let (sender, receiver) = mpsc::channel();
     drop(sender);
     let mut disconnected = ReadBatch {
+        io_cancelled: Arc::new(AtomicBool::new(false)),
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 1,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     assert!(disconnected.ready_min(1).is_err());
     Ok(())

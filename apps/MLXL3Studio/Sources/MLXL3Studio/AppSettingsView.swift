@@ -48,6 +48,7 @@ struct AppSettingsView: View {
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: SettingsPage = .general
+    @AppStorage(QwenRuntimeProfile.preferenceKey) private var requestedQwenProfile = "reference"
 
     var body: some View {
         HStack(spacing: 0) {
@@ -110,6 +111,23 @@ struct AppSettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
             switch selection {
             case .general:
+                SettingCard(title: L("Profil Qwen natif", "Native Qwen profile"), icon: "cpu") {
+                    Picker(L("Profil demandé", "Requested profile"), selection: Binding(
+                        get: { QwenRuntimeProfile.requested(requestedQwenProfile).rawValue },
+                        set: { requestedQwenProfile = $0 }
+                    )) {
+                        Text(L("Référence", "Reference")).tag("reference")
+                        Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
+                    }
+                    Text(L("Profil annoncé par le moteur chargé : ", "Loaded engine reports profile: ")
+                         + (studio.runtimeQwenProfile ?? "—"))
+                        .font(.caption).foregroundStyle(StudioTheme.secondary)
+                    Text(L("Recharger le modèle pour appliquer. Les variables explicites du moteur restent prioritaires. Profil optimisé expérimental, non mesuré pour cette version : aucun gain garanti.", "Reload the model to apply. Explicit engine environment settings take precedence. Optimized profile is experimental and unmeasured on this build: no speedup guaranteed."))
+                        .font(.caption).foregroundStyle(StudioTheme.secondary)
+                    if let identity = studio.runtimeIdentity {
+                        Text(identity).font(.caption2).foregroundStyle(StudioTheme.quiet).textSelection(.enabled)
+                    }
+                }
                 SettingCard(title: L("Langue de l’app", "App language"), icon: "globe") {
                     Text(
                         L(

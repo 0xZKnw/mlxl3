@@ -30,10 +30,19 @@ pub(in crate::gpu) struct PrefetchPool<'a> {
     pub stats: PrefetchStats,
 }
 impl<'a> PrefetchPool<'a> {
+    pub(in crate::gpu) fn abandon(&mut self) {
+        for mut job in self.pending.drain(..) {
+            job.cache.borrow_mut().finish_lease(job.lease, false);
+            job.read.abandon();
+            self.stats.discarded += 1;
+        }
+    }
     pub fn new(gpu: &'a Metal) -> Result<Self> {
+        let mut readers = ReadService::new(4)?;
+        readers.set_cancellation(gpu.cancellation_flag());
         Ok(Self {
             gpu,
-            readers: ReadService::new(4)?,
+            readers,
             pending: Vec::new(),
             stats: PrefetchStats::default(),
         })
@@ -100,6 +109,10 @@ impl<'a> PrefetchPool<'a> {
         ids: &[u32],
         all: bool,
     ) -> Result<()> {
+        if let Err(error) = self.gpu.check_cancelled() {
+            self.abandon();
+            return Err(error);
+        }
         let mut index = 0;
         let mut first_error = None;
         while index < self.pending.len() {
@@ -120,6 +133,7 @@ impl<'a> PrefetchPool<'a> {
             }
             let job = self.pending.remove(index);
             let result = result.and_then(|completed| {
+                self.gpu.check_cancelled()?;
                 let (lease, payload) = completed.expect("nonempty completion checked above");
                 ensure!(lease == job.lease, "native prefetch returned another lease");
                 if job.cache.borrow().pending_lease(lease.slot, lease.expert) != Some(lease) {
@@ -161,9 +175,7 @@ impl<'a> PrefetchPool<'a> {
 }
 impl Drop for PrefetchPool<'_> {
     fn drop(&mut self) {
-        for job in &self.pending {
-            job.cache.borrow_mut().finish_lease(job.lease, false);
-        }
-        // ReadBatch retains its receiver until its deadline; each worker owns its file and bytes.
+        self.abandon();
+        // Cancelled batches detach immediately; workers retain files and bytes until completion.
     }
 }

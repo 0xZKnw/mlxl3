@@ -103,3 +103,51 @@ fn retirement_clears_all_terminal_commands_even_after_error() {
     assert_eq!(result.err(), (0..count).find(|&id| failed[id]));
     kani::cover!(count == 4 && failed[0] && !failed[3]);
 }
+
+/// A failed GPU producer makes its row unusable until a fresh model is loaded.
+/// Shared with outputs so draining again cannot erase an observed failure.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+#[derive(Default)]
+pub(crate) struct CommandHealth(std::cell::Cell<bool>);
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+impl CommandHealth {
+    pub(crate) fn observe(&self, success: bool) -> bool {
+        self.0.set(self.0.get() || !success);
+        !self.0.get()
+    }
+}
+
+#[test]
+fn failed_producer_requires_reload_after_all_owners_retire() {
+    use std::rc::Rc;
+    for failed in 0..4 {
+        let row = Rc::new(CommandHealth::default());
+        let output = row.clone();
+        let mut commands = vec![0, 1, 2, 3];
+        let mut waited = Vec::new();
+        let result = retire_commands(&mut commands, |&id| {
+            waited.push(id);
+            if id == failed { Err(id) } else { Ok(()) }
+        });
+        assert!(!output.observe(result.is_ok()));
+        assert_eq!(waited, vec![0, 1, 2, 3]);
+        assert!(commands.is_empty());
+        let retry: Result<(), ()> = retire_commands(&mut commands, |_| Ok(()));
+        assert!(!row.observe(retry.is_ok()));
+        assert!(CommandHealth::default().observe(true));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn failed_command_health_cannot_be_cleared_by_success() {
+    let first: bool = kani::any();
+    let second: bool = kani::any();
+    let health = CommandHealth::default();
+    assert_eq!(health.observe(first), first);
+    assert_eq!(health.observe(second), first && second);
+    assert_eq!(health.observe(true), first && second);
+    kani::cover!(!first && second);
+    kani::cover!(first && second);
+}

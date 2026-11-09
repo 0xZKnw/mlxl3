@@ -1,0 +1,22 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized] target(s) in 12.63s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-02c72cde4ee8f2cf)
+
+running 1 test
+test draft_storage::tests::packed_affine_matches_independent_dense_reference_for_every_code ... FAILED
+
+failures:
+
+---- draft_storage::tests::packed_affine_matches_independent_dense_reference_for_every_code stdout ----
+
+thread 'draft_storage::tests::packed_affine_matches_independent_dense_reference_for_every_code' (89) panicked at native/src/draft_storage.rs:243:9:
+assertion failed: actual.iter().zip(&expected).all(|(a, b)| a.to_bits() == b.to_bits())
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    draft_storage::tests::packed_affine_matches_independent_dense_reference_for_every_code
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 400 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`

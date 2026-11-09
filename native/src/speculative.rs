@@ -1,5 +1,106 @@
 //! Exact target-side acceptance for speculative decoding.
 
+/// Serial target verification. Each call consumes one input; its output is
+/// emitted but is not consumed after EOS or rejection. The caller bounds the
+/// proposal slice to remaining output/context capacity minus one.
+pub fn verify_serial<E>(
+    anchor: u32,
+    proposals: &[u32],
+    eos_ids: &[u32],
+    mut forward: impl FnMut(u32) -> Result<u32, E>,
+) -> Result<(Vec<u32>, usize), E> {
+    let mut emitted = Vec::new();
+    let mut accepted = 0;
+    let mut current = anchor;
+    for proposed in proposals
+        .iter()
+        .copied()
+        .map(Some)
+        .chain(std::iter::once(None))
+    {
+        let next = forward(current)?;
+        emitted.push(next);
+        if proposed == Some(next) {
+            accepted += 1;
+        }
+        if eos_ids.contains(&next) || proposed != Some(next) {
+            break;
+        }
+        current = next;
+    }
+    Ok((emitted, accepted))
+}
+
+#[test]
+fn serial_verification_stops_at_terminal_and_matches_ar_oracle() {
+    // Independent AR sequence is 1,2,3,4; no forward of terminal is permitted.
+    for budget in 1..=4 {
+        for terminal in 1..=4 {
+            for rejected in 0..=budget {
+                let proposals: Vec<_> = (1..budget)
+                    .map(|i| if i == rejected { 99 } else { i })
+                    .collect();
+                let mut inputs = Vec::new();
+                let (tokens, accepted) = verify_serial(0, &proposals, &[terminal], |input| {
+                    assert_ne!(input, terminal, "forward after terminal");
+                    inputs.push(input);
+                    Ok::<_, ()>(input + 1)
+                })
+                .unwrap();
+                let stop = if rejected > 0 && rejected < budget {
+                    rejected
+                } else {
+                    budget
+                };
+                let count = stop.min(terminal);
+                assert_eq!(tokens, (1..=count).collect::<Vec<_>>());
+                assert_eq!(inputs, (0..count).collect::<Vec<_>>());
+                let matching = proposals
+                    .iter()
+                    .zip(&tokens)
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                assert_eq!(accepted, matching);
+                assert!(tokens.len() <= budget as usize);
+            }
+        }
+    }
+    let mut calls = 0;
+    assert!(
+        verify_serial(0, &[1, 2], &[], |_| {
+            calls += 1;
+            Err::<u32, _>("fault")
+        })
+        .is_err()
+    );
+    assert_eq!(calls, 1);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn serial_verification_never_consumes_eos() {
+    let proposals: [u32; 3] = kani::any();
+    let outputs: [u32; 4] = kani::any();
+    let terminal: u32 = kani::any();
+    let n: usize = kani::any();
+    kani::assume(n <= 3);
+    let mut calls = 0;
+    let (tokens, accepted) = verify_serial(0, &proposals[..n], &[terminal], |_| {
+        if calls > 0 {
+            assert_ne!(outputs[calls - 1], terminal);
+        }
+        let token = outputs[calls];
+        calls += 1;
+        Ok::<_, ()>(token)
+    })
+    .unwrap();
+    assert!(calls > 0 && calls <= n + 1 && accepted <= n);
+    assert_eq!(tokens.len(), calls);
+    kani::cover!(accepted == 1 && tokens.last() == Some(&terminal));
+    kani::cover!(calls == 4);
+}
+
 /// Select the first maximum after model-dtype normalization. Negative infinity masks a token.
 pub fn greedy_log_prob_id(probabilities: &[f32]) -> Option<u32> {
     let mut best = None;

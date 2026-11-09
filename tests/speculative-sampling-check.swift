@@ -155,6 +155,22 @@ extension StudioModel {
     defer { window.close() }
     // Native AX descendants are unavailable in headless NSHostingView (as in
     // response-ui-check). Verify production wiring explicitly, plus rendering.
+    // Layout-only source formatting must not invalidate these wiring guards.
+    // These remain structural smoke checks, not a Swift semantic parser.
+    func containsWiring(_ source: String, _ required: String) -> Bool {
+      source.filter { !$0.isWhitespace }.contains(required.filter { !$0.isWhitespace })
+    }
+    let binding = "get: { studio.samplingTopK }, set: { studio.topK = $0 }"
+    try check(
+      containsWiring("get: {\n studio.samplingTopK\n}, set: {\n studio.topK = $0\n}", binding),
+      "Wiring guard rejects whitespace-only formatting")
+    for mutation in [
+      "get: { studio.topK }, set: { studio.topK = $0 }",
+      "get: { studio.samplingTopK }, set: { studio.temperature = $0 }",
+      "get: { studio.samplingTopK }",
+    ] {
+      try check(!containsWiring(mutation, binding), "Wiring guard accepted changed getter/setter")
+    }
     let inspectorSource = try String(contentsOfFile: CommandLine.arguments[2], encoding: .utf8)
     for required in [
       "value: Binding(get: { studio.samplingTemperature }, set: { studio.temperature = $0 })",
@@ -173,7 +189,7 @@ extension StudioModel {
       ".disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)",
     ] {
       try check(
-        inspectorSource.contains(required), "Missing inspector production wiring: " + required)
+        containsWiring(inspectorSource, required), "Missing inspector production wiring: " + required)
     }
     let mtpSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
       .deletingLastPathComponent().appendingPathComponent("MTPSettingsContent.swift"), encoding: .utf8)
@@ -183,7 +199,7 @@ extension StudioModel {
       "MTPTuningControls()",
       ".disabled(!studio.canTuneMTP)",
     ] {
-      try check(mtpSource.contains(required), "Missing shared MTP production wiring: " + required)
+      try check(containsWiring(mtpSource, required), "Missing shared MTP production wiring: " + required)
     }
     func checkInspector(greedy: Bool) async throws {
       host.layoutSubtreeIfNeeded()
@@ -283,6 +299,25 @@ extension StudioModel {
       !model.dflash2Enabled && !preferences.bool(forKey: "studio.dflash2Enabled"),
       "Unsupported DFlash OFF was ignored")
     try await select("dflash-good")
+    try await send(mtp: false, flash: false, greedy: false)
+    // Applying ordinary profiles must configure both engines OFF before a real send.
+    let ordinary = GenerationProfile(name: "Ordinary", model: nil, systemPrompt: "", temperature: 0.73,
+        topK: 37, repetitionPenalty: 1.12, contextLength: 0, responseSchema: "")
+    try await select("auto-dense")
+    model.setMTPEnabled(true)
+    try await wait("profile MTP ready") { model.mtpActive == true }
+    model.applyProfile(ordinary)
+    model.draft = "profile check"
+    try check(!model.canSend, "Profile sent before MTP configuration acknowledgement")
+    try await wait("profile MTP off") { model.mtpActive == false && model.canSend }
+    try await send(mtp: false, flash: false, greedy: false)
+    try await select("dflash-good")
+    model.setDFlash2Enabled(true)
+    try await wait("profile DFlash ready") { model.dflashActive == true && !model.dflashDownloading }
+    model.applyProfile(ordinary)
+    model.draft = "profile check"
+    try check(!model.canSend, "Profile sent before DFlash configuration acknowledgement")
+    try await wait("profile DFlash off") { model.dflashActive == false && model.canSend }
     try await send(mtp: false, flash: false, greedy: false)
     print(
       "Speculative sampling checks passed: \(checks) assertions, 216 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"

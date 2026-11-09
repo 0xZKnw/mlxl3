@@ -8,7 +8,10 @@ use std::io::Cursor;
 
 const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
 const MAX_IMAGES: usize = 8;
-const MAX_PIXELS: u64 = 16_777_216;
+use crate::image_budget::{MAX_IMAGE_TOKENS, MAX_PIXELS, fits_image_budget};
+
+#[cfg(test)]
+thread_local! { static PATCH_ALLOCATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 
 pub fn validate_content(message: &Value) -> Result<()> {
     if let Some(images) = message.get("images").filter(|v| !v.is_null()) {
@@ -102,6 +105,14 @@ pub fn file_data_url(path: &std::path::Path) -> Result<String> {
 }
 
 pub fn decode_image(url: &str) -> Result<PreparedImage> {
+    decode_image_with_budget(url, MAX_PIXELS, MAX_IMAGE_TOKENS)
+}
+
+fn decode_image_with_budget(
+    url: &str,
+    remaining_pixels: u64,
+    remaining_tokens: u64,
+) -> Result<PreparedImage> {
     let (header, encoded) = url.split_once(",").context("image requires a data URL")?;
     ensure!(
         matches!(
@@ -127,10 +138,19 @@ pub fn decode_image(url: &str) -> Result<PreparedImage> {
     reader.limits(limits);
     let mut decoder = reader.into_decoder().context("opening image decoder")?;
     let orientation = decoder.orientation().context("reading image orientation")?;
+    let (mut width, mut height) = decoder.dimensions();
+    if orientation.to_exif() >= 5 {
+        std::mem::swap(&mut width, &mut height);
+    }
+    let (height, width) = resized_shape(height, width)?;
+    ensure!(
+        fits_image_budget(height, width, remaining_pixels, remaining_tokens),
+        "conversation images exceed the aggregate pixel or token limit"
+    );
+    // Admission precedes decoding, RGB conversion, resampling and patch storage.
     let mut image = image::DynamicImage::from_decoder(decoder).context("decoding image")?;
     image.apply_orientation(orientation);
     let image = image.to_rgb8();
-    let (height, width) = resized_shape(image.height(), image.width())?;
     // The native image decoder uses antialiased Catmull-Rom bicubic resampling.
     let image = if image.dimensions() == (width, height) {
         image
@@ -139,8 +159,14 @@ pub fn decode_image(url: &str) -> Result<PreparedImage> {
     };
     let gh = height / 16;
     let gw = width / 16;
-    let count = (u64::from(gh) * u64::from(gw) * 1536) as usize;
-    let mut patches = vec![0.; count];
+    let count = usize::try_from(u64::from(gh) * u64::from(gw) * 1536)?;
+    #[cfg(test)]
+    PATCH_ALLOCATIONS.with(|n| n.set(n.get() + 1));
+    let mut patches = Vec::new();
+    patches
+        .try_reserve_exact(count)
+        .context("allocating image patches")?;
+    patches.resize(count, 0.);
     for row in 0..gh {
         for col in 0..gw {
             let index =
@@ -177,6 +203,7 @@ pub fn prepare_messages(
     let mut output = Vec::new();
     let mut images = Vec::new();
     let mut total_pixels = 0u64;
+    let mut total_tokens = 0u64;
     for original in messages {
         validate_content(original)?;
         let mut message = original.clone();
@@ -211,16 +238,15 @@ pub fn prepare_messages(
                             images.len() < MAX_IMAGES,
                             "at most eight images per conversation are supported"
                         );
-                        let image = decode_image(
+                        let image = decode_image_with_budget(
                             part["image_url"]["url"]
                                 .as_str()
                                 .context("missing image URL")?,
+                            MAX_PIXELS - total_pixels,
+                            MAX_IMAGE_TOKENS - total_tokens,
                         )?;
                         total_pixels += u64::from(image.height) * u64::from(image.width) * 256;
-                        ensure!(
-                            total_pixels <= MAX_PIXELS,
-                            "conversation images exceed the aggregate pixel limit"
-                        );
+                        total_tokens += image.token_count() as u64;
                         text.push_str("<|vision_start|>");
                         text.push_str(&"<|image|>".repeat(image.token_count()));
                         text.push_str("<|vision_end|>");
@@ -253,6 +279,62 @@ mod tests {
             STANDARD.encode(bytes.into_inner())
         )
     }
+    #[test]
+    fn highly_compressed_limit_image_is_rejected_before_materialization() {
+        let mut bytes = Cursor::new(Vec::new());
+        DynamicImage::ImageLuma8(image::GrayImage::new(4096, 4096))
+            .write_to(&mut bytes, ImageFormat::Png)
+            .unwrap();
+        assert!(bytes.get_ref().len() < MAX_IMAGE_BYTES);
+        let url = format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(bytes.into_inner())
+        );
+        PATCH_ALLOCATIONS.with(|n| n.set(0));
+        // A previous admitted image reserves its pixels before this decode.
+        for remaining in [0, MAX_PIXELS - 1] {
+            assert!(
+                decode_image_with_budget(&url, remaining, MAX_IMAGE_TOKENS)
+                    .err()
+                    .unwrap()
+                    .to_string()
+                    .contains("aggregate")
+            );
+            PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 0));
+        }
+        assert!(fits_image_budget(4096, 4096, MAX_PIXELS, MAX_IMAGE_TOKENS));
+        assert!(!fits_image_budget(4096, 4096, 0, 0));
+    }
+
+    #[test]
+    fn remaining_budget_rejects_before_patch_allocation() {
+        let url = data_url();
+        PATCH_ALLOCATIONS.with(|n| n.set(0));
+        for (pixels, tokens) in [(65_535, 64), (65_536, 63), (0, 0)] {
+            assert!(
+                decode_image_with_budget(&url, pixels, tokens)
+                    .err()
+                    .unwrap()
+                    .to_string()
+                    .contains("aggregate")
+            );
+            PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 0));
+        }
+        let image = decode_image_with_budget(&url, 65_536, 64).unwrap();
+        assert_eq!(image.token_count(), 64);
+        PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 1));
+        // The next image sees the remaining budget before allocating patches.
+        assert!(decode_image_with_budget(&url, 0, 0).is_err());
+        PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 1));
+        let input = json!({"role":"user","content":"eight", "images": vec![url; 8]});
+        let (_, images) = prepare_messages(&[input], true).unwrap();
+        assert_eq!(images.len(), 8);
+        assert_eq!(
+            images.iter().map(PreparedImage::token_count).sum::<usize>(),
+            512
+        );
+    }
+
     #[test]
     fn patches_preserve_channels_temporal_repeats_and_merge_order() {
         let image = decode_image(&data_url()).unwrap();

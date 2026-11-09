@@ -1,0 +1,17 @@
+
+running 1 test
+test failed_producer_requires_reload_after_all_owners_retire ... FAILED
+
+failures:
+
+---- failed_producer_requires_reload_after_all_owners_retire stdout ----
+
+thread 'failed_producer_requires_reload_after_all_owners_retire' (42) panicked at docs/measurements/pr163-metal-recovery/mutant.rs:137:9:
+assertion failed: !row.observe(retry.is_ok())
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    failed_producer_requires_reload_after_all_owners_retire
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s

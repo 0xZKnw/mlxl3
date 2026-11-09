@@ -58,11 +58,17 @@ impl<'a> ReadWindow<'a> {
             destination,
             failed: false,
             batch: Some(ReadBatch {
+                io_cancelled: Arc::new(AtomicBool::new(false)),
                 receiver,
+                cancelled: Arc::clone(&pool.cancelled),
+                draining: Arc::clone(&pool.draining),
+                abandoned: false,
                 remaining: 0,
                 deadline: Instant::now() + limit,
                 #[cfg(test)]
                 trace: Vec::new(),
+                #[cfg(test)]
+                wait_started: None,
             }),
             #[cfg(test)]
             admitted: 0,
@@ -140,11 +146,12 @@ impl Drop for ReadWindow<'_> {
     fn drop(&mut self) {
         self.pending.clear();
         drop(self.batch.take());
-        // A timed-out physical read keeps its own allocation and poisons admission.
-        // Only a fully retired window permits another logical owner.
-        if self.pool.in_flight() == 0 {
-            self.pool.window_active.set(false);
+        // Logical ownership ends here. Physical owners still block admission,
+        // but must not permanently poison window_active after they drain.
+        if self.pool.in_flight() != 0 {
+            self.pool.draining.store(true, Ordering::Release);
         }
+        self.pool.window_active.set(false);
     }
 }
 
@@ -236,6 +243,47 @@ mod tests {
     }
 
     #[test]
+    fn cancelled_window_can_retry_only_after_physical_drain() -> Result<()> {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut pool = ReadService::new(1)?;
+        pool.set_cancellation(cancelled.clone());
+        let held = Arc::new(TestReadGate::default());
+        *pool.held_first.borrow_mut() = Some(held.clone());
+        let mut file = tempfile::tempfile()?;
+        file.write_all(&[42])?;
+        let mut window = ReadWindow::new(
+            &pool,
+            sources(&file, 1, None)?,
+            Destination::Bytes,
+            Duration::from_secs(2),
+        )?;
+        cancelled.store(true, Ordering::Release);
+        let failed = window.ready().is_err();
+        drop(window);
+        cancelled.store(false, Ordering::Release);
+        let released_owner = !pool.window_active.get();
+        let retained = pool.in_flight();
+        let refused = pool.start(Vec::new(), Duration::ZERO).is_err();
+        held.release();
+        *pool.held_first.borrow_mut() = None;
+        let until = Instant::now() + Duration::from_secs(2);
+        while pool.in_flight() != 0 && Instant::now() < until {
+            std::thread::yield_now();
+        }
+        assert!(failed && released_owner && refused);
+        assert_eq!(retained, 1);
+        assert_eq!(pool.in_flight(), 0);
+        let mut retry = ReadWindow::new(
+            &pool,
+            sources(&file, 1, None)?,
+            Destination::Bytes,
+            Duration::from_secs(2),
+        )?;
+        assert_eq!(retry.ready()?[0].1.legacy_bytes(), &[42]);
+        Ok(())
+    }
+
+    #[test]
     fn sliding_admission_passes_the_first_tail_and_drains_before_reuse() -> Result<()> {
         for count in [10, 11, 19, 20, 40] {
             let pool = ReadService::new_with_options(4, false, false)?;
@@ -297,7 +345,7 @@ mod tests {
             }
             ensure!(failed);
             drop(broken);
-            ensure!(pool.in_flight() == 0 && !pool.window_active.get());
+            ensure!(super::super::failure_tests::drained(&pool) && !pool.window_active.get());
             drop(ReadWindow::new(
                 &pool,
                 sources(&file, count, None)?,

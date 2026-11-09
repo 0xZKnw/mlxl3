@@ -1330,6 +1330,20 @@ fn run(cli: Cli) -> Result<()> {
             not(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))
         ))]
         Command::Forward { .. } => bail!("forward requires an inference backend"),
+        Command::QuantizeWorker {
+            root,
+            k,
+            codebook,
+            max_scratch_bytes,
+        } => {
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            mlxl3_native::quantize::run_worker(&root, k, codebook, max_scratch_bytes)?;
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            {
+                let _ = (root, k, codebook, max_scratch_bytes);
+                bail!("tile worker requires native Metal on macOS");
+            }
+        }
         Command::QuantizeTiles {
             input,
             output,
@@ -1682,10 +1696,10 @@ fn run(cli: Cli) -> Result<()> {
                 .registry
                 .map(Ok)
                 .unwrap_or_else(registry::default_path)?;
-            let progress = |completed, total| {
+            let progress = |completed, total, phase: &str| {
                 println!(
                     "{}",
-                    json!({"type":"progress", "completed":completed, "total":total})
+                    json!({"type":"progress", "completed":completed, "total":total, "phase":phase})
                 );
                 let _ = io::stdout().flush();
             };
@@ -1702,7 +1716,7 @@ fn run(cli: Cli) -> Result<()> {
                     )?)?
                 ),
                 HubAction::Download => {
-                    let (name, entry) = mlxl3_native::hub::download(
+                    let (name, entry) = mlxl3_native::hub::download_with_phase(
                         &query,
                         revision.as_deref().context("--revision is required")?,
                         &folder,
@@ -1720,7 +1734,7 @@ fn run(cli: Cli) -> Result<()> {
                 ),
                 HubAction::Resume => {
                     let (name, entry) =
-                        mlxl3_native::hub::resume(&query, &registry_path, progress)?;
+                        mlxl3_native::hub::resume_with_phase(&query, &registry_path, progress)?;
                     println!(
                         "{}",
                         json!({"type":"installed", "model":model_payload(&name, &entry)?})
@@ -2856,6 +2870,7 @@ struct RoundOutput {
     stop_reason: mlxl3_native::GenerationStopReason,
     raw: String,
     answer: String,
+    tool_text: String,
     stats: NativeStats,
     first_text_seconds: Option<f64>,
     token_hash: String,
@@ -3195,6 +3210,7 @@ fn bridge_generate_round(
     let mut last_tool_progress: Option<Instant> = None;
     let mut decoded = String::new();
     let mut answer = String::new();
+    let mut tool_text = String::new();
     let mut generated = Vec::new();
     let mut first_token = None;
     let mut first_visible_text = None;
@@ -3254,7 +3270,10 @@ fn bridge_generate_round(
             .map_err(|error| anyhow::anyhow!("token decode failed: {error}"))?
         {
             decoded.push_str(&text);
-            for fragment in splitter.feed(&text) {
+            for fragment in splitter.feed_token(&text, tokenizer.control_marker(next)) {
+                if fragment.channel == Channel::Answer {
+                    tool_text.push_str(&fragment.text);
+                }
                 let visible = if fragment.channel == Channel::Thinking {
                     vec![fragment.text]
                 } else if let Some(filter) = &mut filter {
@@ -3345,6 +3364,8 @@ fn bridge_generate_round(
                     next,
                     context_limit,
                     budget - generated.len(),
+                    tokenizer.eos_ids(),
+                    cancelled,
                 )?);
             } else if device_greedy {
                 device_greedy_next = Some(model.forward_greedy(next)?);
@@ -3357,7 +3378,14 @@ fn bridge_generate_round(
     let tail = complete
         .strip_prefix(&decoded)
         .context("incremental tokenizer output differs from full decoding")?;
-    for fragment in splitter.feed(tail).into_iter().chain(splitter.finish()) {
+    for fragment in splitter
+        .feed_literal(tail)
+        .into_iter()
+        .chain(splitter.finish())
+    {
+        if fragment.channel == Channel::Answer {
+            tool_text.push_str(&fragment.text);
+        }
         let visible = if fragment.channel == Channel::Thinking {
             vec![fragment.text]
         } else if let Some(filter) = &mut filter {
@@ -3490,6 +3518,7 @@ fn bridge_generate_round(
         stats.dflash_profile = target.dflash2_profile();
     }
     Ok(RoundOutput {
+        tool_text,
         stop_reason: mlxl3_native::GenerationStopReason::from_round(
             eos_observed,
             tokens.len() + generated.len() >= context_limit,
@@ -3664,7 +3693,7 @@ fn bridge_generate(
         }
         round_stats.push(output.stats.clone());
         let validated_json = if let Some(schema) = &schema {
-            match schema.validate(&output.answer) {
+            match schema.validate_cancellable(&output.answer, cancelled) {
                 Ok(answer) => Some(answer),
                 Err(error) if round < 2 => {
                     dialogue.push(json!({"role":"assistant", "content":output.raw}));
@@ -3680,13 +3709,13 @@ fn bridge_generate(
         let calls = if tools.is_empty() {
             Vec::new()
         } else {
-            mlxl3_native::tool_call::parse(&output.raw)?
+            mlxl3_native::tool_call::parse_answer(&output.tool_text)?
         };
         let context_full = output.stats.context_used >= context_limit;
         if calls.is_empty() || context_full {
             let assistant = validated_json
                 .clone()
-                .unwrap_or_else(|| mlxl3_native::tool_call::without_calls(&output.raw));
+                .unwrap_or_else(|| output.answer.clone());
             if let Some(answer) = &validated_json {
                 first_text = Some(started.elapsed().as_secs_f64());
                 emit_event(
@@ -3724,7 +3753,7 @@ fn bridge_generate(
             .collect();
         dialogue.push(json!({
             "role":"assistant",
-            "content":mlxl3_native::tool_call::without_calls(&output.raw),
+            "content":output.answer,
             "tool_calls":tool_calls
         }));
         for call in calls {
@@ -3746,7 +3775,7 @@ fn bridge_generate(
                 "MCP tool is not allowed in this project: {}",
                 call.name
             );
-            let mut result = mcp.call(&call.name, call.arguments);
+            let mut result = mcp.call_cancellable(&call.name, call.arguments, cancelled);
             tool_seconds += tool_started.elapsed().as_secs_f64();
             let budget = 8192usize.min((context_limit / 8).max(256));
             let result_tokens = tokenizer.encode(&result.text)?;
@@ -3921,6 +3950,7 @@ fn native_bridge(
     emit_event(json!({
         "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
+        "images_supported":model.supports_images(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
         "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
@@ -3992,7 +4022,7 @@ fn native_bridge(
             "set_mcp" => {
                 mcp.set_enabled(&registry_path, request.enabled, true);
                 emit_event(json!({
-                    "type":"mcp_status", "mcp_servers":mcp.server_count(),
+                    "type":"mcp_status", "request_id":request.request_id, "mcp_servers":mcp.server_count(),
                     "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors, "mcp_tool_catalog":mcp.chat_tools()
                 }))?;
             }

@@ -241,7 +241,7 @@ struct AgentStudioView: View {
       }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       VStack(alignment: .leading, spacing: 6) {
         Label(
-          L("Copie isolée · hors ligne", "Isolated copy · offline"), systemImage: "lock.shield")
+          L("Copie isolée · outils sans réseau · aperçu avec imports distants possibles", "Isolated copy · offline tools · preview may load remote imports"), systemImage: "lock.shield")
         if model.state.skippedFiles > 0 {
           Text(
             L(

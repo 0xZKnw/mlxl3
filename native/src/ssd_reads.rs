@@ -7,15 +7,21 @@ use anyhow::{Context, Result, ensure};
 use std::{
     cell::Cell,
     fs::File,
-    os::unix::fs::FileExt,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc::{self, Receiver, Sender, SyncSender},
     },
     thread::JoinHandle,
     time::{Duration, Instant},
 };
+
+#[cfg(test)]
+use std::os::unix::fs::FileExt;
+
+#[path = "ssd_reads/cancellable_io.rs"]
+mod cancellable_io;
+use cancellable_io::ReadCancellation;
 
 pub(crate) enum ReadPayload {
     Bytes(Vec<u8>),
@@ -167,6 +173,7 @@ impl Drop for Ticket {
 #[cfg(test)]
 type SharedTrace = Arc<Mutex<Vec<(&'static str, Instant)>>>;
 struct Read {
+    cancellation: ReadCancellation,
     #[cfg(test)]
     shared_trace: Option<SharedTrace>,
     lease: SlotLease,
@@ -184,6 +191,7 @@ struct Read {
 impl Read {
     fn run(self) {
         let Read {
+            cancellation,
             #[cfg(test)]
             shared_trace,
             lease,
@@ -211,11 +219,12 @@ impl Read {
             gate.wait();
         }
         let result = (|| -> Result<ReadPayload> {
+            cancellation.check()?;
             match &mut payload {
                 ReadPayload::Bytes(destination) => {
                     destination.try_reserve_exact(bytes)?;
                     destination.resize(bytes, 0);
-                    file.read_exact_at(destination, offset)?;
+                    cancellation.read_exact_at(&file, destination, offset)?;
                 }
                 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
                 ReadPayload::Shared(destination) => {
@@ -238,7 +247,7 @@ impl Read {
                     if let Some(trace) = &shared_trace {
                         trace.lock().unwrap().push(("pread", Instant::now()));
                     }
-                    file.read_exact_at(target, offset)?;
+                    cancellation.read_exact_at(&file, target, offset)?;
                 }
             }
             Ok(payload)
@@ -319,6 +328,7 @@ impl SplitRecord {
                 && ranges[1][0].checked_add(ranges[1][1]) == Some(read.bytes),
             "invalid isolated record ranges"
         );
+        read.cancellation.check()?;
         let address = match &mut read.payload {
             ReadPayload::Bytes(bytes) => {
                 bytes.try_reserve_exact(read.bytes)?;
@@ -384,9 +394,10 @@ impl SplitRecord {
             }
         }
         let [begin, length] = self.ranges[index];
-        let offset = {
+        let (offset, cancellation) = {
             let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            state.read.as_ref().unwrap().offset
+            let read = state.read.as_ref().unwrap();
+            (read.offset, read.cancellation.clone())
         };
         let result = (|| -> Result<()> {
             let at = offset
@@ -406,7 +417,7 @@ impl SplitRecord {
             let target = unsafe {
                 std::slice::from_raw_parts_mut((self.address as *mut u8).add(begin), length)
             };
-            file.read_exact_at(target, at)?;
+            cancellation.read_exact_at(&file, target, at)?;
             Ok(())
         })();
         let completed = {
@@ -498,6 +509,10 @@ mod readahead;
 
 pub(crate) struct ReadService {
     #[cfg(test)]
+    io_probe: std::cell::RefCell<Option<Arc<cancellable_io::ReadProbe>>>,
+    cancelled: Arc<AtomicBool>,
+    draining: Arc<AtomicBool>,
+    #[cfg(test)]
     shared_trace: std::cell::RefCell<Option<SharedTrace>>,
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     early_reads: bool,
@@ -537,6 +552,10 @@ pub(crate) struct ReadService {
     wave_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
 }
 impl ReadService {
+    #[cfg(any(test, all(target_os = "macos", feature = "direct-metal")))]
+    pub(crate) fn set_cancellation(&mut self, cancelled: Arc<AtomicBool>) {
+        self.cancelled = cancelled;
+    }
     pub(crate) fn new(readers: usize) -> Result<Self> {
         Self::new_with_split_default(readers, false)
     }
@@ -590,6 +609,10 @@ impl ReadService {
     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
+            #[cfg(test)]
+            io_probe: std::cell::RefCell::new(None),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
             #[cfg(test)]
             shared_trace: std::cell::RefCell::new(None),
             #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -920,6 +943,17 @@ impl ReadService {
     }
     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
         ensure!(
+            !self.cancelled.load(Ordering::Acquire),
+            "generation cancelled"
+        );
+        if self.draining.load(Ordering::Acquire) {
+            ensure!(
+                self.in_flight() == 0,
+                "cancelled native SSD reads are still draining"
+            );
+            self.draining.store(false, Ordering::Release);
+        }
+        ensure!(
             !self.window_active.get(),
             "native SSD window still owns the reader pool"
         );
@@ -953,11 +987,17 @@ impl ReadService {
         self.validate_start(reads.len(), background)?;
         let (result, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
+            cancelled: Arc::clone(&self.cancelled),
+            draining: Arc::clone(&self.draining),
+            abandoned: false,
             remaining: 0,
             deadline: Instant::now() + limit,
             #[cfg(test)]
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         self.enqueue_payloads(&mut batch, &result, reads, background, allow_split)?;
         Ok(batch)
@@ -970,11 +1010,29 @@ impl ReadService {
         background: bool,
         allow_split: bool,
     ) -> Result<()> {
+        let outcome = self.enqueue_payloads_inner(batch, result, reads, background, allow_split);
+        terminal_batch_result(outcome, || batch.abandon())
+    }
+    fn enqueue_payloads_inner(
+        &self,
+        batch: &mut ReadBatch,
+        result: &Sender<Completed>,
+        reads: impl ExactSizeIterator<Item = Result<(SlotLease, File, u64, usize, ReadPayload)>>,
+        background: bool,
+        allow_split: bool,
+    ) -> Result<()> {
         let count = reads.len();
         for item in reads {
+            batch.check_cancelled()?;
             let (lease, file, offset, bytes, payload) = item?;
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
+                cancellation: ReadCancellation {
+                    requested: Arc::clone(&batch.cancelled),
+                    stopped: Arc::clone(&batch.io_cancelled),
+                    #[cfg(test)]
+                    probe: self.io_probe.borrow().clone(),
+                },
                 #[cfg(test)]
                 shared_trace: self.shared_trace.borrow().clone(),
                 lease,
@@ -1083,21 +1141,105 @@ impl Drop for ReadService {
     }
 }
 
+/// Stop a failed batch before its caller unwinds or can request another result.
+/// Preserve the original error rather than replacing it with cleanup status.
+fn terminal_batch_result<T, E>(
+    result: std::result::Result<T, E>,
+    stop: impl FnOnce(),
+) -> std::result::Result<T, E> {
+    if result.is_err() {
+        stop();
+    }
+    result
+}
+
+fn latch_cancellation(abandoned: &mut bool, requested: bool) -> bool {
+    *abandoned |= requested;
+    *abandoned
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn batch_cancellation_is_irreversible_across_flag_reset() {
+    let initial: bool = kani::any();
+    let requested: bool = kani::any();
+    let mut abandoned = initial;
+    let observed = latch_cancellation(&mut abandoned, requested);
+    assert_eq!(observed, initial || requested);
+    assert_eq!(latch_cancellation(&mut abandoned, false), observed);
+    assert!(latch_cancellation(&mut abandoned, true));
+    assert!(latch_cancellation(&mut abandoned, false));
+    kani::cover!(!initial && requested);
+    kani::cover!(initial && !requested);
+}
+
 pub(crate) struct ReadBatch {
+    io_cancelled: Arc<AtomicBool>,
     receiver: Receiver<Completed>,
+    cancelled: Arc<AtomicBool>,
+    draining: Arc<AtomicBool>,
+    abandoned: bool,
     remaining: usize,
     deadline: Instant,
     #[cfg(test)]
     pub(crate) trace: Vec<(SlotLease, Instant, Instant)>,
+    #[cfg(test)]
+    wait_started: Option<Sender<()>>,
 }
 impl ReadBatch {
+    /// Stop queued work and remaining read chunks as well as publication.
+    /// An active syscall retains its file, destination and ticket until return;
+    /// macOS does not guarantee interruption of an already executing file read.
+    pub(crate) fn abandon(&mut self) {
+        self.io_cancelled.store(true, Ordering::Release);
+        self.draining.store(true, Ordering::Release);
+        self.abandoned = true;
+        self.remaining = 0;
+        self.receiver = mpsc::channel().1;
+    }
+    fn check_cancelled(&mut self) -> Result<()> {
+        if latch_cancellation(
+            &mut self.abandoned,
+            self.cancelled.load(Ordering::Acquire) || self.io_cancelled.load(Ordering::Acquire),
+        ) {
+            self.abandon();
+            anyhow::bail!("native SSD batch cancelled or abandoned after failure");
+        }
+        Ok(())
+    }
+    fn wait_next(&mut self) -> Result<Completed> {
+        loop {
+            self.check_cancelled()?;
+            let left = self.deadline.saturating_duration_since(Instant::now());
+            #[cfg(test)]
+            if let Some(started) = self.wait_started.take() {
+                let _ = started.send(());
+            }
+            match self
+                .receiver
+                .recv_timeout(left.min(Duration::from_millis(10)))
+            {
+                Ok(next) => {
+                    self.check_cancelled()?;
+                    return Ok(next);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) if Instant::now() < self.deadline => {}
+                Err(error) => {
+                    self.abandon();
+                    return Err(error).context("native SSD demand deadline or reader failure");
+                }
+            }
+        }
+    }
     pub(crate) fn remaining(&self) -> usize {
         self.remaining
     }
     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+        self.check_cancelled()?;
         ensure!(self.remaining == 1, "prefetch must own one pending read");
-        match self.receiver.try_recv() {
+        let result = (|| match self.receiver.try_recv() {
             Ok(next) => {
+                self.check_cancelled()?;
                 self.remaining = 0;
                 Ok(Some((next.lease, next.result?)))
             }
@@ -1109,7 +1251,8 @@ impl ReadBatch {
                 Ok(None)
             }
             Err(error) => Err(error.into()),
-        }
+        })();
+        terminal_batch_result(result, || self.abandon())
     }
     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
         self.ready_min(if all {
@@ -1119,39 +1262,39 @@ impl ReadBatch {
         })
     }
     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+        self.check_cancelled()?;
         ensure!(
             ready_minimum_valid(minimum, self.remaining),
             "invalid native SSD ready minimum"
         );
-        let mut completed = Vec::new();
-        while self.remaining > 0 {
-            let next = if completed.len() < minimum {
-                self.receiver
-                    .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
-                    .context("native SSD demand deadline or reader failure")?
-            } else {
-                match self.receiver.try_recv() {
-                    Ok(next) => next,
-                    Err(mpsc::TryRecvError::Empty) => break,
-                    Err(error) => return Err(error.into()),
-                }
-            };
-            self.remaining -= 1;
-            #[cfg(test)]
-            self.trace.push((next.lease, next.timing.0, next.timing.1));
-            completed.push((next.lease, next.result?));
-        }
-        Ok(completed)
+        let result = (|| {
+            let mut completed = Vec::new();
+            while self.remaining > 0 {
+                let next = if completed.len() < minimum {
+                    self.wait_next()?
+                } else {
+                    match self.receiver.try_recv() {
+                        Ok(next) => next,
+                        Err(mpsc::TryRecvError::Empty) => break,
+                        Err(error) => return Err(error.into()),
+                    }
+                };
+                self.check_cancelled()?;
+                self.remaining -= 1;
+                #[cfg(test)]
+                self.trace.push((next.lease, next.timing.0, next.timing.1));
+                completed.push((next.lease, next.result?));
+            }
+            Ok(completed)
+        })();
+        terminal_batch_result(result, || self.abandon())
     }
 }
 impl Drop for ReadBatch {
     fn drop(&mut self) {
         while self.remaining > 0 {
-            if self
-                .receiver
-                .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
-                .is_err()
-            {
+            if self.wait_next().is_err() {
+                self.abandon();
                 break;
             }
             self.remaining -= 1;
@@ -1164,7 +1307,7 @@ mod tests {
     use super::*;
     use crate::flash_support::{DemandPlan, ExpertCache};
     use std::{cell::RefCell, io::Write, rc::Rc};
-    fn lease() -> Result<SlotLease> {
+    pub(super) fn lease() -> Result<SlotLease> {
         Ok(DemandPlan::reserve(&Rc::new(RefCell::new(ExpertCache::new(10)?)), &[17])?.reads[0])
     }
     #[test]
@@ -1192,7 +1335,8 @@ mod tests {
         });
         let result = pool.start_fallible_payloads(reads, Duration::from_secs(2), false, false);
         held.release();
-        assert!(result.is_err() && queued_before_second && pool.in_flight() == 0);
+        assert!(result.is_err() && queued_before_second);
+        assert!(failure_tests::drained(&pool));
         *pool.held_first.borrow_mut() = None;
         let mut batch = pool.start(
             vec![(lease, file.try_clone()?, 1, 1)],
@@ -1243,7 +1387,7 @@ mod tests {
             )?;
             assert!(broken.ready(true).is_err());
             drop(broken);
-            assert_eq!(pool.in_flight(), 0);
+            assert!(failure_tests::drained(&pool));
             let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
             assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"0123456789abcdef");
         }
@@ -1274,6 +1418,90 @@ mod tests {
         assert!(pool.submit([(lease()?, record)]).is_err());
         Ok(())
     }
+    #[test]
+    fn cancellation_ack_detaches_before_physical_drain_and_blocks_reuse() -> Result<()> {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut pool = ReadService::new(1)?;
+        pool.set_cancellation(cancelled.clone());
+        let mut file = tempfile::tempfile()?;
+        file.write_all(b"retained")?;
+        let gate = Arc::new(std::sync::Barrier::new(2));
+        pool.set_test_gate(Some(gate.clone()));
+        let mut batch = pool.start(
+            vec![(lease()?, file.try_clone()?, 0, 8)],
+            Duration::from_secs(2),
+        )?;
+        let (started, entered) = mpsc::channel();
+        batch.wait_started = Some(started);
+        let (done, ack) = mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            let failed = batch.ready(true).is_err();
+            drop(batch); // Must not wait for the held worker after logical cancel.
+            let _ = done.send(failed);
+        });
+        let entered = entered.recv_timeout(Duration::from_secs(1));
+        // Only the original worker is gated; a failed admission assertion must
+        // not strand a second worker during cleanup.
+        pool.set_test_gate(None);
+        let at = Instant::now();
+        cancelled.store(true, Ordering::Release);
+        let acknowledged = ack.recv_timeout(Duration::from_millis(250));
+        let ack_elapsed = at.elapsed();
+        let retained = pool.in_flight();
+        cancelled.store(false, Ordering::Release);
+        let refused_demand = pool.start(Vec::new(), Duration::ZERO).is_err();
+        let refused_background = pool
+            .start_mode(
+                vec![(lease()?, file.try_clone()?, 0, 8)],
+                Duration::ZERO,
+                true,
+            )
+            .is_err();
+        // Always release and join, even when the acknowledgement assertion fails.
+        gate.wait();
+        waiter
+            .join()
+            .map_err(|_| anyhow::anyhow!("cancel waiter panicked"))?;
+        let until = Instant::now() + Duration::from_secs(2);
+        while pool.in_flight() != 0 && Instant::now() < until {
+            std::thread::yield_now();
+        }
+        assert!(entered.is_ok());
+        assert_eq!(acknowledged.ok(), Some(true));
+        assert!(ack_elapsed < Duration::from_millis(250));
+        assert_eq!(retained, 1);
+        assert!(refused_demand && refused_background);
+        assert_eq!(pool.in_flight(), 0);
+        let mut retry = pool.start(vec![(lease()?, file, 0, 8)], Duration::from_secs(2))?;
+        assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"retained");
+        Ok(())
+    }
+
+    #[test]
+    fn queued_cancelled_completion_cannot_revive_after_flag_clear() -> Result<()> {
+        let (sender, receiver) = mpsc::channel();
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
+            receiver,
+            cancelled: cancelled.clone(),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
+            remaining: 1,
+            deadline: Instant::now() + Duration::from_secs(2),
+            trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
+        };
+        sender.send(Completed::new(lease()?, Ok(vec![7])))?;
+        assert!(batch.ready(true).is_err());
+        cancelled.store(false, Ordering::Release);
+        assert!(batch.ready(true).is_err());
+        assert!(batch.poll().is_err());
+        assert!(sender.send(Completed::new(lease()?, Ok(vec![8]))).is_err());
+        Ok(())
+    }
+
     #[test]
     fn timeout_preserves_the_real_worker_and_rejects_reuse_until_drain() -> Result<()> {
         let pool = ReadService::new(1)?;
@@ -1383,10 +1611,16 @@ mod tests {
         let token = lease()?;
         let (sender, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
             remaining: 2,
             deadline: Instant::now() + Duration::from_secs(1),
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         sender.send(Completed::new(token, Ok(vec![2])))?;
         sender.send(Completed::new(token, Ok(vec![1])))?;
@@ -1400,14 +1634,21 @@ mod tests {
         );
         let (sender, receiver) = mpsc::channel();
         let mut timed = ReadBatch {
+            io_cancelled: Arc::new(AtomicBool::new(false)),
             receiver,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
             remaining: 1,
             deadline: Instant::now(),
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         assert!(timed.ready(true).is_err());
-        assert_eq!(timed.remaining(), 1);
-        sender.send(Completed::new(token, Ok(vec![9])))?;
+        assert_eq!(timed.remaining(), 0);
+        assert!(sender.send(Completed::new(token, Ok(vec![9]))).is_err());
+        assert!(timed.ready(true).is_err());
         drop(timed);
         Ok(())
     }
@@ -1416,6 +1657,14 @@ mod tests {
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/direct_tests.rs"]
 mod direct_tests;
+
+#[cfg(test)]
+#[path = "ssd_reads/failure_tests.rs"]
+mod failure_tests;
+
+#[cfg(test)]
+#[path = "ssd_reads/cancellation_tests.rs"]
+mod cancellation_tests;
 
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/wave_tests.rs"]
@@ -1437,3 +1686,19 @@ mod split_record_tests;
 mod window;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub(crate) use window::BlockReads;
+
+#[cfg(kani)]
+#[kani::proof]
+fn terminal_batch_error_stops_before_return_and_preserves_the_error() {
+    let fails: bool = kani::any();
+    let value: u32 = kani::any();
+    let original = if fails { Err(value) } else { Ok(value) };
+    let mut stopped = false;
+    let result = terminal_batch_result(original, || stopped = true);
+    assert_eq!(result, original);
+    assert_eq!(stopped, fails);
+    // After termination, a reset request flag cannot revive the batch.
+    assert_eq!(latch_cancellation(&mut stopped, false), fails);
+    kani::cover!(fails && value == u32::MAX);
+    kani::cover!(!fails && value == 0);
+}

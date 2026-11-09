@@ -305,3 +305,144 @@ mod tests {
         Ok(())
     }
 }
+
+/// Immutable weights keep projections compact; small elementwise operands remain
+/// dense. CPU projection materializes one canonical FP32 SGEMM operand; the
+/// experimental GPU backend reads the compact payload directly.
+#[derive(Clone, Debug)]
+pub(crate) enum Weight {
+    Dense(Matrix),
+    Compact {
+        rows: usize,
+        cols: usize,
+        payload: crate::draft_storage::CompactWeight,
+    },
+}
+impl Weight {
+    pub fn load(name: &str, info: &TensorInfo) -> Result<Self> {
+        let projection = (name == "fc.weight"
+            || name.ends_with("_proj.weight")
+            || name.ends_with("_projection.weight"))
+            && info.shape.len() == 2
+            && info.shape[0] > 1
+            && !name.ends_with("base_kernel");
+        if !projection {
+            return Ok(Self::Dense(Matrix::load(info)?));
+        }
+        ensure!(info.dtype == "BF16", "draft weights must be BF16");
+        let (rows, cols) = (info.shape[0], info.shape[1]);
+        let count = extent(rows, cols).context("invalid projection extent")?;
+        let bytes = info.read_bytes()?;
+        ensure!(
+            count.checked_mul(2) == Some(bytes.len()),
+            "truncated projection"
+        );
+        Ok(Self::Compact {
+            rows,
+            cols,
+            payload: crate::draft_storage::CompactWeight::from_bytes(&bytes)?,
+        })
+    }
+    pub fn matrix(&self) -> Result<std::borrow::Cow<'_, Matrix>> {
+        match self {
+            Self::Dense(matrix) => Ok(std::borrow::Cow::Borrowed(matrix)),
+            Self::Compact {
+                rows,
+                cols,
+                payload,
+            } => Ok(std::borrow::Cow::Owned(Matrix::new(
+                *rows,
+                *cols,
+                payload.decode()?,
+            )?)),
+        }
+    }
+    pub fn quantize(&mut self, name: &str) -> Result<()> {
+        match self {
+            Self::Compact { cols, payload, .. } => {
+                ensure!(
+                    cols.is_multiple_of(64),
+                    "Q4 projection requires complete groups"
+                );
+                payload.quantize()
+            }
+            Self::Dense(matrix)
+                if name.ends_with(".weight")
+                    && matrix.rows > 1
+                    && !name.ends_with("base_kernel") =>
+            {
+                matrix.affine4_weights()
+            }
+            _ => Ok(()),
+        }
+    }
+    pub fn retained_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Dense(matrix) => matrix
+                .values
+                .capacity()
+                .checked_mul(4)
+                .context("draft weight bytes overflow"),
+            Self::Compact { payload, .. } => payload.retained_bytes(),
+        }
+    }
+    pub fn decode_scratch_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Dense(_) => Ok(0),
+            Self::Compact { payload, .. } => payload
+                .len()
+                .checked_mul(4)
+                .context("draft decode bytes overflow"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod compact_tests {
+    use super::*;
+    #[test]
+    fn compact_weight_operands_and_sgemm_match_legacy_bf16_and_affine() -> Result<()> {
+        let values: Vec<_> = (0..128).map(|i| round((i as f32 - 71.) / 9.)).collect();
+        let bytes: Vec<_> = values
+            .iter()
+            .flat_map(|&v| bf16::from_f32(v).to_le_bytes())
+            .collect();
+        let mut compact = Weight::Compact {
+            rows: 2,
+            cols: 64,
+            payload: crate::draft_storage::CompactWeight::from_bytes(&bytes)?,
+        };
+        let mut dense = Weight::Dense(Matrix::new(2, 64, values)?);
+        assert_eq!(compact.decode_scratch_bytes()?, 512);
+        assert_eq!(dense.decode_scratch_bytes()?, 0);
+        assert_eq!(compact.retained_bytes()?, 256);
+        let x = Matrix::new(
+            3,
+            64,
+            (0..192).map(|i| round((i as f32 - 79.) / 13.)).collect(),
+        )?;
+        for quantized in [false, true] {
+            if quantized {
+                compact.quantize("fc.weight")?;
+                dense.quantize("fc.weight")?;
+                assert_eq!(compact.retained_bytes()?, 72);
+            }
+            let (a, b) = (compact.matrix()?, dense.matrix()?);
+            assert!(
+                a.values
+                    .iter()
+                    .zip(&b.values)
+                    .all(|(a, b)| a.to_bits() == b.to_bits())
+            );
+            let (a, b) = (x.linear(&a)?, x.linear(&b)?);
+            assert_eq!((a.rows, a.cols), (3, 2));
+            assert!(
+                a.values
+                    .iter()
+                    .zip(&b.values)
+                    .all(|(a, b)| a.to_bits() == b.to_bits())
+            );
+        }
+        Ok(())
+    }
+}

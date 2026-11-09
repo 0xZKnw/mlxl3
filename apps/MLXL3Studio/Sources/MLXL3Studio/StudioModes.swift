@@ -74,11 +74,28 @@ final class LocalServer: ObservableObject {
   private var ticket = UUID()
   private var pending = Data()
   private var watchdog: Task<Void, Never>?
-  var active: Bool { process != nil }
+  private var resolution: Task<Void, Never>?
+  var active: Bool { process != nil || resolution != nil }
 
-  func start(model: String, port: Int, context: Int, executable: URL? = CLIResolver.executable()) {
+  func start(model: String, port: Int, context: Int, executable: URL? = nil) {
     guard !active else { return }
+    let launchTicket = UUID()
+    ticket = launchTicket
+    busy = true
+    error = nil
+    resolution = Task { [weak self] in
+      let resolved = await Task.detached(priority: .userInitiated) {
+        executable ?? CLIResolver.executable()
+      }.value
+      guard !Task.isCancelled, let self, self.ticket == launchTicket else { return }
+      self.resolution = nil
+      self.launch(model: model, port: port, context: context, executable: resolved)
+    }
+  }
+
+  private func launch(model: String, port: Int, context: Int, executable: URL?) {
     guard (1024...65535).contains(port), let executable else {
+      busy = false
       error = L(
         "Port invalide (1024–65535) ou moteur absent.",
         "Invalid port (1024–65535) or missing engine.")
@@ -170,6 +187,9 @@ final class LocalServer: ObservableObject {
   }
 
   func stop() {
+    resolution?.cancel()
+    resolution = nil
+    if process == nil { ticket = UUID() }
     watchdog?.cancel()
     running = false
     guard let process else {
@@ -364,7 +384,7 @@ struct LabWorkspaceView: View {
             ).font(.caption).foregroundStyle(StudioTheme.secondary)
             if let memory = sample.stats.memory {
               Text(
-                "MLX peak \(bytes(memory.mlxPeakBytes)) · process \(bytes(memory.processFootprintBytes))"
+                "\(memory.nativeMetalAllocatedBytes == nil ? "MLX peak" : "Metal allocated") \(bytes(memory.nativeMetalAllocatedBytes ?? memory.mlxPeakBytes)) · process \(bytes(memory.processFootprintBytes))"
               ).font(.caption).foregroundStyle(StudioTheme.quiet)
             }
           }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(

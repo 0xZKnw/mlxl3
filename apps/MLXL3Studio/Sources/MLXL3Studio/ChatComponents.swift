@@ -255,17 +255,34 @@ private struct MCPToolActivityRow: View {
     @Environment(\.conversationTextScale) private var textScale
     let activity: ToolActivity
     @State private var expanded = false
+    @State private var fullOutput = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             if let result = activity.result, !result.isEmpty {
-                Text(result)
-                    .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
-                    .foregroundStyle(StudioTheme.contrast.opacity(0.58))
-                    .lineLimit(10)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    if fullOutput {
+                        ScrollView([.vertical, .horizontal]) {
+                            Text(result).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }.frame(maxHeight: 240)
+                    } else {
+                        Text(result).lineLimit(10).textSelection(.enabled)
+                    }
+                    HStack {
+                        Button(fullOutput ? L("Réduire", "Show less") : L("Voir la sortie complète", "Show full output")) {
+                            fullOutput.toggle()
+                        }
+                        Button(L("Copier", "Copy")) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(result, forType: .string)
+                        }
+                    }.buttonStyle(.borderless)
+                }
+                .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
+                .foregroundStyle(StudioTheme.contrast.opacity(0.58))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
             }
         } label: {
             HStack(spacing: 8) {
@@ -327,20 +344,23 @@ private struct MCPToolActivityRow: View {
 }
 
 private struct StreamingIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
 
     var body: some View {
         Circle()
             .fill(StudioTheme.accent)
             .frame(width: 5, height: 5)
-            .opacity(pulse ? 0.3 : 1)
-            .scaleEffect(pulse ? 0.72 : 1)
-            .animation(.easeInOut(duration: 0.72).repeatForever(), value: pulse)
-            .onAppear { pulse = true }
+            .opacity(!reduceMotion && pulse ? 0.3 : 1)
+            .scaleEffect(!reduceMotion && pulse ? 0.72 : 1)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.72).repeatForever(), value: pulse)
+            .onAppear { pulse = !reduceMotion }
+            .onChange(of: reduceMotion) { _, value in pulse = !value }
     }
 }
 
 private struct ThinkingPlaceholder: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shimmer = false
 
     var body: some View {
@@ -353,12 +373,14 @@ private struct ThinkingPlaceholder: View {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .frame(width: 3, height: 3)
-                        .opacity(shimmer ? 0.25 + Double(index) * 0.28 : 0.9 - Double(index) * 0.25)
+                        .opacity(!reduceMotion && shimmer ? 0.25 + Double(index) * 0.28 : 0.9 - Double(index) * 0.25)
                 }
             }
         }
         .foregroundStyle(StudioTheme.thinking)
-        .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever()) { shimmer = true } }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever(), value: shimmer)
+        .onAppear { shimmer = !reduceMotion }
+        .onChange(of: reduceMotion) { _, value in shimmer = !value }
     }
 }
 
@@ -448,7 +470,7 @@ private struct StatsRow: View {
                 MetricChip(icon: "clock", value: String(format: "%.1f s", elapsed), label: L("total · outils inclus", "total · incl. tools"))
             }
             if let memory = stats.memory {
-                MetricChip(icon: "memorychip", value: String(format: "%.2f GB", Double(memory.mlxPeakBytes) / 1e9), label: L("pic MLX", "MLX peak"))
+                MetricChip(icon: "memorychip", value: (memory.nativeMetalAllocatedBytes ?? memory.mlxPeakBytes).map { String(format: "%.2f GB", Double($0) / 1e9) } ?? "—", label: memory.nativeMetalAllocatedBytes == nil ? L("pic MLX", "MLX peak") : L("Metal alloué", "Metal allocated"))
                 if let footprint = memory.processFootprintBytes {
                     MetricChip(icon: "memorychip", value: String(format: "%.2f GB", Double(footprint) / 1e9), label: L("RAM moteur", "engine RAM"))
                 }
@@ -614,7 +636,7 @@ struct ComposerView: View {
                         return .handled
                     }
 
-                if studio.isGenerating {
+                if studio.isGenerating || studio.preparingDocuments {
                     Button(action: studio.stopGeneration) {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 10, weight: .bold))
@@ -641,6 +663,11 @@ struct ComposerView: View {
             .padding(.top, 17)
             .padding(.bottom, 14)
 
+            if let reason = studio.sendBlockReason {
+                Text(reason).font(.caption).foregroundStyle(StudioTheme.secondary)
+                    .padding(.horizontal, 18).padding(.bottom, 6)
+                    .accessibilityLabel(reason)
+            }
             ComposerFooterView()
         }
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

@@ -18,6 +18,7 @@ pub struct ChatTokenizer {
     bos_token: String,
     eos_token: String,
     eos_ids: Vec<u32>,
+    control_tokens: std::collections::BTreeMap<u32, String>,
 }
 
 fn json_object(path: &Path) -> Result<Value> {
@@ -224,7 +225,19 @@ impl ChatTokenizer {
         environment
             .add_template_owned("chat", inference_template(&template))
             .context("compiling chat template")?;
+        let control_tokens = tokenizer
+            .get_added_tokens_decoder()
+            .into_iter()
+            .filter(|(_, token)| {
+                matches!(
+                    token.content.as_str(),
+                    "<think>" | "</think>" | "<|channel>" | "<|channel>thought" | "<channel|>"
+                )
+            })
+            .map(|(id, token)| (id, token.content))
+            .collect();
         Ok(Self {
+            control_tokens,
             tokenizer,
             environment,
             bos_token,
@@ -307,6 +320,13 @@ impl ChatTokenizer {
             .map_err(|error| anyhow::anyhow!("decoding tokens: {error}"))
     }
 
+    /// Only tokenizer-declared delimiter IDs are channel controls. Added-token
+    /// `special` controls decode skipping, not the model protocol. The same bytes
+    /// assembled from ordinary tokens are literal text.
+    pub fn control_marker(&self, id: u32) -> Option<&str> {
+        self.control_tokens.get(&id).map(String::as_str)
+    }
+
     pub fn eos_ids(&self) -> &[u32] {
         &self.eos_ids
     }
@@ -344,6 +364,58 @@ mod tests {
         )
         .unwrap();
         root
+    }
+
+    #[test]
+    fn actual_tokenizer_distinguishes_literal_and_declared_marker_ids() {
+        use crate::streaming::{Channel, ThinkingSplitter};
+        // Qwen3 declares these added delimiters with special:false: the flag
+        // controls skip_special_tokens, not their role in the chat protocol.
+        for special in [false, true] {
+            let root = fixture("{{ messages[0].content }}");
+            let path = root.path().join("tokenizer.json");
+            let mut json: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            json["decoder"] = json!({"type":"Fuse"});
+            for (token, id) in [("<", 5), ("think", 6), (">", 7), ("</think>", 8)] {
+                json["model"]["vocab"][token] = json!(id);
+            }
+            fs::write(&path, json.to_string()).unwrap();
+            let plain = ChatTokenizer::load(root.path()).unwrap();
+            assert_eq!(plain.control_marker(4), None);
+            for (content, id) in [("<think>", 4), ("</think>", 8)] {
+                json["added_tokens"].as_array_mut().unwrap().push(json!({
+                    "id":id,"content":content,"special":special,"single_word":false,
+                    "lstrip":false,"rstrip":false,"normalized":false
+                }));
+            }
+            fs::write(path, json.to_string()).unwrap();
+            let tokenizer = ChatTokenizer::load(root.path()).unwrap();
+            assert_eq!(
+                tokenizer.control_marker(4),
+                Some("<think>"),
+                "special={special}"
+            );
+            assert_eq!(tokenizer.control_marker(8), Some("</think>"));
+            assert_eq!(tokenizer.decode(&[5, 6, 7]).unwrap(), "<think>");
+            let mut decoder = tokenizer.tokenizer().decode_stream(false);
+            let mut splitter = ThinkingSplitter::new("");
+            let mut fragments = Vec::new();
+            for id in [4, 3, 8, 3, 5, 6, 7] {
+                if let Some(text) = decoder.step(id).unwrap() {
+                    fragments.extend(splitter.feed_token(&text, tokenizer.control_marker(id)));
+                }
+            }
+            fragments.extend(splitter.finish());
+            let content = |channel| {
+                fragments
+                    .iter()
+                    .filter(|f| f.channel == channel)
+                    .map(|f| f.text.as_str())
+                    .collect::<String>()
+            };
+            assert_eq!(content(Channel::Thinking), "hello");
+            assert_eq!(content(Channel::Answer), "hello<think>");
+        }
     }
 
     #[test]

@@ -1,0 +1,25 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.89s
+     Running unittests native/src/lib.rs (/tmp/pr163-hub-target/debug/deps/mlxl3_native-3dfca109c7e1f72c)
+
+running 1 test
+test hub::redirect_download_tests::redirects_larger_than_final_payload_work_initial_and_resumed ... FAILED
+
+failures:
+
+---- hub::redirect_download_tests::redirects_larger_than_final_payload_work_initial_and_resumed stdout ----
+
+thread 'hub::redirect_download_tests::redirects_larger_than_final_payload_work_initial_and_resumed' (329) panicked at native/src/hub/redirect_download_tests.rs:117:14:
+called `Result::unwrap()` on an `Err` value: model download failed (exit status: 63): curl: (63) Maximum file size exceeded
+curl: (63) Maximum file size exceeded
+curl: (63) Maximum file size exceeded
+curl: (63) Maximum file size exceeded
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    hub::redirect_download_tests::redirects_larger_than_final_payload_work_initial_and_resumed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 358 filtered out; finished in 7.07s
+
+error: test failed, to rerun pass `--lib`

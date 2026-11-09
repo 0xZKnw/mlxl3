@@ -856,6 +856,72 @@ enum SyntaxHighlighter {
     private static var lexerCache: [String: NSRegularExpression] = [:]
     private static var markupRegexCache: [(NSRegularExpression, NSColor)]?
 
+    struct Token: Sendable, Equatable {
+        let range: NSRange
+        /// Zero is base; 1...6 match the existing lexer groups.
+        let color: Int
+    }
+
+    static func color(_ token: Int) -> NSColor {
+        [base, comment, string, keyword, type, number, function,
+         NSColor.systemGreen, NSColor.systemRed, NSColor.systemTeal][token]
+    }
+
+    /// Pure lexical output. No AppKit objects or mutable UI caches cross actors.
+    nonisolated static func tokens(_ source: String, language raw: String, diff: Bool) -> [Token] {
+        let full = NSRange(location: 0, length: source.utf16.count)
+        guard full.length > 0 else { return [] }
+        var colors = [UInt8](repeating: 0, count: full.length)
+        func paint(_ range: NSRange, _ color: Int) {
+            guard range.location != NSNotFound else { return }
+            for index in range.location..<NSMaxRange(range) { colors[index] = UInt8(color) }
+        }
+        let language = normalized(raw)
+        if diff {
+            var offset = 0
+            for line in source.components(separatedBy: "\n") {
+                let count = line.utf16.count
+                let color = line.hasPrefix("+") && !line.hasPrefix("+++") ? 7
+                    : line.hasPrefix("-") && !line.hasPrefix("---") ? 8
+                    : line.hasPrefix("@@") ? 9 : 0
+                paint(NSRange(location: offset, length: count), color)
+                offset += count + 1
+            }
+        } else if ["html", "xml", "svg", "vue", "svelte"].contains(language) {
+            for (pattern, color) in markupPatterns {
+                guard !Task.isCancelled,
+                      let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else { continue }
+                for match in regex.matches(in: source, range: full) { paint(match.range, color) }
+            }
+        } else if let regex = makeLexer(for: language) {
+            for match in regex.matches(in: source, range: full) {
+                if Task.isCancelled { return [] }
+                for group in 1...6 where match.range(at: group).location != NSNotFound {
+                    paint(match.range(at: group), group)
+                    break
+                }
+            }
+        }
+        var runs: [Token] = []
+        var start = 0
+        for index in 1...colors.count where index == colors.count || colors[index] != colors[start] {
+            runs.append(Token(range: NSRange(location: start, length: index - start), color: Int(colors[start])))
+            start = index
+        }
+        return runs
+    }
+
+    nonisolated private static var markupPatterns: [(String, Int)] {
+        [
+            (#"<!--[\s\S]*?-->"#, 1),
+            (#"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"#, 2),
+            (#"</?\s*[A-Za-z][A-Za-z0-9:_-]*"#, 3),
+            (#"\b[A-Za-z_:][A-Za-z0-9:._-]*(?=\s*=)"#, 6),
+            (#"<!DOCTYPE[^>]*>|</?|/?>"#, 4),
+            (#"&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9A-Fa-f]+);"#, 5),
+        ]
+    }
+
     static func highlight(_ text: String, language rawLanguage: String?, prefix: String = "", suffix: String = "") -> AttributedString {
         let source = prefix + text + suffix
         let result = NSMutableAttributedString(
@@ -924,17 +990,22 @@ enum SyntaxHighlighter {
     private static func lexer(for language: String) -> NSRegularExpression? {
         let key = lexerKey(for: language)
         if let cached = lexerCache[key] { return cached }
+        let regex = makeLexer(for: language)
+        lexerCache[key] = regex
+        return regex
+    }
+
+    nonisolated private static func makeLexer(for language: String) -> NSRegularExpression? {
         let definition = definition(for: language)
         let pattern = "(\(definition.comments))|(\(definition.strings))|\\b(\(alternation(definition.keywords)))\\b|\\b(\(alternation(definition.types)))\\b|(\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|(?:\\d(?:_?\\d)*)?(?:\\.\\d(?:_?\\d)*)|\\d(?:_?\\d)*(?:[eE][+-]?\\d+)?)[fFdDuUlL]*\\b)|(\\b[A-Za-z_$][A-Za-z0-9_$]*(?=\\s*\\())"
         guard let regex = try? NSRegularExpression(
             pattern: pattern,
             options: [.anchorsMatchLines]
         ) else { return nil }
-        lexerCache[key] = regex
         return regex
     }
 
-    private static func lexerKey(for language: String) -> String {
+    nonisolated private static func lexerKey(for language: String) -> String {
         switch language {
         case "python", "swift", "javascript", "typescript", "bash", "json", "sql", "yaml", "toml", "markdown":
             language
@@ -943,12 +1014,12 @@ enum SyntaxHighlighter {
         }
     }
 
-    private static func alternation(_ values: [String]) -> String {
+    nonisolated private static func alternation(_ values: [String]) -> String {
         guard !values.isEmpty else { return "(?!)" }
         return "(?:" + values.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|") + ")"
     }
 
-    private static func normalized(_ rawLanguage: String?) -> String {
+    nonisolated private static func normalized(_ rawLanguage: String?) -> String {
         let language = rawLanguage?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return switch language {
         case "js", "jsx": "javascript"
@@ -964,7 +1035,7 @@ enum SyntaxHighlighter {
         }
     }
 
-    private static func definition(for language: String) -> SyntaxDefinition {
+    nonisolated private static func definition(for language: String) -> SyntaxDefinition {
         switch language {
         case "python":
             SyntaxDefinition(
@@ -1026,7 +1097,7 @@ enum SyntaxHighlighter {
     }
 }
 
-private struct SyntaxDefinition {
+private struct SyntaxDefinition: Sendable {
     let comments: String
     let strings: String
     let keywords: [String]

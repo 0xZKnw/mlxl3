@@ -424,6 +424,13 @@ impl<'a> FlashNext<'a> {
         self.hidden.as_ref()
     }
     pub fn reset(&mut self) {
+        // Before the bridge clears its shared flag, permanently detach old
+        // prefetch leases so a later request cannot publish their results.
+        if self.gpu.check_cancelled().is_err()
+            && let Some(pool) = &self.prefetcher
+        {
+            pool.borrow_mut().abandon();
+        }
         for l in &mut self.layers {
             l.reset();
         }

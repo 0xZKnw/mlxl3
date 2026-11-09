@@ -74,7 +74,9 @@ fn run(args: cli::Cli) -> Result<()> {
         Some(path) => flash_checkpoint(&path)?,
         None => matches!(
             args.command,
-            cli::Command::QuantizeTiles { .. } | cli::Command::ConvertMatmul { .. }
+            cli::Command::QuantizeTiles { .. }
+                | cli::Command::QuantizeWorker { .. }
+                | cli::Command::ConvertMatmul { .. }
         ),
     };
     let base = registry::default_path()?

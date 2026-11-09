@@ -27,13 +27,15 @@ struct LocalModel: Codable, Hashable, Identifiable {
 }
 
 struct EngineMemoryStats: Codable, Hashable, Sendable {
-    let mlxActiveBytes: UInt64
-    let mlxCacheBytes: UInt64
-    let mlxPeakBytes: UInt64
+    let mlxActiveBytes: UInt64?
+    let mlxCacheBytes: UInt64?
+    let mlxPeakBytes: UInt64?
+    var nativeMetalAllocatedBytes: UInt64? = nil
     let processFootprintBytes: UInt64?
     let processLifetimePeakBytes: UInt64?
 
     enum CodingKeys: String, CodingKey {
+        case nativeMetalAllocatedBytes = "native_metal_allocated_bytes"
         case mlxActiveBytes = "mlx_active_bytes"
         case mlxCacheBytes = "mlx_cache_bytes"
         case mlxPeakBytes = "mlx_peak_bytes"
@@ -125,6 +127,26 @@ struct BridgeEvent: Decodable {
     var contextFull: Bool? = nil
     var stopReason: String? = nil
     var contextMemory: ContextMemoryProfile? = nil
+    var nativeContextMemory: ContextMemoryProfile? = nil
+    var backend: String? = nil
+    var version: String? = nil
+    var qwenProfile: String? = nil
+    var qwenEffectiveFlags: [String: Bool]? = nil
+    var qwenDeviceKV: Bool? = nil
+    var qwenPrefillLastHead: Bool? = nil
+    var qwenGroupExpertQMV: Bool? = nil
+    var qwenGroupExpertStages: Bool? = nil
+    var qwenDeviceGreedy: Bool? = nil
+    var effectiveOptions: String {
+        if let flags = qwenEffectiveFlags {
+            return flags.keys.sorted().map { "qwen_" + $0 + "=" + String(flags[$0]!) }.joined(separator: ",")
+        }
+        return [("qwen_device_kv", qwenDeviceKV), ("qwen_prefill_last_head", qwenPrefillLastHead),
+         ("qwen_group_expert_qmv", qwenGroupExpertQMV), ("qwen_group_expert_stages", qwenGroupExpertStages),
+         ("qwen_device_greedy", qwenDeviceGreedy)].compactMap { key, value in
+            value.map { key + "=" + String($0) }
+        }.joined(separator: ",")
+    }
     var turnContext: String? = nil
     var runtimeCommit: String? = nil
     var runtimeProfile: String? = nil
@@ -180,6 +202,16 @@ struct BridgeEvent: Decodable {
         case contextFull = "context_full"
         case stopReason = "stop_reason"
         case contextMemory = "context_memory"
+        case nativeContextMemory = "context_memory_profile"
+        case backend
+        case version = "runtime_version"
+        case qwenProfile = "qwen_profile"
+        case qwenEffectiveFlags = "qwen_effective_flags"
+        case qwenDeviceKV = "qwen_device_kv"
+        case qwenPrefillLastHead = "qwen_prefill_last_head"
+        case qwenGroupExpertQMV = "qwen_group_expert_qmv"
+        case qwenGroupExpertStages = "qwen_group_expert_stages"
+        case qwenDeviceGreedy = "qwen_device_greedy"
         case turnContext = "turn_context"
         case runtimeCommit = "runtime_commit"
         case runtimeProfile = "runtime_profile"
@@ -301,7 +333,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     let id: UUID
     let role: Role
     let attachments: [ChatAttachment]
-    var sources: [DocumentExcerpt] = []
+    var sources: [DocumentExcerpt] = [] { didSet { streamRevision &+= 1 } }
     private(set) var content: String
     private(set) var thinking: String
     private(set) var isStreaming: Bool
@@ -309,9 +341,10 @@ final class ChatMessage: ObservableObject, Identifiable {
     private(set) var error: String?
     private(set) var toolActivities: [ToolActivity]
     private(set) var cacheContext: String?
-    var turnContext: String?
+    var turnContext: String? { didSet { streamRevision &+= 1 } }
     private(set) var parts: [AssistantPart]
-    private(set) var streamRevision = 0
+    let revisionChanged = PassthroughSubject<Void, Never>()
+    private(set) var streamRevision = 0 { didSet { revisionChanged.send() } }
 
     init(
         id: UUID = UUID(),
@@ -503,13 +536,18 @@ struct ContextUsage: Codable, Sendable {
 struct Conversation: Identifiable {
     let id: UUID
     var title: String
-    var messages: [ChatMessage]
+    var messages: [ChatMessage] {
+        didSet { messageSnapshots = ConversationMessageSnapshots(messages) }
+    }
     let createdAt: Date
     var isPinned: Bool
     var contextUsage: ContextUsage?
     var projectID: UUID?
     var parentConversationID: UUID?
     var agent = false
+    var updatedAt: Date?
+    private var messageSnapshots: ConversationMessageSnapshots
+    var messageChanges: AnyPublisher<Void, Never> { messageSnapshots.changed.eraseToAnyPublisher() }
 
     init(
         id: UUID = UUID(),
@@ -522,6 +560,7 @@ struct Conversation: Identifiable {
         self.id = id
         self.title = title
         self.messages = messages
+        self.messageSnapshots = ConversationMessageSnapshots(messages)
         self.createdAt = createdAt
         self.contextUsage = contextUsage
         self.isPinned = isPinned
@@ -531,13 +570,14 @@ struct Conversation: Identifiable {
         ConversationSnapshot(
             id: id,
             title: title,
-            messages: messages.map(\.snapshot),
+            messages: messageSnapshots.snapshot(),
             createdAt: createdAt,
             contextUsage: contextUsage,
             isPinned: isPinned,
             projectID: projectID,
             parentConversationID: parentConversationID,
-            agent: agent ? true : nil
+            agent: agent ? true : nil,
+            updatedAt: updatedAt
         )
     }
 
@@ -553,6 +593,7 @@ struct Conversation: Identifiable {
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID
         agent = snapshot.agent ?? false
+        updatedAt = snapshot.updatedAt
     }
 }
 
@@ -588,5 +629,42 @@ enum ModelInstallState: Equatable {
     var isWorking: Bool {
         if case .working = self { return true }
         return false
+    }
+}
+
+/// Value snapshots are shared until message identity/revision changes. Conversation
+/// metadata is still rebuilt, so title/project/pinning edits cannot be stale.
+private final class ConversationMessageSnapshots {
+    let changed = PassthroughSubject<Void, Never>()
+    private let messages: [ChatMessage]
+    private var observations: [AnyCancellable] = []
+    private var dirty: Set<Int>
+    private var streaming: Set<Int>
+    private var saved: [ChatMessageSnapshot] = []
+
+    init(_ messages: [ChatMessage]) {
+        self.messages = messages
+        dirty = Set(messages.indices)
+        streaming = Set(messages.indices.filter { messages[$0].isStreaming })
+        observations = messages.enumerated().map { index, message in
+            message.revisionChanged.sink { [weak self, weak message] in
+                guard let self, let message else { return }
+                self.dirty.insert(index)
+                if message.isStreaming { self.streaming.insert(index) }
+                else { self.streaming.remove(index) }
+                self.changed.send()
+            }
+        }
+    }
+
+    func snapshot() -> [ChatMessageSnapshot] {
+        if saved.count != messages.count {
+            saved = messages.map(\.snapshot)
+        } else {
+            // Only live processing parts need their elapsed clock refreshed.
+            for index in dirty.union(streaming) { saved[index] = messages[index].snapshot }
+        }
+        dirty.removeAll(keepingCapacity: true)
+        return saved
     }
 }

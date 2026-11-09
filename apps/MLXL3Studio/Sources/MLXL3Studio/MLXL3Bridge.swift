@@ -19,16 +19,33 @@ enum MLXL3BridgeError: LocalizedError {
     }
 }
 
+enum QwenRuntimeProfile: String, CaseIterable, Sendable {
+    case reference, optimized
+    static let preferenceKey = "studio.nativeQwenProfile"
+    static let environmentKey = "MLXL3_NATIVE_QWEN_PROFILE"
+
+    static func requested(_ value: String?) -> Self { Self(rawValue: value ?? "") ?? .reference }
+
+    static func environment(_ original: [String: String], requested value: String?) -> [String: String] {
+        var environment = original
+        // Preserve explicit process-level profile and every individual engine override.
+        if environment[environmentKey] == nil { environment[environmentKey] = requested(value).rawValue }
+        return environment
+    }
+}
+
 enum CLIResolver {
-    static func executable() -> URL? {
+    static func executable(
+        appVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0",
+        managedRoot: URL = EngineRuntimeStore.root
+    ) -> URL? {
         let environment = ProcessInfo.processInfo.environment
         var candidates: [String] = []
         if let override = environment["MLXL3_EXECUTABLE"], !override.isEmpty {
             candidates.append((override as NSString).expandingTildeInPath)
         }
 
-        if let managed = EngineRuntimeStore.resolve(appVersion: Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0") {
+        if let managed = EngineRuntimeStore.resolve(appVersion: appVersion, root: managedRoot) {
             candidates.append(managed.path)
         }
 
@@ -64,6 +81,15 @@ private struct PendingDelta {
 }
 
 final class MLXL3Bridge: @unchecked Sendable {
+    private let runtimeRoot: URL
+    private let appVersion: String
+
+    init(runtimeRoot: URL = EngineRuntimeStore.root,
+         appVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0") {
+        self.runtimeRoot = runtimeRoot
+        self.appVersion = appVersion
+    }
+
     var onEvent: (@MainActor (BridgeEvent) -> Void)?
     var onExit: (@MainActor (String?) -> Void)?
     var onRuntimeFallback: (@MainActor () -> Void)?
@@ -79,6 +105,7 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var stderrBuffer = Data()
     private var pendingDelta: PendingDelta?
     private var receivedReady = false
+    private var protocolMismatch = false
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
     private let generationID = Mutex(UUID())
@@ -131,14 +158,20 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String, contextLength: Int = 0, registry: URL? = nil) async throws {
+    func start(model: String, contextLength: Int = 0, registry: URL? = nil, allowRuntimeFallback: Bool = true) async throws {
         try Task.checkCancellation()
         stop()
         let ticket = generationID.withLock { $0 }
         await waitForRetiringProcesses()
         try Task.checkCancellation()
         guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
-        guard let executable = CLIResolver.executable() else {
+        let version = appVersion, root = runtimeRoot
+        let resolved = await Task.detached(priority: .userInitiated) {
+            CLIResolver.executable(appVersion: version, managedRoot: root)
+        }.value
+        try Task.checkCancellation()
+        guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
+        guard let executable = resolved else {
             throw MLXL3BridgeError.executableNotFound
         }
 
@@ -152,12 +185,14 @@ final class MLXL3Bridge: @unchecked Sendable {
             stderrBuffer.removeAll(keepingCapacity: true)
             pendingDelta = nil
             receivedReady = false
+            protocolMismatch = false
             deltaFlushWorkItem?.cancel()
             deltaFlushWorkItem = nil
         }
         process.executableURL = executable
         process.arguments = (registry.map { ["--registry", $0.path] } ?? []) + ["bridge", model, "--context-length", String(contextLength)]
-        process.environment = ProcessInfo.processInfo.environment
+        process.environment = QwenRuntimeProfile.environment(ProcessInfo.processInfo.environment,
+            requested: UserDefaults.standard.string(forKey: QwenRuntimeProfile.preferenceKey))
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
         process.standardOutput = output
@@ -199,8 +234,8 @@ final class MLXL3Bridge: @unchecked Sendable {
                     : L("Le moteur MLXL3 s’est arrêté de façon inattendue.", "The MLXL3 engine stopped unexpectedly.")
                 self.process = nil
                 self.inputPipe = nil
-                let recovered = !self.receivedReady && terminatedProcess.executableURL.map {
-                    EngineRuntimeStore.reject($0)
+                let recovered = EngineRuntimeStore.shouldQuarantine(receivedReady: self.receivedReady, protocolMismatch: self.protocolMismatch) && terminatedProcess.executableURL.map {
+                    EngineRuntimeStore.reject($0, root: self.runtimeRoot)
                 } == true
                 DispatchQueue.main.async {
                     guard self.generationID.withLock({ $0 == ticket }) else { return }
@@ -218,7 +253,9 @@ final class MLXL3Bridge: @unchecked Sendable {
             inputPipe = nil
             output.fileHandleForReading.readabilityHandler = nil
             error.fileHandleForReading.readabilityHandler = nil
-            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength, registry: registry) }
+            if allowRuntimeFallback, EngineRuntimeStore.isExecutableLaunchFailure(failure), EngineRuntimeStore.reject(executable, root: runtimeRoot) {
+                return try await start(model: model, contextLength: contextLength, registry: registry, allowRuntimeFallback: false)
+            }
             throw failure
         }
     }
@@ -232,11 +269,13 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
-    func setMCPEnabled(_ enabled: Bool) throws {
+    func setMCPEnabled(_ enabled: Bool, requestID: String? = nil) throws {
         guard let process, process.isRunning, let inputPipe else {
             throw MLXL3BridgeError.commandFailed(L("Le moteur MLXL3 n’est pas prêt.", "The MLXL3 engine is not ready."))
         }
-        var data = try JSONSerialization.data(withJSONObject: ["type": "set_mcp", "enabled": enabled])
+        var request: [String: Any] = ["type": "set_mcp", "enabled": enabled]
+        if let requestID { request["request_id"] = requestID }
+        var data = try JSONSerialization.data(withJSONObject: request)
         data.append(0x0A)
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
@@ -332,6 +371,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
                 if event.type == "ready" {
                     if let protocolVersion = event.bridgeProtocol, protocolVersion != EngineRuntimeStore.protocolVersion {
+                        protocolMismatch = true
                         process?.terminate()
                         continue
                     }

@@ -146,3 +146,15 @@ def test_invalid_bundled_runtime_never_gets_successful_build_info(project, fault
 def test_only_the_two_explicit_archive_contracts_are_accepted(schema, backend):
     with pytest.raises(ValueError):
         runtime_backend(schema, backend)
+
+
+@pytest.mark.parametrize("backend", ["metal", "mlx"])
+def test_bundle_records_exact_engine_release_tag(project, backend):
+    runtime, _ = setup_runtime(project, backend)
+    payload = manifest(runtime, "2.0.2", backend, release_tag="engine-v2.0.2-beta.2")
+    (runtime / "engine.json").write_text(json.dumps(payload))
+    result, destination = run(project)
+    assert result.returncode == 0, result.stderr
+    identity = json.loads(destination.read_text())["engine"]
+    assert identity["version"] == "2.0.2"
+    assert identity["release_tag"] == "engine-v2.0.2-beta.2"

@@ -109,8 +109,8 @@ final class QuantizationModel: ObservableObject {
           ]))
         guard ticket == operation, !Task.isCancelled else { return }
         let line = result.split(separator: 10).last ?? result[...]
-        let event = try JSONSerialization.jsonObject(with: Data(line)) as! [String: Any]
-        guard event["type"] as? String == "result", let value = event["result"] else {
+        guard let event = try JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+              event["type"] as? String == "result", let value = event["result"] else {
           throw MLXL3BridgeError.invalidResponse
         }
         let decoder = JSONDecoder()
@@ -144,6 +144,10 @@ final class QuantizationModel: ObservableObject {
       await prepare()
       guard !Task.isCancelled, ticket == operation else { return }
       do {
+        let engine = await Task.detached(priority: .userInitiated) {
+          CLIResolver.executable()?.path ?? ""
+        }.value
+        guard !Task.isCancelled, ticket == operation else { return }
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         let root = jobsDirectory
@@ -151,7 +155,7 @@ final class QuantizationModel: ObservableObject {
           try JSONSerialization.jsonObject(with: encoder.encode(source)) as! [String: Any]
         sourceValue["modules"] = []
         let request: [String: Any] = [
-          "operation": "convert", "engine": CLIResolver.executable()?.path ?? "",
+          "operation": "convert", "engine": engine,
           "source": sourceValue,
           "settings": try JSONSerialization.jsonObject(with: encoder.encode(settings)),
           "output": destination.path, "jobs": root.path,

@@ -19,6 +19,9 @@ extension StudioModel {
     fileprivate func deliverFixtureEvent(_ json: String) throws {
         handle(try JSONDecoder().decode(BridgeEvent.self, from: Data(json.utf8)))
     }
+    // Same OFF path as setMTPEnabled(false) without the !isGenerating guard:
+    // these checks need a pending configuration overlapping a live generation.
+    fileprivate func fixtureRequestMTPOff() { requestMTPOff() }
 }
 
 @MainActor private final class TestIdleClock {
@@ -288,8 +291,10 @@ extension StudioModel {
         }
 
         let (activeRecovery, _) = try await make("auto-idle-silent")
-        activeRecovery.setMTPEnabled(false)
         activeRecovery.draft = "Fail this turn explicitly"; activeRecovery.send()
+        try require(activeRecovery.isGenerating, "Fixture did not start the generation under test")
+        activeRecovery.fixtureRequestMTPOff()
+        try require(activeRecovery.fixtureMTPPending, "MTP OFF was not pending during generation")
         try activeRecovery.deliverFixtureEvent(#"{"type":"error","message":"uncorrelated failure"}"#)
         try require(!activeRecovery.fixtureMTPPending && !activeRecovery.isGenerating,
                     "MTP recovery swallowed generation error cleanup")
@@ -323,10 +328,12 @@ extension StudioModel {
                     "Unload failed to cancel the old OFF timeout")
 
         let (silentOFF, silentClock) = try await make("auto-idle-silent")
-        silentOFF.setMTPEnabled(false)
+        silentOFF.draft = "Do not interrupt this generation"; silentOFF.send()
+        try require(silentOFF.isGenerating, "Fixture did not start the generation under test")
+        silentOFF.fixtureRequestMTPOff()
+        try require(silentOFF.fixtureMTPPending, "MTP OFF was not pending during generation")
         try silentOFF.deliverFixtureEvent(#"{"type":"mtp_status","request_id":"obsolete","mtp_active":false}"#)
         try require(silentOFF.fixtureMTPPending, "A stale status acknowledged the current OFF operation")
-        silentOFF.draft = "Do not interrupt this generation"; silentOFF.send()
         tick(silentOFF, silentClock, 3600)
         try require(silentOFF.isGenerating && silentOFF.fixtureEngineRunning,
                     "A pending OFF request interrupted generation")

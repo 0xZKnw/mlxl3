@@ -211,6 +211,7 @@ def cleanup(child, target, deadline):
     known = {}
     registry = target.split(" --registry ", 1)[1].split(" bridge ", 1)[0]
     discovery_error = None
+    signal_error = None
 
     def snapshot():
         remaining = deadline - time.monotonic()
@@ -237,6 +238,8 @@ def cleanup(child, target, deadline):
                         os.kill(pid, sig)
                     except ProcessLookupError:
                         pass
+                    except PermissionError as error:
+                        signal_error = error
         except (OSError, subprocess.SubprocessError, TimeoutError) as error:
             discovery_error = error
         finally:
@@ -247,6 +250,11 @@ def cleanup(child, target, deadline):
                     os.killpg(child.pid, sig)
                 except ProcessLookupError:
                     pass
+                except PermissionError as error:
+                    # Darwin can deny signalling a process/group already exiting.
+                    # Still reap the direct child and verify the whole owned tree;
+                    # the error is harmless only if that confirmation succeeds.
+                    signal_error = error
             try:
                 child.wait(timeout=max(0.001, min(0.1, deadline - time.monotonic())))
             except subprocess.TimeoutExpired:
@@ -268,6 +276,8 @@ def cleanup(child, target, deadline):
         raise RuntimeError(
             "process discovery failed; descendant cleanup unconfirmed"
         ) from discovery_error
+    if signal_error is not None:
+        raise RuntimeError("process signalling failed; cleanup unconfirmed") from signal_error
     return False
 
 

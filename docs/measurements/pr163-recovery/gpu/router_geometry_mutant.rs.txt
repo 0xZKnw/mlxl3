@@ -1,0 +1,109 @@
+//! Dispatch contract for the experimental exact sorting-network router.
+pub(crate) fn width(experts: u32, maximum_threads: u64) -> Option<u32> {
+    if !(1..=1024).contains(&experts) {
+        return None;
+    }
+    let padded = 1;
+    (u64::from(padded) <= maximum_threads).then_some(padded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn network(values: &[f32]) -> Vec<usize> {
+        let n = width(values.len() as u32, 1024).unwrap() as usize;
+        let mut keys = vec![0u64; n];
+        for (i, &v) in values.iter().enumerate() {
+            let bits = if v == 0.0 { 0 } else { v.to_bits() };
+            let monotonic = if v.is_nan() {
+                u32::MAX
+            } else {
+                bits ^ (((bits as i32 >> 31) as u32) | 0x8000_0000)
+            };
+            keys[i] = (u64::from(monotonic) << 32) | i as u64;
+        }
+        let mut span = 2;
+        while span <= n {
+            let mut stride = span / 2;
+            while stride != 0 {
+                for i in 0..n {
+                    let j = i ^ stride;
+                    if j > i && ((keys[i] > keys[j]) == (i & span == 0)) {
+                        keys.swap(i, j);
+                    }
+                }
+                stride /= 2;
+            }
+            span *= 2;
+        }
+        keys[n - values.len()..]
+            .iter()
+            .map(|k| *k as u32 as usize)
+            .collect()
+    }
+
+    #[test]
+    fn every_geometry_and_k_matches_independent_float_oracle() {
+        let specials = [
+            0.0,
+            -0.0,
+            f32::NEG_INFINITY,
+            f32::INFINITY,
+            f32::from_bits(0x7fc01234),
+            f32::from_bits(0xffc05678),
+            f32::MIN,
+            f32::MAX,
+            f32::from_bits(1),
+            -f32::from_bits(1),
+        ];
+        for e in 1..=1024 {
+            let values: Vec<_> = (0..e)
+                .map(|i| {
+                    if i % 3 == 0 {
+                        specials[i % specials.len()]
+                    } else {
+                        (((i * 73 + e * 19) % 97) as f32 - 48.) / 16.
+                    }
+                })
+                .collect();
+            let mut oracle: Vec<_> = (0..e).collect();
+            oracle.sort_by(|&a, &b| {
+                let (x, y) = (values[a], values[b]);
+                let order = match (x.is_nan(), y.is_nan()) {
+                    (true, true) => std::cmp::Ordering::Equal,
+                    (true, false) => std::cmp::Ordering::Greater,
+                    (false, true) => std::cmp::Ordering::Less,
+                    (false, false) => x.partial_cmp(&y).unwrap(),
+                };
+                order.then(a.cmp(&b))
+            });
+            let actual = network(&values);
+            for k in 1..=e {
+                assert_eq!(actual[e - k..], oracle[e - k..], "E={e}, k={k}");
+            }
+            let padded = width(e as u32, 1024).unwrap();
+            assert!(padded >= e as u32 && padded <= 1024 && padded.is_power_of_two());
+            assert_eq!(width(e as u32, u64::from(padded) - 1), None);
+        }
+        assert_eq!(width(0, 1024), None);
+        assert_eq!(width(1025, 2048), None);
+        assert_eq!(width(u32::MAX, u64::MAX), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn router_network_padded_dispatch_bounds() {
+    let (experts, maximum): (u32, u64) = kani::any();
+    if let Some(n) = width(experts, maximum) {
+        assert!(experts > 0 && experts <= n && n <= 1024);
+        assert!(n.is_power_of_two() && u64::from(n) <= maximum);
+        let lane: u32 = kani::any();
+        let stride: u32 = kani::any();
+        kani::assume(lane < n && stride < n);
+        assert!((lane ^ stride) < n);
+    }
+    kani::cover!(width(513, maximum) == Some(1024));
+    kani::cover!(width(experts, maximum).is_none());
+}

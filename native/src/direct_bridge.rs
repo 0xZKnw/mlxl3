@@ -169,12 +169,16 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         }
         NativeChatModel::Flash(_) => (None, None, None, None, None, Value::Null),
     };
+    let (qwen_profile, qwen_effective_flags) = match &model {
+        NativeChatModel::Qwen(q) => (Some(q.profile_name()), q.effective_flags()),
+        NativeChatModel::Flash(_) => (None, Value::Null),
+    };
     let size = c.size_bytes as f64 / 1e9;
     let mut head: Option<(String, ChatMtpHead)> = None;
     let mut draft: Option<(String, usize, RoundDraft)> = None;
     let mut prompt_cache: Option<PromptCache> = None;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
-    let cancelled = Arc::new(AtomicBool::new(false));
+    let cancelled = gpu.cancellation_flag();
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
     let mut random = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -182,7 +186,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_profile":qwen_profile,"qwen_effective_flags":qwen_effective_flags,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;

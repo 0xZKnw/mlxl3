@@ -423,6 +423,63 @@ class NativeArProfileTests(unittest.TestCase):
                 self.assertGreater(call.kwargs["timeout"], 0)
                 self.assertLessEqual(call.kwargs["timeout"], 0.05)
 
+    def test_cleanup_group_permission_error_still_reaps_exiting_child(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        state = {"alive": True}
+
+        def wait(**_):
+            state["alive"] = False
+            return 0
+
+        child = SimpleNamespace(pid=123, wait=wait, poll=lambda: None if state["alive"] else 0)
+        with (
+            patch.object(PROFILE, "process_rows", return_value={}),
+            patch.object(PROFILE.os, "killpg", side_effect=PermissionError(1, "exiting")) as group,
+        ):
+            self.assertTrue(PROFILE.cleanup(child, target, time.monotonic() + 1))
+            self.assertFalse(state["alive"])
+            group.assert_called_once_with(123, signal.SIGTERM)
+
+    def test_cleanup_permission_error_does_not_hide_live_descendant(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        child = SimpleNamespace(pid=123, wait=lambda **_: 0, poll=lambda: 0)
+        with (
+            patch.object(PROFILE, "process_rows", return_value={456: (1, 456, target)}),
+            patch.object(PROFILE.os, "kill", side_effect=PermissionError(1, "denied")),
+            patch.object(PROFILE.os, "killpg") as group,
+        ):
+            with self.assertRaises(RuntimeError):
+                PROFILE.cleanup(child, target, time.monotonic() + 0.05)
+            group.assert_not_called()
+
+    def test_cleanup_denied_live_child_still_attempts_bounded_waits(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        waits = []
+
+        def wait(*, timeout):
+            waits.append(timeout)
+            raise subprocess.TimeoutExpired("child", timeout)
+
+        child = SimpleNamespace(pid=123, wait=wait, poll=lambda: None)
+        with (
+            patch.object(PROFILE, "process_rows", return_value={123: (1, 123, target)}),
+            patch.object(PROFILE.os, "kill", side_effect=PermissionError(1, "denied")),
+            patch.object(PROFILE.os, "killpg", side_effect=PermissionError(1, "denied")),
+            self.assertRaises(RuntimeError),
+        ):
+            PROFILE.cleanup(child, target, time.monotonic() + 0.05)
+        self.assertEqual(len(waits), 2)
+        self.assertTrue(all(0 < timeout <= 0.05 for timeout in waits))
+
+    def test_silent_run_reaps_when_group_signal_reports_permission_error(self):
+        # The per-PID signal still reaches the real disposable child. Darwin may
+        # deny the subsequent group signal while that child is already exiting.
+        with patch.object(PROFILE.os, "killpg", side_effect=PermissionError(1, "exiting")):
+            report = self.failed(behavior="silent", timeout=0.6)
+        self.assertEqual(report["status"], "failed")
+        with self.assertRaises(ProcessLookupError):
+            os.kill(report["pid"], 0)
+
     def test_cleanup_revalidates_reused_pid_and_never_kills_another_group(self):
         target = "/engine --registry /unique/registry.json bridge /model --context-length 4096"
         original = {456: (1, 456, target)}

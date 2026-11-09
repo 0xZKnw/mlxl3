@@ -16,7 +16,12 @@ const JSON_OPEN: &str = "<tool_call>";
 const JSON_CLOSE: &str = "</tool_call>";
 
 pub fn parse(response: &str) -> Result<Vec<ToolCall>> {
-    let response = assistant_context(response).trim();
+    parse_answer(assistant_context(response))
+}
+
+/// Parse an already channel-separated answer, without lexical reasoning removal.
+pub fn parse_answer(response: &str) -> Result<Vec<ToolCall>> {
+    let response = response.trim();
     if response.starts_with(PYTHON_OPEN) {
         return parse_blocks(response, PYTHON_OPEN, PYTHON_CLOSE, parse_python_calls);
     }

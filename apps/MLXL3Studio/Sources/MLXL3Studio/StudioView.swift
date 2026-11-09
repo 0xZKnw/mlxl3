@@ -111,6 +111,7 @@ private struct SidebarView: View {
     }
 
     var body: some View {
+        let visibleConversations = filteredConversations
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 MonogramMark(size: 44)
@@ -165,7 +166,7 @@ private struct SidebarView: View {
             HStack {
                 Text("Conversations")
                 Spacer()
-                Text("\(filteredConversations.count)").monospacedDigit()
+                Text("\(visibleConversations.count)").monospacedDigit()
             }
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(StudioTheme.quiet)
@@ -174,7 +175,7 @@ private struct SidebarView: View {
             .padding(.bottom, 11)
 
             ScrollView {
-                let conversations = filteredConversations
+                let conversations = visibleConversations
                 let pinnedID = conversations.first(where: \.isPinned)?.id
                 let recentID = pinnedID == nil ? nil : conversations.first(where: { !$0.isPinned })?.id
                 LazyVStack(spacing: 2) {
@@ -436,7 +437,7 @@ private struct AgentWorkspaceBar: View {
                 .buttonStyle(.plain).help(L("Ouvrir le dossier isolé de cette tâche dans le Finder", "Open this task’s isolated folder in Finder"))
             Label(L("Ce Mac", "This Mac"), systemImage: "desktopcomputer")
             Spacer()
-            Label(L("Sandbox · hors ligne", "Sandbox · offline"), systemImage: "lock.shield")
+            Label(L("Outils sans réseau · aperçu avec imports distants possibles", "Tools offline · preview may load remote imports"), systemImage: "lock.shield")
         }
         if !studio.isGenerating && !htmlFiles.isEmpty {
             ScrollView(.horizontal) {

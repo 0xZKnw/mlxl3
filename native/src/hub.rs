@@ -6,8 +6,11 @@ use serde_json::Value;
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::Write,
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    io::{Read, Write},
+    os::unix::{
+        fs::{OpenOptionsExt, PermissionsExt},
+        process::{CommandExt, ExitStatusExt},
+    },
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -384,6 +387,147 @@ struct RepoFile {
     #[serde(default)]
     size: u64,
     lfs: Option<LfsFile>,
+    #[serde(default, rename = "blobId")]
+    blob_id: Option<String>,
+}
+
+/// The LFS oid hashes the payload; a Git blob oid hashes its length-prefixed content.
+/// Metadata must come from the same resolved commit as the download URL.
+impl RepoFile {
+    fn content_identity(&self) -> Result<(&str, bool)> {
+        let (hash, lfs) = match &self.lfs {
+            Some(lfs) => (lfs.sha256.as_str(), true),
+            None => (
+                self.blob_id
+                    .as_deref()
+                    .context("missing Git blob identity")?,
+                false,
+            ),
+        };
+        ensure!(
+            hash.len() == if lfs { 64 } else { 40 }
+                && hash.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "invalid checkpoint content identity"
+        );
+        Ok((hash, lfs))
+    }
+
+    fn matches(&self, path: &Path, cancelled: &AtomicBool) -> Result<bool> {
+        use sha2::Digest;
+        check_download_cancelled(cancelled)?;
+        let (expected, lfs) = self.content_identity()?;
+        let mut file = File::open(path)?;
+        if file.metadata()?.len() != self.size {
+            return Ok(false);
+        }
+        let mut sha256 = sha2::Sha256::new();
+        let mut sha1 = sha1::Sha1::new();
+        if !lfs {
+            sha1.update(format!("blob {}\0", self.size).as_bytes());
+        }
+        let mut bytes = [0u8; 64 * 1024];
+        let mut remaining = self.size;
+        while remaining != 0 {
+            check_download_cancelled(cancelled)?;
+            let limit = remaining.min(bytes.len() as u64) as usize;
+            let read = file.read(&mut bytes[..limit])?;
+            if read == 0 {
+                return Ok(false);
+            }
+            if lfs {
+                sha256.update(&bytes[..read]);
+            } else {
+                sha1.update(&bytes[..read]);
+            }
+            remaining -= read as u64;
+        }
+        // Reject growth during validation as well as truncated data.
+        if file.read(&mut bytes[..1])? != 0 {
+            return Ok(false);
+        }
+        check_download_cancelled(cancelled)?;
+        let actual = if lfs {
+            format!("{:x}", sha256.finalize())
+        } else {
+            format!("{:x}", sha1.finalize())
+        };
+        Ok(actual.eq_ignore_ascii_case(expected))
+    }
+}
+
+fn check_download_cancelled(cancelled: &AtomicBool) -> Result<()> {
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    Ok(())
+}
+
+/// Returns true only for a fully verified file. Retain only shorter partials
+/// for curl resume; corrupt complete and oversized files must start over.
+fn prepare_checkpoint_file(file: &RepoFile, path: &Path, cancelled: &AtomicBool) -> Result<bool> {
+    check_download_cancelled(cancelled)?;
+    file.content_identity()?;
+    match fs::metadata(path) {
+        Ok(metadata) => {
+            if metadata.len() == file.size && file.matches(path, cancelled)? {
+                return Ok(true);
+            }
+            if metadata.len() >= file.size {
+                fs::remove_file(path)?;
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(false)
+}
+
+fn ensure_checkpoint_file(
+    url: &str,
+    file: &RepoFile,
+    target: &Path,
+    cancelled: &AtomicBool,
+    mut report: impl FnMut(&str),
+) -> Result<()> {
+    report("verify");
+    if prepare_checkpoint_file(file, target, cancelled)? {
+        return Ok(());
+    }
+    report("download");
+    download_file_bounded(
+        url,
+        target,
+        cancelled,
+        || report("download"),
+        Some(file.size),
+    )?;
+    report("verify");
+    ensure!(
+        file.matches(target, cancelled)?,
+        "downloaded file content identity mismatch"
+    );
+    Ok(())
+}
+
+/// Rename is the commit point. Cancellation after it does not undo a successful
+/// publication; callers must reconcile registration, never roll it back after an
+/// ambiguous error.
+fn publish_checkpoint(assembled: &Path, destination: &Path, cancelled: &AtomicBool) -> Result<()> {
+    publish_checkpoint_with_sync(assembled, destination, cancelled, |parent| {
+        File::open(parent)?.sync_all()?;
+        Ok(())
+    })
+}
+
+fn publish_checkpoint_with_sync(
+    assembled: &Path,
+    destination: &Path,
+    cancelled: &AtomicBool,
+    mut sync: impl FnMut(&Path) -> Result<()>,
+) -> Result<()> {
+    check_download_cancelled(cancelled)?;
+    fs::rename(assembled, destination)?;
+    sync(destination.parent().context("destination has no parent")?)?;
+    sync(assembled.parent().context("assembly has no parent")?)?;
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -839,6 +983,7 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     temporary.write_all(b"\n")?;
     temporary.as_file().sync_all()?;
     temporary.persist(path).context("saving download state")?;
+    File::open(parent)?.sync_all()?;
     Ok(())
 }
 
@@ -929,7 +1074,25 @@ fn download_file_bounded(
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
     if let Some(maximum_bytes) = maximum_bytes {
-        command.args(["--max-filesize", &maximum_bytes.to_string()]);
+        #[allow(clippy::useless_conversion)] // rlim_t width varies across Unix targets.
+        let limit: libc::rlim_t = maximum_bytes
+            .try_into()
+            .context("download limit exceeds platform range")?;
+        // Limit only curl's output file, not intermediate HTTP redirect bodies.
+        // SAFETY: pre_exec invokes only async-signal-safe setrlimit, using captured
+        // plain integers. This changes only the child, never the host process.
+        unsafe {
+            command.pre_exec(move || {
+                let limits = libc::rlimit {
+                    rlim_cur: limit,
+                    rlim_max: limit,
+                };
+                if libc::setrlimit(libc::RLIMIT_FSIZE, &limits) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
     }
     let mut child = command.spawn().context("starting model download")?;
     if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
@@ -955,7 +1118,19 @@ fn download_file_bounded(
                 use std::io::Read;
                 let _ = stderr.take(8_000).read_to_string(&mut error);
             }
-            bail!("model download failed: {}", error.trim());
+            if let Some(maximum_bytes) = maximum_bytes
+                && (status.signal() == Some(libc::SIGXFSZ)
+                    || destination
+                        .metadata()
+                        .is_ok_and(|m| m.len() == maximum_bytes))
+            {
+                bail!(
+                    "model download failed: output reached file size limit ({} bytes): {}",
+                    maximum_bytes,
+                    error.trim()
+                );
+            }
+            bail!("model download failed ({status}): {}", error.trim());
         }
         report();
         thread::sleep(Duration::from_millis(150));
@@ -1291,26 +1466,102 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
     })
 }
 
+#[path = "hub/install_transaction.rs"]
+mod install_transaction;
+use install_transaction::{InstallTransaction, completed_download, recover_publication};
+
+fn valid_download_id(id: &[u8]) -> bool {
+    id.len() == 12 && id.iter().all(u8::is_ascii_hexdigit)
+}
+
+fn validate_download_request(request: &PendingDownload, root: &Path) -> Result<()> {
+    ensure!(
+        valid_download_id(request.id.as_bytes()),
+        "invalid download identifier"
+    );
+    let destination = Path::new(&request.destination);
+    ensure!(
+        destination.parent() == Some(root) && destination.file_name().is_some(),
+        "model destination escaped managed storage"
+    );
+    Ok(())
+}
+
+fn real_download_directory(path: &Path, description: &str) -> Result<()> {
+    match path.symlink_metadata() {
+        Ok(metadata) => ensure!(metadata.file_type().is_dir(), "invalid {description}"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
+}
+
+fn download_lock(path: &Path) -> Result<File> {
+    if let Ok(metadata) = path.symlink_metadata() {
+        ensure!(metadata.file_type().is_file(), "invalid download lock");
+    }
+    Ok(OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)?)
+}
+
+fn begin_download_attempt(stage: &Path) -> Result<()> {
+    match fs::remove_file(stage.join("completed.json")) {
+        Ok(()) => {
+            File::open(stage)?.sync_all()?;
+            Ok(())
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn cleanup_download_stage(stage: &Path, remove: impl FnOnce(&Path) -> std::io::Result<()>) {
+    let result = remove(stage).and_then(|()| {
+        if let Some(parent) = stage.parent() {
+            File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    });
+    if let Err(error) = result {
+        eprintln!("checkpoint installed; could not remove download staging: {error}");
+    }
+}
+
 fn run_download(
     request: &PendingDownload,
     registry_path: &Path,
-    mut progress: impl FnMut(u64, u64),
+    mut progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
+    ensure!(
+        valid_download_id(request.id.as_bytes()),
+        "invalid download identifier"
+    );
     let root = managed_models_path()?;
     fs::create_dir_all(&root)?;
     let root = root.canonicalize()?;
-    let stage = root.join(".downloads").join(&request.id);
+    validate_download_request(request, &root)?;
+    let downloads = root.join(".downloads");
+    real_download_directory(&downloads, "downloads directory")?;
+    let stage = downloads.join(&request.id);
+    real_download_directory(&stage, "download directory")?;
     fs::create_dir_all(&stage)?;
     let lock_path = stage
         .parent()
         .context("download stage has no parent")?
         .join(format!("{}.lock", request.id));
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(lock_path)?;
+    let lock = download_lock(&lock_path)?;
     lock.try_lock_exclusive()
         .context("this variant is already downloading")?;
+    if let Some(entry) = recover_publication(&stage, request, registry_path)? {
+        cleanup_download_stage(&stage, |path| fs::remove_dir_all(path));
+        progress(request.size_bytes, request.size_bytes, "install");
+        return Ok((request.name.clone(), entry));
+    }
+    begin_download_attempt(&stage)?;
     write_json(&stage.join("request.json"), request)?;
 
     let detail = details(&request.repo, Some(&request.commit))?;
@@ -1324,17 +1575,30 @@ fn run_download(
         selected.size_bytes == request.size_bytes,
         "selected EXL3 variant changed size"
     );
-    let sizes: BTreeMap<_, _> = info(&request.repo, &request.commit)?
+    let metadata = info(&request.repo, &request.commit)?;
+    ensure!(
+        metadata.sha == request.commit,
+        "download metadata revision changed"
+    );
+    let files: BTreeMap<_, _> = metadata
         .siblings
         .into_iter()
-        .map(|file| (file.rfilename, file.size))
+        .map(|file| (file.rfilename.clone(), file))
         .collect();
+    // Fail closed before any transfer when the pinned metadata is incomplete.
+    for remote in selected.files.values() {
+        files
+            .get(remote)
+            .context("selected checkpoint file disappeared")?
+            .content_identity()?;
+    }
     let snapshot = stage.join("snapshot");
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
     progress(
         directory_bytes(&snapshot).min(request.size_bytes),
         request.size_bytes,
+        "download",
     );
     for (local, remote) in &selected.files {
         ensure!(
@@ -1342,37 +1606,31 @@ fn run_download(
             "unsafe checkpoint file path"
         );
         let target = snapshot.join(remote);
-        let expected = *sizes
+        let file = files
             .get(remote)
             .context("selected checkpoint file disappeared")?;
-        if target
-            .metadata()
-            .is_ok_and(|metadata| metadata.len() == expected)
-        {
-            continue;
-        }
-        download_file(
+        ensure_checkpoint_file(
             &format!(
                 "https://huggingface.co/{}/resolve/{}/{}?download=true",
                 encode(&request.repo),
                 encode(&request.commit),
                 encode(remote)
             ),
+            file,
             &target,
             &cancelled,
-            || {
+            |phase| {
                 progress(
                     directory_bytes(&snapshot).min(request.size_bytes),
                     request.size_bytes,
+                    phase,
                 )
             },
         )?;
-        ensure!(
-            target.metadata()?.len() == expected,
-            "downloaded file has the wrong size"
-        );
     }
 
+    progress(request.size_bytes, request.size_bytes, "verify");
+    check_download_cancelled(&cancelled)?;
     let assembled = stage.join("model");
     if assembled.exists() {
         fs::remove_dir_all(&assembled)?;
@@ -1381,6 +1639,13 @@ fn run_download(
     for (local, remote) in &selected.files {
         let source = snapshot.join(remote);
         let target = assembled.join(local);
+        ensure!(
+            files
+                .get(remote)
+                .context("missing checkpoint identity")?
+                .matches(&source, &cancelled)?,
+            "checkpoint content changed before publication"
+        );
         fs::hard_link(&source, &target).or_else(|_| fs::copy(&source, &target).map(|_| ()))?;
     }
     crate::checkpoint::inspect(&assembled)?;
@@ -1390,16 +1655,18 @@ fn run_download(
         destination.parent() == Some(root.as_path()),
         "model destination escaped managed storage"
     );
-    fs::rename(&assembled, &destination)?;
-    let entry = match crate::registry::register(registry_path, &request.name, &destination, false) {
-        Ok(entry) => entry,
-        Err(error) => {
-            fs::rename(&destination, &assembled)?;
-            return Err(error);
-        }
-    };
-    fs::remove_dir_all(&stage)?;
-    progress(request.size_bytes, request.size_bytes);
+    // Persist intent and receipt before rename; any later error is recoverable.
+    let transaction = InstallTransaction::prepare(&stage, &assembled, request, registry_path)?;
+    progress(request.size_bytes, request.size_bytes, "publication");
+    publish_checkpoint(&assembled, &destination, &cancelled)?;
+    progress(request.size_bytes, request.size_bytes, "install");
+    // Registration may report an error after atomic replacement (e.g. fsync).
+    // Never roll back a published directory: restart reconciles its transaction.
+    let entry = transaction.register(registry_path, request)?;
+    // Publication and registration succeeded; staging cleanup must not turn
+    // a committed installation into a reported download failure.
+    cleanup_download_stage(&stage, |path| fs::remove_dir_all(path));
+    progress(request.size_bytes, request.size_bytes, "install");
     Ok((request.name.clone(), entry))
 }
 
@@ -1408,7 +1675,27 @@ pub fn download(
     commit: &str,
     folder: &str,
     registry_path: &Path,
-    progress: impl FnMut(u64, u64),
+    mut progress: impl FnMut(u64, u64),
+) -> Result<(String, crate::registry::ModelEntry)> {
+    download_with_phase(repo, commit, folder, registry_path, |done, total, _| {
+        progress(done, total)
+    })
+}
+
+pub fn resume(
+    id: &str,
+    registry_path: &Path,
+    mut progress: impl FnMut(u64, u64),
+) -> Result<(String, crate::registry::ModelEntry)> {
+    resume_with_phase(id, registry_path, |done, total, _| progress(done, total))
+}
+
+pub fn download_with_phase(
+    repo: &str,
+    commit: &str,
+    folder: &str,
+    registry_path: &Path,
+    progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
     ensure!(
         commit.len() == 40 && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
@@ -1439,19 +1726,49 @@ pub fn download(
 }
 
 pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
-    let downloads = managed_models_path()?.join(".downloads");
+    pending_downloads_in(&managed_models_path()?.join(".downloads"))
+}
+
+fn pending_downloads_in(downloads: &Path) -> Result<Vec<PendingDownload>> {
+    download_requests_in(downloads, true)
+}
+
+fn download_requests_in(downloads: &Path, pending_only: bool) -> Result<Vec<PendingDownload>> {
+    real_download_directory(downloads, "downloads directory")?;
     let Ok(entries) = fs::read_dir(downloads) else {
         return Ok(Vec::new());
     };
+    let root = downloads
+        .parent()
+        .context("downloads have no root")?
+        .canonicalize()?;
     let mut result = Vec::new();
-    for entry in entries.flatten().filter(|entry| entry.path().is_dir()) {
+    for entry in entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+    {
         let path = entry.path();
+        if !path
+            .join("request.json")
+            .symlink_metadata()
+            .is_ok_and(|metadata| metadata.file_type().is_file())
+        {
+            continue;
+        }
         let Ok(file) = File::open(path.join("request.json")) else {
             continue;
         };
         let Ok(mut request) = serde_json::from_reader::<_, PendingDownload>(file) else {
             continue;
         };
+        if entry.file_name() != std::ffi::OsStr::new(&request.id)
+            || validate_download_request(&request, &root).is_err()
+        {
+            continue;
+        }
+        if pending_only && completed_download(&path, &request) {
+            continue;
+        }
         request.retained_bytes = directory_bytes(&path.join("snapshot"));
         result.push(request);
     }
@@ -1459,12 +1776,17 @@ pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
     Ok(result)
 }
 
-pub fn resume(
+pub fn resume_with_phase(
     id: &str,
     registry_path: &Path,
-    progress: impl FnMut(u64, u64),
+    progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
-    let request = pending_downloads()?
+    ensure!(
+        valid_download_id(id.as_bytes()),
+        "invalid download identifier"
+    );
+    // Read retained requests even if already committed: retry must be idempotent.
+    let request = download_requests_in(&managed_models_path()?.join(".downloads"), false)?
         .into_iter()
         .find(|request| request.id == id)
         .context("interrupted download not found")?;
@@ -1473,22 +1795,17 @@ pub fn resume(
 
 pub fn discard(id: &str) -> Result<()> {
     ensure!(
-        id.len() == 12 && id.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        valid_download_id(id.as_bytes()),
         "invalid download identifier"
     );
-    let root = managed_models_path()?.join(".downloads");
+    let managed = managed_models_path()?;
+    fs::create_dir_all(&managed)?;
+    let root = managed.canonicalize()?.join(".downloads");
+    real_download_directory(&root, "downloads directory")?;
     fs::create_dir_all(&root)?;
     let stage = root.join(id);
-    ensure!(
-        !stage
-            .symlink_metadata()
-            .is_ok_and(|metadata| metadata.file_type().is_symlink()),
-        "invalid download directory"
-    );
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(root.join(format!("{id}.lock")))?;
+    real_download_directory(&stage, "download directory")?;
+    let lock = download_lock(&root.join(format!("{id}.lock")))?;
     lock.try_lock_exclusive()
         .context("pause the download before removing its partial files")?;
     if stage.is_dir() {
@@ -1532,6 +1849,129 @@ pub fn logout() -> Result<()> {
 mod tests {
     use super::*;
 
+    fn payload_file(lfs: bool) -> RepoFile {
+        // Independently published SHA-256("hello") and Git blob("hello") vectors.
+        RepoFile {
+            rfilename: "model.safetensors".into(),
+            size: 5,
+            lfs: lfs.then(|| LfsFile {
+                sha256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".into(),
+            }),
+            blob_id: (!lfs).then(|| "b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0".into()),
+        }
+    }
+
+    #[test]
+    fn checkpoint_transfer_verifies_resume_corruption_and_late_cancellation() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        let target = dir.path().join("target");
+        fs::write(&source, b"hello").unwrap();
+        let url = format!("file://{}", source.display());
+        let cancelled = AtomicBool::new(false);
+        let file = payload_file(true);
+        for initial in [b"he".as_slice(), b"jello", b"toolong"] {
+            fs::write(&target, initial).unwrap();
+            ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {}).unwrap();
+            assert_eq!(fs::read(&target).unwrap(), b"hello");
+        }
+        fs::remove_file(&target).unwrap();
+        fs::write(&source, b"jello").unwrap();
+        assert!(ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {}).is_err());
+        fs::remove_file(&target).unwrap();
+        fs::write(&source, b"hello").unwrap();
+        assert!(
+            ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {
+                if target.metadata().is_ok_and(|m| m.len() == 5) {
+                    cancelled.store(true, Ordering::Relaxed);
+                }
+            })
+            .is_err()
+        );
+        assert!(cancelled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn checkpoint_identity_validates_payload_not_just_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("payload");
+        let cancelled = AtomicBool::new(false);
+        for lfs in [false, true] {
+            let file = payload_file(lfs);
+            fs::write(&path, b"hello").unwrap();
+            assert!(file.matches(&path, &cancelled).unwrap());
+            assert!(prepare_checkpoint_file(&file, &path, &cancelled).unwrap());
+            for bad in [b"jello".as_slice(), b"hell", b"hello!"] {
+                fs::write(&path, bad).unwrap();
+                assert!(!file.matches(&path, &cancelled).unwrap());
+            }
+            fs::write(&path, b"jello").unwrap();
+            assert!(!prepare_checkpoint_file(&file, &path, &cancelled).unwrap());
+            assert!(
+                !path.exists(),
+                "same-length corrupt payload must not be resumed"
+            );
+        }
+    }
+
+    #[test]
+    fn checkpoint_resume_keeps_only_shorter_partials() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("payload");
+        let file = payload_file(true);
+        let cancelled = AtomicBool::new(false);
+        for length in 0..8 {
+            let data = vec![b'x'; length];
+            fs::write(&path, &data).unwrap();
+            assert!(!prepare_checkpoint_file(&file, &path, &cancelled).unwrap());
+            if length < 5 {
+                assert_eq!(fs::read(&path).unwrap(), data);
+            } else {
+                assert!(!path.exists());
+            }
+        }
+        assert!(!prepare_checkpoint_file(&file, &path, &cancelled).unwrap());
+    }
+
+    #[test]
+    fn checkpoint_metadata_requires_the_correct_digest_family() {
+        let lfs: RepoFile = serde_json::from_str(r#"{"rfilename":"a","size":5,"blobId":"wrong","lfs":{"sha256":"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"}}"#).unwrap();
+        assert!(lfs.content_identity().unwrap().1);
+        let git: RepoFile = serde_json::from_str(
+            r#"{"rfilename":"a","size":5,"blobId":"b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0"}"#,
+        )
+        .unwrap();
+        assert!(!git.content_identity().unwrap().1);
+        for bad in ["", "abc", &"g".repeat(64), &"a".repeat(40)] {
+            let mut file = payload_file(true);
+            file.lfs.as_mut().unwrap().sha256 = bad.into();
+            assert!(file.content_identity().is_err());
+        }
+        let mut file = payload_file(false);
+        file.blob_id = None;
+        assert!(file.content_identity().is_err());
+    }
+
+    #[test]
+    fn cancelled_complete_checkpoint_is_neither_reused_nor_published() {
+        let dir = tempfile::tempdir().unwrap();
+        let assembled = dir.path().join("assembled");
+        let destination = dir.path().join("installed");
+        fs::create_dir(&assembled).unwrap();
+        let path = assembled.join("payload");
+        fs::write(&path, b"hello").unwrap();
+        let cancelled = AtomicBool::new(true);
+        assert!(prepare_checkpoint_file(&payload_file(true), &path, &cancelled).is_err());
+        assert!(payload_file(true).matches(&path, &cancelled).is_err());
+        assert!(publish_checkpoint(&assembled, &destination, &cancelled).is_err());
+        assert!(!destination.exists());
+        assert_eq!(fs::read(&path).unwrap(), b"hello");
+        cancelled.store(false, Ordering::Relaxed);
+        publish_checkpoint(&assembled, &destination, &cancelled).unwrap();
+        assert!(!assembled.exists());
+        assert_eq!(fs::read(destination.join("payload")).unwrap(), b"hello");
+    }
+
     #[test]
     fn preview_reports_architecture_and_keeps_hybrid_cache_unknown() {
         let hybrid = model_preview(
@@ -1558,6 +1998,7 @@ mod tests {
             .map(|name| RepoFile {
                 rfilename: (*name).into(),
                 size: 12,
+                blob_id: None,
                 lfs: Some(LfsFile {
                     sha256: "a".repeat(64),
                 }),
@@ -1566,6 +2007,7 @@ mod tests {
         siblings.push(RepoFile {
             rfilename: "target/model.bin".into(),
             size: 999_999,
+            blob_id: None,
             lfs: Some(LfsFile {
                 sha256: "b".repeat(64),
             }),
@@ -1610,6 +2052,7 @@ mod tests {
                     .map(|(name, size, hash)| RepoFile {
                         rfilename: (*name).into(),
                         size: *size,
+                        blob_id: None,
                         lfs: Some(LfsFile {
                             sha256: (*hash).into(),
                         }),
@@ -1871,6 +2314,44 @@ mod tests {
 mod verification {
     use super::*;
 
+    // Bounded metadata admission only: not a proof of hashing or filesystem I/O.
+    #[kani::proof]
+    #[kani::unwind(140)]
+    fn checkpoint_digest_family_and_syntax_are_required() {
+        let lfs: bool = kani::any();
+        let present: bool = kani::any();
+        let length: u8 = kani::any();
+        kani::assume(length <= 65);
+        let bytes: [u8; 65] = kani::any();
+        let mut hash = String::new();
+        let mut hexadecimal = true;
+        for &byte in &bytes[..usize::from(length)] {
+            // Scope: independently symbolic ASCII metadata, including mixed
+            // valid/invalid characters. Unicode is rejected by production too.
+            let character = byte & 0x7f;
+            hash.push(char::from(character));
+            hexadecimal &= matches!(character, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F');
+        }
+        let file = RepoFile {
+            rfilename: String::new(),
+            size: 0,
+            lfs: lfs.then(|| LfsFile {
+                sha256: hash.clone(),
+            }),
+            blob_id: present.then_some(hash),
+        };
+        let expected = hexadecimal
+            && if lfs {
+                length == 64
+            } else {
+                present && length == 40
+            };
+        assert_eq!(file.content_identity().is_ok(), expected);
+        kani::cover!(lfs && expected);
+        kani::cover!(!lfs && expected);
+        kani::cover!(!expected);
+    }
+
     #[kani::proof]
     #[kani::unwind(130)]
     fn flash_sidecar_collection_preserves_present_files_and_size() {
@@ -1976,3 +2457,7 @@ mod preview_proofs {
 #[cfg(test)]
 #[path = "hub/dflash_download_tests.rs"]
 mod dflash_download_tests;
+
+#[cfg(test)]
+#[path = "hub/redirect_download_tests.rs"]
+mod redirect_download_tests;

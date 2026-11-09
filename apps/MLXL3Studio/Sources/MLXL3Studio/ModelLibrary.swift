@@ -67,6 +67,7 @@ private struct HubDownloadEvent: Decodable {
     let type: String
     let completed: Double?
     let total: Double?
+    let phase: String?
     let model: LocalModel?
 }
 
@@ -205,7 +206,7 @@ final class ModelLibrary: ObservableObject {
                     self.downloadProgress.update(
                         completed: event.completed ?? self.downloadProgress.completed,
                         total: event.total ?? self.downloadProgress.total,
-                        at: ProcessInfo.processInfo.systemUptime)
+                        at: ProcessInfo.processInfo.systemUptime, phase: event.phase)
                 }
                 let event = try JSONDecoder().decode(HubDownloadEvent.self, from: data)
                 guard event.type == "installed", let model = event.model else { throw MLXL3BridgeError.invalidResponse }

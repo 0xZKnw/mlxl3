@@ -16,6 +16,7 @@ struct WorkspaceSnapshot: Codable, Sendable {
     var documents: [LibraryDocument]? = nil
     var responseSchema: String? = nil
     var labSamples: [LabSample]? = nil
+    var drafts: [ConversationDraft]? = nil
 
     init(
         selectedConversationID: UUID?,
@@ -55,6 +56,20 @@ struct ConversationSnapshot: Codable, Sendable {
     var projectID: UUID? = nil
     var parentConversationID: UUID? = nil
     var agent: Bool? = nil
+    var updatedAt: Date? = nil
+}
+
+struct ConversationDraft: Codable, Sendable {
+    let conversationID: UUID
+    let text: String
+    let attachments: [ChatAttachment]
+
+    // Text is embedded, so restoring a draft never rereads a missing source file.
+    var valid: Bool {
+        text.utf8.count <= 64 * 1024 && attachments.count <= 8
+            && attachments.allSatisfy { $0.text.utf8.count <= ChatAttachmentImporter.maxTextBytes }
+    }
+    var byteCount: Int { text.utf8.count + attachments.reduce(0) { $0 + $1.text.utf8.count } }
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {
@@ -99,6 +114,10 @@ final class ConversationStore: @unchecked Sendable {
     static func load(from fileURL: URL = defaultFileURL()) throws -> WorkspaceSnapshot? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
         let data = try Data(contentsOf: fileURL)
+        return try decode(data)
+    }
+
+    private static func decode(_ data: Data) throws -> WorkspaceSnapshot {
         let snapshot = try JSONDecoder.mlxl3.decode(WorkspaceSnapshot.self, from: data)
         guard (1...WorkspaceSnapshot.currentVersion).contains(snapshot.version) else {
             throw CocoaError(.fileReadCorruptFile)
@@ -108,6 +127,12 @@ final class ConversationStore: @unchecked Sendable {
     }
 
     static func validate(_ snapshot: WorkspaceSnapshot) throws {
+        let drafts = snapshot.drafts ?? []
+        guard drafts.count <= 128, Set(drafts.map(\.conversationID)).count == drafts.count,
+              drafts.allSatisfy({ draft in draft.valid && snapshot.conversations.contains(where: { $0.id == draft.conversationID }) }),
+              drafts.reduce(0, { $0 + $1.byteCount }) <= 16 * 1024 * 1024 else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
         let projects = snapshot.projects ?? []
         let profiles = snapshot.profiles ?? []
         let documents = snapshot.documents ?? []
@@ -140,8 +165,9 @@ final class ConversationStore: @unchecked Sendable {
         let data = try JSONEncoder.mlxl3.encode(snapshot)
         if FileManager.default.fileExists(atPath: fileURL.path) {
             // Never overwrite unreadable history, including a future schema.
-            _ = try load(from: fileURL)
-            try Data(contentsOf: fileURL).write(to: fileURL.appendingPathExtension("backup"), options: .atomic)
+            let previous = try Data(contentsOf: fileURL)
+            _ = try decode(previous)
+            try previous.write(to: fileURL.appendingPathExtension("backup"), options: .atomic)
         }
         try data.write(to: fileURL, options: [.atomic])
     }

@@ -1,7 +1,7 @@
 //! Raw Flash draft backbone with explicit native BF16 boundaries.
 use crate::{
     flash_draft_metadata::{self, Kind},
-    native_bf16::{Matrix, round},
+    native_bf16::{Matrix, Weight, round},
 };
 use anyhow::{Context, Result, ensure};
 use std::{collections::BTreeMap, path::Path};
@@ -10,18 +10,47 @@ const H: usize = 2560;
 
 pub(crate) struct Draft {
     pub kind: Kind,
-    weights: BTreeMap<String, Matrix>,
+    weights: BTreeMap<String, Weight>,
     pub cache: Vec<(Matrix, Matrix)>,
     pub offset: usize,
     cache_capacity: usize,
+    projection_gpu: Option<crate::native_draft_gpu::Backend>,
 }
 impl Draft {
     pub fn load(path: &Path, kind: Kind) -> Result<Self> {
         let raw = flash_draft_metadata::inspect(path, kind)?;
+        let compact = match std::env::var("MLXL3_NATIVE_DRAFT_COMPACT") {
+            Err(std::env::VarError::NotPresent) => false,
+            Ok(value) if value == "0" => false,
+            Ok(value) if value == "1" => true,
+            _ => anyhow::bail!("MLXL3_NATIVE_DRAFT_COMPACT must be 0 or 1"),
+        };
+        let gpu = match std::env::var("MLXL3_NATIVE_DRAFT_GPU") {
+            Err(std::env::VarError::NotPresent) => false,
+            Ok(value) if value == "0" => false,
+            Ok(value) if value == "1" => true,
+            _ => anyhow::bail!("MLXL3_NATIVE_DRAFT_GPU must be 0 or 1"),
+        };
+        ensure!(
+            !gpu || compact,
+            "draft GPU projection requires MLXL3_NATIVE_DRAFT_COMPACT=1"
+        );
+        let projection_gpu = gpu
+            .then(crate::native_draft_gpu::Backend::new)
+            .transpose()?;
         let weights = raw
             .tensors
             .iter()
-            .map(|(key, info)| Ok((key.clone(), Matrix::load(info)?)))
+            .map(|(key, info)| {
+                Ok((
+                    key.clone(),
+                    if compact {
+                        Weight::load(key, info)?
+                    } else {
+                        Weight::Dense(Matrix::load(info)?)
+                    },
+                ))
+            })
             .collect::<Result<_>>()?;
         Ok(Self {
             kind,
@@ -29,26 +58,34 @@ impl Draft {
             cache: Vec::new(),
             offset: 0,
             cache_capacity: 0,
+            projection_gpu,
         })
     }
     fn quantize(&mut self) -> Result<()> {
         for (name, weight) in &mut self.weights {
-            if name.ends_with(".weight") && weight.rows > 1 && !name.ends_with("base_kernel") {
-                weight.affine4_weights()?;
-            }
+            weight.quantize(name)?;
         }
         Ok(())
     }
-    fn weight(&self, name: &str) -> Result<&Matrix> {
+    fn weight(&self, name: &str) -> Result<std::borrow::Cow<'_, Matrix>> {
         self.weights
             .get(name)
-            .with_context(|| format!("missing draft weight {name}"))
+            .with_context(|| format!("missing draft weight {name}"))?
+            .matrix()
     }
     fn linear(&self, x: &Matrix, prefix: &str) -> Result<Matrix> {
-        x.linear(self.weight(&format!("{prefix}.weight"))?)
+        if let Some(gpu) = &self.projection_gpu {
+            let name = format!("{prefix}.weight");
+            let weight = self
+                .weights
+                .get(&name)
+                .with_context(|| format!("missing draft weight {name}"))?;
+            return gpu.linear(x, weight);
+        }
+        x.linear(self.weight(&format!("{prefix}.weight"))?.as_ref())
     }
     fn norm(&self, x: &Matrix, name: &str, width: usize) -> Result<Matrix> {
-        x.norm(self.weight(name)?, width)
+        x.norm(self.weight(name)?.as_ref(), width)
     }
     fn rope(&self, mut x: Matrix, start: usize) -> Result<Matrix> {
         ensure!(
@@ -95,20 +132,11 @@ impl Draft {
             let values = self.linear(&context, &format!("{p}.v_proj"))?;
             let combine = |new: Matrix, old: Option<&Matrix>| -> Result<Matrix> {
                 if self.cache_capacity != 0 {
-                    let mut values =
-                        old.map_or_else(|| vec![0.; 2048 * 1024], |old| old.values.clone());
-                    let writes = crate::flash_draft_budget::ring_writes(
-                        i32::try_from(start)?,
-                        i32::try_from(new.rows)?,
-                    )
-                    .context("invalid native draft ring interval")?;
-                    for (source, destination, rows) in writes {
-                        let (source, destination, rows) =
-                            (source as usize, destination as usize, rows as usize);
-                        values[destination * 1024..(destination + rows) * 1024]
-                            .copy_from_slice(&new.values[source * 1024..(source + rows) * 1024]);
-                    }
-                    return Matrix::new(2048, 1024, values);
+                    ensure!(
+                        new.cols == 1024 && new.rows == captured.rows,
+                        "invalid draft ring producer"
+                    );
+                    return Ok(new);
                 }
                 let rows = old.map_or(0, |x| x.rows) + new.rows;
                 let skip = if self.kind == Kind::Dflash2 {
@@ -130,7 +158,50 @@ impl Draft {
                 combine(values, self.cache.get(layer).map(|(_, v)| v))?,
             ));
         }
-        self.cache = cache;
+        if self.cache_capacity != 0 {
+            // Build initial storage separately, so allocation/validation failure
+            // cannot publish a partial cache. Subsequent appends reuse all planes.
+            let mut fresh = Vec::new();
+            if self.cache.is_empty() {
+                fresh.try_reserve_exact(5)?;
+                for _ in 0..5 {
+                    let plane = || -> Result<Matrix> {
+                        let mut values = Vec::new();
+                        values.try_reserve_exact(2048 * 1024)?;
+                        values.resize(2048 * 1024, 0.);
+                        Matrix::new(2048, 1024, values)
+                    };
+                    fresh.push((plane()?, plane()?));
+                }
+            }
+            let destination = if self.cache.is_empty() {
+                &mut fresh
+            } else {
+                &mut self.cache
+            };
+            ensure!(
+                destination.len() == 5
+                    && destination.iter().all(|(k, v)| k.rows == 2048
+                        && v.rows == 2048
+                        && k.cols == 1024
+                        && v.cols == 1024),
+                "invalid draft ring shape"
+            );
+            let mut planes: Vec<&mut [f32]> = destination
+                .iter_mut()
+                .flat_map(|(k, v)| [k.values.as_mut_slice(), v.values.as_mut_slice()])
+                .collect();
+            let updates: Vec<&[f32]> = cache
+                .iter()
+                .flat_map(|(k, v)| [k.values.as_slice(), v.values.as_slice()])
+                .collect();
+            crate::draft_storage::commit_ring(&mut planes, &updates, start, captured.rows, 1024)?;
+            if self.cache.is_empty() {
+                self.cache = fresh;
+            }
+        } else {
+            self.cache = cache;
+        }
         self.offset += captured.rows;
         Ok(())
     }
@@ -270,7 +341,16 @@ impl Draft {
         }
         self.linear(&Matrix::new(x.rows, 4096, out)?, &format!("{p}.o_proj"))
     }
+    #[cfg(test)]
     pub fn forward(&self, input: &Matrix, proposals: usize) -> Result<(Matrix, Vec<Matrix>)> {
+        self.forward_inner(input, proposals, true)
+    }
+    fn forward_inner(
+        &self,
+        input: &Matrix,
+        proposals: usize,
+        tracing: bool,
+    ) -> Result<(Matrix, Vec<Matrix>)> {
         ensure!(
             input.rows == self.kind.rows(proposals)? as usize && input.cols == H && self.offset > 0,
             "invalid native draft input"
@@ -288,7 +368,8 @@ impl Draft {
             )?;
             let (normalized_mlp, residual) = attention.residual_norm(
                 &hidden,
-                self.weight(&format!("{p}.post_attention_layernorm.weight"))?,
+                self.weight(&format!("{p}.post_attention_layernorm.weight"))?
+                    .as_ref(),
             )?;
             let (x, dynamic) = self.sublayer_input(&normalized_mlp, &format!("{p}.mlp_conv"))?;
             let gate = self.linear(&x, &format!("{p}.mlp.gate_proj"))?;
@@ -314,8 +395,11 @@ impl Draft {
             } else {
                 format!("layers.{}.input_layernorm.weight", layer + 1)
             };
-            (normalized, hidden) = mlp.residual_norm(&residual, self.weight(&next_norm)?)?;
-            trace.push(hidden.clone());
+            (normalized, hidden) =
+                mlp.residual_norm(&residual, self.weight(&next_norm)?.as_ref())?;
+            if tracing {
+                trace.push(hidden.clone());
+            }
         }
         Ok((normalized, trace))
     }
@@ -395,6 +479,20 @@ fn native_backbone_matches_independent_numpy_layers_and_kv() -> Result<()> {
         Ok(())
     };
     check("hidden", &output)?;
+    let (ordinary, discarded) = draft.forward_inner(
+        &read("input")?,
+        report["proposals"].as_u64().context("oracle proposals")? as usize,
+        false,
+    )?;
+    ensure!(discarded.is_empty() && layers.len() == 5);
+    ensure!(ordinary.rows == output.rows && ordinary.cols == output.cols);
+    ensure!(
+        ordinary
+            .values
+            .iter()
+            .map(|v| v.to_bits())
+            .eq(output.values.iter().map(|v| v.to_bits()))
+    );
     for (i, layer) in layers.iter().enumerate() {
         check(&format!("layer-{i}"), layer)?;
     }
@@ -449,7 +547,7 @@ impl Draft {
                 })?,
             );
         }
-        let (hidden, _) = self.forward(&Matrix::new(rows, H, values)?, count)?;
+        let (hidden, _) = self.forward_inner(&Matrix::new(rows, H, values)?, count, false)?;
         let first = usize::from(self.kind == Kind::Dflash2);
         let selected = Matrix::new(count, H, hidden.values[first * H..].to_vec())?;
         self.select_logits(&target.draft_logits(&selected)?, &selected, anchor)
@@ -521,7 +619,7 @@ impl Draft {
             let bias = self.weight("confidence_head.proj.bias")?;
             for (row, logits) in logits.iter().enumerate() {
                 let latent = w1.row(previous as usize)?;
-                let correction = latent.linear(w2)?;
+                let correction = latent.linear(&w2)?;
                 let scores: Vec<_> = logits
                     .iter()
                     .zip(&correction.values)
@@ -573,6 +671,11 @@ pub struct Session {
 #[derive(serde::Serialize)]
 pub struct MemoryPayload {
     pub weights_bytes: usize,
+    /// Maximum transient FP32 operand; not retained and not process RSS.
+    pub projection_decode_scratch_bytes: usize,
+    /// Observed peak of compact weights, parameters, input and output Metal buffers.
+    /// Logical buffer bytes, not process RSS or driver overhead.
+    pub projection_gpu_peak_bytes: u64,
     pub state_bytes: usize,
     pub pending_tokens_bytes: usize,
 }
@@ -650,7 +753,21 @@ impl Session {
                     .context("draft host payload overflow")
             })
         };
-        let weights_bytes = payload(&state.draft.weights.values().collect::<Vec<_>>())?;
+        let weights_bytes = state
+            .draft
+            .weights
+            .values()
+            .try_fold(0usize, |sum, weight| {
+                sum.checked_add(weight.retained_bytes()?)
+                    .context("draft weight bytes overflow")
+            })?;
+        let projection_decode_scratch_bytes = state
+            .draft
+            .weights
+            .values()
+            .try_fold(0usize, |peak, weight| -> Result<usize> {
+                Ok(peak.max(weight.decode_scratch_bytes()?))
+            })?;
         let state_bytes = payload(
             &state
                 .draft
@@ -661,6 +778,12 @@ impl Session {
         )?;
         Ok(MemoryPayload {
             weights_bytes,
+            projection_decode_scratch_bytes,
+            projection_gpu_peak_bytes: state
+                .draft
+                .projection_gpu
+                .as_ref()
+                .map_or(0, crate::native_draft_gpu::Backend::peak_bytes),
             state_bytes,
             pending_tokens_bytes: state
                 .pending
@@ -668,6 +791,26 @@ impl Session {
                 .checked_mul(4)
                 .context("draft pending size overflow")?,
         })
+    }
+    /// Prospective owned clone payload, before copying the large KV ring.
+    pub fn prefix_clone_bytes(&self) -> Result<usize> {
+        let state = self.state.borrow();
+        state.draft.cache.iter().try_fold(
+            state
+                .draft
+                .cache
+                .len()
+                .checked_mul(std::mem::size_of::<(Matrix, Matrix)>())
+                .context("draft prefix size overflow")?,
+            |sum, (k, v)| {
+                k.values
+                    .len()
+                    .checked_add(v.values.len())
+                    .and_then(|n| n.checked_mul(4))
+                    .and_then(|n| sum.checked_add(n))
+                    .context("draft prefix size overflow")
+            },
+        )
     }
     pub fn snapshot_prefix(&self, target: &crate::gpu::FlashNext) -> Result<Prefix> {
         let state = self.state.borrow();
@@ -831,7 +974,17 @@ impl Session {
         anchor: u32,
         context: usize,
         remaining: usize,
+        eos_ids: &[u32],
+        cancelled: &std::sync::atomic::AtomicBool,
     ) -> Result<u32> {
+        let check_cancelled = || -> Result<()> {
+            ensure!(
+                !cancelled.load(std::sync::atomic::Ordering::Acquire),
+                "generation cancelled"
+            );
+            Ok(())
+        };
+        check_cancelled()?;
         ensure!(
             anchor < 248320
                 && remaining > 0
@@ -899,43 +1052,38 @@ impl Session {
         let verify_start = std::time::Instant::now();
         let operation = (|| {
             let mut captures = Vec::new();
-            let mut emitted = Vec::new();
-            let mut current = anchor;
-            for proposed in proposals
-                .iter()
-                .copied()
-                .map(Some)
-                .chain(std::iter::once(None))
-            {
-                let (logits, captured) =
-                    target.forward_captured(current, &state.draft.kind.captures())?;
-                captures.extend(captured.values);
-                let next = crate::speculative::greedy_log_prob_id(&target.log_probs(&logits)?)
-                    .context("invalid native verification logits")?;
-                if proposed == Some(next) {
-                    emitted.push(next);
-                    current = next;
-                } else {
-                    emitted.push(next);
-                    break;
-                }
-            }
+            let (emitted, accepted) =
+                crate::speculative::verify_serial(anchor, &proposals, eos_ids, |current| {
+                    check_cancelled()?;
+                    let (logits, captured) =
+                        target.forward_captured(current, &state.draft.kind.captures())?;
+                    captures.extend(captured.values);
+                    let next = crate::speculative::greedy_log_prob_id(&target.log_probs(&logits)?)
+                        .context("invalid native verification logits")?;
+                    Ok::<_, anyhow::Error>(next)
+                })?;
             let rows = captures.len() / 12800;
+            check_cancelled()?;
             let offset = state.draft.offset;
             let commit_start = std::time::Instant::now();
             state
                 .draft
                 .append(&Matrix::new(rows, 12800, captures)?, offset)?;
-            Ok::<_, anyhow::Error>((emitted, rows, commit_start.elapsed().as_secs_f64()))
+            Ok::<_, anyhow::Error>((
+                emitted,
+                rows,
+                accepted,
+                commit_start.elapsed().as_secs_f64(),
+            ))
         })();
-        let (emitted, rows, commit_seconds) = match operation {
+        let (emitted, rows, accepted, commit_seconds) = match operation {
             Ok(v) => v,
             Err(error) => {
                 target.restore(&before)?;
                 return Err(error);
             }
         };
-        let accepted = rows - 1;
+        let cycle = started.elapsed();
         let seconds = (verify_start.elapsed().as_secs_f64() - commit_seconds).max(0.);
         state.proposed += selected;
         state.accepted += accepted;
@@ -949,16 +1097,16 @@ impl Session {
         state.stats.verified_widths[selected] += 1;
         if state.options.adaptive && selected > 0 {
             let _ = state.verify_budget.observe(
-                &confidence[..selected],
+                &confidence[..rows.min(selected)],
                 accepted,
-                seconds.max(f64::MIN_POSITIVE),
+                cycle.as_secs_f64().max(1e-9),
             );
         }
         if state.options.precap && width > 0 {
             let _ = state.pre_budget.observe(
                 width,
                 emitted.len(),
-                (((seconds + draft_seconds) * 1e9) as u64).max(1),
+                u64::try_from(cycle.as_nanos()).unwrap_or(u64::MAX).max(1),
             );
         }
         state.pending = emitted.into();
@@ -1019,11 +1167,18 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
                 if !draft.state.borrow().pending.is_empty() {
                     ensure!(
                         draft
-                            .advance(&mut target, (next + 1) % 248320, 64, budget - index - 1)
+                            .advance(
+                                &mut target,
+                                (next + 1) % 248320,
+                                64,
+                                budget - index - 1,
+                                &[],
+                                &cancelled
+                            )
                             .is_err()
                     );
                 }
-                next = draft.advance(&mut target, next, 64, budget - index - 1)?;
+                next = draft.advance(&mut target, next, 64, budget - index - 1, &[], &cancelled)?;
             }
         }
         ensure!(
@@ -1060,7 +1215,11 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
     cancelled.store(false, Ordering::Relaxed);
     let logits = draft.prefill(&mut target, &prompt, &cancelled)?;
     let anchor = greedy(&target, &logits)?;
-    ensure!(draft.advance(&mut target, anchor, 64, 0).is_err());
+    ensure!(
+        draft
+            .advance(&mut target, anchor, 64, 0, &[], &cancelled)
+            .is_err()
+    );
     let before = target.snapshot();
     let expected_next = target.forward(7)?;
     target.restore(&before)?;
@@ -1073,7 +1232,9 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
         .remove("fc.weight")
         .context("missing FC test weight")?;
     ensure!(
-        draft.advance(&mut target, anchor, 64, 3).is_err(),
+        draft
+            .advance(&mut target, anchor, 64, 3, &[], &cancelled)
+            .is_err(),
         "failed append was accepted"
     );
     ensure!(
@@ -1097,10 +1258,14 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
         .draft
         .weights
         .insert("fc.weight".into(), weight);
-    let resumed = draft.advance(&mut target, anchor, 64, 3)?;
+    let resumed = draft.advance(&mut target, anchor, 64, 3, &[], &cancelled)?;
     ensure!(resumed < 248320);
     target.reset();
-    ensure!(draft.advance(&mut target, resumed, 64, 1).is_err());
+    ensure!(
+        draft
+            .advance(&mut target, resumed, 64, 1, &[], &cancelled)
+            .is_err()
+    );
     Ok(())
 }
 
@@ -1281,6 +1446,7 @@ fn request_reset_discards_adaptation_counters_and_pending_prefix() -> Result<()>
                 cache: Vec::new(),
                 offset: 7,
                 cache_capacity: 2048,
+                projection_gpu: None,
             },
             options: crate::flash_draft_options::Options {
                 q4: true,

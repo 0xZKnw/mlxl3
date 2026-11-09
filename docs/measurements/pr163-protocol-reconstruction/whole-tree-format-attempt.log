@@ -1,0 +1,119 @@
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/gate.rs:168:
+         let paired = gpu.router_pair.select(precision, [rows, width]);
+         let dot = paired.unwrap_or(&gpu.gate_dot[precision]);
+         ensure!(
+-            dot.thread_execution_width() == 32
+-                && dot.max_total_threads_per_threadgroup() >= 32
+-,
++            dot.thread_execution_width() == 32 && dot.max_total_threads_per_threadgroup() >= 32,
+             "Flash gate requires SIMD32"
+         );
+         let logits = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/gate.rs:200:
+         let gpu = self.gpu;
+         let [rows, _] = x.layout.shape;
+         let softmax = &gpu.gate_softmax[usize::from(x.dtype == FloatType::F32)];
+-        ensure!(softmax.thread_execution_width() == 32
+-            && softmax.max_total_threads_per_threadgroup() >= 128, "Flash gate requires SIMD32");
++        ensure!(
++            softmax.thread_execution_width() == 32
++                && softmax.max_total_threads_per_threadgroup() >= 128,
++            "Flash gate requires SIMD32"
++        );
+         let probabilities = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
+         let groups = MTLSize::new(u64::from(rows), 1, 1);
+         Metal::encode(
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/qwen.rs:869:
+                 )?))
+             } else {
+                 Mixer::Gdn(Box::new(QwenGdn::load(
+-                    gpu, c, &format!("{prefix}.linear_attn"),
+-                    HIDDEN, 16, 32, 4, EPS,
++                    gpu,
++                    c,
++                    &format!("{prefix}.linear_attn"),
++                    HIDDEN,
++                    16,
++                    32,
++                    4,
++                    EPS,
+                 )?))
+             };
+             let mut mlp = Moe::load(gpu, c, &format!("{prefix}.mlp"))?;
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/qwen_gdn.rs:388:
+ }
+
+ impl Pipelines {
+-    fn load(gpu: &Metal, hidden: u32, key_heads: u32, value_heads: u32, conv_length: u32) -> Result<Rc<Self>> {
++    fn load(
++        gpu: &Metal,
++        hidden: u32,
++        key_heads: u32,
++        value_heads: u32,
++        conv_length: u32,
++    ) -> Result<Rc<Self>> {
+         let key = [hidden, key_heads, value_heads, conv_length];
+         if let Some(pipelines) = gpu.qwen_gdn_pipelines.borrow().get(&key) {
+             return Ok(Rc::clone(pipelines));
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/qwen_gdn.rs:440:
+         });
+         // Publish only after all compilations succeed. Owner fixes device,
+         // embedded source and fast-math=false; geometry is the only variable.
+-        gpu.qwen_gdn_pipelines.borrow_mut().insert(key, Rc::clone(&pipelines));
++        gpu.qwen_gdn_pipelines
++            .borrow_mut()
++            .insert(key, Rc::clone(&pipelines));
+         Ok(pipelines)
+     }
+ }
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu/qwen_gdn.rs:461:
+     assert!(Pipelines::load(&gpu, 0, 16, 32, 4).is_err());
+     assert_eq!(gpu.qwen_gdn_pipelines.borrow().len(), 2);
+     let another = Metal::new()?;
+-    assert!(!Rc::ptr_eq(&first, &Pipelines::load(&another, 2048, 16, 32, 4)?));
++    assert!(!Rc::ptr_eq(
++        &first,
++        &Pipelines::load(&another, 2048, 16, 32, 4)?
++    ));
+     Ok(())
+ }
+
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/gpu.rs:446:
+     resident_scratch: crate::resident_scratch_policy::Budget,
+     gate_softmax: [ComputePipelineState; 2],
+     // Owner-local: source/options/device are immutable; geometry is the only variable.
+-    qwen_gdn_pipelines: std::cell::RefCell<std::collections::BTreeMap<[u32; 4], std::rc::Rc<qwen_gdn::Pipelines>>>,
++    qwen_gdn_pipelines:
++        std::cell::RefCell<std::collections::BTreeMap<[u32; 4], std::rc::Rc<qwen_gdn::Pipelines>>>,
+     route_half: ComputePipelineState,
+     route_float: ComputePipelineState,
+     inverse: Buffer,
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/native_draft.rs:273:
+     pub fn forward(&self, input: &Matrix, proposals: usize) -> Result<(Matrix, Vec<Matrix>)> {
+         self.forward_inner(input, proposals, true)
+     }
+-    fn forward_inner(&self, input: &Matrix, proposals: usize, tracing: bool) -> Result<(Matrix, Vec<Matrix>)> {
++    fn forward_inner(
++        &self,
++        input: &Matrix,
++        proposals: usize,
++        tracing: bool,
++    ) -> Result<(Matrix, Vec<Matrix>)> {
+         ensure!(
+             input.rows == self.kind.rows(proposals)? as usize && input.cols == H && self.offset > 0,
+             "invalid native draft input"
+Diff in /workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery/native/src/native_draft.rs:407:
+     )?;
+     ensure!(discarded.is_empty() && layers.len() == 5);
+     ensure!(ordinary.rows == output.rows && ordinary.cols == output.cols);
+-    ensure!(ordinary.values.iter().map(|v| v.to_bits()).eq(output.values.iter().map(|v| v.to_bits())));
++    ensure!(
++        ordinary
++            .values
++            .iter()
++            .map(|v| v.to_bits())
++            .eq(output.values.iter().map(|v| v.to_bits()))
++    );
+     for (i, layer) in layers.iter().enumerate() {
+         check(&format!("layer-{i}"), layer)?;
+     }

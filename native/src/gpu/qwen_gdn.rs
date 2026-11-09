@@ -8,7 +8,7 @@ use metal::{
 };
 use std::rc::Rc;
 
-struct Pipelines {
+pub(super) struct Pipelines {
     dense: ComputePipelineState,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
@@ -30,7 +30,7 @@ pub struct QwenGdnTrace {
 
 pub struct QwenGdn<'a> {
     gpu: &'a Metal,
-    pipelines: Pipelines,
+    pipelines: Rc<Pipelines>,
     qkv: FlashProjection<'a>,
     z: FlashProjection<'a>,
     output: FlashProjection<'a>,
@@ -98,45 +98,9 @@ impl<'a> QwenGdn<'a> {
             "requires a Qwen3.5 checkpoint"
         );
         ensure!(eps.is_finite() && eps > 0., "invalid Qwen GDN epsilon");
-        let [keys, values, channels, _, _] =
+        let [_, values, channels, _, _] =
             crate::contracts::native_qwen_gdn_extents(hidden, key_heads, value_heads, conv_length)
                 .context("invalid native Qwen GDN geometry")?;
-        let source = format!(
-            "#define HIDDEN {hidden}\n#define KEY_HEADS {key_heads}\n#define VALUE_HEADS {value_heads}\n#define KEY_DIM 128\n#define VALUE_DIM 128\n#define KEYS {keys}\n#define CONV_DIMS {channels}\n#define CONV_LENGTH {conv_length}\n#define CONV_HISTORY {}\n",
-            conv_length - 1
-        ) + &include_str!("../../shaders/qwen_gdn.metal")
-            .replace(
-                "#include \"flash_hc_gemv.metal\"",
-                include_str!("../../shaders/flash_hc_gemv.metal"),
-            )
-            .replace(
-                "#include \"gated_delta_prepare.metal\"",
-                include_str!("../../shaders/gated_delta_prepare.metal"),
-            )
-            .replace(
-                "#include \"gated_delta_packed.metal\"",
-                include_str!("../../shaders/gated_delta_packed.metal"),
-            );
-        let options = CompileOptions::new();
-        options.set_fast_math_enabled(false);
-        let library = gpu
-            .device
-            .new_library_with_source(&source, &options)
-            .map_err(anyhow::Error::msg)?;
-        let pipeline = |name| -> Result<ComputePipelineState> {
-            let function = library
-                .get_function(name, None)
-                .map_err(anyhow::Error::msg)?;
-            let p = gpu
-                .device
-                .new_compute_pipeline_state_with_function(&function)
-                .map_err(anyhow::Error::msg)?;
-            ensure!(
-                p.thread_execution_width() == 32 && p.max_total_threads_per_threadgroup() >= 256,
-                "unsupported native Qwen SIMD width"
-            );
-            Ok(p)
-        };
         let projection = |name: &str, dims| -> Result<FlashProjection<'a>> {
             let p = FlashProjection::load_exl3(gpu, c, &format!("{prefix}.{name}"))?;
             ensure!(p.dimensions() == dims, "invalid Qwen projection {name}");
@@ -147,12 +111,7 @@ impl<'a> QwenGdn<'a> {
         };
         Ok(Self {
             gpu,
-            pipelines: Pipelines {
-                dense: pipeline("qwen_dense")?,
-                prepare: pipeline("qwen_prepare")?,
-                step: pipeline("qwen_step")?,
-                norm_gate: pipeline("qwen_norm_gate")?,
-            },
+            pipelines: Pipelines::load(gpu, hidden, key_heads, value_heads, conv_length)?,
             qkv: projection("in_proj_qkv", [hidden, channels])?,
             z: projection("in_proj_z", [hidden, values])?,
             output: projection("out_proj", [values, hidden])?,
@@ -425,5 +384,94 @@ fn retained_states_replay_after_branch_and_rejected_input() -> Result<()> {
     layer.reset();
     ensure!(layer.states()?.is_none());
     ensure!(layer.forward(&a)?.read_output()? == initial);
+    Ok(())
+}
+
+impl Pipelines {
+    fn load(
+        gpu: &Metal,
+        hidden: u32,
+        key_heads: u32,
+        value_heads: u32,
+        conv_length: u32,
+    ) -> Result<Rc<Self>> {
+        let key = [hidden, key_heads, value_heads, conv_length];
+        if let Some(pipelines) = gpu.qwen_gdn_pipelines.borrow().get(&key) {
+            return Ok(Rc::clone(pipelines));
+        }
+        let [keys, _, channels, _, _] =
+            crate::contracts::native_qwen_gdn_extents(hidden, key_heads, value_heads, conv_length)
+                .context("invalid native Qwen GDN geometry")?;
+        let source = format!(
+            "#define HIDDEN {hidden}\n#define KEY_HEADS {key_heads}\n#define VALUE_HEADS {value_heads}\n#define KEY_DIM 128\n#define VALUE_DIM 128\n#define KEYS {keys}\n#define CONV_DIMS {channels}\n#define CONV_LENGTH {conv_length}\n#define CONV_HISTORY {}\n",
+            conv_length - 1
+        ) + &include_str!("../../shaders/qwen_gdn.metal")
+            .replace(
+                "#include \"flash_hc_gemv.metal\"",
+                include_str!("../../shaders/flash_hc_gemv.metal"),
+            )
+            .replace(
+                "#include \"gated_delta_prepare.metal\"",
+                include_str!("../../shaders/gated_delta_prepare.metal"),
+            )
+            .replace(
+                "#include \"gated_delta_packed.metal\"",
+                include_str!("../../shaders/gated_delta_packed.metal"),
+            );
+        let options = CompileOptions::new();
+        options.set_fast_math_enabled(false);
+        let library = gpu
+            .device
+            .new_library_with_source(&source, &options)
+            .map_err(anyhow::Error::msg)?;
+        let pipeline = |name| -> Result<ComputePipelineState> {
+            let function = library
+                .get_function(name, None)
+                .map_err(anyhow::Error::msg)?;
+            let p = gpu
+                .device
+                .new_compute_pipeline_state_with_function(&function)
+                .map_err(anyhow::Error::msg)?;
+            ensure!(
+                p.thread_execution_width() == 32 && p.max_total_threads_per_threadgroup() >= 256,
+                "unsupported native Qwen SIMD width"
+            );
+            Ok(p)
+        };
+        let pipelines = Rc::new(Self {
+            dense: pipeline("qwen_dense")?,
+            prepare: pipeline("qwen_prepare")?,
+            step: pipeline("qwen_step")?,
+            norm_gate: pipeline("qwen_norm_gate")?,
+        });
+        // Publish only after all compilations succeed. Owner fixes device,
+        // embedded source and fast-math=false; geometry is the only variable.
+        gpu.qwen_gdn_pipelines
+            .borrow_mut()
+            .insert(key, Rc::clone(&pipelines));
+        Ok(pipelines)
+    }
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Metal: Qwen GDN pipeline reuse, geometry and device separation"]
+fn shared_gdn_pipelines_preserve_geometry_and_owner() -> Result<()> {
+    let gpu = Metal::new()?;
+    let first = Pipelines::load(&gpu, 2048, 16, 32, 4)?;
+    for _ in 0..30 {
+        assert!(Rc::ptr_eq(&first, &Pipelines::load(&gpu, 2048, 16, 32, 4)?));
+    }
+    assert_eq!(gpu.qwen_gdn_pipelines.borrow().len(), 1);
+    let other = Pipelines::load(&gpu, 5120, 16, 48, 4)?;
+    assert!(!Rc::ptr_eq(&first, &other));
+    assert_eq!(gpu.qwen_gdn_pipelines.borrow().len(), 2);
+    assert!(Pipelines::load(&gpu, 0, 16, 32, 4).is_err());
+    assert_eq!(gpu.qwen_gdn_pipelines.borrow().len(), 2);
+    let another = Metal::new()?;
+    assert!(!Rc::ptr_eq(
+        &first,
+        &Pipelines::load(&another, 2048, 16, 32, 4)?
+    ));
     Ok(())
 }

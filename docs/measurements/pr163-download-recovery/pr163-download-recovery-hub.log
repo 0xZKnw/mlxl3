@@ -1,0 +1,42 @@
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized] target(s) in 0.98s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-08ebae1f05051d7d)
+
+running 29 tests
+test hub::dflash_download_tests::published_flash_metadata_accepts_git_config_and_rejects_pin_changes ... ok
+test hub::install_transaction::tests::crash_boundary_child ... ok
+test hub::dflash_download_tests::retained_size_does_not_follow_symlink_cycles ... ok
+test hub::install_transaction::tests::registry_destination_and_request_mismatch_never_hide_or_delete_files ... ok
+test hub::install_transaction::tests::failed_registration_retains_publication_and_retry_finishes ... ok
+test hub::install_transaction::tests::directory_fsync_failures_after_rename_are_reconciled_without_rollback ... ok
+
+running 1 test
+test hub::redirect_download_tests::legacy_completion_markers_never_hide_unverified_installations ... ok
+test hub::install_transaction::tests::reinstall_requires_new_registry_identity_and_rejects_foreign_receipt ... ok
+test hub::redirect_download_tests::new_attempt_invalidates_completed_marker_even_with_same_identity ... ok
+test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+test hub::tests::cancelled_complete_checkpoint_is_neither_reused_nor_published ... ok
+test hub::tests::checkpoint_identity_validates_payload_not_just_length ... ok
+test hub::tests::checkpoint_metadata_requires_the_correct_digest_family ... ok
+test hub::tests::checkpoint_resume_keeps_only_shorter_partials ... ok
+
+running 1 test
+
+running 1 test
+test hub::install_transaction::tests::restart_reconciles_every_commit_boundary_without_network ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test hub::tests::flash_sidecars_stay_in_the_variant_folder_and_do_not_match_quantized_names ... ok
+test hub::tests::flash_variants_include_present_sidecars_and_exact_total ... ok
+test hub::tests::preview_reports_architecture_and_keeps_hybrid_cache_unknown ... ok
+test hub::tests::selected_flash_variant_assembles_into_an_inspectable_checkpoint ... ok
+test hub::dflash_download_tests::raw_flash_rejects_symlink_roots_locks_files_and_extra_entries ... ok
+test hub::dflash_download_tests::flash_cache_hit_never_needs_server_and_corrupt_destination_is_preserved ... ok
+test hub::redirect_download_tests::final_payload_limit_caps_initial_and_resumed_file ... ok
+test hub::redirect_download_tests::redirects_larger_than_final_payload_work_initial_and_resumed ... ok
+test hub::dflash_download_tests::raw_flash_cancel_before_and_during_transfer_keeps_resume_data ... ok
+test hub::tests::checkpoint_transfer_verifies_resume_corruption_and_late_cancellation ... ok
+test hub::dflash_download_tests::raw_flash_fresh_download_reuses_range_partial_and_replaces_full_corruption ... ok
+test hub::dflash_download_tests::raw_flash_server_failure_short_body_and_inspection_refusal_never_publish ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 369 filtered out; finished in 14.72s

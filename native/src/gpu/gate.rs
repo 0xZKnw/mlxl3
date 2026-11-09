@@ -108,8 +108,17 @@ impl<'a> FlashGate<'a> {
         } else {
             x
         };
-        let buffers = self.dispatch(x, Storage::StorageModePrivate)?;
-        self.gpu.route(&buffers.logits, 16, false)
+        objc::rc::autoreleasepool(|| {
+            let cmd = self.gpu.queue.new_command_buffer();
+            let logits = self.encode_dot(self.gpu, cmd, x, Storage::StorageModePrivate)?;
+            let routes = self.gpu.encode_route(cmd, &logits, 16, false)?;
+            cmd.commit();
+            #[cfg(test)]
+            self.gpu.gate_commands.set(self.gpu.gate_commands.get() + 1);
+            // Command buffers retain resources through completion; RouteOutput
+            // owns the command and checks success before publishing CPU IDs.
+            Ok(routes)
+        })
     }
 
     pub fn trace(&self, x: &MatrixView) -> Result<FlashGateTrace> {
@@ -134,13 +143,13 @@ impl<'a> FlashGate<'a> {
         })
     }
 
-    pub(super) fn encode(
+    fn encode_dot(
         &self,
         owner: &Metal,
         cmd: &metal::CommandBufferRef,
         x: &MatrixView,
         storage: Storage,
-    ) -> Result<GateBuffers> {
+    ) -> Result<MatrixView> {
         ensure!(
             std::ptr::eq(self.gpu, owner) && owner.owns_command_queue(cmd),
             "gate chain requires the same Metal instance and queue"
@@ -158,16 +167,11 @@ impl<'a> FlashGate<'a> {
         let precision = usize::from(x.dtype == FloatType::F32);
         let paired = gpu.router_pair.select(precision, [rows, width]);
         let dot = paired.unwrap_or(&gpu.gate_dot[precision]);
-        let softmax = &gpu.gate_softmax[precision];
         ensure!(
-            dot.thread_execution_width() == 32
-                && dot.max_total_threads_per_threadgroup() >= 32
-                && softmax.thread_execution_width() == 32
-                && softmax.max_total_threads_per_threadgroup() >= 128,
+            dot.thread_execution_width() == 32 && dot.max_total_threads_per_threadgroup() >= 32,
             "Flash gate requires SIMD32"
         );
         let logits = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
-        let probabilities = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
         Metal::encode(
             cmd,
             dot,
@@ -180,6 +184,26 @@ impl<'a> FlashGate<'a> {
         if paired.is_some() {
             gpu.router_pair.uses.set(gpu.router_pair.uses.get() + 1);
         }
+        Ok(logits)
+    }
+
+    pub(super) fn encode(
+        &self,
+        owner: &Metal,
+        cmd: &metal::CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<GateBuffers> {
+        let logits = self.encode_dot(owner, cmd, x, storage)?;
+        let gpu = self.gpu;
+        let [rows, _] = x.layout.shape;
+        let softmax = &gpu.gate_softmax[usize::from(x.dtype == FloatType::F32)];
+        ensure!(
+            softmax.thread_execution_width() == 32
+                && softmax.max_total_threads_per_threadgroup() >= 128,
+            "Flash gate requires SIMD32"
+        );
+        let probabilities = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
         let groups = MTLSize::new(u64::from(rows), 1, 1);
         Metal::encode(
             cmd,
@@ -213,6 +237,62 @@ impl FlashGate<'_> {
 mod tests {
     use super::*;
     use crate::tensor_layout::MatrixLayout;
+
+    #[test]
+    #[ignore = "physical Metal: prediction parity and three allocations, no softmax/top10"]
+    fn prediction_is_same_command_dot_top16() -> Result<()> {
+        let gpu = Metal::new()?;
+        let mut weights = vec![0u16; 512 * 2560];
+        for (i, row) in weights.as_chunks_mut::<2560>().0.iter_mut().enumerate() {
+            row[0] = half::f16::from_f32((i % 19) as f32 - 9.).to_bits();
+        }
+        let gate = FlashGate {
+            gpu: &gpu,
+            weight: super::super::upload(&gpu.device, &weights)?,
+        };
+        for input_half in [false, true] {
+            for predict_half in [false, true] {
+                for value in [0.0, -0.0, 0.3333, -1.0, 65504.0] {
+                    let mut values = vec![0.; 2560];
+                    values[0] = value;
+                    let half_values: Vec<_> = values
+                        .iter()
+                        .map(|&v| half::f16::from_f32(v).to_bits())
+                        .collect();
+                    let input = if input_half {
+                        gpu.f16_storage(&half_values)?
+                    } else {
+                        gpu.f32_storage(&values)?
+                    };
+                    let layout = MatrixLayout {
+                        shape: [1, 2560],
+                        strides: [2560, 1],
+                        offset: 0,
+                    };
+                    let x = input.matrix(layout)?;
+                    let rounded = gpu.f16_storage(&half_values)?.matrix(layout)?;
+                    let legacy_x = if predict_half && !input_half {
+                        &rounded
+                    } else {
+                        &x
+                    };
+                    let buffers = gate.dispatch(legacy_x, Storage::StorageModePrivate)?;
+                    let expected = gpu.route(&buffers.logits, 16, false)?.read()?;
+                    let allocations = super::super::BUFFER_REQUESTS.with(|n| n.get());
+                    let commands = gpu.gate_commands.get();
+                    let actual = gate.predict(&x, predict_half)?.read()?;
+                    assert_eq!(actual, expected);
+                    assert_eq!(gpu.gate_commands.get() - commands, 1);
+                    let conversion = usize::from(predict_half && !input_half);
+                    assert_eq!(
+                        super::super::BUFFER_REQUESTS.with(|n| n.get()) - allocations,
+                        3 + conversion
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical gate analytic F32/F16 oracle, ties, strided rows and foreign queues"]

@@ -158,7 +158,13 @@ extension UpdateManager {
             let target = stopped.selectedModel!.path
             stopped.downloadCompatibleDFlashDraft()
             let ready = root.appendingPathComponent(name + "-ready")
-            for _ in 0..<200 where !FileManager.default.fileExists(atPath: ready.path) { try await Task.sleep(for: .milliseconds(20)) }
+            for _ in 0..<200
+            where !FileManager.default.fileExists(atPath: ready.path)
+                || !stopped.dflashDownloading
+                || stopped.dflashDownloadCompleted == 0
+            {
+                try await Task.sleep(for: .milliseconds(20))
+            }
             precondition(FileManager.default.fileExists(atPath: ready.path) && stopped.dflashDownloading && stopped.dflashDownloadCompleted > 0)
             let pid = Int32(try String(contentsOf: ready, encoding: .utf8))!
             if name == "flash-download-switch" {

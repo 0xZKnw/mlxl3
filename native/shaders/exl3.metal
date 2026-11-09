@@ -360,6 +360,26 @@ ROUTE_KERNEL(half, "route_half")
 ROUTE_KERNEL(float, "route_float")
 #undef ROUTE_KERNEL
 
+// Separate entry points keep the candidate out of the reference dispatch.
+template <typename T>
+kernel void route_network_matrix(const device T* values [[buffer(0)]], device uint* indices [[buffer(1)]],
+    device T* scores [[buffer(2)]], constant long* p [[buffer(3)]],
+    uint tid [[thread_index_in_threadgroup]], uint row [[threadgroup_position_in_grid]],
+    uint padded [[threads_per_threadgroup]]) {
+    threadgroup ulong keys[1024];
+    threadgroup float selected[1024];
+    uint k = uint(p[1]);
+    T raw = T(0);
+    if (tid < uint(p[0])) raw = values[p[3] + long(row)*p[4] + long(tid)*p[5]];
+    mlxl3_network_row(raw, tid, uint(p[0]), padded, k, bool(p[2]), keys, selected,
+                      indices + row*k, scores + row*k);
+}
+#define ROUTE_NETWORK(TYPE, NAME) template [[host_name(NAME)]] kernel void route_network_matrix<TYPE>( \
+    const device TYPE*, device uint*, device TYPE*, constant long*, uint, uint, uint);
+ROUTE_NETWORK(half, "route_network_half")
+ROUTE_NETWORK(float, "route_network_float")
+#undef ROUTE_NETWORK
+
 #include "flash_gate.metal"
 
 #include "flash_moe.metal"

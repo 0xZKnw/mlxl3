@@ -19,7 +19,9 @@ PARSER_HARNESS = (
 INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
-MEMORY_BYTES = 6 * 1024**3
+# kani-compiler codegen for this crate exceeds 6 GiB of address space on the
+# hosted runners; 12 GiB still bounds CBMC while leaving headroom to compile.
+MEMORY_BYTES = 12 * 1024**3
 OBLIGATIONS = Path(__file__).with_name("kani_obligations.json")
 
 
@@ -213,6 +215,36 @@ def execute_proof(record, log, timeout, deadline):
     return run_process(record["command"], log, remaining)
 
 
+def failure_diagnostic(status, output):
+    """Classify evidence without promoting tool failures to counterexamples."""
+    if status == "success":
+        return "verified"
+    if status in {"timeout", "budget_exhausted", "interrupted"}:
+        return status
+    lowered = output.lower()
+    if any(
+        word in lowered for word in ("internal compiler error", "compiler unexpectedly panicked")
+    ):
+        return "compiler_internal_error"
+    if any(
+        word in lowered
+        for word in ("out of memory", "std::bad_alloc", "memory exhausted", "failed to allocate")
+    ):
+        return "out_of_memory"
+    failed_lines = [
+        line for line in lowered.splitlines() if re.search(r"\b(?:failure|failed)\b", line)
+    ]
+    if any("unwind" in line for line in failed_lines):
+        return "unwinding_incomplete"
+    # Require a failed property line, not merely VERIFICATION FAILED or a
+    # successful dead-object check elsewhere in a failing backend transcript.
+    if any(
+        re.search(r"status\s*:\s*failure|\[[^]]+\].*:\s*failure\s*$", line) for line in failed_lines
+    ):
+        return "property_failure_reported"
+    return "unclassified_tool_or_verdict_failure"
+
+
 def run_proofs(records, directory, report, report_path, timeout, deadline):
     for index, record in enumerate(records):
         remaining = deadline - time.monotonic()
@@ -233,6 +265,7 @@ def run_proofs(records, directory, report, report_path, timeout, deadline):
                 if check_verdict(output, record["name"], record["expected_instances"])
                 else "invalid_output"
             )
+        record["diagnostic"] = failure_diagnostic(record["status"], output)
         # Backend failures are not automatically counterexamples (e.g. allocation failure).
         print(f"{record['status']}: {record['name']} ({record['seconds']}s)", flush=True)
         if record["status"] != "success":
