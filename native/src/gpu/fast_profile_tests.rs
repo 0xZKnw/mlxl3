@@ -95,6 +95,14 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
     )?)?)?;
     let documents = plan.as_array().context("quality corpus array")?;
     ensure!(!documents.is_empty() && documents.len() <= 32);
+    let tau = std::env::var("MLXL3_NATIVE_Q04_QUALITY_TAU")
+        .ok()
+        .map(|v| v.parse::<f32>())
+        .transpose()?;
+    let limit = std::env::var("MLXL3_NATIVE_Q04_QUALITY_LIMIT")
+        .unwrap_or_else(|_| "1".into())
+        .parse()?;
+    let quality = super::route_swap_trace::Quality::start(tau, limit)?;
     let output = std::path::PathBuf::from(std::env::var("MLXL3_NATIVE_QUALITY_OUTPUT")?);
     let reference =
         std::env::var_os("MLXL3_NATIVE_QUALITY_REFERENCE").map(std::path::PathBuf::from);
@@ -105,6 +113,7 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
     let gpu = Metal::new()?;
     let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
     if reference.is_none() {
+        ensure!(tau.is_none(), "Q04 cannot overwrite the exact reference");
         ensure!(model.numerical_profile() == "exact");
     }
     std::fs::create_dir_all(&output)?;
@@ -122,6 +131,9 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
             Ok(value)
         })
         .transpose()?;
+    let mut route_capture = super::route_swap_trace::Capture::start(
+        std::env::var_os("MLXL3_NATIVE_ROUTE_TRACE").map(std::path::PathBuf::from),
+    )?;
     let mut results = Vec::new();
     for (index, document) in documents.iter().enumerate() {
         let text = document["text"].as_str().context("document text")?;
@@ -153,6 +165,12 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
         } else {
             None
         };
+        route_capture.document(
+            index,
+            document["domain"].as_str().context("domain string")?,
+            end - 1,
+        )?;
+        quality.document(prefix, end - 1)?;
         model.reset();
         let mut logits = model.prefill(&tokens[..prefix])?;
         let mut scores = Vec::with_capacity(count);
@@ -177,6 +195,12 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
                 let bytes: Vec<_> = logits.iter().flat_map(|v| v.to_le_bytes()).collect();
                 writer.write_all(&bytes)?;
             }
+            if route_capture.active() && reference.is_some() {
+                ensure!(
+                    old == logits,
+                    "route instrumentation changed exact target logits"
+                );
+            }
             scores.push(distribution_metrics(&old, &logits, token as usize)?);
             if position + 1 < count {
                 logits = model.forward(token)?;
@@ -194,10 +218,146 @@ fn native_numerical_profile_teacher_forced_quality() -> Result<()> {
             .push(serde_json::json!({"domain":document["domain"],"tokens":tokens,"scores":scores}));
     }
     ensure!(results.len() == documents.len() && gpu.readers()?.in_flight() == 0);
+    route_capture.finish()?;
+    let policy = quality.finish()?;
     std::fs::write(
         output.join("report.json"),
         serde_json::to_vec_pretty(
-            &serde_json::json!({"status":"complete","profile":model.numerical_profile(),"checkpoint":checkpoint_key,"corpus":plan,"documents":results}),
+            &serde_json::json!({"status":"complete","profile":if tau.is_some() {"q04-ar-diagnostic"} else {model.numerical_profile()},"policy":policy,"checkpoint":checkpoint_key,"corpus":plan,"documents":results}),
+        )?,
+    )?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Flash checkpoint, serial Q04 AR prototype timing"]
+fn native_q04_ar_generation_pilot() -> Result<()> {
+    let mtp = match std::env::var("MLXL3_NATIVE_Q04_SPEED_MTP").as_deref() {
+        Ok("1") => true,
+        Ok("0") | Err(_) => false,
+        _ => anyhow::bail!("invalid MTP pilot mode"),
+    };
+    let path = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+    let checkpoint = crate::checkpoint::inspect(&path)?;
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let prompt = "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.";
+    let rendered = tokenizer.render_values_with_thinking(
+        &serde_json::json!([{"role":"user","content":prompt}]),
+        None,
+        false,
+    )?;
+    let tokens = tokenizer.encode(&rendered)?;
+    ensure!(!tokens.is_empty() && tokens.len() + 63 <= 4096);
+    let tau = std::env::var("MLXL3_NATIVE_Q04_QUALITY_TAU")
+        .ok()
+        .map(|v| v.parse::<f32>())
+        .transpose()?;
+    let gpu = Metal::new()?;
+    let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
+    let mut head = mtp
+        .then(|| FlashMtpHead::load(&checkpoint, &model))
+        .transpose()?;
+    let mut session = FlashMtpSession::default();
+    let depth = std::env::var("MLXL3_NATIVE_Q04_MTP_DEPTH")
+        .ok()
+        .map(|v| v.parse::<usize>())
+        .transpose()?
+        .unwrap_or(1);
+    let block = std::env::var("MLXL3_NATIVE_Q04_MTP_BLOCK")
+        .ok()
+        .map(|v| v.parse::<usize>())
+        .transpose()?
+        .unwrap_or(1);
+    ensure!((1..=4).contains(&depth) && (1..=3).contains(&block));
+    let experimental = mtp && (depth > 1 || block > 1);
+    let cancelled = AtomicBool::new(false);
+    ensure!(model.device_greedy_eligible(0.0, 1, 1.0, false));
+    let mut runs = Vec::new();
+    let mut retained_cache = None;
+    for warmup in [true, false] {
+        let mut pilot = experimental
+            .then(|| super::flash::ExperimentalMtp::new(depth, block))
+            .transpose()?;
+        let quality = super::route_swap_trace::Quality::start(tau, 3)?;
+        super::route_swap_trace::restore_cache_only(retained_cache.as_ref());
+        quality.document(tokens.len(), tokens.len() + 63)?;
+        model.reset();
+        let hot_before = gpu.device_hot_submissions();
+        let start = std::time::Instant::now();
+        let logits = if let Some(head) = &mut head {
+            session.prefill(&mut model, head, &tokens, &cancelled)?
+        } else {
+            model.prefill(&tokens)?
+        };
+        let mut generated = vec![model.greedy_from_logits(&logits)?];
+        let prefill_seconds = start.elapsed().as_secs_f64();
+        let decode = std::time::Instant::now();
+        while generated.len() < 64 {
+            let last = *generated.last().context("missing generated token")?;
+            ensure!(
+                !tokenizer.eos_ids().contains(&last),
+                "early EOS makes this pilot incomparable"
+            );
+            let next = if let Some(head) = &mut head {
+                if let Some(pilot) = &mut pilot {
+                    pilot.advance(
+                        &mut model,
+                        head,
+                        last,
+                        64 - generated.len(),
+                        tokenizer.eos_ids(),
+                        &cancelled,
+                    )?
+                } else {
+                    session.advance_with_eos_cancellable(
+                        &mut model,
+                        head,
+                        last,
+                        4096,
+                        64 - generated.len(),
+                        tokenizer.eos_ids(),
+                        &cancelled,
+                    )?
+                }
+            } else {
+                model.forward_greedy(last)?
+            };
+            generated.push(next);
+        }
+        let decode_seconds = decode.elapsed().as_secs_f64();
+        let total_seconds = start.elapsed().as_secs_f64();
+        let hot_submissions = gpu.device_hot_submissions() - hot_before;
+        ensure!(generated.len() == 64 && generated.iter().all(|&t| t < 248320));
+        ensure!(model.offset() as usize == tokens.len() + 63 && gpu.readers()?.in_flight() == 0);
+        ensure!(decode_seconds.is_finite() && decode_seconds > 0.0 && prefill_seconds.is_finite());
+        let text = tokenizer.decode(&generated)?;
+        ensure!(!text.trim().is_empty());
+        retained_cache = super::route_swap_trace::decision_snapshot();
+        let policy = quality.finish()?;
+        if let Some(policy) = &policy {
+            ensure!(
+                policy["retained_layer_rows"] == 3024
+                    && policy["rows"].as_u64().is_some_and(|n| n >= 3024)
+                    && policy["swaps"].as_u64().is_some_and(|n| n > 0)
+            );
+        }
+        runs.push(
+            serde_json::json!({"warmup":warmup,"tokens":generated,"text":text,
+            "prefill_tokens":tokens.len(),"prefill_seconds":prefill_seconds,
+            "ttft_seconds":prefill_seconds,"decode_tokens":63,"decode_seconds":decode_seconds,
+            "decode_tokens_per_second":63.0/decode_seconds,"total_seconds":total_seconds,
+            "policy":policy,"device_hot_submissions":hot_submissions,"memory":model.memory_stats()?,
+            "mtp_proposed":pilot.as_ref().map_or(session.proposed,|p|p.proposed),
+            "mtp_accepted":pilot.as_ref().map_or(session.accepted,|p|p.accepted),
+            "verify_widths":pilot.as_ref().map(|p|p.widths),"draft_lengths":pilot.as_ref().map(|p|p.lengths)}),
+        );
+    }
+    std::fs::write(
+        std::env::var("MLXL3_NATIVE_Q04_SPEED_OUTPUT")?,
+        serde_json::to_vec_pretty(
+            &serde_json::json!({"status":if experimental {"complete_native_mtp_depth_prototype_pilot"} else if mtp {"complete_native_mtp_d1_prototype_pilot"} else {"complete_native_ar_prototype_pilot"},"tau":tau,
+            "checkpoint":crate::checkpoint::artifact_key(&path)?,"prompt":rendered,"prompt_tokens":tokens,
+            "max_swaps":3,"mtp":mtp,"draft_depth":if mtp {depth} else {0},"verify_block_max_rows":block,"experimental_mtp":experimental,"production_cli_benchmark":false,"runs":runs}),
         )?,
     )?;
     Ok(())

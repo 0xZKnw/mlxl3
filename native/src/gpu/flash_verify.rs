@@ -136,6 +136,8 @@ impl<'gpu> FlashNext<'gpu> {
         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
         self.ensure_fixed_residency()?;
         let before = self.snapshot();
+        #[cfg(test)]
+        let _q04_block = super::super::route_swap_trace::BlockScope::new();
         let publications = self
             .layers
             .iter()
@@ -177,6 +179,8 @@ impl<'gpu> FlashNext<'gpu> {
                 offset,
                 layers: Vec::with_capacity(self.layers.len()),
                 hidden: None,
+                #[cfg(test)]
+                q04: super::super::route_swap_trace::decision_snapshot(),
             })
             .collect::<Vec<_>>();
         let mut rows = tokens
@@ -185,7 +189,11 @@ impl<'gpu> FlashNext<'gpu> {
             .collect::<Result<Vec<_>>>()?;
         let gpu = self.gpu;
         for (index, layer) in self.layers.iter_mut().enumerate() {
+            #[cfg(test)]
+            let _q04_layer = super::super::route_swap_trace::LayerScope::new(index);
             if self.verify_ssd_cohorts {
+                #[cfg(test)]
+                let q04_preparing = super::super::route_swap_trace::Preparing::new();
                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
                 let projected = layer.prepare_block_inputs(&rows)?;
                 ensure!(
@@ -212,6 +220,8 @@ impl<'gpu> FlashNext<'gpu> {
                     .map(|row| row.mixed.clone())
                     .collect::<Vec<_>>();
                 let routing = prepared.iter_mut().map(|row| row.routing.take()).collect();
+                #[cfg(test)]
+                drop(q04_preparing);
                 let experts = layer
                     .moe()
                     .forward_block_routed_cancellable(&mixed, routing, cancelled)?;
@@ -231,6 +241,14 @@ impl<'gpu> FlashNext<'gpu> {
                 })?;
                 for output in &experts {
                     output.completed()?;
+                    #[cfg(test)]
+                    super::super::route_swap_trace::block_stats(output.read_bytes)?;
+                }
+                #[cfg(test)]
+                for (row, prefix) in prefixes.iter_mut().enumerate() {
+                    if let Some(q04) = &mut prefix.q04 {
+                        q04.retain_layer(index, row)?;
+                    }
                 }
                 #[cfg(test)]
                 ensure!(
@@ -253,6 +271,12 @@ impl<'gpu> FlashNext<'gpu> {
                     "injected late verification layer failure {index}"
                 );
                 prefix.layers.push(layer.snapshot());
+            }
+            #[cfg(test)]
+            for (row, prefix) in prefixes.iter_mut().enumerate() {
+                if let Some(q04) = &mut prefix.q04 {
+                    q04.retain_layer(index, row)?;
+                }
             }
         }
         let mut logits = Vec::with_capacity(rows.len());

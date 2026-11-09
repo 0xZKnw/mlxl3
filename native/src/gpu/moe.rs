@@ -144,6 +144,10 @@ struct SettledHot {
 }
 
 impl<'a> FlashMoeRow<'a> {
+    #[cfg(test)]
+    pub(super) fn q04_cache(&self) -> crate::flash_support::ExpertCache {
+        self.cache.borrow().clone()
+    }
     pub fn load(
         gpu: &'a Metal,
         checkpoint: &Checkpoint,
@@ -338,7 +342,28 @@ impl<'a> FlashMoeRow<'a> {
             std::ptr::eq(self.gpu, owner),
             "MoE gate chain requires the same Metal instance"
         );
-        self.gate.encode(owner, cmd, x, Storage::StorageModePrivate)
+        let buffers = self
+            .gate
+            .encode(owner, cmd, x, Storage::StorageModePrivate)?;
+        #[cfg(test)]
+        let buffers = {
+            let mut buffers = buffers;
+            if super::route_swap_trace::quality_active() {
+                super::route_swap_trace::encode_pick(
+                    owner,
+                    cmd,
+                    &mut buffers.routes,
+                    self.cache
+                        .borrow()
+                        .ready_slot_snapshot()
+                        .into_iter()
+                        .flatten()
+                        .map(|(e, _)| e),
+                )?;
+            }
+            buffers
+        };
+        Ok(buffers)
     }
     pub(super) fn with_completed_gate(
         &mut self,
@@ -386,7 +411,20 @@ impl<'a> FlashMoeRow<'a> {
         );
         let routing = match routing {
             Some(routing) => routing,
-            None => self.gate.submit(x)?,
+            None => {
+                #[cfg(test)]
+                if super::route_swap_trace::quality_active() {
+                    let cmd = gpu.queue.new_command_buffer();
+                    let buffers = self.encode_gate(gpu, cmd, x)?;
+                    cmd.commit();
+                    gpu.gate_commands.set(gpu.gate_commands.get() + 1);
+                    buffers.routes
+                } else {
+                    self.gate.submit(x)?
+                }
+                #[cfg(not(test))]
+                self.gate.submit(x)?
+            }
         };
         // SSD demand starts as soon as the route is known. This queue has also passed its previous row.
         let ids = match &device_hot {
@@ -421,6 +459,95 @@ impl<'a> FlashMoeRow<'a> {
             self.prefetcher.is_some(),
             quiescent,
         );
+        #[cfg(test)]
+        let ids = if super::route_swap_trace::quality_row()? {
+            let original_ids = routing.original_indices()?;
+            let raw = weights.read_output()?;
+            let probabilities = routing
+                .q04_probabilities
+                .as_ref()
+                .context("missing reused gate probabilities")?
+                .read_output()?
+                .into_iter()
+                .map(|word| {
+                    if x.dtype == FloatType::F32 {
+                        f32::from_bits(word)
+                    } else {
+                        half::f16::from_bits(word as u16).to_f32()
+                    }
+                })
+                .collect::<Vec<_>>();
+            let weights: Vec<_> = raw
+                .into_iter()
+                .map(|word| {
+                    if x.dtype == FloatType::F32 {
+                        f32::from_bits(word)
+                    } else {
+                        half::f16::from_bits(word as u16).to_f32()
+                    }
+                })
+                .collect();
+            let mut ready = [false; 512];
+            for (e, _) in self
+                .cache
+                .borrow()
+                .ready_slot_snapshot()
+                .into_iter()
+                .flatten()
+            {
+                ready[e as usize] = true;
+            }
+            let expected = super::route_swap_trace::quality_select(
+                &original_ids,
+                &probabilities,
+                &weights,
+                &ready,
+            )?;
+            let picked = routing
+                .q04_pick
+                .as_ref()
+                .context("missing same-command GPU Q04 pick")?
+                .0
+                .read_output()?;
+            ensure!(
+                picked == expected,
+                "GPU Q04 pick differs from independent host reference"
+            );
+            picked
+        } else {
+            ids
+        };
+        #[cfg(test)]
+        let route_sample = if super::route_swap_trace::wanted() {
+            let scores = routing.completed_scores()?.read_output()?;
+            let probabilities = self.gate.calibration_probabilities(x, &ids, &scores)?;
+            let weights = scores
+                .into_iter()
+                .map(|word| {
+                    if x.dtype == FloatType::F32 {
+                        f32::from_bits(word)
+                    } else {
+                        half::f16::from_bits(word as u16).to_f32()
+                    }
+                })
+                .collect();
+            let ready = self
+                .cache
+                .borrow()
+                .ready_slot_snapshot()
+                .into_iter()
+                .flatten()
+                .map(|(id, _)| id)
+                .collect();
+            Some(super::route_swap_trace::record(
+                &ids,
+                weights,
+                ready,
+                probabilities,
+            )?)
+        } else {
+            None
+        };
         let guard = ExpertFill::new(&self.cache);
         let plan = DemandPlan::reserve(&self.cache, &ids)?;
         let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
@@ -821,6 +948,12 @@ impl<'a> FlashMoeRow<'a> {
             );
             next.prefetch(&ids, depth)?;
         }
+        #[cfg(test)]
+        if let Some(index) = route_sample {
+            super::route_swap_trace::complete(index, output.hits, output.read_bytes)?;
+        }
+        #[cfg(test)]
+        super::route_swap_trace::quality_complete(&output.indices, output.hits, output.read_bytes)?;
         Ok(output)
     }
     fn prefetch(&mut self, ids: &[u32], budget: usize) -> Result<()> {

@@ -15,6 +15,8 @@ use std::{cell::RefCell, os::unix::fs::FileExt, rc::Rc};
 
 #[path = "mtp.rs"]
 mod mtp;
+#[cfg(test)]
+pub(super) use mtp::pilot::Pilot as ExperimentalMtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
 #[path = "flash_verify.rs"]
@@ -161,6 +163,8 @@ pub struct FlashSnapshot {
     offset: u32,
     layers: Vec<State>,
     hidden: Option<MatrixView>,
+    #[cfg(test)]
+    pub(super) q04: Option<super::route_swap_trace::DecisionSnapshot>,
 }
 
 impl FlashSnapshot {
@@ -396,11 +400,23 @@ impl<'a> FlashNext<'a> {
         Ok(model)
     }
     pub fn snapshot(&self) -> FlashSnapshot {
+        #[cfg(test)]
+        if super::route_swap_trace::quality_active() {
+            for (index, layer) in self.layers.iter().enumerate() {
+                super::route_swap_trace::register_cache(index, || match layer {
+                    Layer::Gdn(l) => l.residual.moe.q04_cache(),
+                    Layer::Ple(l) => l.body.residual.moe.q04_cache(),
+                    Layer::Qsa(l) => l.residual.moe.q04_cache(),
+                });
+            }
+        }
         FlashSnapshot {
             owner: self.owner.clone(),
             offset: self.offset,
             hidden: self.hidden.clone(),
             layers: self.layers.iter().map(Layer::snapshot).collect(),
+            #[cfg(test)]
+            q04: super::route_swap_trace::decision_snapshot(),
         }
     }
     pub(super) fn owns_snapshot(&self, snapshot: &FlashSnapshot) -> bool {
@@ -418,6 +434,8 @@ impl<'a> FlashNext<'a> {
         }
         self.offset = s.offset;
         self.hidden = s.hidden.clone();
+        #[cfg(test)]
+        super::route_swap_trace::restore_decisions(s.q04.as_ref());
         Ok(())
     }
     pub fn last_hidden(&self) -> Option<&MatrixView> {
@@ -635,6 +653,8 @@ impl<'a> FlashNext<'a> {
                 self.layer_plans[i].admits(1),
                 "native B1 layer plan rejected the row"
             );
+            #[cfg(test)]
+            let _route_trace_layer = super::route_swap_trace::LayerScope::new(i);
             #[cfg(test)]
             let _layer = crate::flash_profile::span("native.layer");
             #[cfg(test)]

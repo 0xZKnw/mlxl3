@@ -12,12 +12,20 @@ pub struct RouteOutput {
     pub(super) scores: MatrixView,
     count: usize,
     #[cfg(test)]
+    pub(super) q04_probabilities: Option<MatrixView>,
+    #[cfg(test)]
+    pub(super) q04_pick: Option<(MatrixView, [Buffer; 2])>,
+    #[cfg(test)]
     waits: std::rc::Rc<std::cell::Cell<usize>>,
 }
 
 impl RouteOutput {
     /// Same-queue GPU consumption only; these device IDs are not host-ready yet.
     pub(super) fn device_indices(&self) -> &Buffer {
+        #[cfg(test)]
+        if let Some((picked, _)) = &self.q04_pick {
+            return &picked.buffer;
+        }
         &self.indices
     }
 
@@ -36,6 +44,15 @@ impl RouteOutput {
 
     /// SSD planning needs the expert IDs on the host while scores remain on the GPU.
     pub fn indices(&self) -> Result<Vec<u32>> {
+        self.read_indices(self.device_indices())
+    }
+
+    #[cfg(test)]
+    pub(super) fn original_indices(&self) -> Result<Vec<u32>> {
+        self.read_indices(&self.indices)
+    }
+
+    fn read_indices(&self, buffer: &Buffer) -> Result<Vec<u32>> {
         self.completed_scores()?;
         #[cfg(test)]
         let _copy = crate::flash_profile::span("native.route_readback_copy");
@@ -43,9 +60,13 @@ impl RouteOutput {
         if let Some(span) = &_copy {
             span.data(serde_json::json!({"bytes":self.count*4}));
         }
+        ensure!(
+            buffer.length() == self.count as u64 * 4,
+            "invalid routed index extent"
+        );
         // The shared index buffer has exactly count aligned u32s after completion.
         Ok(unsafe {
-            std::slice::from_raw_parts(self.indices.contents().cast::<u32>(), self.count).to_vec()
+            std::slice::from_raw_parts(buffer.contents().cast::<u32>(), self.count).to_vec()
         })
     }
 
@@ -114,6 +135,10 @@ impl Metal {
             indices,
             scores,
             count: count as usize,
+            #[cfg(test)]
+            q04_probabilities: None,
+            #[cfg(test)]
+            q04_pick: None,
             #[cfg(test)]
             waits: self.route_waits.clone(),
         })

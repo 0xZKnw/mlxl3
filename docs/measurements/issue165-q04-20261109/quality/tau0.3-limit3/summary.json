@@ -1,0 +1,56 @@
+{
+  "tau": 0.3,
+  "max_swaps": 3,
+  "status": "complete_quality_screen",
+  "path": "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality-resume/tau0.3-limit3",
+  "exit": 0,
+  "reaped": true,
+  "diagnostic_seconds": 55.98442137497477,
+  "aggregate_ppl_change_percent": 2.2905309983286464,
+  "passes_initial_screen": false,
+  "domains": {
+    "francais": {
+      "ppl_change_percent": 6.443077799274483,
+      "mean_kl": 0.0708377718628215,
+      "top1_agreement": 0.875
+    },
+    "code": {
+      "ppl_change_percent": 0.2217185446666656,
+      "mean_kl": 0.0004611089956883747,
+      "top1_agreement": 1.0
+    },
+    "mathematiques": {
+      "ppl_change_percent": -3.413661983465129,
+      "mean_kl": 0.017822860991859667,
+      "top1_agreement": 0.921875
+    },
+    "outils_json": {
+      "ppl_change_percent": 1.0111929391729102,
+      "mean_kl": 0.060890546750477274,
+      "top1_agreement": 0.890625
+    },
+    "nombres_negations": {
+      "ppl_change_percent": 1.344536910054705,
+      "mean_kl": 0.014054903890650113,
+      "top1_agreement": 0.96875
+    },
+    "dialogue_long": {
+      "ppl_change_percent": 8.60449138989955,
+      "mean_kl": 0.035832038642310875,
+      "top1_agreement": 0.90625
+    }
+  },
+  "policy": {
+    "actual_decode_cold_reads": 32150,
+    "actual_decode_logical_read_bytes": 40123585800,
+    "kind": "online_ar_diagnostic",
+    "max_swaps": 3,
+    "mtp_validated": false,
+    "protected": 3,
+    "rows": 18144,
+    "swaps": 25989,
+    "tau": 0.30000001192092896,
+    "timing_is_benchmark": false,
+    "weight_cap": 0.1
+  }
+}

@@ -73,6 +73,15 @@ fn plans_reject_invalid_contexts_and_bound_every_role() {
 #[kani::proof]
 #[kani::unwind(10)]
 fn native_plan_admission_and_resource_bounds_cover_all_roles() {
+    let inputs: usize = kani::any();
+    let samples = calibration_sample_count(inputs);
+    assert_eq!(samples.is_some(), (1..=682).contains(&inputs));
+    if let Some(samples) = samples {
+        assert_eq!(samples, inputs * 48);
+        assert!(samples > 0 && samples <= 32768);
+    }
+    kani::cover!(inputs == 474 && samples == Some(22752));
+    kani::cover!(inputs == usize::MAX && samples.is_none());
     let m5: bool = kani::any();
     let budget: bool = kani::any();
     let lookahead: bool = kani::any();
@@ -212,4 +221,18 @@ fn measured_defaults_preserve_overrides_and_compatibility() {
             assert_eq!(default_flag(Some(bad), m5, true), None);
         }
     }
+}
+
+#[cfg(any(test, kani))]
+pub(crate) fn calibration_sample_count(inputs: usize) -> Option<usize> {
+    inputs.checked_mul(48).filter(|n| (1..=32768).contains(n))
+}
+
+#[test]
+fn calibration_capture_rejects_empty_overflow_and_excess_budget() {
+    assert_eq!(calibration_sample_count(0), None);
+    assert_eq!(calibration_sample_count(474), Some(22752));
+    assert_eq!(calibration_sample_count(682), Some(32736));
+    assert_eq!(calibration_sample_count(683), None);
+    assert_eq!(calibration_sample_count(usize::MAX), None);
 }

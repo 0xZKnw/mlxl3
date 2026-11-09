@@ -1357,6 +1357,7 @@ mod slru;
 
 /// Reservation is atomic: every routed expert gets a distinct protected slot.
 /// A failed read must invalidate its reservation before it can become a hit.
+#[derive(Clone)]
 pub struct ExpertCache {
     keys: Vec<Option<u32>>,
     pending: Vec<Option<u32>>,

@@ -446,6 +446,8 @@ pub struct Metal {
     resident_scratch: crate::resident_scratch_policy::Budget,
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
+    #[cfg(test)]
+    q04_pickers: [ComputePipelineState; 2],
     route_float: ComputePipelineState,
     inverse: Buffer,
     readers: std::cell::OnceCell<crate::ssd_reads::ReadService>,
@@ -987,6 +989,21 @@ impl Metal {
                 .transpose()?;
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
+            #[cfg(test)]
+            let q04_pickers = {
+                let library = device
+                    .new_library_with_source(include_str!("../shaders/q04_pick.metal"), &options)
+                    .map_err(|e| anyhow::anyhow!("Q04 picker: {e}"))?;
+                let make = |name| -> Result<_> {
+                    let f = library
+                        .get_function(name, None)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?;
+                    device
+                        .new_compute_pipeline_state_with_function(&f)
+                        .map_err(|e| anyhow::anyhow!("{e}"))
+                };
+                [make("q04_pick_half")?, make("q04_pick_float")?]
+            };
             let hc = [
                 hc::Pipelines::load(&cached_pipeline, "half", false, false, false)?,
                 hc::Pipelines::load(
@@ -1293,6 +1310,8 @@ impl Metal {
                 )?),
                 gate_softmax,
                 route_half,
+                #[cfg(test)]
+                q04_pickers,
                 route_float,
                 inverse,
                 readers: std::cell::OnceCell::new(),
@@ -1641,3 +1660,6 @@ mod segment;
 
 #[cfg(test)]
 mod fast_profile_tests;
+
+#[cfg(test)]
+mod route_swap_trace;

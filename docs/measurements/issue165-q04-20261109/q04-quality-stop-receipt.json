@@ -1,0 +1,187 @@
+{
+  "reason": "Explicit user stop; original supervisor later saved failed_or_interrupted after model SIGKILL exit -9. This was cancellation, not a numerical failure.",
+  "saved_status": {
+    "status": "failed_or_interrupted",
+    "timing_is_benchmark": false,
+    "steps": [
+      {
+        "tau": 0,
+        "max_swaps": 1,
+        "status": "complete_quality_screen",
+        "path": "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality/tau0-limit1",
+        "exit": 0,
+        "reaped": true,
+        "diagnostic_seconds": 62.41534700000193,
+        "aggregate_ppl_change_percent": 0.0,
+        "passes_initial_screen": true,
+        "domains": {
+          "francais": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          },
+          "code": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          },
+          "mathematiques": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          },
+          "outils_json": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          },
+          "nombres_negations": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          },
+          "dialogue_long": {
+            "ppl_change_percent": 0.0,
+            "mean_kl": 0.0,
+            "top1_agreement": 1.0
+          }
+        },
+        "policy": {
+          "actual_decode_cold_reads": 53607,
+          "actual_decode_logical_read_bytes": 66902179284,
+          "kind": "online_ar_diagnostic",
+          "max_swaps": 1,
+          "mtp_validated": false,
+          "protected": 3,
+          "rows": 18144,
+          "swaps": 0,
+          "tau": 0.0,
+          "timing_is_benchmark": false,
+          "weight_cap": 0.1
+        }
+      },
+      {
+        "tau": 0.1,
+        "max_swaps": 1,
+        "status": "complete_quality_screen",
+        "path": "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality/tau0.1-limit1",
+        "exit": 0,
+        "reaped": true,
+        "diagnostic_seconds": 61.28313187501044,
+        "aggregate_ppl_change_percent": 0.9772638031007952,
+        "passes_initial_screen": false,
+        "domains": {
+          "francais": {
+            "ppl_change_percent": -3.277475158810773,
+            "mean_kl": 0.023427921771474593,
+            "top1_agreement": 0.9375
+          },
+          "code": {
+            "ppl_change_percent": 0.1806763533777836,
+            "mean_kl": 0.00031023982623487703,
+            "top1_agreement": 1.0
+          },
+          "mathematiques": {
+            "ppl_change_percent": 3.466088417985415,
+            "mean_kl": 0.005688387042095299,
+            "top1_agreement": 0.921875
+          },
+          "outils_json": {
+            "ppl_change_percent": 1.526975657656854,
+            "mean_kl": 0.026631382413824938,
+            "top1_agreement": 0.921875
+          },
+          "nombres_negations": {
+            "ppl_change_percent": 1.0901072863849872,
+            "mean_kl": 0.006501479234492673,
+            "top1_agreement": 0.953125
+          },
+          "dialogue_long": {
+            "ppl_change_percent": 3.0248209606966716,
+            "mean_kl": 0.014937832515896615,
+            "top1_agreement": 0.953125
+          }
+        },
+        "policy": {
+          "actual_decode_cold_reads": 47189,
+          "actual_decode_logical_read_bytes": 58892438268,
+          "kind": "online_ar_diagnostic",
+          "max_swaps": 1,
+          "mtp_validated": false,
+          "protected": 3,
+          "rows": 18144,
+          "swaps": 7361,
+          "tau": 0.10000000149011612,
+          "timing_is_benchmark": false,
+          "weight_cap": 0.1
+        }
+      },
+      {
+        "tau": 0.05,
+        "max_swaps": 3,
+        "status": "complete_quality_screen",
+        "path": "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality/tau0.05-limit3",
+        "exit": 0,
+        "reaped": true,
+        "diagnostic_seconds": 63.43000912500429,
+        "aggregate_ppl_change_percent": 0.9188027085034599,
+        "passes_initial_screen": false,
+        "domains": {
+          "francais": {
+            "ppl_change_percent": -1.9861363737632396,
+            "mean_kl": 0.01188966694836322,
+            "top1_agreement": 0.9375
+          },
+          "code": {
+            "ppl_change_percent": 0.04703185826510683,
+            "mean_kl": 0.00018769512263162516,
+            "top1_agreement": 1.0
+          },
+          "mathematiques": {
+            "ppl_change_percent": 0.09440667897522402,
+            "mean_kl": 0.00321668817863528,
+            "top1_agreement": 0.96875
+          },
+          "outils_json": {
+            "ppl_change_percent": 5.1715819099286655,
+            "mean_kl": 0.02080004275873332,
+            "top1_agreement": 0.953125
+          },
+          "nombres_negations": {
+            "ppl_change_percent": -0.0699389541274562,
+            "mean_kl": 0.003423798914621484,
+            "top1_agreement": 0.984375
+          },
+          "dialogue_long": {
+            "ppl_change_percent": 2.4086050021190233,
+            "mean_kl": 0.014331045851255282,
+            "top1_agreement": 0.96875
+          }
+        },
+        "policy": {
+          "actual_decode_cold_reads": 49681,
+          "actual_decode_logical_read_bytes": 62002484172,
+          "kind": "online_ar_diagnostic",
+          "max_swaps": 3,
+          "mtp_validated": false,
+          "protected": 3,
+          "rows": 18144,
+          "swaps": 4423,
+          "tau": 0.05000000074505806,
+          "timing_is_benchmark": false,
+          "weight_cap": 0.1
+        }
+      },
+      {
+        "tau": 0.1,
+        "max_swaps": 3,
+        "status": "failed",
+        "path": "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality/tau0.1-limit3",
+        "exit": -9,
+        "reaped": true,
+        "diagnostic_seconds": 43.43882579199271
+      }
+    ],
+    "error": "AssertionError({'tau': 0.1, 'max_swaps': 3, 'status': 'running', 'path': '/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/build/issue165-20261108/q04-quality/tau0.1-limit3', 'exit': -9, 'reaped': True, 'diagnostic_seconds': 43.43882579199271})"
+  }
+}

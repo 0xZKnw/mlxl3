@@ -1,5 +1,5 @@
 //! Per-layer 50/50 probation/protected SLRU; cache leases stay in ExpertCache.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct Slru {
     slots: usize,
     probation: Vec<usize>,

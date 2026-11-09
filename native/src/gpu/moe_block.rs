@@ -106,6 +106,12 @@ impl FlashMoeRow<'_> {
                 Some(route) => route,
                 None => self.gate.submit(x)?,
             };
+            #[cfg(test)]
+            let route = {
+                let mut route = route;
+                crate::gpu::route_swap_trace::block_pick(self.gpu, &mut route)?;
+                route
+            };
             let hot = if device_hot {
                 let snapshot = ResidentSnapshot::from_cache(
                     self.cache.borrow().ready_slot_snapshot(),

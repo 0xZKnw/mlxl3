@@ -1985,6 +1985,7 @@
     "shader ../shaders/indirect_hot.metal": 1,
     "shader ../shaders/mapped_expert.metal": 1,
     "shader ../shaders/model_ops.metal": 1,
+    "shader ../shaders/q04_pick.metal": 1,
     "shader ../shaders/router_topk.h": 1
   },
   "native/src/gpu/ar10_gdn_tests.rs": {
@@ -2049,13 +2050,21 @@
   },
   "native/src/gpu/fast_profile_tests.rs": {
     ".exp": 3,
-    ".memory_stats": 1,
-    ".transpose": 3,
-    "config MLXL3_FLASH_MODEL": 2,
+    ".finish": 3,
+    ".memory_stats": 2,
+    ".transpose": 9,
+    "config MLXL3_FLASH_MODEL": 3,
     "config MLXL3_NATIVE_PROFILE_OUTPUT": 1,
+    "config MLXL3_NATIVE_Q04_MTP_BLOCK": 1,
+    "config MLXL3_NATIVE_Q04_MTP_DEPTH": 1,
+    "config MLXL3_NATIVE_Q04_QUALITY_LIMIT": 1,
+    "config MLXL3_NATIVE_Q04_QUALITY_TAU": 2,
+    "config MLXL3_NATIVE_Q04_SPEED_MTP": 1,
+    "config MLXL3_NATIVE_Q04_SPEED_OUTPUT": 1,
     "config MLXL3_NATIVE_QUALITY_CORPUS": 1,
     "config MLXL3_NATIVE_QUALITY_OUTPUT": 1,
-    "config MLXL3_NATIVE_QUALITY_REFERENCE": 1
+    "config MLXL3_NATIVE_QUALITY_REFERENCE": 1,
+    "config MLXL3_NATIVE_ROUTE_TRACE": 1
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
@@ -2090,6 +2099,7 @@
     "config MLXL3_FLASH_MODEL": 4
   },
   "native/src/gpu/gate.rs": {
+    ".to_f32": 1,
     ".transpose": 1
   },
   "native/src/gpu/gdn.rs": {
@@ -2165,7 +2175,7 @@
     ".ready": 2,
     ".shape": 1,
     ".take": 4,
-    ".to_f32": 1,
+    ".to_f32": 4,
     ".transpose": 3,
     "array::from_fn": 1,
     "config MLXL3_MOE_CHECKPOINT": 3,
@@ -2204,6 +2214,9 @@
     "config MLXL3_MTP_CAMPAIGN_SMOKE": 1,
     "config MLXL3_SSD_CACHE_GIB": 1,
     "config MLXL3_SSD_LAYER_SLOTS": 1
+  },
+  "native/src/gpu/mtp_pilot.rs": {
+    ".to_f32": 1
   },
   "native/src/gpu/ple.rs": {
     ".shape": 1,
@@ -2294,6 +2307,13 @@
   },
   "native/src/gpu/resident_scratch_tests.rs": {
     "config MLXL3_FLASH_MODEL": 1
+  },
+  "native/src/gpu/route_swap_trace.rs": {
+    ".shape": 2,
+    ".take": 1,
+    ".to_f32": 2,
+    ".transpose": 1,
+    "array::from_fn": 3
   },
   "native/src/gpu/routed_nt2_tests.rs": {
     "array::from_fn": 2,

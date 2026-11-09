@@ -122,6 +122,8 @@ pub mod qwen4;
 pub mod registry;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod resident_scratch_policy;
+#[cfg(any(test, kani))]
+mod route_swap;
 #[cfg(feature = "mlx")]
 pub mod router;
 pub mod runtime_stats;

@@ -7,6 +7,9 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 use metal::{Buffer, MTLResourceOptions as Storage, MTLSize};
 use std::rc::Rc;
+#[cfg(test)]
+#[path = "mtp_pilot.rs"]
+pub(in crate::gpu) mod pilot;
 
 pub struct FlashMtpHead<'a> {
     owner: Rc<()>,
@@ -198,6 +201,8 @@ impl<'a> FlashMtpHead<'a> {
         hidden: &MatrixView,
         token: u32,
     ) -> Result<Vec<u16>> {
+        #[cfg(test)]
+        let _draft = super::super::route_swap_trace::SuspendDraft::new();
         let streams = self.mixed(target, hidden, token)?;
         let before = self.layer.snapshot();
         let result = (|| {
@@ -214,6 +219,8 @@ impl<'a> FlashMtpHead<'a> {
     /// Normalized Half selection is identical to the canonical host selector.
     /// This remains separately opt-in from ordinary AR device greedy admission.
     fn propose(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<u32> {
+        #[cfg(test)]
+        let _draft = super::super::route_swap_trace::SuspendDraft::new();
         if !self.device_greedy {
             return target.greedy_id(&self.forward(target, hidden, token)?);
         }
@@ -265,6 +272,8 @@ impl FlashMtpHead<'_> {
         self.layer.restore(state)
     }
     fn extend(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<()> {
+        #[cfg(test)]
+        let _draft = super::super::route_swap_trace::SuspendDraft::new();
         let capture = cfg!(test) && std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").is_some();
         if self.layer.kv_only_catchup() && !capture {
             let prepared = self.layer.prepare_catchup()?;

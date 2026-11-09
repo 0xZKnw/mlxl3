@@ -1,0 +1,129 @@
+{
+  "status": "complete_single_pass_mtp_depth_matrix",
+  "profiles": {
+    "A": "Q04 off",
+    "B": "tau0.10/max3",
+    "C": "tau0.20/max3"
+  },
+  "generated_tokens": 64,
+  "timed_decode_tokens": 63,
+  "warmup_generated_tokens": 64,
+  "repetitions_per_config": 1,
+  "all_24_warm_measured_token_sequences_match_same_policy_ar": true,
+  "rows": [
+    {
+      "depth": 1,
+      "max_verify_rows": 3,
+      "decode_tokens_per_second": {
+        "A": 9.861415866733056,
+        "B": 10.20102158723316,
+        "C": 10.275111209730433
+      },
+      "change_percent": {
+        "B": 3.4437825672249067,
+        "C": 4.195090731270712
+      },
+      "accepted_proposed": {
+        "A": [
+          27,
+          35
+        ],
+        "B": [
+          26,
+          36
+        ],
+        "C": [
+          27,
+          35
+        ]
+      }
+    },
+    {
+      "depth": 2,
+      "max_verify_rows": 3,
+      "decode_tokens_per_second": {
+        "A": 8.928502412361313,
+        "B": 9.037986982070894,
+        "C": 9.556651936971226
+      },
+      "change_percent": {
+        "B": 1.2262366593304819,
+        "C": 7.035329057426853
+      },
+      "accepted_proposed": {
+        "A": [
+          36,
+          52
+        ],
+        "B": [
+          34,
+          55
+        ],
+        "C": [
+          36,
+          52
+        ]
+      }
+    },
+    {
+      "depth": 3,
+      "max_verify_rows": 3,
+      "decode_tokens_per_second": {
+        "A": 8.748513967696876,
+        "B": 8.323577810575719,
+        "C": 8.696785586545907
+      },
+      "change_percent": {
+        "B": -4.857238139988085,
+        "C": -0.5912819176144835
+      },
+      "accepted_proposed": {
+        "A": [
+          39,
+          71
+        ],
+        "B": [
+          37,
+          73
+        ],
+        "C": [
+          38,
+          74
+        ]
+      }
+    },
+    {
+      "depth": 4,
+      "max_verify_rows": 3,
+      "decode_tokens_per_second": {
+        "A": 9.173171625363521,
+        "B": 8.953355044953085,
+        "C": 9.190664491686286
+      },
+      "change_percent": {
+        "B": -2.3962985692173255,
+        "C": 0.19069594505785048
+      },
+      "accepted_proposed": {
+        "A": [
+          42,
+          81
+        ],
+        "B": [
+          40,
+          85
+        ],
+        "C": [
+          41,
+          85
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "one prompt, one measured pass/config",
+    "new test-only MTP extension, not CLI/default support",
+    "no new quality or full proof/test campaign after last edits, per user",
+    "D1 effective width2; D4 verifies five input rows in chunks at most3"
+  ]
+}

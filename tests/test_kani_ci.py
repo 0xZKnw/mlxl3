@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "route_swap::recovery_preserves_hits_and_forces_fourth_miss",
         "flash_qmv::verify_specialization_keys_preserve_admission_and_table_bounds",
         "expert_ar_policy::consumer_grid_preserves_expert_and_odd_row_bounds",
         "ssd_reads::window::sliding_credits_bound_whole_jobs_and_pending_descriptors",

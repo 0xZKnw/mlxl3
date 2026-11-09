@@ -123,6 +123,34 @@ impl<'a> FlashGate<'a> {
         })
     }
 
+    #[cfg(test)]
+    pub(super) fn calibration_probabilities(
+        &self,
+        x: &MatrixView,
+        ids: &[u32],
+        scores: &[u32],
+    ) -> Result<Vec<f32>> {
+        let observed = self.trace(x)?;
+        ensure!(
+            observed.indices == ids && observed.scores == scores,
+            "diagnostic gate differs from actual route"
+        );
+        ensure!(observed.probabilities.len() == 512);
+        let probabilities: Vec<f32> = observed
+            .probabilities
+            .into_iter()
+            .map(|word| {
+                if x.dtype == FloatType::F32 {
+                    f32::from_bits(word)
+                } else {
+                    half::f16::from_bits(word as u16).to_f32()
+                }
+            })
+            .collect();
+        ensure!(probabilities.iter().all(|p| p.is_finite() && *p >= 0.));
+        Ok(probabilities)
+    }
+
     fn dispatch(&self, x: &MatrixView, storage: Storage) -> Result<GateBuffers> {
         objc::rc::autoreleasepool(|| {
             let cmd = self.gpu.queue.new_command_buffer();
@@ -167,7 +195,15 @@ impl<'a> FlashGate<'a> {
             "Flash gate requires SIMD32"
         );
         let logits = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
-        let probabilities = MatrixView::output(gpu, x.dtype, rows, 512, storage)?;
+        #[cfg(test)]
+        let probability_storage = if super::route_swap_trace::quality_active() {
+            Storage::StorageModeShared
+        } else {
+            storage
+        };
+        #[cfg(not(test))]
+        let probability_storage = storage;
+        let probabilities = MatrixView::output(gpu, x.dtype, rows, 512, probability_storage)?;
         Metal::encode(
             cmd,
             dot,
@@ -191,6 +227,14 @@ impl<'a> FlashGate<'a> {
         );
         // The reference reduces a [1,10] matrix serially in its own dtype.
         let routes = gpu.encode_route(cmd, &probabilities, 10, true)?;
+        #[cfg(test)]
+        let routes = {
+            let mut routes = routes;
+            if super::route_swap_trace::quality_active() {
+                routes.q04_probabilities = Some(probabilities.clone());
+            }
+            routes
+        };
         Ok(GateBuffers {
             routes,
             logits,
