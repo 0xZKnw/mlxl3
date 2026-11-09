@@ -77,3 +77,18 @@ kernel void NAME(device const TYPE* p [[buffer(0)]], device const TYPE* weights 
 }
 Q04_KERNEL(half, q04_pick_half)
 Q04_KERNEL(float, q04_pick_float)
+
+// Exact IEEE widening also preserves Half subnormals when the GPU flushes half arithmetic.
+kernel void mtp_hidden_widen(device const ushort* x [[buffer(0)]],
+    device uint* out [[buffer(1)]], device atomic_uint* invalid [[buffer(2)]],
+    constant uint* count [[buffer(3)]], uint i [[thread_position_in_grid]]) {
+    if (i>=count[0]) return;
+    uint word=x[i], sign=(word&0x8000u)<<16, exponent=(word>>10)&31u, mantissa=word&1023u;
+    uint value;
+    if (exponent==0) value=as_type<uint>(float(mantissa)*0x1p-24f);
+    else if (exponent==31) {
+        atomic_fetch_or_explicit(invalid,1u,memory_order_relaxed);
+        value=0x7f800000u|(mantissa<<13);
+    } else value=((exponent+112u)<<23)|(mantissa<<13);
+    out[i]=sign|value;
+}

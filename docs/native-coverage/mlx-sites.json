@@ -1938,6 +1938,7 @@
     "config MLXL3_NATIVE_MUL1_SWAR": 1,
     "config MLXL3_NATIVE_QMV_COOPERATIVE": 1,
     "config MLXL3_NATIVE_QMV_K_PRELOAD": 1,
+    "config MLXL3_NATIVE_QMV_SHAPES": 1,
     "config MLXL3_NATIVE_QSA_CHAINS": 1,
     "config MLXL3_NATIVE_QSA_GATE": 1,
     "config MLXL3_NATIVE_QSA_INDEX_KEY_ONLY": 1,
@@ -1952,6 +1953,7 @@
     "config MLXL3_NATIVE_ROUTER_PAIR": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_NATIVE_TRELLIS_READER8": 1,
+    "config MLXL3_NATIVE_VERIFY_MB3": 1,
     "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/ar20_kernel_tests.metal": 1,
@@ -2054,9 +2056,11 @@
     ".memory_stats": 2,
     ".transpose": 9,
     "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_NATIVE_MTP_RECURSIVE_CPU": 1,
     "config MLXL3_NATIVE_PROFILE_OUTPUT": 1,
     "config MLXL3_NATIVE_Q04_MTP_BLOCK": 1,
     "config MLXL3_NATIVE_Q04_MTP_DEPTH": 1,
+    "config MLXL3_NATIVE_Q04_ORACLE": 1,
     "config MLXL3_NATIVE_Q04_QUALITY_LIMIT": 1,
     "config MLXL3_NATIVE_Q04_QUALITY_TAU": 2,
     "config MLXL3_NATIVE_Q04_SPEED_MTP": 1,
@@ -2175,7 +2179,7 @@
     ".ready": 2,
     ".shape": 1,
     ".take": 4,
-    ".to_f32": 4,
+    ".to_f32": 2,
     ".transpose": 3,
     "array::from_fn": 1,
     "config MLXL3_MOE_CHECKPOINT": 3,
@@ -2216,7 +2220,12 @@
     "config MLXL3_SSD_LAYER_SLOTS": 1
   },
   "native/src/gpu/mtp_pilot.rs": {
-    ".to_f32": 1
+    ".add": 1,
+    ".shape": 1,
+    ".take": 1,
+    ".to_f32": 2,
+    "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_NATIVE_MTP_RECURSIVE_CPU": 1
   },
   "native/src/gpu/ple.rs": {
     ".shape": 1,
@@ -2311,9 +2320,9 @@
   "native/src/gpu/route_swap_trace.rs": {
     ".shape": 2,
     ".take": 1,
-    ".to_f32": 2,
+    ".to_f32": 3,
     ".transpose": 1,
-    "array::from_fn": 3
+    "array::from_fn": 4
   },
   "native/src/gpu/routed_nt2_tests.rs": {
     "array::from_fn": 2,
@@ -3065,6 +3074,9 @@
   },
   "native/src/registry.rs": {
     "config MLXL3_HOME": 1
+  },
+  "native/src/route_swap.rs": {
+    "array::from_fn": 4
   },
   "native/src/router.rs": {
     ".astype": 4,

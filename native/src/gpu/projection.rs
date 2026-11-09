@@ -16,6 +16,65 @@ use metal::{
 #[path = "qwen_stages.rs"]
 mod qwen_stages;
 
+#[cfg(test)]
+pub(super) struct VerifyMb3 {
+    generic: [metal::ComputePipelineState; 2],
+    specialized: [metal::ComputePipelineState; 7],
+    consumers: [[metal::ComputePipelineState; 2]; 2],
+    uses: std::cell::Cell<[u64; 2]>,
+}
+#[cfg(test)]
+impl VerifyMb3 {
+    pub(super) fn load(
+        p: &impl Fn(&str) -> Result<metal::ComputePipelineState>,
+        device: &DeviceRef,
+    ) -> Result<Self> {
+        let result = Self {
+            generic: [p("flash_verify_qmv_mb3")?, p("flash_verify_qmv_mb3_nt2")?],
+            specialized: [
+                p("flash_verify_static_k2_nt1_mb3")?,
+                p("flash_verify_static_k3_nt1_mb3")?,
+                p("flash_verify_static_k3_nt2_mb3")?,
+                p("flash_verify_static_k4_nt1_mb3")?,
+                p("flash_verify_static_k4_nt2_mb3")?,
+                p("flash_verify_fixed_k2_2560_640_mb3")?,
+                p("flash_verify_fixed_k2_640_2560_mb3")?,
+            ],
+            consumers: [
+                [
+                    p("flash_consumers_k2_2560_640_nt1_mb3")?,
+                    p("flash_consumers_k2_2560_640_nt2_mb3")?,
+                ],
+                [
+                    p("flash_consumers_k2_640_2560_nt1_mb3")?,
+                    p("flash_consumers_k2_640_2560_nt2_mb3")?,
+                ],
+            ],
+            uses: std::cell::Cell::new([0; 2]),
+        };
+        for state in result
+            .generic
+            .iter()
+            .chain(&result.specialized)
+            .chain(result.consumers.iter().flatten())
+        {
+            ensure!(
+                state.thread_execution_width() == 32
+                    && state.max_total_threads_per_threadgroup() >= 128
+                    && state.static_threadgroup_memory_length()
+                        <= device.max_threadgroup_memory_length(),
+                "unsupported MB3 pipeline resources"
+            );
+        }
+        eprintln!("MB3_RESOURCES {}", result.resources(device));
+        Ok(result)
+    }
+    pub(super) fn resources(&self, device: &DeviceRef) -> serde_json::Value {
+        serde_json::json!({"device_static_limit":device.max_threadgroup_memory_length(),"uses":self.uses.get(),
+            "pipelines":self.generic.iter().chain(&self.specialized).chain(self.consumers.iter().flatten()).map(|p|serde_json::json!({"name":p.label(),"static_threadgroup_bytes":p.static_threadgroup_memory_length(),"simd_width":p.thread_execution_width(),"max_threads":p.max_total_threads_per_threadgroup()})).collect::<Vec<_>>()})
+    }
+}
+
 pub struct FlashProjection<'a> {
     metal: &'a Metal,
     packed: Buffer,
@@ -786,16 +845,34 @@ impl<'a> FlashProjection<'a> {
                 counts[key] += 1;
                 gpu.flash_verify_specialized_uses.set(counts);
             }
-            (
-                if let Some(selected) = specialized {
-                    &gpu.flash_verify_specialized
-                        .as_ref()
-                        .context("missing specialized verify QMV pipelines")?[selected]
+            let selected_pipeline = if let Some(selected) = specialized {
+                &gpu.flash_verify_specialized
+                    .as_ref()
+                    .context("missing specialized verify QMV pipelines")?[selected]
+            } else {
+                &gpu.flash_verify_qmv
+                    .as_ref()
+                    .context("missing verify QMV pipelines")?[key]
+            };
+            #[cfg(test)]
+            let selected_pipeline = if batch == 3 {
+                if let Some(mb3) = &gpu.flash_verify_mb3 {
+                    let mut counts = mb3.uses.get();
+                    counts[0] += 1;
+                    mb3.uses.set(counts);
+                    if let Some(selected) = specialized {
+                        &mb3.specialized[selected]
+                    } else {
+                        &mb3.generic[key]
+                    }
                 } else {
-                    &gpu.flash_verify_qmv
-                        .as_ref()
-                        .context("missing verify QMV pipelines")?[key]
-                },
+                    selected_pipeline
+                }
+            } else {
+                selected_pipeline
+            };
+            (
+                selected_pipeline,
                 (&self.svh, self.offsets.svh),
                 contracts::flash_reference_groups(self.output, self.nt)
                     .context("invalid verify QMV grid")?,
@@ -854,7 +931,20 @@ impl<'a> FlashProjection<'a> {
                 if self.mtp_hidden {
                     1
                 } else if verify_rows.is_some() {
-                    u64::from(batch.div_ceil(2))
+                    #[cfg(test)]
+                    {
+                        u64::from(
+                            crate::flash_qmv::verify_geometry(
+                                batch,
+                                gpu.flash_verify_mb3.is_some(),
+                            )
+                            .1,
+                        )
+                    }
+                    #[cfg(not(test))]
+                    {
+                        u64::from(batch.div_ceil(2))
+                    }
                 } else {
                     u64::from(batch)
                 },
@@ -863,6 +953,34 @@ impl<'a> FlashProjection<'a> {
             contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
                 .context("invalid projection kernel thread count")? as usize,
         );
+        #[cfg(test)]
+        if gpu.observe_qmv {
+            let mb = if verify_rows.is_some() {
+                crate::flash_qmv::verify_geometry(batch, gpu.flash_verify_mb3.is_some()).0
+            } else if self.mtp_hidden {
+                4
+            } else {
+                1
+            };
+            let name = format!(
+                "{:?};role={};B={batch};MB={mb};NT={};K={};CB={};in={};out={};splits={};groups={groups}",
+                pipeline.label(),
+                if self.mtp_hidden {
+                    "mtp_hidden"
+                } else if self.routed_record {
+                    "routed"
+                } else {
+                    "resident"
+                },
+                self.nt,
+                self.k,
+                self.cb as u32,
+                self.input,
+                self.output,
+                self.splits
+            );
+            *gpu.qmv_shapes.borrow_mut().entry(name).or_default() += 1;
+        }
         self.encode_finish(
             cmd,
             partial,
@@ -2045,15 +2163,29 @@ impl<'a> FlashExpert<'a> {
                 0,
             ),
         });
+        let selected_pipeline = &if rows > 1 {
+            gpu.expert_consumer_qmv.as_ref()
+        } else {
+            gpu.expert_axis_qmv.as_ref()
+        }
+        .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
+            [usize::from(nt == 2)];
+        #[cfg(test)]
+        let selected_pipeline = if rows == 3 {
+            if let Some(mb3) = &gpu.flash_verify_mb3 {
+                let mut counts = mb3.uses.get();
+                counts[1] += 1;
+                mb3.uses.set(counts);
+                &mb3.consumers[usize::from(stage == 2)][usize::from(nt == 2)]
+            } else {
+                selected_pipeline
+            }
+        } else {
+            selected_pipeline
+        };
         Metal::encode_bound(
             cmd,
-            &if rows > 1 {
-                gpu.expert_consumer_qmv.as_ref()
-            } else {
-                gpu.expert_axis_qmv.as_ref()
-            }
-            .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
-                [usize::from(nt == 2)],
+            selected_pipeline,
             bindings.into_iter(),
             [
                 rows,
@@ -2070,7 +2202,19 @@ impl<'a> FlashExpert<'a> {
                     contracts::flash_reference_groups(first.output, nt)
                         .context("invalid axis grid")?,
                 ),
-                u64::from(rows.div_ceil(2)),
+                {
+                    #[cfg(test)]
+                    {
+                        u64::from(
+                            crate::flash_qmv::verify_geometry(rows, gpu.flash_verify_mb3.is_some())
+                                .1,
+                        )
+                    }
+                    #[cfg(not(test))]
+                    {
+                        u64::from(rows.div_ceil(2))
+                    }
+                },
                 experts.len() as u64,
             ),
             128,
@@ -3444,7 +3588,7 @@ fn physical_flash_verify_shared_rows_match_scalar() -> Result<()> {
                 if let Some(key) = selected {
                     ensure!(
                         gpu.flash_verify_specialized_uses.get()[key] > before[key],
-                        "selected specialized MB2 PSO was not dispatched"
+                        "selected specialized verify PSO was not dispatched"
                     );
                 }
                 ensure!(

@@ -1,5 +1,44 @@
 //! Exact target-side acceptance for speculative decoding.
 
+/// Apply the final cancellation check before publishing a speculative transaction.
+#[cfg(any(test, kani))]
+pub(crate) fn publication_result<T, E>(
+    result: Result<T, E>,
+    cancelled: bool,
+    error: E,
+) -> Result<T, E> {
+    if cancelled { Err(error) } else { result }
+}
+
+#[test]
+fn cancellation_overrides_success_and_keeps_failures_unpublished() {
+    assert_eq!(
+        publication_result(Ok(7), true, "cancelled"),
+        Err("cancelled")
+    );
+    assert_eq!(publication_result(Ok(7), false, "cancelled"), Ok(7));
+    assert_eq!(
+        publication_result::<u32, _>(Err("failed"), false, "cancelled"),
+        Err("failed")
+    );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn publication_never_succeeds_after_cancellation() {
+    let token: u32 = kani::any();
+    let succeeded: bool = kani::any();
+    let cancelled: bool = kani::any();
+    let result = publication_result(if succeeded { Ok(token) } else { Err(1u8) }, cancelled, 2);
+    assert_eq!(result.is_ok(), succeeded && !cancelled);
+    if let Ok(value) = result {
+        assert_eq!(value, token);
+    }
+    kani::cover!(succeeded && cancelled && result == Err(2));
+    kani::cover!(succeeded && !cancelled && result == Ok(token));
+    kani::cover!(!succeeded && !cancelled && result == Err(1));
+}
+
 /// Select the first maximum after model-dtype normalization. Negative infinity masks a token.
 pub fn greedy_log_prob_id(probabilities: &[f32]) -> Option<u32> {
     let mut best = None;

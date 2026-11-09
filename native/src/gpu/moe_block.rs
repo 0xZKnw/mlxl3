@@ -109,7 +109,19 @@ impl FlashMoeRow<'_> {
             #[cfg(test)]
             let route = {
                 let mut route = route;
-                crate::gpu::route_swap_trace::block_pick(self.gpu, &mut route)?;
+                if crate::gpu::route_swap_trace::quality_active() {
+                    let mut physical = [false; 512];
+                    for (e, _) in self
+                        .cache
+                        .borrow()
+                        .ready_slot_snapshot()
+                        .into_iter()
+                        .flatten()
+                    {
+                        physical[e as usize] = true;
+                    }
+                    crate::gpu::route_swap_trace::block_pick(self.gpu, &mut route, &physical)?;
+                }
                 route
             };
             let hot = if device_hot {

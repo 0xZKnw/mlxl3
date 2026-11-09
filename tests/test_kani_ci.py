@@ -78,6 +78,9 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "flash_qmv::third_row_geometry_covers_exactly_the_input_without_overflow",
+        "speculative::publication_never_succeeds_after_cancellation",
+        "route_swap::selected_ids_commit_only_valid_miss_transitions",
         "route_swap::recovery_preserves_hits_and_forces_fourth_miss",
         "flash_qmv::verify_specialization_keys_preserve_admission_and_table_bounds",
         "expert_ar_policy::consumer_grid_preserves_expert_and_odd_row_bounds",

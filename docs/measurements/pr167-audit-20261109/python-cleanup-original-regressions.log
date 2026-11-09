@@ -1,0 +1,32 @@
+EF
+======================================================================
+ERROR: test_cleanup_group_permission_race_still_reaps_child (audit_profile_tests.NativeArProfileTests.test_cleanup_group_permission_race_still_reaps_child)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/tests/test_native_ar_profile.py", line 445, in test_cleanup_group_permission_race_still_reaps_child
+    self.assertTrue(PROFILE.cleanup(child, target, time.monotonic() + 1))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "original_cleanup.py", line 247, in cleanup
+    try:
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+PermissionError: exiting group
+
+======================================================================
+FAIL: test_cleanup_permission_failure_waits_and_never_claims_success (audit_profile_tests.NativeArProfileTests.test_cleanup_permission_failure_waits_and_never_claims_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0/tests/test_native_ar_profile.py", line 464, in test_cleanup_permission_failure_waits_and_never_claims_success
+    self.assertEqual(len(waited), 1)
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.009s
+
+FAILED (failures=1, errors=1)

@@ -497,6 +497,8 @@ fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
 mod readahead;
 
 pub(crate) struct ReadService {
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    requested: Cell<[u64; 2]>,
     #[cfg(test)]
     shared_trace: std::cell::RefCell<Option<SharedTrace>>,
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -537,6 +539,11 @@ pub(crate) struct ReadService {
     wave_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
 }
 impl ReadService {
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn requested_counts(&self) -> [u64; 2] {
+        self.requested.get()
+    }
+
     pub(crate) fn new(readers: usize) -> Result<Self> {
         Self::new_with_split_default(readers, false)
     }
@@ -592,6 +599,8 @@ impl ReadService {
         let mut service = Self {
             #[cfg(test)]
             shared_trace: std::cell::RefCell::new(None),
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            requested: Cell::new([0; 2]),
             #[cfg(all(target_os = "macos", feature = "direct-metal"))]
             early_reads: match std::env::var("MLXL3_NATIVE_EARLY_READS") {
                 Ok(value) => common_queue_flag(Some(&value)),
@@ -973,6 +982,11 @@ impl ReadService {
         let count = reads.len();
         for item in reads {
             let (lease, file, offset, bytes, payload) = item?;
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            {
+                let [records, total] = self.requested.get();
+                self.requested.set([records + 1, total + bytes as u64]);
+            }
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
                 #[cfg(test)]

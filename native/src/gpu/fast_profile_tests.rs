@@ -270,15 +270,22 @@ fn native_q04_ar_generation_pilot() -> Result<()> {
         .unwrap_or(1);
     ensure!((1..=4).contains(&depth) && (1..=3).contains(&block));
     let experimental = mtp && (depth > 1 || block > 1);
+    let q04_oracle = match std::env::var("MLXL3_NATIVE_Q04_ORACLE") {
+        Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false)
+            .context("MLXL3_NATIVE_Q04_ORACLE must be 0 or 1")?,
+        Err(std::env::VarError::NotPresent) => false,
+        Err(error) => return Err(error.into()),
+    };
     let cancelled = AtomicBool::new(false);
     ensure!(model.device_greedy_eligible(0.0, 1, 1.0, false));
     let mut runs = Vec::new();
     let mut retained_cache = None;
     for warmup in [true, false] {
         let mut pilot = experimental
-            .then(|| super::flash::ExperimentalMtp::new(depth, block))
+            .then(|| super::flash::ExperimentalMtp::new(depth, block, &gpu))
             .transpose()?;
-        let quality = super::route_swap_trace::Quality::start(tau, 3)?;
+        let quality = super::route_swap_trace::Quality::start_with_oracle(tau, 3, q04_oracle)?;
+        quality.prepare(&gpu)?;
         super::route_swap_trace::restore_cache_only(retained_cache.as_ref());
         quality.document(tokens.len(), tokens.len() + 63)?;
         model.reset();
@@ -291,6 +298,7 @@ fn native_q04_ar_generation_pilot() -> Result<()> {
         };
         let mut generated = vec![model.greedy_from_logits(&logits)?];
         let prefill_seconds = start.elapsed().as_secs_f64();
+        let read_before = gpu.readers()?.requested_counts();
         let decode = std::time::Instant::now();
         while generated.len() < 64 {
             let last = *generated.last().context("missing generated token")?;
@@ -326,6 +334,7 @@ fn native_q04_ar_generation_pilot() -> Result<()> {
         }
         let decode_seconds = decode.elapsed().as_secs_f64();
         let total_seconds = start.elapsed().as_secs_f64();
+        let read_after = gpu.readers()?.requested_counts();
         let hot_submissions = gpu.device_hot_submissions() - hot_before;
         ensure!(generated.len() == 64 && generated.iter().all(|&t| t < 248320));
         ensure!(model.offset() as usize == tokens.len() + 63 && gpu.readers()?.in_flight() == 0);
@@ -349,6 +358,9 @@ fn native_q04_ar_generation_pilot() -> Result<()> {
             "policy":policy,"device_hot_submissions":hot_submissions,"memory":model.memory_stats()?,
             "mtp_proposed":pilot.as_ref().map_or(session.proposed,|p|p.proposed),
             "mtp_accepted":pilot.as_ref().map_or(session.accepted,|p|p.accepted),
+            "ssd_records_requested":read_after[0]-read_before[0],"ssd_bytes_requested":read_after[1]-read_before[1],
+            "active_context_final":model.offset(),"context_capacity":4096,
+            "mtp_work":pilot.as_ref().map(|p|&p.stats),
             "verify_widths":pilot.as_ref().map(|p|p.widths),"draft_lengths":pilot.as_ref().map(|p|p.lengths)}),
         );
     }
@@ -357,6 +369,8 @@ fn native_q04_ar_generation_pilot() -> Result<()> {
         serde_json::to_vec_pretty(
             &serde_json::json!({"status":if experimental {"complete_native_mtp_depth_prototype_pilot"} else if mtp {"complete_native_mtp_d1_prototype_pilot"} else {"complete_native_ar_prototype_pilot"},"tau":tau,
             "checkpoint":crate::checkpoint::artifact_key(&path)?,"prompt":rendered,"prompt_tokens":tokens,
+            "qmv_shapes":&*gpu.qmv_shapes.borrow(),"mb3":gpu.flash_verify_mb3.as_ref().map(|p|p.resources(&gpu.device)),"qmv_observation":gpu.observe_qmv,
+            "q04_oracle":q04_oracle,"recursive_cpu":std::env::var("MLXL3_NATIVE_MTP_RECURSIVE_CPU").ok(),
             "max_swaps":3,"mtp":mtp,"draft_depth":if mtp {depth} else {0},"verify_block_max_rows":block,"experimental_mtp":experimental,"production_cli_benchmark":false,"runs":runs}),
         )?,
     )?;

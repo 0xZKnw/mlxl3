@@ -1,0 +1,388 @@
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	﻿2026-11-09T13:25:58.5395640Z ##[group]Run set -euo pipefail
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5396010Z ^[[36;1mset -euo pipefail^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5396600Z ^[[36;1mexport MLXL3_MLX_ROOT="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5397240Z ^[[36;1mmkdir -p build/ci^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5397480Z ^[[36;1mcargo fmt --check^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5398230Z ^[[36;1mc++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/metal_os_capabilities.cpp -o build/ci/metal-os-capabilities^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5399020Z ^[[36;1mbuild/ci/metal-os-capabilities^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5399440Z ^[[36;1mcargo clippy --locked --all-targets --features mlx,chat -- -D warnings^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5399910Z ^[[36;1mcargo build --locked --release --features mlx,chat^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5400250Z ^[[36;1mcompatibility_tests=(^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5400620Z ^[[36;1m  array::tests::metal_os_capability_query_and_rejections_need_no_gpu_work^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5401200Z ^[[36;1m  dflash::tests::packed_q4_rejects_older_macos_before_loading_weights^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5401660Z ^[[36;1m  qwen35::tests::invalid_config_is_rejected_before_weight_loading^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5402200Z ^[[36;1m  qwen35::tests::public_layers_reject_overflow_and_invalid_epsilon_before_weights^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5402600Z ^[[36;1m)^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5402850Z ^[[36;1mfor test_name in "${compatibility_tests[@]}"; do^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5403470Z ^[[36;1m  cargo test --locked --lib --features mlx,chat "$test_name" -- --exact --test-threads=1 | tee build/ci/compatibility-test.log^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5404370Z ^[[36;1m  python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/compatibility-test.log").read_text()'^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5404990Z ^[[36;1mdone^[[0m
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5449760Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5450180Z env:
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5450510Z   MACOSX_DEPLOYMENT_TARGET: 26.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5450910Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5451530Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5452150Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5452630Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5453190Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:25:58.5453640Z ##[endgroup]
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:03.5013920Z 1190 Metal OS parser/capability checks passed
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:03.7698980Z     Updating crates.io index
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.2293630Z  Downloading crates ...
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3003720Z   Downloaded adler2 v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3251630Z   Downloaded ahash v0.8.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3348140Z   Downloaded anstyle-query v1.1.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3370960Z   Downloaded clap_lex v1.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3395850Z   Downloaded anyhow v1.0.104
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3483570Z   Downloaded anstream v1.0.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3526240Z   Downloaded autocfg v1.5.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3579090Z   Downloaded proc-macro2 v1.0.107
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3700280Z   Downloaded pkg-config v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3738800Z   Downloaded clap_derive v4.6.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3790200Z   Downloaded colorchoice v1.0.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3813930Z   Downloaded foreign-types v0.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3814870Z   Downloaded rayon-cond v0.4.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3836140Z   Downloaded darling_macro v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3848420Z   Downloaded block v0.1.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3858650Z   Downloaded castaway v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3917120Z   Downloaded cfg-if v1.0.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3921100Z   Downloaded futures-sink v0.3.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3951580Z   Downloaded futures-task v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.3997620Z   Downloaded powerfmt v0.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4024940Z   Downloaded rand_core v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4076320Z   Downloaded byteorder-lite v0.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4100200Z   Downloaded fnv v1.0.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4151380Z   Downloaded futures-core v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4174020Z   Downloaded ident_case v1.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4203920Z   Downloaded is_terminal_polyfill v1.70.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4228410Z   Downloaded macro_rules_attribute v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4271630Z   Downloaded try-lock v0.2.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4290110Z   Downloaded version_check v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4314450Z   Downloaded want v0.3.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4334100Z   Downloaded core-graphics-types v0.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4348920Z   Downloaded foreign-types-shared v0.3.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4360360Z   Downloaded fs2 v0.4.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4384110Z   Downloaded heck v0.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4416580Z   Downloaded monostate v0.1.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4460170Z   Downloaded quick-error v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4485400Z   Downloaded anstyle v1.0.14
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4536370Z   Downloaded derive_builder_macro v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4552950Z   Downloaded equivalent v1.0.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4575470Z   Downloaded errno v0.3.14
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4613230Z   Downloaded foreign-types-macros v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4636740Z   Downloaded http-body v0.4.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4686710Z   Downloaded httpdate v1.0.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4722850Z   Downloaded itoa v1.0.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4766410Z   Downloaded macro_rules_attribute-proc_macro v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4785260Z   Downloaded malloc_buf v0.0.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4791200Z   Downloaded memo-map v0.3.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4816700Z   Downloaded monostate-impl v0.1.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4829890Z   Downloaded num-conv v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4845460Z   Downloaded objc v0.2.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4906970Z   Downloaded shlex v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4945850Z   Downloaded simd-adler32 v0.3.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.4990510Z   Downloaded slab v0.4.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5011800Z   Downloaded strsim v0.11.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5033480Z   Downloaded time-core v0.1.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5050960Z   Downloaded tower-service v0.3.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5063990Z   Downloaded unit-prefix v0.5.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5081690Z   Downloaded utf8parse v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5096870Z   Downloaded paste v1.0.15
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5167370Z   Downloaded anstyle-parse v1.0.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5200070Z   Downloaded core-foundation v0.10.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5266870Z   Downloaded crossbeam-deque v0.8.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5298020Z   Downloaded dary_heap v0.3.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5318340Z   Downloaded deranged v0.5.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5346440Z   Downloaded derive_builder_core v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5387900Z   Downloaded either v1.18.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5420210Z   Downloaded fastrand v2.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5446250Z   Downloaded find-msvc-tools v0.1.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5477890Z   Downloaded futures-channel v0.3.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5514320Z   Downloaded once_cell v1.21.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5582300Z   Downloaded ppv-lite86 v0.2.21
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5606260Z   Downloaded quote v1.0.47
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5658740Z   Downloaded signal-hook-registry v1.4.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5678770Z   Downloaded smallvec v1.16.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5700450Z   Downloaded static_assertions v1.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5725120Z   Downloaded thiserror-impl v2.0.20
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5751500Z   Downloaded tokio-macros v2.6.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5772000Z   Downloaded zmij v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5802110Z   Downloaded zune-core v0.5.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5844260Z   Downloaded pastey v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5887530Z   Downloaded console v0.16.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5927530Z   Downloaded core-foundation-sys v0.8.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.5986280Z   Downloaded darling v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6098090Z   Downloaded derive_builder v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6221400Z   Downloaded fdeflate v0.3.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6252520Z   Downloaded half v2.7.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6302190Z   Downloaded httparse v1.10.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6350530Z   Downloaded log v0.4.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6391840Z   Downloaded num-traits v0.2.19
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6437860Z   Downloaded onig v6.5.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6481320Z   Downloaded rand_chacha v0.9.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6522360Z   Downloaded rustversion v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6578340Z   Downloaded serde_core v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6626470Z   Downloaded thiserror v2.0.20
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6762990Z   Downloaded time-macros v0.2.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6825960Z   Downloaded pin-project-lite v0.2.17
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6939330Z   Downloaded base64 v0.13.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.6991300Z   Downloaded bitflags v2.13.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7078720Z   Downloaded bytemuck v1.25.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7155030Z   Downloaded bytes v1.11.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7233420Z   Downloaded clap v4.6.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7443980Z   Downloaded crossbeam-epoch v0.9.21
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7487980Z   Downloaded crossbeam-utils v0.8.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7538340Z   Downloaded darling_core v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7639500Z   Downloaded flate2 v1.1.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7757390Z   Downloaded getrandom v0.3.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7822880Z   Downloaded getrandom v0.4.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7902870Z   Downloaded minijinja-contrib v2.24.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7946070Z   Downloaded miniz_oxide v0.8.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.7999540Z   Downloaded miniz_oxide v0.9.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8056020Z   Downloaded ryu v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8129780Z   Downloaded serde_derive v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8190420Z   Downloaded socket2 v0.6.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8222250Z   Downloaded tempfile v3.27.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8269280Z   Downloaded unicode-ident v1.0.24
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8318140Z   Downloaded base64 v0.22.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8386120Z   Downloaded crc32fast v1.5.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8443140Z   Downloaded image-webp v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8483710Z   Downloaded indicatif v0.18.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8549600Z   Downloaded rayon-core v1.13.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8616590Z   Downloaded signal-hook v0.3.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8671120Z   Downloaded socket2 v0.5.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8700930Z   Downloaded zune-jpeg v0.5.15
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8783140Z   Downloaded cc v1.4.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8838620Z   Downloaded compact_str v0.9.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8911090Z   Downloaded daachorse v3.0.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.8972480Z   Downloaded http v0.2.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9035090Z   Downloaded indexmap v2.13.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9128450Z   Downloaded memchr v2.8.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9230820Z   Downloaded minimal-lexical v0.2.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9316870Z   Downloaded mio v1.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9456350Z   Downloaded nom v7.1.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9566860Z   Downloaded serde v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9629510Z   Downloaded tracing-core v0.1.36
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9675900Z   Downloaded unicode-normalization-alignments v0.1.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9720900Z   Downloaded zerocopy-derive v0.8.57
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9928220Z   Downloaded rand v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:04.9993240Z   Downloaded unicode-segmentation v1.13.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0038000Z   Downloaded unicode_categories v0.1.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0066810Z   Downloaded hashbrown v0.16.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0189200Z   Downloaded png v0.18.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0256880Z   Downloaded regex v1.13.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0360820Z   Downloaded tokio-util v0.7.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0518120Z   Downloaded clap_builder v4.6.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.0637430Z   Downloaded h2 v0.3.27
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.1030670Z   Downloaded itertools v0.14.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.1220050Z   Downloaded rayon v1.12.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.1400480Z   Downloaded aho-corasick v1.1.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.1529390Z   Downloaded serde_json v1.0.151
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2050980Z   Downloaded esaxx-rs v0.1.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2106720Z   Downloaded futures-util v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2397400Z   Downloaded hyper v0.14.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2547390Z   Downloaded minijinja v2.24.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2676770Z   Downloaded moxcms v0.8.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.2938820Z   Downloaded portable-atomic v1.15.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.3068270Z   Downloaded zlib-rs v0.6.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.3160580Z   Downloaded tokenizers v0.23.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.3347000Z   Downloaded unicode-width v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.3446910Z   Downloaded zerocopy v0.8.57
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.3897680Z   Downloaded syn v3.0.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.4136970Z   Downloaded time v0.3.55
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.4438420Z   Downloaded image v0.25.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.4603210Z   Downloaded syn v2.0.119
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.4837980Z   Downloaded regex-syntax v0.8.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.4946820Z   Downloaded rustix v1.1.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.5538780Z   Downloaded tracing v0.1.44
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.5893970Z   Downloaded spm_precompiled v0.1.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.5984270Z   Downloaded regex-automata v0.4.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.6231470Z   Downloaded onig_sys v69.9.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.6577470Z   Downloaded libc v0.2.189
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.7514800Z   Downloaded tokio v1.50.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.8510910Z   Downloaded pxfm v0.1.30
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:05.9405340Z   Downloaded metal v0.33.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:06.3559680Z    Compiling proc-macro2 v1.0.107
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:06.3563300Z    Compiling unicode-ident v1.0.24
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:06.3563780Z    Compiling quote v1.0.47
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:06.8737500Z    Compiling libc v0.2.189
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:09.2533820Z     Checking cfg-if v1.0.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:09.2935970Z    Compiling serde_core v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:09.9601730Z    Compiling find-msvc-tools v0.1.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:10.1037700Z    Compiling syn v2.0.119
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:10.1114460Z    Compiling syn v3.0.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:10.7830510Z    Compiling serde v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:10.9734950Z    Compiling shlex v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:11.0741490Z    Compiling cc v1.4.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.0909350Z     Checking errno v0.3.14
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.1528150Z    Compiling zerocopy v0.8.57
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.4128700Z     Checking bitflags v2.13.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.4839940Z    Compiling serde_derive v1.0.229
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.5158220Z     Checking once_cell v1.21.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.6106000Z    Compiling crossbeam-utils v0.8.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:12.8421450Z     Checking memchr v2.8.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.0052370Z    Compiling zerocopy-derive v0.8.57
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.0963490Z    Compiling getrandom v0.3.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.3040190Z    Compiling ident_case v1.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.3710510Z     Checking itoa v1.0.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.4531950Z     Checking pin-project-lite v0.2.17
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.5074450Z    Compiling crossbeam-epoch v0.9.21
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.6606720Z    Compiling strsim v0.11.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.8452250Z    Compiling fnv v1.0.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:13.8952770Z    Compiling darling_core v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:15.3119850Z    Compiling crossbeam-deque v0.8.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:15.4823060Z     Checking bytes v1.11.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:15.7607350Z     Checking simd-adler32 v0.3.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:15.9862570Z    Compiling darling_macro v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.0637790Z     Checking signal-hook-registry v1.4.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.1651720Z     Checking futures-core v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.2099090Z    Compiling crc32fast v1.5.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.2355810Z    Compiling pkg-config v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.3711870Z    Compiling rayon-core v1.13.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.4957690Z    Compiling autocfg v1.5.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.5831810Z    Compiling rustversion v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.7152230Z     Checking adler2 v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.7385640Z    Compiling num-traits v0.2.19
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.7890240Z    Compiling onig_sys v69.9.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.8811040Z    Compiling darling v0.20.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:16.9341150Z    Compiling tokio-macros v2.6.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.0510040Z     Checking socket2 v0.6.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.0711810Z     Checking mio v1.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.2182480Z     Checking either v1.18.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.3388130Z     Checking utf8parse v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.3489460Z    Compiling portable-atomic v1.15.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.3952410Z    Compiling version_check v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.5347480Z    Compiling paste v1.0.15
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.5904190Z    Compiling zmij v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.7110070Z     Checking http v0.2.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.8175810Z    Compiling ahash v0.8.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.8287070Z     Checking tokio v1.50.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:17.9523880Z     Checking anstyle-parse v1.0.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:18.2589730Z    Compiling derive_builder_core v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:19.9992110Z     Checking miniz_oxide v0.9.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.0253390Z     Checking ppv-lite86 v0.2.21
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.1632200Z     Checking rand_core v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.2483940Z     Checking aho-corasick v1.1.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.2563770Z     Checking tracing-core v0.1.36
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.4648070Z    Compiling esaxx-rs v0.1.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.6038660Z    Compiling rustix v1.1.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.7558810Z    Compiling getrandom v0.4.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.8244300Z     Checking is_terminal_polyfill v1.70.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.8759560Z     Checking unicode-width v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:20.9197840Z    Compiling httparse v1.10.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.0361980Z     Checking colorchoice v1.0.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.1192150Z     Checking anstyle v1.0.14
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.1345150Z    Compiling thiserror v2.0.20
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.2529180Z    Compiling serde_json v1.0.151
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.3479130Z     Checking anstyle-query v1.1.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.4110720Z     Checking hashbrown v0.16.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.4202050Z     Checking core-foundation-sys v0.8.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.5473580Z     Checking futures-sink v0.3.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.6028000Z     Checking futures-task v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.6646240Z     Checking minimal-lexical v0.2.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.7720260Z     Checking regex-syntax v0.8.11
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.7930940Z     Checking equivalent v1.0.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:21.8399110Z     Checking indexmap v2.13.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:22.2319540Z     Checking nom v7.1.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:22.8164720Z     Checking futures-util v0.3.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:22.8465610Z     Checking regex-automata v0.4.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.1206380Z     Checking tokio-util v0.7.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.3975050Z     Checking core-foundation v0.10.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.5330130Z     Checking anstream v1.0.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.6648330Z     Checking console v0.16.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.8677450Z     Checking tracing v0.1.44
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.9021400Z     Checking rand_chacha v0.9.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:23.9862360Z     Checking flate2 v1.1.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:24.0030940Z     Checking castaway v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:24.1898040Z    Compiling derive_builder_macro v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:24.3645180Z     Checking rayon v1.12.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:24.7908630Z     Checking itertools v0.14.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:24.9741160Z     Checking miniz_oxide v0.8.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.1856140Z     Checking fdeflate v0.3.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.3232920Z    Compiling monostate-impl v0.1.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.4376390Z    Compiling foreign-types-macros v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.5344690Z    Compiling thiserror-impl v2.0.20
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.5830660Z     Checking malloc_buf v0.0.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.6342040Z     Checking static_assertions v1.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.6796720Z     Checking slab v0.4.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.7434020Z     Checking memo-map v0.3.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.7938040Z     Checking smallvec v1.16.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.8206410Z     Checking foreign-types-shared v0.3.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.8669670Z     Checking unicode-segmentation v1.13.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:25.9071520Z     Checking pxfm v0.1.30
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.1010700Z    Compiling macro_rules_attribute-proc_macro v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.3104800Z     Checking quick-error v2.0.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.3751020Z     Checking ryu v1.0.23
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.4628020Z    Compiling anyhow v1.0.104
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.4659350Z    Compiling signal-hook v0.3.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.6060480Z     Checking byteorder-lite v0.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.6807250Z    Compiling heck v0.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.7463970Z     Checking unit-prefix v0.5.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.7984220Z     Checking try-lock v0.2.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.8114790Z     Checking clap_lex v1.1.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.8583060Z     Checking zune-core v0.5.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.8929950Z     Checking log v0.4.34
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.9754150Z    Compiling pastey v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:26.9810260Z     Checking base64 v0.13.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.1008660Z     Checking spm_precompiled v0.1.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.2149530Z     Checking zune-jpeg v0.5.15
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.2863800Z     Checking macro_rules_attribute v0.2.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.2961600Z     Checking moxcms v0.8.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.3421780Z     Checking clap_builder v4.6.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.7550970Z     Checking want v0.3.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:27.8169090Z     Checking indicatif v0.18.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:28.0586470Z    Compiling clap_derive v4.6.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:28.3548420Z     Checking image-webp v0.2.4
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:28.9878440Z     Checking compact_str v0.9.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.1678230Z     Checking unicode-normalization-alignments v0.1.12
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.2607240Z     Checking foreign-types v0.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.3112730Z     Checking minijinja v2.24.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.5284920Z     Checking h2 v0.3.27
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.5577460Z     Checking objc v0.2.7
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.6850460Z     Checking rayon-cond v0.4.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.7799790Z     Checking monostate v0.1.18
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:29.9082950Z     Checking png v0.18.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:30.7916350Z     Checking derive_builder v0.20.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:30.8227720Z     Checking rand v0.9.5
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:30.8488580Z     Checking regex v1.13.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.1398280Z     Checking core-graphics-types v0.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.2104570Z     Checking onig v6.5.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.2493270Z     Checking http-body v0.4.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.3618570Z     Checking futures-channel v0.3.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.4760480Z     Checking dary_heap v0.3.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.4907070Z     Checking socket2 v0.5.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.5317760Z     Checking time-core v0.1.9
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.5669370Z     Checking httpdate v1.0.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.6460680Z     Checking powerfmt v0.2.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.6463310Z     Checking unicode_categories v0.1.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.6534720Z    Compiling mlxl3-native v2.0.4 (/Users/runner/work/mlxl3/mlxl3)
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.7327720Z     Checking daachorse v3.0.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.7446010Z     Checking fastrand v2.5.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.8455780Z     Checking num-conv v0.2.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.9119840Z     Checking bytemuck v1.25.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.9437870Z     Checking tower-service v0.3.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.9929850Z     Checking block v0.1.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:31.9932500Z     Checking deranged v0.5.8
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:32.0586530Z     Checking image v0.25.10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:32.0624070Z     Checking metal v0.33.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:32.6232410Z     Checking time v0.3.55
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:33.1269030Z     Checking hyper v0.14.32
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:33.4957890Z     Checking tokenizers v0.23.2
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:34.6513520Z     Checking tempfile v3.27.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:34.8010010Z     Checking minijinja-contrib v2.24.0
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:34.9123270Z     Checking clap v4.6.6
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:35.2060180Z     Checking half v2.7.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:35.3893650Z     Checking fs2 v0.4.3
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:35.4503150Z     Checking base64 v0.22.1
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2631950Z error: using `chunks_exact` with a constant chunk size
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2632640Z    --> native/src/gpu/mtp_pilot.rs:203:10
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2633370Z     |
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2633640Z 203 |         .chunks_exact(2)
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2634320Z     |          ^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<2>().0.iter()`
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2634790Z     |
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2635330Z     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2636360Z     = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2637000Z     = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:57.2637350Z 
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:58.3984620Z error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+metal-and-loader-contracts	Build the shipped bridge and exercise error paths without GPU work	2026-11-09T13:26:58.4768320Z ##[error]Process completed with exit code 101.

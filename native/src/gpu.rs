@@ -417,6 +417,12 @@ pub struct Metal {
     flash_verify_qmv: Option<[ComputePipelineState; 2]>,
     flash_verify_specialized: Option<[ComputePipelineState; 7]>,
     #[cfg(test)]
+    flash_verify_mb3: Option<projection::VerifyMb3>,
+    #[cfg(test)]
+    observe_qmv: bool,
+    #[cfg(test)]
+    qmv_shapes: std::cell::RefCell<std::collections::BTreeMap<String, u64>>,
+    #[cfg(test)]
     flash_verify_specialized_uses: std::cell::Cell<[u64; 7]>,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
@@ -448,6 +454,8 @@ pub struct Metal {
     route_half: ComputePipelineState,
     #[cfg(test)]
     q04_pickers: [ComputePipelineState; 2],
+    #[cfg(test)]
+    mtp_hidden_widen: ComputePipelineState,
     route_float: ComputePipelineState,
     inverse: Buffer,
     readers: std::cell::OnceCell<crate::ssd_reads::ReadService>,
@@ -834,6 +842,16 @@ impl Metal {
                 let function = library
                     .get_function(name, None)
                     .map_err(anyhow::Error::msg)?;
+                #[cfg(test)]
+                {
+                    let descriptor = metal::ComputePipelineDescriptor::new();
+                    descriptor.set_compute_function(Some(&function));
+                    descriptor.set_label(name);
+                    device
+                        .new_compute_pipeline_state(&descriptor)
+                        .map_err(anyhow::Error::msg)
+                }
+                #[cfg(not(test))]
                 device
                     .new_compute_pipeline_state_with_function(&function)
                     .map_err(anyhow::Error::msg)
@@ -990,7 +1008,7 @@ impl Metal {
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             #[cfg(test)]
-            let q04_pickers = {
+            let (q04_pickers, mtp_hidden_widen) = {
                 let library = device
                     .new_library_with_source(include_str!("../shaders/q04_pick.metal"), &options)
                     .map_err(|e| anyhow::anyhow!("Q04 picker: {e}"))?;
@@ -1002,7 +1020,10 @@ impl Metal {
                         .new_compute_pipeline_state_with_function(&f)
                         .map_err(|e| anyhow::anyhow!("{e}"))
                 };
-                [make("q04_pick_half")?, make("q04_pick_float")?]
+                (
+                    [make("q04_pick_half")?, make("q04_pick_float")?],
+                    make("mtp_hidden_widen")?,
+                )
             };
             let hc = [
                 hc::Pipelines::load(&cached_pipeline, "half", false, false, false)?,
@@ -1060,6 +1081,18 @@ impl Metal {
             } else {
                 None
             };
+            #[cfg(test)]
+            let flash_verify_mb3 = if hc_kernel_setting("MLXL3_NATIVE_VERIFY_MB3")? {
+                ensure!(
+                    flash_verify_qmv.is_some(),
+                    "MB3 requires canonical shared verification"
+                );
+                Some(projection::VerifyMb3::load(&pipeline, &device)?)
+            } else {
+                None
+            };
+            #[cfg(test)]
+            let observe_qmv = hc_kernel_setting("MLXL3_NATIVE_QMV_SHAPES")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
             let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(
@@ -1279,6 +1312,12 @@ impl Metal {
                 flash_verify_qmv,
                 flash_verify_specialized,
                 #[cfg(test)]
+                flash_verify_mb3,
+                #[cfg(test)]
+                observe_qmv,
+                #[cfg(test)]
+                qmv_shapes: std::cell::RefCell::new(std::collections::BTreeMap::new()),
+                #[cfg(test)]
                 flash_verify_specialized_uses: std::cell::Cell::new([0; 7]),
                 mtp_norm,
                 mtp_combine,
@@ -1312,6 +1351,8 @@ impl Metal {
                 route_half,
                 #[cfg(test)]
                 q04_pickers,
+                #[cfg(test)]
+                mtp_hidden_widen,
                 route_float,
                 inverse,
                 readers: std::cell::OnceCell::new(),

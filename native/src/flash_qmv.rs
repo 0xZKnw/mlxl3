@@ -559,3 +559,43 @@ pub(crate) fn note_shared_path(packing: bool) {
 pub(crate) fn shared_path_counts() -> (u64, u64) {
     SHARED_PATH_COUNTS.get()
 }
+
+/// Test candidate only: preserve MB2 everywhere except an actual three-row block.
+#[cfg(any(test, kani))]
+pub(crate) fn verify_geometry(rows: u32, mb3: bool) -> (u32, u32) {
+    let mb = if mb3 && rows == 3 { 3 } else { 2 };
+    (mb, rows.div_ceil(mb))
+}
+
+#[test]
+fn third_row_geometry_never_pads_a_fourth_row_or_changes_other_widths() {
+    for rows in 0..=4 {
+        assert_eq!(verify_geometry(rows, false), (2, rows.div_ceil(2)));
+        assert_eq!(
+            verify_geometry(rows, true),
+            if rows == 3 {
+                (3, 1)
+            } else {
+                (2, rows.div_ceil(2))
+            }
+        );
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn third_row_geometry_covers_exactly_the_input_without_overflow() {
+    let rows: u32 = kani::any();
+    let enabled: bool = kani::any();
+    let (mb, groups) = verify_geometry(rows, enabled);
+    assert!(mb == 2 || (mb == 3 && rows == 3 && enabled));
+    assert!(u64::from(groups) * u64::from(mb) >= u64::from(rows));
+    if groups > 0 {
+        assert!(u64::from(groups - 1) * u64::from(mb) < u64::from(rows));
+    }
+    if rows == 3 && enabled {
+        assert_eq!((mb, groups), (3, 1));
+    }
+    kani::cover!(rows == 3 && enabled && groups == 1);
+    kani::cover!(rows == u32::MAX && !enabled);
+}

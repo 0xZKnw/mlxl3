@@ -53,6 +53,10 @@ struct DecisionFrame {
     cache: Option<Rc<crate::flash_support::ExpertCache>>,
 }
 impl DecisionSnapshot {
+    pub(super) fn test_signature(&self) -> serde_json::Value {
+        serde_json::json!({"positions":self.positions.to_vec(),"starved":self.starved.iter().map(|v|v.to_vec()).collect::<Vec<_>>(),
+            "caches":self.caches.iter().map(|c|c.as_ref().map(|c|c.logical_test_signature())).collect::<Vec<_>>()})
+    }
     pub(super) fn retain_layer(&mut self, layer: usize, row: usize) -> Result<()> {
         QUALITY.with_borrow(|s| -> Result<()> {
             let frame = s.as_ref().context("missing Q04 prefix state")?.frames[layer]
@@ -143,6 +147,14 @@ impl Drop for SuspendDraft {
 }
 
 struct QualityState {
+    oracle: bool,
+    oracle_calls: usize,
+    gpu_choices: usize,
+    cpu_choices: usize,
+    cache_clones: usize,
+    logical_ready_physical_absent: usize,
+    logical_absent_physical_ready: usize,
+    scratch: [Vec<Rc<PickerScratch>>; 48],
     tau: f32,
     limit: usize,
     prefix: usize,
@@ -161,6 +173,9 @@ struct QualityState {
 pub(super) struct Quality;
 impl Quality {
     pub(super) fn start(tau: Option<f32>, limit: usize) -> Result<Self> {
+        Self::start_with_oracle(tau, limit, true)
+    }
+    pub(super) fn start_with_oracle(tau: Option<f32>, limit: usize, oracle: bool) -> Result<Self> {
         if let Some(tau) = tau {
             ensure!(tau.is_finite() && (0.0..=0.4).contains(&tau) && (1..=3).contains(&limit));
             ensure!(
@@ -170,6 +185,14 @@ impl Quality {
             QUALITY.with_borrow_mut(|s| -> Result<()> {
                 ensure!(s.is_none(), "nested Q04 quality experiment");
                 *s = Some(QualityState {
+                    oracle,
+                    oracle_calls: 0,
+                    gpu_choices: 0,
+                    cpu_choices: 0,
+                    cache_clones: 0,
+                    logical_ready_physical_absent: 0,
+                    logical_absent_physical_ready: 0,
+                    scratch: std::array::from_fn(|_| Vec::new()),
                     tau,
                     limit,
                     prefix: 0,
@@ -187,6 +210,25 @@ impl Quality {
             })?;
         }
         Ok(Self)
+    }
+    pub(super) fn set_oracle(&self, enabled: bool) {
+        QUALITY.with_borrow_mut(|s| {
+            if let Some(s) = s {
+                s.oracle = enabled;
+            }
+        });
+    }
+    pub(super) fn prepare(&self, gpu: &super::Metal) -> Result<()> {
+        QUALITY.with_borrow_mut(|state| -> Result<()> {
+            if let Some(s) = state {
+                for pool in &mut s.scratch {
+                    if pool.is_empty() {
+                        pool.push(Rc::new(PickerScratch::new(gpu)?));
+                    }
+                }
+            }
+            Ok(())
+        })
     }
     pub(super) fn document(&self, prefix: usize, inputs: usize) -> Result<()> {
         QUALITY.with_borrow_mut(|s| -> Result<()> {
@@ -207,7 +249,10 @@ impl Quality {
                 ensure!(s.positions.iter().all(|&n| n == s.inputs));
                 ensure!(s.rows > 0);
                 Ok(serde_json::json!({"kind":"online_ar_diagnostic","tau":s.tau,"max_swaps":s.limit,
-                    "protected":3,"weight_cap":0.1,"rows":s.rows,"swaps":s.swaps,
+                    "protected":3,"weight_cap":0.1,"oracle_enabled":s.oracle,
+                    "oracle_calls":s.oracle_calls,"gpu_choices":s.gpu_choices,"cpu_choices":s.cpu_choices,
+                    "logical_ready_physical_absent":s.logical_ready_physical_absent,"logical_absent_physical_ready":s.logical_absent_physical_ready,
+                    "logical_cache_clones":s.cache_clones,"picker_scratch_bytes":s.scratch.iter().map(|v|v.len()*2600).sum::<usize>(),"rows":s.rows,"swaps":s.swaps,
                     "actual_decode_cold_reads":s.cold_reads,"actual_decode_logical_read_bytes":s.read_bytes,
                     "retained_layer_rows":s.positions.iter().map(|p|p-s.prefix).sum::<usize>(),
                     "timing_is_benchmark":false,"mtp_validated":false}))
@@ -251,7 +296,7 @@ pub(super) fn encode_pick(
     if PREPARING.get() {
         return Ok(());
     }
-    QUALITY.with_borrow(|s| -> Result<_> {
+    QUALITY.with_borrow_mut(|s| -> Result<_> {
         let Some(s) = s else {
             return Ok(());
         };
@@ -269,17 +314,56 @@ pub(super) fn encode_pick(
             ensure!(e < 512);
             ready[e as usize] = 1;
         }
+        let pool = &mut s.scratch[layer];
+        let slot = pool
+            .iter()
+            .find(|slot| Rc::strong_count(slot) == 1 && slot.completed())
+            .cloned();
+        let slot = if let Some(slot) = slot {
+            slot
+        } else {
+            ensure!(pool.len() < 4, "Q04 scratch lease capacity exceeded");
+            let slot = Rc::new(PickerScratch::new(gpu)?);
+            pool.push(slot.clone());
+            slot
+        };
         routes.q04_pick = Some(encode_picker(
             gpu,
             cmd,
             routes,
             &ready,
             &s.starved[layer],
-            s.tau,
-            s.limit,
+            (s.tau, s.limit),
+            Some(&slot),
         )?);
+        *slot.producer.borrow_mut() = Some(cmd.to_owned());
+        routes.q04_scratch = Some(slot);
         Ok(())
     })
+}
+
+pub(super) struct PickerScratch {
+    ready: metal::Buffer,
+    starved: metal::Buffer,
+    picked: super::MatrixView,
+    producer: RefCell<Option<metal::CommandBuffer>>,
+}
+impl PickerScratch {
+    fn new(gpu: &super::Metal) -> Result<Self> {
+        let shared = metal::MTLResourceOptions::StorageModeShared;
+        Ok(Self {
+            ready: super::buffer(&gpu.device, 2048, shared)?,
+            starved: super::buffer(&gpu.device, 512, shared)?,
+            picked: super::MatrixView::output(gpu, super::view::FloatType::F32, 1, 10, shared)?,
+            producer: RefCell::new(None),
+        })
+    }
+    fn completed(&self) -> bool {
+        self.producer
+            .borrow()
+            .as_ref()
+            .is_none_or(|c| c.status() == metal::MTLCommandBufferStatus::Completed)
+    }
 }
 
 fn encode_picker(
@@ -288,8 +372,8 @@ fn encode_picker(
     routes: &super::RouteOutput,
     ready: &[u32; 512],
     starved: &[u8; 512],
-    tau: f32,
-    limit: usize,
+    (tau, limit): (f32, usize),
+    scratch: Option<&PickerScratch>,
 ) -> Result<(super::MatrixView, [metal::Buffer; 2])> {
     use super::view::FloatType;
     let p = routes
@@ -300,16 +384,43 @@ fn encode_picker(
         p.shape() == [1, 512] && routes.scores.shape() == [1, 10] && p.dtype == routes.scores.dtype
     );
     ensure!(tau.is_finite() && (0.0..=0.4).contains(&tau) && (1..=3).contains(&limit));
-    let ready = super::upload(&gpu.device, ready)?;
-    let starved = super::upload(&gpu.device, starved)?;
-    // Raw u32 words; this view never participates in floating-point arithmetic.
-    let picked = super::MatrixView::output(
-        gpu,
-        FloatType::F32,
-        1,
-        10,
-        metal::MTLResourceOptions::StorageModeShared,
-    )?;
+    let (ready, starved, picked) = if let Some(scratch) = scratch {
+        ensure!(
+            scratch.completed(),
+            "Q04 metadata producer is still using scratch"
+        );
+        // Exclusive lease and completed producer: only that producer reads these metadata buffers.
+        // Picked IDs are overwritten on the same GPU queue, after earlier consumers.
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                ready.as_ptr(),
+                scratch.ready.contents().cast::<u32>(),
+                512,
+            );
+            std::ptr::copy_nonoverlapping(
+                starved.as_ptr(),
+                scratch.starved.contents().cast::<u8>(),
+                512,
+            );
+        }
+        (
+            scratch.ready.clone(),
+            scratch.starved.clone(),
+            scratch.picked.clone(),
+        )
+    } else {
+        (
+            super::upload(&gpu.device, ready)?,
+            super::upload(&gpu.device, starved)?,
+            super::MatrixView::output(
+                gpu,
+                FloatType::F32,
+                1,
+                10,
+                metal::MTLResourceOptions::StorageModeShared,
+            )?,
+        )
+    };
     let pipeline = &gpu.q04_pickers[usize::from(p.dtype == FloatType::F32)];
     ensure!(
         pipeline.thread_execution_width() == 32
@@ -402,7 +513,8 @@ fn gpu_picker_matches_reference_without_changing_original_routes() -> Result<()>
                 0.2
             };
             let cmd = gpu.queue.new_command_buffer();
-            let (picked, _held) = encode_picker(&gpu, cmd, &route, &ready, &starved, tau, 3)?;
+            let (picked, _held) =
+                encode_picker(&gpu, cmd, &route, &ready, &starved, (tau, 3), None)?;
             cmd.commit();
             cmd.wait_until_completed();
             ensure!(cmd.status() == metal::MTLCommandBufferStatus::Completed);
@@ -454,6 +566,18 @@ fn gpu_picker_matches_reference_without_changing_original_routes() -> Result<()>
                 picked.read_output()? == expected,
                 "GPU picker mismatch, half={half},case={case}"
             );
+            let mut fast_state = starved;
+            crate::route_swap::apply_choices(
+                &ids,
+                &picked.read_output()?,
+                &ready_bool,
+                &mut fast_state,
+            )
+            .context("invalid picker transition")?;
+            ensure!(
+                fast_state == state,
+                "GPU choice counter deltas differ from reference"
+            );
             ensure!(route.indices()? == ids && route.scores.read_output()? == original_words);
         }
     }
@@ -463,7 +587,7 @@ pub(super) fn quality_select(
     ids: &[u32],
     p: &[f32],
     weights: &[f32],
-    _ready: &[bool; 512],
+    physical: &[bool; 512],
 ) -> Result<Vec<u32>> {
     QUALITY.with_borrow_mut(|s| -> Result<_> {
         let s = s.as_mut().context("inactive Q04 quality")?;
@@ -478,7 +602,18 @@ pub(super) fn quality_select(
         {
             ready[e as usize] = true;
         }
-        let picks = crate::route_swap::select(
+        for &e in ids {
+            s.logical_absent_physical_ready +=
+                usize::from(!ready[e as usize] && physical[e as usize]);
+        }
+        s.cpu_choices += 1;
+        let choose = if s.oracle {
+            s.oracle_calls += 1;
+            crate::route_swap::select
+        } else {
+            crate::route_swap::select_fast
+        };
+        let picks = choose(
             ids,
             p,
             weights,
@@ -489,10 +624,94 @@ pub(super) fn quality_select(
         )?;
         let mut ids = ids.to_vec();
         for &(rank, e) in &picks {
+            s.logical_ready_physical_absent += usize::from(!physical[e as usize]);
             ids[rank] = e;
         }
         s.swaps += picks.len();
         Ok(ids)
+    })
+}
+pub(super) fn scalar_choice(
+    route: &super::RouteOutput,
+    picked: &[u32],
+    physical: &[bool; 512],
+) -> Result<()> {
+    let original = route.original_indices()?;
+    let oracle = QUALITY.with_borrow(|s| s.as_ref().is_some_and(|s| s.oracle));
+    let reference = if oracle {
+        let p = route
+            .q04_probabilities
+            .as_ref()
+            .context("missing reused Q04 probabilities")?;
+        let convert = |view: &super::MatrixView| -> Result<Vec<f32>> {
+            Ok(view
+                .read_output()?
+                .into_iter()
+                .map(|w| {
+                    if view.dtype == super::view::FloatType::F32 {
+                        f32::from_bits(w)
+                    } else {
+                        half::f16::from_bits(w as u16).to_f32()
+                    }
+                })
+                .collect())
+        };
+        Some((convert(p)?, convert(route.completed_scores()?)?))
+    } else {
+        None
+    };
+    QUALITY.with_borrow_mut(|state| -> Result<()> {
+        let s = state.as_mut().context("inactive Q04 choice")?;
+        let layer = LAYER.get().context("missing Q04 layer")?;
+        let mut ready = [false; 512];
+        for (e, _) in s.caches[layer]
+            .as_ref()
+            .context("missing Q04 logical cache")?
+            .ready_slot_snapshot()
+            .into_iter()
+            .flatten()
+        {
+            ready[e as usize] = true;
+        }
+        let mut reference_state = s.starved[layer];
+        let expected = if let Some((p, weights)) = reference {
+            s.oracle_calls += 1;
+            let choices = crate::route_swap::select(
+                &original,
+                &p,
+                &weights,
+                &ready,
+                &mut reference_state,
+                s.tau,
+                s.limit,
+            )?;
+            let mut expected = original.clone();
+            for (rank, e) in choices {
+                expected[rank] = e;
+            }
+            Some(expected)
+        } else {
+            None
+        };
+        let changed =
+            crate::route_swap::apply_choices(&original, picked, &ready, &mut s.starved[layer])
+                .context("invalid GPU Q04 choices")?;
+        if let Some(expected) = expected {
+            ensure!(
+                picked == expected && s.starved[layer] == reference_state,
+                "GPU Q04 IDs or transitions differ from independent host reference"
+            );
+        }
+        for (&old, &new) in original.iter().zip(picked) {
+            s.logical_absent_physical_ready +=
+                usize::from(!ready[old as usize] && physical[old as usize]);
+            if old != new {
+                s.logical_ready_physical_absent += usize::from(!physical[new as usize]);
+            }
+        }
+        s.swaps += changed;
+        s.gpu_choices += 1;
+        Ok(())
     })
 }
 pub(super) fn quality_complete(ids: &[u32], hits: usize, read_bytes: u64) -> Result<()> {
@@ -505,6 +724,7 @@ pub(super) fn quality_complete(ids: &[u32], hits: usize, read_bytes: u64) -> Res
             let cache = s.caches[layer]
                 .as_mut()
                 .context("missing Q04 logical completion cache")?;
+            s.cache_clones += usize::from(Rc::strong_count(cache) > 1);
             Rc::make_mut(cache).reserve(ids)?;
             if VERIFY_BLOCK.get() {
                 s.frames[layer].push(DecisionFrame {
@@ -524,7 +744,11 @@ pub(super) fn quality_complete(ids: &[u32], hits: usize, read_bytes: u64) -> Res
     })
 }
 
-pub(super) fn block_pick(gpu: &super::Metal, route: &mut super::RouteOutput) -> Result<()> {
+pub(super) fn block_pick(
+    gpu: &super::Metal,
+    route: &mut super::RouteOutput,
+    physical: &[bool; 512],
+) -> Result<()> {
     if !quality_active() {
         return Ok(());
     }
@@ -551,7 +775,7 @@ pub(super) fn block_pick(gpu: &super::Metal, route: &mut super::RouteOutput) -> 
             &original,
             &convert(probabilities.read_output()?),
             &convert(route.completed_scores()?.read_output()?),
-            &[false; 512],
+            physical,
         )?
     } else {
         original
@@ -570,12 +794,11 @@ pub(super) fn block_pick(gpu: &super::Metal, route: &mut super::RouteOutput) -> 
     QUALITY.with_borrow_mut(|s| -> Result<()> {
         let s = s.as_mut().context("missing block Q04 state")?;
         let layer = LAYER.get().context("missing block Q04 layer")?;
-        Rc::make_mut(
-            s.caches[layer]
-                .as_mut()
-                .context("missing logical block cache")?,
-        )
-        .reserve(&ids)?;
+        let cache = s.caches[layer]
+            .as_mut()
+            .context("missing logical block cache")?;
+        s.cache_clones += usize::from(Rc::strong_count(cache) > 1);
+        Rc::make_mut(cache).reserve(&ids)?;
         s.frames[layer].push(DecisionFrame {
             position: s.positions[layer],
             starved: s.starved[layer],

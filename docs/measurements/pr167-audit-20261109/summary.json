@@ -1,0 +1,643 @@
+{
+  "status": "complete_short_pilot",
+  "source_base": "cf7ba1724bd3a8e925d4206ff04518bbc5294c0f",
+  "binary_sha256": "ff14e9cff31cad26ee19a36351bc8faca5a8a9e3f89f4f069bb6b4e1113cdf8a",
+  "rows": [
+    {
+      "mode": "AR / off",
+      "arms": [
+        "AR-off"
+      ],
+      "tok_s": 10.590803044105508,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "n": 1,
+      "work": [
+        null
+      ]
+    },
+    {
+      "mode": "AR / Q04 20% / fast",
+      "arms": [
+        "AR-q20-fast"
+      ],
+      "tok_s": 11.08707201207259,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "n": 1,
+      "work": [
+        null
+      ]
+    },
+    {
+      "mode": "AR / Q04 20% / full oracle",
+      "arms": [
+        "AR-q20-oracle"
+      ],
+      "tok_s": 11.415701022437965,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "n": 1,
+      "work": [
+        null
+      ]
+    },
+    {
+      "mode": "MTP D1 scalar / off",
+      "arms": [
+        "scalar-D1-off"
+      ],
+      "tok_s": 10.068332883513781,
+      "accepted": 27,
+      "proposed": 35,
+      "acceptance_percent": 77.14285714285714,
+      "n": 1,
+      "work": [
+        null
+      ]
+    },
+    {
+      "mode": "MTP D1 scalar / Q04 20%",
+      "arms": [
+        "scalar-D1-q20"
+      ],
+      "tok_s": 10.897657803598692,
+      "accepted": 27,
+      "proposed": 35,
+      "acceptance_percent": 77.14285714285714,
+      "n": 1,
+      "work": [
+        null
+      ]
+    },
+    {
+      "mode": "MTP D1 block / off",
+      "arms": [
+        "D1-off-A0-resumed",
+        "D1-off-A2"
+      ],
+      "tok_s": 9.637921950590282,
+      "accepted": 54,
+      "proposed": 70,
+      "acceptance_percent": 77.14285714285714,
+      "n": 2,
+      "work": [
+        {
+          "accepted_by_rank": [
+            27,
+            0,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            8,
+            27,
+            0,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            35,
+            0,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 35,
+          "draft_heads": 35,
+          "draft_seconds": 0.247044496,
+          "eos": 0,
+          "gpu_conversions": 0,
+          "head_seconds": 0.22787371200000003,
+          "kv_repair_rows": 28,
+          "rejected_by_rank": [
+            8,
+            0,
+            0,
+            0
+          ],
+          "repair_seconds": 0.016985376,
+          "rounds": 35,
+          "tail_steps": 1,
+          "target_executed_rows": 71,
+          "target_retained_rows": 63,
+          "target_seconds": 5.947785043000002
+        },
+        {
+          "accepted_by_rank": [
+            27,
+            0,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            8,
+            27,
+            0,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            35,
+            0,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 35,
+          "draft_heads": 35,
+          "draft_seconds": 0.260292121,
+          "eos": 0,
+          "gpu_conversions": 0,
+          "head_seconds": 0.24163291800000003,
+          "kv_repair_rows": 28,
+          "rejected_by_rank": [
+            8,
+            0,
+            0,
+            0
+          ],
+          "repair_seconds": 0.018195705,
+          "rounds": 35,
+          "tail_steps": 1,
+          "target_executed_rows": 71,
+          "target_retained_rows": 63,
+          "target_seconds": 6.112432207999999
+        }
+      ]
+    },
+    {
+      "mode": "MTP D1 block / Q04 20%",
+      "arms": [
+        "D1-q20"
+      ],
+      "tok_s": 9.785700092521559,
+      "accepted": 27,
+      "proposed": 35,
+      "acceptance_percent": 77.14285714285714,
+      "n": 1,
+      "work": [
+        {
+          "accepted_by_rank": [
+            27,
+            0,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            8,
+            27,
+            0,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            35,
+            0,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 35,
+          "draft_heads": 35,
+          "draft_seconds": 0.26073295700000004,
+          "eos": 0,
+          "gpu_conversions": 0,
+          "head_seconds": 0.243517588,
+          "kv_repair_rows": 28,
+          "rejected_by_rank": [
+            8,
+            0,
+            0,
+            0
+          ],
+          "repair_seconds": 0.019071292999999996,
+          "rounds": 35,
+          "tail_steps": 1,
+          "target_executed_rows": 71,
+          "target_retained_rows": 63,
+          "target_seconds": 5.9121982520000005
+        }
+      ]
+    },
+    {
+      "mode": "MTP D2 / CPU hidden / MB2 / off",
+      "arms": [
+        "D2-old-B1",
+        "D2-old-B2"
+      ],
+      "tok_s": 9.181466657297204,
+      "accepted": 72,
+      "proposed": 104,
+      "acceptance_percent": 69.23076923076923,
+      "n": 2,
+      "work": [
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 26,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.3700433329999999,
+          "eos": 0,
+          "gpu_conversions": 0,
+          "head_seconds": 0.22776649699999996,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.026118749000000007,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.216311878
+        },
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 26,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.370845168,
+          "eos": 0,
+          "gpu_conversions": 0,
+          "head_seconds": 0.236635625,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.029512375999999993,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.241715542999997
+        }
+      ]
+    },
+    {
+      "mode": "MTP D2 / GPU hidden / MB2 / off",
+      "arms": [
+        "D2-gpu-mb2"
+      ],
+      "tok_s": 9.436193669608963,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "n": 1,
+      "work": [
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.3593462480000001,
+          "eos": 0,
+          "gpu_conversions": 26,
+          "head_seconds": 0.23485154399999997,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.026623629000000003,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.05349429
+        }
+      ]
+    },
+    {
+      "mode": "MTP D2 / GPU hidden / MB3 / off",
+      "arms": [
+        "D2-mb3-C1",
+        "D2-mb3-C2"
+      ],
+      "tok_s": 8.850527879849686,
+      "accepted": 72,
+      "proposed": 104,
+      "acceptance_percent": 69.23076923076923,
+      "n": 2,
+      "work": [
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.36394683400000005,
+          "eos": 0,
+          "gpu_conversions": 26,
+          "head_seconds": 0.227992415,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.025880709000000005,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.484351874
+        },
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.368030999,
+          "eos": 0,
+          "gpu_conversions": 26,
+          "head_seconds": 0.23605458699999998,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.028807,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.497436498
+        }
+      ]
+    },
+    {
+      "mode": "MTP D2 / GPU hidden / MB3 / Q04 20%",
+      "arms": [
+        "D2-q20"
+      ],
+      "tok_s": 8.856329719475283,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "n": 1,
+      "work": [
+        {
+          "accepted_by_rank": [
+            22,
+            14,
+            0,
+            0
+          ],
+          "accepted_prefix": [
+            4,
+            8,
+            14,
+            0,
+            0
+          ],
+          "consulted_by_rank": [
+            26,
+            22,
+            0,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 52,
+          "draft_heads": 52,
+          "draft_seconds": 0.4009093749999999,
+          "eos": 0,
+          "gpu_conversions": 26,
+          "head_seconds": 0.25646728999999996,
+          "kv_repair_rows": 37,
+          "rejected_by_rank": [
+            4,
+            8,
+            0,
+            0
+          ],
+          "repair_seconds": 0.033984917,
+          "rounds": 26,
+          "tail_steps": 1,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.4197310419999996
+        }
+      ]
+    },
+    {
+      "mode": "MTP D3 / GPU hidden / MB3 / Q04 20%",
+      "arms": [
+        "D3-q20"
+      ],
+      "tok_s": 8.599794976437709,
+      "accepted": 38,
+      "proposed": 74,
+      "acceptance_percent": 51.351351351351354,
+      "n": 1,
+      "work": [
+        {
+          "accepted_by_rank": [
+            19,
+            12,
+            7,
+            0
+          ],
+          "accepted_prefix": [
+            6,
+            7,
+            5,
+            7,
+            0
+          ],
+          "consulted_by_rank": [
+            25,
+            19,
+            11,
+            0
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 74,
+          "draft_heads": 74,
+          "draft_seconds": 0.515978834,
+          "eos": 0,
+          "gpu_conversions": 49,
+          "head_seconds": 0.23838921199999996,
+          "kv_repair_rows": 38,
+          "rejected_by_rank": [
+            6,
+            7,
+            4,
+            0
+          ],
+          "repair_seconds": 0.027125374,
+          "rounds": 25,
+          "tail_steps": 0,
+          "target_executed_rows": 82,
+          "target_retained_rows": 63,
+          "target_seconds": 6.541813294
+        }
+      ]
+    },
+    {
+      "mode": "MTP D4 / GPU hidden / MB3 / Q04 20%",
+      "arms": [
+        "D4-q20"
+      ],
+      "tok_s": 9.003691030982111,
+      "accepted": 41,
+      "proposed": 85,
+      "acceptance_percent": 48.23529411764706,
+      "n": 1,
+      "work": [
+        {
+          "accepted_by_rank": [
+            19,
+            10,
+            7,
+            5
+          ],
+          "accepted_prefix": [
+            3,
+            9,
+            3,
+            2,
+            5
+          ],
+          "consulted_by_rank": [
+            22,
+            18,
+            10,
+            7
+          ],
+          "cpu_conversions": 0,
+          "draft_forwards": 85,
+          "draft_heads": 85,
+          "draft_seconds": 0.577739711,
+          "eos": 0,
+          "gpu_conversions": 63,
+          "head_seconds": 0.24201712200000003,
+          "kv_repair_rows": 41,
+          "rejected_by_rank": [
+            3,
+            8,
+            3,
+            2
+          ],
+          "repair_seconds": 0.030327288999999997,
+          "rounds": 22,
+          "tail_steps": 0,
+          "target_executed_rows": 79,
+          "target_retained_rows": 63,
+          "target_seconds": 6.144473089
+        }
+      ]
+    }
+  ],
+  "controls_drift_percent": {
+    "D1": -2.9079305762666485,
+    "D2 CPU MB2": -0.5604484362960682,
+    "D2 GPU MB3": -0.3961379458358838
+  },
+  "all_32_sequences_match_same_policy_ar": true,
+  "production_cli_benchmark": false,
+  "quality_scope": "exact transport/geometry and unchanged Q04 choices; no new broad task-quality campaign"
+}

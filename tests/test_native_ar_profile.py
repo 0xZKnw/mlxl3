@@ -423,6 +423,46 @@ class NativeArProfileTests(unittest.TestCase):
                 self.assertGreater(call.kwargs["timeout"], 0)
                 self.assertLessEqual(call.kwargs["timeout"], 0.05)
 
+    def test_cleanup_group_permission_race_still_reaps_child(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        state = {"alive": True, "waits": 0, "signals": []}
+
+        def wait(**_):
+            state["waits"] += 1
+            state["alive"] = False
+            return 0
+
+        child = SimpleNamespace(
+            pid=123,
+            poll=lambda: None if state["alive"] else 0,
+            wait=wait,
+            send_signal=state["signals"].append,
+        )
+        with (
+            patch.object(PROFILE, "process_rows", return_value={}),
+            patch.object(PROFILE.os, "killpg", side_effect=PermissionError("exiting group")),
+        ):
+            self.assertTrue(PROFILE.cleanup(child, target, time.monotonic() + 1))
+        self.assertEqual(state["signals"], [signal.SIGTERM])
+        self.assertGreaterEqual(state["waits"], 1)
+
+    def test_cleanup_permission_failure_waits_and_never_claims_success(self):
+        target = "/engine --registry /unique/registry.json bridge /model"
+        waited = []
+        child = SimpleNamespace(
+            pid=123,
+            poll=lambda: None,
+            wait=lambda **kw: waited.append(kw),
+            send_signal=lambda _: (_ for _ in ()).throw(PermissionError("live child denied")),
+        )
+        with (
+            patch.object(PROFILE, "process_rows", return_value={}),
+            patch.object(PROFILE.os, "killpg", side_effect=PermissionError("denied")),
+            self.assertRaises(PermissionError),
+        ):
+            PROFILE.cleanup(child, target, time.monotonic() + 1)
+        self.assertEqual(len(waited), 1)
+
     def test_cleanup_revalidates_reused_pid_and_never_kills_another_group(self):
         target = "/engine --registry /unique/registry.json bridge /model --context-length 4096"
         original = {456: (1, 456, target)}

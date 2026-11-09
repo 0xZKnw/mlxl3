@@ -1619,6 +1619,12 @@ impl ExpertCache {
             .collect()
     }
 
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn logical_test_signature(&self) -> serde_json::Value {
+        serde_json::json!({"keys":self.keys,"pending":self.pending,"generations":self.generations,
+            "prefetched":self.prefetched,"predicted":self.predicted.to_vec(),"predictive_lru":self.predictive_lru,
+            "slru":self.slru.is_some(),"counts":self.counts.to_vec(),"ages":self.ages,"clock":self.clock,"prefetch_hits":self.prefetch_hits})
+    }
     fn victim(&self, routed: &[u32]) -> Option<usize> {
         if let Some(slru) = &self.slru {
             let eligible = |i: usize| {

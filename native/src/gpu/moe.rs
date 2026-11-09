@@ -461,33 +461,7 @@ impl<'a> FlashMoeRow<'a> {
         );
         #[cfg(test)]
         let ids = if super::route_swap_trace::quality_row()? {
-            let original_ids = routing.original_indices()?;
-            let raw = weights.read_output()?;
-            let probabilities = routing
-                .q04_probabilities
-                .as_ref()
-                .context("missing reused gate probabilities")?
-                .read_output()?
-                .into_iter()
-                .map(|word| {
-                    if x.dtype == FloatType::F32 {
-                        f32::from_bits(word)
-                    } else {
-                        half::f16::from_bits(word as u16).to_f32()
-                    }
-                })
-                .collect::<Vec<_>>();
-            let weights: Vec<_> = raw
-                .into_iter()
-                .map(|word| {
-                    if x.dtype == FloatType::F32 {
-                        f32::from_bits(word)
-                    } else {
-                        half::f16::from_bits(word as u16).to_f32()
-                    }
-                })
-                .collect();
-            let mut ready = [false; 512];
+            let mut physical = [false; 512];
             for (e, _) in self
                 .cache
                 .borrow()
@@ -495,25 +469,10 @@ impl<'a> FlashMoeRow<'a> {
                 .into_iter()
                 .flatten()
             {
-                ready[e as usize] = true;
+                physical[e as usize] = true;
             }
-            let expected = super::route_swap_trace::quality_select(
-                &original_ids,
-                &probabilities,
-                &weights,
-                &ready,
-            )?;
-            let picked = routing
-                .q04_pick
-                .as_ref()
-                .context("missing same-command GPU Q04 pick")?
-                .0
-                .read_output()?;
-            ensure!(
-                picked == expected,
-                "GPU Q04 pick differs from independent host reference"
-            );
-            picked
+            super::route_swap_trace::scalar_choice(&routing, &ids, &physical)?;
+            ids
         } else {
             ids
         };

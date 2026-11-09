@@ -46,11 +46,25 @@ kernel void flash_reference_qmv_nt2(FLASH_QMV_ARGUMENTS) {
 kernel void flash_verify_qmv_mb2(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_verify_qmv_mb3(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
 #undef MLXL3_QMV_NT
 #define MLXL3_QMV_NT 2u
 kernel void flash_verify_qmv_mb2_nt2(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_verify_qmv_mb3_nt2(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
 #undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 1u
 #undef MLXL3_QMV_NT

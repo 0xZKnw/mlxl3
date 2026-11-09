@@ -242,15 +242,22 @@ def cleanup(child, target, deadline):
         finally:
             # Discovery failure must not skip signalling/waiting our direct child.
             # After reap, never signal its potentially recycled numeric PGID.
-            if child.poll() is None:
-                try:
-                    os.killpg(child.pid, sig)
-                except ProcessLookupError:
-                    pass
             try:
-                child.wait(timeout=max(0.001, min(0.1, deadline - time.monotonic())))
-            except subprocess.TimeoutExpired:
-                pass
+                if child.poll() is None:
+                    try:
+                        os.killpg(child.pid, sig)
+                    except ProcessLookupError:
+                        pass
+                    except PermissionError:
+                        # macOS can deny a group signal while its leader exits.
+                        # Reap that child, or signal it directly; still confirm descendants below.
+                        if child.poll() is None:
+                            child.send_signal(sig)
+            finally:
+                try:
+                    child.wait(timeout=max(0.001, min(0.1, deadline - time.monotonic())))
+                except subprocess.TimeoutExpired:
+                    pass
     while time.monotonic() < deadline:
         rows = snapshot()
         if child.poll() is not None and not any(

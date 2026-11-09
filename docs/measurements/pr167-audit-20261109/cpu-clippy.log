@@ -1,0 +1,23 @@
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0)
+error: method `logical_test_signature` is never used
+    --> native/src/flash_support.rs:1623:19
+     |
+1426 | impl ExpertCache {
+     | ---------------- method in this implementation
+...
+1623 |     pub(crate) fn logical_test_signature(&self) -> serde_json::Value {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `-D dead-code` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: method `requested_counts` is never used
+   --> native/src/ssd_reads.rs:543:19
+    |
+541 | impl ReadService {
+    | ---------------- method in this implementation
+542 |     #[cfg(test)]
+543 |     pub(crate) fn requested_counts(&self) -> [u64; 2] {
+    |                   ^^^^^^^^^^^^^^^^
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

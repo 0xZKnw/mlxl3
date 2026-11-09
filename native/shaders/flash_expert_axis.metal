@@ -53,6 +53,14 @@ kernel void flash_consumers_k2_2560_640_nt1(EXPERT_AXIS_ARGS) {
 #include "_qmv_tile_kernel.metal"
 }
 #undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_consumers_k2_2560_640_nt1_mb3(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+#undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 1u
 
 #undef MLXL3_QMV_NT
@@ -67,6 +75,14 @@ kernel void flash_consumers_k2_2560_640_nt2(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_consumers_k2_2560_640_nt2_mb3(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
 #undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 1u
 
@@ -91,6 +107,14 @@ kernel void flash_consumers_k2_640_2560_nt1(EXPERT_AXIS_ARGS) {
 #include "_qmv_tile_kernel.metal"
 }
 #undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_consumers_k2_640_2560_nt1_mb3(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
+#undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 1u
 
 #undef MLXL3_QMV_NT
@@ -105,6 +129,14 @@ kernel void flash_consumers_k2_640_2560_nt2(EXPERT_AXIS_ARGS) {
     EXPERT_AXIS_LOCALS
 #include "_qmv_tile_kernel.metal"
 }
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 3u
+kernel void flash_consumers_k2_640_2560_nt2_mb3(EXPERT_AXIS_ARGS) {
+    EXPERT_AXIS_LOCALS
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_MB
+#define MLXL3_QMV_MB 2u
 #undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 1u
 

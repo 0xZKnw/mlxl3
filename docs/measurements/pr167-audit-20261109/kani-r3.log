@@ -1,0 +1,457 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.4 (/Users/justin/.codex/worktrees/issue165-fast-20261108/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1151:17
+     |
+1151 |         None => assert!(!(2..=8).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1304:17
+     |
+1304 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: constant `FLAGS` is never used
+ --> native/src/ar10_defaults.rs:4:18
+  |
+4 | pub(crate) const FLAGS: [&str; 13] = [
+  |                  ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `setting_value` is never used
+  --> native/src/ar10_defaults.rs:29:4
+   |
+29 | fn setting_value(value: std::result::Result<String, std::env::VarError>, m5: bool) -> Result<bool> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `setting` is never used
+  --> native/src/ar10_defaults.rs:38:15
+   |
+38 | pub(crate) fn setting(name: &str, qualified_m5: bool) -> Result<bool> {
+   |               ^^^^^^^
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `defines` is never used
+ --> native/src/ar20_kernel_policy.rs:9:15
+  |
+9 | pub(crate) fn defines(bits: u32) -> String {
+  |               ^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `capacity` is never used
+ --> native/src/device_hot_policy.rs:5:15
+  |
+5 | pub(crate) fn capacity(value: Option<&str>) -> Option<usize> {
+  |               ^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `position`, `feature`, and `accepted` are never read
+   --> native/src/flash_draft_budget.rs:108:5
+    |
+107 | struct Label {
+    |        ----- fields in this struct
+108 |     position: usize,
+    |     ^^^^^^^^
+109 |     feature: f64,
+    |     ^^^^^^^
+110 |     accepted: bool,
+    |     ^^^^^^^^
+    |
+    = note: `Label` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `logit` is never used
+   --> native/src/flash_draft_budget.rs:129:4
+    |
+129 | fn logit(p: f64) -> f64 {
+    |    ^^^^^
+
+warning: function `sigmoid` is never used
+   --> native/src/flash_draft_budget.rs:133:4
+    |
+133 | fn sigmoid(z: f64) -> f64 {
+    |    ^^^^^^^
+
+warning: function `seed` is never used
+   --> native/src/flash_draft_budget.rs:137:4
+    |
+137 | fn seed(rows: f64) -> f64 {
+    |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:190:8
+    |
+185 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+...
+190 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+203 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+209 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+227 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+278 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+295 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: constant `CAPACITIES` is never used
+ --> native/src/flash_expert_scratch.rs:4:18
+  |
+4 | pub(crate) const CAPACITIES: [u64; 2] = [5120, 10240];
+  |                  ^^^^^^^^^^
+
+warning: methods `ready_slot_snapshot`, `enable_slru`, and `slru_enabled` are never used
+    --> native/src/flash_support.rs:1607:19
+     |
+1426 | impl ExpertCache {
+     | ---------------- methods in this implementation
+...
+1607 |     pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
+     |                   ^^^^^^^^^^^^^^^^^^^
+...
+1663 |     pub(crate) fn enable_slru(&mut self) {
+     |                   ^^^^^^^^^^^
+...
+1669 |     pub(crate) fn slru_enabled(&self) -> bool {
+     |                   ^^^^^^^^^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1813:19
+     |
+1813 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve`, `reserve_block`, `reserve_access`, and `publish` are never used
+    --> native/src/flash_support.rs:1821:19
+     |
+1820 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1821 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1828 |     pub(crate) fn reserve_block(
+     |                   ^^^^^^^^^^^^^
+...
+1836 |     fn reserve_access(
+     |        ^^^^^^^^^^^^^^
+...
+1858 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3836:15
+     |
+3836 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3903:15
+     |
+3903 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CAPACITY` is never used
+ --> native/src/frame_arena.rs:2:18
+  |
+2 | pub(crate) const CAPACITY: usize = 9;
+  |                  ^^^^^^^^
+
+warning: function `select_fast` is never used
+  --> native/src/route_swap.rs:49:15
+   |
+49 | pub(crate) fn select_fast(
+   |               ^^^^^^^^^^^
+
+warning: function `select` is never used
+   --> native/src/route_swap.rs:116:15
+    |
+116 | pub(crate) fn select(
+    |               ^^^^^^
+
+warning: enum `ReadPayload` is never used
+  --> native/src/ssd_reads.rs:20:17
+   |
+20 | pub(crate) enum ReadPayload {
+   |                 ^^^^^^^^^^^
+
+warning: struct `Completed` is never constructed
+   --> native/src/ssd_reads.rs:143:19
+    |
+143 | pub(crate) struct Completed {
+    |                   ^^^^^^^^^
+
+warning: struct `Ticket` is never constructed
+   --> native/src/ssd_reads.rs:161:8
+    |
+161 | struct Ticket(Arc<AtomicUsize>);
+    |        ^^^^^^
+
+warning: struct `Read` is never constructed
+   --> native/src/ssd_reads.rs:169:8
+    |
+169 | struct Read {
+    |        ^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:185:8
+    |
+184 | impl Read {
+    | --------- method in this implementation
+185 |     fn run(self) {
+    |        ^^^
+
+warning: enum `ReadWork` is never used
+   --> native/src/ssd_reads.rs:266:6
+    |
+266 | enum ReadWork {
+    |      ^^^^^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:275:8
+    |
+274 | impl ReadWork {
+    | ------------- method in this implementation
+275 |     fn run(self) {
+    |        ^^^
+
+warning: struct `SplitState` is never constructed
+   --> native/src/ssd_reads.rs:287:8
+    |
+287 | struct SplitState {
+    |        ^^^^^^^^^^
+
+warning: struct `SplitRecord` is never constructed
+   --> native/src/ssd_reads.rs:295:8
+    |
+295 | struct SplitRecord {
+    |        ^^^^^^^^^^^
+
+warning: associated items `new` and `run_part` are never used
+   --> native/src/ssd_reads.rs:308:8
+    |
+307 | impl SplitRecord {
+    | ---------------- associated items in this implementation
+308 |     fn new(
+    |        ^^^
+...
+361 |     fn run_part(&self, index: usize, file: File) {
+    |        ^^^^^^^^
+
+warning: struct `ReadService` is never constructed
+   --> native/src/ssd_reads.rs:499:19
+    |
+499 | pub(crate) struct ReadService {
+    |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+    --> native/src/ssd_reads.rs:547:19
+     |
+ 541 | impl ReadService {
+     | ---------------- associated items in this implementation
+...
+ 547 |     pub(crate) fn new(readers: usize) -> Result<Self> {
+     |                   ^^^
+...
+ 562 |     fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 597 |     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^
+...
+ 723 |     pub(crate) fn in_flight(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+ 726 |     pub(crate) fn submit(
+     |                   ^^^^^^
+...
+ 877 |     fn sources(
+     |        ^^^^^^^
+...
+ 912 |     fn start(
+     |        ^^^^^
+...
+ 919 |     fn start_mode(
+     |        ^^^^^^^^^^
+...
+ 930 |     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+     |        ^^^^^^^^^^^^^^
+...
+ 946 |     fn start_payloads(
+     |        ^^^^^^^^^^^^^^
+...
+ 955 |     fn start_fallible_payloads(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 974 |     fn enqueue_payloads(
+     |        ^^^^^^^^^^^^^^^^
+...
+1060 |     fn enqueue(&self, work: ReadWork) -> Result<()> {
+     |        ^^^^^^^
+
+warning: struct `ReadBatch` is never constructed
+    --> native/src/ssd_reads.rs:1100:19
+     |
+1100 | pub(crate) struct ReadBatch {
+     |                   ^^^^^^^^^
+
+warning: methods `remaining`, `poll`, `ready`, and `ready_min` are never used
+    --> native/src/ssd_reads.rs:1108:19
+     |
+1107 | impl ReadBatch {
+     | -------------- methods in this implementation
+1108 |     pub(crate) fn remaining(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+1111 |     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+     |                   ^^^^
+...
+1128 |     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^
+...
+1135 |     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^^^^^
+
+warning: struct `Source` is never constructed
+  --> native/src/ssd_reads/window.rs:12:8
+   |
+12 | struct Source {
+   |        ^^^^^^
+
+warning: enum `Destination` is never used
+  --> native/src/ssd_reads/window.rs:21:6
+   |
+21 | enum Destination {
+   |      ^^^^^^^^^^^
+
+warning: struct `ReadWindow` is never constructed
+  --> native/src/ssd_reads/window.rs:27:19
+   |
+27 | pub(crate) struct ReadWindow<'a> {
+   |                   ^^^^^^^^^^
+
+warning: associated items `new`, `refill`, `remaining`, and `ready` are never used
+   --> native/src/ssd_reads/window.rs:39:8
+    |
+ 38 | impl<'a> ReadWindow<'a> {
+    | ----------------------- associated items in this implementation
+ 39 |     fn new(
+    |        ^^^
+...
+ 75 |     fn refill(&mut self) -> Result<()> {
+    |        ^^^^^^
+...
+117 |     pub(crate) fn remaining(&self) -> usize {
+    |                   ^^^^^^^^^
+...
+121 |     pub(crate) fn ready(&mut self) -> Result<Vec<(SlotLease, ReadPayload)>> {
+    |                   ^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+error: internal compiler error: Kani unexpectedly panicked at panicked at kani-compiler/src/intrinsics.rs:243:17:
+                                assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32))).
+
+
+thread 'rustc' (2847335) panicked at kani-compiler/src/intrinsics.rs:243:17:
+assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+Kani unexpectedly panicked during compilation.
+Please file an issue here: https://github.com/model-checking/kani/issues/new?labels=bug&template=bug_report.md
+
+[Kani] no current codegen item.
+[Kani] no current codegen location.
+error: could not compile `mlxl3-native` (lib); 53 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/.kani/kani-0.68.0/bin/kani-compiler --crate-name mlxl3_native --edition=2024 native/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -Z embed-metadata=no -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked --warn=unexpected_cfgs --check-cfg 'cfg(kani)' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("chat", "default", "direct-metal", "hybrid-dispatch", "mlx"))' -C metadata=9f438b568e1bbe7f -C extra-filename=-ad161e3b000fa6c4 --out-dir /Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/ad161e3b000fa6c4/out --target aarch64-apple-darwin -C incremental=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/incremental -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anstream/5a70834d8bebf2dd/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anstyle/7c5af46dd91a5e78/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anstyle-parse/cb68b83e298b1d9c/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anstyle-query/84d6aa1840097a5e/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anyhow/c195f83837491f49/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/bitflags/a4b8312ebf784550/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/bytes/7fcb520d35d3baeb/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/cfg-if/56e1ef36918e08c6/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/clap/20ac85651e05fe26/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/clap_builder/e825a74b153182c5/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/clap_lex/eae226806e9eb57b/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/colorchoice/bd7164d11d973b9c/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/deranged/74d9e9c89c5b6bc7/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/equivalent/c55283f2cfc49a14/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/errno/05e2b1fc5df74773/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/fastrand/044801937eae065e/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/fnv/31985c6bfd586764/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/fs2/35b7c72e6c097b62/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/futures-channel/6d61500a849c64bf/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/futures-core/271a2e89e50ed1da/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/futures-sink/791d73fd92743e4f/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/futures-task/be59ef427dd68e29/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/futures-util/c6c4a386b080c962/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/getrandom/1e157fef85d85dcf/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/h2/f69d4f2ba06595c9/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/half/edaeed1b9b9d9de5/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/hashbrown/8719210bde38a7e1/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/http/e1eb334763f2c5b3/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/http-body/82fc8231f92974b4/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/httparse/d9ce5bb27300091a/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/httpdate/b9b0fe23f6d52ce7/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/hyper/9b6e2f0e02f9a236/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/indexmap/7b32f38e9dceca7c/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/is_terminal_polyfill/0e23195ce0543f17/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/itoa/f2d28d66786213f9/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/libc/5cbc2a299c2fd860/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/memchr/8322d072715c847c/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/mio/efc0370dbec4b4ab/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/num-conv/8f239c0127c82fff/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/once_cell/1e2924f276c1029f/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/pin-project-lite/80a3ed6684606142/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/powerfmt/b02c022743554f75/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/rustix/dd8fc9ed36d1eb5b/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/serde/44a0b3f5553358a9/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/serde_core/4ef232cb5468ce95/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/serde_json/47604634a8b461dd/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/signal-hook/d4cb2f29aa6de92f/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/signal-hook-registry/015294451253fc9b/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/slab/4367c13b28d2718b/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/socket2/4ff6d1a655c97064/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/socket2/77df24396cdea669/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/strsim/a34c14373c06ede2/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tempfile/73a4a7384d2beebd/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/time/854e44d44df9b882/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/time-core/e90f87965bcab269/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tokio/9fb303c578f9435a/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tokio-util/e891d5ecdf32a579/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tower-service/11080a6b1df38347/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tracing/54e156ec972a0fca/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tracing-core/05e1d1844581962e/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/try-lock/a8a777dec971efe5/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/utf8parse/b07c1264e9eb1008/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/want/60b8d5951e8c667d/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/zerocopy/6656820553213067/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/zmij/841d215301cb54f8/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/debug/build/clap_derive/6d5b30c94e044b5c/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/debug/build/serde_derive/25ba86eccdcf1e7b/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/debug/build/tokio-macros/120cf509a843653d/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/debug/build/zerocopy-derive/c1ece50fe1400d77/out -L dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/debug/build/mlxl3-native/ad161e3b000fa6c4/out --extern anyhow=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/anyhow/c195f83837491f49/out/libanyhow-c195f83837491f49.rmeta --extern clap=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/clap/20ac85651e05fe26/out/libclap-20ac85651e05fe26.rmeta --extern fs2=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/fs2/35b7c72e6c097b62/out/libfs2-35b7c72e6c097b62.rmeta --extern half=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/half/edaeed1b9b9d9de5/out/libhalf-edaeed1b9b9d9de5.rmeta --extern hyper=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/hyper/9b6e2f0e02f9a236/out/libhyper-9b6e2f0e02f9a236.rmeta --extern libc=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/libc/5cbc2a299c2fd860/out/liblibc-5cbc2a299c2fd860.rmeta --extern serde=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/serde/44a0b3f5553358a9/out/libserde-44a0b3f5553358a9.rmeta --extern serde_json=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/serde_json/47604634a8b461dd/out/libserde_json-47604634a8b461dd.rmeta --extern signal_hook=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/signal-hook/d4cb2f29aa6de92f/out/libsignal_hook-d4cb2f29aa6de92f.rmeta --extern tempfile=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tempfile/73a4a7384d2beebd/out/libtempfile-73a4a7384d2beebd.rmeta --extern time=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/time/854e44d44df9b882/out/libtime-854e44d44df9b882.rmeta --extern tokio=/Users/justin/Documents/mlxl3-pr161-validation/target/kani/aarch64-apple-darwin/debug/build/tokio/9fb303c578f9435a/out/libtokio-9fb303c578f9435a.rmeta '-Cllvm-args=--reachability=harnesses --log-level=warn --assertion-reach-checks --harness speculative::publication_never_succeeds_after_cancellation --harness route_swap::selected_ids_commit_only_valid_miss_transitions --harness flash_qmv::third_row_geometry_covers_exactly_the_input_without_overflow --harness route_swap::recovery_preserves_hits_and_forces_fourth_miss --exact -Z unstable-options' -C overflow-checks=on -Z unstable-options -Z trim-diagnostic-paths=no -Z human_readable_cgu_names -Z always-encode-mir --cfg=kani -Z 'crate-attr=feature(register_tool)' -Z 'crate-attr=register_tool(kanitool)' --force-warn unstable_features --sysroot /Users/justin/.kani/kani-0.68.0 -L /Users/justin/.kani/kani-0.68.0/lib --extern 'force:kani' --extern 'noprelude,nounused:std=/Users/justin/.kani/kani-0.68.0/lib/libstd.rlib' -C panic=abort -C symbol-mangling-version=v0 -Z panic_abort_tests=yes -Z mir-enable-passes=-RemoveStorageMarkers '--check-cfg=cfg(kani)' -Clinker=echo --kani-compiler -Cllvm-args=--check-version=0.68.0 --check-cfg 'cfg(mlxl3_hybrid_payload)'` (exit status: 101)
+error: Failed to compile `mlxl3_native` due to an internal compiler error.: error: internal compiler error: Kani unexpectedly panicked at panicked at kani-compiler/src/intrinsics.rs:243:17:
+                                assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32))).
+
+

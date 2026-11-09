@@ -16,6 +16,8 @@ pub struct RouteOutput {
     #[cfg(test)]
     pub(super) q04_pick: Option<(MatrixView, [Buffer; 2])>,
     #[cfg(test)]
+    pub(super) q04_scratch: Option<std::rc::Rc<super::route_swap_trace::PickerScratch>>,
+    #[cfg(test)]
     waits: std::rc::Rc<std::cell::Cell<usize>>,
 }
 
@@ -139,6 +141,8 @@ impl Metal {
             q04_probabilities: None,
             #[cfg(test)]
             q04_pick: None,
+            #[cfg(test)]
+            q04_scratch: None,
             #[cfg(test)]
             waits: self.route_waits.clone(),
         })
