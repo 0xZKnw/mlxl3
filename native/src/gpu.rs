@@ -419,6 +419,12 @@ pub struct Metal {
     #[cfg(test)]
     flash_verify_mb3: Option<projection::VerifyMb3>,
     #[cfg(test)]
+    block_chain: bool,
+    #[cfg(test)]
+    block_chain_uses: std::cell::Cell<u64>,
+    #[cfg(test)]
+    q02_profile: u32,
+    #[cfg(test)]
     observe_qmv: bool,
     #[cfg(test)]
     qmv_shapes: std::cell::RefCell<std::collections::BTreeMap<String, u64>>,
@@ -835,6 +841,19 @@ impl Metal {
             let hot_slots = crate::device_hot_policy::capacity(hot_slots_value.as_deref())
                 .context("MLXL3_NATIVE_DEVICE_HOT_SLOTS must be 53 or 64")?;
             let source = format!("#define MLXL3_DEVICE_HOT_SLOTS {hot_slots}u\n{source}");
+            #[cfg(test)]
+            let q02_profile = match std::env::var("MLXL3_NATIVE_Q02_PROFILE").as_deref() {
+                Err(std::env::VarError::NotPresent) | Ok("exact") => 0,
+                Ok("mul1-deferred") => 1,
+                Ok("mul1-centered") => 2,
+                _ => anyhow::bail!("Q02 profile must be exact, mul1-deferred or mul1-centered"),
+            };
+            #[cfg(test)]
+            let source = format!("#define MLXL3_Q02_PROFILE {q02_profile}\n{source}");
+            #[cfg(test)]
+            let block_chain = hc_kernel_setting("MLXL3_NATIVE_BLOCK_HC_GDN_CHAIN")?;
+            #[cfg(test)]
+            let cap_qmv_threads = hc_kernel_setting("MLXL3_NATIVE_QMV_THREADS128")?;
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -847,6 +866,14 @@ impl Metal {
                     let descriptor = metal::ComputePipelineDescriptor::new();
                     descriptor.set_compute_function(Some(&function));
                     descriptor.set_label(name);
+                    if cap_qmv_threads
+                        && (name.starts_with("flash_verify_")
+                            || name.starts_with("flash_consumers_")
+                            || name.starts_with("flash_static_k")
+                            || name.starts_with("flash_fixed_k2"))
+                    {
+                        descriptor.set_max_total_threads_per_threadgroup(128);
+                    }
                     device
                         .new_compute_pipeline_state(&descriptor)
                         .map_err(anyhow::Error::msg)
@@ -1313,6 +1340,12 @@ impl Metal {
                 flash_verify_specialized,
                 #[cfg(test)]
                 flash_verify_mb3,
+                #[cfg(test)]
+                block_chain,
+                #[cfg(test)]
+                block_chain_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                q02_profile,
                 #[cfg(test)]
                 observe_qmv,
                 #[cfg(test)]

@@ -599,3 +599,53 @@ fn third_row_geometry_covers_exactly_the_input_without_overflow() {
     kani::cover!(rows == 3 && enabled && groups == 1);
     kani::cover!(rows == u32::MAX && !enabled);
 }
+
+#[cfg(any(test, kani))]
+pub(crate) fn mb3_family(scope: u8, shape: [u32; 2], routed: bool, consumers: bool) -> bool {
+    match scope {
+        0 => true,
+        1 => !routed && !consumers,
+        2 => !routed && !consumers && shape == [2560, 10240],
+        3 => !routed && !consumers && shape == [2560, 6144],
+        4 => !routed && !consumers && shape == [6144, 2560],
+        5 => (routed || consumers) && shape == [2560, 640],
+        6 => (routed || consumers) && shape == [640, 2560],
+        7 => consumers,
+        _ => false,
+    }
+}
+#[test]
+fn mb3_family_does_not_cross_resident_and_consumer_paths() {
+    assert!(mb3_family(2, [2560, 10240], false, false));
+    assert!(!mb3_family(2, [2560, 10240], true, true));
+    assert!(mb3_family(5, [2560, 640], true, true));
+    assert!(!mb3_family(5, [2560, 640], false, false));
+    assert!(!mb3_family(6, [2560, 640], true, true));
+    assert!(!mb3_family(8, [u32::MAX; 2], false, false));
+}
+#[cfg(kani)]
+#[kani::proof]
+fn mb3_family_respects_role_and_shape_boundaries() {
+    let scope: u8 = kani::any();
+    let shape: [u32; 2] = kani::any();
+    let routed: bool = kani::any();
+    let consumers: bool = kani::any();
+    let active = mb3_family(scope, shape, routed, consumers);
+    if scope >= 8 {
+        assert!(!active);
+    }
+    if active && (2..=4).contains(&scope) {
+        assert!(!routed && !consumers);
+        assert!(matches!(shape, [2560, 10240] | [2560, 6144] | [6144, 2560]));
+    }
+    if active && scope == 5 {
+        assert_eq!(shape, [2560, 640]);
+        assert!(routed || consumers);
+    }
+    if active && scope == 6 {
+        assert_eq!(shape, [640, 2560]);
+        assert!(routed || consumers);
+    }
+    kani::cover!(active && scope == 2);
+    kani::cover!(active && scope == 5 && consumers);
+}

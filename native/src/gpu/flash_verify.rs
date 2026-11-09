@@ -17,11 +17,33 @@ pub struct BlockTxn<'model, 'gpu> {
     prefixes: Vec<FlashSnapshot>,
     logits: Vec<Vec<u16>>,
     publications: Vec<super::super::qsa::VerificationPublication>,
+    #[cfg(test)]
+    first_read_bytes: Option<[u64; 4]>,
+}
+
+struct StagedBlock {
+    prefixes: Vec<FlashSnapshot>,
+    logits: Vec<Vec<u16>>,
+    #[cfg(test)]
+    first_read_bytes: Option<[u64; 4]>,
 }
 
 pub type FlashVerification<'model, 'gpu> = BlockTxn<'model, 'gpu>;
 
 impl BlockTxn<'_, '_> {
+    #[cfg(test)]
+    pub(super) fn read_work(&self, retained: usize) -> Result<Option<[u64; 2]>> {
+        ensure!(
+            retained <= self.prefixes.len(),
+            "invalid read attribution prefix"
+        );
+        Ok(self.first_read_bytes.map(|bytes| {
+            [
+                bytes[..retained].iter().sum(),
+                bytes[retained..self.prefixes.len()].iter().sum(),
+            ]
+        }))
+    }
     pub fn logits(&self) -> &[Vec<u16>] {
         &self.logits
     }
@@ -157,12 +179,14 @@ impl<'gpu> FlashNext<'gpu> {
             }
         }
         self.restore(&before)?;
-        let (prefixes, logits) = operation?;
+        let staged = operation?;
         Ok(BlockTxn {
             model: self,
-            prefixes,
-            logits,
+            prefixes: staged.prefixes,
+            logits: staged.logits,
             publications,
+            #[cfg(test)]
+            first_read_bytes: staged.first_read_bytes,
         })
     }
 
@@ -172,7 +196,7 @@ impl<'gpu> FlashNext<'gpu> {
         end: u32,
         cancelled: &AtomicBool,
         heads: bool,
-    ) -> Result<(Vec<FlashSnapshot>, Vec<Vec<u16>>)> {
+    ) -> Result<StagedBlock> {
         let mut prefixes = (self.offset + 1..=end)
             .map(|offset| FlashSnapshot {
                 owner: self.owner.clone(),
@@ -188,14 +212,23 @@ impl<'gpu> FlashNext<'gpu> {
             .map(|&token| self.streams(token))
             .collect::<Result<Vec<_>>>()?;
         let gpu = self.gpu;
-        for (index, layer) in self.layers.iter_mut().enumerate() {
+        #[cfg(test)]
+        let mut first_read_bytes = self.verify_ssd_cohorts.then_some([0u64; 4]);
+        let mut carried = None;
+        for index in 0..self.layers.len() {
+            let (past, future) = self.layers.split_at_mut(index + 1);
+            let layer = past.last_mut().context("missing current block layer")?;
             #[cfg(test)]
             let _q04_layer = super::super::route_swap_trace::LayerScope::new(index);
             if self.verify_ssd_cohorts {
                 #[cfg(test)]
                 let q04_preparing = super::super::route_swap_trace::Preparing::new();
                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-                let projected = layer.prepare_block_inputs(&rows)?;
+                let projected = if let Some(prepared) = carried.take() {
+                    Some(prepared)
+                } else {
+                    layer.prepare_block_inputs(&rows)?
+                };
                 ensure!(
                     projected
                         .as_ref()
@@ -229,7 +262,7 @@ impl<'gpu> FlashNext<'gpu> {
                     experts.len() == rows.len(),
                     "incomplete Flash cohort outputs"
                 );
-                rows = gpu.command(|cmd| {
+                let finish = |cmd: &metal::CommandBufferRef| {
                     prepared
                         .iter()
                         .zip(&experts)
@@ -238,8 +271,31 @@ impl<'gpu> FlashNext<'gpu> {
                             layer.finish_prepared(cmd, row, experts)
                         })
                         .collect::<Result<Vec<_>>>()
-                })?;
-                for output in &experts {
+                };
+                #[cfg(test)]
+                let chain = gpu.block_chain;
+                #[cfg(not(test))]
+                let chain = false;
+                if chain && let Some(super::Layer::Gdn(next)) = future.first() {
+                    #[cfg(test)]
+                    let _preparing = super::super::route_swap_trace::Preparing::new();
+                    let (finished, projected) = next.prepare_block_after(rows.len(), finish)?;
+                    rows = finished;
+                    carried = projected;
+                    #[cfg(test)]
+                    {
+                        gpu.block_chain_uses.set(gpu.block_chain_uses.get() + 1);
+                    }
+                } else {
+                    rows = gpu.command(finish)?;
+                }
+                for (row, output) in experts.iter().enumerate() {
+                    #[cfg(test)]
+                    if let Some(bytes) = &mut first_read_bytes {
+                        bytes[row] += output.read_bytes;
+                    }
+                    #[cfg(not(test))]
+                    let _ = row;
                     output.completed()?;
                     #[cfg(test)]
                     super::super::route_swap_trace::block_stats(output.read_bytes)?;
@@ -303,7 +359,12 @@ impl<'gpu> FlashNext<'gpu> {
             logits.push(values);
         }
         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-        Ok((prefixes, logits))
+        Ok(StagedBlock {
+            prefixes,
+            logits,
+            #[cfg(test)]
+            first_read_bytes,
+        })
     }
 }
 

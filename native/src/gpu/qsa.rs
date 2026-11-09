@@ -95,6 +95,13 @@ impl Slab {
     }
 }
 
+#[cfg(test)]
+thread_local! {static FORKS:std::cell::Cell<[[u64;3];2]>=const {std::cell::Cell::new([[0;3];2])};}
+#[cfg(test)]
+pub(super) fn fork_counts() -> [[u64; 3]; 2] {
+    FORKS.get()
+}
+
 /// Exclusive verification owns every publication made after this mark.
 pub(super) struct VerificationPublication {
     slab: Rc<Slab>,
@@ -797,6 +804,20 @@ impl<'a> FlashQsa<'a> {
             .context("invalid Flash QSA slab extent")?;
         let slab = if fork || size != prior.capacity {
             let target = Slab::new(gpu, size, self.index.is_some())?;
+            #[cfg(test)]
+            FORKS.with(|counts| {
+                let mut v = counts.get();
+                let r = usize::from(crate::flash_profile::draft_work());
+                v[r][0] += 1;
+                v[r][1] += 2 * at
+                    + if prior.blocks.is_some() && target.blocks.is_some() && offset >= 4 {
+                        u64::from(offset / 4) * 256
+                    } else {
+                        0
+                    };
+                v[r][2] += u64::from(at > 0);
+                counts.set(v);
+            });
             if at > 0 {
                 gpu.command(|cmd| {
                     let blit = cmd.new_blit_command_encoder();

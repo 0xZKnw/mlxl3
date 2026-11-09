@@ -1,0 +1,13 @@
+
+running 1 test
+test gpu::projection::physical_flash_verify_shared_rows_match_scalar ... MB3_RESOURCES {"device_static_limit":32768,"force_nt1":true,"pipelines":[{"max_threads":128,"name":"flash_verify_qmv_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_verify_qmv_mb3_nt2","simd_width":32,"static_threadgroup_bytes":24576},{"max_threads":128,"name":"flash_verify_static_k2_nt1_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_verify_static_k3_nt1_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_verify_static_k3_nt2_mb3","simd_width":32,"static_threadgroup_bytes":24576},{"max_threads":128,"name":"flash_verify_static_k4_nt1_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_verify_static_k4_nt2_mb3","simd_width":32,"static_threadgroup_bytes":24576},{"max_threads":128,"name":"flash_verify_fixed_k2_2560_640_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_verify_fixed_k2_640_2560_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_consumers_k2_2560_640_nt1_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_consumers_k2_2560_640_nt2_mb3","simd_width":32,"static_threadgroup_bytes":24576},{"max_threads":128,"name":"flash_consumers_k2_640_2560_nt1_mb3","simd_width":32,"static_threadgroup_bytes":12288},{"max_threads":128,"name":"flash_consumers_k2_640_2560_nt2_mb3","simd_width":32,"static_threadgroup_bytes":24576}],"scope":"gdn-qkv","uses":[0,0]}
+Error: shared rows differ: p NT1 B3, PSO=None
+FAILED
+
+failures:
+
+failures:
+    gpu::projection::physical_flash_verify_shared_rows_match_scalar
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 513 filtered out; finished in 0.54s
+

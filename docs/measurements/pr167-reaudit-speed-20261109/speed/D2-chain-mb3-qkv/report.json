@@ -1,0 +1,572 @@
+{
+  "block_chain": true,
+  "checkpoint": "d6c73ad963bf3f23",
+  "detail_collection": false,
+  "diagnostic_output": null,
+  "draft_depth": 2,
+  "experimental_mtp": true,
+  "max_swaps": 3,
+  "mb3": {
+    "device_static_limit": 32768,
+    "force_nt1": true,
+    "pipelines": [
+      {
+        "max_threads": 128,
+        "name": "flash_verify_qmv_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_qmv_mb3_nt2",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 24576
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_static_k2_nt1_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_static_k3_nt1_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_static_k3_nt2_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 24576
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_static_k4_nt1_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_static_k4_nt2_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 24576
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_fixed_k2_2560_640_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_verify_fixed_k2_640_2560_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_consumers_k2_2560_640_nt1_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_consumers_k2_2560_640_nt2_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 24576
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_consumers_k2_640_2560_nt1_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 12288
+      },
+      {
+        "max_threads": 128,
+        "name": "flash_consumers_k2_640_2560_nt2_mb3",
+        "simd_width": 32,
+        "static_threadgroup_bytes": 24576
+      }
+    ],
+    "scope": "gdn-qkv",
+    "uses": [
+      1820,
+      0
+    ]
+  },
+  "mtp": true,
+  "numerical_profile": "exact",
+  "production_cli_benchmark": false,
+  "prompt": "<|im_start|>user\nExplique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+  "prompt_tokens": [
+    248045,
+    846,
+    198,
+    42498,
+    2295,
+    644,
+    52543,
+    11,
+    9462,
+    632,
+    48388,
+    157526,
+    11,
+    3847,
+    632,
+    6297,
+    55223,
+    52,
+    49103,
+    614,
+    3424,
+    43626,
+    35160,
+    303,
+    330,
+    3533,
+    40366,
+    324,
+    515,
+    13180,
+    933,
+    15424,
+    293,
+    27684,
+    79653,
+    5861,
+    36,
+    13,
+    248046,
+    198,
+    248045,
+    74455,
+    198,
+    248068,
+    271,
+    248069,
+    271
+  ],
+  "q04_oracle": false,
+  "qmv_observation": false,
+  "qmv_shapes": {},
+  "recursive_cpu": "0",
+  "runs": [
+    {
+      "active_context_final": 110,
+      "context_capacity": 4096,
+      "decode_seconds": 6.727135292,
+      "decode_tokens": 63,
+      "decode_tokens_per_second": 9.36505618891305,
+      "detail_collection": false,
+      "detail_events_decode": [
+        0,
+        0
+      ],
+      "device_hot_submissions": 6048,
+      "draft_lengths": [
+        0,
+        26,
+        0,
+        0
+      ],
+      "hc_gdn_chain_decode": 884,
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 7247970304,
+        "process_compressed_lifetime_logical_bytes": 741031936,
+        "process_compressed_logical_bytes": 736755712,
+        "process_compressed_peak_logical_bytes": 738476032,
+        "process_decompressions": 23390,
+        "process_footprint_bytes": 7802935464,
+        "process_id": 14043,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7834736808,
+        "process_start_abstime": 3586214177976
+      },
+      "mtp_accepted": 36,
+      "mtp_proposed": 52,
+      "mtp_work": {
+        "accepted_by_rank": [
+          22,
+          14,
+          0,
+          0
+        ],
+        "accepted_prefix": [
+          4,
+          8,
+          14,
+          0,
+          0
+        ],
+        "consulted_by_rank": [
+          26,
+          22,
+          0,
+          0
+        ],
+        "cpu_conversions": 0,
+        "depth_reason": "fixed",
+        "draft_forwards": 52,
+        "draft_heads": 52,
+        "draft_seconds": 0.367899459,
+        "eos": 0,
+        "gpu_conversions": 26,
+        "head_seconds": 0.23367862199999997,
+        "kv_repair_rows": 37,
+        "rejected_by_rank": [
+          4,
+          8,
+          0,
+          0
+        ],
+        "repair_seconds": 0.026849579,
+        "rounds": 26,
+        "selected_depths": [
+          1,
+          0,
+          26,
+          0,
+          0
+        ],
+        "tail_steps": 1,
+        "target_executed_rows": 79,
+        "target_read_bytes": [
+          9875518956,
+          2969020548
+        ],
+        "target_retained_rows": 63,
+        "target_seconds": 6.0965827500000005
+      },
+      "policy": null,
+      "policy_decode": null,
+      "policy_prefill_counters": null,
+      "prefill_seconds": 4.91072275,
+      "prefill_tokens": 47,
+      "qmv_shapes_decode": {},
+      "qsa_forks_after": [
+        [
+          24,
+          2433024,
+          24
+        ],
+        [
+          28,
+          4434944,
+          28
+        ]
+      ],
+      "qsa_forks_before": [
+        [
+          12,
+          811008,
+          12
+        ],
+        [
+          1,
+          67584,
+          1
+        ]
+      ],
+      "ssd_bytes_requested": 13056701544,
+      "ssd_draft_decode": [
+        170,
+        212162040
+      ],
+      "ssd_records_requested": 10462,
+      "ssd_target_decode": [
+        10292,
+        12844539504
+      ],
+      "text": "Pour comprendre comment un cache **LFU** (Least Frequently Used) optimise l'inférence d'un modèle **MoE** (Mixture of Experts), il faut d'abord saisir le fonctionnement de base d'un MoE et le problème qu'il pose sur le stockage.\n\n### 1. Le",
+      "tokens": [
+        40781,
+        177417,
+        3847,
+        632,
+        6297,
+        2972,
+        21907,
+        52,
+        332,
+        318,
+        78994,
+        89426,
+        11851,
+        8,
+        7314,
+        1029,
+        324,
+        6,
+        13180,
+        933,
+        15424,
+        293,
+        21372,
+        79653,
+        2972,
+        24797,
+        36,
+        332,
+        318,
+        44,
+        12370,
+        314,
+        49051,
+        681,
+        3687,
+        44454,
+        293,
+        6,
+        177130,
+        225785,
+        501,
+        181163,
+        401,
+        2255,
+        293,
+        21372,
+        5861,
+        36,
+        1778,
+        501,
+        76444,
+        893,
+        33096,
+        16540,
+        1668,
+        501,
+        202202,
+        13,
+        271,
+        13962,
+        220,
+        16,
+        13,
+        1900
+      ],
+      "total_seconds": 11.637858625,
+      "ttft_seconds": 4.91072275,
+      "verify_widths": [
+        0,
+        0,
+        26,
+        0
+      ],
+      "warmup": true
+    },
+    {
+      "active_context_final": 110,
+      "context_capacity": 4096,
+      "decode_seconds": 6.480146167,
+      "decode_tokens": 63,
+      "decode_tokens_per_second": 9.722002926542938,
+      "detail_collection": false,
+      "detail_events_decode": [
+        0,
+        0
+      ],
+      "device_hot_submissions": 6048,
+      "draft_lengths": [
+        0,
+        26,
+        0,
+        0
+      ],
+      "hc_gdn_chain_decode": 884,
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 7248101376,
+        "process_compressed_lifetime_logical_bytes": 938491904,
+        "process_compressed_logical_bytes": 931905536,
+        "process_compressed_peak_logical_bytes": 933576704,
+        "process_decompressions": 74707,
+        "process_footprint_bytes": 7813388456,
+        "process_id": 14043,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7845173416,
+        "process_start_abstime": 3586214177976
+      },
+      "mtp_accepted": 36,
+      "mtp_proposed": 52,
+      "mtp_work": {
+        "accepted_by_rank": [
+          22,
+          14,
+          0,
+          0
+        ],
+        "accepted_prefix": [
+          4,
+          8,
+          14,
+          0,
+          0
+        ],
+        "consulted_by_rank": [
+          26,
+          22,
+          0,
+          0
+        ],
+        "cpu_conversions": 0,
+        "depth_reason": "fixed",
+        "draft_forwards": 52,
+        "draft_heads": 52,
+        "draft_seconds": 0.359477504,
+        "eos": 0,
+        "gpu_conversions": 26,
+        "head_seconds": 0.229036708,
+        "kv_repair_rows": 37,
+        "rejected_by_rank": [
+          4,
+          8,
+          0,
+          0
+        ],
+        "repair_seconds": 0.026647585,
+        "rounds": 26,
+        "selected_depths": [
+          1,
+          0,
+          26,
+          0,
+          0
+        ],
+        "tail_steps": 1,
+        "target_executed_rows": 79,
+        "target_read_bytes": [
+          9682077096,
+          2961532476
+        ],
+        "target_retained_rows": 63,
+        "target_seconds": 5.8628634580000005
+      },
+      "policy": null,
+      "policy_decode": null,
+      "policy_prefill_counters": null,
+      "prefill_seconds": 4.739343583,
+      "prefill_tokens": 47,
+      "qmv_shapes_decode": {},
+      "qsa_forks_after": [
+        [
+          36,
+          2433024,
+          24
+        ],
+        [
+          55,
+          8667136,
+          54
+        ]
+      ],
+      "qsa_forks_before": [
+        [
+          36,
+          2433024,
+          24
+        ],
+        [
+          29,
+          4434944,
+          28
+        ]
+      ],
+      "ssd_bytes_requested": 12643609572,
+      "ssd_draft_decode": [
+        0,
+        0
+      ],
+      "ssd_records_requested": 10131,
+      "ssd_target_decode": [
+        10131,
+        12643609572
+      ],
+      "text": "Pour comprendre comment un cache **LFU** (Least Frequently Used) optimise l'inférence d'un modèle **MoE** (Mixture of Experts), il faut d'abord saisir le fonctionnement de base d'un MoE et le problème qu'il pose sur le stockage.\n\n### 1. Le",
+      "tokens": [
+        40781,
+        177417,
+        3847,
+        632,
+        6297,
+        2972,
+        21907,
+        52,
+        332,
+        318,
+        78994,
+        89426,
+        11851,
+        8,
+        7314,
+        1029,
+        324,
+        6,
+        13180,
+        933,
+        15424,
+        293,
+        21372,
+        79653,
+        2972,
+        24797,
+        36,
+        332,
+        318,
+        44,
+        12370,
+        314,
+        49051,
+        681,
+        3687,
+        44454,
+        293,
+        6,
+        177130,
+        225785,
+        501,
+        181163,
+        401,
+        2255,
+        293,
+        21372,
+        5861,
+        36,
+        1778,
+        501,
+        76444,
+        893,
+        33096,
+        16540,
+        1668,
+        501,
+        202202,
+        13,
+        271,
+        13962,
+        220,
+        16,
+        13,
+        1900
+      ],
+      "total_seconds": 11.219494667,
+      "ttft_seconds": 4.739343583,
+      "verify_widths": [
+        0,
+        0,
+        26,
+        0
+      ],
+      "warmup": false
+    }
+  ],
+  "status": "complete_native_mtp_depth_prototype_pilot",
+  "tau": null,
+  "verify_block_max_rows": 3
+}

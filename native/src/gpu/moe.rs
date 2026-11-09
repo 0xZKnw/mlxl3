@@ -703,7 +703,11 @@ impl<'a> FlashMoeRow<'a> {
             }
             // Every cold wave binds only CPU-complete, generation-checked immutable buffers.
             if reads.remaining() > 0 {
-                #[cfg(test)] timeline.push(serde_json::json!({"event":"hot_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                #[cfg(test)]
+                crate::flash_profile::detail_event(
+                    &mut timeline,
+                    || serde_json::json!({"event":"hot_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}),
+                );
                 command.commit();
                 self.last.push(command);
                 command = gpu.queue.new_command_buffer().to_owned();
@@ -769,7 +773,11 @@ impl<'a> FlashMoeRow<'a> {
                     if reads.remaining() == 0 {
                         break;
                     }
-                    #[cfg(test)] timeline.push(serde_json::json!({"event":if extra_used { "extra_submit" } else { "w1_submit" },"time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                    #[cfg(test)]
+                    crate::flash_profile::detail_event(
+                        &mut timeline,
+                        || serde_json::json!({"event":if extra_used { "extra_submit" } else { "w1_submit" },"time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}),
+                    );
                     command.commit();
                     self.last.push(command);
                     #[cfg(test)]
@@ -849,9 +857,15 @@ impl<'a> FlashMoeRow<'a> {
             }
             #[cfg(test)]
             {
-                timeline.push(serde_json::json!({"event":"final_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                crate::flash_profile::detail_event(
+                    &mut timeline,
+                    || serde_json::json!({"event":"final_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}),
+                );
                 for (lease, started, ended) in &reads.trace {
-                    timeline.push(serde_json::json!({"event":"read","expert":lease.expert,"slot":lease.slot,"start_ns":started.duration_since(epoch).as_nanos(),"end_ns":ended.duration_since(epoch).as_nanos()}));
+                    crate::flash_profile::detail_event(
+                        &mut timeline,
+                        || serde_json::json!({"event":"read","expert":lease.expert,"slot":lease.slot,"start_ns":started.duration_since(epoch).as_nanos(),"end_ns":ended.duration_since(epoch).as_nanos()}),
+                    );
                 }
             }
             if let Some(hot) = device_hot.as_mut() {
@@ -896,7 +910,9 @@ impl<'a> FlashMoeRow<'a> {
             })
         })?;
         #[cfg(test)]
-        if let Some(span) = crate::flash_profile::span("native.ssd_timeline") {
+        if crate::flash_profile::detailed_collection()
+            && let Some(span) = crate::flash_profile::span("native.ssd_timeline")
+        {
             span.data(serde_json::json!({"events":output.timeline,"read_bytes":output.read_bytes,"indices":output.indices,"hits":output.hits,"clock":"relative to MoE CPU epoch; do not align with GPU clock"}));
         }
         if let (Some(next), Some(prediction)) = (next.as_mut(), prediction) {

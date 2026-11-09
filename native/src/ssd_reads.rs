@@ -144,7 +144,7 @@ pub(crate) struct Completed {
     lease: SlotLease,
     result: Result<ReadPayload>,
     #[cfg(test)]
-    timing: (Instant, Instant),
+    timing: Option<(Instant, Instant)>,
 }
 #[cfg(test)]
 impl Completed {
@@ -153,7 +153,8 @@ impl Completed {
             lease,
             result: result.map(ReadPayload::Bytes),
             #[cfg(test)]
-            timing: (Instant::now(), Instant::now()),
+            timing: crate::flash_profile::detailed_collection()
+                .then(|| (Instant::now(), Instant::now())),
         }
     }
 }
@@ -169,6 +170,8 @@ type SharedTrace = Arc<Mutex<Vec<(&'static str, Instant)>>>;
 struct Read {
     #[cfg(test)]
     shared_trace: Option<SharedTrace>,
+    #[cfg(test)]
+    collect_timing: bool,
     lease: SlotLease,
     file: File,
     offset: u64,
@@ -186,6 +189,8 @@ impl Read {
         let Read {
             #[cfg(test)]
             shared_trace,
+            #[cfg(test)]
+            collect_timing,
             lease,
             file,
             offset,
@@ -201,7 +206,7 @@ impl Read {
         #[cfg(all(test, not(all(target_os = "macos", feature = "direct-metal"))))]
         let _ = shared_trace;
         #[cfg(test)]
-        let started = Instant::now();
+        let started = collect_timing.then(Instant::now);
         #[cfg(test)]
         if let Some(gate) = gate {
             gate.wait();
@@ -248,7 +253,7 @@ impl Read {
             lease,
             result,
             #[cfg(test)]
-            timing: (started, Instant::now()),
+            timing: started.map(|start| (start, Instant::now())),
         };
         let _ = sender.send(result);
     }
@@ -370,7 +375,9 @@ impl SplitRecord {
         {
             let (gate, wave) = {
                 let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-                state.started.get_or_insert_with(Instant::now);
+                if state.read.as_ref().unwrap().collect_timing {
+                    state.started.get_or_insert_with(Instant::now);
+                }
                 let read = state.read.as_ref().unwrap();
                 (read.gate.clone(), read.wave_gate.clone())
             };
@@ -423,12 +430,7 @@ impl SplitRecord {
         };
         if let Some((read, error)) = completed {
             #[cfg(test)]
-            let started = self
-                .state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .started
-                .unwrap();
+            let started = self.state.lock().unwrap_or_else(|e| e.into_inner()).started;
             let Read {
                 lease,
                 payload,
@@ -445,7 +447,7 @@ impl SplitRecord {
                 lease,
                 result,
                 #[cfg(test)]
-                timing: (started, Instant::now()),
+                timing: started.map(|start| (start, Instant::now())),
             });
         }
         #[cfg(test)]
@@ -499,6 +501,8 @@ mod readahead;
 pub(crate) struct ReadService {
     #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
     requested: Cell<[u64; 2]>,
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    requested_roles: Cell<[[u64; 2]; 2]>,
     #[cfg(test)]
     shared_trace: std::cell::RefCell<Option<SharedTrace>>,
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -539,6 +543,10 @@ pub(crate) struct ReadService {
     wave_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
 }
 impl ReadService {
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn requested_role_counts(&self) -> [[u64; 2]; 2] {
+        self.requested_roles.get()
+    }
     #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn requested_counts(&self) -> [u64; 2] {
         self.requested.get()
@@ -601,6 +609,8 @@ impl ReadService {
             shared_trace: std::cell::RefCell::new(None),
             #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
             requested: Cell::new([0; 2]),
+            #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
+            requested_roles: Cell::new([[0; 2]; 2]),
             #[cfg(all(target_os = "macos", feature = "direct-metal"))]
             early_reads: match std::env::var("MLXL3_NATIVE_EARLY_READS") {
                 Ok(value) => common_queue_flag(Some(&value)),
@@ -857,7 +867,9 @@ impl ReadService {
             buffer
         };
         #[cfg(test)]
-        if let Some(trace) = self.shared_trace.borrow().as_ref() {
+        if crate::flash_profile::detailed_collection()
+            && let Some(trace) = self.shared_trace.borrow().as_ref()
+        {
             trace.lock().unwrap().push(("allocation", Instant::now()));
         }
         Ok(destination)
@@ -986,11 +998,22 @@ impl ReadService {
             {
                 let [records, total] = self.requested.get();
                 self.requested.set([records + 1, total + bytes as u64]);
+                let mut roles = self.requested_roles.get();
+                let role = usize::from(crate::flash_profile::draft_work());
+                roles[role][0] += 1;
+                roles[role][1] += bytes as u64;
+                self.requested_roles.set(roles);
             }
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
                 #[cfg(test)]
-                shared_trace: self.shared_trace.borrow().clone(),
+                shared_trace: if crate::flash_profile::detailed_collection() {
+                    self.shared_trace.borrow().clone()
+                } else {
+                    None
+                },
+                #[cfg(test)]
+                collect_timing: crate::flash_profile::detailed_collection(),
                 lease,
                 file,
                 offset,
@@ -1152,7 +1175,10 @@ impl ReadBatch {
             };
             self.remaining -= 1;
             #[cfg(test)]
-            self.trace.push((next.lease, next.timing.0, next.timing.1));
+            if let Some((start, end)) = next.timing {
+                self.trace.push((next.lease, start, end));
+                crate::flash_profile::note_read_detail();
+            }
             completed.push((next.lease, next.result?));
         }
         Ok(completed)

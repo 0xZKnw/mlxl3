@@ -1033,3 +1033,68 @@ mod verification {
         kani::cover!(result.accepted_draft_tokens == length);
     }
 }
+
+/// Cost is elapsed complete-round seconds per emitted token, including rejected target work.
+#[cfg(any(test, kani))]
+pub(crate) fn economical_depth(
+    costs: [Option<f64>; 5],
+    limit: usize,
+    round: usize,
+) -> Option<usize> {
+    if limit > 4 || costs.iter().flatten().any(|v| !v.is_finite() || *v <= 0.0) {
+        return None;
+    }
+    if let Some(depth) = (0..=limit).find(|&d| costs[d].is_none()) {
+        return Some(depth);
+    }
+    if round % 32 == 31 {
+        return Some((round / 32) % (limit + 1));
+    }
+    let mut best = 0;
+    for d in 1..=limit {
+        if costs[d]? < costs[best]? {
+            best = d;
+        }
+    }
+    Some(best)
+}
+#[test]
+fn economical_depth_covers_calibration_target_only_and_probes() {
+    assert_eq!(economical_depth([None; 5], 4, 0), Some(0));
+    assert_eq!(
+        economical_depth([Some(1.0), None, None, None, None], 4, 1),
+        Some(1)
+    );
+    assert_eq!(
+        economical_depth(
+            [Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)],
+            4,
+            10
+        ),
+        Some(0)
+    );
+    assert_eq!(
+        economical_depth(
+            [Some(2.0), Some(1.0), Some(3.0), Some(4.0), Some(5.0)],
+            4,
+            10
+        ),
+        Some(1)
+    );
+    assert_eq!(economical_depth([Some(1.0); 5], 4, 63), Some(1));
+    assert_eq!(economical_depth([Some(f64::NAN); 5], 4, 0), None);
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(8)]
+fn economical_depth_never_exceeds_the_available_budget() {
+    let costs: [Option<f64>; 5] = kani::any();
+    let limit: usize = kani::any();
+    let round: usize = kani::any();
+    if let Some(depth) = economical_depth(costs, limit, round) {
+        assert!(depth <= limit && depth <= 4);
+    }
+    kani::cover!(
+        limit == 4 && costs[0].is_none() && economical_depth(costs, limit, round) == Some(0)
+    );
+}

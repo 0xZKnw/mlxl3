@@ -463,7 +463,18 @@ impl<'a> FlashNext<'a> {
         &self.checkpoint_path
     }
     pub fn numerical_profile(&self) -> &'static str {
-        "exact"
+        #[cfg(test)]
+        {
+            match self.gpu.q02_profile {
+                1 => "mul1-deferred",
+                2 => "mul1-centered",
+                _ => "exact",
+            }
+        }
+        #[cfg(not(test))]
+        {
+            "exact"
+        }
     }
 
     pub fn context_limit(&self) -> u32 {

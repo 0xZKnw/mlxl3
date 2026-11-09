@@ -1165,7 +1165,8 @@
     "mlxl3_decode_codeword": 9
   },
   "native/shaders/_qmv_tile_kernel.metal": {
-    "mlxl3_decode_codeword": 4
+    "mlxl3_decode_codeword": 8,
+    "mlxl3_q02_weight": 4
   },
   "native/shaders/convert_matmul.metal": {
     "mlxl3_convert_matmul": 1
@@ -1177,6 +1178,8 @@
     "mlxl3_decode_codeword": 1
   },
   "native/shaders/exl3.metal": {
+    "mlxl3_q02_mul1_sum": 2,
+    "mlxl3_q02_weight": 1,
     "mlxl3_rank_row": 1
   },
   "native/shaders/flash_projection.metal": {
@@ -1898,6 +1901,7 @@
     "array::from_fn": 7,
     "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
+    "config MLXL3_NATIVE_BLOCK_HC_GDN_CHAIN": 1,
     "config MLXL3_NATIVE_CACHED_CAPS": 1,
     "config MLXL3_NATIVE_CODEWORD_TABLE": 1,
     "config MLXL3_NATIVE_CROSS_LAYER": 1,
@@ -1936,9 +1940,11 @@
     "config MLXL3_NATIVE_MOE_DEFERRED": 1,
     "config MLXL3_NATIVE_MOE_FINISH_MIX": 2,
     "config MLXL3_NATIVE_MUL1_SWAR": 1,
+    "config MLXL3_NATIVE_Q02_PROFILE": 1,
     "config MLXL3_NATIVE_QMV_COOPERATIVE": 1,
     "config MLXL3_NATIVE_QMV_K_PRELOAD": 1,
     "config MLXL3_NATIVE_QMV_SHAPES": 1,
+    "config MLXL3_NATIVE_QMV_THREADS128": 1,
     "config MLXL3_NATIVE_QSA_CHAINS": 1,
     "config MLXL3_NATIVE_QSA_GATE": 1,
     "config MLXL3_NATIVE_QSA_INDEX_KEY_ONLY": 1,
@@ -2054,10 +2060,13 @@
     ".exp": 3,
     ".finish": 3,
     ".memory_stats": 2,
-    ".transpose": 9,
+    ".transpose": 10,
     "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_NATIVE_BENCH_DETAILS": 1,
+    "config MLXL3_NATIVE_MTP_ADAPTIVE": 1,
     "config MLXL3_NATIVE_MTP_RECURSIVE_CPU": 1,
     "config MLXL3_NATIVE_PROFILE_OUTPUT": 1,
+    "config MLXL3_NATIVE_Q04_DIAGNOSTIC_OUTPUT": 1,
     "config MLXL3_NATIVE_Q04_MTP_BLOCK": 1,
     "config MLXL3_NATIVE_Q04_MTP_DEPTH": 1,
     "config MLXL3_NATIVE_Q04_ORACLE": 1,
@@ -2098,7 +2107,8 @@
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/flash_verify.rs": {
-    ".take": 2,
+    ".sum": 2,
+    ".take": 3,
     "array::from_fn": 1,
     "config MLXL3_FLASH_MODEL": 4
   },
@@ -2225,6 +2235,8 @@
     ".take": 1,
     ".to_f32": 2,
     "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_NATIVE_MTP_ADAPTIVE": 1,
+    "config MLXL3_NATIVE_MTP_DRAFT_PUBLICATION": 1,
     "config MLXL3_NATIVE_MTP_RECURSIVE_CPU": 1
   },
   "native/src/gpu/ple.rs": {
@@ -2245,6 +2257,8 @@
     "config MLXL3_DENSE_DECODE_NT4": 1,
     "config MLXL3_DISABLE_TENSOR_OPS": 2,
     "config MLXL3_NATIVE_FLASH_NT2": 2,
+    "config MLXL3_NATIVE_MB3_NT": 1,
+    "config MLXL3_NATIVE_MB3_SCOPE": 1,
     "config MLXL3_NT2_FIXTURES": 2,
     "config MLXL3_QWEN_NATIVE_MODEL": 4
   },
@@ -2318,7 +2332,7 @@
     "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/gpu/route_swap_trace.rs": {
-    ".shape": 2,
+    ".shape": 3,
     ".take": 1,
     ".to_f32": 3,
     ".transpose": 1,

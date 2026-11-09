@@ -19,6 +19,20 @@ inline half codeword_canonical(uint x, uint cb) {
         as_type<half>(ushort(0xc931)));
 }
 
+#ifndef MLXL3_Q02_PROFILE
+#define MLXL3_Q02_PROFILE 0
+#endif
+inline float mlxl3_q02_mul1_sum(uint word) {
+    uint h=(word&0xffffu)*0x83DCD12Du;
+    return float((h&255u)+((h>>8u)&255u)+((h>>16u)&255u)+((h>>24u)&255u));
+}
+inline float mlxl3_q02_weight(uint word,uint cb) {
+#if MLXL3_Q02_PROFILE
+    if(cb==2u) return mlxl3_q02_mul1_sum(word)-(MLXL3_Q02_PROFILE==2?512.0f:0.0f);
+#endif
+    return float(codeword_canonical(word,cb));
+}
+
 #ifndef MLXL3_AR20_SWAR
 #define MLXL3_AR20_SWAR 0
 #endif

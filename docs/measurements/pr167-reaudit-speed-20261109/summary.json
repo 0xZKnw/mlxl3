@@ -1,0 +1,271 @@
+{
+  "status": "complete_short_pilot",
+  "baseline_sha": "0e84cbee62b3924939c3af9e0f35f57d922539a2",
+  "binary_sha256": "505aac5bffe851ed057754f708361a5fdb3390bb662dc8adf83626311157fe4b",
+  "local_source_changes": true,
+  "quality_q02": "not evaluated, explicitly deferred by user",
+  "control_drifts_percent": {
+    "AR": -1.4251658229042952,
+    "D2": 0.2587555795779073
+  },
+  "rows": [
+    {
+      "configuration": "AR exact",
+      "arms": [
+        "AR-clean-A1",
+        "AR-clean-A2"
+      ],
+      "responses": 2,
+      "decode_tokens_per_second": 10.37986556383765,
+      "decode_seconds_mean": 6.0697554165,
+      "prefill_ttft_seconds_mean": 4.7085740415,
+      "total_seconds_mean": 10.778330146,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 10715431032,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 6726959104,
+      "process_footprint_bytes_max": 7293032424,
+      "process_lifetime_peak_bytes_max": 7308220392,
+      "delta_percent_to_AR_or_D2_control": 0.0
+    },
+    {
+      "configuration": "D2 MB2",
+      "arms": [
+        "D2-base-A1",
+        "D2-base-A2"
+      ],
+      "responses": 2,
+      "decode_tokens_per_second": 8.976685794794937,
+      "decode_seconds_mean": 7.018192083500001,
+      "prefill_ttft_seconds_mean": 4.7919030215,
+      "total_seconds_mean": 11.8100981255,
+      "accepted": 72,
+      "proposed": 104,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12643609572,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7248101376,
+      "process_footprint_bytes_max": 7814518976,
+      "process_lifetime_peak_bytes_max": 7846713536,
+      "delta_percent_to_AR_or_D2_control": 0.0
+    },
+    {
+      "configuration": "D2-details-on",
+      "arms": [
+        "D2-details-on"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 8.814270157992304,
+      "decode_seconds_mean": 7.147500459,
+      "prefill_ttft_seconds_mean": 4.741282333,
+      "total_seconds_mean": 11.888789333,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12643609572,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7248101376,
+      "process_footprint_bytes_max": 7808735376,
+      "process_lifetime_peak_bytes_max": 7840667792,
+      "delta_percent_to_AR_or_D2_control": -1.80930513237757
+    },
+    {
+      "configuration": "D2-chain",
+      "arms": [
+        "D2-chain"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.60517179040326,
+      "decode_seconds_mean": 6.5589665,
+      "prefill_ttft_seconds_mean": 4.601944666,
+      "total_seconds_mean": 11.160915333,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12643609572,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7248101376,
+      "process_footprint_bytes_max": 7814043816,
+      "process_lifetime_peak_bytes_max": 7845681320,
+      "delta_percent_to_AR_or_D2_control": 7.0013144046185305
+    },
+    {
+      "configuration": "D2-chain-mb3-qkv",
+      "arms": [
+        "D2-chain-mb3-qkv"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.722002926542938,
+      "decode_seconds_mean": 6.480146167,
+      "prefill_ttft_seconds_mean": 4.739343583,
+      "total_seconds_mean": 11.219494667,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12643609572,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7248101376,
+      "process_footprint_bytes_max": 7813388456,
+      "process_lifetime_peak_bytes_max": 7845173416,
+      "delta_percent_to_AR_or_D2_control": 8.3028096202294
+    },
+    {
+      "configuration": "D4-chain",
+      "arms": [
+        "D4-chain"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.039020105564303,
+      "decode_seconds_mean": 6.969782041,
+      "prefill_ttft_seconds_mean": 4.803697458,
+      "total_seconds_mean": 11.773479958,
+      "accepted": 42,
+      "proposed": 81,
+      "acceptance_percent": 51.851851851851855,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12571224876,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7288471552,
+      "process_footprint_bytes_max": 7853807808,
+      "process_lifetime_peak_bytes_max": 7889148096,
+      "delta_percent_to_AR_or_D2_control": 0.6944022793524685
+    },
+    {
+      "configuration": "D4-adaptive-publication",
+      "arms": [
+        "D4-adaptive-publication"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.453537278256444,
+      "decode_seconds_mean": 6.664172166,
+      "prefill_ttft_seconds_mean": 4.654139084,
+      "total_seconds_mean": 11.31831675,
+      "accepted": 38,
+      "proposed": 65,
+      "acceptance_percent": 58.46153846153846,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 12611161260,
+      "draft_service_bytes_mean": 12480120,
+      "native_metal_allocated_bytes_max": 7290994688,
+      "process_footprint_bytes_max": 7850907840,
+      "process_lifetime_peak_bytes_max": 7879874752,
+      "delta_percent_to_AR_or_D2_control": 5.312110664918301
+    },
+    {
+      "configuration": "D1-block-q20-chain",
+      "arms": [
+        "D1-block-q20-chain"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 10.405771189355491,
+      "decode_seconds_mean": 6.054332625,
+      "prefill_ttft_seconds_mean": 4.942054709,
+      "total_seconds_mean": 10.996395417,
+      "accepted": 27,
+      "proposed": 35,
+      "acceptance_percent": 77.14285714285714,
+      "numerical_profile": "exact",
+      "target_service_bytes_mean": 9028118808,
+      "draft_service_bytes_mean": 36192348,
+      "native_metal_allocated_bytes_max": 7113785344,
+      "process_footprint_bytes_max": 7681235064,
+      "process_lifetime_peak_bytes_max": 7704565880,
+      "delta_percent_to_AR_or_D2_control": 15.919966758658276
+    },
+    {
+      "configuration": "AR-q02-deferred",
+      "arms": [
+        "AR-q02-deferred"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.836363825221822,
+      "decode_seconds_mean": 6.404805792,
+      "prefill_ttft_seconds_mean": 5.274335208,
+      "total_seconds_mean": 11.679146333,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "numerical_profile": "mul1-deferred",
+      "target_service_bytes_mean": 10730407176,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 6726959104,
+      "process_footprint_bytes_max": 7289247672,
+      "process_lifetime_peak_bytes_max": 7305287608,
+      "delta_percent_to_AR_or_D2_control": -5.236115393530039
+    },
+    {
+      "configuration": "D2-q02-deferred",
+      "arms": [
+        "D2-q02-deferred"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 8.696637023342378,
+      "decode_seconds_mean": 7.244179541,
+      "prefill_ttft_seconds_mean": 4.958794333,
+      "total_seconds_mean": 12.202978708,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "mul1-deferred",
+      "target_service_bytes_mean": 12653593668,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7248101376,
+      "process_footprint_bytes_max": 7808309392,
+      "process_lifetime_peak_bytes_max": 7840503952,
+      "delta_percent_to_AR_or_D2_control": -3.119734586398726
+    },
+    {
+      "configuration": "AR-q02-centered",
+      "arms": [
+        "AR-q02-centered"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.455192082825242,
+      "decode_seconds_mean": 6.663005833,
+      "prefill_ttft_seconds_mean": 4.901091667,
+      "total_seconds_mean": 11.564103167,
+      "accepted": null,
+      "proposed": null,
+      "acceptance_percent": null,
+      "numerical_profile": "mul1-centered",
+      "target_service_bytes_mean": 10702950912,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 6726959104,
+      "process_footprint_bytes_max": 7290148792,
+      "process_lifetime_peak_bytes_max": 7305320376,
+      "delta_percent_to_AR_or_D2_control": -8.90833773641415
+    },
+    {
+      "configuration": "D2-q02-centered",
+      "arms": [
+        "D2-q02-centered"
+      ],
+      "responses": 1,
+      "decode_tokens_per_second": 9.108913983223983,
+      "decode_seconds_mean": 6.916302,
+      "prefill_ttft_seconds_mean": 4.717115709,
+      "total_seconds_mean": 11.63341825,
+      "accepted": 36,
+      "proposed": 52,
+      "acceptance_percent": 69.23076923076923,
+      "numerical_profile": "mul1-centered",
+      "target_service_bytes_mean": 12627385416,
+      "draft_service_bytes_mean": 0,
+      "native_metal_allocated_bytes_max": 7249362944,
+      "process_footprint_bytes_max": 7812143272,
+      "process_lifetime_peak_bytes_max": 7843993768,
+      "delta_percent_to_AR_or_D2_control": 1.4730178982728548
+    }
+  ],
+  "trajectories_equal_exact_ar": 27,
+  "total_trajectories": 28,
+  "all_trajectories_checked_against_appropriate_policy_profile_ar": true,
+  "general_quality_or_numerical_parity_claim": false
+}

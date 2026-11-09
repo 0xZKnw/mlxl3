@@ -78,6 +78,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "speculative::economical_depth_never_exceeds_the_available_budget",
+        "flash_qmv::mb3_family_respects_role_and_shape_boundaries",
         "flash_qmv::third_row_geometry_covers_exactly_the_input_without_overflow",
         "speculative::publication_never_succeeds_after_cancellation",
         "route_swap::selected_ids_commit_only_valid_miss_transitions",

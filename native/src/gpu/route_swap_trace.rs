@@ -134,15 +134,19 @@ impl Drop for Preparing {
     }
 }
 
-pub(super) struct SuspendDraft(bool);
+pub(super) struct SuspendDraft(bool, bool);
 impl SuspendDraft {
     pub(super) fn new() -> Self {
-        Self(DRAFT.replace(true))
+        Self(
+            DRAFT.replace(true),
+            crate::flash_profile::replace_draft_work(true),
+        )
     }
 }
 impl Drop for SuspendDraft {
     fn drop(&mut self) {
         DRAFT.set(self.0);
+        crate::flash_profile::replace_draft_work(self.1);
     }
 }
 
@@ -153,6 +157,8 @@ struct QualityState {
     cpu_choices: usize,
     cache_clones: usize,
     logical_ready_physical_absent: usize,
+    substitute_shared_prior_row: usize,
+    substitute_absent_unpromised: usize,
     logical_absent_physical_ready: usize,
     scratch: [Vec<Rc<PickerScratch>>; 48],
     tau: f32,
@@ -191,6 +197,8 @@ impl Quality {
                     cpu_choices: 0,
                     cache_clones: 0,
                     logical_ready_physical_absent: 0,
+                    substitute_shared_prior_row: 0,
+                    substitute_absent_unpromised: 0,
                     logical_absent_physical_ready: 0,
                     scratch: std::array::from_fn(|_| Vec::new()),
                     tau,
@@ -211,6 +219,38 @@ impl Quality {
         }
         Ok(Self)
     }
+    pub(super) fn counters(&self) -> Option<std::collections::BTreeMap<&'static str, u64>> {
+        QUALITY.with_borrow(|s| {
+            s.as_ref().map(|s| {
+                std::collections::BTreeMap::from([
+                    (
+                        "substitute_shared_prior_row",
+                        s.substitute_shared_prior_row as u64,
+                    ),
+                    (
+                        "substitute_absent_unpromised",
+                        s.substitute_absent_unpromised as u64,
+                    ),
+                    ("rows", s.rows as u64),
+                    ("swaps", s.swaps as u64),
+                    ("cache_clones", s.cache_clones as u64),
+                    ("cpu_choices", s.cpu_choices as u64),
+                    ("gpu_choices", s.gpu_choices as u64),
+                    ("oracle_calls", s.oracle_calls as u64),
+                    ("cold_reads", s.cold_reads as u64),
+                    ("read_bytes", s.read_bytes),
+                    (
+                        "logical_ready_physical_absent",
+                        s.logical_ready_physical_absent as u64,
+                    ),
+                    (
+                        "logical_absent_physical_ready",
+                        s.logical_absent_physical_ready as u64,
+                    ),
+                ])
+            })
+        })
+    }
     pub(super) fn set_oracle(&self, enabled: bool) {
         QUALITY.with_borrow_mut(|s| {
             if let Some(s) = s {
@@ -219,10 +259,14 @@ impl Quality {
         });
     }
     pub(super) fn prepare(&self, gpu: &super::Metal) -> Result<()> {
+        self.prepare_slots(gpu, 1)
+    }
+    pub(super) fn prepare_slots(&self, gpu: &super::Metal, slots: usize) -> Result<()> {
+        ensure!((1..=4).contains(&slots), "invalid Q04 scratch capacity");
         QUALITY.with_borrow_mut(|state| -> Result<()> {
             if let Some(s) = state {
                 for pool in &mut s.scratch {
-                    if pool.is_empty() {
+                    while pool.len() < slots {
                         pool.push(Rc::new(PickerScratch::new(gpu)?));
                     }
                 }
@@ -744,10 +788,42 @@ pub(super) fn quality_complete(ids: &[u32], hits: usize, read_bytes: u64) -> Res
     })
 }
 
+fn host_floats<const N: usize>(view: &super::MatrixView) -> Result<[f32; N]> {
+    use super::view::FloatType;
+    let item = if view.dtype == FloatType::F32 { 4 } else { 2 };
+    ensure!(
+        view.shape() == [1, N as u32]
+            && view.layout.offset == 0
+            && view.layout.strides == [N as i64, 1]
+            && view.buffer.length() == (N * item) as u64
+            && view.buffer.storage_mode() == metal::MTLStorageMode::Shared,
+        "invalid block routing metadata"
+    );
+    let mut values = [0.0; N];
+    // The route producer was completed before this call; these are exact shared extents.
+    unsafe {
+        if view.dtype == FloatType::F32 {
+            values.copy_from_slice(std::slice::from_raw_parts(
+                view.buffer.contents().cast::<f32>(),
+                N,
+            ));
+        } else {
+            for (out, &bits) in values.iter_mut().zip(std::slice::from_raw_parts(
+                view.buffer.contents().cast::<u16>(),
+                N,
+            )) {
+                *out = half::f16::from_bits(bits).to_f32();
+            }
+        }
+    }
+    Ok(values)
+}
+
 pub(super) fn block_pick(
     gpu: &super::Metal,
     route: &mut super::RouteOutput,
     physical: &[bool; 512],
+    prior_selected: &[bool; 512],
 ) -> Result<()> {
     if !quality_active() {
         return Ok(());
@@ -759,38 +835,66 @@ pub(super) fn block_pick(
             .q04_probabilities
             .as_ref()
             .context("missing block probabilities")?;
-        let convert = |words: Vec<u32>| {
-            words
-                .into_iter()
-                .map(|word| {
-                    if probabilities.dtype == super::view::FloatType::F32 {
-                        f32::from_bits(word)
-                    } else {
-                        half::f16::from_bits(word as u16).to_f32()
-                    }
-                })
-                .collect::<Vec<_>>()
-        };
         quality_select(
             &original,
-            &convert(probabilities.read_output()?),
-            &convert(route.completed_scores()?.read_output()?),
+            &host_floats::<512>(probabilities)?,
+            &host_floats::<10>(route.completed_scores()?)?,
             physical,
         )?
     } else {
-        original
+        original.clone()
     };
-    let buffer = super::upload(&gpu.device, &ids)?;
-    let picked = super::MatrixView {
-        buffer: buffer.clone(),
-        dtype: super::view::FloatType::F32,
-        layout: crate::tensor_layout::MatrixLayout {
-            shape: [1, 10],
-            strides: [10, 1],
-            offset: 0,
-        },
-    };
-    route.q04_pick = Some((picked, [buffer.clone(), buffer]));
+    if ids != original {
+        QUALITY.with_borrow_mut(|state| {
+            if let Some(state) = state {
+                for (&old, &new) in original.iter().zip(&ids) {
+                    if old != new && !physical[new as usize] {
+                        if prior_selected[new as usize] {
+                            state.substitute_shared_prior_row += 1;
+                        } else {
+                            state.substitute_absent_unpromised += 1;
+                        }
+                    }
+                }
+            }
+        });
+        QUALITY.with_borrow_mut(|state| -> Result<()> {
+            let state = state.as_mut().context("missing block scratch session")?;
+            let layer = LAYER.get().context("missing block scratch layer")?;
+            let pool = &mut state.scratch[layer];
+            let slot = if let Some(slot) = pool
+                .iter()
+                .find(|p| Rc::strong_count(p) == 1 && p.completed())
+                .cloned()
+            {
+                slot
+            } else {
+                ensure!(pool.len() < 4, "exhausted block picker scratch");
+                let slot = Rc::new(PickerScratch::new(gpu)?);
+                pool.push(slot.clone());
+                slot
+            };
+            // The sole caller drained this MoE's old commands before routing the block;
+            // each live row holds its own lease until all Hot/cold consumers finish.
+            ensure!(
+                ids.len() == 10 && slot.picked.buffer.length() == 40,
+                "invalid block ID extent"
+            );
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    ids.as_ptr(),
+                    slot.picked.buffer.contents().cast::<u32>(),
+                    10,
+                );
+            }
+            route.q04_pick = Some((
+                slot.picked.clone(),
+                [slot.ready.clone(), slot.starved.clone()],
+            ));
+            route.q04_scratch = Some(slot);
+            Ok(())
+        })?;
+    }
     QUALITY.with_borrow_mut(|s| -> Result<()> {
         let s = s.as_mut().context("missing block Q04 state")?;
         let layer = LAYER.get().context("missing block Q04 layer")?;

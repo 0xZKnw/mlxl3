@@ -91,6 +91,9 @@ jobs:
       - name: Compile every native trellis specialization without a GPU
         run: |
           mkdir -p build/quantizer-ci
+          for profile in 0 1 2; do
+            xcrun -sdk macosx metal -c -DMLXL3_Q02_PROFILE=$profile -DMLXL3_DEVICE_RESIDENT_ROUTE=1 native/shaders/exl3.metal -o "build/quantizer-ci/q02-profile-${profile}.air"
+          done
           xcrun -sdk macosx metal -c native/shaders/q04_pick.metal -o build/quantizer-ci/q04-pick.air
           xcrun -sdk macosx metal -c native/shaders/convert_matmul.metal -o build/quantizer-ci/convert-matmul.air
           xcrun -sdk macosx metal -std=metal4.0 -c native/shaders/convert_matmul_nax.metal -o build/quantizer-ci/convert-matmul-nax.air

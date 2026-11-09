@@ -32,6 +32,10 @@
 #if MLXL3_REFERENCE_ACCUMULATION
             threadgroup float reference_partials[MLXL3_QMV_MB][MLXL3_QMV_NT][MLXL3_QMV_SG][256];
 #endif
+#if MLXL3_Q02_PROFILE
+            threadgroup float q02_input_sums[MLXL3_QMV_MB][MLXL3_QMV_SG];
+            float q02_sx[MLXL3_QMV_MB]={};
+#endif
             threadgroup float ha[128];
             threadgroup float hb[128];
 
@@ -132,6 +136,12 @@
                     x_values[batch_row][3] = float(x_pair1.y);
 #endif
                 }
+#if MLXL3_Q02_PROFILE
+                if (CB==2u) for(uint br=0;br<MLXL3_QMV_MB;++br) {
+                    float v=lane<4u?((x_values[br][0]+x_values[br][1])+(x_values[br][2]+x_values[br][3])):0.0f;
+                    q02_sx[br]+=simd_sum(v);
+                }
+#endif
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -194,10 +204,26 @@
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
                         }
                         uint j = group * 4u;
+                        #if MLXL3_Q02_PROFILE
+                        float weight0=CB==2u?mlxl3_q02_weight(cw0,CB):float(mlxl3_decode_codeword(cw0,CB));
+#else
                         float weight0 = float(mlxl3_decode_codeword(cw0, CB));
+#endif
+                        #if MLXL3_Q02_PROFILE
+                        float weight1=CB==2u?mlxl3_q02_weight(cw1,CB):float(mlxl3_decode_codeword(cw1,CB));
+#else
                         float weight1 = float(mlxl3_decode_codeword(cw1, CB));
+#endif
+                        #if MLXL3_Q02_PROFILE
+                        float weight2=CB==2u?mlxl3_q02_weight(cw2,CB):float(mlxl3_decode_codeword(cw2,CB));
+#else
                         float weight2 = float(mlxl3_decode_codeword(cw2, CB));
+#endif
+                        #if MLXL3_Q02_PROFILE
+                        float weight3=CB==2u?mlxl3_q02_weight(cw3,CB):float(mlxl3_decode_codeword(cw3,CB));
+#else
                         float weight3 = float(mlxl3_decode_codeword(cw3, CB));
+#endif
                         for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                             acc[batch_row][output_tile][j] = fma(
                                 x_values[batch_row][0], weight0,
@@ -222,6 +248,9 @@
 
 #if MLXL3_AR20_PRELOAD
             }
+#endif
+#if MLXL3_Q02_PROFILE
+            if(lane==0u) for(uint br=0;br<MLXL3_QMV_MB;++br) q02_input_sums[br][simd]=q02_sx[br];
 #endif
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
               for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
@@ -276,6 +305,14 @@
 #else
                 for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                     sum += partials[group][partial];
+                }
+#endif
+#if MLXL3_Q02_PROFILE
+                if(CB==2u) {
+                    float sx=0.0f;
+                    for(uint sg=0;sg<MLXL3_QMV_SG;++sg) sx+=q02_input_sums[batch_row][sg];
+                    // This CTA owns one split: never repeat a global correction in each split.
+                    sum=fma(887.0f/131072.0f,sum,(MLXL3_Q02_PROFILE==2?0.01171875f:-3.453125f)*sx);
                 }
 #endif
                 if (MLXL3_FUSE_OUTPUT) ha[tid] = float(half(sum));

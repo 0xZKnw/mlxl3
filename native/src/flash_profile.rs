@@ -75,9 +75,109 @@ pub(crate) fn kernel_signature(stable: bool, name: &str, header: &str, source: &
     }
 }
 thread_local! {
+    static DETAILS: Cell<bool> = const { Cell::new(true) };
+    static DRAFT_WORK: Cell<bool> = const { Cell::new(false) };
+    static DETAIL_COUNTS: Cell<[u64;2]> = const { Cell::new([0;2]) };
     static TRACE: RefCell<Option<Trace>> = const { RefCell::new(None) };
     static RETAIN_TEST_STAGES: Cell<bool> = const { Cell::new(true) };
 }
+pub(crate) fn detailed_collection() -> bool {
+    DETAILS.get()
+}
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn draft_work() -> bool {
+    DRAFT_WORK.get()
+}
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+pub(crate) fn replace_draft_work(value: bool) -> bool {
+    DRAFT_WORK.replace(value)
+}
+pub(crate) fn detail_counts() -> [u64; 2] {
+    DETAIL_COUNTS.get()
+}
+pub(crate) fn note_read_detail() {
+    DETAIL_COUNTS.with(|c| {
+        let mut v = c.get();
+        v[1] += 1;
+        c.set(v);
+    });
+}
+pub(crate) fn detail_event(events: &mut Vec<Value>, make: impl FnOnce() -> Value) {
+    if detailed_collection() {
+        events.push(make());
+        DETAIL_COUNTS.with(|c| {
+            let mut v = c.get();
+            v[0] += 1;
+            c.set(v);
+        });
+    }
+}
+pub(crate) struct DetailedCollection {
+    previous: bool,
+    _thread: PhantomData<Rc<()>>,
+}
+impl DetailedCollection {
+    pub(crate) fn new(enabled: bool) -> Self {
+        Self {
+            previous: DETAILS.replace(enabled),
+            _thread: PhantomData,
+        }
+    }
+}
+impl Drop for DetailedCollection {
+    fn drop(&mut self) {
+        DETAILS.set(self.previous);
+    }
+}
+
+#[test]
+fn detailed_collection_is_lazy_scoped_and_thread_local() {
+    let before = detail_counts();
+    let mut events = Vec::new();
+    {
+        let _off = DetailedCollection::new(false);
+        detail_event(&mut events, || panic!("disabled payload evaluated"));
+        assert!(events.is_empty() && events.capacity() == 0);
+        {
+            let _on = DetailedCollection::new(true);
+            detail_event(&mut events, || Value::Bool(true));
+        }
+        assert!(!detailed_collection());
+        std::thread::spawn(|| assert!(detailed_collection()))
+            .join()
+            .unwrap();
+    }
+    assert!(
+        detailed_collection()
+            && events == [Value::Bool(true)]
+            && detail_counts()[0] == before[0] + 1
+    );
+    let failed = std::panic::catch_unwind(|| {
+        let _off = DetailedCollection::new(false);
+        panic!("scope exit");
+    });
+    assert!(failed.is_err() && detailed_collection());
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(33)]
+fn collection_scope_restores_all_symbolic_nested_modes() {
+    let a: bool = kani::any();
+    let b: bool = kani::any();
+    {
+        let _outer = DetailedCollection::new(a);
+        assert_eq!(detailed_collection(), a);
+        {
+            let _inner = DetailedCollection::new(b);
+            assert_eq!(detailed_collection(), b);
+        }
+        assert_eq!(detailed_collection(), a);
+    }
+    assert!(detailed_collection());
+    kani::cover!(!a && b);
+    kani::cover!(a && !b);
+}
+
 pub(crate) struct Span(usize);
 
 pub(crate) fn retain_test_stages() -> bool {

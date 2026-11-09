@@ -95,6 +95,8 @@ impl FlashMoeRow<'_> {
             !device_hot || rows.iter().all(|row| row.dtype == FloatType::F32),
             "private Hot rows require F32 inputs"
         );
+        #[cfg(test)]
+        let mut prior_selected = [false; 512];
         let mut hot_outputs = Vec::with_capacity(rows.len());
         let mut routed = Vec::with_capacity(rows.len());
         let mut ids = Vec::with_capacity(rows.len());
@@ -120,7 +122,12 @@ impl FlashMoeRow<'_> {
                     {
                         physical[e as usize] = true;
                     }
-                    crate::gpu::route_swap_trace::block_pick(self.gpu, &mut route, &physical)?;
+                    crate::gpu::route_swap_trace::block_pick(
+                        self.gpu,
+                        &mut route,
+                        &physical,
+                        &prior_selected,
+                    )?;
                 }
                 route
             };
@@ -137,6 +144,10 @@ impl FlashMoeRow<'_> {
                 None
             };
             let indices = route.indices()?;
+            #[cfg(test)]
+            for &e in &indices {
+                prior_selected[e as usize] = true;
+            }
             if let Some(hot) = &hot {
                 hot.snapshot()
                     .validate_routes(&self.cache.borrow().ready_slot_snapshot(), &indices)?;
@@ -212,7 +223,8 @@ impl FlashMoeRow<'_> {
             }
         }
         #[cfg(test)]
-        let mut timelines = vec![Vec::new(); rows.len()];
+        let mut timelines =
+            crate::flash_profile::detailed_collection().then(|| vec![Vec::new(); rows.len()]);
         let guard = ExpertFill::new(&self.cache);
         let reuse = crate::ssd_reads::record_reuse_eligible(
             self.record_reuse_enabled && self.gpu.ssd_direct_enabled,
@@ -334,10 +346,13 @@ impl FlashMoeRow<'_> {
                             self.last.push(command.clone());
                             command.commit();
                             #[cfg(test)]
-                            timelines[0].push(serde_json::json!({
-                                "event": "block_initial_submit", "cold_reads": batch.len(),
-                                "resident_experts": hot.len()
-                            }));
+                            if let Some(timelines) = &mut timelines {
+                                crate::flash_profile::detail_event(&mut timelines[0], || {
+                                    serde_json::json!({
+                                        "event":"block_initial_submit","cold_reads":batch.len(),"resident_experts":hot.len()
+                                    })
+                                });
+                            }
                             #[cfg(test)]
                             if CANCEL_AFTER_INITIAL_SUBMIT.with(|inject| inject.replace(false)) {
                                 cancelled.store(true, Ordering::Relaxed);
@@ -384,15 +399,22 @@ impl FlashMoeRow<'_> {
                                 command.commit();
                             }
                             #[cfg(test)]
-                            for (lease, _, _) in reads.trace() {
-                                let entry = cohort
-                                    .iter()
-                                    .find(|entry| u32::from(entry.expert) == lease.expert)
-                                    .context("missing completed block read consumer")?;
-                                timelines[entry.consumers[0].row].push(serde_json::json!({
-                                    "event": "block_read", "expert": lease.expert,
-                                    "slot": lease.slot, "batch_size": batch.len().min(TOP_K), "sliding_window": sliding
-                                }));
+                            if let Some(timelines) = &mut timelines {
+                                for (lease, _, _) in reads.trace() {
+                                    let entry = cohort
+                                        .iter()
+                                        .find(|entry| u32::from(entry.expert) == lease.expert)
+                                        .context("missing completed block read consumer")?;
+                                    crate::flash_profile::detail_event(
+                                        &mut timelines[entry.consumers[0].row],
+                                        || {
+                                            serde_json::json!({
+                                                "event": "block_read", "expert": lease.expert,
+                                                "slot": lease.slot, "batch_size": batch.len().min(TOP_K), "sliding_window": sliding
+                                            })
+                                        },
+                                    );
+                                }
                             }
                         }
                         #[cfg(test)]
@@ -506,7 +528,9 @@ impl FlashMoeRow<'_> {
                     read_bytes: read_bytes[row],
                     multiplier_trace: None,
                     #[cfg(test)]
-                    timeline: timelines[row].clone(),
+                    timeline: timelines
+                        .as_mut()
+                        .map_or_else(Vec::new, |all| std::mem::take(&mut all[row])),
                     #[cfg(test)]
                     extra_wave_submissions: 0,
                     #[cfg(test)]

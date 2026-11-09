@@ -963,11 +963,27 @@ impl<'a> FlashGdnLayer<'a> {
         &self,
         rows: &[MatrixView],
     ) -> Result<Option<Vec<PreparedGdnRow>>> {
-        let gpu = self.attention.gpu;
         if !self.attention.qkv.supports_verify_rows(rows.len())
             || !self.attention.z.supports_verify_rows(rows.len())
         {
             return Ok(None);
+        }
+        self.prepare_block_after(rows.len(), |_| Ok(rows))
+            .map(|(_, prepared)| prepared)
+    }
+
+    pub(super) fn prepare_block_after<R: AsRef<[MatrixView]>>(
+        &self,
+        count: usize,
+        before: impl FnOnce(&CommandBufferRef) -> Result<R>,
+    ) -> Result<(R, Option<Vec<PreparedGdnRow>>)> {
+        let gpu = self.attention.gpu;
+        if !self.attention.qkv.supports_verify_rows(count)
+            || !self.attention.z.supports_verify_rows(count)
+        {
+            let rows = self.attention.gpu.command(before)?;
+            ensure!(rows.as_ref().len() == count, "incomplete preceding HC rows");
+            return Ok((rows, None));
         }
         ensure!(
             (!gpu.hc_workspace_enabled.get() || gpu.common_executor),
@@ -976,6 +992,12 @@ impl<'a> FlashGdnLayer<'a> {
         #[cfg(test)]
         let _scope = crate::flash_profile::span("native.gdn.block_projections");
         let encode = |cmd: &CommandBufferRef| {
+            let owner = before(cmd)?;
+            let rows = owner.as_ref();
+            ensure!(
+                rows.len() == count && (1..=4).contains(&count),
+                "invalid chained HC batch"
+            );
             let (reads, projections, pending) = (|| -> Result<_> {
                 let reads = rows
                     .iter()
@@ -1099,9 +1121,9 @@ impl<'a> FlashGdnLayer<'a> {
             } else {
                 (0..rows.len()).map(|_| None).collect()
             };
-            Ok((reads, projections, pending, posts))
+            Ok((owner, reads, projections, pending, posts))
         };
-        let (reads, _projections, pending, posts) = if gpu.segment_enabled {
+        let (rows, reads, _projections, pending, posts) = if gpu.segment_enabled {
             gpu.segment(encode)?.submit()?.retire()?
         } else {
             gpu.command(encode)?
@@ -1109,7 +1131,7 @@ impl<'a> FlashGdnLayer<'a> {
         #[cfg(test)]
         {
             BLOCK_PROJECTION_BATCHES.with(|count| count.set(count.get() + 1));
-            gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + rows.len());
+            gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + count);
         }
         let prepared = reads
             .into_iter()
@@ -1123,7 +1145,7 @@ impl<'a> FlashGdnLayer<'a> {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(Some(prepared))
+        Ok((rows, Some(prepared)))
     }
 
     pub(super) fn prepare_moe_projected(

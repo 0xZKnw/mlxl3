@@ -1,0 +1,18 @@
+native/shaders/_qmv_tile_kernel.metal: mlxl3_decode_codeword: 4 -> 8
+native/shaders/_qmv_tile_kernel.metal: mlxl3_q02_weight: 0 -> 4
+native/shaders/exl3.metal: mlxl3_q02_mul1_sum: 0 -> 2
+native/shaders/exl3.metal: mlxl3_q02_weight: 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_BLOCK_HC_GDN_CHAIN: 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_Q02_PROFILE: 0 -> 1
+native/src/gpu.rs: config MLXL3_NATIVE_QMV_THREADS128: 0 -> 1
+native/src/gpu/fast_profile_tests.rs: .transpose: 9 -> 10
+native/src/gpu/fast_profile_tests.rs: config MLXL3_NATIVE_BENCH_DETAILS: 0 -> 1
+native/src/gpu/fast_profile_tests.rs: config MLXL3_NATIVE_MTP_ADAPTIVE: 0 -> 1
+native/src/gpu/fast_profile_tests.rs: config MLXL3_NATIVE_Q04_DIAGNOSTIC_OUTPUT: 0 -> 1
+native/src/gpu/flash_verify.rs: .sum: 0 -> 2
+native/src/gpu/flash_verify.rs: .take: 2 -> 3
+native/src/gpu/mtp_pilot.rs: config MLXL3_NATIVE_MTP_ADAPTIVE: 0 -> 1
+native/src/gpu/mtp_pilot.rs: config MLXL3_NATIVE_MTP_DRAFT_PUBLICATION: 0 -> 1
+native/src/gpu/projection.rs: config MLXL3_NATIVE_MB3_NT: 0 -> 1
+native/src/gpu/projection.rs: config MLXL3_NATIVE_MB3_SCOPE: 0 -> 1
+native/src/gpu/route_swap_trace.rs: .shape: 2 -> 3

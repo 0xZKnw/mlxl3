@@ -22,6 +22,9 @@ pub(super) struct VerifyMb3 {
     specialized: [metal::ComputePipelineState; 7],
     consumers: [[metal::ComputePipelineState; 2]; 2],
     uses: std::cell::Cell<[u64; 2]>,
+    scope: String,
+    scope_tag: u8,
+    force_nt1: bool,
 }
 #[cfg(test)]
 impl VerifyMb3 {
@@ -29,7 +32,42 @@ impl VerifyMb3 {
         p: &impl Fn(&str) -> Result<metal::ComputePipelineState>,
         device: &DeviceRef,
     ) -> Result<Self> {
+        let scope = std::env::var("MLXL3_NATIVE_MB3_SCOPE").unwrap_or_else(|_| "all".into());
+        ensure!(
+            [
+                "all",
+                "resident",
+                "gdn-qkv",
+                "gdn-z",
+                "gdn-out",
+                "gate-up",
+                "down",
+                "consumers"
+            ]
+            .contains(&scope.as_str()),
+            "invalid MB3 family"
+        );
+        let force_nt1 = match std::env::var("MLXL3_NATIVE_MB3_NT").as_deref() {
+            Err(std::env::VarError::NotPresent) | Ok("native") => false,
+            Ok("1") => true,
+            _ => anyhow::bail!("MB3 NT must be native or 1"),
+        };
         let result = Self {
+            scope_tag: [
+                "all",
+                "resident",
+                "gdn-qkv",
+                "gdn-z",
+                "gdn-out",
+                "gate-up",
+                "down",
+                "consumers",
+            ]
+            .iter()
+            .position(|&v| v == scope)
+            .context("invalid scope")? as u8,
+            scope,
+            force_nt1,
             generic: [p("flash_verify_qmv_mb3")?, p("flash_verify_qmv_mb3_nt2")?],
             specialized: [
                 p("flash_verify_static_k2_nt1_mb3")?,
@@ -69,8 +107,11 @@ impl VerifyMb3 {
         eprintln!("MB3_RESOURCES {}", result.resources(device));
         Ok(result)
     }
+    fn active(&self, shape: [u32; 2], routed: bool, consumers: bool) -> bool {
+        crate::flash_qmv::mb3_family(self.scope_tag, shape, routed, consumers)
+    }
     pub(super) fn resources(&self, device: &DeviceRef) -> serde_json::Value {
-        serde_json::json!({"device_static_limit":device.max_threadgroup_memory_length(),"uses":self.uses.get(),
+        serde_json::json!({"scope":self.scope,"force_nt1":self.force_nt1,"device_static_limit":device.max_threadgroup_memory_length(),"uses":self.uses.get(),
             "pipelines":self.generic.iter().chain(&self.specialized).chain(self.consumers.iter().flatten()).map(|p|serde_json::json!({"name":p.label(),"static_threadgroup_bytes":p.static_threadgroup_memory_length(),"simd_width":p.thread_execution_width(),"max_threads":p.max_total_threads_per_threadgroup()})).collect::<Vec<_>>()})
     }
 }
@@ -326,6 +367,11 @@ impl<'a> FlashProjection<'a> {
                 "unsupported EXL3 projection threadgroup"
             );
         }
+        #[cfg(test)]
+        ensure!(
+            metal.q02_profile == 0 || cb != Codebook::Mul1 || (!generic && k < 7),
+            "Q02 profile has no qualified fallback for this MUL1 projection"
+        );
         let bytes = u64::from(count) * 2;
         let packed =
             super::read_weight(&metal.device, t, bytes).context("reading projection trellis")?;
@@ -822,9 +868,29 @@ impl<'a> FlashProjection<'a> {
             gpu.routed_nt2_gu.get(),
             gpu.routed_nt2_down.get(),
         );
+        #[cfg(test)]
+        let use_mb3 = batch == 3
+            && gpu
+                .flash_verify_mb3
+                .as_ref()
+                .is_some_and(|p| p.active([self.input, self.output], self.routed_record, false));
+        let verify_nt = {
+            #[cfg(test)]
+            {
+                if use_mb3 && gpu.flash_verify_mb3.as_ref().is_some_and(|p| p.force_nt1) {
+                    1
+                } else {
+                    self.nt
+                }
+            }
+            #[cfg(not(test))]
+            {
+                self.nt
+            }
+        };
         let verify_rows = crate::flash_qmv::verify_rows_key(
             batch,
-            self.nt,
+            verify_nt,
             self.k,
             crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
                 && !self.generic
@@ -833,12 +899,16 @@ impl<'a> FlashProjection<'a> {
         let (pipeline, third, groups) = if let Some(key) = verify_rows {
             #[cfg(test)]
             crate::flash_qmv::note_shared_path(false);
-            let specialized = crate::flash_qmv::verify_specialized_key(
-                batch,
-                self.static_key,
-                self.fixed_key,
-                gpu.flash_verify_specialized.is_some(),
-            );
+            let specialized = if verify_nt == self.nt {
+                crate::flash_qmv::verify_specialized_key(
+                    batch,
+                    self.static_key,
+                    self.fixed_key,
+                    gpu.flash_verify_specialized.is_some(),
+                )
+            } else {
+                None
+            };
             #[cfg(test)]
             if let Some(key) = specialized {
                 let mut counts = gpu.flash_verify_specialized_uses.get();
@@ -855,7 +925,7 @@ impl<'a> FlashProjection<'a> {
                     .context("missing verify QMV pipelines")?[key]
             };
             #[cfg(test)]
-            let selected_pipeline = if batch == 3 {
+            let selected_pipeline = if use_mb3 {
                 if let Some(mb3) = &gpu.flash_verify_mb3 {
                     let mut counts = mb3.uses.get();
                     counts[0] += 1;
@@ -874,7 +944,7 @@ impl<'a> FlashProjection<'a> {
             (
                 selected_pipeline,
                 (&self.svh, self.offsets.svh),
-                contracts::flash_reference_groups(self.output, self.nt)
+                contracts::flash_reference_groups(self.output, verify_nt)
                     .context("invalid verify QMV grid")?,
             )
         } else if let Some(key) = routed_nt2 {
@@ -933,13 +1003,7 @@ impl<'a> FlashProjection<'a> {
                 } else if verify_rows.is_some() {
                     #[cfg(test)]
                     {
-                        u64::from(
-                            crate::flash_qmv::verify_geometry(
-                                batch,
-                                gpu.flash_verify_mb3.is_some(),
-                            )
-                            .1,
-                        )
+                        u64::from(crate::flash_qmv::verify_geometry(batch, use_mb3).1)
                     }
                     #[cfg(not(test))]
                     {
@@ -956,7 +1020,7 @@ impl<'a> FlashProjection<'a> {
         #[cfg(test)]
         if gpu.observe_qmv {
             let mb = if verify_rows.is_some() {
-                crate::flash_qmv::verify_geometry(batch, gpu.flash_verify_mb3.is_some()).0
+                crate::flash_qmv::verify_geometry(batch, use_mb3).0
             } else if self.mtp_hidden {
                 4
             } else {
@@ -972,7 +1036,13 @@ impl<'a> FlashProjection<'a> {
                 } else {
                     "resident"
                 },
-                self.nt,
+                if verify_rows.is_some() {
+                    verify_nt
+                } else if routed_nt2.is_some() {
+                    2
+                } else {
+                    self.nt
+                },
                 self.k,
                 self.cb as u32,
                 self.input,
@@ -2137,7 +2207,26 @@ impl<'a> FlashExpert<'a> {
     ) -> Result<()> {
         let first = experts[0].axis_projection(stage);
         let gpu = first.metal;
-        let nt = Self::axis_nt(first);
+        #[cfg(test)]
+        let use_mb3 = rows == 3
+            && gpu
+                .flash_verify_mb3
+                .as_ref()
+                .is_some_and(|p| p.active([first.input, first.output], true, true));
+        let nt = {
+            #[cfg(test)]
+            {
+                if use_mb3 && gpu.flash_verify_mb3.as_ref().is_some_and(|p| p.force_nt1) {
+                    1
+                } else {
+                    Self::axis_nt(first)
+                }
+            }
+            #[cfg(not(test))]
+            {
+                Self::axis_nt(first)
+            }
+        };
         ensure!(matches!(nt, 1 | 2), "invalid expert-axis NT");
         ensure!(
             experts.iter().all(|expert| {
@@ -2149,7 +2238,7 @@ impl<'a> FlashExpert<'a> {
                     && p.output == first.output
                     && (p.offsets.trellis, p.offsets.suh, p.offsets.svh)
                         == (first.offsets.trellis, first.offsets.suh, first.offsets.svh)
-                    && Self::axis_nt(p) == nt
+                    && Self::axis_nt(p) == Self::axis_nt(first)
             }),
             "incompatible expert-axis record geometry"
         );
@@ -2171,7 +2260,7 @@ impl<'a> FlashExpert<'a> {
         .context("expert-axis pipelines were not loaded")?[usize::from(stage == 2)]
             [usize::from(nt == 2)];
         #[cfg(test)]
-        let selected_pipeline = if rows == 3 {
+        let selected_pipeline = if use_mb3 {
             if let Some(mb3) = &gpu.flash_verify_mb3 {
                 let mut counts = mb3.uses.get();
                 counts[1] += 1;
@@ -2183,6 +2272,22 @@ impl<'a> FlashExpert<'a> {
         } else {
             selected_pipeline
         };
+        #[cfg(test)]
+        if gpu.observe_qmv {
+            let mb = if rows > 1 {
+                crate::flash_qmv::verify_geometry(rows, use_mb3).0
+            } else {
+                1
+            };
+            let key = format!(
+                "{};role=expert_consumer;stage={stage};B={rows};MB={mb};NT={nt};K=2;CB=2;in={};out={};splits=1;experts={}",
+                selected_pipeline.label(),
+                first.input,
+                first.output,
+                experts.len()
+            );
+            *gpu.qmv_shapes.borrow_mut().entry(key).or_default() += 1;
+        }
         Metal::encode_bound(
             cmd,
             selected_pipeline,
@@ -2205,10 +2310,7 @@ impl<'a> FlashExpert<'a> {
                 {
                     #[cfg(test)]
                     {
-                        u64::from(
-                            crate::flash_qmv::verify_geometry(rows, gpu.flash_verify_mb3.is_some())
-                                .1,
-                        )
+                        u64::from(crate::flash_qmv::verify_geometry(rows, use_mb3).1)
                     }
                     #[cfg(not(test))]
                     {

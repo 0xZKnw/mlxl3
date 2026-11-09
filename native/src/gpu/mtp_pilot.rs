@@ -13,6 +13,10 @@ pub(in crate::gpu) struct Pilot {
     widen: Option<HiddenWiden>,
     cancel_before_publish: bool,
     forced_proposals: Option<[u32; 4]>,
+    adaptive: bool,
+    draft_publication: bool,
+    costs: [Option<f64>; 5],
+    cost_round: usize,
     pub(in crate::gpu) stats: Stats,
     pub(in crate::gpu) proposed: usize,
     pub(in crate::gpu) accepted: usize,
@@ -28,6 +32,16 @@ impl Pilot {
             Err(std::env::VarError::NotPresent) => false,
             Err(error) => return Err(error.into()),
         };
+        let flag = |name: &str| -> Result<bool> {
+            match std::env::var(name) {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false)
+                    .with_context(|| format!("{name} must be 0 or 1")),
+                Err(std::env::VarError::NotPresent) => Ok(false),
+                Err(e) => Err(e.into()),
+            }
+        };
+        let adaptive = flag("MLXL3_NATIVE_MTP_ADAPTIVE")?;
+        let draft_publication = flag("MLXL3_NATIVE_MTP_DRAFT_PUBLICATION")?;
         Ok(Self {
             depth,
             block,
@@ -41,6 +55,10 @@ impl Pilot {
             },
             cancel_before_publish: false,
             forced_proposals: None,
+            adaptive,
+            draft_publication,
+            costs: [None; 5],
+            cost_round: 0,
             stats: Stats::default(),
             proposed: 0,
             accepted: 0,
@@ -86,9 +104,16 @@ impl Pilot {
             .context
             .checked_sub(target.offset())
             .context("target offset beyond context")? as usize;
-        let depth = crate::speculative::bounded_proposals(available, remaining)
+        let bound = crate::speculative::bounded_proposals(available, remaining)
             .context("no target context remaining")?
             .min(self.depth);
+        let depth = if self.adaptive {
+            crate::speculative::economical_depth(self.costs, bound, self.cost_round)
+                .context("invalid adaptive costs")?
+        } else {
+            bound
+        };
+        let round_start = Instant::now();
         let root = target.snapshot();
         let draft_root = head.layer.snapshot();
         let before_hidden = target
@@ -104,13 +129,21 @@ impl Pilot {
                 round.repair_seconds += start.elapsed().as_secs_f64();
                 round.kv_repair_rows += 1;
                 let start = Instant::now();
+                let before_reads = target.gpu.readers()?.requested_role_counts()[0][1];
                 let next = target.forward_greedy(anchor)?;
+                round.target_read_bytes = Some([
+                    target.gpu.readers()?.requested_role_counts()[0][1] - before_reads,
+                    0,
+                ]);
                 round.target_seconds += start.elapsed().as_secs_f64();
                 round.target_executed_rows += 1;
                 round.target_retained_rows += 1;
                 round.tail_steps += 1;
                 return Ok((vec![next], 0, 0));
             }
+            let publication = self
+                .draft_publication
+                .then(|| head.layer.verification_publication());
             let mut proposals = Vec::with_capacity(depth);
             let mut draft_hidden = before_hidden.clone();
             let mut token = anchor;
@@ -187,6 +220,11 @@ impl Pilot {
                         break;
                     }
                 }
+                if let Some(bytes) = staged.read_work(keep)? {
+                    let total = round.target_read_bytes.get_or_insert([0; 2]);
+                    total[0] += bytes[0];
+                    total[1] += bytes[1];
+                }
                 staged.commit(keep)?;
                 round.target_retained_rows += keep;
                 at += keep;
@@ -194,6 +232,10 @@ impl Pilot {
             let repair_start = Instant::now();
             head.layer
                 .restore(&first_draft.context("empty draft chain")?)?;
+            if let Some(mut publication) = publication {
+                publication.retain(&head.layer);
+                drop(publication);
+            }
             for index in 1..outputs.len() {
                 head.extend(target, &hidden[index - 1], inputs[index])?;
                 round.kv_repair_rows += 1;
@@ -215,6 +257,16 @@ impl Pilot {
         match operation {
             Ok((outputs, proposed, accepted)) => {
                 ensure!(!outputs.is_empty());
+                round.selected_depths[depth] += 1;
+                round.depth_reason = if !self.adaptive {
+                    "fixed"
+                } else if self.costs[..=bound].iter().any(Option::is_none) {
+                    "calibration"
+                } else if self.cost_round % 32 == 31 {
+                    "periodic_probe"
+                } else {
+                    "lowest_observed_seconds_per_output"
+                };
                 self.stats.add(&round);
                 for (total, count) in self.widths.iter_mut().zip(widths) {
                     *total += count;
@@ -235,6 +287,12 @@ impl Pilot {
                             .context("missing pending prefix hidden")?
                             .clone(),
                     ));
+                }
+                if self.adaptive {
+                    let sample = round_start.elapsed().as_secs_f64() / outputs.len() as f64;
+                    self.costs[depth] =
+                        Some(self.costs[depth].map_or(sample, |old| 0.8 * old + 0.2 * sample));
+                    self.cost_round += 1;
                 }
                 Ok(first)
             }
@@ -323,11 +381,14 @@ fn propose_hidden(
 
 #[derive(Default, Clone, Debug, PartialEq, serde::Serialize)]
 pub(in crate::gpu) struct Stats {
+    selected_depths: [usize; 5],
+    depth_reason: &'static str,
     draft_forwards: usize,
     draft_heads: usize,
     gpu_conversions: usize,
     cpu_conversions: usize,
     kv_repair_rows: usize,
+    target_read_bytes: Option<[u64; 2]>,
     target_executed_rows: usize,
     target_retained_rows: usize,
     rounds: usize,
@@ -344,11 +405,20 @@ pub(in crate::gpu) struct Stats {
 }
 impl Stats {
     fn add(&mut self, other: &Self) {
+        self.depth_reason = other.depth_reason;
+        for (a, b) in self.selected_depths.iter_mut().zip(other.selected_depths) {
+            *a += b;
+        }
         self.draft_forwards += other.draft_forwards;
         self.draft_heads += other.draft_heads;
         self.gpu_conversions += other.gpu_conversions;
         self.cpu_conversions += other.cpu_conversions;
         self.kv_repair_rows += other.kv_repair_rows;
+        if let Some(bytes) = other.target_read_bytes {
+            let total = self.target_read_bytes.get_or_insert([0; 2]);
+            total[0] += bytes[0];
+            total[1] += bytes[1];
+        }
         self.target_executed_rows += other.target_executed_rows;
         self.target_retained_rows += other.target_retained_rows;
         self.rounds += other.rounds;
