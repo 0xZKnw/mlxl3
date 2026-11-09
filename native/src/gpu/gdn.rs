@@ -13,6 +13,7 @@ pub(super) struct Pipelines {
     dense: ComputePipelineState,
     joint_ab: Option<ComputePipelineState>,
     whole: Option<ComputePipelineState>,
+    pub(super) temporal: Option<[ComputePipelineState; 2]>,
     whole_head_gates: Option<ComputePipelineState>,
     prepare: ComputePipelineState,
     step: ComputePipelineState,
@@ -28,12 +29,18 @@ impl Pipelines {
         joint_ab: bool,
         whole: bool,
         head_gates: bool,
+        temporal: bool,
     ) -> Result<Self> {
         Ok(Self {
             from: [p("gdn_from_half")?, p("gdn_from_float")?],
             dense: p("gdn_dense_gate")?,
             joint_ab: joint_ab.then(|| p("gdn_joint_ab")).transpose()?,
             whole: whole.then(|| p("ar10_gdn_whole")).transpose()?,
+            temporal: (whole && temporal)
+                .then(|| -> Result<_> {
+                    Ok([p("flash_gdn_temporal_b2")?, p("flash_gdn_temporal_b4")?])
+                })
+                .transpose()?,
             whole_head_gates: (whole && head_gates)
                 .then(|| p("ar20_gdn_whole_head_gates"))
                 .transpose()?,
@@ -49,6 +56,7 @@ impl Pipelines {
 
 #[derive(Clone)]
 struct Frame {
+    generation: u64,
     history: MatrixView,
     recurrent: MatrixView,
 }
@@ -56,7 +64,7 @@ struct Frame {
 #[derive(Clone)]
 pub struct FlashGdnState {
     owner: Rc<()>,
-    frame: Option<Frame>,
+    frame: Option<Rc<Frame>>,
 }
 
 // The standard command buffer retains encoded resources through completion.
@@ -65,9 +73,44 @@ struct PendingGdn {
     #[cfg(test)]
     test_gated: MatrixView,
     command: CommandBuffer,
-    next: Frame,
+    next: Rc<Frame>,
+    _previous: Rc<Frame>,
     values: MatrixView,
     steps: Option<[(&'static str, MatrixView); 11]>,
+}
+
+struct GdnProjections {
+    input: MatrixView,
+    qkv: MatrixView,
+    z: MatrixView,
+}
+
+pub(super) struct PreparedGdnRow {
+    read: super::FlashHcRead,
+    pending: PendingGdn,
+    post: Option<EncodedMoeRow>,
+}
+struct EncodedMoeRow {
+    streams: MatrixView,
+    read: super::hc::ReadBuffers,
+    routing: Option<super::gate::GateBuffers>,
+}
+impl EncodedMoeRow {
+    fn finish(self) -> Result<PreparedMoeRow> {
+        let read = self.read.finish(false)?;
+        Ok(PreparedMoeRow {
+            mixed: read.mixed,
+            gate: read.gate.context("missing prepared MLP gate")?,
+            streams: self.streams,
+            routing: self.routing.map(|gate| gate.routes),
+        })
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static BLOCK_PROJECTION_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static TEMPORAL_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 pub type FlashGdnOutput = super::FlashAttentionOutput;
@@ -137,6 +180,7 @@ pub struct FlashGdn<'a> {
     gain: Buffer,
     eps: f32,
     state: FlashGdnState,
+    frame_pool: Option<std::cell::RefCell<Vec<Rc<Frame>>>>,
 }
 impl<'a> FlashGdn<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, prefix: &str, eps: f32) -> Result<Self> {
@@ -158,8 +202,21 @@ impl<'a> FlashGdn<'a> {
                 if half { FloatType::F16 } else { FloatType::F32 },
             )
         };
+        let arena_flag = std::env::var("MLXL3_NATIVE_FLASH_FRAME_ARENA");
+        let arena = match &arena_flag {
+            Ok(value) => Some(value.as_str()),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(error) => return Err(anyhow::anyhow!("invalid frame arena setting: {error}")),
+        };
+        let arena = crate::native_executor::default_flag(
+            arena,
+            gpu.device_name() == "Apple M5",
+            gpu.flash_defaults,
+        )
+        .context("MLXL3_NATIVE_FLASH_FRAME_ARENA must be 0 or 1")?;
         Ok(Self {
             gpu,
+            frame_pool: arena.then(|| std::cell::RefCell::new(Vec::new())),
             qkv: proj("in_proj_qkv", [2560, 10240])?,
             z: proj("in_proj_z", [2560, 6144])?,
             out: proj("out_proj", [6144, 2560])?,
@@ -176,6 +233,56 @@ impl<'a> FlashGdn<'a> {
             },
         })
     }
+    fn lease_frame(&self, storage: Storage) -> Result<Rc<Frame>> {
+        let make = |generation| -> Result<Rc<Frame>> {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.gdn.frame");
+            let frame = Rc::new(Frame {
+                generation,
+                history: MatrixView::output(self.gpu, FloatType::F16, 1, 30720, storage)?,
+                recurrent: MatrixView::output(
+                    self.gpu,
+                    FloatType::F32,
+                    1,
+                    48 * 128 * 128,
+                    storage,
+                )?,
+            });
+            ensure!(
+                frame.history.buffer.length() + frame.recurrent.buffer.length()
+                    == crate::frame_arena::FRAME_BYTES,
+                "unexpected GDN frame allocation"
+            );
+            Ok(frame)
+        };
+        let Some(pool) = &self.frame_pool else {
+            return make(0);
+        };
+        let mut pool = pool.borrow_mut();
+        for slot in pool.iter_mut() {
+            if let Some(epoch) =
+                crate::frame_arena::reusable_epoch(Rc::strong_count(slot), slot.generation)
+            {
+                let shared = storage == Storage::StorageModeShared;
+                if (slot.history.buffer.storage_mode() == metal::MTLStorageMode::Shared) == shared {
+                    Rc::get_mut(slot)
+                        .context("frame arena has a weak owner")?
+                        .generation = epoch;
+                } else {
+                    *slot = make(epoch)?;
+                }
+                return Ok(slot.clone());
+            }
+        }
+        ensure!(
+            pool.len() < crate::frame_arena::CAPACITY,
+            "GDN frame arena exhausted by retained snapshots or GPU consumers"
+        );
+        let frame = make(0)?;
+        pool.push(frame.clone());
+        Ok(frame)
+    }
+
     pub fn snapshot(&self) -> FlashGdnState {
         self.state.clone()
     }
@@ -268,6 +375,18 @@ impl<'a> FlashGdn<'a> {
         trace: bool,
         private_f32_consumer: bool,
     ) -> Result<PendingGdn> {
+        self.encode_for_consumer_prepared(cmd, x, trace, private_f32_consumer, None, None)
+    }
+
+    fn encode_for_consumer_prepared(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+        private_f32_consumer: bool,
+        projected: Option<&GdnProjections>,
+        previous: Option<&Rc<Frame>>,
+    ) -> Result<PendingGdn> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -290,21 +409,13 @@ impl<'a> FlashGdn<'a> {
         };
         let matrix = |dtype, cols| MatrixView::output(gpu, dtype, 1, cols, storage);
         let half = |cols| matrix(FloatType::F16, cols);
-        let (value_groups, state_words) =
+        let (value_groups, _) =
             crate::contracts::packed_gdn_grid(48, 128).context("invalid Flash GDN state extent")?;
-        let frame = || -> Result<Frame> {
-            #[cfg(test)]
-            let _scope = crate::flash_profile::span("native.gdn.frame");
-            Ok(Frame {
-                history: half(30720)?,
-                recurrent: matrix(FloatType::F32, state_words)?,
-            })
-        };
         let g = |x, y, z| MTLSize::new(x, y, z);
-        let prev = match &self.state.frame {
+        let prev = match previous.or(self.state.frame.as_ref()) {
             Some(previous) => previous.clone(),
             None => {
-                let zero = frame()?;
+                let zero = self.lease_frame(storage)?;
                 let blit = cmd.new_blit_command_encoder();
                 for v in [&zero.history, &zero.recurrent] {
                     blit.fill_buffer(&v.buffer, NSRange::new(0, v.buffer.length()), 0);
@@ -313,29 +424,36 @@ impl<'a> FlashGdn<'a> {
                 zero
             }
         };
-        let next = frame()?;
-        let input = half(2560)?;
-        Metal::encode(
-            cmd,
-            &p.from[usize::from(x.dtype == FloatType::F32)],
-            &[&x.buffer, &input.buffer],
-            [x.layout.offset, x.layout.strides[1]],
-            g(80, 1, 1),
-            32,
-        );
-        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
-            gpu.gdn_resident_bundle.get(),
-            trace,
-            private_f32_consumer,
-        ) {
+        let next = self.lease_frame(storage)?;
+        let input = if let Some(projected) = projected {
+            projected.input.clone()
+        } else {
+            let input = half(2560)?;
+            Metal::encode(
+                cmd,
+                &p.from[usize::from(x.dtype == FloatType::F32)],
+                &[&x.buffer, &input.buffer],
+                [x.layout.offset, x.layout.strides[1]],
+                g(80, 1, 1),
+                32,
+            );
+            input
+        };
+        let pair = if projected.is_none()
+            && crate::flash_support::gdn_private_epilogue_eligible(
+                gpu.gdn_resident_bundle.get(),
+                trace,
+                private_f32_consumer,
+            ) {
             self.qkv
                 .encode_resident_pair(&self.z, cmd, &input, storage)?
         } else {
             None
         };
-        let [qkv, z] = match pair {
-            Some(pair) => pair,
-            None => [
+        let [qkv, z] = match (projected, pair) {
+            (Some(projected), _) => [projected.qkv.clone(), projected.z.clone()],
+            (_, Some(pair)) => pair,
+            _ => [
                 self.qkv.encode_row(cmd, &input, storage)?,
                 self.z.encode_row(cmd, &input, storage)?,
             ],
@@ -531,6 +649,7 @@ impl<'a> FlashGdn<'a> {
             test_gated,
             command: cmd.to_owned(),
             next,
+            _previous: prev,
             values,
             steps,
         })
@@ -599,6 +718,15 @@ impl<'a> FlashGdn<'a> {
     }
 }
 
+/// Owned rows crossing the temporal attention / stateless MoE boundary.
+/// HC workspace must be disabled while these rows are retained.
+pub(super) struct PreparedMoeRow {
+    pub(super) mixed: MatrixView,
+    pub(super) routing: Option<super::RouteOutput>,
+    streams: MatrixView,
+    gate: MatrixView,
+}
+
 pub(super) struct LayerResidual<'a> {
     attn_hc: super::FlashHc<'a>,
     mlp_hc: super::FlashHc<'a>,
@@ -633,6 +761,87 @@ impl<'a> LayerResidual<'a> {
     pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
         Ok(self.attn_hc.read(streams, false)?.mixed)
     }
+
+    pub(super) fn encode_attention_input(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        streams: &MatrixView,
+    ) -> Result<super::hc::ReadBuffers> {
+        self.attn_hc.encode_read(cmd, streams, false)
+    }
+    pub(super) fn prepare_moe(
+        &self,
+        streams: &MatrixView,
+        attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+    ) -> Result<PreparedMoeRow> {
+        ensure!(
+            (!self.mlp_hc.gpu.hc_workspace_enabled.get() || self.mlp_hc.gpu.common_executor),
+            "cohort rows require owned HC activations"
+        );
+        let read = self.attn_hc.read(streams, false)?;
+        let attention = attend(&read.mixed)?;
+        self.prepare_after_attention(streams, read, attention)
+    }
+
+    fn prepare_after_attention(
+        &self,
+        streams: &MatrixView,
+        read: super::FlashHcRead,
+        attention: super::FlashAttentionOutput,
+    ) -> Result<PreparedMoeRow> {
+        ensure!(
+            (!self.mlp_hc.gpu.hc_workspace_enabled.get() || self.mlp_hc.gpu.common_executor),
+            "cohort rows require owned HC activations"
+        );
+        let gate = read
+            .gate
+            .as_ref()
+            .context("missing attention injection gate")?;
+        let (streams, mlp_read, routing) = if self.moe.joint_gate_eligible(0) {
+            let (streams, read, routing) = self.mlp_hc.read_after_write_with_gate(
+                &self.attn_hc,
+                streams,
+                &attention.values,
+                gate,
+                &self.moe,
+            )?;
+            (streams, read, Some(routing))
+        } else {
+            let (streams, read) =
+                self.mlp_hc
+                    .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
+            (streams, read, None)
+        };
+        Ok(PreparedMoeRow {
+            mixed: mlp_read.mixed,
+            routing,
+            streams,
+            gate: mlp_read.gate.context("missing MLP injection gate")?,
+        })
+    }
+
+    pub(super) fn finish_prepared(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        row: &PreparedMoeRow,
+        experts: &super::MoeOutput,
+    ) -> Result<MatrixView> {
+        let branch = if self.mlp_hc.gpu.common_executor {
+            experts.values_for_gpu()
+        } else {
+            experts.completed()?
+        };
+        let output = self
+            .mlp_hc
+            .encode_write(cmd, &row.streams, branch, &row.gate)?;
+        #[cfg(test)]
+        self.mlp_hc
+            .gpu
+            .hc_final_writes
+            .set(self.mlp_hc.gpu.hc_final_writes.get() + 1);
+        Ok(output)
+    }
+
     pub(super) fn forward(
         &mut self,
         streams: &MatrixView,
@@ -741,6 +950,203 @@ pub struct FlashGdnLayer<'a> {
     attention: FlashGdn<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
+    #[cfg(test)]
+    pub(super) fn block_projection_count() -> usize {
+        BLOCK_PROJECTION_BATCHES.with(std::cell::Cell::get)
+    }
+    #[cfg(test)]
+    pub(super) fn temporal_batch_count() -> usize {
+        TEMPORAL_BATCHES.with(std::cell::Cell::get)
+    }
+
+    pub(super) fn prepare_block_inputs(
+        &self,
+        rows: &[MatrixView],
+    ) -> Result<Option<Vec<PreparedGdnRow>>> {
+        let gpu = self.attention.gpu;
+        if !self.attention.qkv.supports_verify_rows(rows.len())
+            || !self.attention.z.supports_verify_rows(rows.len())
+        {
+            return Ok(None);
+        }
+        ensure!(
+            (!gpu.hc_workspace_enabled.get() || gpu.common_executor),
+            "GDN block inputs require owned HC rows"
+        );
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.gdn.block_projections");
+        let encode = |cmd: &CommandBufferRef| {
+            let (reads, projections, pending) = (|| -> Result<_> {
+                let reads = rows
+                    .iter()
+                    .map(|row| self.residual.encode_attention_input(cmd, row))
+                    .collect::<Result<Vec<_>>>()?;
+                let packed = MatrixView::output(
+                    gpu,
+                    FloatType::F16,
+                    rows.len() as u32,
+                    2560,
+                    Storage::StorageModePrivate,
+                )?;
+                let mut inputs = Vec::with_capacity(rows.len());
+                for (i, read) in reads.iter().enumerate() {
+                    let x = read.mixed();
+                    let input = MatrixView::output(
+                        gpu,
+                        FloatType::F16,
+                        1,
+                        2560,
+                        Storage::StorageModePrivate,
+                    )?;
+                    Metal::encode(
+                        cmd,
+                        &gpu.gdn.from[usize::from(x.dtype == FloatType::F32)],
+                        &[&x.buffer, &input.buffer],
+                        [x.layout.offset, x.layout.strides[1]],
+                        MTLSize::new(80, 1, 1),
+                        32,
+                    );
+                    let blit = cmd.new_blit_command_encoder();
+                    blit.copy_from_buffer(&input.buffer, 0, &packed.buffer, i as u64 * 5120, 5120);
+                    blit.end_encoding();
+                    inputs.push(input);
+                }
+                let qkv =
+                    self.attention
+                        .qkv
+                        .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
+                let z = self
+                    .attention
+                    .z
+                    .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
+                if gpu.gdn.temporal.is_some()
+                    && gpu.gdn_whole.get()
+                    && rows.iter().all(|row| row.dtype == FloatType::F32)
+                {
+                    let pending = self.attention.encode_temporal(cmd, &inputs, &qkv, &z)?;
+                    return Ok((reads, Vec::new(), pending));
+                }
+                let mut projections = Vec::with_capacity(rows.len());
+                for (i, input) in inputs.into_iter().enumerate() {
+                    let q = MatrixView::output(
+                        gpu,
+                        FloatType::F16,
+                        1,
+                        10240,
+                        Storage::StorageModePrivate,
+                    )?;
+                    let gate = MatrixView::output(
+                        gpu,
+                        FloatType::F16,
+                        1,
+                        6144,
+                        Storage::StorageModePrivate,
+                    )?;
+                    let blit = cmd.new_blit_command_encoder();
+                    blit.copy_from_buffer(&qkv.buffer, i as u64 * 20480, &q.buffer, 0, 20480);
+                    blit.copy_from_buffer(&z.buffer, i as u64 * 12288, &gate.buffer, 0, 12288);
+                    blit.end_encoding();
+                    projections.push(GdnProjections {
+                        input,
+                        qkv: q,
+                        z: gate,
+                    });
+                }
+                let mut pending: Vec<PendingGdn> = Vec::with_capacity(rows.len());
+                for (i, (read, projected)) in reads.iter().zip(&projections).enumerate() {
+                    let step = self.attention.encode_for_consumer_prepared(
+                        cmd,
+                        read.mixed(),
+                        false,
+                        rows[i].dtype == FloatType::F32,
+                        Some(projected),
+                        pending.last().map(|p| &p.next),
+                    )?;
+                    pending.push(step);
+                }
+                Ok((reads, projections, pending))
+            })()?;
+            let posts = if gpu.segment_enabled {
+                reads
+                    .iter()
+                    .zip(&pending)
+                    .zip(rows)
+                    .map(|((read, pending), streams)| {
+                        let (written, mlp) = self.residual.mlp_hc.encode_after_write(
+                            cmd,
+                            streams,
+                            &pending.values,
+                            read.injection_gate()?,
+                        )?;
+                        let routing = if self.residual.moe.joint_gate_eligible(0) {
+                            let gate = self.residual.moe.encode_gate(gpu, cmd, mlp.mixed())?;
+                            #[cfg(test)]
+                            gpu.hc_gate_chain_pairs
+                                .set(gpu.hc_gate_chain_pairs.get() + 1);
+                            Some(gate)
+                        } else {
+                            None
+                        };
+                        #[cfg(test)]
+                        gpu.hc_chain_pairs.set(gpu.hc_chain_pairs.get() + 1);
+                        Ok(Some(EncodedMoeRow {
+                            streams: written,
+                            read: mlp,
+                            routing,
+                        }))
+                    })
+                    .collect::<Result<Vec<_>>>()?
+            } else {
+                (0..rows.len()).map(|_| None).collect()
+            };
+            Ok((reads, projections, pending, posts))
+        };
+        let (reads, _projections, pending, posts) = if gpu.segment_enabled {
+            gpu.segment(encode)?.submit()?.retire()?
+        } else {
+            gpu.command(encode)?
+        };
+        #[cfg(test)]
+        {
+            BLOCK_PROJECTION_BATCHES.with(|count| count.set(count.get() + 1));
+            gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + rows.len());
+        }
+        let prepared = reads
+            .into_iter()
+            .zip(pending)
+            .zip(posts)
+            .map(|((read, pending), post)| {
+                Ok(PreparedGdnRow {
+                    read: read.finish(false)?,
+                    pending,
+                    post,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Some(prepared))
+    }
+
+    pub(super) fn prepare_moe_projected(
+        &mut self,
+        streams: &MatrixView,
+        row: PreparedGdnRow,
+    ) -> Result<PreparedMoeRow> {
+        let before = self.snapshot();
+        let result = (|| {
+            let attention = self.attention.finish(row.pending)?;
+            if let Some(post) = row.post {
+                post.finish()
+            } else {
+                self.residual
+                    .prepare_after_attention(streams, row.read, attention)
+            }
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
+    }
+
     pub fn load(
         gpu: &'a Metal,
         c: &Checkpoint,
@@ -882,6 +1288,25 @@ impl<'a> FlashGdnLayer<'a> {
         )
     }
 
+    pub(super) fn prepare_moe(&mut self, streams: &MatrixView) -> Result<PreparedMoeRow> {
+        ensure!(
+            (!self.attention.gpu.hc_workspace_enabled.get() || self.attention.gpu.common_executor),
+            "cohort rows require owned HC activations"
+        );
+        let before = self.snapshot();
+        let result = (|| {
+            let (read, attention) =
+                self.attention
+                    .forward_after_hc(&self.residual.attn_hc, streams, false)?;
+            self.residual
+                .prepare_after_attention(streams, read, attention)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
+    }
+
     pub(super) fn forward_deferred(
         &mut self,
         streams: &MatrixView,
@@ -999,6 +1424,12 @@ impl FlashGdn<'_> {
             backings.record("gdn", &frame.history.buffer)?;
             backings.record("gdn", &frame.recurrent.buffer)?;
         }
+        if let Some(pool) = &self.frame_pool {
+            for frame in pool.borrow().iter() {
+                backings.record("gdn_frame_arena", &frame.history.buffer)?;
+                backings.record("gdn_frame_arena", &frame.recurrent.buffer)?;
+            }
+        }
         Ok(())
     }
 }
@@ -1114,3 +1545,61 @@ mod ar20_gdn_tests;
 #[cfg(test)]
 #[path = "gdn_route_tests.rs"]
 mod gdn_route_tests;
+
+#[path = "gdn_temporal.rs"]
+mod temporal;
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash checkpoint; bounded arena with live external snapshots"]
+fn physical_frame_arena_preserves_external_snapshots_and_fails_before_overwrite() -> Result<()> {
+    let checkpoint =
+        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let gpu = Metal::new()?;
+    let mut attention = FlashGdn::load(
+        &gpu,
+        &checkpoint,
+        "model.language_model.layers.0.linear_attn",
+        1e-6,
+    )?;
+    ensure!(
+        attention.frame_pool.is_some(),
+        "frame arena must be enabled"
+    );
+    let storage = gpu.f32_storage(
+        &(0..2560)
+            .map(|i| (i % 97) as f32 / 127. - 0.3)
+            .collect::<Vec<_>>(),
+    )?;
+    let input = storage.matrix(crate::tensor_layout::MatrixLayout {
+        shape: [1, 2560],
+        strides: [2560, 1],
+        offset: 0,
+    })?;
+    let mut kept = Vec::new();
+    for _ in 0..crate::frame_arena::CAPACITY {
+        attention.forward(&input, false)?;
+        kept.push(attention.snapshot());
+    }
+    let first = kept[0].clone();
+    let state = |s: &FlashGdnState| -> Result<_> {
+        let frame = s.frame.as_ref().context("missing retained frame")?;
+        Ok((
+            frame.history.export_bytes(&gpu)?,
+            frame.recurrent.export_bytes(&gpu)?,
+        ))
+    };
+    let expected = state(&first)?;
+    let last = state(&attention.snapshot())?;
+    ensure!(attention.forward(&input, false).is_err());
+    ensure!(state(&first)? == expected && state(&attention.snapshot())? == last);
+    kept.clear();
+    attention.restore(&first)?;
+    attention.forward(&input, false)?;
+    ensure!(state(&first)? == expected);
+    let pool = attention.frame_pool.as_ref().unwrap().borrow();
+    ensure!(
+        pool.len() == crate::frame_arena::CAPACITY && pool.iter().any(|frame| frame.generation > 0)
+    );
+    Ok(())
+}

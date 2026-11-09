@@ -1,0 +1,62 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "expert_ar_policy::multirow_up_finish_keeps_exact_row_extents_and_bounds",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "60s"
+  ],
+  "status": "driver_success",
+  "returncode": 0,
+  "reaped": true,
+  "seconds": 5.428565374997561,
+  "domain": "actual multirow fusion guard; unrestrictedbool/u32[3][3],unwind40,noassumptions; extra symbolic row arithmetic covers lastrow4. Not Metal/FFI proof.",
+  "reviewed_statuses": {
+    "SUCCESS": 586,
+    "UNREACHABLE": 6,
+    "SATISFIED": 4
+  },
+  "unreachable": [
+    [
+      "53: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"Cannot compute offset of a ZST\"",
+      "\t - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ],
+    [
+      "55: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"attempt to calculate the remainder with a divisor of zero\"",
+      "\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ],
+    [
+      "56: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"attempt to calculate the remainder with overflow\"",
+      "\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ],
+    [
+      "60: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"attempt to divide by zero\"",
+      "\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ],
+    [
+      "61: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"attempt to divide with overflow\"",
+      "\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    ],
+    [
+      "117: std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "\t - Status: UNREACHABLE",
+      "\t - Description: \"attempt to shift left with overflow\"",
+      "\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    ]
+  ]
+}

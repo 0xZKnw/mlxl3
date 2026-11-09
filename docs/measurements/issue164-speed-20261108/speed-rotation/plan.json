@@ -1,0 +1,129 @@
+{
+  "id": "I164-SPEED-ROTATION-20261108",
+  "created_utc": "2026-11-08T18:10:02.680144+00:00",
+  "source_commit": "8b3bf72ec3bfe805eb8f1fec2899e79d27446662",
+  "pushed_pr": 161,
+  "engine": "/Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/issue164-cli",
+  "binary_sha256": "32b3f074b633d54cc6a052e4b9cc637fa5cb6372181f7ea754da2c2befee9316",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "model_metadata_sha256": {
+    "config.json": "d4a35225fc5236c8a2d64d01fd273f2f41192be5ff43e5c50ef1ef50e28ccda2",
+    "quantization_config.json": "c057f732f92379dac8b345ee065d3f07c72df77fead15ee4ec972e8e9831bef5"
+  },
+  "tokens": 64,
+  "decode_tokens": 63,
+  "prompt": "MAIN",
+  "context": 4096,
+  "request_limit_mib": 24576,
+  "cache_gib": 3,
+  "required_slots": {
+    "layers": 48,
+    "per_layer": 53
+  },
+  "sampler": {
+    "temperature": 0,
+    "top_k": 1,
+    "repetition_penalty": 1,
+    "prompt_cache": false
+  },
+  "repeats": 1,
+  "warmup_per_arm": 1,
+  "timeout_per_response": 180,
+  "preflight": {
+    "configuration": "B",
+    "tokens": 8,
+    "compare_ar_mtp": true
+  },
+  "arms": [
+    {
+      "name": "A1",
+      "configuration": "A",
+      "mtp": true
+    },
+    {
+      "name": "B1",
+      "configuration": "B",
+      "mtp": true
+    },
+    {
+      "name": "AR",
+      "configuration": "B",
+      "mtp": false
+    },
+    {
+      "name": "B2",
+      "configuration": "B",
+      "mtp": true
+    },
+    {
+      "name": "A2",
+      "configuration": "A",
+      "mtp": true
+    }
+  ],
+  "configurations": {
+    "A": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+      "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+      "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+      "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+      "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+      "MLXL3_NATIVE_MOE_DEFERRED": "0",
+      "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+      "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+      "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+      "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_NATIVE_FLASH_COMMON_EXECUTOR": "1",
+      "MLXL3_FLASH_REQUEST_MIB": "24576",
+      "MLXL3_NATIVE_HC_WORKSPACE": "0",
+      "MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED": "0",
+      "MLXL3_NATIVE_FLASH_GLU_DOWN": "0",
+      "MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS": "0",
+      "MLXL3_NATIVE_FLASH_READ_WINDOW": "0",
+      "MLXL3_NATIVE_FLASH_GDN_TEMPORAL": "0",
+      "MLXL3_NATIVE_FLASH_FRAME_ARENA": "0",
+      "MLXL3_NATIVE_FLASH_GPU_SEGMENTS": "0"
+    },
+    "B": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+      "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+      "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+      "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "1",
+      "MLXL3_NATIVE_HOT_WORKSPACE": "1",
+      "MLXL3_NATIVE_MOE_DEFERRED": "1",
+      "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+      "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+      "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+      "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_NATIVE_FLASH_COMMON_EXECUTOR": "1",
+      "MLXL3_FLASH_REQUEST_MIB": "24576",
+      "MLXL3_NATIVE_HC_WORKSPACE": "1",
+      "MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED": "1",
+      "MLXL3_NATIVE_FLASH_GLU_DOWN": "1",
+      "MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS": "1",
+      "MLXL3_NATIVE_FLASH_READ_WINDOW": "1",
+      "MLXL3_NATIVE_FLASH_GDN_TEMPORAL": "1",
+      "MLXL3_NATIVE_FLASH_FRAME_ARENA": "1",
+      "MLXL3_NATIVE_FLASH_GPU_SEGMENTS": "1",
+      "MLXL3_NATIVE_ROUTED_NT2_GU": "1",
+      "MLXL3_NATIVE_ROUTED_NT2_DOWN": "1"
+    }
+  },
+  "interpretation": "A is the same committed CLI with new experimental kernels/arena/segments off; common budget admission remains on in all arms. Not the original frozen R3 binary. B is the physically qualified composed Hot/workspace/deferred path. AR uses B options and unloads the draft; equal 24GiB ceiling/3GiB cache does not imply equal memory use. Five short points; control drift and measured memory must remain visible. No N08/N10/N11 implementation or 20tok/s claim."
+}

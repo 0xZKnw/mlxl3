@@ -26,6 +26,7 @@ pub(super) struct Pipelines {
     argument: metal::ArgumentEncoder,
     dummy: Buffer,
     active: Rc<Cell<bool>>,
+    block_active: Rc<Cell<usize>>,
     spare: Rc<RefCell<Option<Workspace>>>,
     #[cfg(test)]
     submissions: Cell<u64>,
@@ -78,6 +79,7 @@ impl Pipelines {
                 Storage::StorageModeShared,
             )?,
             active: Rc::new(Cell::new(false)),
+            block_active: Rc::new(Cell::new(0)),
             spare: Rc::new(RefCell::new(None)),
             #[cfg(test)]
             submissions: Cell::new(0),
@@ -89,10 +91,16 @@ impl Pipelines {
     }
 }
 
-struct Active(Rc<Cell<bool>>);
+enum Active {
+    Scalar(Rc<Cell<bool>>),
+    Block(Rc<Cell<usize>>),
+}
 impl Drop for Active {
     fn drop(&mut self) {
-        self.0.set(false);
+        match self {
+            Self::Scalar(active) => active.set(false),
+            Self::Block(active) => active.set(active.get() - 1),
+        }
     }
 }
 
@@ -236,7 +244,10 @@ fn encode<T: Copy, const N: usize>(
 impl Metal {
     pub(super) fn clear_hot_workspace(&self) -> Result<()> {
         if let Some(p) = &self.indirect_hot {
-            ensure!(!p.active.get(), "cannot clear an active resident workspace");
+            ensure!(
+                !p.active.get() && p.block_active.get() == 0,
+                "cannot clear an active resident workspace"
+            );
             p.spare.borrow_mut().take();
         }
         Ok(())
@@ -255,7 +266,10 @@ impl Metal {
 
     pub(super) fn device_resident_route_available(&self) -> bool {
         self.device_resident_route_enabled()
-            && self.indirect_hot.as_ref().is_some_and(|p| !p.active.get())
+            && self
+                .indirect_hot
+                .as_ref()
+                .is_some_and(|p| !p.active.get() && p.block_active.get() == 0)
     }
 
     #[cfg(test)]
@@ -284,6 +298,18 @@ impl Metal {
         self.submit_resident_hot_inner(input, ids, snapshot, Storage::StorageModeShared)
     }
 
+    pub(super) fn submit_resident_hot_block(
+        &self,
+        input: &MatrixView,
+        ids: &Buffer,
+        snapshot: ResidentSnapshot,
+    ) -> Result<HotOutput> {
+        ensure!(
+            self.common_executor,
+            "private Hot rows require the common executor"
+        );
+        self.submit_resident_hot_owned(input, ids, snapshot, Storage::StorageModePrivate, true)
+    }
     fn submit_resident_hot_inner(
         &self,
         input: &MatrixView,
@@ -291,9 +317,31 @@ impl Metal {
         snapshot: ResidentSnapshot,
         storage: Storage,
     ) -> Result<HotOutput> {
+        self.submit_resident_hot_owned(input, ids, snapshot, storage, false)
+    }
+    fn submit_resident_hot_owned(
+        &self,
+        input: &MatrixView,
+        ids: &Buffer,
+        snapshot: ResidentSnapshot,
+        storage: Storage,
+        owned: bool,
+    ) -> Result<HotOutput> {
         objc::rc::autoreleasepool(|| {
             ensure!(
-                self.device_resident_route_available(),
+                if owned {
+                    self.device_resident_route_enabled()
+                        && self.indirect_hot.as_ref().is_some_and(|p| {
+                            !p.active.get()
+                                && crate::native_executor::hot_owners_after(
+                                    p.block_active.get(),
+                                    true,
+                                )
+                                .is_some()
+                        })
+                } else {
+                    self.device_resident_route_available()
+                },
                 "resident route is disabled, busy or unsupported"
             );
             ensure!(
@@ -341,8 +389,16 @@ impl Metal {
                 peak <= crate::device_hot_policy::RESERVE_BYTES,
                 "resident transaction exceeds admission reserve"
             );
-            p.active.set(true);
-            let active = Active(p.active.clone());
+            let active = if owned {
+                p.block_active.set(
+                    crate::native_executor::hot_owners_after(p.block_active.get(), true)
+                        .context("private Hot owner budget exhausted")?,
+                );
+                Active::Block(p.block_active.clone())
+            } else {
+                p.active.set(true);
+                Active::Scalar(p.active.clone())
+            };
             let argument = buffer(
                 &self.device,
                 p.argument.encoded_length(),
@@ -368,7 +424,7 @@ impl Metal {
                 .map(|r| -> &metal::ResourceRef { r })
                 .collect::<Vec<_>>();
             let map = upload(&self.device, snapshot.map())?;
-            let cached = if self.hot_workspace.get() {
+            let cached = if self.hot_workspace.get() && !owned {
                 p.spare.borrow_mut().take().filter(|b| {
                     crate::device_hot_policy::workspace_valid(
                         b.each_ref().map(|b| b.length()),
@@ -398,7 +454,7 @@ impl Metal {
                     buffer(&self.device, 51200, storage)?,
                 ]
             };
-            let workspace = self.hot_workspace.get().then(|| WorkspaceLease {
+            let workspace = (self.hot_workspace.get() && !owned).then(|| WorkspaceLease {
                 spare: p.spare.clone(),
                 buffers: Some(buffers.clone()),
                 reusable: false,

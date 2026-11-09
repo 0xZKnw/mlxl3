@@ -17,6 +17,10 @@ use std::{cell::RefCell, os::unix::fs::FileExt, rc::Rc};
 mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
+#[path = "flash_verify.rs"]
+mod verify;
+pub use verify::FlashVerification;
+
 pub(super) enum Layer<'a> {
     Gdn(Box<FlashGdnLayer<'a>>),
     Ple(Box<FlashPleLayer<'a>>),
@@ -29,6 +33,18 @@ enum State {
     Qsa(FlashQsaState),
 }
 impl<'a> Layer<'a> {
+    fn plan(&self, context: u32) -> Result<crate::native_executor::LayerPlan> {
+        use crate::native_executor::{LayerPlan, Role};
+        LayerPlan::new(
+            match self {
+                Self::Gdn(_) => Role::Gdn,
+                Self::Ple(_) => Role::Ple,
+                Self::Qsa(_) => Role::Qsa,
+            },
+            context,
+        )
+        .context("invalid native layer plan")
+    }
     fn forward(
         &mut self,
         x: &MatrixView,
@@ -48,6 +64,42 @@ impl<'a> Layer<'a> {
             Self::Gdn(a) => &mut a.residual.moe,
             Self::Ple(a) => &mut a.body.residual.moe,
             Self::Qsa(a) => &mut a.residual.moe,
+        }
+    }
+    fn prepare_moe(
+        &mut self,
+        row: &MatrixView,
+        token: u32,
+        projected: Option<super::gdn::PreparedGdnRow>,
+    ) -> Result<super::gdn::PreparedMoeRow> {
+        match self {
+            Self::Gdn(layer) => match projected {
+                Some(projected) => layer.prepare_moe_projected(row, projected),
+                None => layer.prepare_moe(row),
+            },
+            Self::Ple(layer) => layer.prepare_moe(row, token),
+            Self::Qsa(layer) => layer.prepare_moe(row),
+        }
+    }
+    fn prepare_block_inputs(
+        &self,
+        rows: &[MatrixView],
+    ) -> Result<Option<Vec<super::gdn::PreparedGdnRow>>> {
+        match self {
+            Self::Gdn(layer) => layer.prepare_block_inputs(rows),
+            _ => Ok(None),
+        }
+    }
+    fn finish_prepared(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        row: &super::gdn::PreparedMoeRow,
+        experts: &super::MoeOutput,
+    ) -> Result<MatrixView> {
+        match self {
+            Self::Gdn(layer) => layer.residual.finish_prepared(cmd, row, experts),
+            Self::Ple(layer) => layer.body.residual.finish_prepared(cmd, row, experts),
+            Self::Qsa(layer) => layer.residual.finish_prepared(cmd, row, experts),
         }
     }
     fn snapshot(&self) -> State {
@@ -141,11 +193,18 @@ pub struct FlashTraceTensor {
     pub shape: Vec<u32>,
     pub data: Vec<u8>,
 }
+struct EmbeddingRow {
+    token: u32,
+    bits: Vec<u16>,
+    view: Option<MatrixView>,
+}
+
 pub struct FlashNext<'a> {
     pub(super) fixed_residency: Option<super::fixed_residency::FixedResidency>,
     pub(super) fixed_residency_checked: bool,
     checkpoint_path: std::path::PathBuf,
     lookahead_depth: usize,
+    verify_ssd_cohorts: bool,
     #[cfg(feature = "chat")]
     pub(crate) prefill_heads: bool,
     #[cfg(test)]
@@ -155,12 +214,15 @@ pub struct FlashNext<'a> {
     pub(super) hidden: Option<MatrixView>,
     pub(super) gpu: &'a Metal,
     embed: TensorInfo,
+    embedding_rows: RefCell<Vec<EmbeddingRow>>,
     pub(super) layers: Vec<Layer<'a>>,
+    pub(super) layer_plans: Vec<crate::native_executor::LayerPlan>,
     pub(super) mixer: FlashHc<'a>,
     pub(super) head: FlashProjection<'a>,
     pub(super) context: u32,
     offset: u32,
     pub(super) request_limit: Option<u64>,
+    pub(super) draft_capacity_reserve: Rc<std::cell::Cell<u64>>,
 }
 impl<'a> FlashNext<'a> {
     #[cfg(test)]
@@ -190,6 +252,10 @@ impl<'a> FlashNext<'a> {
             .iter_mut()
             .map(|layer| usize::from(layer.moe().record_reuse_enabled))
             .sum()
+    }
+
+    pub(super) fn default_block_verification(&self) -> bool {
+        self.gpu.flash_defaults && self.verify_ssd_cohorts
     }
 
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
@@ -284,11 +350,31 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         gpu.admit_load(request_limit, total_slots)?;
+        let layer_plans = layers
+            .iter()
+            .map(|layer| layer.plan(context))
+            .collect::<Result<Vec<_>>>()?;
         let mut model = Self {
+            layer_plans,
+            draft_capacity_reserve: Rc::new(std::cell::Cell::new(0)),
             fixed_residency: None,
             fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
             lookahead_depth,
+            verify_ssd_cohorts: {
+                let value = match std::env::var("MLXL3_NATIVE_MTP_SSD_COHORTS") {
+                    Ok(value) => Some(value),
+                    Err(std::env::VarError::NotPresent) => None,
+                    Err(error) => return Err(error.into()),
+                };
+                crate::flash_support::hc_chain_flag(
+                    value.as_deref(),
+                    gpu.flash_defaults
+                        && lookahead_depth == 0
+                        && layers.iter_mut().all(|layer| layer.moe().block_eligible()),
+                )
+                .context("MLXL3_NATIVE_MTP_SSD_COHORTS must be 0 or 1")?
+            },
             #[cfg(feature = "chat")]
             prefill_heads,
             #[cfg(test)]
@@ -298,6 +384,7 @@ impl<'a> FlashNext<'a> {
             hidden: None,
             gpu,
             embed,
+            embedding_rows: RefCell::new(Vec::new()),
             layers,
             mixer,
             head,
@@ -362,17 +449,74 @@ impl<'a> FlashNext<'a> {
     }
 
     fn embedding_bits(&self, token: u32) -> Result<Vec<u16>> {
+        if let Some(row) = self
+            .embedding_rows
+            .borrow()
+            .iter()
+            .find(|row| row.token == token)
+        {
+            return Ok(row.bits.clone());
+        }
         let (file, base) = self.embed.source()?;
         let at = row_offset(base, u64::from(token), 248320, 5120)
             .context("token outside Flash vocabulary or embedding offset overflow")?;
         let mut bytes = [0u8; 5120];
         file.read_exact_at(&mut bytes, at)?;
-        Ok(bytes
+        let bits = bytes
             .as_chunks::<2>()
             .0
             .iter()
             .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_bits())
-            .collect())
+            .collect::<Vec<_>>();
+        let mut rows = self.embedding_rows.borrow_mut();
+        if rows.len() == 4 {
+            rows.remove(0);
+        }
+        rows.push(EmbeddingRow {
+            token,
+            bits: bits.clone(),
+            view: None,
+        });
+        Ok(bits)
+    }
+
+    fn embedding_view(&self, token: u32) -> Result<MatrixView> {
+        if let Some(view) = self
+            .embedding_rows
+            .borrow()
+            .iter()
+            .find(|row| row.token == token)
+            .and_then(|row| row.view.clone())
+        {
+            return Ok(view);
+        }
+        let bits = self.embedding_bits(token)?;
+        let view = self.gpu.f16_storage(&bits)?.matrix(MatrixLayout {
+            shape: [1, 2560],
+            strides: [2560, 1],
+            offset: 0,
+        })?;
+        if let Some(row) = self
+            .embedding_rows
+            .borrow_mut()
+            .iter_mut()
+            .find(|row| row.token == token)
+        {
+            row.view = Some(view.clone());
+        }
+        Ok(view)
+    }
+
+    pub(super) fn record_embedding_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+    ) -> Result<()> {
+        for row in self.embedding_rows.borrow().iter() {
+            if let Some(view) = &row.view {
+                backings.record("embedding_cache", &view.buffer)?;
+            }
+        }
+        Ok(())
     }
     fn streams(&self, token: u32) -> Result<MatrixView> {
         let values: Vec<_> = self
@@ -483,6 +627,10 @@ impl<'a> FlashNext<'a> {
             .then(|| RestoreRoute(&gpu.gdn_route_chain, gpu.gdn_route_chain.replace(false)));
         let mut streams = LayerOutput::Ready(self.streams(token)?);
         for i in 0..self.layers.len() {
+            ensure!(
+                self.layer_plans[i].admits(1),
+                "native B1 layer plan rejected the row"
+            );
             #[cfg(test)]
             let _layer = crate::flash_profile::span("native.layer");
             #[cfg(test)]

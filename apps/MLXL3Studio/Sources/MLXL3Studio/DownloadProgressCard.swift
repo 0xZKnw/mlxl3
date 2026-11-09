@@ -10,12 +10,22 @@ struct DownloadProgressCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var active: Bool { status == .transferring }
+    private var transferring: Bool { progress.phase == .download }
+    private var phaseTitle: String {
+        switch progress.phase {
+        case .download: L("TÉLÉCHARGEMENT DU MODÈLE", "MODEL DOWNLOAD")
+        case .verify: L("VÉRIFICATION DES FICHIERS", "VERIFYING FILES")
+        case .publication: L("PUBLICATION DU MODÈLE", "PUBLISHING MODEL")
+        case .install: L("INSTALLATION DU MODÈLE", "INSTALLING MODEL")
+        case .processing: L("PRÉPARATION DU MODÈLE", "PREPARING MODEL")
+        }
+    }
     private var icon: String {
         switch status {
         case .complete: "checkmark"
         case .paused: "pause"
         case .failed: "exclamationmark"
-        default: "arrow.down"
+        default: transferring ? "arrow.down" : "gearshape"
         }
     }
     private var title: String {
@@ -23,7 +33,7 @@ struct DownloadProgressCard: View {
         case .complete: L("AJOUTÉ À VOTRE BIBLIOTHÈQUE", "ADDED TO YOUR LIBRARY")
         case .paused: L("TÉLÉCHARGEMENT EN PAUSE", "DOWNLOAD PAUSED")
         case .failed: L("TÉLÉCHARGEMENT INTERROMPU", "DOWNLOAD INTERRUPTED")
-        default: L("TÉLÉCHARGEMENT DU MODÈLE", "MODEL DOWNLOAD")
+        default: phaseTitle
         }
     }
 
@@ -72,19 +82,23 @@ struct DownloadProgressCard: View {
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: fraction)
                     .accessibilityLabel(L("Progression du téléchargement", "Download progress"))
                     .accessibilityValue(fraction.formatted(.percent.precision(.fractionLength(0))))
-            } else if active { ProgressView().controlSize(.small) }
-            HStack(alignment: .firstTextBaseline) {
-                Text(volume(progress.completed) + " / " + (progress.total > 0 ? volume(progress.total) : "—"))
-                    .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
-                Spacer()
-                if active {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.down").font(.system(size: 9))
-                        Text(progress.bytesPerSecond.map {
-                            ($0 / 1_000_000).formatted(.number.precision(.fractionLength(1))) + " " + L("Mo/s", "MB/s")
-                        } ?? L("Calcul du débit…", "Measuring speed…"))
-                        .monospacedDigit()
-                    }.font(.system(size: 11, weight: .medium)).foregroundStyle(StudioTheme.accent)
+            } else if active {
+                ProgressView().controlSize(.small).accessibilityLabel(phaseTitle)
+            }
+            if transferring {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(volume(progress.completed) + " / " + (progress.total > 0 ? volume(progress.total) : "—"))
+                        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
+                    Spacer()
+                    if active {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down").font(.system(size: 9))
+                            Text(progress.bytesPerSecond.map {
+                                ($0 / 1_000_000).formatted(.number.precision(.fractionLength(1))) + " " + L("Mo/s", "MB/s")
+                            } ?? L("Calcul du débit…", "Measuring speed…"))
+                            .monospacedDigit()
+                        }.font(.system(size: 11, weight: .medium)).foregroundStyle(StudioTheme.accent)
+                    }
                 }
             }
             if let message {

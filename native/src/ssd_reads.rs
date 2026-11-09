@@ -254,6 +254,15 @@ impl Read {
     }
 }
 
+#[cfg(test)]
+thread_local! { static CAMPAIGN_READS: std::cell::Cell<Option<(u64,u64)>> = const { std::cell::Cell::new(None) }; }
+#[cfg(all(test, target_os = "macos", feature = "direct-metal", feature = "chat"))]
+pub(crate) fn campaign_reads(enabled: bool) -> (u64, u64) {
+    CAMPAIGN_READS
+        .replace(enabled.then_some((0, 0)))
+        .unwrap_or_default()
+}
+
 enum ReadWork {
     Whole(Read),
     Part {
@@ -494,6 +503,8 @@ pub(crate) struct ReadService {
     early_reads: bool,
     #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
     pub(crate) early_batches: Cell<usize>,
+    pub(crate) window_enabled: bool,
+    window_active: Cell<bool>,
     next: Cell<usize>,
     senders: Vec<SyncSender<ReadWork>>,
     workers: Vec<JoinHandle<()>>,
@@ -556,7 +567,21 @@ impl ReadService {
             Err(error) => return Err(error.into()),
         }
         .context("MLXL3_NATIVE_READ_SPLIT must be 0 or 1")?;
-        Self::new_with_options(readers, dynamic, split_enabled)
+        let window_enabled = match std::env::var("MLXL3_NATIVE_FLASH_READ_WINDOW") {
+            Ok(value) => crate::ar10_defaults::flag(Some(&value), qualified_default),
+            Err(std::env::VarError::NotPresent) => {
+                #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+                let default = crate::native_executor::defaults(qualified_default);
+                #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+                let default = false;
+                Some(default)
+            }
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_NATIVE_FLASH_READ_WINDOW must be 0 or 1")?;
+        let mut service = Self::new_with_options(readers, dynamic, split_enabled)?;
+        service.window_enabled = window_enabled;
+        Ok(service)
     }
     #[cfg(test)]
     fn new_with_schedule(readers: usize, dynamic: bool) -> Result<Self> {
@@ -576,6 +601,8 @@ impl ReadService {
             .context("MLXL3_NATIVE_EARLY_READS must be 0 or 1")?,
             #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]
             early_batches: Cell::new(0),
+            window_enabled: false,
+            window_active: Cell::new(false),
             next: Cell::new(0),
             senders: Vec::new(),
             workers: Vec::new(),
@@ -767,38 +794,7 @@ impl ReadService {
             .into_iter()
             .zip(owners)
             .map(|((lease, file, offset, bytes), owner)| {
-                ensure!(
-                    direct_destination_valid(bytes, bytes as u64, true),
-                    "invalid owned SSD destination extent"
-                );
-                let reusable = owner.filter(|buffer| {
-                    buffer.device().registry_id() == device.registry_id()
-                        && direct_destination_valid(
-                            bytes,
-                            buffer.length(),
-                            buffer.storage_mode() == metal::MTLStorageMode::Shared,
-                        )
-                });
-                let destination = if let Some(buffer) = reusable {
-                    #[cfg(test)]
-                    self.reused_destinations
-                        .set(self.reused_destinations.get() + 1);
-                    buffer
-                } else {
-                    let buffer = crate::gpu::buffer(
-                        device,
-                        bytes as u64,
-                        metal::MTLResourceOptions::StorageModeShared,
-                    )?;
-                    #[cfg(test)]
-                    self.fresh_destinations
-                        .set(self.fresh_destinations.get() + 1);
-                    buffer
-                };
-                #[cfg(test)]
-                if let Some(trace) = self.shared_trace.borrow().as_ref() {
-                    trace.lock().unwrap().push(("allocation", Instant::now()));
-                }
+                let destination = self.owned_destination(device, owner, bytes)?;
                 Ok((lease, file, offset, bytes, ReadPayload::Shared(destination)))
             });
         let allow_split = self.split_enabled && device.name() == "Apple M5";
@@ -815,6 +811,47 @@ impl ReadService {
             false,
             self.split_enabled && device.name() == "Apple M5",
         )
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    fn owned_destination(
+        &self,
+        device: &metal::DeviceRef,
+        owner: Option<metal::Buffer>,
+        bytes: usize,
+    ) -> Result<metal::Buffer> {
+        ensure!(
+            direct_destination_valid(bytes, bytes as u64, true),
+            "invalid owned SSD destination extent"
+        );
+        let reusable = owner.filter(|buffer| {
+            buffer.device().registry_id() == device.registry_id()
+                && direct_destination_valid(
+                    bytes,
+                    buffer.length(),
+                    buffer.storage_mode() == metal::MTLStorageMode::Shared,
+                )
+        });
+        let destination = if let Some(buffer) = reusable {
+            #[cfg(test)]
+            self.reused_destinations
+                .set(self.reused_destinations.get() + 1);
+            buffer
+        } else {
+            let buffer = crate::gpu::buffer(
+                device,
+                bytes as u64,
+                metal::MTLResourceOptions::StorageModeShared,
+            )?;
+            #[cfg(test)]
+            self.fresh_destinations
+                .set(self.fresh_destinations.get() + 1);
+            buffer
+        };
+        #[cfg(test)]
+        if let Some(trace) = self.shared_trace.borrow().as_ref() {
+            trace.lock().unwrap().push(("allocation", Instant::now()));
+        }
+        Ok(destination)
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_background(
@@ -882,6 +919,10 @@ impl ReadService {
         self.start_payloads(reads, limit, background, false)
     }
     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+        ensure!(
+            !self.window_active.get(),
+            "native SSD window still owns the reader pool"
+        );
         ensure!(count <= 10, "native SSD demand exceeds one AR cohort");
         ensure!(
             !background || (count == 1 && self.in_flight() < 4),
@@ -918,6 +959,17 @@ impl ReadService {
             #[cfg(test)]
             trace: Vec::new(),
         };
+        self.enqueue_payloads(&mut batch, &result, reads, background, allow_split)?;
+        Ok(batch)
+    }
+    fn enqueue_payloads(
+        &self,
+        batch: &mut ReadBatch,
+        result: &Sender<Completed>,
+        reads: impl ExactSizeIterator<Item = Result<(SlotLease, File, u64, usize, ReadPayload)>>,
+        background: bool,
+        allow_split: bool,
+    ) -> Result<()> {
         let count = reads.len();
         for item in reads {
             let (lease, file, offset, bytes, payload) = item?;
@@ -989,14 +1041,26 @@ impl ReadService {
                 batch.remaining += 1;
             }
         }
-        Ok(batch)
+        Ok(())
     }
     fn enqueue(&self, work: ReadWork) -> Result<()> {
+        #[cfg(test)]
+        let bytes = match &work {
+            ReadWork::Whole(read) => read.bytes as u64,
+            ReadWork::Part { record, index, .. } => record.ranges[*index][1] as u64,
+        };
         let worker = self.next.get();
         self.next.set((worker + 1) % self.workers.len());
         self.senders[if self.dynamic { 0 } else { worker }]
             .try_send(work)
             .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
+        #[cfg(test)]
+        if let Some((total, jobs)) = CAMPAIGN_READS.get() {
+            CAMPAIGN_READS.set(Some((
+                total.checked_add(bytes).expect("campaign byte overflow"),
+                jobs.checked_add(1).expect("campaign job overflow"),
+            )));
+        }
         #[cfg(test)]
         if self.dynamic {
             self.dynamic_submissions
@@ -1368,3 +1432,8 @@ mod record_reuse_tests;
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/split_record_tests.rs"]
 mod split_record_tests;
+
+#[path = "ssd_reads/window.rs"]
+mod window;
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+pub(crate) use window::BlockReads;

@@ -1,0 +1,27 @@
+{
+  "status": "source_and_path_audit_complete_no_concrete_miswiring_found",
+  "actual_path": "35GDNbatches/stage asserted in fullmodel, QMVON and genuine nonzero rows; zero-offset mutant fails actual logits",
+  "native_changes": [
+    "Directcast into packed Half row",
+    "Read-only QKV/Z row views with bounded byteoffsets",
+    "Dense/jointab,whole,splitconv,normgate and plain gate all use checked row bindings"
+  ],
+  "unchanged": [
+    "same Metal shaders/PSOs,normalization/reduction/Half boundaries",
+    "GDN recurrent frame order/publication,SSD cachecapacity/readers,quantization,context",
+    "HC/router/shared-expert fusions and productionB2/EOS semantics"
+  ],
+  "removed_per_B2_35_layers": {
+    "buffer_allocations": 210,
+    "blit_encoders": 140,
+    "copy_operations": 210,
+    "copy_payload_bytes": 2652160
+  },
+  "remaining_costs": [
+    "CPU checks and retain/release for shared row views",
+    "Casts now write different regions of one backing; resource-level hazard scheduling may differ",
+    "GPU cache/alignment effects of packed vs distinct row buffers unmeasured",
+    "Per-row post-GDN HC/router command+wait still remains; not an implementation of upstream whole GPUchain"
+  ],
+  "causality": "No ISA/per-kernel timeline/new allocation profiler collected. Above remaining costs are hypotheses; short pilot measures composition only."
+}

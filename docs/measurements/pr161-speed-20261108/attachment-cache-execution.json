@@ -1,0 +1,28 @@
+{
+  "build_command": [
+    "/Users/justin/.cargo/bin/rustc",
+    "--edition=2024",
+    "--test",
+    "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/attachment-cache-repro.rs",
+    "--extern",
+    "anyhow=/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/libanyhow-ddf127e6f6fc59a3.rlib",
+    "--extern",
+    "libc=/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/liblibc-d9c41f5302fdc5ea.rlib",
+    "-L",
+    "dependency=/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps",
+    "-C",
+    "lto=thin",
+    "-o",
+    "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/attachment-cache-repro"
+  ],
+  "build_returncode": 0,
+  "scope": "Actual CPU ExpertCache + DemandPlan + resident_expert_cohorts. No GPU or I/O; test expects current bad retention, not a fixed-policy regression test.",
+  "test_command": [
+    "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/attachment-cache-repro",
+    "--exact",
+    "reported_lfu_retention_counterexample_is_real",
+    "--nocapture"
+  ],
+  "test_returncode": 0,
+  "status": "passed"
+}

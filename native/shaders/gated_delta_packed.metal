@@ -36,10 +36,12 @@
         auto i_state = state_in + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
         auto o_state = state_out + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
 
+#ifndef MLXL3_GDN_EXTERNAL_STATE
         float state[values_per_lane];
         for (int i = 0; i < values_per_lane; ++i) {
           state[i] = static_cast<float>(i_state[i]);
         }
+#endif
 
         // Gates: either precomputed [B, T, Hv], or their projection inputs.
 #if MLXL3_GDN_FUSED_GATES

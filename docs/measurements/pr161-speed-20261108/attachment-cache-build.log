@@ -1,0 +1,10 @@
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/rustceJWush/symbols.o" "<17 object files omitted>" "/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/liblibc-d9c41f5302fdc5ea.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/libanyhow-ddf127e6f6fc59a3.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-liconv" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-o" "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/attachment-cache-repro" "-Wl,-dead_strip" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: ld: could not parse bitcode object file /Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/libanyhow-ddf127e6f6fc59a3.rlib(anyhow-ddf127e6f6fc59a3.anyhow.e79e574bf9a50805-cgu.0.rcgu.o): 'Unknown attribute kind (105) (Producer: 'LLVM22.1.8-rust-1.98.1-stable' Reader: 'LLVM APPLE_1_2100.4.1.1_0')', using libLTO version 'LLVM version 21.0.0' in '/Users/justin/Documents/mlxl3-pr161-validation/target/release/deps/libanyhow-ddf127e6f6fc59a3.rlib(anyhow-ddf127e6f6fc59a3.anyhow.e79e574bf9a50805-cgu.0.rcgu.o)'
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+error: aborting due to 1 previous error
+

@@ -60,6 +60,87 @@ pub struct GreedyAcceptance {
     pub target_token: u32,
 }
 
+/// Verify one greedy proposal without evaluating its successor on rejection.
+/// The callback must advance the target exactly once and return its greedy ID.
+/// Errors are propagated so the caller can restore its target and draft snapshots.
+pub fn greedy_accept_one<E>(
+    proposal: u32,
+    first: u32,
+    successor: impl FnOnce() -> Result<u32, E>,
+) -> Result<GreedyAcceptance, E> {
+    if first != proposal {
+        return Ok(GreedyAcceptance {
+            accepted_draft_tokens: 0,
+            target_token: first,
+        });
+    }
+    Ok(GreedyAcceptance {
+        accepted_draft_tokens: 1,
+        target_token: successor()?,
+    })
+}
+
+#[test]
+fn greedy_one_rejects_without_successor_and_preserves_bonus() {
+    for proposal in 0..8 {
+        for first in 0..8 {
+            let mut calls = 0;
+            let actual = greedy_accept_one(proposal, first, || {
+                calls += 1;
+                Ok::<_, ()>(7)
+            })
+            .unwrap();
+            assert_eq!(actual, greedy_accept(&[proposal], &[first, 7]).unwrap());
+            assert_eq!(calls, usize::from(first == proposal));
+        }
+    }
+    assert_eq!(greedy_accept_one(3, 3, || Err("failed")), Err("failed"));
+    assert_eq!(
+        greedy_accept_one(3, 2, || Err("must not run")),
+        Ok(GreedyAcceptance {
+            accepted_draft_tokens: 0,
+            target_token: 2,
+        })
+    );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn greedy_one_successor_is_evaluated_iff_accepted() {
+    let proposal: u32 = kani::any();
+    let first: u32 = kani::any();
+    let second: u32 = kani::any();
+    let fail: bool = kani::any();
+    let mut calls = 0;
+    let result = greedy_accept_one(proposal, first, || {
+        calls += 1;
+        if fail { Err(()) } else { Ok(second) }
+    });
+    assert_eq!(calls, usize::from(proposal == first));
+    if first != proposal {
+        assert_eq!(
+            result,
+            Ok(GreedyAcceptance {
+                accepted_draft_tokens: 0,
+                target_token: first,
+            })
+        );
+    } else if fail {
+        assert!(result.is_err());
+    } else {
+        assert_eq!(
+            result,
+            Ok(GreedyAcceptance {
+                accepted_draft_tokens: 1,
+                target_token: second,
+            })
+        );
+    }
+    kani::cover!(first != proposal && fail);
+    kani::cover!(first == proposal && fail);
+    kani::cover!(first == proposal && !fail);
+}
+
 /// Keep room for the anchor/target token in both the context and output budget.
 /// Zero proposals means one ordinary target step, not a truncated draft network.
 pub fn bounded_proposals(context_remaining: usize, output_remaining: usize) -> Option<usize> {

@@ -9,6 +9,11 @@ use anyhow::{Result, ensure};
 use metal::{Buffer, MTLResourceOptions as Storage, MTLSize, NSRange};
 use std::{collections::BTreeMap, rc::Rc};
 
+#[cfg(test)]
+thread_local! {
+    static DIAGNOSTIC_BYTES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 pub(super) struct Pipelines {
     key: ComputePipelineState,
     value: ComputePipelineState,
@@ -171,13 +176,18 @@ impl<'a> FlashPle<'a> {
             let value = dense(&self.value, &p.value, 2560, 4)?;
             let key = gpu.encode_stream_norm(cmd, &key_raw, &self.nk, self.eps, storage)?;
             let query = gpu.encode_stream_norm(cmd, x, &self.nq, self.eps, storage)?;
-            let raw = matrix(FloatType::F32, 4)?;
+            let raw = trace.then(|| matrix(FloatType::F32, 4)).transpose()?;
             let gate = matrix(FloatType::F32, 4)?;
             Metal::encode(
                 cmd,
                 &p.route[ix],
-                &[&key.buffer, &query.buffer, &raw.buffer, &gate.buffer],
-                [2560.0f32.sqrt()],
+                &[
+                    &key.buffer,
+                    &query.buffer,
+                    &raw.as_ref().unwrap_or(&gate).buffer,
+                    &gate.buffer,
+                ],
+                [2560.0f32.sqrt(), if trace { 1.0 } else { 0.0 }],
                 groups(4),
                 640,
             );
@@ -201,8 +211,18 @@ impl<'a> FlashPle<'a> {
                 h
             };
             let next = matrix(FloatType::F32, 9 * 10240)?;
-            let raw_conv = matrix(FloatType::F32, 10240)?;
-            let convolution = matrix(FloatType::F32, 10240)?;
+            let raw_conv = trace.then(|| matrix(FloatType::F32, 10240)).transpose()?;
+            let convolution = trace.then(|| matrix(FloatType::F32, 10240)).transpose()?;
+            #[cfg(test)]
+            DIAGNOSTIC_BYTES.with(|bytes| {
+                bytes.set(
+                    [&raw, &raw_conv, &convolution]
+                        .into_iter()
+                        .filter_map(|view| view.as_ref())
+                        .map(|view| view.buffer.length())
+                        .sum(),
+                );
+            });
             let out =
                 MatrixView::output(gpu, FloatType::F32, 1, 10240, Storage::StorageModeShared)?;
             Metal::encode(
@@ -215,25 +235,32 @@ impl<'a> FlashPle<'a> {
                     &previous.buffer,
                     &self.conv,
                     &next.buffer,
-                    &raw_conv.buffer,
-                    &convolution.buffer,
+                    // Disabled diagnostic bindings alias output but the shader never writes them.
+                    &raw_conv.as_ref().unwrap_or(&out).buffer,
+                    &convolution.as_ref().unwrap_or(&out).buffer,
                     &out.buffer,
                 ],
-                [x.layout.offset, x.layout.strides[1]],
+                [x.layout.offset, x.layout.strides[1], i64::from(trace)],
                 groups(320),
                 32,
             );
-            let stages = trace.then_some([
-                ("embedding", embedding),
-                ("key", key),
-                ("query", query),
-                ("raw", raw),
-                ("gate", gate),
-                ("gated", gated),
-                ("normed", normed),
-                ("conv_raw", raw_conv),
-                ("convolution", convolution),
-            ]);
+            let stages = if let (Some(raw), Some(raw_conv), Some(convolution)) =
+                (raw, raw_conv, convolution)
+            {
+                Some([
+                    ("embedding", embedding),
+                    ("key", key),
+                    ("query", query),
+                    ("raw", raw),
+                    ("gate", gate),
+                    ("gated", gated),
+                    ("normed", normed),
+                    ("conv_raw", raw_conv),
+                    ("convolution", convolution),
+                ])
+            } else {
+                None
+            };
             Ok((next, out, stages))
         })?;
         let stages = stages
@@ -303,6 +330,22 @@ impl<'a> FlashPleLayer<'a> {
         self.forward_deferred(x, token, next, depth, false)?
             .complete(self.ple.gpu)
     }
+    pub(super) fn prepare_moe(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+    ) -> Result<super::gdn::PreparedMoeRow> {
+        let before = self.snapshot();
+        let result = (|| {
+            let streams = self.ple.forward(x, token, false)?;
+            self.body.prepare_moe(&streams.values)
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
+    }
+
     pub(super) fn forward_deferred(
         &mut self,
         x: &MatrixView,
@@ -366,6 +409,55 @@ impl FlashPleLayer<'_> {
 mod tests {
     use super::*;
     use anyhow::Context;
+    #[test]
+    #[ignore = "physical PLE trace-off parity and retained history; requires Flash checkpoint"]
+    fn trace_off_preserves_outputs_and_continuation() -> Result<()> {
+        let path = std::env::var_os("MLXL3_PLE_MODEL").context("missing Flash checkpoint")?;
+        let c = crate::checkpoint::inspect(std::path::Path::new(&path))?;
+        let gpu = Metal::new()?;
+        let mut ple = FlashPle::load(&gpu, &c, "model.language_model.layers.1.ple", 1e-6)?;
+        for half in [false, true] {
+            let data: Vec<f32> = (0..10240)
+                .map(|i| ((i * 17 % 257) as f32 - 128.0) / 87.0)
+                .collect();
+            let storage = if half {
+                gpu.f16_storage(
+                    &data
+                        .iter()
+                        .map(|&x| half::f16::from_f32(x).to_bits())
+                        .collect::<Vec<_>>(),
+                )?
+            } else {
+                gpu.f32_storage(&data)?
+            };
+            let x = storage.matrix(MatrixLayout {
+                shape: [1, 10240],
+                strides: [10240, 1],
+                offset: 0,
+            })?;
+            ple.reset();
+            let before = ple.snapshot();
+            let traced = ple.forward(&x, EOS, true)?;
+            DIAGNOSTIC_BYTES.with(|bytes| assert_eq!(bytes.get(), 81_936));
+            let traced_next = ple.forward(&x, 42, true)?;
+            ple.restore(&before)?;
+            let plain = ple.forward(&x, EOS, false)?;
+            DIAGNOSTIC_BYTES.with(|bytes| assert_eq!(bytes.get(), 0));
+            let plain_next = ple.forward(&x, 42, true)?;
+            ensure!(plain.trace.is_none());
+            ensure!(
+                traced
+                    .trace
+                    .as_ref()
+                    .is_some_and(|stages| stages.len() == 10)
+            );
+            ensure!(traced.values.read_output()? == plain.values.read_output()?);
+            ensure!(traced_next.values.read_output()? == plain_next.values.read_output()?);
+            ensure!(traced_next.trace == plain_next.trace);
+        }
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical PLE/GDN integration, downstream SSD failure, reset and replay"]
     fn expert_io_failure_rolls_back_both_ple_histories() -> Result<()> {

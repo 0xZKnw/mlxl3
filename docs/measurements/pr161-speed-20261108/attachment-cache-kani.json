@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--manifest-path",
+    "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/attachment-kani/Cargo.toml",
+    "--lib",
+    "--harness",
+    "lfu_counterexample_shifted_ids",
+    "-Z",
+    "unstable-options",
+    "--harness-timeout",
+    "45s"
+  ],
+  "status": "timeout",
+  "returncode": 1,
+  "reaped": true,
+  "seconds": 49.51682437499403,
+  "domain": "fixed 11slots/two rows, symbolic u8 ID shift, unwind18, no assumptions, actual CPU cache/planner/reservations, no GPU/I/O",
+  "driver_status": "failed_or_unsupported",
+  "diagnostic": "CBMC timed out at 45s; no harness/property/cover verified, not a counterexample. Standalone manifest emits feature cfg and unstable compiler warnings; full log retained."
+}

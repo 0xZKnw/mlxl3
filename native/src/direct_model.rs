@@ -239,6 +239,7 @@ pub(crate) enum NativeMtpSession {
 }
 
 impl NativeMtpSession {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn advance(
         &mut self,
         model: &mut NativeChatModel<'_>,
@@ -247,12 +248,14 @@ impl NativeMtpSession {
         limit: u32,
         remaining: usize,
         eos: &[u32],
+        cancelled: &AtomicBool,
     ) -> Result<Vec<u32>> {
+        ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
         match (self, model, head) {
             (Self::Flash(session), NativeChatModel::Flash(model), ChatMtpHead::Flash(head)) => {
-                Ok(vec![
-                    session.advance(model, head, anchor, limit, remaining)?,
-                ])
+                Ok(vec![session.advance_with_eos_cancellable(
+                    model, head, anchor, limit, remaining, eos, cancelled,
+                )?])
             }
             (Self::Qwen(session), NativeChatModel::Qwen(model), ChatMtpHead::Qwen(head)) => {
                 session.advance(model, head, anchor, limit, remaining, eos)

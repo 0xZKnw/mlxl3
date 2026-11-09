@@ -1682,10 +1682,10 @@ fn run(cli: Cli) -> Result<()> {
                 .registry
                 .map(Ok)
                 .unwrap_or_else(registry::default_path)?;
-            let progress = |completed, total| {
+            let progress = |completed, total, phase: &str| {
                 println!(
                     "{}",
-                    json!({"type":"progress", "completed":completed, "total":total})
+                    json!({"type":"progress", "completed":completed, "total":total, "phase":phase})
                 );
                 let _ = io::stdout().flush();
             };
@@ -1702,7 +1702,7 @@ fn run(cli: Cli) -> Result<()> {
                     )?)?
                 ),
                 HubAction::Download => {
-                    let (name, entry) = mlxl3_native::hub::download(
+                    let (name, entry) = mlxl3_native::hub::download_with_phase(
                         &query,
                         revision.as_deref().context("--revision is required")?,
                         &folder,
@@ -1720,7 +1720,7 @@ fn run(cli: Cli) -> Result<()> {
                 ),
                 HubAction::Resume => {
                     let (name, entry) =
-                        mlxl3_native::hub::resume(&query, &registry_path, progress)?;
+                        mlxl3_native::hub::resume_with_phase(&query, &registry_path, progress)?;
                     println!(
                         "{}",
                         json!({"type":"installed", "model":model_payload(&name, &entry)?})
@@ -3337,6 +3337,7 @@ fn bridge_generate_round(
                     u32::try_from(context_limit)?,
                     budget - generated.len(),
                     tokenizer.eos_ids(),
+                    cancelled,
                 )?);
             } else if let Some(draft) = draft {
                 dflash_next = Some(draft.advance(

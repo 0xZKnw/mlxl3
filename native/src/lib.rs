@@ -65,6 +65,8 @@ pub(crate) mod flash_profile;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod flash_qmv;
 pub mod flash_support;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod frame_arena;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(any(feature = "mlx", test, kani))]
@@ -101,6 +103,8 @@ pub(crate) mod metal_capabilities;
 pub mod moe;
 pub mod mtp;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod native_executor;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod pipeline_caps;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod qsa_chain_policy;
@@ -121,6 +125,7 @@ mod resident_scratch_policy;
 #[cfg(feature = "mlx")]
 pub mod router;
 pub mod runtime_stats;
+pub mod speculation_plan;
 pub mod speculative;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;

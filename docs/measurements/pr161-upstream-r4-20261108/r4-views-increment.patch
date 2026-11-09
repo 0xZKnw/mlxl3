@@ -1,0 +1,329 @@
+--- a/native/src/gpu/gdn.rs
++++ b/native/src/gpu/gdn.rs
+@@ -244,10 +244,16 @@
+                 .context("GDN norm/gate pipeline was not selected at initialization")?;
+             ensure!(pipeline.thread_execution_width() == 32);
+             let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
+-            Metal::encode(
++            Metal::encode_bound(
+                 cmd,
+                 pipeline,
+-                &[&delta.buffer, &self.gain, &z.buffer, &gated.buffer],
++                [
++                    (&delta.buffer, 0),
++                    (&self.gain, 0),
++                    z.row_binding()?,
++                    (&gated.buffer, 0),
++                ]
++                .into_iter(),
+                 [self.eps.to_bits()],
+                 MTLSize::new(48, 1, 1),
+                 32,
+@@ -266,10 +272,10 @@
+             32,
+         );
+         let gated = MatrixView::output(gpu, FloatType::F16, 1, 6144, storage)?;
+-        Metal::encode(
++        Metal::encode_bound(
+             cmd,
+             &p.gate,
+-            &[&normed.buffer, &z.buffer, &gated.buffer],
++            [(&normed.buffer, 0), z.row_binding()?, (&gated.buffer, 0)].into_iter(),
+             [6144u32],
+             MTLSize::new(192, 1, 1),
+             32,
+@@ -377,10 +383,10 @@
+         };
+         let dense = |w: &Buffer| -> Result<MatrixView> {
+             let gate = half(48)?;
+-            Metal::encode(
++            Metal::encode_bound(
+                 cmd,
+                 &p.dense,
+-                &[&input.buffer, w, &gate.buffer],
++                [input.row_binding()?, (w, 0), (&gate.buffer, 0)].into_iter(),
+                 [48u32],
+                 g(12, 1, 1),
+                 256,
+@@ -394,12 +400,19 @@
+         ) {
+             let a = half(48)?;
+             let b = half(48)?;
+-            Metal::encode(
++            Metal::encode_bound(
+                 cmd,
+                 p.joint_ab
+                     .as_ref()
+                     .context("joint a/b pipeline not initialized")?,
+-                &[&input.buffer, &self.a, &self.b, &a.buffer, &b.buffer],
++                [
++                    input.row_binding()?,
++                    (&self.a, 0),
++                    (&self.b, 0),
++                    (&a.buffer, 0),
++                    (&b.buffer, 0),
++                ]
++                .into_iter(),
+                 [48u32],
+                 g(24, 1, 1),
+                 256,
+@@ -433,24 +446,25 @@
+         });
+         let (conv, q, k, v, delta, normed, gated) = if let Some(pipeline) = whole_pipeline {
+             let gated = half(6144)?;
+-            Metal::encode(
++            Metal::encode_bound(
+                 cmd,
+                 pipeline,
+-                &[
+-                    &qkv.buffer,
+-                    &z.buffer,
+-                    &a.buffer,
+-                    &b.buffer,
+-                    &prev.history.buffer,
+-                    &self.conv,
+-                    &self.a_log,
+-                    &self.dt_bias,
+-                    &prev.recurrent.buffer,
+-                    &next.history.buffer,
+-                    &next.recurrent.buffer,
+-                    &self.gain,
+-                    &gated.buffer,
+-                ],
++                [
++                    qkv.row_binding()?,
++                    z.row_binding()?,
++                    (&a.buffer, 0),
++                    (&b.buffer, 0),
++                    (&prev.history.buffer, 0),
++                    (&self.conv, 0),
++                    (&self.a_log, 0),
++                    (&self.dt_bias, 0),
++                    (&prev.recurrent.buffer, 0),
++                    (&next.history.buffer, 0),
++                    (&next.recurrent.buffer, 0),
++                    (&self.gain, 0),
++                    (&gated.buffer, 0),
++                ]
++                .into_iter(),
+                 [self.eps.to_bits()],
+                 g(48, 1, 1),
+                 512,
+@@ -468,19 +482,20 @@
+             let q = half(2048)?;
+             let k = half(2048)?;
+             let v = half(6144)?;
+-            Metal::encode(
++            Metal::encode_bound(
+                 cmd,
+                 &p.prepare,
+-                &[
+-                    &qkv.buffer,
+-                    &prev.history.buffer,
+-                    &self.conv,
+-                    &conv.buffer,
+-                    &q.buffer,
+-                    &k.buffer,
+-                    &v.buffer,
+-                    &next.history.buffer,
+-                ],
++                [
++                    qkv.row_binding()?,
++                    (&prev.history.buffer, 0),
++                    (&self.conv, 0),
++                    (&conv.buffer, 0),
++                    (&q.buffer, 0),
++                    (&k.buffer, 0),
++                    (&v.buffer, 0),
++                    (&next.history.buffer, 0),
++                ]
++                .into_iter(),
+                 [10240u32],
+                 g(1, 80, 1),
+                 32,
+@@ -898,19 +913,15 @@
+             let mut inputs = Vec::with_capacity(rows.len());
+             for (i, read) in reads.iter().enumerate() {
+                 let x = read.mixed();
+-                let input =
+-                    MatrixView::output(gpu, FloatType::F16, 1, 2560, Storage::StorageModePrivate)?;
+-                Metal::encode(
++                let input = packed.row(i as u32)?;
++                Metal::encode_bound(
+                     cmd,
+                     &gpu.gdn.from[usize::from(x.dtype == FloatType::F32)],
+-                    &[&x.buffer, &input.buffer],
++                    [(&x.buffer, 0), input.row_binding()?].into_iter(),
+                     [x.layout.offset, x.layout.strides[1]],
+                     MTLSize::new(80, 1, 1),
+                     32,
+                 );
+-                let blit = cmd.new_blit_command_encoder();
+-                blit.copy_from_buffer(&input.buffer, 0, &packed.buffer, i as u64 * 5120, 5120);
+-                blit.end_encoding();
+                 inputs.push(input);
+             }
+             let qkv = self
+@@ -923,18 +934,10 @@
+                 .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
+             let mut projections = Vec::with_capacity(rows.len());
+             for (i, input) in inputs.into_iter().enumerate() {
+-                let q =
+-                    MatrixView::output(gpu, FloatType::F16, 1, 10240, Storage::StorageModePrivate)?;
+-                let gate =
+-                    MatrixView::output(gpu, FloatType::F16, 1, 6144, Storage::StorageModePrivate)?;
+-                let blit = cmd.new_blit_command_encoder();
+-                blit.copy_from_buffer(&qkv.buffer, i as u64 * 20480, &q.buffer, 0, 20480);
+-                blit.copy_from_buffer(&z.buffer, i as u64 * 12288, &gate.buffer, 0, 12288);
+-                blit.end_encoding();
+                 projections.push(GdnProjections {
+                     input,
+-                    qkv: q,
+-                    z: gate,
++                    qkv: qkv.row(i as u32)?,
++                    z: z.row(i as u32)?,
+                 });
+             }
+             let mut pending: Vec<PendingGdn> = Vec::with_capacity(rows.len());
+--- a/native/src/gpu/view.rs
++++ b/native/src/gpu/view.rs
+@@ -38,6 +38,15 @@
+ }
+ 
+ impl MatrixView {
++    pub(super) fn row_binding(&self) -> Result<(&Buffer, u64)> {
++        let item = if self.dtype == FloatType::F16 { 2 } else { 4 };
++        let offset = self
++            .layout
++            .row_byte_offset(item, self.buffer.length())
++            .context("invalid contiguous row binding")?;
++        Ok((&self.buffer, offset))
++    }
++
+     #[cfg(feature = "chat")]
+     pub(crate) fn shares_storage(&self, other: &Self) -> bool {
+         std::ptr::eq::<metal::BufferRef>(self.buffer.as_ref(), other.buffer.as_ref())
+--- a/native/src/tensor_layout.rs
++++ b/native/src/tensor_layout.rs
+@@ -10,6 +10,21 @@
+ }
+ 
+ impl MatrixLayout {
++    /// Bind a nonempty contiguous row directly, including a row of packed storage.
++    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
++    pub(crate) fn row_byte_offset(&self, item: u64, allocation: u64) -> Option<u64> {
++        if !matches!(item, 2 | 4)
++            || self.shape[0] != 1
++            || self.shape[1] == 0
++            || self.strides[1] != 1
++        {
++            return None;
++        }
++        let offset = u64::try_from(self.offset).ok()?.checked_mul(item)?;
++        let bytes = u64::from(self.shape[1]).checked_mul(item)?;
++        (offset.checked_add(bytes)? <= allocation).then_some(offset)
++    }
++
+     /// Exact, nonempty extent of a contiguous allocation safe to expose as a byte slice.
+     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+     pub(crate) fn trace_byte_extent(&self, item: u64, allocation: u64) -> Option<usize> {
+@@ -62,6 +77,60 @@
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    #[test]
++    fn packed_row_bindings_keep_nonzero_offsets_and_reject_invalid_extents() {
++        for width in [2560u32, 10240, 6144] {
++            for rows in 2..=4 {
++                let packed = MatrixLayout {
++                    shape: [rows, width],
++                    strides: [i64::from(width), 1],
++                    offset: 0,
++                };
++                let allocation = u64::from(rows) * u64::from(width) * 2;
++                for row in 0..rows {
++                    let view = packed.row(row).unwrap();
++                    let offset = u64::from(row) * u64::from(width) * 2;
++                    assert_eq!(view.row_byte_offset(2, allocation), Some(offset));
++                    assert_eq!(
++                        view.row_byte_offset(2, offset + u64::from(width) * 2 - 1),
++                        None
++                    );
++                }
++            }
++        }
++        let row = MatrixLayout {
++            shape: [1, 2],
++            strides: [0, 1],
++            offset: 3,
++        };
++        assert_eq!(row.row_byte_offset(4, 20), Some(12));
++        for invalid in [
++            MatrixLayout { offset: -1, ..row },
++            MatrixLayout {
++                offset: i64::MAX,
++                ..row
++            },
++            MatrixLayout {
++                shape: [0, 2],
++                ..row
++            },
++            MatrixLayout {
++                shape: [2, 2],
++                ..row
++            },
++            MatrixLayout {
++                shape: [1, 0],
++                ..row
++            },
++            MatrixLayout {
++                strides: [0, -1],
++                ..row
++            },
++        ] {
++            assert_eq!(invalid.row_byte_offset(4, u64::MAX), None);
++        }
++        assert_eq!(row.row_byte_offset(1, u64::MAX), None);
++    }
+     #[test]
+     fn view_bounds_match_all_reachable_indices() {
+         for rows in 0..=4 {
+@@ -126,6 +195,38 @@
+ 
+ #[cfg(kani)]
+ #[kani::proof]
++fn row_bindings_match_wide_arithmetic_without_overflow() {
++    let layout: MatrixLayout = MatrixLayout {
++        shape: kani::any(),
++        strides: kani::any(),
++        offset: kani::any(),
++    };
++    let item: u64 = kani::any();
++    let allocation: u64 = kani::any();
++    let actual = layout.row_byte_offset(item, allocation);
++    let end = (layout.offset.max(0) as u128 + u128::from(layout.shape[1])) * u128::from(item);
++    let valid = matches!(item, 2 | 4)
++        && layout.shape[0] == 1
++        && layout.shape[1] > 0
++        && layout.strides[1] == 1
++        && layout.offset >= 0
++        && end <= u128::from(allocation);
++    assert_eq!(actual.is_some(), valid);
++    if let Some(offset) = actual {
++        assert_eq!(u128::from(offset), layout.offset as u128 * u128::from(item));
++        assert!(
++            u128::from(offset) + u128::from(layout.shape[1]) * u128::from(item)
++                <= u128::from(allocation)
++        );
++        kani::cover!(offset > 0 && item == 2);
++        kani::cover!(item == 4 && layout.shape[1] == 10240);
++    }
++    kani::cover!(!valid && layout.offset < 0);
++    kani::cover!(!valid && layout.offset == i64::MAX && item == 4);
++}
++
++#[cfg(kani)]
++#[kani::proof]
+ #[kani::unwind(4)]
+ fn accepted_matrix_views_bound_every_sampled_coordinate() {
+     let rows = u32::from(kani::any::<u8>() % 5);

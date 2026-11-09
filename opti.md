@@ -27187,3 +27187,684 @@ Historique relu : entrées HUB/managed DFlash/MTP du journal et implémentations
 Contrôles initiaux : inventaire natif Python 6 tests réussis en 2,061 s. Premier diff-check signale seulement une ligne vide finale ajoutée au journal, corrigée. `cargo kani --version` retourne101 « no such command: kani » : moteur absent, aucune propriété prouvée. Revue indépendante initiale demande des tests du chemin de publication et du rollback, pas seulement des helpers de hash ; correctif encore en cours.
 
 Clôture locale N04/N05 : SHA-256 LFS et SHA-1 Git blob en streaming (RustCrypto), identité du commit contrôlée, reprise courte seulement, fichiers complets corrompus/trop grands réinitialisés, annulation pendant validation et avant rename, nettoyage après publication best-effort. 12 tests Hub passent, mutation bypass hash détectée exit101 puis original restauré et 12 tests repassés. Suite Rust CPU323 réussis/9ignorés ; chat333 réussis/10ignorés ; Clippy strict lib/no-default et all-targets/chat, fmt et diff-check passent. Inventaire natif6 tests et manifeste Kani5 tests passent. Premier essai manifeste bloqué par pytest absent, puis échec attendu d'inventaire après ajout du harnais ; venv jetable et nom ajouté à la liste explicite, preuves conservées. Harnais borné content_identity ajouté (ASCII symbolique, longueurs0–65, présence/famille, unwind140), tentative ciblée échoue car cargo-kani absent : aucune preuve. Revue indépendante finale sans défaut introduit identifié. HTTP416, SIGTERM réel, registre rollback complet et Apple restent non testés. Aucun gain modèle mesuré, aucune installation, aucun merge. Essais locaux clos ; publication draft autorisée en préparation. [Rapport](docs/issue162-download-integrity.md), [preuves](docs/measurements/issue162-download-integrity/).
+## MTP-M1-20261108 — préenregistrement
+
+Base `28cf4c210490f9a028e9bdda5b1e067e1cdbca13`, issue #160 M1 / #152 G03.
+Hypothèse : après le premier forward cible D1, un rejet rend inutile le second
+forward sur la proposition. Garder le préfixe après l'ancre, le cache draft et
+les compteurs inchangés ; conserver rollback externe sur erreur et bonus pending.
+Changement prévu : acceptation D1 paresseuse, contrôleur CPU utilisé en production,
+tests déterministes rejet/acceptation/erreur et harnais Kani symbolique.
+Protocole : format/Clippy/tests CPU/Kani, puis contrôle physique Flash MTP vs AR
+incluant rejet et continuation avant tout benchmark. Matériel cloud Linux sans
+Metal/checkpoint ; vitesse NON MESURÉE. Skill formal-proof absent du catalogue et
+des chemins disponibles, référence Rust indisponible ; limites à consigner.
+État : EN COURS code local, aucun push/merge/app installée.
+
+MTP-M1 CLOS — code local préparé, vérification BLOQUÉE. Diff limité à
+`FlashMtpSession::advance` et au contrôleur CPU paresseux `greedy_accept_one`.
+Le premier forward et le draft sont identiques ; sur rejet le target reste au
+préfixe après ancre sans second forward ni restore cutoff. Sur acceptation,
+second forward, catch-up et pending restent identiques. Rollback externe sur
+erreur et budget largeur zéro conservés. Test CPU ajouté : 64 couples IDs,
+équivalence à greedy_accept et zéro appel du successeur sur rejet, erreur propagée
+seulement sur acceptation. Harnais Kani sans hypothèse sur IDs symboliques u32.
+`cargo fmt --check`, `cargo test --no-default-features --lib greedy_one`,
+`cargo kani --lib --no-default-features --harness greedy_one_successor_is_evaluated_iff_accepted`
+tentés : tous BLOQUÉS (`cargo: command not found`). Skill formal-proof/Rust
+introuvable. `git diff --check` PASS, ce n'est pas une validation Rust/Metal.
+Test physique existant `gpu::mtp::speculative_commits_match_stock_sequence_and_ordinary_state`
+NON EXÉCUTÉ (GPU Apple, checkpoint et oracle indisponibles) ; il exige acceptation
+et rejet non vides, budgets, pending, continuation et rollback. EOS réel/bridge,
+Clippy/build et suite complète NON EXÉCUTÉS. Aucun gain mesuré, aucun test annoncé
+passé, aucun push/PR/merge/release/app installée. Aucun essai encore en cours.
+
+MTP-M1 publication autorisée EFFECTIVE : draft PR161, head initial56eba9c, blobs
+vérifiés identiques au local. CI Rust Linux premier passage FAILED sur rustfmt
+(harnais : if/else compact demandé). Correction strictement de format appliquée,
+aucun comportement changé ; contrôle suivant en CI. Les preuves physiques et
+mesures restent NON EXÉCUTÉES. Pas de merge ni activation/app installée.
+
+MTP-M1 fixture — après revue, correction test-only : l'ancien EOF sur proposition
+pouvait disparaître sur rejet D1 (comportement voulu). Ancre1 dans le fichier
+contenant seulement ligne0 garantit désormais l'erreur indépendamment du draft.
+Le test CPU paresseux couvre séparément erreur successeur accepté et absence
+d'appel sur rejet. Cette fixture physique ne simule pas une erreur après mutation
+cible ; contrôle physique complet NON EXÉCUTÉ. CI6578fee : fmt/Clippy/testsCPU PASS,
+autres jobs en cours ; pas de gain mesuré. Relance CI sur correction fixture.
+
+## MTP-M2-20261108 — préenregistrement
+
+Base PR161 `5da869888ac58bd1548054c38ddb2ac14fce0b7d`, issue160 M2.
+Hypothèse : le rattrapage MTP nécessite K/V et index QSA retenus, pas Q principal,
+attention, gate ni projection de sortie. Conserver mêmes projections K/V,
+normalisation/rope, index tail/blocks et publication transactionnelle ; index Q
+ne sera calculé que si nécessaire à la voie de référence, sans scores pendant catch-up.
+Avant modifications : AGENTS/opti et QSA AR36 relus ; skill formal-proof et référence
+Rust non disponibles au catalogue ni chemins locaux. Aucune nouvelle dépendance.
+Protocole : comparaison physique state words et prochain forward contre ancien
+forward à sortie jetée, f16/f32, offsets 0/3/31/32/1023/2050/2051, index/non-index,
+fork/growth, erreurs avant/après encodage ; fmt/Clippy/tests et tentative Kani.
+Pas de mesure de vitesse avant correction. Cloud sans Rust/Metal/checkpoint connu,
+contrôles physiques à exécuter explicitement sur Mac. Statut EN COURS, non publié.
+
+## MTP-ISSUE160-20261108 — préenregistrement intégration PR161
+
+Demande explicite : intégrer les travaux de l'issue160 dans la PR161, sans merge.
+Base isolée5da869888ac58bd1548054c38ddb2ac14fce0b7d ; modifications des autres
+checkouts préservées. Historique M1/#152/AR43 et issue160 enrichie relus. Prévoir
+lots indépendants : M2 catch-up K/V-only, M3 sélecteur normalisé GPU, M4 staging
+transactionnel layer-major borné, M0/M5/M6 contrats mémoire/cohortes/politique,
+M1 prompt dernière tête. Garder les expériences non qualifiées hors défauts.
+Protocole avant modification : lecture callers/ownership, tests CPU déterministes
+et harnais Kani sur fonctions réelles, compilation Metal/macOS si outil disponible,
+fixtures physiques ignorées explicitement sans checkpoint ; validation numérique
+physique avant benchmark ou activation. Matériel cloud sans cargo/Metal ; Mac
+connecté à inspecter sans lancer benchmark. Skill formal-proof indisponible dans
+catalogue cloud, recherche sur Mac en cours. Aucun tok/s mesuré ni gain promis.
+État EN COURS, aucune publication supplémentaire ni app installée modifiée.
+
+## MTP-POLICY-20261108 — préenregistrement
+
+Base PR161 5da8698, issue160 M0/M5/M6. Construire des politiques CPU bornées
+pour admission prospective (octets disjoints et pic retenu), cohortes d'experts
+préservant l'ordre de contributions par ligne, profondeur choisie avant draft
+à partir des cycles mesurés et lookup de suffixe borné au contexte de requête.
+Aucune suppression de la garde AR-only, aucune allocation GPU/admission de runtime
+promise par ces helpers. Intégration runtime à vérifier séparément par le parent.
+Protocole : tests déterministes/exhaustifs bornés, arithmétique checked, Kani réel,
+fmt/Clippy/tests ; aucun benchmark/Metal. Rechercher formal-proof-skill/Rust avant
+édition. Pas de gain tok/s mesuré, statut EN COURS.
+### MTP-ISSUE160-SHARED-QMV — planned, physical validation pending
+- Read canonical native Flash reduction and historical MB2 findings (63V/120/19232); prior component parity does not establish native model speed. Add opt-in canonical MB2 NT1/NT2 for two to four target rows; B4 uses two MB2 groups. MB4 NT2 would exceed 32 KiB reference scratch, so do not instantiate it.
+- Preserve SG4, input-tile order, row-then-group reduction, split order and FP16 boundaries. Exclude MTP hidden's distinct reduction, generic and routed-record paths. Default unchanged. Multirow projection dispatch does not alone turn the layer-major scalar verifier into a batched verifier.
+- Planned checks: production dispatch selection CPU tests and Kani harness, native Metal component parity required before enablement. Cloud lacks Rust/Metal; no speed or parity claim until actually run.
+
+### MTP-M2-20261108 — candidat KV-only, non qualifié physiquement
+
+- Implémentation : `FlashQsaLayer::extend` utilise un append K/V dédié sous `MLXL3_NATIVE_MTP_KV_ONLY=1`, désactivé par défaut. Le chemin conserve les projections K/V, RMS/RoPE canoniques, les clés/tails/blocs de l’index et la publication après réussite de commande. Il omet projection Q principale, attention, gate, sortie et scores de sélection de l’index. La projection qk de l’index reste volontairement canonique hors optimisation key-only existante.
+- Deux tests physiques ignorés ajoutés : égalité exacte de l’état retenu et de la requête suivante contre le chemin canonique, entrées F16/F32, frontières de pooling/croissance/sélection sparse, fork après restauration, erreurs avant publication et capacité épuisée ; second test via `FlashQsaLayer::extend` et continuation de couche réelle. Ce sont des comparaisons de non-régression contre le chemin canonique, pas une preuve indépendante des shaders.
+- Validation cloud : `git diff --check` passe. Tentatives `cargo fmt --check`, tests Rust et Kani bloquées : `cargo: command not found`. Rustfmt, compilation, contrôles physiques sur checkpoint et contrôle négatif sont à exécuter sur le Mac avant qualification. Aucun résultat Metal, débit ou preuve Kani nouvelle n’est revendiqué. Les politiques CPU de croissance/fork existantes sont réutilisées sans modification.
+- Shared-QMV implementation/checkpoint: strict opt-in M5 `MLXL3_NATIVE_FLASH_VERIFY_QMV=1`, canonical MB2 NT1/NT2 PSOs and production selector tests/Kani plus ignored physical B2/B3/B4 fixture parity test added. `git diff --check` passed; Rust/Metal execution remains pending in cloud (tools unavailable). Verifier currently calls scalar layer forwards: this batched-projection capability is not yet a weight-reusing model verifier. No speed or physical parity claim, default stays off.
+## MTP-M4-20261108 — préenregistrement
+
+Base PR161 `5da869888ac58bd1548054c38ddb2ac14fce0b7d`, issue160 M4/R1/R3/R4.
+Relus AGENTS/opti M1 et AR43, contrats QwenVerification et snapshots Flash.
+Hypothèse distincte des anciens verify_pair : staging layer-major natif 1..4
+lignes avec snapshots par préfixe, restauration de l'état engagé avant retour,
+commit consommant et Drop sans publication. Première version conserve kernels
+scalaires exacts : aucun partage EXL3/débit/économie SSD annoncé.
+Protocole avant code : réutiliser gardes CPU/Kani native_block_end et
+native_retained_prefix ; tests physiques ignorés explicitement logits/états
+vs forwards scalaires, tous keep, Drop, erreurs et continuation. lookahead SSD
+et budget mémoire spéculatif non qualifiés refusés. Pas de benchmark sans parité.
+Skill formal-proof/Rust introuvable dans catalogue et chemins disponibles ;
+Rust/Metal/checkpoint indisponibles dans cloud. Vérification physique à exécuter.
+
+Implémentation : `FlashVerification` emprunte exclusivement la cible, logits et
+hidden par préfixe, commit consommant keep0..B ; restauration initiale avant
+retour même en erreur. stage_block/cancellable 1..4, couches extérieures et lignes
+intérieures, kernels scalaires canoniques, écritures différées inter-couches
+complétées avant changement de ligne. Cancellation avant chaque ligne/head.
+Tests physiques ajoutés : `layer_major_verification_matches_scalar_prefixes_and_continuations`
+(toutes largeurs et tous keep, alignements QSA1..4, logits complets, hidden,
+GDN et K/V/index/tail QSA byte exacts, quatre continuations tracées),
+`dropped_invalid_failed_and_cancelled_blocks_preserve_target` (Drop, commit
+invalide, IDs/taille invalides, cancellation et erreur après couche3). Non exécutés.
+`git diff --check` passe. `cargo fmt --check` et `cargo kani --help` impossibles
+ici : cargo absent. Worker Mac a ensuite trouvé et lu le skill formal-proof/Rust.
+Gardes CPU/Kani existantes réutilisées, pas de preuve Metal annoncée. Pas de
+benchmark, partage EXL3/SSD ni qualification mémoire spéculative ajoutés par ce
+staging. Matrice physique exhaustive longue ; rollback peut être lancé d'abord.
+
+## MTP-POLICY-20261108 — préenregistrement
+
+Base PR161 5da8698, issue160 M0/M5/M6. Construire des politiques CPU bornées
+pour admission prospective (octets disjoints et pic retenu), cohortes d'experts
+préservant l'ordre de contributions par ligne, profondeur choisie avant draft
+à partir des cycles mesurés et lookup de suffixe borné au contexte de requête.
+Aucune suppression de la garde AR-only, aucune allocation GPU/admission de runtime
+promise par ces helpers. Intégration runtime à vérifier séparément par le parent.
+Protocole : tests déterministes/exhaustifs bornés, arithmétique checked, Kani réel,
+fmt/Clippy/tests ; aucun benchmark/Metal. Rechercher formal-proof-skill/Rust avant
+édition. Pas de gain tok/s mesuré, statut EN COURS.
+
+MTP-POLICY local — implémentation des quatre APIs bornées dans
+native/src/speculation_plan.rs, export lib.rs. Admission reste un calcul prospectif,
+pas une suppression de native_speculation_permitted. Statistiques de profondeur
+interdisent mélange de profondeurs et overflow ; suffix lookup est request-local,
+greedy-only et plafonné à3tokens/32ordre/4096historique. Cohortes restituent les
+consommateurs(row,rank) et des vagues bornées, pas une scheduler I/O déjà branché.
+Tests déterministes et recherche exhaustive binaire jusqu'à10tokens ajoutés ;
+harnais Kani mémoire/admission et accumulateur sur fonctions réelles. Tentatives
+cargo fmt/test/Kani BLOQUÉES : cargo command not found dans cloud. Diff-check PASS,
+pas preuve de compilation/correction. Mac cargo+Kani disponibles signalés par
+worker environnement ; transfert/validation finale à faire par l'intégrateur.
+
+### MTP-INTEGRATION-20261108 — candidat en revue, qualification en attente
+- Chemin existant depth1 conservé par défaut. Préfill conserve toutes les lignes hidden vérifiées pour catch-up mais calcule uniquement la dernière tête vocabulaire ; EOS vérifié arrête la seconde passe inutile. Les snapshots ne sont pas assimilés à une simple longueur de cache.
+- `MLXL3_NATIVE_MTP_DEVICE_GREEDY=1` utilise le sélecteur Half normalisé existant si ses pipelines GPU sont disponibles (initialisation `MLXL3_NATIVE_DEVICE_GREEDY=1` également nécessaire), sinon référence canonique. `MLXL3_NATIVE_MTP_BLOCK_VERIFY=1` branche réellement le staging B2 dans la session : commit1 au rejet/EOS, commit2 et réparation draft par hidden vérifié à l'acceptation. Prototype scalaire layer-major, sélection cible host normalisée, lookahead non nul refusé ; il paie les deux lignes même au rejet et ne revendique aucun gain.
+- Revue indépendante avant compilation : conversions Option/Result corrigées et parsing strict des nouveaux flags ajouté. Tests et compilation Mac/CI en attente ; aucune qualification physique ni débit annoncé. Admission mémoire, cohortes SSD et adaptation sont des fondations CPU non encore branchées, pas une réalisation complète de M0/M5/M6. Depth2/3 et partage des experts cible restent à intégrer après validation du contrat transactionnel.
+
+### MTP-SSD-BLOCK-SCHEDULER-20261108 — préenregistrement, EN COURS
+- Base250d1be7 isolée, protocole M4 étendu : regrouper les IDs exacts de1..4routes scalaires, chaque expert unique exécuté pour tous ses consommateurs avant éviction. Vagues bornées par les slots disponibles, commandes GPU attendues avant réutilisation, contribution conservée par(row,rank), mix canonique inchangé. Lectures fresh/direct existantes avec leases de génération ; aucun chevauchement inter-vagues ni promesse de débit.
+- Activation seulement via opt-in de staging ; Hot, workspace HC, lookahead/prefetch, deferred et finish-mix refusés avant mutation par le caller et revérifiés dans MoE. Garde mémoire AR-only conservée. Comparaison scalaires/block sur routes, contributions, sorties ; comptage lectures réelles et erreurs EOF/cache/rollback ; tests physiques explicitement ignorés sans checkpoint, tests CPU cohortes/Kani existants et extension déterministe. Aucun benchmark avant parité physique.
+
+### MTP-SSD-COHORT-20261108 — préenregistrement, prototype isolé
+- Base250d1be7, worktree mlxl3-ssd-block ; qualification Mac précédente inchangée.
+- Hypothèse nouvelle : séparer les préparations temporelles GDN/PLE/QSA+HC du MoE stateless, puis mutualiser les lectures des experts sélectionnés entre lignes B2–B4. Préfixes/snapshots restent dans l'ordre temporel canonique ; accumulation par rang identique par ligne. La première version n'est pas un GEMM partagé.
+- `MLXL3_NATIVE_MTP_SSD_COHORTS` strict, désactivé par défaut. Préflight de toutes les couches et options avant mutation. Workspace HC, lookahead, routes résidentes et producteurs/finitions fusionnées incompatibles refusés. Préparations possèdent activations/gates ; aucune vue de workspace réutilisée. Le vérificateur scalaire existant reste inchangé sans flag.
+- Protocole : tests physiques scalar/cohort logits complets, bytes récurrents/QSA et tous keep/continuations, cohortes partage/désaccord, lectures physiques instrumentées (pas NAND), erreurs de lecture et rollback. CPU planificateur réel sous tests/Kani existants. Qualification avant débit ; aucun gain annoncé. Rust/Metal non disponibles ici ; transfert Mac requis. Skill formal-proof/Rust déjà lu par worker Mac et règles transmises (oracles indépendants, contrôle négatif, pas preuve GPU via CPU).
+
+### MTP-ISSUE160-SHARED-EXPERT-BLOCK — implementation planned, physical parity pending
+- Scope: connect existing multirow FlashExpert encoding to the SSD block scheduler without touching the publishing candidate. Pack contiguous-column mixed rows with same dtype using exact GPU byte copies, preserve per-row EXL3/activation rounding, split shared outputs to standalone offset-zero buffers for unchanged scalar switch/mix. No recurrent/cache mutation or routed accumulation change.
+- Checks planned: byte-identical shared expert B1/B2/B3/B4 versus scalar for F16/F32, nonzero offsets, invalid shape/stride/dtype/device rejection; physical command errors must remain errors. Parent owns full block rollback and scheduler. No speed/default-enablement claim before physical parity. Read existing EXL3 MB2 and shared expert paths; formal-proof skill unavailable in selected environment, executable Metal validation pending on Mac.
+- Shared helper authored in `gpu/moe/shared_block.rs`: validates all rows before encoding, supports nonzero element offsets, checks bounds/overflow and same dtype/device, byte-blits packing and separate F16 outputs. With shared-QMV flag off (or B1), invokes existing scalar shared expert per row. Physical test authored for F16/F32, B1–B4, distinct offset rows, invalid extents/strides/dtypes and independent output backings. `git diff --check` passed; cargo/Metal unavailable here, test not executed. Scheduler owns command completion and full rollback.
+
+### MTP-ISSUE160-PREFILL-GREEDY — préenregistrement tests uniquement
+- Comparer le prefill final-head-only au parcours canonique antérieur (head.extend + target.forward pour chaque token), mêmes états initiaux ; logits complets, hidden, états récurrents/QSA et draft, compte réel des appels tête cible (1 contre longueur).
+- Comparer propose GPU au head.forward puis normalisation canonique CPU/GPU depuis le même snapshot draft, sur les lignes hidden du fichier oracle MTP existant. Exiger pipeline explicitement disponible et option activée, plusieurs lignes non vides, états draft exacts et compteur GPU réel ; pas de succès vide si désactivé.
+- Tests physiques ignorés, checkpoint/Apple GPU requis ; aucune modification production, aucun débit annoncé. Contrôle négatif et exécution restent nécessaires avant qualification.
+- Candidat local : `moe_block.rs` branché via `FlashMoeRow::forward_block`, cohortes résidentes d'abord pour éviter leur éviction avant consommation, puis vagues complètes attendues. Lectures fresh, aucune réutilisation record en vol ; sorties par(row,rank), statistiques bytes facturées une fois au premier consommateur et trace test issue des complétions du reader. Shared expert helper appelé une fois par bloc, fallback scalaire si flag QMV absent. Test CPU de priorité résidente, reconstruction canonique et limites10..40 ; fixture physique B1..4/F16/F32/capacités10,20,40/entrées répétées et variées/erreur de lecture+récupération. `git diff --check` passe ; cargo absent dans cloud, compilation/tests/Kani et toute mesure physique en attente. Aucun gain annoncé, défaut désactivé.
+- Sous-passe préparation : GDN/PLE/QSA et HC séparés avant MoE ; snapshots après chaque ligne temporelle, finalisation HC avec la gate retenue. Audit d'ownership : HC workspace exclu, autres buffers sont alloués par ligne et conservés par les vues ; pas de réutilisation d'un scratch mutable entre lignes. Stage passe la cancellation au planificateur SSD. Test physique `ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace` ajouté (B2–B4, tous keep, logits/hidden/GDN/QSA/continuations, workspace refusé avant mutation, erreur couche3 et Drop). `git diff --check` passe ; cargo fmt bloqué, cargo absent. Test non exécuté, aucun débit mesuré, code local seulement.
+- Deux tests physiques écrits en fin de `gpu/mtp.rs` : `final_head_only_prefill_matches_per_token_heads` (suffixes 1/5, préfixes vide/3, états complets et compte tête) et `device_proposal_matches_normalized_host_on_oracle_rows` (4–31 entrées oracle, logits canoniques conformes à l’oracle, ID normalisé, état draft et compteur GPU). Le second échoue explicitement si le flag/pipeline manque. `git diff --check` passe ; cargo absent ici, tests non exécutés et rustfmt/compilation à réaliser sur Mac. Pas de qualification physique ni de mesure de vitesse.
+- Revue scheduler : ready(true) attend tous les reads, ordre plan.routes confirmé égal aux IDs demandés, garde ExpertFill invalide les clés et DemandPlan nettoie les leases. Cancellation vérifiée avant entrée et après une vraie vague GPU soumise/attendue via injection test one-shot ; fixture exige cache invalidé, reader idle, commandes retirées et récupération exacte. Ces nouveaux contrôles physiques sont ajoutés mais non exécutés ici. Aucun contournement de la limite mémoire.
+
+### MTP-SSD-READER-BOUND-20261108 — correction préenregistrée
+- Résultat physique c86d7f8e : fixture block_experts_read_once_and_recover_after_failed_fill échoue en6,6s, `native SSD demand exceeds one AR cohort`. Compilation et tests CPU ne couvraient pas cette limite réelle du reader(10lectures), distincte du nombre de slots cache(10/20/40).
+- Correction prévue : garder la réservation complète de chaque vague cache, qui protège les experts initialement résidents ; remplir ses leases par sous-lots séquentiels de10lectures au maximum, tous attendus avant commande GPU. Ne pas élargir la limite reader, ni tronquer arbitrairement la protection des résidents. Étendre fixture pour attester des sous-lots bornés et du passage effectif au-delà de10experts uniques. Refaire compilation/tests puis fixture physique avant toute mesure de débit ; statut EN COURS.
+- Correctif local : sous-lots reader `.chunks(TOP_K)` sous la même DemandPlan, chaque batch vidé et publié avant le suivant ; cancellation recontrôlée entre batches. Fixture exige au moins un cas cache>10/experts uniques>10, trace chaque taille de soumission<=10 et conserve l'oracle union/bytes ; injection après premier batch attendu, avant suivant, vérifie reader idle, aucun command GPU, tous slots disponibles, clés invalidées et récupération canonique. Diff-check passe ; exécution Mac du correctif en attente.
+
+
+### MTP-ISSUE160-QUALIFICATION — completed correctness checks
+
+Qualified source: 830bb38a9039fb56f2474a3735a5872d51efaaee.
+Strict Clippy passed. The complete serial standard suite passed 442 tests,
+with 128 ignored; selected physical tests were executed separately.
+The physical campaign passed 12 non-mutant invocations. Three initial failures
+were retained in the qualification summary and subsequently resolved: SSD read
+submission bound, invalid test-fixture cache capacity, and automatic load admission.
+The unchanged admission policy was retained. A deliberate KV cache-copy mutation
+failed its state oracle; exact source restoration and a passing rerun followed.
+Three focused bounded CPU Kani contracts passed; Metal and concurrency are not proven.
+Shared QMV, shared experts, SSD read-once/recovery, KV catch-up, staging rollback,
+final-head prefill, proposal selection, B2/EOS and full-model SSD integration were
+qualified in the explicitly tested modes. No throughput or memory-peak benchmark
+was run. Recursive depth 2/3, adaptive runtime policy and prospective admission
+remain unqualified. All validation processes completed; no merge or installation.
+See [public qualification summary](docs/measurements/mtp-issue160-20261108/README.md).
+
+### MTP-M0-R1-CAMPAIGN — preregistration, before diagnostic code
+Frozen runtime source 830bb38a, existing MAIN/HOLD text corpus, context 4096,
+128 generated tokens (127 decode), greedy canonical normalized selection.
+Controlled cohort-compatible baseline, not shipped-best AR. One target load
+with normal admission, fixed per-layer capacities checked across arms; no forced
+cache, OS purge or wiring change. Five arms AR/D1/B2scalar/B2SSD/sharedB2SSD,
+five Latin rotations after warmups, exact full-token golden parity required.
+Common AR conditioning precedes every measured arm. Drafts loaded separately
+and accounted explicitly; existing DFlash checkpoint only, no downloads.
+Test-only counters report submitted expert-read bytes, not physical disk traffic.
+Cycle wall time and useful tokens separate from optional profiling; sampled memory
+separate from process-lifetime peak. First request reported separately; all-hit
+requires measured zero submitted reads or remains unavailable. Estimate 25–45 min,
+not a performance claim. Raw evidence local; only sanitized summaries publish.
+Before measurements: compile/lint, deterministic helper tests and smoke parity,
+stop on mismatch/error. No compiler/prover concurrent with measured GPU work.
+
+MTP-M0-R1 campaign stopped on the latest user request after one complete MAIN
+measured rotation, following warmups. All five arms matched the same 128-token
+AR golden. Controlled cohort-compatible AR 8.0285, D1 7.6708, scalar B2 6.5978,
+SSD B2 4.7507, shared SSD B2 4.7404 tok/s. These are individual samples, not
+medians or shipped-best AR comparisons. Same naturally admitted 11 slots/layer;
+no admission override. Remaining rotations/HOLD/DFlash/all-hit not executed.
+The owned benchmark was terminated and reaped after the fifth record was saved;
+raw report explicitly marks the protocol truncated on request. No process remains.
+Release diagnostic compiled; strict Clippy and deterministic rotation test passed.
+No speed gain established; preserve slower results for review. Public-safe summary:
+[preliminary speed](docs/measurements/mtp-issue160-20261108/speed-preliminary.json).
+Focused native inventory check matches 300 files; all six inventory tests pass after
+registering the implemented runtime and test-only diagnostic references. The full
+standard suite was not rerun for the diagnostic-only source additions.
+
+### MTP-SSD-RECOVER-20261108 — reconstruction preregistered, in progress
+Baseline: published PR161 head 6b034b0. The previous overnight workspace and its unpushed changes are unavailable; old ephemeral test reports do not validate this reconstruction. Restore bounded read submission before shared/resident GPU compute, safe record backing reuse only after drain, and canonical per-row expert-axis/slab paths. Preserve row/rank accumulation and read-once generation leases. Planned validation: extended physical read-once/rollback/cancellation fixtures, Rust format/lint/CPU tests/Kani when available, static ownership review. Physical Mac tests and throughput measurement are forbidden until the user confirms the Mac is on; no performance or parity claim.
+
+### QMV-RECOVER-20261108 — reconstruction preregistered, in progress
+Baseline: PR161 6b034b0, campaign QMV OFF still packs rows because packing checks pipeline presence independently of the dispatch override. Use one effective pipeline/override predicate for packing and dispatch, scoped override restoration on errors, and actual-path counters/tests; align campaign_reads cfg with macOS/direct-metal/chat callers. Preserve historical measurements but mark the QMV ablation invalid. Planned format/lint/CPU and physical path tests, with physical tests pending user-authorized Mac availability. No new speed claim; old ephemeral tests not reused as validation.
+
+### MTP-RECOVERY-STATE-CI-20261108 — preregistered, in progress
+Baseline: PR161 6b034b0 and issue162 review. Inspect production cancellation propagation and transactional rollback; GPU terminal-command drain cleanup; trace-only PLE allocations; CI bounded cleanup and Swift typecheck failures. Apply only source-confirmed defects, add deterministic regressions and run cloud checks. Do not reinterpret logical cancellation as bounded physical I/O retirement. Existing physical results qualify only their historical source. No Mac access, merge, default promotion, release or benchmark in this recovery.
+- Recovery results (cloud Linux): reconstructed SSD scheduler restores submitted-read/compute overlap, bounded completion processing, AR expert-axis/slab paths, record backing reuse after drain, and pool-scoped GPU retirement on errors. Extended physical fixture asserts actual axis/reuse/submission paths and recovery. CPU policy tests: expert destinations 1 passed, reuse ownership 1 passed, speculation plan 6 passed. Physical scheduler compilation/parity pending; no speed measured.
+- QMV recovery: common effective predicate now gates packing and dispatch; scope override restores on nested/error/panic exit; campaign reports actual path counts. Targeted CPU regression 1 passed. Historical M0-R1 b2_ssd retained packing despite OFF and is NOT a valid public QMV-OFF ablation; raw slower results preserved. Physical OFF/ON oracle extended, not run.
+- Cancellation: production request AtomicBool now reaches Flash staging; checkpoints before/after scalar steps and before publishing results; error/cancellation restores session counters/pending plus both target and draft. Added pre-cancel pending-token and post-real-GPU-submit physical regressions. Blocking I/O retirement remains bounded only by underlying operation, not promised immediate Stop.
+- Issue162 N02: drain waits every command then clears terminal queue even on errors. Integrated CPU helper tests 3 passed, original-error-path mutant fails both new regressions. P05: trace-disabled PLE omits 81,936 diagnostic bytes/call and their writes; ignored F16/F32 output/history/allocation oracle added. Not a measured speed gain; Metal validation pending.
+- C01/C02: Swift render criterion rewritten as typed loop; independent one-second cleanup confirmation deadline and bounded process snapshots; direct child cleanup attempted even if discovery fails, unconfirmed descendants remain errors. 26 controller tests passed, Ruff format/lint passed; old-source reproduction skips child.wait on discovery error. Swift compilation pending hosted CI. CrossHair unavailable.
+- Fresh complete Linux CPU library suite: 329 passed, 9 ignored. Reviewed inventory refreshed for source changes; 6 inventory tests passed. Initial strict Clippy caught collapsible_if in new drain helper, corrected. An all-targets/no-chat invocation fails existing vision_input feature gating; using actual CI chat feature matrix next. Rust stable1.99.1 installed in isolated cloud tool directories. Kani attempted for new real CPU helpers but unavailable (`no such command: kani`); formal-proof skill absent from catalog/filesystem. Proofs and Apple qualification remain explicitly unverified. No Mac accessed, no default enabled, no merge/release/app install.
+- Final cloud check: `cargo clippy --locked --all-targets --features chat -- -D warnings` passed (actual CI feature set); `cargo fmt --all --check` and diff-check passed. This Linux result does not compile macOS-gated scheduler/Metal code. Publication will trigger hosted macOS compilation; any physical tests stay ignored until authorized.
+
+### PR161-SPEED-R2-20261108 — EN COURS, préenregistré avant compilation et GPU
+
+- Demande : lancer les tests de vitesse de PR161. Base PR `28cf4c210490f9a028e9bdda5b1e067e1cdbca13`, tête figée `ebacd5ecdec128c249607eac264c28a4ba836ec2`, worktree isolé `/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0`. Aucun code exécutable modifié. Historiques MTP-M0-R1/QMV-RECOVER/MTP-SSD-RECOVER et README publics relus. Nouvelle raison : scheduler SSD reconstruit et véritable OFF QMV corrigé, les mesures anciennes ne qualifient pas ces chemins.
+- Hypothèse à mesurer, pas gain présumé : les cinq chemins AR/D1/B2/B2SSD/B2SSD+shared ont une parité numérique et peuvent être comparés après la reconstruction. Référence AR compatible cohortes, pas le meilleur AR livré. Même cible + draft résident, admission automatique et capacités contrôlées, aucun override cache, purge ou changement de poids.
+- Modèle local Qwen3.8-Flash-Next EXL3 moyenne2,05bpw, checkpoint `models/Qwen3.8-Flash-Next-exl3-205-65c89531`, Apple M5/24Gio, batterie100% au départ ; aucune autre inférence/compilation/proof détectée avant préparation. Conditions relevées à chaque phase ; température non mesurée.
+- Préparation : compiler release direct-metal+chat, conserver empreintes binaires/lockfile/source ; tests physiques exacts du scheduler/read-once/reuse/axis/recovery, shared expert OFF/ON, PLE et modèle cohortes OFF/ON + cancellation/états/logits/continuation. Stop si erreur/divergence ; aucun benchmark avant qualification. Contrôle CLI réel avant vitesse, selon harnais existant. Pas de reconstruction des preuves Kani historiques : aucun changement exécutable.
+- Vitesse : harnais existant `gpu::flash::mtp::campaign::matched_mtp_campaign`, smoke8tokens puis campagne128tokens (127decode), contexte4096, MAIN/HOLD du harnais, warmup par bras et cinq rotations latines, conditionnement AR identique avant chaque bras. Flags communs : resident-route/workspace/deferred/finish-mix/lookahead OFF, KV-only ON, pipelines shared QMV ON puis override effectif par bras ; MTP device-greedy OFF. Mesurer prefill/décode, temps mur, bytes soumis au reader, samples footprint/Metal ; ne pas appeler ces dernières des pics instantanés ou débit SSD physique. Attente bornée 90min pour la campagne et900s/test physique ; arrêt/rejoin sur échec, données partielles explicites.
+- Artefacts bruts : worktree `build/pr161-speed-20261108/` ; synthèse prévue `docs/measurements/pr161-speed-20261108/README.md`. Aucune publication, push, merge ou installation autorisée/faite.
+
+- PR161-SPEED-R2 physique shared : passed, joint=True, build/pr161-speed-20261108/shared.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique ssd-component : failed_or_interrupted, joint=True, build/pr161-speed-20261108/ssd-component.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique ple : passed, joint=True, build/pr161-speed-20261108/ple.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique ssd-model-off : passed, joint=True, build/pr161-speed-20261108/ssd-model-off.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique ssd-model-on : passed, joint=True, build/pr161-speed-20261108/ssd-model-on.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique b2-eos : passed, joint=True, build/pr161-speed-20261108/b2-eos.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 physique cancel : passed, joint=True, build/pr161-speed-20261108/cancel.log ; vitesse non mesurée.
+
+- PR161-SPEED-R2 ajustement de préparation préenregistré : contrôle composant SSD échoue sur `block misses did not reuse retired record owners` ; échec brut conservé physical.json/ssd-component.log. QMV shared, PLE, modèles cohortes OFF/ON, B2/EOS et annulation physique passent (6 invocations), logits/états/continuations exacts aux oracles scalaires. Inspection : invalidate conserve ages/backings ; un warmup de dix experts ne remplit pas les20/40emplacements et le prochain victim peut être un emplacement sans backing. Modifier uniquement la préparation du test pour remplir tous les backings par des lectures réelles, en au plus capacity/TOP_K passages, puis invalider et conserver la même assertion de réutilisation. Garder capacités10/20/40, F16/F32, routes identiques/variées et tous les contrôles d’erreur. Aucun runtime/shader modifié. Recompiler testrelease, contrôle physique complet puis build/lint/tests CPU applicables/Kani réel si possible, uniquement hors mesuresGPU. La vitesse restera celle du runtime ebacd5ec avec fixture locale modifiée et identifiée.
+
+- PR161-SPEED-R2 préparation SSD corrigée : passed, joint=True, test conservant capacités10/20/40 et F16/F32 ; ssd-component-fixture.log/json. Suite bibliothèque release :354passés/127ignorés ; fmt/diff/Clippy alltargets strict PASS. Kani fixtureGPU impossible (harness ignoré non exposé, échec conservé), contrat CPU réel record_reuse_eligible :1assertion,5couverturesSATISFIED,1harnessPASS, domainebooléens+usize symboliques sanshypothèse ; aucune preuveMetal/FFI/concurrence. BinaireCLI exact inchangé2a8d36a9..., testavecfixtureac9efb5e..., patchtest8ff7d8ed... ; détails dans build/pr161-speed-20261108.
+
+- PR161-SPEED-R2 bridge CLI ebacd5ec exact : AR vs B2SSDshared,8tokens/deuxwarmups+deuxruns, hash/texte exacts, vraie génération_mode et compteurs vérifiés, arrêt/enfant/readerjoints PASS. Contrôlefonctionnel, pasmesurevitesse comparable. Preuves build/pr161-speed-20261108/bridge-qualification.
+
+- PR161-SPEED-R2 planvitesse fixé avant lancement : /Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/campaign-plan.json ;60bras(warmups10+mesures50), deuxpremièresrequêtesAR séparées, deadline5400s, gardesRSS12GiB/swapoutsystème+256MiB/alimentationconstante et vérificationabsencecompil/proveur/inférenceconcurrente. Valeur runtime_base830bb38a duharnais est historiqueconstante ; sourceexacteebacd5ec et SHA256binairede0ce519... dansmanifest fontfoi. Admissionautomatique/capacitésmesuréesidentiquespourchaquebras, pascomparaisonaux11slotsdeR1.
+
+- PR161-SPEED-R2 smoke8tokens/deuxprompts/cinqbras : passed, joint=True ; paritétokensetcompteurscheminsQMV duharnais, pasbenchmark128. BinaireoriginalPR de0ce519..., aucune modificationexécutable pourcampagne. Preuves smoke.json/log/execution.json.
+
+- PR161-SPEED-R2 amendement AVANT arrêt : questionutilisateur «11/50??pq50?» ;50étaitchoixassistant, pasexigence. Pour un premiercomparatif, assistant réduit à15mesures MAIN (3rotations complètes×5bras),5warmups etpremièreAR séparés ; arrêteraprès15enregistrements, conserverprotocoleinitial etpreuvespartielles. PasdeHOLD128 ni5rotations ; HOLD restequalifiéparsmoke8. Aucune nouvellemesure/répétitionlancée. Analysepilotemédianes/plagesdes3points, limitesdedérive explicites. Détails protocol-amendment.json.
+
+- PR161-SPEED-R2 campagne128 : failed_or_interrupted, mesures=14/50, warmups=5/10, joint=True ; build/pr161-speed-20261108/campaign-execution.json, campaign.json/log. Analyse des médianes et dérive à faire avant toute conclusion de gain.
+
+### PR161-SPEED-R2-20261108 - CLOSED, stopped on user request; fixes next
+- Immediate stop after user requested no more baseline and fixes with Regolith.14 MAIN samples retained (2 full rotations+4 arms of rotation3),5warmups; benchmark child and stop watcher joined. No HOLD128, no complete15/50campaign. Native SIGTERM/partial report retained; campaign-stopped.json and pilot-summary.json explicitly mark interruption. No new benchmark started. No push/merge/install.
+- Physical qualification:7 passing invocations after test-only setup correction, original failure retained; library354passed/127ignored, real bridgeAR/MTP8tokens and20smoke samples PASS. CPU Kani1assertion/5coversPASS; physical fixture not proved. Exact runtime sourceebacd5ec via frozen binaryde0ce519; only local test preparation changed. Main analysis uses2balanced rotations;4additional samples retained;90fixed slots/layer, no extra observed system swapin/out. User authorizes fixes with targeted checks only; Regolith identification pending.
+
+### FIX-PR161-REGOLITH-20261108 - IN PROGRESS, source comparison before prototype
+- User asks to fix measured MTP regressions using Regolith, with no more baseline campaign. Frozen runtimeebacd5ec, controlled measurements retained14samples/2balanced rotations, no active GPU process. Regolith exact repository identity being resolved; public source ptr.pet/regolith describes Strata M5/QwenFlashNext MTP and fits requested topic; unrelated GitHub reified-io/regolith excluded after reading README.
+- Initial code-confirmed costs: D1 verifies accepted rows serially (no target-row reduction vs AR), B2 computes rejected successor rows, layer-major staging retains snapshots and completes row-level GPU work. These are mechanisms, not yet attributed timings. Reuse existing cycle timings/read counters and source profiles before choosing the narrowest correct fix. Compare Regolith GPU draft chain, deferred catch-up, state rings and shared-weight verification against existing/rejected opt15/Strata work. Preserve exact EXL3 weights/routing/numerical contracts; do not import approximate MoCE, new quantization or attention window as silent speed fixes.
+- Before each prototype pre-register exact source/flags/quality/property/short measurement. Only focused parity/state/rollback/bridge checks and short matched pilot needed; no repeated50sample campaign. Formal-proof Rust/Metal language references apply; Kani real CPU contracts and physical independent oracles before speed. No push/merge/release/install.
+
+### FIX-PR161-REGOLITH-HCROUTE-01 - PRE-REGISTERED before test/runtime edits
+- Sourceebacd5ec, prior test-only SSD fixture correction retained. Regolith92a523f0 patch mtl_rt/window run_graph_seg schedules shared/resident GPU work around one SSD handshake; our existing AR helper read_after_write_with_gate already preserves the canonical arithmetic. Source-confirmed regression: LayerResidual::prepare_after_attention uses read_after_write without routing; moe_block then submits one standalone gate per row/layer, losing the AR joint producer.
+- Smallest fix: keep the optional already-computed RouteOutput inside PreparedMoeRow, use existing joint HC/gate helper when eligible, consume its routes in the block scheduler; keep scalar/fallback producers and current validation/cancellation/lease cleanup. No new user flag, shader, precision, quantization, depth or routing policy. All GDN/QSA/PLE block preparations share this fix.
+- Before runtime edit, add a physical regression to the full-model cohort oracle: with current M5 joint gate enabled, each B2-B4 stage must increase hc_gate_chain_pairs by width*48 and must not add standalone gate_commands. Run it against previous runtime and retain the failing counter assertion. Then change runtime, re-run that test OFF/ON QMV, component/read-once/recovery, cancellation and B2 session/EOS, standard library, strict Clippy/fmt, inventory, applicable Kani attempt. Exact logits/state/hidden/continuations remain required, not tokens alone.
+- Performance is not presumed: after quality, at most a short matched MAIN32 diagnostic A/B/A (one warmup and one measured response per binary arm) with equal explicit cache from prior campaign90slots if legal, else pre-register fixed matched supported capacity; no further50sample baseline. Actual command-count reduction is a structural outcome, not a model speedup.
+
+- FIX-PR161-REGOLITH audit update: cleared a false lead: ReadBatch::ready(false) blocks for at least one completion, so the scheduler does not busy-submit empty command buffers. Snapshot methods clone handles; there is no native112MiB GDN fold/replay to remove. Real QSA prefix copies occur on append after rollback when published>offset.
+- Additional source+measurement finding: matched_mtp_campaign clears the draft expert cache before every arm and only AR-conditions the target. Draft fixed tensors stay loaded, but routed expert records do not. First rotation memory_start is8929.116MB for every arm; AR remains8929.116MB while all MTP arms end9176.383MB (+247.267MB). Label draft_resident_for_all_arms is too broad. Existing results are retained as cold-draft-expert diagnostic, not steady resident MTP. Any later A/B must use equal explicit conditioning and real draft-residency counters. No new baseline run.
+- HCroute regression first compile failed due test counter usize vs u64; corrected test arithmetic to native usize, original compiler diagnostics retained hcroute-red-build.jsonl. Runtime unchanged; physical red check still pending.
+
+- HCROUTE01 reproduction: new full-model physical regression failed on unmodified runtime with the exact missing HC/router producer assertion (hcroute-red.log/json,3.58s). Runtime fix keeps prepared RouteOutput and consumes it in SSD cohorts, with standalone fallback when joint HC routing is disabled. Added route-count preflight rejection and exact fallback/rollback coverage. No shader or numerical contract changed.
+- Final direct/chat release library and CLI compile; strict all-target Clippy and fmt pass. Full library and physical final checks pending. Inventory caught the added Option::take as its broad .take marker (1->2 in flash_verify.rs); reviewed this as route-handle transfer, not a new MLX dependency, and updated only that count. Original inventory/test failure retained. Kani attempted actual ignored physical fixture again: harness not exposed,0GPUpropertiesverified; no claim of Metal/FFI proof.
+
+- HCROUTE01 physical model-qmv-off: passed, reaped=True; hcroute-model-qmv-off.log / hcroute-physical.json. Throughput not measured.
+
+- HCROUTE01 physical model-qmv-on: passed, reaped=True; hcroute-model-qmv-on.log / hcroute-physical.json. Throughput not measured.
+
+- HCROUTE01 physical component: passed, reaped=True; hcroute-component.log / hcroute-physical.json. Throughput not measured.
+
+- HCROUTE01 physical cancel: passed, reaped=True; hcroute-cancel.log / hcroute-physical.json. Throughput not measured.
+
+- HCROUTE01 physical b2-eos: passed, reaped=True; hcroute-b2-eos.log / hcroute-physical.json. Throughput not measured.
+
+- HCROUTE01 all5physical invocations PASS (QMV OFF/ON complete logits/states/prefix/continuation and disabled-joint fallback, component/preflight/read-once/reuse/errors, cancellation andB2/EOS), allchildrenjoined. Full library354pass/127ignored, Clippy/fmt/inventory6testsPASS. Counter regression demonstrates width*48 canonical joint producers and0standalone routing submissions in cohort prep; B2 saves96separate gate submissions/block, not a speed claim.
+- HCROUTE01 short A/B/A amendment BEFORE measurement: MAIN32/31decode,4096ctx,T0,prefixOFF,3GiB/53slots/readers4, fixed shared-QMV/cohorts/B2/KV-only flags. One actual MTP32warmup then one measured response per process, no cache clear between them; target and draft caches thus share the same real conditioning. Current quality load admitted46slots at10.62GiBavailable, so do not force old90slots. This replaces oldproposed90slot protocol equally for A/B/A; cannot compare to128cold-draft prior numbers. Three processes serial, no compile/proof/inference concurrency, outcomes/tokens/mode/slots/memory/cleanup checked, guards reused. One candidate point only, no universal statistical gain claim. Plan hcroute-speed-plan.json.
+
+- HCROUTE01 shortA/B/A: complete_short_diagnostic, 3/3arms saved, bridge child/readers joined per arm; hcroute-speed-summary.json and hcroute-speed-{A1,B,A2}/. Interpret as short pilot only.
+
+### FIX-PR161-REGOLITH-20261108 - CLOSED: audit complete, HCROUTE01 local, speed inconclusive
+- Regolith source resolved to ptr.pet/regolith on Tangled, revision92a523f036092df5a072d24db1cb4823863ca862, Strata base296b59d2f73c8f04a805df29c2fa97655adace78; actual complete Metal patch and MTP/QSA/GDN/rejected audits read, source hashes saved. Report docs/pr161-regolith-audit-2026-11-08.md identifies our scalar B2/routed expert compute, paid rejected successor, host draft selection/embedding and immediate catch-up, QSA prefix fork copies, and cold-draft campaign bias. Costs not isolated are explicitly unmeasured; no unsupported GDN fold/busy-spin attribution. Other structural changes not implemented in this audit.
+- HCROUTE01 status: VALIDATED LOCAL for tested production path, no publication. Prior runtime fails new real-model counter assertion; final fix passes5physical invocations, exact B2-B4 retained states/logits/hidden/continuations, QMV OFF/ON, joint-disabled fallback, route preflight, read-once/reuse, errors/cancellation and B2/EOS. Release library354passed/127ignored, inventory6passed/2subtests, strict all-target Clippy/fmt/build PASS. Kani actual physical fixture attempted but harness not exposed:0GPUpropertiesproved; unchanged earlier CPU reuse contract1assertion/5covers does not prove this integration. Original failed fixture, compile and inventory evidence retained.
+- Exact final test SHA256222fcf31875cd1b701dda58d3ce3edffa3f4eee0e201b62f35b032d05465196a; CLI37a71512c54d14aa66b9283ed304d738e1225107578fc6d6a9b4359ff8bfafcc; runtime patch894be20a23a518e8ae2f245b053fd3b7af7d8e74512ec043fa042aef36327c61 against ebacd5ec. Source patch identity rechecked after physical/bridge tests. Inventory update included separately in hcroute-delivery.patch.
+- Short bridge A1/B/A2 completed, one MTP32warmup+one measured32response each, actual production route,53slots/cache3GiB/ctx4096,31decode,T0,prefixOFF, same model/flags. Decode7.0164008/7.4438376/7.2124821tok/s; B+3.21..6.09percent relative controls, controls drift+2.79percent. TTFT10.897845/11.010599/10.536814s, total15.316091/15.175140/14.834937s: no total/TTFT improvement established. Allhash bfa49090cb33d4fe,15/15accepted each,3processes/readersjoined. One candidate point only: NONCONCLUSIVE speed, encouraging diagnostic; not comparable with128cold-draft/90slot pilot.
+- Measurement conditions correction: short pilot reused bridge timeout/cleanup and quiet checks, NOT the long campaign RSS/system-swap monitoring guards. Battery80to79percent, temperature unmeasured; process footprint~7.40GB, compressed logical2.41/2.85/2.50GB, per-process logical swapins0. Different compression and control drift limit attribution. No concurrent benchmark/compiler/prover launched; all owned GPU jobs ended.
+- GitHub exact published head still ebacd5ec, base28cf4c21; Flash profile success, Native/Regression/EXL3failure, Applecompat cancelled. Existing PR/main Linux/macOS/Kani CI inspected; published failures not investigated as unrelated scope, no CI result for local unpublished fix. No MLX compatibility build or other-model qualification. Essential evidence copied docs/measurements/pr161-speed-20261108, complete raw logs/binaries remain build/pr161-speed-20261108. No evidence discarded; no further benchmark planned. No push/merge/release/app install.
+
+### PR161-ATTACHMENT-REVIEW-20261108 - PRE-REGISTERED, source and focused CPU reproduction
+- User supplied an external review and asks to inspect it. Compare its claims to exact PR161 ebacd5ec plus our qualified HCROUTE01 local patch, not the unrelated dirty main checkout. Existing audit/cycles and all old measurements reused; no new GPU benchmark. Novel claims to inspect: LFU11slot/two-wave residency counterexample, per-row vocabulary head versus lazy second head, QSA copied-byte formula/growth exception. Confirm existing HCroute fix before labeling it outstanding.
+- Planned check: trace actual cohort construction, cache reserve/protect/touch/victim paths and callers; if practical reproduce LFU scenario using actual CPU implementation with deterministic assertions (temporary isolated harness or existing tests), no copied surrogate algorithm. Record concrete outcomes and applicability to measured90slots/short53slots; do not attribute an11slot effect to those campaigns. This is a review, not authorization to introduce a new cache policy or launch a larger performance matrix.
+
+- ATTACHMENT review probe initial build failed before execution: missing libc external crate while including actual flash_support.rs (28E0433 diagnostics); next link cached existing libc alongside anyhow. No production edit or GPU run. Failure retained attachment-cache-initial-build.json; no successful reproduction claimed yet.
+
+- ATTACHMENT CPU reproduction PASS: actual resident_expert_cohorts + DemandPlan reserve/publish + ExpertCache, LFU11slots:15reads each initially, next repeated route0scalar vs4cohort misses; four expert ID shifts0/1/255/497; controls15/20/53/90slots retain all15 and next0miss.1testpassed/74other testsfiltered. This validates the counterexample, not a policy fix and not GPU/SSD timing. Standalone second link failed on RustLLVM22 bitcode vs AppleLLVM21; cached release dependencies linked with Rust thin LTO on third build, prior linker log retained.
+- ATTACHMENT bounded Kani attempt planned next: same real CPU modules via isolated Cargo manifest, symbolic u8 expert-ID shift0..255, fixed11slots/two10expert rows, unwind18, noassumptions, covers0/255, harness timeout45s and overall60s with child process-group cleanup. No runtime/cache policy edit.
+
+- ATTACHMENT Kani result: failed_or_unsupported, exit1, child reaped, 49.52s; attachment-cache-kani.log/json. No proof claimed until obligations inspected.
+
+### PR161-ATTACHMENT-REVIEW-20261108 - CLOSED, findings verified, no new runtime change
+- Actual CPU reproduction confirms new LFU retention counterexample11slots: initial15loads each, next repeated route0scalar versus4cohort misses;4IDshifts0/1/255/497 and15/20/53/90slot controls executed (1testPASS/74othersfiltered,16scenario executions). Policy remains unchanged; this diagnostic expects existing bad retention, not a fixed-policy regression test. At53/90slots this two-wave scenario does not occur; cannot attribute recent benchmark regressions to this11slot case. Deduplicated per-wave demand accounting can still undercount repeated consumers; broader warm trace impact unmeasured.
+- Vocabulary head confirmed per row in stage_block_inner,635699200logical weights, physical bytes/time unmeasured. Compare true multiroot projection versus lazy second head after acceptance only in a future preregistered experiment; no such prototype or timing here. QSA24576*Lbytes/12layers matches source; growth exception and actual filled offset required, capacity4096 is not occupancy4096. HCroute finding already fixed in qualified local patch; SHA/config/slots of old measurements known via manifests, kernel attribution still incomplete.
+- Stronger Kani attempted on actual CPU modules via isolated manifest, symbolic u8 IDshift0..255, fixed11slots and2rows,unwind18,noassumptions,cover0/255: CBMC TIMEOUT45s, total49.52s,0harnessverified,no confirmed covers. Standalone feature cfg/unstable warnings retained. Driver nonzero is not a formal counterexample or proof. All owned processes joined, no GPU benchmark launched. Standalone probe initial missing-libc and LLVM-bitcode-linker errors retained, final cached-dependency thin-LTO build/testPASS.
+- Extended docs/pr161-regolith-audit-2026-11-08.md and measurement README in isolated worktree and user root, evidence/commands/source+binary+attachment hashes saved. HCroute runtime patch SHA unchanged894be20a23a518e8ae2f245b053fd3b7af7d8e74512ec043fa042aef36327c61. Links/JSON/artifact hashes/diff checked; no unchanged full suite or physical tests repeated for this documentation/CPU review. No push, merge, release or app install.
+
+### PR161-FIXALL-R1-20261108 - PRE-REGISTERED before implementation
+- User now explicitly asks to fix all observed/report problems and rerun speed. Continue isolated ebacd5ec + qualified HCROUTE01; frozen original CLI2a8d36a9 and HCrouteCLI37a71512 retained. Preserve dirty user checkout; no push/merge/release/install authorized. Existing audit, LFU reproduction and old MB2/Strata experiments reused; no unchanged trial repeated.
+- Work matrix: C1 preserve logical per-consumer cache frequency/last-use and bounded-wave retention with actual next-block tests; C2 separate transactional state staging from vocabulary projection so production B2 can select on GPU and project the successor only after acceptance/EOS checks; C3 reuse existing EXL3 multirow kernels for common routed expert consumers where exact shape/dtype/arithmetic permit, keeping scalar fallback; C4 avoid QSA post-rejection prefix copies only when exclusive speculative tail ownership is demonstrated, preserving external snapshots; C5 remove redundant draft embedding transfers and combine catch-up/proposal producers where actual APIs permit without numerical changes; C6 make measured-cost runtime fallback and harness warm-draft reporting truthful. No approximate routing/quantization/window change. Unsupported or unqualified routes stay explicit, not falsely claimed fixed.
+- Before each candidate implementation record concrete chosen mechanism and test bounds. Component red/green + CPU/Kani actual contracts; physical component/full logits/states/hidden/continuation and cancellation/rollback/EOS plus real bridge before model timing. One composed release binary after standard fmt/strictClippy/inventory/library checks, CI touched paths inspected. Kani attempts bounded per meaningful contract, no stubs to pass. Shader changes use C++/Metal source reference and physical oracles; formal Metal remains unverified.
+- Speed AFTER quality only: short matched warm-draft A/B/A using frozen original and final composition, actual bridge, same local EXL3avg2.05/M5/ctx4096/cache3GiB53slots/readers4/T0K1penalty1/prefixOFF. Choose shortest MAIN output including observed rejections from saved128cycles before freezing exact plan; at most128outputs/arm, no50samplematrix. Include fresh AR controls if comparing AR. One MTP warmup per process with no expert clear between warmup and measured response. Save exact flags, hashes, power/compression/footprint, submitted reader bytes if available, TTFT/prefill/decode/total; keep drift and negative results. No concurrent GPU/compiler/prover.
+
+- FIXALL C1/C2/C4 concrete implementation preregistration: C1 prepare one validated logical block access clock (one tick per row, one frequency increment per distinct row expert, last row age), then reserve waves without retouching frequency; actual DemandPlan publications retain existing ownership. Tests original LFU11next4miss must turn0, IDedges/decay/invalid atomicity and multiwave reuse; staged computed rows count even if rejected, cache warmth remains nontransactional. C2 keep existing eager public stage_block API, add internal headless staging + per-prefix normalized greedy projection; second vocabulary head only after acceptance/nonEOS, GPU selector only when existing device-greedy option is enabled, host fallback numerically unchanged. C4 transactional publication guard records pre-stage QSA slab high-water, restores original marks on error/drop, and on consuming commit preserves prior external future watermark while truncating only freshly owned speculative suffix; no generic restore change. Physical B1-B4/allprefix/logits/hidden/state/continuation and retained external-future snapshot tests required before timing. No new shader in these first fixes.
+
+- FIXALL C1 CPU targeted tests2PASS/0ignored (18capacity/ID combinations, logical counts, next0miss incl11slots, decayclock14to16, malformed rows/stale access/overflow before mutation). No GPU/speed yet. C2 headless/lazy projection and C4 private publication marks now local, physical external-future/commit/drop/cancel qualification pending.
+
+- FIXALL C3 concrete candidate before edit: when existing verify-QMV switch is enabled, pack2..4actual consumers of one ready routed expert, execute existing canonical MB2 projection kernels for gate/up/down, scatter each Half result back to its canonical row/rank slab. Exclude these entries from per-row expert-axis fallback to avoid duplicate work; single-consumer/OFF paths keep existing ready-axis. Extend numerical tests to exercise real routed batching for repeated and varied routes, F16/F32 and capacities10/20/40. No shader change or approximation. Audit packing/blits/allocation costs before any negative performance conclusion, per updated project instructions.
+
+- FIXALL C3b scheduling candidate preregistered: encode independent per-row MoE switch/rank mixing in one owned command per layer, submit/drain only after all rows encoded; encode all final HC writes in one central command with same kernels and owned prepared/expert buffers. Preserve route/rank order, wait/check all producers and cancellation before publication. Expected B2 reduction48MoEmix+48HCfinal waits/submissions per block; counters and full numerical/error tests required, not a measured speed claim.
+
+- FIXALL C5 concrete preregistration: bounded4row immutable target embedding cache (CPU Half bits + lazy GPU Half view, maximum~40KiB payload) shared by target streams and MTP input to remove duplicate pread/BF16conversion/upload for the same current tokens. Extract existing MTP input encoder without arithmetic edits. When KV-only draft catchup enabled and no capture, encode mixedinput+HCread+QSAKVappend in one command then publish only after completion; legacy nonKV/capture remains oracle fallback. MTP device greedy defaults to available already-opted-in GPU selector, explicit0 still host; no global AR device-greedy default promotion. Physical cached/uncached embedding and catchup states/intermediate logits/errors required. C6 campaign warmup changes to D1 conditioning for every arm, preserves requested selector setting and reports real draft-cache occupancy; no old measurement rewritten.
+
+- FIXALL source preparation check: three successive default direct/chat cargo checks PASS, strict all-targetClippy PASS twice after C1-C6 wiring. C3 adaptation audited before model timing: raw row packing was duplicated per expert; now cached per consumer-row mask within each ready command (maximum15nonempty masks), retaining canonical per-expert scaled preparation. No measured candidate rejected or retired. CPU/library and numerical qualification next. C1/C4 Kani planned actual functions: block access symbolicu8IDshift0..255/tworows/unwind12, and retained-QSA high-water fullu32/bool without assumptions;60s/harness/180sprocess-group cap, no GPU proof claim.
+
+- FIXALL first full library compile failed in new embedding-cache test only: two Buffer.as_ptr trait-resolution errors, no tests ran. Replaced pointer comparison with std::ptr::eq on BufferRef, compiler diagnostics retained fixall-lib-debug.log. Inventory first run fails six expected changed Rust/test markers (new model/capture test config references, array::from_fn, shape check, pending payload Option::take); reviewed as actual native code rather than MLX dependencies and updated only those counts. Failures retained, standard checks rerun before GPU.
+
+- FIXALL standard CPU phase: corrected library357PASS/129ignored/0filtered, inventory300filesPASS and6tests/2subtestsPASS. Two actual Kani harnessesPASS39.69s: block-access symbolic u8 IDs0..255/twoidentical10expertrows/unwind12/initialclock0; QSA highwater fullu32/bool.1229obligations=1216SUCCESS+13UNREACHABLE (constant/stdlib safety and clockmod16 branch outside this initialclock0domain, inspected),5coversSATISFIED. No assumptions and no GPU/FFI/concurrency proof. Decay/invalid/overflow covered by deterministic tests, not this bounded Kani domain. Earlier LFU review45stimeout preserved, not substituted with proof of whole scheduler.
+- FIXALL speed workload fixed before GPU: MAIN64outputs/63decode, first rejected positions in archivedD1cycles34/47/50/51/56/57, so32would miss the rejection case. At most five measuredresponses: fresh productionAR controls bookend oldB2/finalB2/oldB2 A/B/A; each process one same-mode64warmup and one measuredresponse. Same flags/model/checkpoint/cache3GiB53slots/ctx4096/readers4/T0K1penalty1/prefixOFF, existing global+MTPdevicegreedy explicitlyON for both binaries so old B2 host head selection versus new GPU lazy head is actual code difference. AR inherently unloads draft in production bridge; label this separately from matched MTP before/after, never claim equal draft residence for AR. No old cold native campaign reused for gains; no50samples. Exact plan saved after binary freeze and quality before measurement.
+
+- FIXALL final release preparation: strictClippy direct/chatPASS, frozen libtest2fc5164cec1db34dc3ea4e5de366a96dcc184e2a4809d9071f503b8623c831da; sourcepatch61c7fe0b608706c7754da52bfc517b91578a7e0071d13f7eda97c03660185265. Release library357PASS/129ignored,121bridge/supervisorCPUtestsPASS. CLIrelease compiled35.78s, test57.78s; all compilation/proof processes ended before physical tests. Freeze metadata fixall-r1-binaries.json. Next physical matrix: independent normalizedGPUgreedy oracle, componentQMVoff/on, modelQMVoff/on, lazyheads/externalfuture-QSA, fusedcatchup/embedding, cancellationafterSSDsubmission, productionB2/EOS (9invocations),600s/test, exclusive GPU, fail-stop and child/process-group join;no speed untilallPASS and realbridge parity.
+
+- FIXALL R1 physical greedy: passed, reaped=True; fixall-r1-greedy.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical component-off: passed, reaped=True; fixall-r1-component-off.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical component-on: passed, reaped=True; fixall-r1-component-on.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical model-off: passed, reaped=True; fixall-r1-model-off.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical model-on: passed, reaped=True; fixall-r1-model-on.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical lazy-qsa: passed, reaped=True; fixall-r1-lazy-qsa.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical catchup: passed, reaped=True; fixall-r1-catchup.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical cancel: passed, reaped=True; fixall-r1-cancel.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL R1 physical b2-eos: passed, reaped=True; fixall-r1-b2-eos.log / fixall-r1-physical.json. No speed yet.
+
+- FIXALL bridge qualification wrapper postcondition mistakenly expected statuscomplete whereas existing tested bridge script returnsvalidated. Actual report already validated,4AR/MTP8responses exact, reaped/readersjoined; inspected and accepted existing outputs without GPU rerun. Assertion failure retained as wrapper diagnostic, not model failure. Correct check applied before speed; planfixall-r1-speed-plan.json preregistered,5measured64responses and5warmups, A/B/A+productionARbookends.
+
+- FIXALL R1 speed AR1: validated_short_diagnostic, decode=8.237517035847173tok/s; fixall-r1-speed-AR1/report.json. No aggregate gain conclusion before controls complete.
+
+- FIXALL R1 speed A1: validated_short_diagnostic, decode=6.818842885074336tok/s; fixall-r1-speed-A1/report.json. No aggregate gain conclusion before controls complete.
+
+- FIXALL R1 speed B: validated_short_diagnostic, decode=7.845011218833007tok/s; fixall-r1-speed-B/report.json. No aggregate gain conclusion before controls complete.
+
+- FIXALL R1 speed A2: validated_short_diagnostic, decode=6.658804403507559tok/s; fixall-r1-speed-A2/report.json. No aggregate gain conclusion before controls complete.
+
+- FIXALL R1 speed AR2: validated_short_diagnostic, decode=8.208951876510787tok/s; fixall-r1-speed-AR2/report.json. No aggregate gain conclusion before controls complete.
+
+### PR161-FIXALL-R1-20261108 - CLOSED, quality validated / promising composition retained local
+- All9physical and realbridgeAR/MTP8PASS;357library/129ignored,inventory6+2subtests,121controller tests,2Kani actualCPUharnesses/5coversPASS. Frozen CLI dce643359e2f8c35892b948b9027aee63e36e1e7ea8c2e288e45b9e02cd68934, test2fc5164c, patch61c7fe0b. No numerical/quantization/routing/context changes. All children/readers joined.
+- Complete64pilot: AR1 8.2375170, oldB2A1 6.8188429, R1 7.8450112, oldB2A2 6.6588044, AR2 8.2089519tok/s. Candidate+15.05..17.81percent vsold, ARstill4.43..4.77percent faster than candidate; one candidate point only, original controls/VM/power/compression and timings preserved. Quality validated, performancepromising local, no publication/default promotion. Do not sum individual savings. No further R1measurement needed.
+
+### PR161-FIXALL-R2-GDN-20261108 - PRE-REGISTERED before new prototype
+- New reason: R1 physically qualified real routed token batching and removes avoidable waits/head work but still4.4..4.8percent under realAR in matched64pilot. Actual target GDN qkv/z projections remain scalar per temporal row, source traced. Reuse canonical MB2 kernels already loaded by verify-QMV; no new shader.
+- Candidate: GDN-only owned block preparation (2..4rows, workspaceOFF, effectiveQMVON and supported qkv/z shapes): encode all HC reads and exact F16 input casts, pack once, project qkv andz over rows, materialize per-row offset-zero slices. Encode first row recurrent transition in the same command as these producers, so total row command count does not rise. Remaining recurrent rows stay strictly ordered and use their precomputed stateless projections. a/b, recurrence/history, output projection and MLP HC/router preserve canonical kernels. PLE/QSA/unsupported projections keep scalar preparation. This targets weight reuse, not a claim all target math can run in parallel.
+- Extend real model counter oracle to require GDN block projections when supported, logits/hidden/state/continuation for every B2-B4 retained prefix, QMVoff fallback, late error/cancel/EOS. Standardchecks+sourcefreeze, affectedphysicaltests before any R2speed. Audit actual path, copies/allocation and lost fusions before negative conclusion; R1 remains retained regardless of R2.
+- After quality at most short R1/R2/R1 warmMAIN64 A/B/A plus one fresh productionAR control, sameflags/model/hardware/cache53/ctx4096/T0K1penalty1/prefixOFF as R1. No repeat50matrix, no component gain added to R1percent; compare final compositions directly.
+
+- FIXALL R2 first strictClippyPASS. First focusedCPU command failed before tests because DEVELOPER_DIR mistyped ContentsDeveloper (xcrun cannot locate path); corrected command follows, original fixall-r2-cpu.log retained. Inventory caught new native ReadBuffers.finish(+2) and first-row PendingGdn Option.take(+1), reviewed and updated onlythese2counts. GDN first-row recurrent work remains in shared-producer command; pending command/status/resource guard reused, later rows ordered. Kani now targets actual verify_row_count admission used by supports_verify_rows, symbolicusize/nt/k/enabled, noassumptions, host narrowing bound and fallback covers;60s/harness90souter before GPU. R1 percentage wording clarification: candidate is4.43..4.77percent belowAR (ARrelativeR1denominator is different), detailed analysis JSON is authoritative.
+
+- FIXALL R2 adaptation audit before GPU: first GDN prototype compiled, no quality/speed measurement yet; source preservedfixall-r2-gdn-initial.patch. Its first-row-only fused command still left host waits for later recurrent rows. Refine to encode ordered recurrent transitions for all2..4rows in the same command, each row explicitly reading the preceding owned Frame.next (first uses committed frame). Publish frame snapshots only after GPU terminal success and in row order. This removes extra host waits while preserving recurrence arithmetic, simplifies PreparedGdnRow to read+PendingGdn, and keeps projected buffers owned through command completion. Scalar path gets no previous-frame override. No new shader/stub and no unsupported parallel recurrence claim. Kani actual host-admission proofPASS118obligations/2covers/fullusize/u32/bool, not a proof of Metal frame chain; physical allprefix/rollback oracles still pending.
+
+### PR161-UPSTREAM-R3-20261108 - PRE-REGISTERED source comparison, no new GPU experiment
+- User explicitly asks to revisit TurboEXL3 and Regolith for remaining work while current fixes continue. Preserve R1 qualified/speed and R2 GDN candidate; this request steers ongoing task, does not cancel physical qualification or speed. Reuse earlier source pins/audits and rejected histories, inspect exact TurboEXL3 repo identity/local clones before network/download; verify upstream revisions and only investigate mechanisms not already handled (real weight reuse/producer queues/state ownership/cache policy/head/draft). Compare concrete call paths and preconditions, not headline throughput or approximate MoCE/quantization. No new optimization prototype or benchmark without its own preregistration and correctness gate. Single agent, no source install or model downloads, no publication.
+
+- FIXALL R2 final source Clippy alltargetsPASS, focused host-count CPU1PASS, Kani actualhostadmission1harnessPASS118checks/2covers2.15s. Refined GPUframechain unproved by Kani, mandatory full-model physical oracle pending. Reviewed inventory restores .take2to1 after removing first-row special case; .finish9 remains native. R1allGPUprocessesreaped beforeR2CPU. No R2speed yet.
+
+- FIXALL R2 builds/freeze complete: libtestf09affc1 and CLI in fixall-r2-binaries.json, nativepatch26e9b790bf2acf7d002946c1356e36eb0b931d094f6e46dc187bcc70ec1b0551. Full release358PASS/129ignored,inventory300files/6tests+2subtestsPASS,strictClippyPASS, host-admissionKani1PASS118checks/2covers. All CPU/compiler/prover jobs ended. Affected physical matrix now modelQMVon/off, lazyheads/externalfuture/no-prefix-copy, postSSDcancel andB2EOS, each600s/failstop/serial. No R2speed yet. Turbo currentHEADc7ce66c1 differs from olderc3bb/345bee histories; Regolith online page still92a523f0 (git ls-remote redirects without HEAD, onlinecommit verified), sources only/no build/modeldownload.
+
+- FIXALL R2 physical model-on: passed, reaped=True; fixall-r2-model-on.log / fixall-r2-physical.json. No speed yet.
+
+- FIXALL R2 physical model-off: passed, reaped=True; fixall-r2-model-off.log / fixall-r2-physical.json. No speed yet.
+
+- FIXALL R2 physical lazy-qsa: passed, reaped=True; fixall-r2-lazy-qsa.log / fixall-r2-physical.json. No speed yet.
+
+- FIXALL R2 physical cancel: passed, reaped=True; fixall-r2-cancel.log / fixall-r2-physical.json. No speed yet.
+
+- FIXALL R2 physical b2-eos: passed, reaped=True; fixall-r2-b2-eos.log / fixall-r2-physical.json. No speed yet.
+
+### PR161-FIXALL-R2-GDN-20261108 - CLOSED quality VALIDATED LOCAL / speed not measured separately
+-5affectedphysical invocationsPASS/reaped: modelQMVON/OFF, lazyQSAfuture/no-copy,postSSDcancel,B2EOS. All B2-B4 retained-prefix logits/hidden/state/continuation exact. Actualcounter35GDNbatches perstage confirms real production-path use, not an empty test/fallback.358release testsPASS/129ignored,host-countKani118checks/2coversPASS,Clippy/fmt/inventoryPASS. CLIa237f74b...,testf09affc1...,patch26e9b790...frozen.
+- User asks deeperTurbo/Regolith comparison while continuing fixes. Adapted grouped experts have a concrete avoidable fallback: eligible() accepts scalar extents only, disabling existing up-finish+SwiGLU for2..4consumers. UpstreamTurbo preserves its multirowmid fusion. Before any R2speed, compose small fix below; no separate full-model campaign per microchange. R2 numerical evidence retained and no performance claimed.
+
+### PR161-FIXALL-R3-MULTIROW-FINISH-20261108 - PRE-REGISTERED before edit
+- SourceR2above. Reuse existing flash_up_finish_swiglu shader unchanged; source uses total block base, row-aware partial first=(base/cols*count)*cols+col, wrapped scales col=base%cols, and gate[base+i], so2..4rows are supported with same per-rowHalf/FMA boundaries. Extend only fused-up admission to exact1..4multiples of qualified routed-record extents; keep single-row dual-GU preparation/scratch guards unchanged (their layout is not multirow-ready). No changing reduction, quantization or shader. Avoid falsely claiming Turbo's whole fin7 fused down-preparation chain implemented.
+- Meaningful tests: host admission boundaries/invalid extents plus realcomponent QMVON repeatedcommonrows must increment actual fused-up counter and match scalarF16/F32 outputs forwidth1..4/capacities10/20/40; OFF fallback, modelexactstates/continuation and productionB2 cancellation/EOS. Kani actual fused-up extent guard symbolicu32array/bool, unwind12, coversrow1/row4/invalid, noassumptions;60sharness/90souter. Standardchecks/sourcefreeze before physical.
+- Final speed compositionR2+thisfix vs frozenR1, A/B/A warmMAIN64/63decode plusfreshproductionARcontrol, same model/cache53/context4096/flags/hardware and exacttokens. Only4measuredresponses/4warmups; previous originalPRvsR1pilot retained, no percentage addition or standaloneR2gain inferred. If weak/negative inspect actualpath/copies/precision/fusions before any discard; keep qualified compatible candidates per project rules.
+
+- FIXALL R3 initial guardKani attemptFAILED on builtinmemcmp unwinding (36-byte array equality exceeds unwind12),1coverSAT/2undetermined, no model/code counterexample. Log retainedfixall-r3-kani.log/json. Raise unwind40 (same symbolicdomain/assertions, no stub/assumption) before rerun. Further source adaptation audit found existing dual-GU shader already exposes up-plane displacement p[3]; no shader edit needed to support row batches. Extend allocation to4*input_elements (max40960bytes), invoke existing dual preparation once per row using actual view rowoffset, bind output rowbyteoffset, set up-plane displacement totalinput_elements and up projection prepared offset2*totalinput_elements. Thus gate rows and up rows each stay contiguous for MB2. Keep scalar scratch admission unchanged, test actual dual counter on repeated multirow experts and cover source/destination bounds. This adds only real missing multiroot fusion, not broader numeric changes.
+
+- FIXALL R3 composedsource strictClippyPASS, focusedfusionguard1testPASS, inventory300filesPASS. Final Kaniunwind40PASS592checks/4covers5.43s;6UNREACHABLE safetychecks inspected, originalunwind12memcmpfailure preserved. Same full symbolicdomain, noassumptions or disabledunwindassertions; shape/maxbytecap theorem only, not GPU implementation proof. Added deterministic max4-row logicalcache boundary before finalrelease suite. No shader changed: realdual input preparation and up-finish reuse existing pipelines. Final release/physical composition and short A/B/A againstR1 next.
+
+- FIXALL R3 final freeze: test4e467184..., nativepatch017e9461..., CLI recordedfixall-r3-binaries.json; release library359PASS/129ignored, strictalltargetClippy/fmtPASS, inventory300files+6tests/2subtestsPASS. All compiler/prover processes ended before affectedphysicalmatrix: componentQMVON/OFF,ONfusionsOFFfallback, modelON(allB2-B4prefixes),postSSDcancel,B2EOS. Each600s,serial,ownedprocessgroupstop/reap,failstop. Actualfusioncountersrequired; no speed beforeallPASS + bridgeAR/MTP8.
+
+- FIXALL R3 physical component-on: passed, reaped=True; fixall-r3-component-on.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 physical component-off: passed, reaped=True; fixall-r3-component-off.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 physical component-fusions-off: passed, reaped=True; fixall-r3-component-fusions-off.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 physical model-on: passed, reaped=True; fixall-r3-model-on.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 physical cancel: passed, reaped=True; fixall-r3-cancel.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 physical b2-eos: passed, reaped=True; fixall-r3-b2-eos.log / fixall-r3-physical.json. No speed yet.
+
+- FIXALL R3 realbridgeAR/MTP8PASS4responses(2warm+2measured), exacttext/hash, statusvalidated, child/readerjoined.6affectedphysicalPASS/reaped; finalcompositionqualified before speed. FrozenCLI1a300305...,test4e467184...,patch017e9461.... Quality359PASS/129ignored,4newboundedCPUharnesses/11covers total; noMetal/concurrencyproof.
+
+- FIXALL final speed exact plan preregisteredfixall-r3-speed-plan.json afterquality/freeze: R1/final/R1/productionAR, MAIN64/63decode,onewarm64/one measured perprocess,4measurements only. Same53slots/cache3GiB/context4096/readers4/flags/quantization. FrozenR1dce64335 and final1a300305, originalAR2a8d36a9. No component percentage addition.
+
+- FIXALL R3 speed A1: validated_short_diagnostic, decode=7.832353812534976tok/s; fixall-r3-speed-A1/report.json. No aggregate conclusion before controls complete.
+
+- FIXALL R3 speed B: validated_short_diagnostic, decode=8.311131563530635tok/s; fixall-r3-speed-B/report.json. No aggregate conclusion before controls complete.
+
+- FIXALL R3 speed A2: validated_short_diagnostic, decode=7.626593969488721tok/s; fixall-r3-speed-A2/report.json. No aggregate conclusion before controls complete.
+
+- FIXALL R3 speed AR: validated_short_diagnostic, decode=7.671355595049171tok/s; fixall-r3-speed-AR/report.json. No aggregate conclusion before controls complete.
+
+### PR161-FIXALL-R3-MULTIROW-FINISH-20261108 - CLOSED quality VALIDATED LOCAL / performance promising, retained
+- Final4measured64pilot complete,4warmups/alltokens exacthashd7c2f53d11d70633; all children/readersjoined. R1A1=7.8323538, final=8.3111316, R1A2=7.6265940, freshAR=7.6713556tok/s. Final+6.11..8.98percent vsbracketingR1; controlsdrift-2.63percent. FreshAR6.55..6.87percentbelowpriorpilotAR: no stable ARwin claimed despite this point+8.34percent. R1A1compression3.12GB versusfinal2.02/secondR1=2.05GB, battery54to53percent, thermal/NANDunmeasured. ExactpowerVMstatsandallwarmups retained; no standaloneR2/R3gain or percentageaddition.
+- Finalprefill10.6897513s of18.2709145stotal remains dominant; decode7.5801953s/63tokens. No furtherbenchmark justified now. Both correct small compatible candidates kept, no speculative revert.6physical+bridgeAR/MTP8PASS,359libraryPASS/129ignored,Clippy/fmt/inventoryPASS. FourboundedCPUharnesses1939checks=1920SUCCESS+19UNREACHABLE/11coversSAT; notMetal, completecachepolicy, GPUrecurrence or fullpackage proof. Initialmemcmpunwind12failure and oldLFU45stimeout preserved.
+- CLI1a300305fb47378c14fb2a411e939c281e674ed79a23a46fb9fb84128dc79f18,test4e467184...,nativepatch017e9461...,fullnative+inventorydeliverypatch9cb330dd...; no more executable edits afterfreeze. Localworktreeonly, no push/merge/publication/app replacement. Publishedheadstill ebacd5ec, hostedNative/Regression/EXL3failure,Applecancelled,Flashprofile success;localpatch hasnoCIrun.
+
+### PR161-UPSTREAM-R3-20261108 - CLOSED source audit complete, actionable remaining work recorded
+- Re-read historical AR20/AR30 experiments and pinned currentTurboEXL3davidtai/turboexl3@c7ce66c12f6992eabda5db1d11934a6fe5efec33 (10files,gitblobverified), Regolith@92a523f036092df5a072d24db1cb4823863ca862 / Strata296b59d2 (7additionalaudits hashed). No model/sourceinstall/newdependency; sourcecache+manifests archived. Prior rejectedARmicroideas notrerun.
+- Concrete localgaps: R3nowrestoresactualmultirowGU/upfinishfusions; remainingdraftdeferredcatchup+nextstep, downfinish+weightedmixwithbackingleasespinned, boundedprefillgrouping(cost58.5percentoflatesttotal), QSAoutputpreparefusion andshared/routedgridcomposition. Runtimecostgovernor/suffixstillhelpers; noautomaticfallbackpromoted. ApproximateMoCE/otherquant/vocab/KV/window notcomparedasexact. No newprototype or GPUexperiment for these remainingtargets.
+- Reportdocs/pr161-fixes-2026-11-08.md distinguishesimplemented/qualified,shortnoisymeasurements andremainingresearch; oldauditpreservedwithhistoricalnotice. All startedexperiments nowclosed/qualified,allownedchildren/readersreaped. Finaldeliveryartifactpatch+metadata copiedintodocs/measurements/pr161-speed-20261108. No push/merge/publish/app replacement.
+
+- FinaldeliveryCIjobs inspected exactebacd5ec: Ubuntu nativePASS; macOSnativeCANCELLED late; Kani core/routes/flash/allocatorFAIL,speculativePASS; Regressiondesktop check-e2eFAIL; EXL3conversionPASS/packingproofCBMCinstallationFAIL(beforeproof). No rerun/push; compactjobdetailsarchivedfinal-published-ci-jobs.json. Finalfmt/diff/reverse-patchcheckPASS; allartifactJSON/links/nativepatchidentity verified, rootdocs mirrored, no active ownedGPU/compiler/prover jobs.
+
+### PR161-UPSTREAM-R4-20261108 — PRE-REGISTERED source comparison before any new prototype
+- User reopens TurboEXL3/Regolith research, authorizes useful AR optimizations that also benefit MTP. Baseline is prior qualified local composition on ebacd5ec, nativepatch017e946146f413da689c34069e6103fb67a431e75c37aacde7cb0cccad0e2af1, CLI1a300305..., finalMAIN64=8.311tok/s short/noisy. Preserve code and all old results; no new gain assumed.
+- Scope: revisit exact producer/consumer boundaries beyond previous five targets, actual GPU projection/HC/QSA/MoE/draft paths; inspect newly selected upstream dispatch/kernel sources and audits with pinned revisions. HistoricalT04/AR20B09/AR30integer and HC trials must be checked before any repetition. Priorities may include new native multirow adaptation or removing repeated host work, never changed routing/quantization/KVwindow/precision.
+- Source-only phase: no model/GPU benchmark/build or executable edit. Record actual callers, shape/dtype/reduction/ownership preconditions, already-implemented/rejected mechanisms and concrete next changes with measurable costs. One agent. Any selected prototype gets separate preregistration, independent numerical gates/productionbridge, relevantCPU/Kani/CI checks before at most short compatible composition measurement; no50matrix, no arbitrary per-microchange acceptance threshold.
+
+### PR161-R4-GDN-VIEWS-20261108 — PRE-REGISTERED before executable edit
+- New concrete adaptation issue in retainedR2/R3: prepare_block_inputs allocates three independent Half rows/token, copies cast inputs into packed input then scatters packed QKV/Z outputs into offset-zero row buffers because consumers bind offset0. Source count perGDNlayer/block:3*rowscopies,2*rowsblitencoders,3*rowsrowallocations; at observed35layers/B2=210copies,140blitencoders,210allocations and2652160copiedbytes/block (read+write traffic twice). These are structural counts, no timings measured. EarlierT04SwiGLU/down was negativeMLX and is NOT rerun; this change is new ownGDNbatchadaptation with unchanged shaders.
+- Minimal candidate: reuse existing MatrixView.row for owned packed input/QKV/Z views; cast input directly into its packed output byteprefix. Bind checked Half row byteoffsets to every actualconsumer: dense/jointab, wholeGDN, splitconv andboth norm/gatefallbacks. Preserve allreductions/Halfconversions/framechain/lifetimes/QMVoff/workspaceguard. ScalarARoffset0 remains mathematically identical; no ARboost claim. CPUchecked contiguous-row binding helper in tensor_layout used by GPUview method; no dependency/newflag.
+- Add deterministic bounds/negative/overflow/noncontiguous tests and actualhelperKani (symbolicshape/strides/i64offset/u64item+allocation, noassumptions,60s). Existingallprefix model B2-B4 oracle must exercise35batches and distinctrowdata, component physical/default and disabledwhole/jointab/normgate fallbacks; capture/lateerror/cancel/EOS+bridgeAR/MTP8. Mutant nonzerorowoffset->0 should fail affectedfullmodel oracle; restorebytesandrerun before speed. Strictfmt/clippy/releasefullCPU/inventory+sourcefreeze aftermutation.
+- Before GPU ensure no compiler/prover/other inference. At most R3/new/R3 MAIN64 warm A/B/A, exactsame3GiB53slots/context4096/T0K1penalty1/prefixOFF/readers4/environment as previousfinalpilot;1warm+1measured/process,180sresponsebound. Keeprawfailures/drift; no isolated structural gain asserted as TPS. Separate sourceaudit continuesforAR/MTPcommonfusions, no otherprototype authorizedbythisentry. Localonly,no push/app.
+
+- R4-GDN-VIEWS standard phasePASS: strictalltargetClippy/fmt/inventory300files+6tests/2subtests, release360PASS/129ignored;actualrow-byteoffsetKani83SUCCESS/4coversSAT,3.96s,fullsymbolicinputs/noassumptions/noGPUproof. Normaltest/CLIandnativepatchfrozenr4-views-binaries.json. Mutantoffset0builtandfrozen separately;source restored byteexactbeforeGPU. Nextserialphysicalmatrix must detectmutant thennormalallprefix default andsplitnormgateON/OFF,QMVoff,cancel/EOS; no speed beforePASS+realbridge.
+
+- R4-GDN-VIEWS physical mutant: detected_expected_numeric_divergence,reaped=True;r4-views-mutant.log. No speed yet.
+
+- R4-GDN-VIEWS physical component: passed,reaped=True;r4-views-component.log. No speed yet.
+
+- R4-GDN-VIEWS physical model-on: passed,reaped=True;r4-views-model-on.log. No speed yet.
+
+- R4-GDN-VIEWS physical split-normgate: passed,reaped=True;r4-views-split-normgate.log. No speed yet.
+
+- R4-GDN-VIEWS physical split-plain: passed,reaped=True;r4-views-split-plain.log. No speed yet.
+
+- R4-GDN-VIEWS physical qmv-off: passed,reaped=True;r4-views-qmv-off.log. No speed yet.
+
+- R4-GDN-VIEWS physical cancel: passed,reaped=True;r4-views-cancel.log. No speed yet.
+
+- R4-GDN-VIEWS physical b2-eos: passed,reaped=True;r4-views-b2-eos.log. No speed yet.
+
+- R4-GDN-VIEWS physicalqualityPASS: mutantoffset0 fails realB2logitoracle(nonempty), sourcebyteexactrestored;7normalphysicalinvocationsPASS/reaped includingwhole/default/splitnormgateON/OFF,QMVoff,cancel/EOS. FullmodelB2-B4everyretainedprefix hidden/logits/states+4continuations exact;35actualGDNbatches/stage. RealbridgeAR/MTP8PASS4responsesinclwarmup,exacthash/text,modes,child/readersjoined. CLI46ea23d0...,360libraryPASS/129ignored,Clippy/fmt/inventory/Kani83assertions+4coversPASS. No speed beforethisgate;3pointR3/new/R3pilot next.
+
+- R4-GDN-VIEWS exactspeedplan r4-views-speed-plan.json preregistered afterquality: R3/new/R3 warmMAIN64/63decode,3measurements+3warmups only;CLI1a300305 vs46ea23d0,ctx4096/cache3GiB/53slots/readers4/QMV+cohorts+GPUgreedyON,otherssameasR3;noARspeedclaim.
+
+- R4-GDN-VIEWS speedA1:validated_short_diagnostic,decode=8.336965823228322tok/s,r4-views-speed-A1/report.json. No aggregate conclusion before controls complete.
+
+- R4-GDN-VIEWS speedB:validated_short_diagnostic,decode=8.057650056066215tok/s,r4-views-speed-B/report.json. No aggregate conclusion before controls complete.
+
+- R4-GDN-VIEWS speedA2:validated_short_diagnostic,decode=8.291498737675976tok/s,r4-views-speed-A2/report.json. No aggregate conclusion before controls complete.
+
+- R4-GDN-VIEWS shortpilot completed: R3A1=8.3369658,new=8.0576501,R3A2=8.2914987tok/s, exact64hashd7c2f53d11d70633/28accepted34proposals,3measured+3warmups,allchildren/readersjoined. New-3.3503..-2.8203percent, controls-0.5454percent. AC72to74percent charging (different conditions from earlierbatteryR3); no newARspeed or genericboostclaim. RawVM/power/footprint/compression preserved r4-views-speed-*.
+- Adaptationaudit BEFORE any rejection/rollback: 35actualGDNbatches asserted; nonzerorowmutant detectsdivergence; all offset-consuming dense/jointab/whole/splitconv/normgate/plain paths qualified. No lostfusion/QMVfallback/precision/config defect found. Direct subviews add boundedCPUchecks/retains and change buffer-level hazards/alignment; no profiler/ISA attribution collected, not asserted as cause. Ownper-row post-GDNHC/router waits still present (70commands/B2) distinctnexttarget. Structuralcopiesremoved are not walltimegains. Keep qualified bounded native prototype in existingoptinMTP path for futurecomposition; performance shortnegative/notconfirmed, no newdefaultpromotion. FrozenR3reference remains usable.
+
+### PR161-R4-QUIET-REVALIDATE-20261108 — PRE-REGISTERED before revalidation
+- User asks to check own adaptation and explicitly quit Brave/Deezer. Both normalQuit sent, processes gone afterboundedpoll; evidence r4-app-closure.json. OriginalR4pilot8.33697/8.05765/8.29150 retained as negative/no causal attribution; code unchanged, CPU/Kani and8physicalnormal checks+mutant/bridge valid. Apps' main/GPU/renderer processes were active in initialsnapshot; no historical GPU utilization attribution inferred from CPU percentages.
+- New reason for speed repetition is changed contention/memory conditions after user-requested appclosure, not erasing earliernegative. Keep same frozen R3CLI1a300305 and R4CLI46ea23d0 and all model/config/tokens. Audit everyGDNconsumerbinding/PSO/fusion/ownedbuffer lifetime, attempt existing/official Metal API+shader validation on fullmodel packedrows(600s,serial), then short freshR3/R4/R3MAIN64same-modewarm+one measured. No more executable changes without concretefault/newprereg. Preserve environment/power/VM and verify Brave/Deezer remain closed beforeeveryarm; no automatic reopening.
+
+- R4-QUIET validationPASS afterappclosure: API+GPUvalidation banners present, 12B2-B4retainedprefixcases/35GDNbatches perstage pass; no API/shader diagnostic,69.71s/reaped. Appleofficialenvdocsarchivedr4-apple-*-validation.md. Wrapper initiallymatched wordShader not actualGPUbanner; inspected/correctedmetadata, no GPUrerun. Existing8normalphysical+newvalidation (9invocations),wrongrowmutant,360CPU/129ignored andKani83assertions/4covers consistent. Sourceauditconfirmsallbufferownersheldbygpu.command returntuplethroughwait, identicalparamsbindingcounts/PSOs/math andeveryoffsetconsumercovered. Numerical/ownershipbugnotfound; speedcauseunattributed. Re-testonly3warm64pairs withbothappsclosed anddebugvalidationOFF next.
+
+- R4-QUIET exactplan r4-quiet-speed-plan.json saved before measurement: R3/R4/R3, same64tokens/63decode,onewarm+one measured/process,3points only;bothrequestedappsclosed, noAPI/shaderdebugenv in timing; allotherflags/cache/model identical to initialR4pilot.
+
+- R4-QUIET speedA1:validated_short_diagnostic,decode=8.234075464791124tok/s;bothappsclosed,r4-quiet-speed-A1/report.json. No aggregate conclusion before controls complete.
+
+- R4-QUIET speedB:validated_short_diagnostic,decode=8.116094722394765tok/s;bothappsclosed,r4-quiet-speed-B/report.json. No aggregate conclusion before controls complete.
+
+- R4-QUIET speedA2:validated_short_diagnostic,decode=8.133167798633474tok/s;bothappsclosed,r4-quiet-speed-A2/report.json. No aggregate conclusion before controls complete.
+
+### PR161-R4-QUIET-REVALIDATE-20261108 — CLOSED, no adaptation bug found / performance inconclusive
+- Brave/Deezer normalQuit complete, no main/helperprocessbefore/afterall3newarms. MetalAPI+GPUvalidationactive fullmodelB2-B4allprefix/35GDNbatches passed, no diagnostics (69.71s/reaped);9normalphysicalinvocations totalincludinglateerror,plusseparatelydetectedmutant. No model numerical/ownership/bindingbugfoundinexerciseddomain; notproofcompleteGPU.
+- Exactunchangedfrozenbinaries newpilot R3A1=8.2340754648,R4B=8.1160947224,R3A2=8.1331677986tok/s;64outputs/63decode,hashd7c2f53d11d70633,28accepted/34proposals,allchildren/readersjoined. Candidate-1.432..-0.210percent,controls-1.2256percent;no gain established. Earlier3pointnegative retained(-2.82..-3.35percent),conditionsdifferentnotpooled;bothnewappsclosed,debugOFFduringtiming,ACpowerandVMrecorded. No ARspeedclaim or appsclosurecausalboostclaim.
+- Adaptationreviewcomplete: all consumed offsets guarded/covered,originalHalf/FMA/shaders/PSOs/bindingcounts andsamecommandownedresourcesretained. Structuralcopy/allocationreductionreal, speedcauseunattributed; no perkernel/ISAprofile. KeepqualifiedsmallboundedprototypeLOCAL forfuturecomposition ratherthanrejectfromshortdrift, R3frozenreferencepreserved. No defaultpromotion/appinstall/push/merge.
+
+### PR161-UPSTREAM-R4-20261108 — CLOSED source research, qualified local prototype retained / no demonstrated gain
+-9newTurboEXL3sources and5Regolithaudits pinned/hashed atunchangedupstreamHEADs. New concrete priorities: joinblockGDN+postHC/router(70separateCB/B2), nativeGDNtail->outprepare(commonAR/MTP), QSAstaticprojectionbatching/PLEexception, MTPnormfactor->preparedrows, boundedframepoolonlywithsnapshot/lifetime/ledgerproof. No prototype for these future targets; priorT04/AR20/AR30negativeexperimentsnotrerun. Turbo's F32Suhproduct omits nativeHalfproductrounding, explicitly documented beforeanyport.
+- R4views actualhelperKani83SUCCESS/4covers,360CPU/129ignored,9normalGPUinvocationsinclAPI+GPUvalidation,wrongrowmutantdetected,realbridgeAR/MTP8exact;3pointnegative then3pointappclosed shortpilots show no boost. BothappsnormalQuit verifiedclosed. Allchildren/readersjoined,no activebenchmark/compiler/prover. Qualityvalidated/perfinconclusive/localprototypekept;R3frozenreferenceunchanged.
+- User now explicitly authorizes pushing RESULTS to existingPR161. Publishthree reports plusrawmeasurement/proof/identity/source archives andopti journal; nativeexecutable files andnativeinventory changes stayuncommitted/local. Archived patches identify exactly measuredlocalcode; docs-onlypublication mustnot implynewPRruntimequalification,CIgreen,merge/release/app/defaultpromotion. Commit/pushreceipt follows actualremoteverification.
+
+- Publication verification beforepush: fullstagedwhitespacecheck flags retainedrawlogs/validpatchcontext spaces; rawproofbytes/hashes preserved, source/report-only diffchecksPASS. Gitignore also excluded nestedupstream models directories; explicitly stagedtheboundedarchivedsources andverifiedeverymanifestfile, nobinary/modelweights added. Initial localdocumentationcommit isamendedbeforeanypush; nativecode/inventoryremainunstaged.
+
+### I164-L0-20261108 — PRE-REGISTERED before new checkout/runtime integration
+- Userexplicitlyrequests implementingissue164 (snapshotcreated2026-11-08T16:39:14Z,0comments,headreviewb5dfaa1b). NativeRust/MetalAR/MTP/memory/expertSSDscopeonly; noUI/Pythonserver/download/checkpointchange. FollowL0,N01,N03,N02,N05 thenGDN/segments/commonexecutor andconditionalprofile-directedlots;20tok/s samecheckpoint is engineeringtarget,notpromisedgain. Singleagent. No new runtimepublication authorized by prior docs-onlypush.
+- Preserve rootdirtymain and PR161R4dirtyworktree entirely. Newcodex/issue164-native-executor worktreefromb5dfaa1b; applyexactarchivedR3native+inventorypatch (nativeSHA017e946146f413da689c34069e6103fb67a431e75c37aacde7cb0cccad0e2af1). R4 remains separatelyownedqualifiedprototype/negativepilots, notbaselinepromotion. L0repeatreason verifyreconstructedtree matchesarchivedsource and binarymanifest, notanother50campaign.
+- Baselinepair planned: cohort-compatibleAR forcausality plusbestqualifiednativeARatmatchedtotalbudget;freezeexactflags/source/binaries/ledgerbeforemeasure. ReuseR3oracles,context4096/cache3GiB53slots/model2.05bpw andrealbridge; updateonlyaffectedchecks asruntimechanges. Formal-proof-skill+Rust/C++referencesloaded; shaders cannot be claimed provedbyCPUharnesses. Allnewtests/prototypesneed ownentry; failuresandlimits retained.
+
+- I164 L0 source reconstruction exactnativepatch017e9461...,fmt/inventory300filesPASS, no newGPU needed to revalidate unchanged source. Frozen R3CLI1a300305 remains matchedcontrol; R4source/bins and allnegative artifacts preserved separately. BestARbaselinewill usequalifiedM5 defaults/53slots/P02 atsame3GiB;cohortcompatibleAR hasexplicitincompatibleflagsOFF. No extra64slotRAM silently granted. NextN01/N03 usecommon runtime andonecompositionqualification;source checkpoints localonly.
+
+### I164-N01-20261108 — PRE-REGISTERED before executable changes
+- NewmechanismissueN01: MB2dispatchalwaysdynamicK/CB/dims ahead ofqualifiedARstatic/fixed selection; R3cohorts nowreachitforrealsharedexperts/GDN. Reuseexistingvalidatedprojection static_key(5K/NTvariants) andfixed_key(2K2shapes/split1/NT1), withMB2compileconstant. SevenPSOs, identicalcanonicalSG4/reduction/Half/B3mask andB4twoMB2groups. Runtime dimensions/splits remainparams inK/CB-onlyvariants exactlyasAR; fixedvariantsbind2560/640/1. PreparedinputdtypealwaysHalf, role/formatandPSOcapabilities stillcheckedbyexistingloadandverifyguards. UnsupportedK/CB/NT/rolesretainexistingdynamicMB2. No globalNT2/MB4orpreparedlayoutchange.
+- StrictM5optin MLXL3_NATIVE_FLASH_VERIFY_SPECIALIZED=0|1/defaultOFF andonlyloadwhenverify-QMVenabled. KeyselectorusesactualimmutableARkeys,checks2..4rowsandindexbounds, honorsbothglobalQMV andexistingstatic/fixedOFFsettings. Per-keyactualdispatchcounters in component/model tests, no emptyqualification. SourceCPUselectorKani fullsymbolicrows/Optionkeys/enable withcoversforfixed/static/fallback;60s/harness90souter.
+- Reusecomponentwidth1..4/capacities10/20/40, fullmodelB2-B4allkeeps/states/continuations/lateerrors/cancel/EOS andbridgeAR/MTP8. SelectedPSOsprintedactual; add focusedprojectionvariants wherecomponentdoesnotexerciseNT2/K3/K4; wrongvariantmutationorcanonicalmismatchmustfail meaningfuloracle. Standardfmt/clippy/build/library/inventory beforeGPU;compiledMetalcheckedphysically, noCPUproofclaimfortheshader.
+- ComposeN01withnextN03afterseparatecomponentgatesbeforemodeltimingperissue/AGENTS; no fullcampaign pervariant. FreezeR3baselineandcandidate+bestAR/cohort-ARconfigs;initialpilotMAIN64+heldoutshortcode/French,alternatedcontrols,matchedtotalbudget/memory/greedy. Onlyclaim20tok/swhenmeasured;keepqualifiedsmallcandidatesandnegativehistory. No speedmeasurementuntilnumericalgates/realbridge.
+
+- I164-N01 strictClippy first revision failed only test unnecessary u16 cast; removedcast, no numeric/codepath change. Failure preserved n01-clippy.log; rerun pending. No GPU/speed yet.
+
+- I164-N01 CPUactualselectorKani PASS:142obligations/5coversSAT,2.94s,noassumptions/fullsymbolicinputs; initialcommand rejectedunstable cbmc-argsbeforeproof preserved n01-kani.log. AddedrequiredCIharness(existingallcompiledinventory executesit). UsernowrequestsallimplementationbeforeANYspeedcampaign: no per-lotTPS,preservecorrectnessgatesandfreezecomposedcandidate. N01physicalpending, no performanceclaim.
+
+### I164-N03-20261108 — PRE-REGISTERED before executable edit
+- Implementnativeproducerfusion upfinish+SwiGLU+downprepare forqualifiedroutedB1..B4 andexpertaxis, thencomposeN01. DifferentfromhistoricalT04MLXnegative: actualR3nativeproducer, fixedrecords, currentconsumer/grid; noNT/split/quant/samplerchange. PreserveexplicitHalfup, Halfactivation, Halfactivation*downSuh, nativeHalfSigmoid, canonicalH128roundings/reduction/splits. Reuseexistinghadamardfunctionand64threadCTA; no newdependencies.
+- StageownsdownpreparedHalfbuffer, passasdownstage.prepared so nosecondprepare or aliasoverwrite. AxisstagecanfinishintoperexpertpreparedprefixafterallGUQMVconsumers; preservegateandrecordownersuntilcommandretire. NewstrictM5optin MLXL3_NATIVE_FLASH_GLU_DOWN=0|1/defaultOFF, requiresqualifiedupfinish. Actualdispatchcounter+independentpreparedwordphysicaloracle (finite/nonempty) plusroutedB1..B4allcapacities/originalseparate kernels; comparefullmodelprefixstates/cancel/bridgeaftercomposition. AttemptexistingactualadmissionKani anddocumentMSLverifierlimits. NoTPSuntilentireissuecompositionperlatestuserinstruction.
+
+- I164-N01 physicalprojectionPASS:11,538,432exactHalfwords,K2/K3/K4NT1/NT2residentPSOcounts[6,60,60,48,48],B2/B3/B4/splits;fixedexpertPSOsloadedbutnotexercisedbyresidentfixtures,componentgatepending. n01-testSHA bdbe0e6e...,13.00s,reaped. N03firsttestcompilecaughtprivateTensorStoragefield;usepublicmatrixview,diagnosticretained n03-clippy.log. NoTPS.
+
+### I164-N02-20261108 — PRE-REGISTERED before executable edit
+- ComposeexpertaxiswithconsumerMB2: groupalreadyreadyexpertsbyidenticalconsumermask,chunkat10bindings,grid(outputtile,ceil(B/2),expert);samecanonicalK2MUL1fixedshapesSG4andNTpolicy. UnlikeAR35launchonlytrial,thissharesweightdecodeacross2..4actualrowsandexpertsinoneQMVdispatch. PreserveeachSSDavailabilitywave,noawaitwholeunion. B1keepsqualifiedexistingexpertaxis.
+- PreparedGUrows/slabsareownedpercommand; dualpreparationandN03retained. Writeeachdownfinishdirectlyintofinal(row,rank)destination; removecopy/scatterfornewpath. Routingandcanonicalrankmixunchanged. NewstrictM5optin MLXL3_NATIVE_FLASH_EXPERT_CONSUMERS=0|1/defaultOFF requiresverify-QMV+expertaxis. Productionadmission/gridhelperKani,actualdispatchcounterswithcommon/disjoint/mixedphysicaltestsB2/B3/B4capacities10/20/40,thenallprefixmodel/bridgecomposed. NoTPSperlatestuserinstruction.
+
+- I164-N03 componentqualityPASS:fusedprepared128000exactHalfwordsB1..B4/splits1,2/biasON,OFF/width640,2560 versusindependentmaterializedfinish+SwiGLU+prepare;actualroutedcapacities/failedfillrecoveryPASS,n03-testfrozen. ExistingadmissionKaniPASS(noMetalproof);CBMCcannotparse.metalsource(extensionunsupported),preserved n03-cbmc-metal.log. N02initialClippyresolvedlatePSObinding/borrow,diagnosticpreserved.NoTPS.
+
+### I164-N05-20261108 — PRE-REGISTERED before executable edit
+- Replaceclosed10readbatchesonlyfornativeblockwaves>10 withanownedslidingwindow: logicalleasesremainwavepinned,onecompletionqueue/refillcredit perfinishedwholephysicalrecord,10maxactive/queuedreads,40maxpendingdescriptors,totalboundedrecordbytes. Allocate/reusepayloadonlyatadmission;GPUcompletedrecordsretaineduntillastwaveconsumerretire. ExistingB1isolatedsplitpathunchanged; multi-recordwindowuseswholejobs(nohalf-recordcredit).
+- Normal/backgroundsubmissionsrejectwhilewindowowned. WindowDropdiscardsunstarteddescriptors,drainsallsubmittedrecordsbeforeallowingnextowner;timeoutskeeppoolfailclosedwhilephysicalownersfinish. Reuseexistingpartial-readrecordimplementation/ownedpayloadchecks,notremoveactive==0globally. StaleresultscheckedbyDemandPlan.publish;sourceoffsetfullrecordvalidationunchanged.
+- AddactualcredithelperKani fullsymboliccounts,CPUheldfirst-tail11/19/20/40recordsprovinglateradmissionbeforetailrelease,payloadbounds/EOF/partialenqueue/cancelretry; existingwhole/splitfailuretestsretained. StrictM5optin MLXL3_NATIVE_FLASH_READ_WINDOW/defaultOFF;separateN13prioritynotbundled.N02/N05componentqualitybeforefullcomposedstate/bridgequalification,allTPSdeferred.
+
+- I164-N02/N05 componentqualityPASS: ownedslidingCPU22passed/6physicalignored incl10/11/19/20/40heldtail,EOF/drop/retry; strictClippyPASS afterparserqualificationplacementfix(initialfailurepreserved). Actualconsumer-gridKaniPASS3covers andcreditKaniPASS2covers,noassumptions. Frozen n02n05-test physicalcomponentPASS1.88s thenfullmodel12B2..B4allkeeps/allstates/hidden/logits/4continuations+latefail/drop/workspaceguardsPASS22.90s,35actualGDNbatches,expertconsumerdispatchassertionsactive. NoTPS. Physicalwindowglobalcountnotyetasserted;fullmodel/componentmetadatafollowfinalgates.
+
+### I164-N04-20261108 — PRE-REGISTERED before executable edit
+- AdaptpinnedTensorFold8be9c408 temporalstateorganizationbutretainnativeF32state,H128/Halfandcanonicalgated_delta_packed4elementchains/xors/nativegates. B2andB4kernelvariants(B3masked)hold32F32statevalues/threadacrossorderedrows; writeallprefixhistory/state,notreplay/compress. NativewholebodysharedwithB1,compiletimeexternalstate/historyaccesshooks(defaultsunchanged);nocross-headread-after-writehistoryrace: derivehistorytapdirectlyfrominitialhistory+inputrows.
+- Loadinitialstateonce,retainallprefixframes/ownedcommands;densea/bcanonicalperrow,batchedQKV/Z+out. strictM5optin MLXL3_NATIVE_FLASH_GDN_TEMPORAL/defaultOFF,onlyqualifiedprivatewholeGDNpath. Validateeachprefixagainstindependentscalar,allstates/continuations/rollback/cancel/oldexternalSnapshot,realbridgeaftercomposition. Rustbounds/admissionKani;MSLunsupportedbyCBMCalreadyrecorded,noGPUproofclaim.Register/spillinspectiondeferredwithprofiling,speeddeferredperuser.
+
+### I164-N06-20261108 — PRE-REGISTERED before executable edit
+- FirstownedGPUsegmentjoinscurrentGDNprojection/transition/outwithpostattentionHCwrite+MLPHCread+routerbeforeCPUrouteconsumption;preserveeachstateprefixandallresourcesuntilretire. Encode/submit/retireAPI,newcommandpersegment,stickyfaultandboundedpendingownership/drainonerror. NoeliminationoftrueSSDrouteCPUboundary. Strictoptin MLXL3_NATIVE_FLASH_GPU_SEGMENTS/defaultOFF;composeN04afterindependentcomponentgate,assertfeweractualstandaloneHCroutecommandswithoutTPSclaim. Futuremix/nextproduceranddraftdebtusethecommonsegmentcontract.
+
+### I164-N09-20261108 — PRE-REGISTERED before executable edit
+- Boundedper-GDNownedframearena,maximumroot+twoB4windows=9frames/layer,on-demandallocation(no16rowpreallocation). FrameRcownershipfromstate,prefix/externalSnapshotsandpendingGPUcommands;recycleonlypool-soleownerafterlastconsumerretire,generationcheckedincrement. ExistingSnapshotclonesremainhandles,no112MBmemcpyclaim. Exhaustionfailsbeforeoverwrite;explicitoptin/defaultOFFuntilqualified. Ledgerrecordsactualbufferbackingswithaliasdedup. NeedoldSnapshotacrossmultipleRounds,cancel/errorandpoolboundtests;actualCPUreuse/admissionhelperKani;notfullGPUproof.
+
+- I164-L4 implementationgateinprogress. N09firstgeneratorassertstoppedbeforegdnwrite;partialhelperdead-codeClippyfailurepreserved. Correctedgenerator/scopeandcaughtarenaNoneflagusingqualifiedONparserbeforeanyGPU;strictoptinparsernowOFF. N04/N06strictClippyPASSoftestvisibilityfixpendingl4rerun. NoGPU/SpeedsinceN02N05qualification.
+
+- I164-L4 firstcomposedphysicalgatePASS:Metalcompilesbothnewtemporalvariants;segments2pendingbound/Dropdrain/encodefailure/stickyfaultguardPASS;9framearenaliveexternalSnapshots/exhaustionbeforeoverwrite/reuse+generationPASS. FullmodelB2/B3/B4everykeep/logits/hidden/allstates+4continuations/latefailure/dropPASS23.23s;35actualtemporalGDNbatchesperstageasserted,segmentsretiredzeroPending,HC/routerproducerpreserved. Frozenl4-testidentity correctness-binaries.json. ThreeactualCPUKaniarena/temporal/segmentharnessesPASSwith7covers,total2.43s;notshader/allocator/concurrencemodelproof. StrictalltargetClippy/fmtPASS;directbridge/fullCPU/Metaldebugvalidationdeferredtofinalcompositiongate,register/spillinspectionnotdone. NoTPSornewbaselinecampaign.
+
+### I164-N07-20261108 — PRE-REGISTERED before executable edit
+- CommonimmutableLayerPlanadmitsB1/B2..B4fromactualrole/capabilities;existingFlashVerificationbecomesactualBlockTxn(publicaliaspreserved),ownssemanticprefixstates/publicationmarks. B1andBnusetheplansamegeometry/rolecontracts;readonlyPSOsalreadyliveinlayerprojections. NativeM5strictoptin MLXL3_NATIVE_FLASH_COMMON_EXECUTOR/defaultOFF. Do notremovelegacyguardswithoutownedalternative.
+- ComposeHCworkspaceviaexistingexclusiveCache::Lease (busyrowsfallintoownedfreshscratch; mixed/gateoutputsnotaliases), retainrawleasesuntilGPUsegmentretire. DeferredMoEencodesHCconsumeronproducerqueuebeforewaiting;join/checkeveryproducerafterconsumeranddrainalllayercommandsbeforeerrorrollback. Finish/mixalternativekeepsdownpartialsper(row,rank)untilcanonicalmix,usesexisting640threadshaderandshape/capabilityguard;newconsumergridreturnsownedpendingfinishes. Noarrivalorderweightedatomics.
+- DeviceHotcomposition: immutablecacheSnapshot+typedreadownersperrow,privateper-rowHotworkspace,max4blockproducers,sharedscalarworkspace remainssoleowner;submitHbeforerouteCPUread,retainfinalconsumer,canonicalrankslabmix,andfreshcoldbackingwhenoldgenerationspinned. Preserveexplicitunsupportedcombinationguards(e.g.legacyHot+finish/mix),noimplicitlossofARflag. Predictiveprefetch/housekeepingremainsprofileconditionalperissue;no speculativecrosslayeradmissionwithoutownership.
+- Testactualpathswithworkspace/deferred/finishmixandHotindependently+compatiblecombinations,allprefixstate/continuation/cancel/error/latefail. CPUcapability/activecreditKani,negativeinsufficientcap/duplicateowner/unsupportedcombo;heldoldSnapshots+cachegenerations. NoTPSuntilcompleteissuecomposition;nodefault/push/appchange.
+
+### I164-N14-20261108 — PRE-REGISTERED before executable edit
+- ConnectcommonLayerPlanresourceboundswithliveMetal/processmeasurementandexistingalias-dedupMemoryLedger/MemoryPlan. AdmissionbeforeheadloadandbeforeB2..B4allocations;configuredrequestbudgetcanadmitMTPonlythroughcommonexecutor,legacyAR-onlyguardremainsforotherunqualifieddraftpaths. Countactualalreadyloadedweights/cache/draft/externalSnapshotallocationsonceinobservedbase;prospectivereservesseparatelylabeledconservativebounds(GDN/PLEprefixframes,QSAfork/growth,scratch,Hot4owners/readwindow),neverRAMallocationclaims. NoarbitraryGBpreallocation,noextracacheslots.
+- DraftloadforecastfrominspectedMTPTensorInfopayloads+boundedbankcapacity;actualpostloadrecheckusesobservedbase(depthadmissioncanreturnD0). ReusesexistingcheckedMemoryPlanpeak/admitted_depthhelpersandKani;newrole/contextboundhelpersKani+budgetphysicalbelow/aboveboundaryandunchangedtargetprefixonfailure. Conservativeoverreservationallowedandreported,notbypassorrelabelrealpeak. NoTPSbeforecompletecomposition.
+
+- I164-N07/N14 wiredcommonB1/Bnplans,realBlockTxn(aliaskept),boundedprivateHotowners,workspaceleases,deferredqueueconsumerandpendingfinish/mixalternative,pluspreallocationbudget/draftcapacitylease. ClippyiterationscaughtprivateHot-testcallers/APIborrows andtestSnapshotpositionaccess,allpriorlogsretainedn07-clippy*. NoN07GPU/speedyet; headcapacityforecastnowincludesdraftKVplusbanksandisexplicitlyprospective/conservative. PhysicalcompositionchecksnextbeforeN08.
+
+### I164-N08-20261108 — PRE-REGISTERED before executable edit
+- GroupactualQSAQG/K/Vandeligibleindexprojections2..4rowswithcanonicalMB2/statics,thenorderedcausalnorm/rope/indexpool/KVappend/attention. PreservecompactindexKeyOnlywherequalified;fullindexbatchonlywhenqueryneedsit,neverreplacekey-onlyglobally. PLEpreparesitsownorderedhistoryprefixes,thenbatchestheGDNbody(whichR3excluded);retainper-rowPLEsnapshotsandexactngrampreviousIDs. StrictM5optin MLXL3_NATIVE_FLASH_BLOCK_PRODUCERS/defaultOFF.
+- Firstproduceradapterusesownedrowprojectiondestinations/scattertoleaveallcanonicalQSAzero-offsetconsumerbindingsunchanged;recordcopiesasimplementationcost,noTPSclaim. ThenfusecanonicalQSAgate->outpreparewithexplicitHalfactivation/Suhproduct/H128boundariesonlywhenexistingfusedattentiongateisnotused;donotlosealreadyqualifiedARgatefusion. NewfusionhasindependentpreparedwordoraclelikeN03anddistinctstrictoptin.
+- PhysicalB2/B3/B4allprefixes/fullKV/index/PLEstates/continuations,andseedednontrivialQSAstatesaroundpool/slab32and2048/2052sparseboundary;offset/count/finiteness,externalfutureSnapshot+rollback/cancel/lateerrorandactualprojectioncounters. CPUshape/admissionhelperKani+oldscalaroraclekept. NoTPSbeforewholeissueimplementation.
+
+- I164-N07 firstphysicalfinish/mix+workspace/deferredgateFAILED beforeanynumericalcomparisonatPLEbodylayer1: remaininglegacyFlashGdnLayer.prepare_moeguardrejectedownedHCworkspace. Errorpreservedn07-finish-mix.log/json,childreaped. Addedthecommon-owned-leasealternativeatthislastscalarPLEbodyguardtoo;legacyguardremainswhencommonOFF. NoTPS,noqualityPASSclaimedforN07yet. CPUKani3harnessesPASSn07-kani(2.73s),alltargetClippyn07-r6PASS. RebuildonlyaffectednativebinarythenrepeatthisgateandcontinueHot/budgetcases.
+
+- I164-N07/N14 composedqualityPASS afterlastownedPLEbodyguardfix: fullmodelB2/B3/B4everykeep/allstates/logits/hidden/continuations/latefail/drop passesbothfinishmix+HCworkspace+deferred(21.44s) andprivateHot+HCworkspace+deferred(23.02s),actualHot/finish/workspace/35temporalbatchcountersasserted. BudgetphysicalPASS2.68s:1bytebudgetrejectsbeforeprefix/draftmutation,24GiBadmitsB4anddraft,bank+KVcapacityleasechargedandrefundedonheadDrop. n07-r2-testidentityrecordedinfinal-identity.json; oldfailedbinaryandlogsretained. Fullrelease365libraryPASS/133ignored;strictalltargetClippyn07-r7PASS;threeKanicommonplan/Hotowner/draftreserveharnessesPASS2.73s,noGPUconcurrency/allocatorproof. NoTPS. ProductionbridgecheckpendingfinalCLIbuild.
+- Scope checkpoint afteruserrequeststosave remainingrate limit: do notstartadditionalresearch/prototypes/campaigns. N08preregistrationremainsNOT STARTED(noQSA/PLEproducer/fusioncode);N10/N11/N13/N15unimplemented,N12/N16/N17/N18remainconditionalresearchrequiringlaterprofilesperissue. N06firstGDN-HC-routeSegmentimplemented,butmix->nextproducer/verdictGPUremaining;N07commoncontracts/Hot/workspace/deferred/finishmiximplemented,notacompletecommonexecutorredesign. No claimthewholeissueor20tok/sgoalachieved. AllimplementedflagsstaydefaultOFF;finishmix+Hotcombinationstillfailsclosed(legacyunsupported). Predictiveprefetchguardsretained. Savecoherentlocalchanges+progresswithoutpush/release/appinstall. Speedcampaignexplicitlydeferredbyuser.
+
+### I164 — VERIFIED LOCAL CHECKPOINT, no active experiment
+- N01/N02/N03/N04/N05/N09/N14: implementedlocaloptins,qualitygatesabovePASS,performanceNOTQUALIFIED. N06/N07: firstsegments/commoncontractsandownedfeaturecompositionimplemented/qualified;remainingredesignstagesNOTSTARTED. N08preregistrationNOTSTARTED.N10/N11/N13/N15NOTSTARTED.N12/N16/N17/N18conditionalresearchNOTSTARTED. Thisiterationclosedtosaveuser-requestedremainingquota;issue164NOTCOMPLETE. Noactiveprototypes/readers/compilersownedafterfinalreceipt.
+- FinalproductionCLIbuild direct-metal+chatPASS;8tokenAR/MTPbridgequalityPASSfourresponses(includingwarmups),identicalnonemptytext/hashc10b2a835cb93ad6,modeschecked,deadlinebounded/processesclosed. ExistinghelperrecordsTPSincidentally;theseshortcorrectnessresponsesareNOTaspeedexperimentandNOgainor20tok/sclaimisderived. Speedcampaigndeferreduntilimplementationiscompleteperuser.
+- Finalrelease365libraryPASS/133ignored;strictalltargetClippy/fmtPASS. Manifest/inventoryfirsttestfailedstaleexpected9newrequiredharnesses+inventorysnapshot;updatedonlyexplicitproof-nameexpectations,keptfrozen322obligations,andreviewedonly3changedinventorypaths.Rerun11PASS/44Linux-onlyskipped/2subtestsPASS,Ruffformat+lintPASS. PythonformalattemptCrossHairunavailable(No module namedcrosshair),diagnosticretained;expectation-listtestisnotformalproof. RustcommonCPU3harnesses201obligations/7coversPASS;allnewfocusedCPUharnessesrunseparatelyabove,notfullpackageKani/GPU/allocatorproof. MetalAPI/shadervalidationandfull133physicalignoredsuiteNOTRUNforthischeckpoint;newselectedphysicalchecksPASSaslisted.
+- Artifactsabsolute /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/ . Progressdocs/issue164-native-progress.md. Finalsource/binarychecksumsandlocalcommitreceiptfinal-identity.json;CLIembeddedrevisionprecommitdirty,sourcefilesmatchedbyhash. NoGitHubpush/merge/release/appreplacementorhostedCIrunforthelocalchanges.
+
+### I164-SPEED-ROTATION-20261108 — PRE-REGISTERED before speed execution
+- UsernowexplicitlyrequestsbenchmarkandpushBEFOREtests;fourlocalruntimecommitsfast-forwardedtoPR161,remotehead8b3bf72everified,PRdescriptionupdatedpartialscope. Reopenspriorbenchdeferral,notnewimplementation. UnchangedCLI32b3f074... andnativefilehashesmatchfinalidentity;noexecutableedits/build.
+- SameCLIcontrolledablationA(newkernel/arena/segmentflagsOFF,commonbudgetON) versusB(qualifiedcompositionON,Hot+workspace+deferred,finishmixOFF);sameM5/2.05bpwEXL3checkpoint/context4096/greedyT0K1penalty1/cache3GiB48x53slots/readers4/prefixOFF/24576MiBrequestceiling. ThisAisNOTtheoriginalR3binary. ARusesBoptionsbutunloadsdraft,actualmemorymustbereported. Exactflags/modelmetadata/binarySHA/armorderinbuild/issue164-20261108/speed-rotation/plan.json.
+- FirstB8AR/MTPproductionbudget/paritygate,thenA1/B1/AR/B2/A2MAIN64,one64warmup+onemeasuredresponse/process,180sperresponse,strictlyserialGPU/noCPUheavyjobs. MAIN64mustmatchhistoricald7c2f53d11d70633/text/alltokens;validatebudget/slots/modes/counters/finitetimings/joinedchildren. Capturepower,VM,processfootprint/compressionandquietchecksperarm. ExistingphysicalKani/fullprefixgatesreusedunchanged. Preserveallfailures/drift;nostablegainifcontrolsstronglydrift;nosilentprotocolchange/rerun. No50matrix.
+
+- I164-SPEED preflight-budget: failed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation/preflight-budget/report.json. No aggregate conclusion before rotation ends.
+
+- I164-SPEED rotation failed; full raw status /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation/status.json.
+
+### I164-SPEED-NO-CAP-20261108 — PRE-REGISTERED protocol revision before measurement
+- OriginalI164-SPEED-ROTATIONpreflightFAILED/reapedbeforeMTPgeneration:configured24576MiBbudgetraisesFlash request memory budget cannot retain the requested block.Model-wideconservativeforecastusescapacityinsteadofsmallcurrentwindow;thisisarealbudgeted-pathlimitation,notspeedresult. Allinitialfilespreservedspeed-rotation/preflight-budget/report.json;nomeasured64armslaunched. No codechangeorbudgetbypassinsideengine.
+- Newreason/protocolexplicit:removeonlyconfiguredrequestlimit,usethesameNone-budgetconfigurationalreadyphysicallyqualifiedandAR/MTP8bridgevalidated(final-bridge-quality,identicalCLI32b3f074/flags/checkpoint). Reusethisqualitygatewithoutrepetition. Same5A1/B1/AR/B2/A2MAIN64/onewarm+onemeasured/cache3GiB53slots,allotherflags/model/ctx/greedyunchanged. Limits:hardware24GiB/cacheequal,NOenforcedequalprocessceiling;recordrealprocess/Metalallocatedmemoryanddraftunload.ARvsMTPbudget-equalitygainclaimthereforeexcluded. Revisedplanbuild/issue164-20261108/speed-rotation-no-cap/plan.json.
+
+- I164-SPEED-NO-CAP A1: passed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/A1/report.json. No aggregate conclusion before all controls.
+
+- I164-SPEED-NO-CAP B1: passed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/B1/report.json. No aggregate conclusion before all controls.
+
+- I164-SPEED-NO-CAP AR: passed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/AR/report.json. No aggregate conclusion before all controls.
+
+- I164-SPEED-NO-CAP B2: passed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/B2/report.json. No aggregate conclusion before all controls.
+
+- I164-SPEED-NO-CAP A2: passed; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/A2/report.json. No aggregate conclusion before all controls.
+
+- I164-SPEED-NO-CAP rotation complete; /Users/justin/.codex/worktrees/issue164-native-20261108/mix-stq1_0/build/issue164-20261108/speed-rotation-no-cap/status.json
+
+### I164-PORTABLE-CI-20261108 — PRE-REGISTERED verification repair after completed speed rotation
+- Exactpushed8b3bf72eUbuntuClippyFAILED(job128816132446):GPU-onlyBlockReadsreexport/adaptercompiledwithoutMetal,andfourpurehelpers/constantsunreferencedinCPUtests. Reproducedunchangedwithcargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings locally(cpu-only-clippy.log). Thisfailurebelongsournewsource,notpreexisting. Speedrotationcomplete/allGPUchildrenjoinedbeforeanycompiler/prover.
+- Minimalfix:cfg-gateonlytheGPUadapter/reexporttoactualmacOS+direct-metalconsumers;exerciseframecapacity/segmentbounds/draftarithmeticinexistingCPUunitchecks,withoutdead-codeallowancesorremovedproofs. NoMetal/shader/runtimealgorithmchangeonmeasuredMacconfiguration. Followformal-proof-skillRust;rerunCPU-onlystrictClippy,normalstrictClippy,CPUlibraryandframe_arena/native_executorKani. Benchmarkevidencecontinuesreferencingexact8b3bf72eCLI32b3f074,noautomaticrebenchmarkforCPU-test/cfg-onlyrepair.
+
+### I164-DEFAULT-M5-20261108 — PRE-REGISTERED before default promotion
+- User explicitly authorizes default engine integration and merge PR161. Promote only the measured compatible composition on exact Apple M5; preserve strict per-flag 0/1 overrides, legacy non-M5 defaults, and MTP request toggle. Common-executor=0 disables the new default profile. Configured request ceilings and nonzero lookahead retain the legacy default profile because the budget pilot failed and lookahead is unsupported. Explicit finish/mix opts out of automatic Hot scratch. Automatic SSD cohorts/block verification require actual per-layer eligibility; do not force unsupported cache/route settings. Unrelated experiments stay off.
+- Reuse unchanged physical numerical/oracle and MAIN64 speed evidence at 8b3bf72e. This edit changes selection/wiring only, no shader arithmetic. Check symbolic CPU profile/strict override policy with Kani and deterministic tests; run both Clippy configurations, library suite, release CLI build and 8-token default-env production AR/MTP parity (warmups included), with no new speed campaign. Inspect final exact-head hosted CI, push and merge. No installed app replacement/release.
+- Portable CI repair complete: CPU Clippy and Metal Clippy pass; CPU library353passed/10ignored; six frame_arena/native_executor Kani harnesses pass. Raw logs portable-* in build/issue164-20261108.
+
+- I164-DEFAULT-M5 complete/validated locally: exact default-selection source passes strict all-target CPU and Metal Clippy, fmt, release library366passed/133ignored and production mlxl3-rs build. Three native_executor Kani harnesses pass, including symbolic four-boolean profile and strict UTF-8 overrides up to2bytes (unwind10, all covers satisfied); no GPU/concurrency proof. Default production AR/MTP8 PASS four complete responses including warmups, exact nonempty hashc10b2a835cb93ad6, all children/readers joined, no MLXL3 activation variables (helper cache3GiB/overlap1 only). New frozen default CLI SHAf92325d666741bd3b41c0e7aaa07ba6dd892ed2ed53cd902d4b05c9f28cc225d/source hashes default-identity.json. No repeated64-speed campaign after selection-only change.
+- Verification setup failures retained: first build named nonexistent bin mlxl3-native (exit101); corrected to actual Cargo.toml mlxl3-rs and buildPASS. First bridge harness used systemPython3.9, failed import before any GPU/model process; retained default-quality-startup-python39-failure.json, corrected to existingPython3.12 and full bridgePASS. Inventory caught13 changed setting occurrences in onlygpu.rs/native_executor.rs; reviewed and refreshed snapshot. No hidden numerical failures.
+- I164-SPEED-NO-CAP validated as short MAIN64 pilot only: A1/B1/AR/B2/A2=8.4812/10.3445/9.7589/10.3547/8.2307decode tok/s, Bmean10.3496(+23.86% vsAmean8.3559,+6.05% vsARsingle), controls−2.95%, Bdifference+0.10%; all64tokens/hashd7c2f53d11d70633 equal, MTP28/34accepted/proposed. Actual memory differs, no enforced process ceiling and no universal gain. Original24576MiB preflight failure remains blocked for this workload, conservative admission not fixed/disabled secretly. All raw reports/plans/conditions/receipts archived docs/measurements/issue164-speed-20261108/README.md.
+- Integration: user explicitly authorizes M5-default promotion, push and mergePR161, then explicitly requests merge BEFORE CI. PR is ready for review. Do not await hosted jobs or claim green CI: previous8b head UbuntuClippy failure fixed here; previous Regression2720pass/146skip/2failed (macOS profiling-controller killpg PermissionError) remains unfixed, Applecompatibility cancelled. Final exact-head CI is separate. No release or installed-app replacement; issue164 incomplete per progress report. No active optimization/GPU/prover job remains after these gates.
+
+
+### PR163-RECOVERY-20261109 — en cours, avant modifications et nouveaux tests
+Le cloud et les stores de la génération précédente ont perdu le checkout local 3cd484bc (lot élargi non publié), les fichiers de restauration et les logs non publiés. La branche GitHub reste 818cc3ff. Aucun test ancien ne valide cette reconstruction. Nouvelle base main0fd9fbd1 contient PR161 fusionnée ; conserver intégralement les deux journaux et l’union des obligations Kani. Reconstruction prioritaire : redirections curl avec limite du fichier final (initial/reprise, 302/307, dépassement), état staging terminé/reprise, phases téléchargement/vérification et gardes Swift. Valider sur Linux avec fixtures de production, mutation pertinente, suites Rust/Clippy et contrôles Python. Swift/Metal/modèles et performance restent non vérifiés ; Mac non utilisé. Lot large issue162 reste incomplet, à réévaluer depuis la base actuelle. Aucun merge distant ni release.
+
+PR163-RECOVERY résultat local : lot review reconstruit, distinct du lot large perdu. Hub23 tests passent après mutation max-filesize détectée puis restauration ; suite CPU350 réussis/9ignorés/0échec38,66s ; Clippy all-targets/no-default-features/chat strict passe28,97s. Inventaire/orchestration Kani49 tests passent64,26s (pas des preuves) ; tentative harnais Kani bloquée par commande absente. Guard Swift39 checks source Python passent ; Swift/AppKit/Metal absents donc CI Apple et matériel non validés. Initial Clippy3 diagnostics corrigés et conservés. Conflits union journal/obligations résolus. Rapport récupération docs/issue163-recovery.md, Hub docs/issue163-recovery-hub.md, UI docs/issue163-recovery-ui.md. Diff-check passe ; publication autorisée en préparation, aucun merge distant ni release. Les42 constats ne sont pas clos ; aucun gain TPS revendiqué. Tous tests lancés clos.

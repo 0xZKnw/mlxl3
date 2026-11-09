@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "command": [
+    "/Users/justin/.codex/worktrees/pr161-speed-20261108/mix-stq1_0/build/pr161-speed-20261108/r4-views-test",
+    "gpu::flash::verify::tests::dropped_invalid_failed_and_cancelled_blocks_preserve_target",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "env": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_MOE_CHECKPOINT": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_QSA_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_PLE_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "MLXL3_NATIVE_FLASH_VERIFY_QMV": "1",
+    "MLXL3_NATIVE_MTP_KV_ONLY": "1",
+    "MLXL3_NATIVE_DEVICE_RESIDENT_ROUTE": "0",
+    "MLXL3_NATIVE_HOT_WORKSPACE": "0",
+    "MLXL3_NATIVE_MOE_DEFERRED": "0",
+    "MLXL3_NATIVE_MOE_FINISH_MIX": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_NATIVE_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_DEVICE_GREEDY": "1",
+    "MLXL3_NATIVE_MTP_SSD_COHORTS": "1",
+    "MLXL3_NATIVE_MTP_BLOCK_VERIFY": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_OVERLAP": "1"
+  },
+  "scope": "Additional promised late-error/drop/invalid-commit check after short speed pilot; frozen source/binary unchanged; no repeat speed required",
+  "quiet_checks": 1,
+  "pid": 39101,
+  "exit_code": 0,
+  "reaped": true,
+  "seconds": 3.4782155
+}

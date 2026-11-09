@@ -1,0 +1,18 @@
+diff --git a/native/src/gpu/moe_block.rs b/native/src/gpu/moe_block.rs
+index 8bd135b5..a22ad59f 100644
+--- a/native/src/gpu/moe_block.rs
++++ b/native/src/gpu/moe_block.rs
+@@ -614,7 +614,12 @@ mod tests {
+                     // clear_test_cache, invalidation intentionally retains the
+                     // recyclable backing allocations for the next reservation.
+                     if block.record_reuse_enabled && gpu.ssd_direct_enabled {
+-                        block.forward_block(&rows[..1])?;
++                        // Invalidation preserves ages, so fill even unused slots first.
++                        for _ in 0..capacity.div_ceil(TOP_K) {
++                            block.cache.borrow_mut().invalidate();
++                            block.forward_block(&rows[..1])?;
++                        }
++                        ensure!(block.record_backings.iter().all(Option::is_some));
+                         block.cache.borrow_mut().invalidate();
+                         let reused_before = gpu.readers()?.reused_destinations.get();
+                         let recovered = block.forward_block(&rows[..1])?;

@@ -7,7 +7,10 @@ use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{Read, Write},
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    os::unix::{
+        fs::{OpenOptionsExt, PermissionsExt},
+        process::{CommandExt, ExitStatusExt},
+    },
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -482,12 +485,21 @@ fn ensure_checkpoint_file(
     file: &RepoFile,
     target: &Path,
     cancelled: &AtomicBool,
-    report: impl FnMut(),
+    mut report: impl FnMut(&str),
 ) -> Result<()> {
+    report("verify");
     if prepare_checkpoint_file(file, target, cancelled)? {
         return Ok(());
     }
-    download_file_bounded(url, target, cancelled, report, Some(file.size))?;
+    report("download");
+    download_file_bounded(
+        url,
+        target,
+        cancelled,
+        || report("download"),
+        Some(file.size),
+    )?;
+    report("verify");
     ensure!(
         file.matches(target, cancelled)?,
         "downloaded file content identity mismatch"
@@ -1046,7 +1058,25 @@ fn download_file_bounded(
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
     if let Some(maximum_bytes) = maximum_bytes {
-        command.args(["--max-filesize", &maximum_bytes.to_string()]);
+        #[allow(clippy::useless_conversion)] // rlim_t width varies across Unix targets.
+        let limit: libc::rlim_t = maximum_bytes
+            .try_into()
+            .context("download limit exceeds platform range")?;
+        // Limit only curl's output file, not intermediate HTTP redirect bodies.
+        // SAFETY: pre_exec invokes only async-signal-safe setrlimit, using captured
+        // plain integers. This changes only the child, never the host process.
+        unsafe {
+            command.pre_exec(move || {
+                let limits = libc::rlimit {
+                    rlim_cur: limit,
+                    rlim_max: limit,
+                };
+                if libc::setrlimit(libc::RLIMIT_FSIZE, &limits) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
     }
     let mut child = command.spawn().context("starting model download")?;
     if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
@@ -1072,7 +1102,19 @@ fn download_file_bounded(
                 use std::io::Read;
                 let _ = stderr.take(8_000).read_to_string(&mut error);
             }
-            bail!("model download failed: {}", error.trim());
+            if let Some(maximum_bytes) = maximum_bytes
+                && (status.signal() == Some(libc::SIGXFSZ)
+                    || destination
+                        .metadata()
+                        .is_ok_and(|m| m.len() == maximum_bytes))
+            {
+                bail!(
+                    "model download failed: output reached file size limit ({} bytes): {}",
+                    maximum_bytes,
+                    error.trim()
+                );
+            }
+            bail!("model download failed ({status}): {}", error.trim());
         }
         report();
         thread::sleep(Duration::from_millis(150));
@@ -1408,10 +1450,35 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
     })
 }
 
+// Called only while holding the download's exclusive lock. Invalidate the old
+// success marker before any fallible retry work, including metadata fetches.
+fn completed_download(stage: &Path, request: &PendingDownload) -> bool {
+    File::open(stage.join("completed.json"))
+        .ok()
+        .and_then(|file| serde_json::from_reader::<_, PendingDownload>(file).ok())
+        .is_some_and(|done| {
+            done.id == request.id
+                && done.repo == request.repo
+                && done.commit == request.commit
+                && done.folder == request.folder
+                && done.name == request.name
+                && done.destination == request.destination
+                && done.size_bytes == request.size_bytes
+        })
+}
+
+fn begin_download_attempt(stage: &Path) -> Result<()> {
+    match fs::remove_file(stage.join("completed.json")) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
 fn run_download(
     request: &PendingDownload,
     registry_path: &Path,
-    mut progress: impl FnMut(u64, u64),
+    mut progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
     let root = managed_models_path()?;
     fs::create_dir_all(&root)?;
@@ -1428,6 +1495,7 @@ fn run_download(
         .open(lock_path)?;
     lock.try_lock_exclusive()
         .context("this variant is already downloading")?;
+    begin_download_attempt(&stage)?;
     write_json(&stage.join("request.json"), request)?;
 
     let detail = details(&request.repo, Some(&request.commit))?;
@@ -1464,6 +1532,7 @@ fn run_download(
     progress(
         directory_bytes(&snapshot).min(request.size_bytes),
         request.size_bytes,
+        "download",
     );
     for (local, remote) in &selected.files {
         ensure!(
@@ -1484,15 +1553,17 @@ fn run_download(
             file,
             &target,
             &cancelled,
-            || {
+            |phase| {
                 progress(
                     directory_bytes(&snapshot).min(request.size_bytes),
                     request.size_bytes,
+                    phase,
                 )
             },
         )?;
     }
 
+    progress(request.size_bytes, request.size_bytes, "verify");
     check_download_cancelled(&cancelled)?;
     let assembled = stage.join("model");
     if assembled.exists() {
@@ -1518,7 +1589,9 @@ fn run_download(
         destination.parent() == Some(root.as_path()),
         "model destination escaped managed storage"
     );
+    progress(request.size_bytes, request.size_bytes, "publication");
     publish_checkpoint(&assembled, &destination, &cancelled)?;
+    progress(request.size_bytes, request.size_bytes, "install");
     let entry = match crate::registry::register(registry_path, &request.name, &destination, false) {
         Ok(entry) => entry,
         Err(error) => {
@@ -1526,12 +1599,16 @@ fn run_download(
             return Err(error);
         }
     };
+    // A retained staging directory must not be offered for resume after commit.
+    if let Err(error) = write_json(&stage.join("completed.json"), request) {
+        eprintln!("checkpoint installed; could not mark staging completed: {error}");
+    }
     // Publication and registration succeeded; staging cleanup must not turn
     // a committed installation into a reported download failure.
     if let Err(error) = fs::remove_dir_all(&stage) {
         eprintln!("checkpoint installed; could not remove download staging: {error}");
     }
-    progress(request.size_bytes, request.size_bytes);
+    progress(request.size_bytes, request.size_bytes, "install");
     Ok((request.name.clone(), entry))
 }
 
@@ -1540,7 +1617,27 @@ pub fn download(
     commit: &str,
     folder: &str,
     registry_path: &Path,
-    progress: impl FnMut(u64, u64),
+    mut progress: impl FnMut(u64, u64),
+) -> Result<(String, crate::registry::ModelEntry)> {
+    download_with_phase(repo, commit, folder, registry_path, |done, total, _| {
+        progress(done, total)
+    })
+}
+
+pub fn resume(
+    id: &str,
+    registry_path: &Path,
+    mut progress: impl FnMut(u64, u64),
+) -> Result<(String, crate::registry::ModelEntry)> {
+    resume_with_phase(id, registry_path, |done, total, _| progress(done, total))
+}
+
+pub fn download_with_phase(
+    repo: &str,
+    commit: &str,
+    folder: &str,
+    registry_path: &Path,
+    progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
     ensure!(
         commit.len() == 40 && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
@@ -1571,7 +1668,10 @@ pub fn download(
 }
 
 pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
-    let downloads = managed_models_path()?.join(".downloads");
+    pending_downloads_in(&managed_models_path()?.join(".downloads"))
+}
+
+fn pending_downloads_in(downloads: &Path) -> Result<Vec<PendingDownload>> {
     let Ok(entries) = fs::read_dir(downloads) else {
         return Ok(Vec::new());
     };
@@ -1584,6 +1684,9 @@ pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
         let Ok(mut request) = serde_json::from_reader::<_, PendingDownload>(file) else {
             continue;
         };
+        if completed_download(&path, &request) {
+            continue;
+        }
         request.retained_bytes = directory_bytes(&path.join("snapshot"));
         result.push(request);
     }
@@ -1591,10 +1694,10 @@ pub fn pending_downloads() -> Result<Vec<PendingDownload>> {
     Ok(result)
 }
 
-pub fn resume(
+pub fn resume_with_phase(
     id: &str,
     registry_path: &Path,
-    progress: impl FnMut(u64, u64),
+    progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
     let request = pending_downloads()?
         .into_iter()
@@ -1687,17 +1790,19 @@ mod tests {
         let file = payload_file(true);
         for initial in [b"he".as_slice(), b"jello", b"toolong"] {
             fs::write(&target, initial).unwrap();
-            ensure_checkpoint_file(&url, &file, &target, &cancelled, || {}).unwrap();
+            ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {}).unwrap();
             assert_eq!(fs::read(&target).unwrap(), b"hello");
         }
         fs::remove_file(&target).unwrap();
         fs::write(&source, b"jello").unwrap();
-        assert!(ensure_checkpoint_file(&url, &file, &target, &cancelled, || {}).is_err());
+        assert!(ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {}).is_err());
         fs::remove_file(&target).unwrap();
         fs::write(&source, b"hello").unwrap();
         assert!(
-            ensure_checkpoint_file(&url, &file, &target, &cancelled, || {
-                cancelled.store(true, Ordering::Relaxed);
+            ensure_checkpoint_file(&url, &file, &target, &cancelled, |_| {
+                if target.metadata().is_ok_and(|m| m.len() == 5) {
+                    cancelled.store(true, Ordering::Relaxed);
+                }
             })
             .is_err()
         );
@@ -2135,9 +2240,16 @@ mod verification {
         let present: bool = kani::any();
         let length: u8 = kani::any();
         kani::assume(length <= 65);
-        let character: u8 = kani::any::<u8>() & 0x7f;
-        let hash: String =
-            std::iter::repeat_n(char::from(character), usize::from(length)).collect();
+        let bytes: [u8; 65] = kani::any();
+        let mut hash = String::new();
+        let mut hexadecimal = true;
+        for &byte in &bytes[..usize::from(length)] {
+            // Scope: independently symbolic ASCII metadata, including mixed
+            // valid/invalid characters. Unicode is rejected by production too.
+            let character = byte & 0x7f;
+            hash.push(char::from(character));
+            hexadecimal &= matches!(character, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F');
+        }
         let file = RepoFile {
             rfilename: String::new(),
             size: 0,
@@ -2146,7 +2258,6 @@ mod verification {
             }),
             blob_id: present.then_some(hash),
         };
-        let hexadecimal = matches!(character, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F');
         let expected = hexadecimal
             && if lfs {
                 length == 64
@@ -2264,3 +2375,7 @@ mod preview_proofs {
 #[cfg(test)]
 #[path = "hub/dflash_download_tests.rs"]
 mod dflash_download_tests;
+
+#[cfg(test)]
+#[path = "hub/redirect_download_tests.rs"]
+mod redirect_download_tests;

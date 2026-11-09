@@ -29,7 +29,7 @@ kernel void ple_route(const device half* key [[buffer(0)]],const device T* query
         T total=simd_sum(lane<20?partial[lane]:T(0));
         if(tid==0) {
             float dot=float(total)/params[0];
-            raw[stream]=dot;
+            if(params[1]!=0.0f) raw[stream]=dot;
             float score=sign(dot)*precise::sqrt(max(abs(dot),1.0e-6f));
             gate[stream]=hc_sigmoid(score);
         }
@@ -48,9 +48,9 @@ kernel void ple_residual(const device T* streams [[buffer(0)]],const device floa
         float value=tap<3?history[tap*3*10240+col]:normed[col];
         acc=fma(value,float(weight[col*4+tap]),acc);
     }
-    conv_raw[col]=acc;
+    if(layout[2]!=0) conv_raw[col]=acc;
     float active=acc*hc_compiled_sigmoid(acc);
-    convolution[col]=active;
+    if(layout[2]!=0) convolution[col]=active;
     out[col]=float(streams[layout[0]+long(col)*layout[1]])+(gated[col]+active);
     for(uint t=0;t<9;++t) next[t*10240+col]=t<8?history[(t+1)*10240+col]:normed[col];
 }

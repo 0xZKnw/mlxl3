@@ -1,0 +1,2433 @@
+diff --git a/native/src/expert_ar_policy.rs b/native/src/expert_ar_policy.rs
+index 281b7046..e4d13c92 100644
+--- a/native/src/expert_ar_policy.rs
++++ b/native/src/expert_ar_policy.rs
+@@ -8,6 +8,81 @@ pub(crate) fn eligible(routed: bool, extents: [[u32; 3]; 3]) -> bool {
+     routed && extents == crate::flash_expert_scratch::EXTENTS
+ }
+ 
++/// Only exact row multiples enter fused preparation/finish; scratch remains scalar.
++pub(crate) fn row_fusions_eligible(routed: bool, extents: [[u32; 3]; 3]) -> bool {
++    let rows = extents[0][0] / 2560;
++    routed
++        && (1..=4).contains(&rows)
++        && extents
++            .iter()
++            .zip(crate::flash_expert_scratch::EXTENTS)
++            .all(|(actual, one)| {
++                actual
++                    .iter()
++                    .zip(one)
++                    .all(|(&value, one)| value == one * rows)
++            })
++}
++
++#[test]
++fn fused_up_admits_multirow_records_without_enabling_scalar_scratch() {
++    for rows in 1..=4 {
++        let extents =
++            crate::flash_expert_scratch::EXTENTS.map(|shape| shape.map(|value| value * rows));
++        assert!(row_fusions_eligible(true, extents));
++        assert!(!row_fusions_eligible(false, extents));
++        assert_eq!(eligible(true, extents), rows == 1);
++        for stage in 0..3 {
++            for column in 0..3 {
++                let mut invalid = extents;
++                invalid[stage][column] += 1;
++                assert!(!row_fusions_eligible(true, invalid));
++            }
++        }
++    }
++    for rows in [0, 5, 1000] {
++        assert!(!row_fusions_eligible(
++            true,
++            crate::flash_expert_scratch::EXTENTS.map(|shape| shape.map(|v| v * rows))
++        ));
++    }
++    assert!(!row_fusions_eligible(true, [[u32::MAX; 3]; 3]));
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(40)]
++fn multirow_up_finish_keeps_exact_row_extents_and_bounds() {
++    let extents: [[u32; 3]; 3] = kani::any();
++    let routed: bool = kani::any();
++    let selected = row_fusions_eligible(routed, extents);
++    let rows = extents[0][0] / 2560;
++    if selected {
++        assert!(routed && rows >= 1 && rows <= 4);
++        assert_eq!(
++            extents,
++            [
++                [2560 * rows, 640 * rows, 640 * rows],
++                [2560 * rows, 640 * rows, 640 * rows],
++                [640 * rows, 2560 * rows, 2560 * rows]
++            ]
++        );
++        assert!(extents[0][2] * 2 <= 5120);
++        assert!(extents[0][0] * 4 <= 40960);
++        let row: u32 = kani::any();
++        if row < rows {
++            assert!(
++                u64::from(row) * 5120 + u64::from(extents[0][0]) * 2 + 5120
++                    <= u64::from(extents[0][0]) * 4
++            );
++            kani::cover!(rows == 4 && row == 3);
++        }
++        kani::cover!(rows == 1);
++        kani::cover!(rows == 4);
++    }
++    kani::cover!(!selected && routed);
++}
++
+ pub(crate) fn cohort(count: usize, destinations: usize) -> bool {
+     count > 0 && count <= 10 && count == destinations
+ }
+diff --git a/native/src/flash_qmv.rs b/native/src/flash_qmv.rs
+index 1e429c8f..5c51bf4b 100644
+--- a/native/src/flash_qmv.rs
++++ b/native/src/flash_qmv.rs
+@@ -319,6 +319,38 @@ pub(crate) fn verify_rows_key(rows: u32, nt: u32, k: u32, eligible: bool) -> Opt
+     }
+ }
+ 
++pub(crate) fn verify_row_count(rows: usize, nt: u32, k: u32, eligible: bool) -> bool {
++    (2..=4).contains(&rows) && verify_rows_key(rows as u32, nt, k, eligible).is_some()
++}
++
++#[test]
++fn verify_row_count_rejects_wide_host_counts_before_narrowing() {
++    for rows in [0, 1, 5, usize::MAX, (u32::MAX as usize).saturating_add(3)] {
++        assert!(!verify_row_count(rows, 1, 2, true));
++    }
++    for rows in 2..=4 {
++        assert!(verify_row_count(rows, 1, 2, true));
++        assert!(!verify_row_count(rows, 1, 2, false));
++        assert!(!verify_row_count(rows, 4, 2, true));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn verify_host_row_count_preserves_bounded_projection_dispatch() {
++    let rows: usize = kani::any();
++    let nt: u32 = kani::any();
++    let k: u32 = kani::any();
++    let enabled: bool = kani::any();
++    let actual = verify_row_count(rows, nt, k, enabled);
++    assert_eq!(
++        actual,
++        rows >= 2 && rows <= 4 && enabled && k >= 2 && k <= 6 && (nt == 1 || nt == 2)
++    );
++    kani::cover!(actual && rows == 3 && nt == 2);
++    kani::cover!(!actual && rows > u32::MAX as usize);
++}
++
+ #[test]
+ fn verify_rows_dispatch_preserves_scalar_and_unsupported_paths() {
+     for eligible in [false, true] {
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index 22f1e646..4a511b62 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -1371,6 +1371,13 @@ pub struct ExpertCache {
+     pub prefetch_hits: u64,
+ }
+ 
++/// Logical token accesses survive physical read deduplication and wave splitting.
++pub(crate) struct BlockAccess {
++    clock: u64,
++    ages: [u64; 512],
++    uses: [u8; 512],
++}
++
+ /// Unfilled demand reservations must never survive an error or unwind.
+ #[cfg(any(
+     feature = "mlx",
+@@ -1436,9 +1443,63 @@ impl ExpertCache {
+     }
+ 
+     pub fn reserve(&mut self, ids: &[u32]) -> Result<Vec<(usize, bool)>, CacheError> {
++        self.reserve_access(ids, None)
++    }
++
++    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
++    pub(crate) fn block_access(
++        &mut self,
++        rows: &[[u16; crate::speculation_plan::TOP_K]],
++    ) -> Result<BlockAccess, CacheError> {
++        if rows.is_empty()
++            || rows.len() > crate::speculation_plan::MAX_ROWS
++            || rows.iter().any(|row| {
++                row.iter()
++                    .enumerate()
++                    .any(|(i, &id)| id >= 512 || row[..i].contains(&id))
++            })
++        {
++            return Err(CacheError::InvalidIds);
++        }
++        self.clock
++            .checked_add(rows.len() as u64)
++            .ok_or(CacheError::Clock)?;
++        let mut access = BlockAccess {
++            clock: 0,
++            ages: [0; 512],
++            uses: [0; 512],
++        };
++        for row in rows {
++            self.clock += 1;
++            if self.clock.is_multiple_of(16) {
++                for count in &mut self.counts {
++                    *count /= 2;
++                }
++            }
++            for &id in row {
++                let id = usize::from(id);
++                self.counts[id] = self.counts[id].saturating_add(1);
++                access.ages[id] = self.clock;
++                access.uses[id] += 1;
++            }
++        }
++        access.clock = self.clock;
++        Ok(access)
++    }
++
++    fn reserve_access(
++        &mut self,
++        ids: &[u32],
++        access: Option<&BlockAccess>,
++    ) -> Result<Vec<(usize, bool)>, CacheError> {
+         if ids.is_empty() || ids.iter().any(|&id| id >= 512) {
+             return Err(CacheError::InvalidIds);
+         }
++        if access.is_some_and(|access| {
++            access.clock != self.clock || ids.iter().any(|&id| access.uses[id as usize] == 0)
++        }) {
++            return Err(CacheError::InvalidIds);
++        }
+         let mut unique = Vec::with_capacity(ids.len().min(512));
+         for &id in ids {
+             let position = unique
+@@ -1452,8 +1513,10 @@ impl ExpertCache {
+         if unique.len() > self.available_slots() {
+             return Err(CacheError::Capacity);
+         }
+-        self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
+-        if self.clock.is_multiple_of(16) {
++        if access.is_none() {
++            self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
++        }
++        if access.is_none() && self.clock.is_multiple_of(16) {
+             for count in &mut self.counts {
+                 *count /= 2;
+             }
+@@ -1467,7 +1530,9 @@ impl ExpertCache {
+                 if seen[word] & bit == 0 {
+                     seen[word] |= bit;
+                     if let Some(slot) = self.keys.iter().position(|&key| key == Some(id)) {
+-                        assert!(slru.touch(slot, true));
++                        for _ in 0..access.map_or(1, |a| a.uses[id as usize]) {
++                            assert!(slru.touch(slot, true));
++                        }
+                     }
+                 }
+             }
+@@ -1488,9 +1553,14 @@ impl ExpertCache {
+                 && let Some(slru) = &mut self.slru
+             {
+                 assert!(slru.touch(slot, false));
++                for _ in 1..access.map_or(1, |a| a.uses[id as usize]) {
++                    assert!(slru.touch(slot, true));
++                }
+             }
+-            self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
+-            self.ages[slot] = self.clock;
++            if access.is_none() {
++                self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
++            }
++            self.ages[slot] = access.map_or(self.clock, |a| a.ages[id as usize]);
+             reserved.push((id, slot, present.is_some()));
+         }
+         Ok(ids
+@@ -1744,9 +1814,25 @@ impl DemandPlan {
+     pub(crate) fn reserve(
+         cache: &Rc<RefCell<ExpertCache>>,
+         ids: &[u32],
++    ) -> Result<Self, CacheError> {
++        Self::reserve_access(cache, ids, None)
++    }
++
++    pub(crate) fn reserve_block(
++        cache: &Rc<RefCell<ExpertCache>>,
++        ids: &[u32],
++        access: &BlockAccess,
++    ) -> Result<Self, CacheError> {
++        Self::reserve_access(cache, ids, Some(access))
++    }
++
++    fn reserve_access(
++        cache: &Rc<RefCell<ExpertCache>>,
++        ids: &[u32],
++        access: Option<&BlockAccess>,
+     ) -> Result<Self, CacheError> {
+         let guard = ExpertFill::new(cache);
+-        let routes = cache.borrow_mut().reserve(ids)?;
++        let routes = cache.borrow_mut().reserve_access(ids, access)?;
+         let mut plan = Self {
+             cache: cache.clone(),
+             routes,
+@@ -1781,6 +1867,80 @@ impl Drop for DemandPlan {
+ mod tests {
+     use super::*;
+     #[test]
++    fn block_access_preserves_logical_frequency_and_next_route_retention() -> Result<()> {
++        for shift in [0u16, 1, 497] {
++            let rows = [
++                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(|id| id + shift),
++                [0, 1, 2, 3, 4, 10, 11, 12, 13, 14].map(|id| id + shift),
++            ];
++            for slots in [10, 11, 15, 20, 53, 90] {
++                let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
++                let access = cache.borrow_mut().block_access(&rows)?;
++                let cohorts =
++                    crate::speculation_plan::resident_expert_cohorts(&rows, slots, &[]).unwrap();
++                let mut reads = 0;
++                for wave in &cohorts.waves {
++                    let ids = cohorts.cohorts[wave.clone()]
++                        .iter()
++                        .map(|c| u32::from(c.expert))
++                        .collect::<Vec<_>>();
++                    let plan = DemandPlan::reserve_block(&cache, &ids, &access)?;
++                    reads += plan.reads.len();
++                    for &lease in &plan.reads {
++                        assert!(plan.publish(lease));
++                    }
++                }
++                assert_eq!(reads, 15);
++                assert_eq!(cache.borrow().clock, 2);
++                for id in 0..15 {
++                    assert_eq!(
++                        cache.borrow().counts[usize::from(shift) + id],
++                        if id < 5 { 2 } else { 1 }
++                    );
++                }
++                let next = DemandPlan::reserve(&cache, &rows[1].map(u32::from))?;
++                assert!(next.reads.is_empty(), "slots={slots}, shift={shift}");
++            }
++        }
++        Ok(())
++    }
++
++    #[test]
++    fn block_access_checks_errors_before_mutation_and_keeps_token_decay() -> Result<()> {
++        let mut cache = ExpertCache::new(11)?;
++        let row = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
++        cache.clock = 14;
++        cache.counts[0] = 10;
++        let access = cache.block_access(&[row, row])?;
++        assert_eq!(cache.clock, 16);
++        assert_eq!(cache.counts[0], 6);
++        assert_eq!(access.ages[0], 16);
++        assert_eq!(access.uses[0], 2);
++        let mut four_rows = ExpertCache::new(10)?;
++        let four = four_rows.block_access(&[row; 4])?;
++        assert_eq!(
++            (
++                four_rows.clock,
++                four_rows.counts[0],
++                four.uses[0],
++                four.ages[0]
++            ),
++            (4, 4, 4, 4)
++        );
++        let counts = cache.counts;
++        for invalid in [Vec::new(), vec![[512; 10]], vec![[0; 10]], vec![row; 5]] {
++            assert!(cache.block_access(&invalid).is_err());
++            assert_eq!((cache.clock, cache.counts), (16, counts));
++        }
++        assert!(cache.reserve_access(&[511], Some(&access)).is_err());
++        cache.reserve(&[511])?;
++        assert!(cache.reserve_access(&[0], Some(&access)).is_err());
++        cache.clock = u64::MAX;
++        assert!(cache.block_access(&[row]).is_err());
++        assert_eq!(cache.clock, u64::MAX);
++        Ok(())
++    }
++    #[test]
+     fn ready_snapshot_excludes_pending_failed_and_recycled_generations() -> Result<()> {
+         let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+         let plan = DemandPlan::reserve(&cache, &[17])?;
+@@ -3435,6 +3595,70 @@ pub(crate) fn qsa_append(offset: u32, published: u32, capacity: u32) -> Option<(
+         .then(|| (u64::from(offset) * 1024, offset < published))
+ }
+ 
++/// An original slab may still have external future snapshots; a new slab cannot.
++#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
++pub(crate) fn qsa_retained_high_water(protected: u32, retained: u32, original: bool) -> u32 {
++    if original {
++        protected.max(retained)
++    } else {
++        retained
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn verified_qsa_retirement_never_discards_external_future() {
++    let protected: u32 = kani::any();
++    let retained: u32 = kani::any();
++    let original: bool = kani::any();
++    let high = qsa_retained_high_water(protected, retained, original);
++    assert!(high >= retained);
++    assert!(!original || high >= protected);
++    assert!(original || high == retained);
++    assert!(high == protected || high == retained);
++    kani::cover!(original && protected > retained);
++    kani::cover!(original && retained > protected);
++    kani::cover!(!original && protected > retained);
++}
++
++#[test]
++fn verified_qsa_retirement_preserves_external_marks_and_new_prefixes() {
++    for protected in [0, 1, 31, 32, u32::MAX] {
++        for retained in [0, 1, 31, 32, u32::MAX] {
++            assert_eq!(
++                qsa_retained_high_water(protected, retained, true),
++                if protected > retained {
++                    protected
++                } else {
++                    retained
++                }
++            );
++            assert_eq!(
++                qsa_retained_high_water(protected, retained, false),
++                retained
++            );
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(12)]
++fn logical_block_access_counts_shared_consumers() {
++    let shift = u16::from(kani::any::<u8>());
++    let row = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(|id| id + shift);
++    let mut cache = ExpertCache::new(11).unwrap();
++    let access = cache.block_access(&[row, row]).unwrap();
++    assert_eq!(cache.clock, 2);
++    for id in row {
++        assert_eq!(cache.counts[usize::from(id)], 2);
++        assert_eq!(access.uses[usize::from(id)], 2);
++        assert_eq!(access.ages[usize::from(id)], 2);
++    }
++    kani::cover!(shift == 0);
++    kani::cover!(shift == 255);
++}
++
+ #[cfg(kani)]
+ #[kani::proof]
+ fn qsa_append_preserves_all_published_rows() {
+diff --git a/native/src/gpu/flash.rs b/native/src/gpu/flash.rs
+index 1795083a..c7a29c39 100644
+--- a/native/src/gpu/flash.rs
++++ b/native/src/gpu/flash.rs
+@@ -54,22 +54,40 @@ impl<'a> Layer<'a> {
+             Self::Qsa(a) => &mut a.residual.moe,
+         }
+     }
+-    fn prepare_moe(&mut self, row: &MatrixView, token: u32) -> Result<super::gdn::PreparedMoeRow> {
++    fn prepare_moe(
++        &mut self,
++        row: &MatrixView,
++        token: u32,
++        projected: Option<super::gdn::PreparedGdnRow>,
++    ) -> Result<super::gdn::PreparedMoeRow> {
+         match self {
+-            Self::Gdn(layer) => layer.prepare_moe(row),
++            Self::Gdn(layer) => match projected {
++                Some(projected) => layer.prepare_moe_projected(row, projected),
++                None => layer.prepare_moe(row),
++            },
+             Self::Ple(layer) => layer.prepare_moe(row, token),
+             Self::Qsa(layer) => layer.prepare_moe(row),
+         }
+     }
++    fn prepare_block_inputs(
++        &self,
++        rows: &[MatrixView],
++    ) -> Result<Option<Vec<super::gdn::PreparedGdnRow>>> {
++        match self {
++            Self::Gdn(layer) => layer.prepare_block_inputs(rows),
++            _ => Ok(None),
++        }
++    }
+     fn finish_prepared(
+         &self,
+-        row: super::gdn::PreparedMoeRow,
+-        experts: super::MoeOutput,
++        cmd: &metal::CommandBufferRef,
++        row: &super::gdn::PreparedMoeRow,
++        experts: &super::MoeOutput,
+     ) -> Result<MatrixView> {
+         match self {
+-            Self::Gdn(layer) => layer.residual.finish_prepared(row, experts),
+-            Self::Ple(layer) => layer.body.residual.finish_prepared(row, experts),
+-            Self::Qsa(layer) => layer.residual.finish_prepared(row, experts),
++            Self::Gdn(layer) => layer.residual.finish_prepared(cmd, row, experts),
++            Self::Ple(layer) => layer.body.residual.finish_prepared(cmd, row, experts),
++            Self::Qsa(layer) => layer.residual.finish_prepared(cmd, row, experts),
+         }
+     }
+     fn snapshot(&self) -> State {
+@@ -163,6 +181,12 @@ pub struct FlashTraceTensor {
+     pub shape: Vec<u32>,
+     pub data: Vec<u8>,
+ }
++struct EmbeddingRow {
++    token: u32,
++    bits: Vec<u16>,
++    view: Option<MatrixView>,
++}
++
+ pub struct FlashNext<'a> {
+     pub(super) fixed_residency: Option<super::fixed_residency::FixedResidency>,
+     pub(super) fixed_residency_checked: bool,
+@@ -178,6 +202,7 @@ pub struct FlashNext<'a> {
+     pub(super) hidden: Option<MatrixView>,
+     pub(super) gpu: &'a Metal,
+     embed: TensorInfo,
++    embedding_rows: RefCell<Vec<EmbeddingRow>>,
+     pub(super) layers: Vec<Layer<'a>>,
+     pub(super) mixer: FlashHc<'a>,
+     pub(super) head: FlashProjection<'a>,
+@@ -330,6 +355,7 @@ impl<'a> FlashNext<'a> {
+             hidden: None,
+             gpu,
+             embed,
++            embedding_rows: RefCell::new(Vec::new()),
+             layers,
+             mixer,
+             head,
+@@ -394,17 +420,74 @@ impl<'a> FlashNext<'a> {
+     }
+ 
+     fn embedding_bits(&self, token: u32) -> Result<Vec<u16>> {
++        if let Some(row) = self
++            .embedding_rows
++            .borrow()
++            .iter()
++            .find(|row| row.token == token)
++        {
++            return Ok(row.bits.clone());
++        }
+         let (file, base) = self.embed.source()?;
+         let at = row_offset(base, u64::from(token), 248320, 5120)
+             .context("token outside Flash vocabulary or embedding offset overflow")?;
+         let mut bytes = [0u8; 5120];
+         file.read_exact_at(&mut bytes, at)?;
+-        Ok(bytes
++        let bits = bytes
+             .as_chunks::<2>()
+             .0
+             .iter()
+             .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_bits())
+-            .collect())
++            .collect::<Vec<_>>();
++        let mut rows = self.embedding_rows.borrow_mut();
++        if rows.len() == 4 {
++            rows.remove(0);
++        }
++        rows.push(EmbeddingRow {
++            token,
++            bits: bits.clone(),
++            view: None,
++        });
++        Ok(bits)
++    }
++
++    fn embedding_view(&self, token: u32) -> Result<MatrixView> {
++        if let Some(view) = self
++            .embedding_rows
++            .borrow()
++            .iter()
++            .find(|row| row.token == token)
++            .and_then(|row| row.view.clone())
++        {
++            return Ok(view);
++        }
++        let bits = self.embedding_bits(token)?;
++        let view = self.gpu.f16_storage(&bits)?.matrix(MatrixLayout {
++            shape: [1, 2560],
++            strides: [2560, 1],
++            offset: 0,
++        })?;
++        if let Some(row) = self
++            .embedding_rows
++            .borrow_mut()
++            .iter_mut()
++            .find(|row| row.token == token)
++        {
++            row.view = Some(view.clone());
++        }
++        Ok(view)
++    }
++
++    pub(super) fn record_embedding_memory(
++        &self,
++        backings: &mut crate::gpu::memory::Backings,
++    ) -> Result<()> {
++        for row in self.embedding_rows.borrow().iter() {
++            if let Some(view) = &row.view {
++                backings.record("embedding_cache", &view.buffer)?;
++            }
++        }
++        Ok(())
+     }
+     fn streams(&self, token: u32) -> Result<MatrixView> {
+         let values: Vec<_> = self
+diff --git a/native/src/gpu/flash_verify.rs b/native/src/gpu/flash_verify.rs
+index 4187d04e..d5eb3620 100644
+--- a/native/src/gpu/flash_verify.rs
++++ b/native/src/gpu/flash_verify.rs
+@@ -16,6 +16,7 @@ pub struct FlashVerification<'model, 'gpu> {
+     model: &'model mut FlashNext<'gpu>,
+     prefixes: Vec<FlashSnapshot>,
+     logits: Vec<Vec<u16>>,
++    publications: Vec<super::super::qsa::VerificationPublication>,
+ }
+ 
+ impl FlashVerification<'_, '_> {
+@@ -23,6 +24,30 @@ impl FlashVerification<'_, '_> {
+         &self.logits
+     }
+ 
++    pub(super) fn greedy(&mut self, retained: usize, device: bool) -> Result<u32> {
++        let index = crate::qwen35_config::native_retained_prefix(retained, self.prefixes.len())
++            .flatten()
++            .context("invalid verification head row")?;
++        let hidden = self.prefixes[index]
++            .hidden
++            .as_ref()
++            .context("missing verification hidden row")?;
++        let mixed = self.model.mixer.read(hidden, false)?.mixed;
++        #[cfg(test)]
++        {
++            self.model.target_head_calls += 1;
++        }
++        if device {
++            self.model
++                .gpu
++                .device_greedy_head(&self.model.head, &mixed, false)
++                .map(|value| value.0)
++        } else {
++            let logits = self.model.head.submit_fp16_view(&mixed)?.read()?;
++            self.model.greedy_id(&logits)
++        }
++    }
++
+     /// Hidden state after `retained` input rows, for repairing the draft using
+     /// verified target activations. Zero has no row inside this block.
+     pub fn prefix_hidden(&self, retained: usize) -> Option<&MatrixView> {
+@@ -30,11 +55,21 @@ impl FlashVerification<'_, '_> {
+         self.prefixes.get(index)?.hidden.as_ref()
+     }
+ 
+-    pub fn commit(self, retained: usize) -> Result<()> {
++    pub fn commit(mut self, retained: usize) -> Result<()> {
+         let index = crate::qwen35_config::native_retained_prefix(retained, self.prefixes.len())
+             .context("Flash commit exceeds verified block")?;
+         if let Some(index) = index {
+             self.model.restore(&self.prefixes[index])?;
++            self.prefixes.clear();
++            let mut marks = self.publications.iter_mut();
++            for layer in &self.model.layers {
++                if let super::Layer::Qsa(layer) = layer {
++                    marks
++                        .next()
++                        .expect("one QSA publication mark per layer")
++                        .retain(layer);
++                }
++            }
+         }
+         Ok(())
+     }
+@@ -51,6 +86,23 @@ impl<'gpu> FlashNext<'gpu> {
+         &mut self,
+         tokens: &[u32],
+         cancelled: &AtomicBool,
++    ) -> Result<FlashVerification<'_, 'gpu>> {
++        self.stage_block_heads(tokens, cancelled, true)
++    }
++
++    pub(super) fn stage_block_headless(
++        &mut self,
++        tokens: &[u32],
++        cancelled: &AtomicBool,
++    ) -> Result<FlashVerification<'_, 'gpu>> {
++        self.stage_block_heads(tokens, cancelled, false)
++    }
++
++    fn stage_block_heads(
++        &mut self,
++        tokens: &[u32],
++        cancelled: &AtomicBool,
++        heads: bool,
+     ) -> Result<FlashVerification<'_, 'gpu>> {
+         let end =
+             crate::qwen35_config::native_block_end(tokens, 248_320, self.offset, self.context)
+@@ -81,7 +133,15 @@ impl<'gpu> FlashNext<'gpu> {
+         ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+         self.ensure_fixed_residency()?;
+         let before = self.snapshot();
+-        let operation = self.stage_block_inner(tokens, end, cancelled);
++        let publications = self
++            .layers
++            .iter()
++            .filter_map(|layer| match layer {
++                super::Layer::Qsa(layer) => Some(layer.verification_publication()),
++                _ => None,
++            })
++            .collect();
++        let operation = self.stage_block_inner(tokens, end, cancelled, heads);
+         // All snapshots here were made by this same target and its layers.
+         // Restore even after a late layer/head/cancellation error. A successful
+         // handle never needs fallible GPU work in Drop.
+@@ -91,6 +151,7 @@ impl<'gpu> FlashNext<'gpu> {
+             model: self,
+             prefixes,
+             logits,
++            publications,
+         })
+     }
+ 
+@@ -99,6 +160,7 @@ impl<'gpu> FlashNext<'gpu> {
+         tokens: &[u32],
+         end: u32,
+         cancelled: &AtomicBool,
++        heads: bool,
+     ) -> Result<(Vec<FlashSnapshot>, Vec<Vec<u16>>)> {
+         let mut prefixes = (self.offset + 1..=end)
+             .map(|offset| FlashSnapshot {
+@@ -115,12 +177,21 @@ impl<'gpu> FlashNext<'gpu> {
+         let gpu = self.gpu;
+         for (index, layer) in self.layers.iter_mut().enumerate() {
+             if self.verify_ssd_cohorts {
++                ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                let projected = layer.prepare_block_inputs(&rows)?;
++                ensure!(
++                    projected
++                        .as_ref()
++                        .is_none_or(|rows_prepared| rows_prepared.len() == rows.len()),
++                    "incomplete GDN block projections"
++                );
++                let mut projected = projected.map(Vec::into_iter);
+                 let mut prepared = Vec::with_capacity(rows.len());
+                 for ((row, &token), prefix) in rows.iter().zip(tokens).zip(&mut prefixes) {
+                     ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                     prepared.push(
+                         layer
+-                            .prepare_moe(row, token)
++                            .prepare_moe(row, token, projected.as_mut().and_then(Iterator::next))
+                             .with_context(|| format!("preparing Flash cohort layer {index}"))?,
+                     );
+                     // Only attention/PLE carries temporal state. MoE and final
+@@ -131,15 +202,24 @@ impl<'gpu> FlashNext<'gpu> {
+                     .iter()
+                     .map(|row| row.mixed.clone())
+                     .collect::<Vec<_>>();
+-                let experts = layer.moe().forward_block_cancellable(&mixed, cancelled)?;
++                let routing = prepared.iter_mut().map(|row| row.routing.take()).collect();
++                let experts = layer
++                    .moe()
++                    .forward_block_routed_cancellable(&mixed, routing, cancelled)?;
+                 ensure!(
+                     experts.len() == rows.len(),
+                     "incomplete Flash cohort outputs"
+                 );
+-                for ((row, prepared), experts) in rows.iter_mut().zip(prepared).zip(experts) {
+-                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+-                    *row = layer.finish_prepared(prepared, experts)?;
+-                }
++                rows = gpu.command(|cmd| {
++                    prepared
++                        .iter()
++                        .zip(&experts)
++                        .map(|(row, experts)| {
++                            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                            layer.finish_prepared(cmd, row, experts)
++                        })
++                        .collect::<Result<Vec<_>>>()
++                })?;
+                 #[cfg(test)]
+                 ensure!(
+                     gpu.cross_layer_fail_after.get() != Some(index),
+@@ -166,6 +246,10 @@ impl<'gpu> FlashNext<'gpu> {
+         let mut logits = Vec::with_capacity(rows.len());
+         for (row, prefix) in rows.into_iter().zip(&mut prefixes) {
+             ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            if !heads {
++                prefix.hidden = Some(row);
++                continue;
++            }
+             let mixed = self.mixer.read(&row, false)?.mixed;
+             #[cfg(test)]
+             {
+@@ -344,6 +428,96 @@ mod tests {
+         Ok(())
+     }
+ 
++    #[test]
++    #[ignore = "physical checkpoint; lazy heads, exact GPU selectors and external QSA future snapshots"]
++    fn lazy_heads_and_publication_retirement_preserve_external_snapshots() -> Result<()> {
++        let c =
++            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let gpu = Metal::new()?;
++        let mut model = FlashNext::load(&gpu, &c, 64)?;
++        model.prefill(&[248044, 78768, 11])?;
++        let root = model.snapshot();
++        let root_state = retained_state(&model)?;
++        let first_logits = model.forward(1)?;
++        let first = model.greedy_id(&first_logits)?;
++        let retained = model.snapshot();
++        let expected_retained_state = retained_state(&model)?;
++        let second_logits = model.forward(2)?;
++        let second = model.greedy_id(&second_logits)?;
++        let future = model.snapshot();
++        let future_state = retained_state(&model)?;
++        let continuation = model.forward(7)?;
++        {
++            model.restore(&root)?;
++            for device in [false, true] {
++                if device && !gpu.device_greedy_available() {
++                    continue;
++                }
++                model.restore(&root)?;
++                let heads_before = model.target_head_calls;
++                let mut staged = model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?;
++                ensure!(staged.logits().is_empty());
++                ensure!(staged.greedy(0, device).is_err() && staged.greedy(3, device).is_err());
++                ensure!(staged.greedy(1, device)? == first);
++                ensure!(staged.greedy(2, device)? == second);
++                staged.commit(1)?;
++                ensure!(model.target_head_calls - heads_before == 2);
++                ensure!(retained_state(&model)? == expected_retained_state);
++                ensure!(model.forward(2)? == second_logits);
++                model.restore(&future)?;
++                ensure!(retained_state(&model)? == future_state);
++                ensure!(model.forward(7)? == continuation);
++            }
++        }
++        model.restore(&root)?;
++        drop(model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?);
++        ensure!(retained_state(&model)? == root_state);
++        drop(retained);
++        for keep in 0..=2 {
++            model.reset();
++            model.prefill(&[248044, 78768, 11])?;
++            let identities = model
++                .layers
++                .iter()
++                .filter_map(|layer| match layer {
++                    Layer::Qsa(layer) => Some(layer.verification_slab().0),
++                    _ => None,
++                })
++                .collect::<Vec<_>>();
++            let calls = model.target_head_calls;
++            let mut staged = model.stage_block_headless(&[1, 2], &AtomicBool::new(false))?;
++            if keep == 1 {
++                ensure!(staged.greedy(1, false)? == first);
++            }
++            staged.commit(keep)?;
++            ensure!(model.target_head_calls - calls == usize::from(keep == 1));
++            for (layer, identity) in model
++                .layers
++                .iter()
++                .filter_map(|layer| match layer {
++                    Layer::Qsa(layer) => Some(layer),
++                    _ => None,
++                })
++                .zip(&identities)
++            {
++                ensure!(layer.verification_slab() == (*identity, 3 + keep as u32));
++            }
++            model.forward(7)?;
++            for (layer, identity) in model
++                .layers
++                .iter()
++                .filter_map(|layer| match layer {
++                    Layer::Qsa(layer) => Some(layer),
++                    _ => None,
++                })
++                .zip(&identities)
++            {
++                ensure!(layer.verification_slab().0 == *identity);
++            }
++        }
++        Ok(())
++    }
++
+     #[test]
+     #[ignore = "physical Flash checkpoint; SSD cohort temporal preparation and prefix rollback"]
+     fn ssd_cohort_verification_matches_scalar_and_rejects_unsafe_workspace() -> Result<()> {
+@@ -353,6 +527,7 @@ mod tests {
+         // Run with cohort-compatible flags externally. Do not hide unsupported
+         // settings by mutating them during load or silently selecting fallback.
+         let mut model = FlashNext::load(&gpu, &c, 64)?;
++        ensure!(gpu.hc_chain.get() && gpu.hc_gate_chain.get());
+         ensure!(
+             model
+                 .layers
+@@ -380,7 +555,26 @@ mod tests {
+                 }
+                 model.restore(&root)?;
+                 model.verify_ssd_cohorts = true;
++                let joint_before = gpu.hc_gate_chain_pairs.get();
++                let gdn_before = crate::gpu::FlashGdnLayer::block_projection_count();
++                let standalone_before = gpu.gate_commands.get();
++                let expected_joint = width * model.layers.len();
+                 let cohort = model.stage_block(tokens)?;
++                if crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some()) {
++                    eprintln!(
++                        "GDN projection batches: width={width}, keep={keep}, layers={}",
++                        crate::gpu::FlashGdnLayer::block_projection_count() - gdn_before
++                    );
++                    ensure!(
++                        crate::gpu::FlashGdnLayer::block_projection_count() > gdn_before,
++                        "GDN target projections did not use actual token batching"
++                    );
++                }
++                ensure!(
++                    gpu.hc_gate_chain_pairs.get() - joint_before == expected_joint
++                        && gpu.gate_commands.get() == standalone_before,
++                    "SSD cohort lost the canonical joint HC/router producer"
++                );
+                 ensure!(cohort.logits() == logits && logits.len() == width);
+                 cohort.commit(keep)?;
+                 ensure!(retained_state(&model)? == expected_state);
+@@ -399,6 +593,25 @@ mod tests {
+                 model.restore(&root)?;
+             }
+         }
++        let joint_enabled = gpu.hc_gate_chain.replace(false);
++        let fallback = (|| -> Result<()> {
++            model.verify_ssd_cohorts = false;
++            let reference = model.stage_block(&[1, 2])?;
++            let logits = reference.logits().to_vec();
++            drop(reference);
++            model.verify_ssd_cohorts = true;
++            let joint_before = gpu.hc_gate_chain_pairs.get();
++            let standalone_before = gpu.gate_commands.get();
++            let cohort = model.stage_block(&[1, 2])?;
++            ensure!(cohort.logits() == logits);
++            ensure!(gpu.hc_gate_chain_pairs.get() == joint_before);
++            ensure!(gpu.gate_commands.get() > standalone_before);
++            drop(cohort);
++            ensure!(retained_state(&model)? == root_state);
++            Ok(())
++        })();
++        gpu.hc_gate_chain.set(joint_enabled);
++        fallback?;
+         // Reject workspace retention before preparing even the first layer.
+         gpu.hc_workspace_enabled.set(true);
+         let rejected = model.stage_block(&[1, 2]).is_err();
+diff --git a/native/src/gpu/gdn.rs b/native/src/gpu/gdn.rs
+index a48ebe39..9f0fdb03 100644
+--- a/native/src/gpu/gdn.rs
++++ b/native/src/gpu/gdn.rs
+@@ -70,6 +70,22 @@ struct PendingGdn {
+     steps: Option<[(&'static str, MatrixView); 11]>,
+ }
+ 
++struct GdnProjections {
++    input: MatrixView,
++    qkv: MatrixView,
++    z: MatrixView,
++}
++
++pub(super) struct PreparedGdnRow {
++    read: super::FlashHcRead,
++    pending: PendingGdn,
++}
++
++#[cfg(test)]
++thread_local! {
++    static BLOCK_PROJECTION_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
++}
++
+ pub type FlashGdnOutput = super::FlashAttentionOutput;
+ 
+ pub(super) struct DeferredHcWrite {
+@@ -267,6 +283,18 @@ impl<'a> FlashGdn<'a> {
+         x: &MatrixView,
+         trace: bool,
+         private_f32_consumer: bool,
++    ) -> Result<PendingGdn> {
++        self.encode_for_consumer_prepared(cmd, x, trace, private_f32_consumer, None, None)
++    }
++
++    fn encode_for_consumer_prepared(
++        &self,
++        cmd: &CommandBufferRef,
++        x: &MatrixView,
++        trace: bool,
++        private_f32_consumer: bool,
++        projected: Option<&GdnProjections>,
++        previous: Option<&Frame>,
+     ) -> Result<PendingGdn> {
+         let gpu = self.gpu;
+         ensure!(
+@@ -301,7 +329,7 @@ impl<'a> FlashGdn<'a> {
+             })
+         };
+         let g = |x, y, z| MTLSize::new(x, y, z);
+-        let prev = match &self.state.frame {
++        let prev = match previous.or(self.state.frame.as_ref()) {
+             Some(previous) => previous.clone(),
+             None => {
+                 let zero = frame()?;
+@@ -314,28 +342,35 @@ impl<'a> FlashGdn<'a> {
+             }
+         };
+         let next = frame()?;
+-        let input = half(2560)?;
+-        Metal::encode(
+-            cmd,
+-            &p.from[usize::from(x.dtype == FloatType::F32)],
+-            &[&x.buffer, &input.buffer],
+-            [x.layout.offset, x.layout.strides[1]],
+-            g(80, 1, 1),
+-            32,
+-        );
+-        let pair = if crate::flash_support::gdn_private_epilogue_eligible(
+-            gpu.gdn_resident_bundle.get(),
+-            trace,
+-            private_f32_consumer,
+-        ) {
++        let input = if let Some(projected) = projected {
++            projected.input.clone()
++        } else {
++            let input = half(2560)?;
++            Metal::encode(
++                cmd,
++                &p.from[usize::from(x.dtype == FloatType::F32)],
++                &[&x.buffer, &input.buffer],
++                [x.layout.offset, x.layout.strides[1]],
++                g(80, 1, 1),
++                32,
++            );
++            input
++        };
++        let pair = if projected.is_none()
++            && crate::flash_support::gdn_private_epilogue_eligible(
++                gpu.gdn_resident_bundle.get(),
++                trace,
++                private_f32_consumer,
++            ) {
+             self.qkv
+                 .encode_resident_pair(&self.z, cmd, &input, storage)?
+         } else {
+             None
+         };
+-        let [qkv, z] = match pair {
+-            Some(pair) => pair,
+-            None => [
++        let [qkv, z] = match (projected, pair) {
++            (Some(projected), _) => [projected.qkv.clone(), projected.z.clone()],
++            (_, Some(pair)) => pair,
++            _ => [
+                 self.qkv.encode_row(cmd, &input, storage)?,
+                 self.z.encode_row(cmd, &input, storage)?,
+             ],
+@@ -603,6 +638,7 @@ impl<'a> FlashGdn<'a> {
+ /// HC workspace must be disabled while these rows are retained.
+ pub(super) struct PreparedMoeRow {
+     pub(super) mixed: MatrixView,
++    pub(super) routing: Option<super::RouteOutput>,
+     streams: MatrixView,
+     gate: MatrixView,
+ }
+@@ -641,6 +677,14 @@ impl<'a> LayerResidual<'a> {
+     pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
+         Ok(self.attn_hc.read(streams, false)?.mixed)
+     }
++
++    pub(super) fn encode_attention_input(
++        &self,
++        cmd: &metal::CommandBufferRef,
++        streams: &MatrixView,
++    ) -> Result<super::hc::ReadBuffers> {
++        self.attn_hc.encode_read(cmd, streams, false)
++    }
+     pub(super) fn prepare_moe(
+         &self,
+         streams: &MatrixView,
+@@ -669,11 +713,24 @@ impl<'a> LayerResidual<'a> {
+             .gate
+             .as_ref()
+             .context("missing attention injection gate")?;
+-        let (streams, mlp_read) =
+-            self.mlp_hc
+-                .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
++        let (streams, mlp_read, routing) = if self.moe.joint_gate_eligible(0) {
++            let (streams, read, routing) = self.mlp_hc.read_after_write_with_gate(
++                &self.attn_hc,
++                streams,
++                &attention.values,
++                gate,
++                &self.moe,
++            )?;
++            (streams, read, Some(routing))
++        } else {
++            let (streams, read) =
++                self.mlp_hc
++                    .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
++            (streams, read, None)
++        };
+         Ok(PreparedMoeRow {
+             mixed: mlp_read.mixed,
++            routing,
+             streams,
+             gate: mlp_read.gate.context("missing MLP injection gate")?,
+         })
+@@ -681,11 +738,20 @@ impl<'a> LayerResidual<'a> {
+ 
+     pub(super) fn finish_prepared(
+         &self,
+-        row: PreparedMoeRow,
+-        experts: super::MoeOutput,
++        cmd: &metal::CommandBufferRef,
++        row: &PreparedMoeRow,
++        experts: &super::MoeOutput,
+     ) -> Result<MatrixView> {
+-        self.final_write(&row.streams, experts, &row.gate, false)?
+-            .complete(self.mlp_hc.gpu)
++        let branch = experts.completed()?;
++        let output = self
++            .mlp_hc
++            .encode_write(cmd, &row.streams, branch, &row.gate)?;
++        #[cfg(test)]
++        self.mlp_hc
++            .gpu
++            .hc_final_writes
++            .set(self.mlp_hc.gpu.hc_final_writes.get() + 1);
++        Ok(output)
+     }
+ 
+     pub(super) fn forward(
+@@ -796,6 +862,130 @@ pub struct FlashGdnLayer<'a> {
+     attention: FlashGdn<'a>,
+ }
+ impl<'a> FlashGdnLayer<'a> {
++    #[cfg(test)]
++    pub(super) fn block_projection_count() -> usize {
++        BLOCK_PROJECTION_BATCHES.with(std::cell::Cell::get)
++    }
++
++    pub(super) fn prepare_block_inputs(
++        &self,
++        rows: &[MatrixView],
++    ) -> Result<Option<Vec<PreparedGdnRow>>> {
++        let gpu = self.attention.gpu;
++        if !self.attention.qkv.supports_verify_rows(rows.len())
++            || !self.attention.z.supports_verify_rows(rows.len())
++        {
++            return Ok(None);
++        }
++        ensure!(
++            !gpu.hc_workspace_enabled.get(),
++            "GDN block inputs require owned HC rows"
++        );
++        #[cfg(test)]
++        let _scope = crate::flash_profile::span("native.gdn.block_projections");
++        let (reads, _projections, pending) = gpu.command(|cmd| {
++            let reads = rows
++                .iter()
++                .map(|row| self.residual.encode_attention_input(cmd, row))
++                .collect::<Result<Vec<_>>>()?;
++            let packed = MatrixView::output(
++                gpu,
++                FloatType::F16,
++                rows.len() as u32,
++                2560,
++                Storage::StorageModePrivate,
++            )?;
++            let mut inputs = Vec::with_capacity(rows.len());
++            for (i, read) in reads.iter().enumerate() {
++                let x = read.mixed();
++                let input =
++                    MatrixView::output(gpu, FloatType::F16, 1, 2560, Storage::StorageModePrivate)?;
++                Metal::encode(
++                    cmd,
++                    &gpu.gdn.from[usize::from(x.dtype == FloatType::F32)],
++                    &[&x.buffer, &input.buffer],
++                    [x.layout.offset, x.layout.strides[1]],
++                    MTLSize::new(80, 1, 1),
++                    32,
++                );
++                let blit = cmd.new_blit_command_encoder();
++                blit.copy_from_buffer(&input.buffer, 0, &packed.buffer, i as u64 * 5120, 5120);
++                blit.end_encoding();
++                inputs.push(input);
++            }
++            let qkv = self
++                .attention
++                .qkv
++                .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
++            let z = self
++                .attention
++                .z
++                .encode_rows(cmd, &packed, Storage::StorageModePrivate)?;
++            let mut projections = Vec::with_capacity(rows.len());
++            for (i, input) in inputs.into_iter().enumerate() {
++                let q =
++                    MatrixView::output(gpu, FloatType::F16, 1, 10240, Storage::StorageModePrivate)?;
++                let gate =
++                    MatrixView::output(gpu, FloatType::F16, 1, 6144, Storage::StorageModePrivate)?;
++                let blit = cmd.new_blit_command_encoder();
++                blit.copy_from_buffer(&qkv.buffer, i as u64 * 20480, &q.buffer, 0, 20480);
++                blit.copy_from_buffer(&z.buffer, i as u64 * 12288, &gate.buffer, 0, 12288);
++                blit.end_encoding();
++                projections.push(GdnProjections {
++                    input,
++                    qkv: q,
++                    z: gate,
++                });
++            }
++            let mut pending: Vec<PendingGdn> = Vec::with_capacity(rows.len());
++            for (i, (read, projected)) in reads.iter().zip(&projections).enumerate() {
++                let step = self.attention.encode_for_consumer_prepared(
++                    cmd,
++                    read.mixed(),
++                    false,
++                    rows[i].dtype == FloatType::F32,
++                    Some(projected),
++                    pending.last().map(|p| &p.next),
++                )?;
++                pending.push(step);
++            }
++            Ok((reads, projections, pending))
++        })?;
++        #[cfg(test)]
++        {
++            BLOCK_PROJECTION_BATCHES.with(|count| count.set(count.get() + 1));
++            gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + rows.len());
++        }
++        let prepared = reads
++            .into_iter()
++            .zip(pending)
++            .map(|(read, pending)| {
++                Ok(PreparedGdnRow {
++                    read: read.finish(false)?,
++                    pending,
++                })
++            })
++            .collect::<Result<Vec<_>>>()?;
++        Ok(Some(prepared))
++    }
++
++    pub(super) fn prepare_moe_projected(
++        &mut self,
++        streams: &MatrixView,
++        row: PreparedGdnRow,
++    ) -> Result<PreparedMoeRow> {
++        let before = self.snapshot();
++        let result = (|| {
++            let attention = self.attention.finish(row.pending)?;
++            self.residual
++                .prepare_after_attention(streams, row.read, attention)
++        })();
++        if result.is_err() {
++            self.restore(&before)?;
++        }
++        result
++    }
++
+     pub fn load(
+         gpu: &'a Metal,
+         c: &Checkpoint,
+diff --git a/native/src/gpu/hc.rs b/native/src/gpu/hc.rs
+index d6a61f1a..d757736c 100644
+--- a/native/src/gpu/hc.rs
++++ b/native/src/gpu/hc.rs
+@@ -812,7 +812,7 @@ impl<'a> FlashHc<'a> {
+         self.gpu
+             .command(|cmd| self.encode_write(cmd, streams, branch, gate))
+     }
+-    fn encode_write(
++    pub(super) fn encode_write(
+         &self,
+         cmd: &metal::CommandBufferRef,
+         streams: &MatrixView,
+diff --git a/native/src/gpu/memory.rs b/native/src/gpu/memory.rs
+index 3f11beae..9b070b7b 100644
+--- a/native/src/gpu/memory.rs
++++ b/native/src/gpu/memory.rs
+@@ -151,6 +151,7 @@ impl FlashNext<'_> {
+         );
+         self.head.record_memory(&mut backings)?;
+         self.mixer.record_memory(&mut backings)?;
++        self.record_embedding_memory(&mut backings)?;
+         for layer in &self.layers {
+             layer.record_memory(&mut backings)?;
+         }
+diff --git a/native/src/gpu/moe.rs b/native/src/gpu/moe.rs
+index 8ab5e84b..6f33ec1b 100644
+--- a/native/src/gpu/moe.rs
++++ b/native/src/gpu/moe.rs
+@@ -865,6 +865,16 @@ impl FlashMoeRow<'_> {
+     pub(super) fn campaign_slots(&self) -> usize {
+         self.slots.borrow().len()
+     }
++
++    #[cfg(test)]
++    pub(super) fn campaign_ready_experts(&self) -> usize {
++        self.cache
++            .borrow()
++            .ready_slot_snapshot()
++            .iter()
++            .flatten()
++            .count()
++    }
+     #[cfg(test)]
+     pub(super) fn slru_counts(&self) -> (bool, usize) {
+         let cache = self.cache.borrow();
+diff --git a/native/src/gpu/moe_block.rs b/native/src/gpu/moe_block.rs
+index 8bd135b5..fb8cdf43 100644
+--- a/native/src/gpu/moe_block.rs
++++ b/native/src/gpu/moe_block.rs
+@@ -1,11 +1,13 @@
+ //! Opt-in block SSD reuse. Every wave is complete before cache slots are reused.
+ //! Ready experts reuse the qualified AR axis; each row keeps canonical rank mixing.
+ use super::*;
++use crate::gpu::RouteOutput;
+ use crate::speculation_plan::{ExpertCohort, MAX_ROWS, TOP_K, resident_expert_cohorts};
+ use std::sync::atomic::{AtomicBool, Ordering};
+ 
+ #[cfg(test)]
+ thread_local! {
++    static ROUTED_CONSUMER_BATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+     // One-shot deterministic cancellation after a genuinely submitted/waited wave.
+     static CANCEL_AFTER_INITIAL_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+     static CANCEL_AFTER_WAVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+@@ -40,10 +42,24 @@ impl FlashMoeRow<'_> {
+         self.forward_block_cancellable(rows, &AtomicBool::new(false))
+     }
+ 
++    #[cfg(test)]
+     pub(in crate::gpu) fn forward_block_cancellable(
+         &mut self,
+         rows: &[MatrixView],
+         cancelled: &AtomicBool,
++    ) -> Result<Vec<MoeOutput>> {
++        self.forward_block_routed_cancellable(
++            rows,
++            (0..rows.len()).map(|_| None).collect(),
++            cancelled,
++        )
++    }
++
++    pub(in crate::gpu) fn forward_block_routed_cancellable(
++        &mut self,
++        rows: &[MatrixView],
++        routing: Vec<Option<RouteOutput>>,
++        cancelled: &AtomicBool,
+     ) -> Result<Vec<MoeOutput>> {
+         let check_cancelled = || -> Result<()> {
+             ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+@@ -52,8 +68,8 @@ impl FlashMoeRow<'_> {
+         check_cancelled()?;
+         ensure!(self.block_eligible(), "unsupported Flash block SSD mode");
+         ensure!(
+-            (1..=MAX_ROWS).contains(&rows.len()),
+-            "Flash SSD block expects 1..4 rows"
++            (1..=MAX_ROWS).contains(&rows.len()) && routing.len() == rows.len(),
++            "Flash SSD block expects 1..4 rows with matching routes"
+         );
+         for x in rows {
+             ensure!(
+@@ -76,9 +92,12 @@ impl FlashMoeRow<'_> {
+         let mut ids = Vec::with_capacity(rows.len());
+         // RouteOutput has no draining Drop. Finish each submitted route before
+         // another fallible submission, including error/cancellation paths.
+-        for x in rows {
++        for (x, route) in rows.iter().zip(routing) {
+             check_cancelled()?;
+-            let route = self.gate.submit(x)?;
++            let route = match route {
++                Some(route) => route,
++                None => self.gate.submit(x)?,
++            };
+             ids.push(route.indices()?);
+             routed.push(route);
+         }
+@@ -104,6 +123,7 @@ impl FlashMoeRow<'_> {
+         let initially_hot = |expert: u16| resident.contains(&expert);
+         let cohorts = resident_expert_cohorts(&routes, width, &resident)
+             .context("invalid Flash block expert cohort")?;
++        let access = self.cache.borrow_mut().block_access(&routes)?;
+         // Consume all initially resident experts in the first wave before any
+         // later reservation can evict them. Rank ordering is independent of this.
+         let hits = routes
+@@ -148,7 +168,7 @@ impl FlashMoeRow<'_> {
+                 .iter()
+                 .map(|entry| u32::from(entry.expert))
+                 .collect::<Vec<_>>();
+-            let plan = DemandPlan::reserve(&self.cache, &requested)?;
++            let plan = DemandPlan::reserve_block(&self.cache, &requested, &access)?;
+             // The previous wave was drained, including on failure. Drop all old
+             // projection views before transferring backing ownership to readers.
+             let mut owners = Vec::with_capacity(plan.reads.len());
+@@ -318,12 +338,12 @@ impl FlashMoeRow<'_> {
+         check_cancelled()?;
+         let shared = shared.context("missing block shared expert outputs")?;
+         let mut outputs = Vec::with_capacity(rows.len());
++        let command = self.gpu.queue.new_command_buffer().to_owned();
+         for (row, x) in rows.iter().enumerate() {
+             check_cancelled()?;
+             let output = objc::rc::autoreleasepool(|| -> Result<MoeOutput> {
+                 let dtype = usize::from(x.dtype == FloatType::F32);
+                 let weights = routed[row].completed_scores()?;
+-                let command = self.gpu.queue.new_command_buffer().to_owned();
+                 let shared = &shared[row];
+                 let multiplier =
+                     MatrixView::output(self.gpu, x.dtype, 1, 1, Storage::StorageModePrivate)?;
+@@ -369,14 +389,11 @@ impl FlashMoeRow<'_> {
+                     MTLSize::new(80, 1, 1),
+                     32,
+                 );
+-                self.last.push(command.clone());
+-                command.commit();
+-                self.drain_commands()?;
+                 Ok(MoeOutput {
+                     spin_wait_enabled: self.gpu.spin_wait_enabled,
+                     #[cfg(test)]
+                     spin_wait_stats: self.gpu.spin_wait_stats.clone(),
+-                    commands: vec![command],
++                    commands: vec![command.clone()],
+                     hot: RefCell::new(None),
+                     hot_error: RefCell::new(None),
+                     values,
+@@ -394,6 +411,9 @@ impl FlashMoeRow<'_> {
+             })?;
+             outputs.push(output);
+         }
++        self.last.push(command.clone());
++        command.commit();
++        self.drain_commands()?;
+         check_cancelled()?;
+         guard.commit();
+         Ok(outputs)
+@@ -413,13 +433,78 @@ impl FlashMoeRow<'_> {
+         contributions: &mut [[Option<Buffer>; TOP_K]],
+     ) -> Result<()> {
+         let slots = self.slots.borrow();
++        let batch_consumers =
++            crate::flash_qmv::shared_verify_enabled(self.gpu.flash_verify_qmv.is_some());
++        let mut packed_rows: [Option<MatrixView>; 16] = std::array::from_fn(|_| None);
++        if batch_consumers {
++            for (entry, &(slot, _)) in cohort.iter().zip(routes) {
++                if entry.consumers.len() < 2 || !ready.contains(&slot) {
++                    continue;
++                }
++                let expert = slots[slot]
++                    .as_ref()
++                    .context("missing ready consumer expert")?;
++                let inputs = entry
++                    .consumers
++                    .iter()
++                    .map(|c| &rows[c.row])
++                    .collect::<Vec<_>>();
++                let mask = entry
++                    .consumers
++                    .iter()
++                    .fold(0usize, |mask, c| mask | (1 << c.row));
++                if packed_rows[mask].is_none() {
++                    packed_rows[mask] = Some(expert.pack_consumer_rows(command, &inputs)?);
++                }
++                let values = expert.encode_view(
++                    command,
++                    packed_rows[mask].as_ref().expect("packed consumers"),
++                    Storage::StorageModePrivate,
++                )?;
++                ensure!(
++                    values.length() == entry.consumers.len() as u64 * 5120,
++                    "invalid consumer expert output"
++                );
++                for (index, consumer) in entry.consumers.iter().enumerate() {
++                    ensure!(
++                        contributions[consumer.row][consumer.rank].is_none(),
++                        "duplicate batched expert contribution"
++                    );
++                    let (output, offset) = if let Some(slab) = &slabs[consumer.row] {
++                        (
++                            slab.clone(),
++                            crate::expert_ar_policy::prefix(
++                                consumer.rank,
++                                TOP_K,
++                                2560,
++                                slab.length(),
++                            )
++                            .context("invalid batched contribution prefix")?,
++                        )
++                    } else {
++                        (
++                            buffer(&self.gpu.device, 5120, Storage::StorageModePrivate)?,
++                            0,
++                        )
++                    };
++                    let blit = command.new_blit_command_encoder();
++                    blit.copy_from_buffer(&values, index as u64 * 5120, &output, offset, 5120);
++                    blit.end_encoding();
++                    contributions[consumer.row][consumer.rank] = Some(output);
++                }
++                #[cfg(test)]
++                ROUTED_CONSUMER_BATCHES.with(|count| count.set(count.get() + 1));
++            }
++        }
+         for (row, x) in rows.iter().enumerate() {
+             let selected = cohort
+                 .iter()
+                 .zip(routes)
+                 .flat_map(|(entry, &(slot, _))| {
+                     entry.consumers.iter().filter_map(move |consumer| {
+-                        (consumer.row == row && ready.contains(&slot))
++                        (consumer.row == row
++                            && ready.contains(&slot)
++                            && !(batch_consumers && entry.consumers.len() > 1))
+                             .then_some((slot, consumer.rank))
+                     })
+                 })
+@@ -525,14 +610,70 @@ mod tests {
+                             Ok((out.indices.clone(), out.read()?))
+                         })
+                         .collect::<Result<Vec<_>>>()?;
++                    if capacity == TOP_K && !fp32 && !repeated {
++                        let before = block.cache.borrow().ready_slot_snapshot();
++                        let gates = gpu.gate_commands.get();
++                        ensure!(
++                            block
++                                .forward_block_routed_cancellable(
++                                    &rows,
++                                    (1..rows.len()).map(|_| None).collect(),
++                                    &AtomicBool::new(false),
++                                )
++                                .is_err()
++                        );
++                        ensure!(block.cache.borrow().ready_slot_snapshot() == before);
++                        ensure!(gpu.gate_commands.get() == gates);
++                        gpu.ensure_reads_idle()?;
++                    }
+                     for width in 1..=MAX_ROWS {
+                         block.clear_test_cache()?;
+                         let axis_before = gpu.expert_ar_uses[3].get();
++                        let fused_before = gpu.expert_ar_uses[0].get();
++                        let dual_before = gpu.expert_ar_uses[1].get();
++                        let batches_before = ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get);
+                         let actual = block.forward_block(&rows[..width])?;
++                        if repeated
++                            && width > 1
++                            && crate::flash_qmv::shared_verify_enabled(
++                                gpu.flash_verify_qmv.is_some(),
++                            )
++                        {
++                            ensure!(
++                                ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get) > batches_before,
++                                "common routed experts did not execute multirow QMV"
++                            );
++                        }
+                         if gpu.expert_ar_enabled[3].get() {
++                            if repeated
++                                && width > 1
++                                && gpu.expert_ar_enabled[1].get()
++                                && crate::flash_qmv::shared_verify_enabled(
++                                    gpu.flash_verify_qmv.is_some(),
++                                )
++                            {
++                                ensure!(
++                                    gpu.expert_ar_uses[1].get() > dual_before,
++                                    "batched routed experts lost the qualified dual input preparation"
++                                );
++                            }
++                            if repeated
++                                && width > 1
++                                && gpu.expert_ar_enabled[0].get()
++                                && crate::flash_qmv::shared_verify_enabled(
++                                    gpu.flash_verify_qmv.is_some(),
++                                )
++                            {
++                                ensure!(
++                                    gpu.expert_ar_uses[0].get() > fused_before,
++                                    "batched routed experts lost the qualified up/SwiGLU finish"
++                                );
++                            }
+                             ensure!(
+-                                gpu.expert_ar_uses[3].get() > axis_before,
+-                                "block path bypassed enabled expert-axis encoder"
++                                gpu.expert_ar_uses[3].get() > axis_before
++                                    || ROUTED_CONSUMER_BATCHES.with(std::cell::Cell::get)
++                                        > batches_before,
++                                "block path bypassed both expert-axis and consumer batching"
+                             );
+                         }
+                         ensure!(
+@@ -614,7 +755,12 @@ mod tests {
+                     // clear_test_cache, invalidation intentionally retains the
+                     // recyclable backing allocations for the next reservation.
+                     if block.record_reuse_enabled && gpu.ssd_direct_enabled {
+-                        block.forward_block(&rows[..1])?;
++                        // Invalidation preserves ages, so fill even unused slots first.
++                        for _ in 0..capacity.div_ceil(TOP_K) {
++                            block.cache.borrow_mut().invalidate();
++                            block.forward_block(&rows[..1])?;
++                        }
++                        ensure!(block.record_backings.iter().all(Option::is_some));
+                         block.cache.borrow_mut().invalidate();
+                         let reused_before = gpu.readers()?.reused_destinations.get();
+                         let recovered = block.forward_block(&rows[..1])?;
+diff --git a/native/src/gpu/mtp.rs b/native/src/gpu/mtp.rs
+index 3881f37e..0af5eb47 100644
+--- a/native/src/gpu/mtp.rs
++++ b/native/src/gpu/mtp.rs
+@@ -21,6 +21,12 @@ pub struct FlashMtpHead<'a> {
+     block_verify: bool,
+ }
+ 
++struct EncodedMtpInput {
++    mixed: MatrixView,
++    #[cfg(test)]
++    parts: Vec<(&'static str, MatrixView)>,
++}
++
+ impl<'a> FlashMtpHead<'a> {
+     pub fn load(c: &Checkpoint, target: &FlashNext<'a>) -> Result<Self> {
+         ensure!(
+@@ -39,13 +45,13 @@ impl<'a> FlashMtpHead<'a> {
+             "Flash MTP requires one draft layer"
+         );
+         let gpu = target.gpu;
+-        let experimental = |name: &str| -> Result<bool> {
++        let experimental = |name: &str, default: bool| -> Result<bool> {
+             let value = match std::env::var(name) {
+                 Ok(value) => Some(value),
+                 Err(std::env::VarError::NotPresent) => None,
+                 Err(error) => return Err(error.into()),
+             };
+-            crate::flash_support::hc_kernel_flag(value.as_deref(), true)
++            crate::flash_support::hc_chain_flag(value.as_deref(), default)
+                 .with_context(|| format!("{name} must be 0 or 1"))
+         };
+         let gain = |name, width| checkpoint_float_weight(gpu, c, name, &[width], FloatType::F32);
+@@ -72,13 +78,37 @@ impl<'a> FlashMtpHead<'a> {
+             )?,
+             mixer: FlashHc::load(gpu, c, "mtp.hyper_connection_mixer", config.eps, false)?,
+             eps: config.eps,
+-            device_greedy: experimental("MLXL3_NATIVE_MTP_DEVICE_GREEDY")?
+-                && gpu.device_greedy_available(),
+-            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY")?,
++            device_greedy: experimental(
++                "MLXL3_NATIVE_MTP_DEVICE_GREEDY",
++                gpu.device_greedy_available(),
++            )? && gpu.device_greedy_available(),
++            block_verify: experimental("MLXL3_NATIVE_MTP_BLOCK_VERIFY", false)?,
+         })
+     }
+ 
+     fn mixed(&self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<MatrixView> {
++        let input = target
++            .gpu
++            .command(|cmd| self.encode_mixed(cmd, target, hidden, token))?;
++        #[cfg(test)]
++        if let Some(dir) = std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS") {
++            for (name, row) in input.parts {
++                std::fs::write(
++                    std::path::Path::new(&dir).join(format!("{token}-{name}.bin")),
++                    row.export_bytes(target.gpu)?,
++                )?;
++            }
++        }
++        Ok(input.mixed)
++    }
++
++    fn encode_mixed(
++        &self,
++        cmd: &metal::CommandBufferRef,
++        target: &FlashNext,
++        hidden: &MatrixView,
++        token: u32,
++    ) -> Result<EncodedMtpInput> {
+         let gpu = target.gpu;
+         ensure!(
+             Rc::ptr_eq(&self.owner, &target.owner),
+@@ -92,79 +122,66 @@ impl<'a> FlashMtpHead<'a> {
+                 && hidden.buffer.device().registry_id() == gpu.device.registry_id(),
+             "invalid Flash MTP hidden row"
+         );
+-        let embedding = gpu
+-            .f16_storage(&target.embedding_bits(token)?)?
+-            .matrix(MatrixLayout {
+-                shape: [1, 2560],
+-                strides: [2560, 1],
+-                offset: 0,
+-            })?;
++        let embedding = target.embedding_view(token)?;
+         let private = Storage::StorageModePrivate;
+         #[cfg(test)]
+         let capture =
+             std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").map(std::path::PathBuf::from);
+         #[cfg(test)]
+         let mut parts = Vec::new();
+-        let result = gpu.command(|cmd| {
+-            let norm =
+-                gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
+-            let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
+-            let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
+-            ensure!(
+-                gpu.mtp_norm.thread_execution_width() == 32
+-                    && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
+-                "unsupported Flash MTP reduction"
+-            );
+-            Metal::encode(
+-                cmd,
+-                &gpu.mtp_norm,
+-                &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
+-                [self.eps.to_bits()],
+-                MTLSize::new(1, 1, 1),
+-                1024,
+-            );
+-            normalized.layout = MatrixLayout {
+-                shape: [4, 2560],
+-                strides: [2560, 1],
+-                offset: 0,
+-            };
+-            let projected_hidden = self.hidden_fc.encode_rows(cmd, &normalized, private)?;
+-            let mixed = MatrixView::output(gpu, FloatType::F16, 1, 10240, private)?;
+-            Metal::encode(
+-                cmd,
+-                &gpu.mtp_combine,
+-                &[
+-                    &projected_embedding.buffer,
+-                    &projected_hidden.buffer,
+-                    &mixed.buffer,
+-                ],
+-                [2560u32],
+-                MTLSize::new(320, 1, 1),
+-                32,
+-            );
+-            #[cfg(test)]
+-            if capture.is_some() {
+-                parts.extend([
+-                    ("embedding", embedding),
+-                    ("embedding_norm", norm),
+-                    ("embedding_fc", projected_embedding),
+-                    ("hidden_norm", normalized),
+-                    ("hidden_fc", projected_hidden),
+-                    ("mixed", mixed.clone()),
+-                ]);
+-            }
+-            Ok(mixed)
+-        })?;
++
++        let norm =
++            gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
++        let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
++        let mut normalized = MatrixView::output(gpu, FloatType::F32, 1, 10240, private)?;
++        ensure!(
++            gpu.mtp_norm.thread_execution_width() == 32
++                && gpu.mtp_norm.max_total_threads_per_threadgroup() >= 1024,
++            "unsupported Flash MTP reduction"
++        );
++        Metal::encode(
++            cmd,
++            &gpu.mtp_norm,
++            &[&hidden.buffer, &self.hidden_gain, &normalized.buffer],
++            [self.eps.to_bits()],
++            MTLSize::new(1, 1, 1),
++            1024,
++        );
++        normalized.layout = MatrixLayout {
++            shape: [4, 2560],
++            strides: [2560, 1],
++            offset: 0,
++        };
++        let projected_hidden = self.hidden_fc.encode_rows(cmd, &normalized, private)?;
++        let mixed = MatrixView::output(gpu, FloatType::F16, 1, 10240, private)?;
++        Metal::encode(
++            cmd,
++            &gpu.mtp_combine,
++            &[
++                &projected_embedding.buffer,
++                &projected_hidden.buffer,
++                &mixed.buffer,
++            ],
++            [2560u32],
++            MTLSize::new(320, 1, 1),
++            32,
++        );
+         #[cfg(test)]
+-        if let Some(dir) = capture {
+-            for (name, row) in parts {
+-                std::fs::write(
+-                    dir.join(format!("{token}-{name}.bin")),
+-                    row.export_bytes(gpu)?,
+-                )?;
+-            }
++        if capture.is_some() {
++            parts.extend([
++                ("embedding", embedding),
++                ("embedding_norm", norm),
++                ("embedding_fc", projected_embedding),
++                ("hidden_norm", normalized),
++                ("hidden_fc", projected_hidden),
++                ("mixed", mixed.clone()),
++            ]);
+         }
+-        Ok(result)
++        Ok(EncodedMtpInput {
++            mixed,
++            #[cfg(test)]
++            parts,
++        })
+     }
+     pub fn forward(
+         &mut self,
+@@ -213,7 +230,7 @@ impl<'a> FlashMtpHead<'a> {
+ }
+ 
+ impl FlashNext<'_> {
+-    fn greedy_id(&self, logits: &[u16]) -> Result<u32> {
++    pub(super) fn greedy_id(&self, logits: &[u16]) -> Result<u32> {
+         let normalized = self.gpu.flash_log_probs(logits)?;
+         crate::speculative::greedy_log_prob_id(&normalized)
+             .context("invalid Flash MTP probabilities")
+@@ -239,6 +256,15 @@ impl FlashMtpHead<'_> {
+         self.layer.restore(state)
+     }
+     fn extend(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<()> {
++        let capture = cfg!(test) && std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").is_some();
++        if self.layer.kv_only_catchup() && !capture {
++            let prepared = self.layer.prepare_catchup()?;
++            let pending = target.gpu.command(|cmd| {
++                let streams = self.encode_mixed(cmd, target, hidden, token)?.mixed;
++                self.layer.encode_catchup(cmd, streams, prepared)
++            })?;
++            return self.layer.finish_catchup(pending);
++        }
+         self.layer.extend(&self.mixed(target, hidden, token)?)
+     }
+ }
+@@ -428,12 +454,9 @@ impl FlashMtpSession {
+                 // Explicit research path: canonical scalar kernels scheduled
+                 // layer-major. It pays for both rows even on rejection; no
+                 // shared-weight or throughput claim is implied by this flag.
+-                let gpu = target.gpu;
+-                let staged = target.stage_block_cancellable(&[anchor, proposal], cancelled)?;
+-                let first = crate::speculative::greedy_log_prob_id(
+-                    &gpu.flash_log_probs(&staged.logits()[0])?,
+-                )
+-                .context("invalid Flash MTP probabilities")?;
++                let mut staged = target.stage_block_headless(&[anchor, proposal], cancelled)?;
++                let first = staged.greedy(1, device_greedy)?;
++                check_cancelled()?;
+                 let accepted = first == proposal;
+                 if !accepted || eos.contains(&first) {
+                     staged.commit(1)?;
+@@ -441,10 +464,8 @@ impl FlashMtpSession {
+                     self.accepted += usize::from(accepted);
+                     return Ok(first);
+                 }
+-                let bonus = crate::speculative::greedy_log_prob_id(
+-                    &gpu.flash_log_probs(&staged.logits()[1])?,
+-                )
+-                .context("invalid Flash MTP probabilities")?;
++                let bonus = staged.greedy(2, device_greedy)?;
++                check_cancelled()?;
+                 let retained_hidden = staged
+                     .prefix_hidden(1)
+                     .context("missing verified anchor hidden row")?
+@@ -1196,6 +1217,60 @@ mod optimization_regression_tests {
+         ensure!(checked == steps.len() && checked >= 4);
+         Ok(())
+     }
++
++    #[test]
++    #[ignore = "physical checkpoint; fused draft catchup, bounded embedding cache and failure publication"]
++    fn encoded_catchup_matches_separate_producers_and_embedding_rows() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let gpu = Metal::new()?;
++        let mut target = FlashNext::load(&gpu, &c, 64)?;
++        target.prefill(&[248044, 78768, 11])?;
++        let hidden = target.last_hidden().unwrap().clone();
++        let mut head = FlashMtpHead::load(&c, &target)?;
++        ensure!(
++            head.layer.kv_only_catchup(),
++            "enable KV-only catchup for this test"
++        );
++        for token in [0, 1, 2, 3, 4, 248319] {
++            let bits = target.embedding_bits(token)?;
++            let view = target.embedding_view(token)?;
++            ensure!(
++                view.export_bytes(&gpu)?
++                    == bits
++                        .iter()
++                        .flat_map(|v| v.to_le_bytes())
++                        .collect::<Vec<_>>()
++            );
++            ensure!(std::ptr::eq::<metal::BufferRef>(
++                target.embedding_view(token)?.buffer.as_ref(),
++                view.buffer.as_ref()
++            ));
++            ensure!(target.embedding_rows.borrow().len() <= 4);
++        }
++        ensure!(target.embedding_view(248320).is_err());
++        for token in [1, 2, 3, 4, 7, 8, 9, 10] {
++            let before = head.layer.snapshot();
++            let commands = gpu.helper_commands.get();
++            let mixed = head.mixed(&target, &hidden, token)?;
++            head.layer.extend(&mixed)?;
++            let legacy_commands = gpu.helper_commands.get() - commands;
++            let expected = head.layer.retained_half_words()?;
++            let offset = head.layer.offset();
++            head.layer.restore(&before)?;
++            let commands = gpu.helper_commands.get();
++            head.extend(&target, &hidden, token)?;
++            ensure!(gpu.helper_commands.get() - commands < legacy_commands);
++            ensure!(head.layer.offset() == offset && head.layer.retained_half_words()? == expected);
++        }
++        let before = head.layer.snapshot();
++        let words = head.layer.retained_half_words()?;
++        let before_offset = head.layer.offset();
++        head.layer.fail_catchup_after_encode_for_test();
++        ensure!(head.extend(&target, &hidden, 11).is_err());
++        ensure!(head.layer.offset() == before_offset && head.layer.retained_half_words()? == words);
++        head.layer.restore(&before)?;
++        Ok(())
++    }
+ }
+ 
+ #[cfg(all(test, feature = "chat"))]
+diff --git a/native/src/gpu/mtp_campaign.rs b/native/src/gpu/mtp_campaign.rs
+index 3fada4d7..72002f01 100644
+--- a/native/src/gpu/mtp_campaign.rs
++++ b/native/src/gpu/mtp_campaign.rs
+@@ -41,7 +41,6 @@ fn run<'a>(
+ ) -> Result<Value> {
+     ensure!(arm < ARMS.len() && budget >= 2 && prompt.len() + budget < 4096);
+     head.block_verify = arm >= 2;
+-    head.device_greedy = false;
+     target.verify_ssd_cohorts = arm >= 3;
+     let _shared_override = crate::flash_qmv::SharedVerifyOverride::new(arm == 4);
+     let cancel = AtomicBool::new(false);
+@@ -143,7 +142,7 @@ fn matched_mtp_campaign() -> Result<()> {
+     );
+     let capacities = slots(&mut target);
+     let mut head = FlashMtpHead::load(&c, &target)?;
+-    let mut report = json!({"status":"incomplete","runtime_base":"830bb38a9039fb56f2474a3735a5872d51efaaee","controlled_baseline_not_shipped_best":true,"smoke":smoke,"context":4096,"budget":budget,"slots":capacities,"first_requests":[],"warmups":[],"runs":[],"actual_os_disk_traffic_measured":false,"all_hit": "not qualified by streaming campaign","draft_resident_for_all_arms":true});
++    let mut report = json!({"status":"incomplete","runtime_base":"see frozen binary/source manifest","controlled_baseline_not_shipped_best":true,"smoke":smoke,"context":4096,"budget":budget,"slots":capacities,"first_requests":[],"warmups":[],"runs":[],"actual_os_disk_traffic_measured":false,"all_hit": "not qualified by streaming campaign","draft_fixed_tensors_resident":true,"draft_experts_conditioned_for_all_arms":true,"mtp_device_greedy":head.device_greedy});
+     let save = |report: &Value| -> Result<()> {
+         std::fs::write(&output, serde_json::to_vec_pretty(report)?)?;
+         Ok(())
+@@ -180,7 +179,7 @@ fn matched_mtp_campaign() -> Result<()> {
+                         &mut target,
+                         &mut head,
+                         &prompt,
+-                        0,
++                        1,
+                         budget,
+                         tokenizer.eos_ids(),
+                     )?;
+@@ -188,6 +187,11 @@ fn matched_mtp_campaign() -> Result<()> {
+                         condition["tokens"] == expected,
+                         "conditioning differs from golden"
+                     );
++                    let draft_ready = head.layer.residual.moe.campaign_ready_experts();
++                    ensure!(
++                        draft_ready > 0,
++                        "common conditioning did not warm draft experts"
++                    );
+                     let sample = run(
+                         &mut target,
+                         &mut head,
+@@ -206,7 +210,7 @@ fn matched_mtp_campaign() -> Result<()> {
+                     );
+                     let key = if round == 0 { "warmups" } else { "runs" };
+                     report[key].as_array_mut().unwrap().push(
+-                        json!({"prompt":label,"round":round,"position":position,"sample":sample}),
++                        json!({"prompt":label,"round":round,"position":position,"draft_ready_experts_after_conditioning":draft_ready,"sample":sample}),
+                     );
+                     save(&report)?;
+                     eprintln!("campaign {label} round{round} arm{} complete", ARMS[arm]);
+diff --git a/native/src/gpu/projection.rs b/native/src/gpu/projection.rs
+index f790f40c..fe6a34ef 100644
+--- a/native/src/gpu/projection.rs
++++ b/native/src/gpu/projection.rs
+@@ -359,6 +359,17 @@ impl<'a> FlashProjection<'a> {
+     pub(super) fn dimensions(&self) -> [u32; 2] {
+         [self.input, self.output]
+     }
++
++    pub(super) fn supports_verify_rows(&self, rows: usize) -> bool {
++        crate::flash_qmv::verify_row_count(
++            rows,
++            self.nt,
++            self.k,
++            crate::flash_qmv::shared_verify_enabled(self.metal.flash_verify_qmv.is_some())
++                && !self.generic
++                && !self.mtp_hidden,
++        )
++    }
+     pub(super) fn encode_row(
+         &self,
+         cmd: &CommandBufferRef,
+@@ -757,8 +768,7 @@ impl<'a> FlashProjection<'a> {
+             self.k,
+             crate::flash_qmv::shared_verify_enabled(gpu.flash_verify_qmv.is_some())
+                 && !self.generic
+-                && !self.mtp_hidden
+-                && !self.routed_record,
++                && !self.mtp_hidden,
+         );
+         let (pipeline, third, groups) = if let Some(key) = verify_rows {
+             #[cfg(test)]
+@@ -1625,6 +1635,62 @@ impl<'a> FlashExpert<'a> {
+         self.encode_into(cmd, Activation::View(x), extents, storage, destination)
+     }
+ 
++    pub(super) fn pack_consumer_rows(
++        &self,
++        cmd: &CommandBufferRef,
++        rows: &[&MatrixView],
++    ) -> Result<MatrixView> {
++        let gpu = self.gate.metal;
++        ensure!(
++            (2..=4).contains(&rows.len()) && self.routed,
++            "invalid expert consumer batch"
++        );
++        let dtype = rows[0].dtype;
++        let element_bytes = if dtype == super::view::FloatType::F32 {
++            4u64
++        } else {
++            2
++        };
++        let row_bytes = 2560 * element_bytes;
++        let mut offsets = Vec::with_capacity(rows.len());
++        for row in rows {
++            let offset = u64::try_from(row.layout.offset)
++                .context("negative expert row offset")?
++                .checked_mul(element_bytes)
++                .context("expert row byte offset overflow")?;
++            ensure!(
++                row.shape() == [1, 2560]
++                    && row.dtype == dtype
++                    && row.layout.strides[1] == 1
++                    && row.buffer.device().registry_id() == gpu.device.registry_id()
++                    && offset
++                        .checked_add(row_bytes)
++                        .is_some_and(|end| end <= row.buffer.length()),
++                "invalid packed expert consumer row"
++            );
++            offsets.push(offset);
++        }
++        let packed = MatrixView::output(
++            gpu,
++            dtype,
++            rows.len() as u32,
++            2560,
++            Storage::StorageModePrivate,
++        )?;
++        let blit = cmd.new_blit_command_encoder();
++        for (index, (row, offset)) in rows.iter().zip(offsets).enumerate() {
++            blit.copy_from_buffer(
++                &row.buffer,
++                offset,
++                &packed.buffer,
++                index as u64 * row_bytes,
++                row_bytes,
++            );
++        }
++        blit.end_encoding();
++        Ok(packed)
++    }
++
+     /// Only experts already returned by the current ready cohort enter this grid.
+     pub(super) fn encode_ready_cohort(
+         cmd: &CommandBufferRef,
+@@ -2011,11 +2077,11 @@ impl<'a> FlashExpert<'a> {
+             gpu.flash_expert_scratch_setting,
+         )
+         .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_ROUTED_SCRATCH must be 0 or 1"))?;
+-        let eligible = crate::expert_ar_policy::eligible(
++        let fused_rows = crate::expert_ar_policy::row_fusions_eligible(
+             self.routed,
+             [gate_extents, up_extents, down_extents],
+         );
+-        let dual = eligible && gpu.expert_ar_enabled[1].get();
++        let dual = fused_rows && gpu.expert_ar_enabled[1].get();
+         let pair = if reuse {
+             let [prepared, partial] = crate::flash_expert_scratch::CAPACITIES;
+             Some((
+@@ -2031,7 +2097,11 @@ impl<'a> FlashExpert<'a> {
+         };
+         let scratch = pair.as_ref().map(|(prepared, partial)| (prepared, partial));
+         let owned_dual = if dual && pair.is_none() {
+-            Some(buffer(&gpu.device, 10240, Storage::StorageModePrivate)?)
++            Some(buffer(
++                &gpu.device,
++                u64::from(gate_extents[0]) * 4,
++                Storage::StorageModePrivate,
++            )?)
+         } else {
+             None
+         };
+@@ -2053,25 +2123,39 @@ impl<'a> FlashExpert<'a> {
+                     x.dtype == super::view::FloatType::F32,
+                 ),
+             };
+-            ensure!(prepared.length() >= 10240, "short dual preparation");
+-            Metal::encode_bound(
+-                cmd,
+-                gpu.expert_gu_prepare
+-                    .as_ref()
+-                    .context("expert dual preparation pipeline was not loaded")?,
+-                [
+-                    (input, 0),
+-                    (&self.gate.suh, self.gate.offsets.suh),
+-                    (&self.up.suh, self.up.offsets.suh),
+-                    (prepared, 0),
+-                ]
+-                .into_iter(),
+-                [offset, stride, i64::from(fp32), 2560],
+-                MTLSize::new(20, 1, 1),
+-                64,
++            ensure!(
++                prepared.length() >= u64::from(gate_extents[0]) * 4,
++                "short dual preparation"
+             );
+-            #[cfg(test)]
+-            gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
++            for row in 0..gate_extents[0] / 2560 {
++                let offset = match x {
++                    Activation::View(view) => {
++                        view.layout
++                            .row(row)
++                            .context("dual preparation row outside view")?
++                            .offset
++                    }
++                    Activation::Contiguous(_) => offset + i64::from(row) * 2560,
++                };
++                Metal::encode_bound(
++                    cmd,
++                    gpu.expert_gu_prepare
++                        .as_ref()
++                        .context("expert dual preparation pipeline was not loaded")?,
++                    [
++                        (input, 0),
++                        (&self.gate.suh, self.gate.offsets.suh),
++                        (&self.up.suh, self.up.offsets.suh),
++                        (prepared, u64::from(row) * 5120),
++                    ]
++                    .into_iter(),
++                    [offset, stride, i64::from(fp32), i64::from(gate_extents[0])],
++                    MTLSize::new(20, 1, 1),
++                    64,
++                );
++                #[cfg(test)]
++                gpu.expert_ar_uses[1].set(gpu.expert_ar_uses[1].get() + 1);
++            }
+         }
+         let gate = self.gate.encode_expert_stage(
+             cmd,
+@@ -2084,10 +2168,7 @@ impl<'a> FlashExpert<'a> {
+                 ..Default::default()
+             },
+         )?;
+-        let fused_up = crate::expert_ar_policy::eligible(
+-            self.routed,
+-            [gate_extents, up_extents, down_extents],
+-        ) && gpu.expert_ar_enabled[0].get();
++        let fused_up = fused_rows && gpu.expert_ar_enabled[0].get();
+         #[cfg(test)]
+         let mut up_id = 0;
+         let activated = if fused_up {
+@@ -2099,7 +2180,7 @@ impl<'a> FlashExpert<'a> {
+                 scratch,
+                 ExpertStage {
+                     gate: Some(&gate),
+-                    prepared: prepared.map(|b| (b, 5120)),
++                    prepared: prepared.map(|b| (b, u64::from(gate_extents[0]) * 2)),
+                     ..Default::default()
+                 },
+             )?;
+@@ -2114,7 +2195,7 @@ impl<'a> FlashExpert<'a> {
+                 Storage::StorageModePrivate,
+                 scratch,
+                 ExpertStage {
+-                    prepared: prepared.map(|b| (b, 5120)),
++                    prepared: prepared.map(|b| (b, u64::from(gate_extents[0]) * 2)),
+                     ..Default::default()
+                 },
+             )?;
+diff --git a/native/src/gpu/qsa.rs b/native/src/gpu/qsa.rs
+index 83b2c69c..2e77e198 100644
+--- a/native/src/gpu/qsa.rs
++++ b/native/src/gpu/qsa.rs
+@@ -95,6 +95,33 @@ impl Slab {
+     }
+ }
+ 
++/// Exclusive verification owns every publication made after this mark.
++pub(super) struct VerificationPublication {
++    slab: Rc<Slab>,
++    protected: u32,
++}
++impl VerificationPublication {
++    pub(super) fn retain(&mut self, layer: &FlashQsaLayer<'_>) {
++        let state = &layer.attention.state;
++        let high = crate::flash_support::qsa_retained_high_water(
++            self.protected,
++            state.offset,
++            Rc::ptr_eq(&self.slab, &state.slab),
++        );
++        if Rc::ptr_eq(&self.slab, &state.slab) {
++            self.protected = high;
++        } else {
++            // A fork/growth created inside the exclusive borrow has no external future snapshots.
++            state.slab.published.set(high);
++        }
++    }
++}
++impl Drop for VerificationPublication {
++    fn drop(&mut self) {
++        self.slab.published.set(self.protected);
++    }
++}
++
+ #[derive(Clone)]
+ pub struct FlashQsaState {
+     owner: Rc<()>,
+@@ -351,6 +378,27 @@ pub(super) struct PendingQsa {
+     #[cfg(test)]
+     reject_publication: bool,
+ }
++
++pub(super) struct PendingCatchup {
++    command: CommandBuffer,
++    payload: Option<(
++        PreparedQsa,
++        Option<EncodedIndex>,
++        super::hc::ReadBuffers,
++        MatrixView,
++    )>,
++}
++impl Drop for PendingCatchup {
++    fn drop(&mut self) {
++        let status = self.command.status();
++        if matches!(
++            status,
++            MTLCommandBufferStatus::Committed | MTLCommandBufferStatus::Scheduled
++        ) {
++            self.command.wait_until_completed();
++        }
++    }
++}
+ impl Drop for PendingQsa {
+     fn drop(&mut self) {
+         let status = self.command.status();
+@@ -643,61 +691,81 @@ impl<'a> FlashQsa<'a> {
+     /// Append only state consumed by a later query. Publication occurs after
+     /// the command completes; a failed append leaves the committed prefix intact.
+     fn extend_kv(&mut self, x: &MatrixView) -> Result<()> {
++        let prepared = self.prepare_append()?;
++        let encoded = self
++            .gpu
++            .command(|cmd| self.encode_extend_kv(cmd, x, &prepared))?;
++        self.publish_extend_kv(prepared, encoded)
++    }
++
++    fn encode_extend_kv(
++        &self,
++        cmd: &CommandBufferRef,
++        x: &MatrixView,
++        prepared: &PreparedQsa,
++    ) -> Result<Option<EncodedIndex>> {
+         let gpu = self.gpu;
+         ensure!(
+             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
+             "invalid Flash QSA catch-up input shape or device"
+         );
+-        let prepared = self.prepare_append()?;
+         let offset = prepared.before.offset;
+-        let encoded = gpu.command(|cmd| {
+-            let index = self
+-                .index
+-                .as_ref()
+-                .map(|index| {
+-                    index.encode_for_query(
+-                        gpu,
+-                        cmd,
+-                        &prepared.slab,
+-                        &prepared.before,
+-                        x,
+-                        (self.eps, false),
+-                        false,
+-                    )
+-                })
+-                .transpose()?;
+-            #[cfg(test)]
+-            ensure!(
+-                !self.fail_after_index_encode.replace(false),
+-                "injected QSA catch-up failure after index encoding"
+-            );
+-            let storage = Storage::StorageModePrivate;
+-            let k = self.k.encode_row(cmd, x, storage)?;
+-            let v = self.v.encode_row(cmd, x, storage)?;
+-            let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+-            Metal::encode(
+-                cmd,
+-                &gpu.qsa.norm,
+-                &[&k.buffer, &self.k_norm, &norm.buffer],
+-                [256, self.eps.to_bits(), 256],
+-                MTLSize::new(2, 1, 1),
+-                32,
+-            );
+-            let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
+-            Metal::encode(
+-                cmd,
+-                &gpu.qsa.rope,
+-                &[&norm.buffer, &self.freq, &rotated.buffer],
+-                [offset, 2],
+-                MTLSize::new(14, 1, 1),
+-                32,
+-            );
+-            let blit = cmd.new_blit_command_encoder();
+-            blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
+-            blit.copy_from_buffer(&v.buffer, 0, &prepared.slab.values, prepared.at, 1024);
+-            blit.end_encoding();
+-            Ok(index)
+-        })?;
++
++        let index = self
++            .index
++            .as_ref()
++            .map(|index| {
++                index.encode_for_query(
++                    gpu,
++                    cmd,
++                    &prepared.slab,
++                    &prepared.before,
++                    x,
++                    (self.eps, false),
++                    false,
++                )
++            })
++            .transpose()?;
++        #[cfg(test)]
++        ensure!(
++            !self.fail_after_index_encode.replace(false),
++            "injected QSA catch-up failure after index encoding"
++        );
++        let storage = Storage::StorageModePrivate;
++        let k = self.k.encode_row(cmd, x, storage)?;
++        let v = self.v.encode_row(cmd, x, storage)?;
++        let norm = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
++        Metal::encode(
++            cmd,
++            &gpu.qsa.norm,
++            &[&k.buffer, &self.k_norm, &norm.buffer],
++            [256, self.eps.to_bits(), 256],
++            MTLSize::new(2, 1, 1),
++            32,
++        );
++        let rotated = MatrixView::output(gpu, FloatType::F16, 1, 512, storage)?;
++        Metal::encode(
++            cmd,
++            &gpu.qsa.rope,
++            &[&norm.buffer, &self.freq, &rotated.buffer],
++            [offset, 2],
++            MTLSize::new(14, 1, 1),
++            32,
++        );
++        let blit = cmd.new_blit_command_encoder();
++        blit.copy_from_buffer(&rotated.buffer, 0, &prepared.slab.keys, prepared.at, 1024);
++        blit.copy_from_buffer(&v.buffer, 0, &prepared.slab.values, prepared.at, 1024);
++        blit.end_encoding();
++        Ok(index)
++    }
++
++    fn publish_extend_kv(
++        &mut self,
++        prepared: PreparedQsa,
++        encoded: Option<EncodedIndex>,
++    ) -> Result<()> {
++        let offset = prepared.before.offset;
++
+         #[cfg(test)]
+         ensure!(
+             !self.fail_after_append.replace(false),
+@@ -1116,6 +1184,65 @@ pub struct FlashQsaLayer<'a> {
+     pub(super) residual: super::gdn::LayerResidual<'a>,
+ }
+ impl<'a> FlashQsaLayer<'a> {
++    #[cfg(test)]
++    pub(super) fn fail_catchup_after_encode_for_test(&self) {
++        self.attention.fail_after_append.set(true);
++    }
++
++    pub(super) fn kv_only_catchup(&self) -> bool {
++        self.kv_only_catchup
++    }
++
++    pub(super) fn prepare_catchup(&self) -> Result<PreparedQsa> {
++        ensure!(
++            self.kv_only_catchup,
++            "encoded catchup requires KV-only mode"
++        );
++        self.attention.prepare_append()
++    }
++
++    pub(super) fn encode_catchup(
++        &self,
++        cmd: &CommandBufferRef,
++        streams: MatrixView,
++        prepared: PreparedQsa,
++    ) -> Result<PendingCatchup> {
++        let read = self.residual.encode_attention_input(cmd, &streams)?;
++        let index = self
++            .attention
++            .encode_extend_kv(cmd, read.mixed(), &prepared)?;
++        Ok(PendingCatchup {
++            command: cmd.to_owned(),
++            payload: Some((prepared, index, read, streams)),
++        })
++    }
++
++    pub(super) fn finish_catchup(&mut self, mut pending: PendingCatchup) -> Result<()> {
++        ensure!(
++            pending.command.status() == MTLCommandBufferStatus::Completed,
++            "catchup producer did not complete"
++        );
++        let (prepared, index, _read, _streams) = pending
++            .payload
++            .take()
++            .context("catchup already published")?;
++        self.attention.publish_extend_kv(prepared, index)
++    }
++
++    #[cfg(test)]
++    pub(super) fn verification_slab(&self) -> (usize, u32) {
++        (
++            Rc::as_ptr(&self.attention.state.slab) as usize,
++            self.attention.state.slab.published.get(),
++        )
++    }
++
++    pub(super) fn verification_publication(&self) -> VerificationPublication {
++        let slab = self.attention.state.slab.clone();
++        let protected = slab.published.get();
++        VerificationPublication { slab, protected }
++    }
++
+     pub fn load(
+         gpu: &'a Metal,
+         c: &Checkpoint,
