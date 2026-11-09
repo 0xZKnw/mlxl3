@@ -833,6 +833,7 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
         {
             return Err("MLXL3 requires text messages without tool calls".into());
         }
+        #[cfg(feature = "chat")]
         mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
         let content = match &message["content"] {
             Value::Array(parts) if parts.iter().all(|p| p["type"] == "text") => {
