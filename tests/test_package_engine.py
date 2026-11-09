@@ -100,12 +100,12 @@ def test_changed_runtime_preserves_previous_archive(runtime, tmp_path, monkeypat
     real_manifest = engine.manifest
     calls = 0
 
-    def changed(path, version, backend="mlx"):
+    def changed(path, version, backend="mlx", release_tag=None):
         nonlocal calls
         calls += 1
         if calls == 2:
             (path / "mlxl3").write_bytes(b"modified during package")
-        return real_manifest(path, version, backend)
+        return real_manifest(path, version, backend, release_tag)
 
     monkeypatch.setattr(engine, "manifest", changed)
     with pytest.raises(ValueError, match="changed"):
@@ -303,3 +303,24 @@ def test_native_cli_requires_explicit_backend_and_rejects_unknown(cli_project, n
     other = cli_project / "bad"
     result = run_package_cli(cli_project, native_runtime, other, "--backend", "unknown")
     assert result.returncode == 2 and not other.exists()
+
+
+def test_release_identity_archive_roundtrip(runtime, tmp_path):
+    for suffix in ("-beta.1", "-beta.2", ""):
+        tag = "engine-v2.0.4" + suffix
+        first = engine.package(runtime, tmp_path / "one", "2.0.4", release_tag=tag)
+        second = engine.package(runtime, tmp_path / "two", "2.0.4", release_tag=tag)
+        assert first.name == f"MLXL3-Engine-v2.0.4{suffix}-arm64.tar.gz"
+        assert first.read_bytes() == second.read_bytes()
+        with tarfile.open(first) as archive:
+            metadata = json.load(archive.extractfile("engine.json"))
+            assert metadata["version"] == "2.0.4" and metadata["release_tag"] == tag
+    for tag in (
+        "engine-v2.0.5",
+        "engine-v2.0.4-beta.0",
+        "engine-v2.0.4-beta.01",
+        "engine-v2.0.4-beta.1١",
+        "engine-v2.0.4/escape",
+    ):
+        with pytest.raises(ValueError, match="release tag"):
+            engine.package(runtime, tmp_path / "invalid", "2.0.4", release_tag=tag)

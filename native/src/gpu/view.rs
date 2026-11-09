@@ -16,6 +16,9 @@ pub struct TensorStorage {
     dtype: FloatType,
 }
 
+/// Retained immutable matrix storage. Public constructors accept initialized
+/// uploads, or publish GPU results only after successful producer completion.
+/// Pending views are confined to the private GPU encoding implementation.
 #[derive(Clone)]
 pub struct MatrixView {
     pub(super) buffer: Buffer,
@@ -76,26 +79,35 @@ impl MatrixView {
         })
     }
 
-    /// Only for contiguous shared outputs, after a successful command completion.
+    /// Read a contiguous shared matrix or row. Public GPU operations publish
+    /// views only after successful completion; the backing stays alive through
+    /// clones and rows. Private encoders must not publish their pending views.
     pub fn read_output(&self) -> Result<Vec<u32>> {
-        let [rows, cols] = self.layout.shape;
-        let count = rows.checked_mul(cols).context("matrix size overflow")? as usize;
         let size = if self.dtype == FloatType::F16 { 2 } else { 4 };
         ensure!(
-            self.buffer.storage_mode() == metal::MTLStorageMode::Shared
-                && self.layout.offset == 0
-                && self.layout.strides == [i64::from(cols), 1]
-                && self.buffer.length() == count as u64 * size,
+            self.buffer.storage_mode() == metal::MTLStorageMode::Shared,
             "invalid host read of Metal output"
         );
+        let range = self
+            .layout
+            .host_byte_range(size, self.buffer.length())
+            .context("invalid host read extent")?;
+        if range.is_empty() {
+            return Ok(Vec::new());
+        }
+        let count = range.len() / size as usize;
+        // The checked range is aligned, within the retained shared allocation and
+        // bounded by isize::MAX. Public owners have completed their producer and
+        // never mutate this backing after publication. No reference escapes.
+        let start = unsafe { self.buffer.contents().cast::<u8>().add(range.start) };
         Ok(match self.dtype {
-            FloatType::F16 => Metal::read(&self.buffer, count)
-                .into_iter()
+            FloatType::F16 => unsafe { std::slice::from_raw_parts(start.cast::<u16>(), count) }
+                .iter()
+                .copied()
                 .map(u32::from)
                 .collect(),
-            // The exact extent, storage mode and contiguous layout have been checked.
             FloatType::F32 => unsafe {
-                std::slice::from_raw_parts(self.buffer.contents().cast::<u32>(), count).to_vec()
+                std::slice::from_raw_parts(start.cast::<u32>(), count).to_vec()
             },
         })
     }

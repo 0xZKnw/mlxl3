@@ -1,0 +1,11 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized] target(s) in 9.71s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-08ebae1f05051d7d)
+
+running 4 tests
+test gpu_wait_policy::polling_stops_at_either_bound_and_when_disabled ... ok
+test gpu_wait_policy::failed_producer_requires_reload_after_all_owners_retire ... ok
+test gpu_wait_policy::retirement_waits_all_commands_and_does_not_latch_failed_commands ... ok
+test gpu_wait_policy::retirement_keeps_every_owner_alive_until_all_waits_complete ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 384 filtered out; finished in 0.00s

@@ -1,6 +1,10 @@
 //! Fail-closed JSON output validation. Unsupported schema assertions are errors.
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value;
+use std::{
+    collections::BTreeSet,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 const MAX_SCHEMA: usize = 64 * 1024;
 const MAX_OUTPUT: usize = 1024 * 1024;
@@ -40,16 +44,27 @@ impl Schema {
     }
 
     pub fn validate(&self, text: &str) -> Result<String> {
+        self.validate_cancellable(text, &AtomicBool::new(false))
+    }
+
+    pub fn validate_cancellable(&self, text: &str, cancelled: &AtomicBool) -> Result<String> {
         ensure!(
             !text.trim().is_empty() && text.len() <= MAX_OUTPUT,
             "JSON output is empty or exceeds 1 MiB"
         );
         let value: Value =
             serde_json::from_str(text).context("model did not return complete, valid JSON")?;
+        let mut budget = ValidationBudget {
+            remaining: 1_000_000,
+            exhausted: false,
+            cancelled,
+        };
+        let valid = matches_schema_bounded(&self.0, &value, 0, &mut budget);
         ensure!(
-            matches_schema(&self.0, &value, 0),
-            "model JSON does not conform to the requested schema"
+            !budget.exhausted,
+            "JSON validation work budget exceeded or cancelled"
         );
+        ensure!(valid, "model JSON does not conform to the requested schema");
         Ok(serde_json::to_string(&value)?)
     }
 }
@@ -202,8 +217,79 @@ fn json_equal(left: &Value, right: &Value) -> bool {
     }
 }
 
+struct ValidationBudget<'a> {
+    remaining: usize,
+    exhausted: bool,
+    cancelled: &'a AtomicBool,
+}
+
+impl ValidationBudget<'_> {
+    fn spend(&mut self) -> bool {
+        if self.remaining == 0 || self.cancelled.load(Ordering::Relaxed) {
+            self.exhausted = true;
+            return false;
+        }
+        self.remaining -= 1;
+        true
+    }
+}
+
+// Canonical numeric identity preserves exact integer values. Float integers are
+// normalized only within the representable i64/u64 range, never by rounding an
+// integer through f64 (which would conflate values above 2^53).
+fn canonical_value(value: &Value, budget: &mut ValidationBudget<'_>) -> Option<Value> {
+    if !budget.spend() {
+        return None;
+    }
+    Some(match value {
+        Value::Number(number) if number.is_f64() => {
+            let n = number.as_f64()?;
+            if n.fract() == 0.0
+                && (-9_223_372_036_854_775_808.0..18_446_744_073_709_551_616.0).contains(&n)
+            {
+                if n < 0.0 {
+                    Value::from(n as i64)
+                } else {
+                    Value::from(n as u64)
+                }
+            } else {
+                value.clone()
+            }
+        }
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|v| canonical_value(v, budget))
+                .collect::<Option<_>>()?,
+        ),
+        Value::Object(items) => Value::Object(
+            items
+                .iter()
+                .map(|(k, v)| Some((k.clone(), canonical_value(v, budget)?)))
+                .collect::<Option<_>>()?,
+        ),
+        _ => value.clone(),
+    })
+}
+
+#[cfg(kani)]
 fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
-    if depth > 32 {
+    let cancelled = AtomicBool::new(false);
+    let mut budget = ValidationBudget {
+        remaining: 1_000_000,
+        exhausted: false,
+        cancelled: &cancelled,
+    };
+    matches_schema_bounded(schema, value, depth, &mut budget) && !budget.exhausted
+}
+
+fn matches_schema_bounded(
+    schema: &Value,
+    value: &Value,
+    depth: usize,
+    budget: &mut ValidationBudget<'_>,
+) -> bool {
+    if !budget.spend() || depth > 32 {
         return false;
     }
     if let Some(flag) = schema.as_bool() {
@@ -247,7 +333,7 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
         if let Some(alternatives) = schema[keyword].as_array() {
             let count = alternatives
                 .iter()
-                .filter(|child| matches_schema(child, value, depth + 1))
+                .filter(|child| matches_schema_bounded(child, value, depth + 1, budget))
                 .count();
             if (mode == 0 && count != alternatives.len())
                 || (mode == 1 && count == 0)
@@ -259,7 +345,7 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
     }
     if object
         .get("not")
-        .is_some_and(|child| matches_schema(child, value, depth + 1))
+        .is_some_and(|child| matches_schema_bounded(child, value, depth + 1, budget))
     {
         return false;
     }
@@ -289,18 +375,23 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
         if !length_matches(schema, items.len(), "minItems", "maxItems") {
             return false;
         }
-        if schema["uniqueItems"] == true
-            && items
-                .iter()
-                .enumerate()
-                .any(|(i, item)| items[..i].iter().any(|previous| json_equal(previous, item)))
-        {
-            return false;
+        if schema["uniqueItems"] == true {
+            let mut seen = BTreeSet::new();
+            for item in items {
+                let Some(key) =
+                    canonical_value(item, budget).and_then(|v| serde_json::to_string(&v).ok())
+                else {
+                    return false;
+                };
+                if !seen.insert(key) {
+                    return false;
+                }
+            }
         }
         if let Some(child) = object.get("items")
             && !items
                 .iter()
-                .all(|item| matches_schema(child, item, depth + 1))
+                .all(|item| matches_schema_bounded(child, item, depth + 1, budget))
         {
             return false;
         }
@@ -318,11 +409,11 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
         }
         for (name, item) in properties {
             if let Some(child) = schema["properties"].get(name) {
-                if !matches_schema(child, item, depth + 1) {
+                if !matches_schema_bounded(child, item, depth + 1, budget) {
                     return false;
                 }
             } else if let Some(child) = object.get("additionalProperties")
-                && !matches_schema(child, item, depth + 1)
+                && !matches_schema_bounded(child, item, depth + 1, budget)
             {
                 return false;
             }
@@ -334,6 +425,44 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn large_unique_arrays_and_exact_numeric_keys() {
+        let schema = Schema::parse(r#"{"uniqueItems":true}"#).unwrap();
+        let values: Vec<_> = (0..100_000).collect();
+        assert!(
+            schema
+                .validate(&serde_json::to_string(&values).unwrap())
+                .is_ok()
+        );
+        for duplicate in [
+            "[1,1.0]",
+            "[0,-0.0]",
+            "[{\"a\":[1]}, {\"a\":[1.0]}]",
+            "[9007199254740992,9007199254740992.0]",
+        ] {
+            assert!(schema.validate(duplicate).is_err(), "{duplicate}");
+        }
+        for distinct in [
+            "[9007199254740992,9007199254740993]",
+            "[9007199254740993,9007199254740992.0]",
+            "[18446744073709551615,18446744073709551616.0]",
+        ] {
+            assert!(schema.validate(distinct).is_ok(), "{distinct}");
+        }
+        assert!(
+            schema
+                .validate_cancellable("[1,2]", &AtomicBool::new(true))
+                .is_err()
+        );
+        // Exhaustion under `not` must not turn an interrupted false into success.
+        let nested = Schema::parse(r#"{"not":{"uniqueItems":true}}"#).unwrap();
+        assert!(
+            nested
+                .validate_cancellable("[1,2]", &AtomicBool::new(true))
+                .is_err()
+        );
+    }
+
     #[test]
     fn objects_fail_closed_and_preserve_unicode() {
         let schema = Schema::parse(r#"{"type":"object","properties":{"answer":{"type":"string","minLength":1,"maxLength":2},"count":{"type":"integer","minimum":0,"maximum":2}},"required":["answer","count"],"additionalProperties":false}"#).unwrap();
@@ -452,6 +581,27 @@ mod tests {
 
 #[cfg(kani)]
 mod proofs {
+    #[kani::proof]
+    fn validation_budget_never_wraps_or_accepts_cancellation() {
+        let remaining: usize = kani::any();
+        let cancelled_value: bool = kani::any();
+        let cancelled = AtomicBool::new(cancelled_value);
+        let mut budget = ValidationBudget {
+            remaining,
+            exhausted: false,
+            cancelled: &cancelled,
+        };
+        let accepted = budget.spend();
+        assert_eq!(accepted, remaining > 0 && !cancelled_value);
+        assert_eq!(budget.exhausted, !accepted);
+        assert_eq!(
+            budget.remaining,
+            if accepted { remaining - 1 } else { remaining }
+        );
+        kani::cover!(accepted);
+        kani::cover!(!accepted);
+    }
+
     use super::*;
     #[kani::proof]
     fn structured_retry_budget_never_restarts_or_wraps() {

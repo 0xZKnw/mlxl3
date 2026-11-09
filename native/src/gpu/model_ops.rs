@@ -27,6 +27,91 @@ impl Pipelines {
 }
 
 impl Metal {
+    /// RMS normalization with an owned submission. The returned view is initialized
+    /// and host-readable: no caller-supplied command can bypass completion.
+    ///
+    /// ```compile_fail,E0624
+    /// use mlxl3_native::gpu::{Metal, MatrixView};
+    /// fn early(g: &Metal, cmd: &metal::CommandBufferRef, x: &MatrixView) {
+    ///     let _ = g.encode_model_rms(cmd, x, x, 1e-5, metal::MTLResourceOptions::StorageModeShared);
+    /// }
+    /// ```
+    pub fn model_rms(&self, x: &MatrixView, gain: &MatrixView, eps: f32) -> Result<MatrixView> {
+        self.command(|cmd| self.encode_model_rms(cmd, x, gain, eps, Storage::StorageModeShared))
+    }
+
+    /// Dense projection, published only after the producing command succeeds.
+    /// ```compile_fail,E0624
+    /// use mlxl3_native::gpu::{Metal, MatrixView};
+    /// fn early(g: &Metal, cmd: &metal::CommandBufferRef, x: &MatrixView) {
+    ///     let _ = g.encode_model_dense(cmd, x, x, metal::MTLResourceOptions::StorageModeShared);
+    /// }
+    /// ```
+    pub fn model_dense(&self, x: &MatrixView, weight: &MatrixView) -> Result<MatrixView> {
+        self.command(|cmd| self.encode_model_dense(cmd, x, weight, Storage::StorageModeShared))
+    }
+
+    /// Grouped query attention, published only after the producing command succeeds.
+    /// ```compile_fail,E0624
+    /// use mlxl3_native::gpu::{Metal, MatrixView};
+    /// fn early(g: &Metal, cmd: &metal::CommandBufferRef, x: &MatrixView) {
+    ///     let _ = g.encode_model_gqa(cmd, x, x, x, 1, 1, 64, metal::MTLResourceOptions::StorageModeShared);
+    /// }
+    /// ```
+    pub fn model_gqa(
+        &self,
+        q: &MatrixView,
+        keys: &MatrixView,
+        values: &MatrixView,
+        q_heads: u32,
+        kv_heads: u32,
+        head_dim: u32,
+    ) -> Result<MatrixView> {
+        self.command(|cmd| {
+            self.encode_model_gqa(
+                cmd,
+                q,
+                keys,
+                values,
+                q_heads,
+                kv_heads,
+                head_dim,
+                Storage::StorageModeShared,
+            )
+        })
+    }
+
+    /// Rotary embedding, published only after the producing command succeeds.
+    /// ```compile_fail,E0624
+    /// use mlxl3_native::gpu::{Metal, MatrixView};
+    /// fn early(g: &Metal, cmd: &metal::CommandBufferRef, x: &MatrixView) {
+    ///     let _ = g.encode_model_rope(cmd, x, 1, 64, 64, 10000., 0, metal::MTLResourceOptions::StorageModeShared);
+    /// }
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn model_rope(
+        &self,
+        x: &MatrixView,
+        heads: u32,
+        head_dim: u32,
+        rotary: u32,
+        theta: f32,
+        position: u32,
+    ) -> Result<MatrixView> {
+        self.command(|cmd| {
+            self.encode_model_rope(
+                cmd,
+                x,
+                heads,
+                head_dim,
+                rotary,
+                theta,
+                position,
+                Storage::StorageModeShared,
+            )
+        })
+    }
+
     pub(super) fn model_binary(
         &self,
         x: &MatrixView,
@@ -116,7 +201,7 @@ impl Metal {
         Ok(out)
     }
 
-    pub fn encode_model_rms(
+    pub(super) fn encode_model_rms(
         &self,
         cmd: &CommandBufferRef,
         x: &MatrixView,
@@ -166,7 +251,7 @@ impl Metal {
         Ok(out)
     }
 
-    pub fn encode_model_dense(
+    pub(super) fn encode_model_dense(
         &self,
         cmd: &CommandBufferRef,
         x: &MatrixView,
@@ -217,7 +302,7 @@ impl Metal {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn encode_model_gqa(
+    pub(super) fn encode_model_gqa(
         &self,
         cmd: &CommandBufferRef,
         q: &MatrixView,
@@ -279,7 +364,7 @@ impl Metal {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn encode_model_rope(
+    pub(super) fn encode_model_rope(
         &self,
         cmd: &CommandBufferRef,
         x: &MatrixView,
@@ -356,6 +441,50 @@ mod tests {
     use half::f16;
     use serde::Deserialize;
 
+    #[test]
+    #[ignore = "physical Apple GPU: public completed-view admission and independent numeric oracle"]
+    fn public_model_outputs_are_completed_retained_and_row_readable() -> Result<()> {
+        let gpu = Metal::new()?;
+        let view = |values: &[f32], rows, cols| -> Result<MatrixView> {
+            gpu.f16_storage(
+                &values
+                    .iter()
+                    .map(|&x| f16::from_f32(x).to_bits())
+                    .collect::<Vec<_>>(),
+            )?
+            .matrix(MatrixLayout {
+                shape: [rows, cols],
+                offset: 0,
+                strides: [i64::from(cols), 1],
+            })
+        };
+        let x = view(&[1., 2., 3., 4., 4., 3., 2., 1.], 2, 4)?;
+        let gain = view(&[1.; 4], 1, 4)?;
+        let out = gpu.model_rms(&x, &gain, 1e-5)?;
+        let row = out.row(1)?;
+        drop(out);
+        let expected = [4., 3., 2., 1.];
+        for (bits, value) in row.read_output()?.into_iter().zip(expected) {
+            let actual = f16::from_bits(bits as u16).to_f32();
+            ensure!((actual - value / (7.5f32 + 1e-5).sqrt()).abs() < 0.002);
+        }
+        ensure!(row.read_output()?.len() == 4);
+        ensure!(gpu.model_rms(&x, &view(&[1.; 3], 1, 3)?, 1e-5).is_err());
+        let identity = view(
+            &[
+                1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
+            ],
+            4,
+            4,
+        )?;
+        ensure!(gpu.model_dense(&x, &identity)?.read_output()? == x.read_output()?);
+        let q = view(&[1.; 64], 1, 64)?;
+        let values = view(&[2.; 64], 1, 64)?;
+        ensure!(gpu.model_gqa(&q, &q, &values, 1, 1, 64)?.read_output()? == values.read_output()?);
+        ensure!(gpu.model_rope(&q, 1, 64, 64, 10000., 0)?.read_output()? == q.read_output()?);
+        Ok(())
+    }
+
     #[derive(Deserialize)]
     struct Input {
         values: Vec<f32>,
@@ -416,7 +545,7 @@ mod tests {
             let weight = case.weight.as_ref().map(|v| v.view(&gpu)).transpose()?;
             let keys = case.keys.as_ref().map(|v| v.view(&gpu)).transpose()?;
             let values = case.values.as_ref().map(|v| v.view(&gpu)).transpose()?;
-            let operation = gpu.command(|cmd| match case.op.as_str() {
+            let operation = match case.op.as_str() {
                 "softmax" => gpu.model_softmax(&x),
                 "add" | "mul" | "gate" => gpu.model_binary(
                     &x,
@@ -427,41 +556,26 @@ mod tests {
                         _ => 2,
                     },
                 ),
-                "rms" => gpu.encode_model_rms(
-                    cmd,
-                    &x,
-                    weight.as_ref().context("missing RMS gain")?,
-                    case.eps,
-                    Storage::StorageModeShared,
-                ),
-                "dense" => gpu.encode_model_dense(
-                    cmd,
-                    &x,
-                    weight.as_ref().context("missing dense weight")?,
-                    Storage::StorageModeShared,
-                ),
-                "gqa" => gpu.encode_model_gqa(
-                    cmd,
+                "rms" => gpu.model_rms(&x, weight.as_ref().context("missing RMS gain")?, case.eps),
+                "dense" => gpu.model_dense(&x, weight.as_ref().context("missing dense weight")?),
+                "gqa" => gpu.model_gqa(
                     &x,
                     keys.as_ref().context("missing keys")?,
                     values.as_ref().context("missing values")?,
                     case.heads,
                     case.kv_heads,
                     case.head_dim,
-                    Storage::StorageModeShared,
                 ),
-                "rope" => gpu.encode_model_rope(
-                    cmd,
+                "rope" => gpu.model_rope(
                     &x,
                     case.heads,
                     case.head_dim,
                     case.rotary,
                     case.theta,
                     case.position,
-                    Storage::StorageModeShared,
                 ),
                 _ => anyhow::bail!("unknown model fixture operator"),
-            });
+            };
             if let Some(expected) = case.expected_error {
                 let error = operation
                     .err()

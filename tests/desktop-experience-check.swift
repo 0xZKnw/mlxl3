@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 
@@ -61,13 +62,37 @@ import SwiftUI
         try check(visual.sidebarConversations(matching: "").map(\.id) == [b.id, c.id, a.id], "Pinned ordering is unstable")
         try check(visual.sidebarConversations(matching: " Notes ").map(\.id) == [c.id], "Search lost pinned conversations")
         try check(visual.sidebarConversations(matching: "absent").isEmpty, "Search returned unrelated pins")
+        var sidebarNotifications = 0
+        let sidebarObservation = visual.objectWillChange.sink { sidebarNotifications += 1 }
+        a.messages[0].append(" absent", phase: nil)
+        try check(sidebarNotifications == 1, "Excluded streaming row did not publish sidebar invalidation")
+        a.messages[0].append(" again", phase: nil)
+        try check(sidebarNotifications == 1, "Pending sidebar invalidation did not coalesce")
+        try check(visual.sidebarConversations(matching: "absent").map(\.id) == [a.id],
+                  "Streaming mutation did not invalidate the cached search")
+        _ = visual.sidebarConversations(matching: "")
+        a.messages[0].append(" no search", phase: nil)
+        try check(sidebarNotifications == 1, "Empty search caused unnecessary sidebar publication")
+        sidebarObservation.cancel()
+        visual.conversations[0].messages = [ChatMessage(role: .assistant, content: "A")]
+        try check(visual.sidebarConversations(matching: "absent").isEmpty,
+                  "Replacing message membership did not invalidate search")
+        visual.conversations[0].messages[0].append(" absent", phase: nil)
+        try check(visual.sidebarConversations(matching: "absent").map(\.id) == [a.id],
+                  "Replacement message was not observed")
+        visual.conversations[0].messages = [ChatMessage(role: .assistant, content: "A")]
         try check(visual.draft == "Brouillon conservé" && visual.selectedConversationID == a.id, "Pinning selected another chat")
         visual.setConversationPinned(UUID(), true)
         visual.persistNow()
         let restored = make(preview: true, file: file)
+        try check(restored.draft == "Brouillon conservé", "Unsent draft did not survive history reload")
         try check(restored.sidebarConversations(matching: "").map(\.id) == [b.id, c.id, a.id], "Pins did not survive history reload")
         restored.setConversationPinned(b.id, false)
         try check(restored.sidebarConversations(matching: "").map(\.id) == [c.id, a.id, b.id], "Unpin changed ordinary ordering")
+        if let recent = restored.conversations.firstIndex(where: { $0.id == b.id }) {
+            restored.conversations[recent].updatedAt = Date(timeIntervalSince1970: 1234)
+        }
+        try check(restored.sidebarConversations(matching: "").map(\.id) == [c.id, b.id, a.id], "Completed activity should reorder ordinary chats but preserve pins")
         restored.deleteConversation(c.id)
         restored.undoDeleteConversation()
         try check(restored.conversations.first(where: { $0.id == c.id })?.isPinned == true, "Undo lost pin state")

@@ -300,6 +300,25 @@ extension StudioModel {
       "Unsupported DFlash OFF was ignored")
     try await select("dflash-good")
     try await send(mtp: false, flash: false, greedy: false)
+    // Applying ordinary profiles must configure both engines OFF before a real send.
+    let ordinary = GenerationProfile(name: "Ordinary", model: nil, systemPrompt: "", temperature: 0.73,
+        topK: 37, repetitionPenalty: 1.12, contextLength: 0, responseSchema: "")
+    try await select("auto-dense")
+    model.setMTPEnabled(true)
+    try await wait("profile MTP ready") { model.mtpActive == true }
+    model.applyProfile(ordinary)
+    model.draft = "profile check"
+    try check(!model.canSend, "Profile sent before MTP configuration acknowledgement")
+    try await wait("profile MTP off") { model.mtpActive == false && model.canSend }
+    try await send(mtp: false, flash: false, greedy: false)
+    try await select("dflash-good")
+    model.setDFlash2Enabled(true)
+    try await wait("profile DFlash ready") { model.dflashActive == true && !model.dflashDownloading }
+    model.applyProfile(ordinary)
+    model.draft = "profile check"
+    try check(!model.canSend, "Profile sent before DFlash configuration acknowledgement")
+    try await wait("profile DFlash off") { model.dflashActive == false && model.canSend }
+    try await send(mtp: false, flash: false, greedy: false)
     print(
       "Speculative sampling checks passed: \(checks) assertions, 216 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
     )

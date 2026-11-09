@@ -78,6 +78,17 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "gpu_wait_policy::failed_command_health_cannot_be_cleared_by_success",
+        "tensor_layout::host_read_range_is_aligned_bounded_and_exact",
+        "quantize::worker_request_ids_never_replay_or_overflow",
+        "draft_storage::proofs::invalid_ring_producer_preserves_all_planes",
+        "speculative::serial_verification_never_consumes_eos",
+        "transaction::failed_export_restores_snapshot",
+        "image_budget::image_admission_preserves_aggregate_bounds",
+        "structured::proofs::validation_budget_never_wraps_or_accepts_cancellation",
+        "qwen_profile::qwen_profile_preserves_overrides_and_dependencies",
+        "router_network::router_network_padded_dispatch_bounds",
+        "ssd_reads::batch_cancellation_is_irreversible_across_flag_reset",
         "hub::verification::checkpoint_digest_family_and_syntax_are_required",
         "flash_qmv::verify_specialization_keys_preserve_admission_and_table_bounds",
         "expert_ar_policy::consumer_grid_preserves_expert_and_odd_row_bounds",
@@ -536,3 +547,25 @@ def test_parser_accepts_only_its_exact_conversion_stub():
     assert not ci.check_verdict(success(ci.PARSER_HARNESS), ci.PARSER_HARNESS, 1)
     assert not ci.check_verdict(success("other::proof") + notice, "other::proof", 1)
     assert not ci.check_verdict(success(ci.PARSER_HARNESS) + notice * 2, ci.PARSER_HARNESS, 1)
+
+
+@pytest.mark.parametrize(
+    ("status", "output", "expected"),
+    [
+        ("success", "Status: SUCCESS", "verified"),
+        ("timeout", "VERIFICATION:- FAILED", "timeout"),
+        ("budget_exhausted", "", "budget_exhausted"),
+        ("process_error", "CBMC std::bad_alloc", "out_of_memory"),
+        ("process_error", "error: internal compiler error", "compiler_internal_error"),
+        ("process_error", "[f.unwind.1] unwinding assertion loop: FAILURE", "unwinding_incomplete"),
+        ("process_error", "[f.assertion.1] valid state: FAILURE", "property_failure_reported"),
+        (
+            "process_error",
+            "dead object\nStatus: SUCCESS\nVERIFICATION:- FAILED",
+            "unclassified_tool_or_verdict_failure",
+        ),
+        ("signal", "killed", "unclassified_tool_or_verdict_failure"),
+    ],
+)
+def test_failure_diagnostics_keep_backend_and_property_evidence_separate(status, output, expected):
+    assert ci.failure_diagnostic(status, output) == expected

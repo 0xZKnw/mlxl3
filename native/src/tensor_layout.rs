@@ -10,6 +10,32 @@ pub struct MatrixLayout {
 }
 
 impl MatrixLayout {
+    /// Contiguous host slice inside its allocation, including a retained row view.
+    /// Empty matrices return an empty range and must not dereference Metal contents.
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn host_byte_range(
+        &self,
+        item: u64,
+        allocation: u64,
+    ) -> Option<std::ops::Range<usize>> {
+        let [rows, cols] = self.shape;
+        if !matches!(item, 2 | 4)
+            || self.offset < 0
+            || self.strides[1] != 1
+            || (rows > 1 && self.strides[0] != i64::from(cols))
+            || !allocation.is_multiple_of(item)
+        {
+            return None;
+        }
+        let start = (self.offset as u64).checked_mul(item)?;
+        let bytes = (u64::from(rows) * u64::from(cols)).checked_mul(item)?;
+        let end = start.checked_add(bytes)?;
+        if end > allocation || end > isize::MAX as u64 {
+            return None;
+        }
+        Some(usize::try_from(start).ok()?..usize::try_from(end).ok()?)
+    }
+
     /// Exact, nonempty extent of a contiguous allocation safe to expose as a byte slice.
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
     pub(crate) fn trace_byte_extent(&self, item: u64, allocation: u64) -> Option<usize> {
@@ -62,6 +88,73 @@ impl MatrixLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn host_ranges_admit_only_contiguous_initialized_bytes() {
+        for rows in 0..=3 {
+            for cols in 0..=4 {
+                for offset in -1..=8 {
+                    for rs in -1..=5 {
+                        for cs in -1..=2 {
+                            for item in [0, 1, 2, 3, 4, 8] {
+                                for allocation in 0..=40 {
+                                    let layout = MatrixLayout {
+                                        shape: [rows, cols],
+                                        offset,
+                                        strides: [rs, cs],
+                                    };
+                                    let expected = matches!(item, 2 | 4)
+                                        && offset >= 0
+                                        && cs == 1
+                                        && (rows <= 1 || rs == i64::from(cols))
+                                        && allocation % item.max(1) == 0
+                                        && (offset as i128 + i128::from(rows) * i128::from(cols))
+                                            * i128::from(item)
+                                            <= i128::from(allocation);
+                                    let actual = layout.host_byte_range(item, allocation);
+                                    assert_eq!(
+                                        actual.is_some(),
+                                        expected,
+                                        "{layout:?}/{item}/{allocation}"
+                                    );
+                                    if let Some(range) = actual {
+                                        assert_eq!(range.start, offset as usize * item as usize);
+                                        assert_eq!(
+                                            range.len(),
+                                            rows as usize * cols as usize * item as usize
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn host_rows_preserve_offsets_and_reject_overflow() {
+        let matrix = MatrixLayout {
+            shape: [3, 4],
+            offset: 0,
+            strides: [4, 1],
+        };
+        assert_eq!(matrix.row(2).unwrap().host_byte_range(2, 24), Some(16..24));
+        assert_eq!(matrix.row(2).unwrap().host_byte_range(2, 22), None);
+        for layout in [
+            MatrixLayout {
+                offset: i64::MAX,
+                ..matrix
+            },
+            MatrixLayout {
+                shape: [u32::MAX; 2],
+                strides: [i64::from(u32::MAX), 1],
+                ..matrix
+            },
+        ] {
+            assert_eq!(layout.host_byte_range(4, u64::MAX - 3), None);
+        }
+    }
     #[test]
     fn view_bounds_match_all_reachable_indices() {
         for rows in 0..=4 {
@@ -121,6 +214,29 @@ mod tests {
                 .fits(8)
             );
         }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn host_read_range_is_aligned_bounded_and_exact() {
+    let layout = MatrixLayout {
+        shape: kani::any(),
+        strides: kani::any(),
+        offset: kani::any(),
+    };
+    let item: u64 = kani::any();
+    let allocation: u64 = kani::any();
+    if let Some(range) = layout.host_byte_range(item, allocation) {
+        assert!(matches!(item, 2 | 4));
+        assert!(range.start <= range.end && range.end as u64 <= allocation);
+        assert!(range.end <= isize::MAX as usize);
+        assert_eq!(range.start as u64 % item, 0);
+        assert_eq!(
+            range.len() as u128,
+            u128::from(layout.shape[0]) * u128::from(layout.shape[1]) * u128::from(item)
+        );
+        kani::cover!(layout.offset > 0 && layout.shape[0] == 1 && !range.is_empty());
     }
 }
 

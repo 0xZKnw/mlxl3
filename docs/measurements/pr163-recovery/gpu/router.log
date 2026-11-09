@@ -1,0 +1,20 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+warning: method `set_cancellation` is never used
+   --> native/src/ssd_reads.rs:543:19
+    |
+541 | impl ReadService {
+    | ---------------- method in this implementation
+542 |     #[cfg(any(test, all(target_os = "macos", feature = "direct-metal")))]
+543 |     pub(crate) fn set_cancellation(&mut self, cancelled: Arc<AtomicBool>) {
+    |                   ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 10.88s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-08ebae1f05051d7d)
+
+running 1 test
+test router_network::tests::every_geometry_and_k_matches_independent_float_oracle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 374 filtered out; finished in 1.44s

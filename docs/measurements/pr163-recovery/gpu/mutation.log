@@ -1,0 +1,19 @@
+
+running 1 test
+test tests::every_geometry_and_k_matches_independent_float_oracle ... FAILED
+
+failures:
+
+---- tests::every_geometry_and_k_matches_independent_float_oracle stdout ----
+
+thread 'tests::every_geometry_and_k_matches_independent_float_oracle' (33) panicked at docs/measurements/pr163-recovery/gpu/router_geometry_mutant.rs:24:17:
+index out of bounds: the len is 1 but the index is 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::every_geometry_and_k_matches_independent_float_oracle
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+mutation_exit=101

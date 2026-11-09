@@ -48,6 +48,26 @@ impl PreDraftBudget {
         Some(())
     }
 }
+
+#[test]
+fn whole_cycle_cost_includes_width_dependent_commit() {
+    let mut whole = PreDraftBudget::default();
+    let mut partial = PreDraftBudget::default();
+    for (width, emitted, draft_verify, commit) in [(1, 2, 10, 90), (2, 3, 20, 1)] {
+        whole
+            .observe(width, emitted, draft_verify + commit)
+            .unwrap();
+        partial.observe(width, emitted, draft_verify).unwrap();
+    }
+    assert_eq!(whole.choose(2), 2);
+    assert_eq!(partial.choose(2), 1);
+    let mut verify = VerifyBudget::default();
+    assert!(verify.observe(&[0.8], 1, 100.).is_some());
+    assert_eq!(verify.sums[3], 100.);
+    let sums = verify.sums;
+    assert!(verify.observe(&[0.8], 1, f64::NAN).is_none());
+    assert_eq!(verify.sums, sums);
+}
 /// Learning is request-local in both reference and native Flash sessions.
 #[cfg(any(
     feature = "mlx",

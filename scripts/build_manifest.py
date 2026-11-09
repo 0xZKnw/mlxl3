@@ -48,10 +48,13 @@ def engine_snapshot(runtime: Path) -> dict:
         )
     ):
         raise ValueError("invalid packaged engine identity")
-    expected = manifest(runtime, actual.get("version"), backend)
+    expected = manifest(
+        runtime, actual.get("version"), backend, release_tag=actual.get("release_tag")
+    )
     if actual != expected:
         raise ValueError("packaged engine manifest or payload changed")
     return {
+        **({"release_tag": actual["release_tag"]} if "release_tag" in actual else {}),
         "backend": backend,
         "version": actual["version"],
         "sha256": actual["files"]["mlxl3"]["sha256"],

@@ -6,6 +6,8 @@ struct AgentProjectState: Codable, Sendable {
   var source: String?
   var baseline: String?
   var originalHashes: [String: String] = [:]
+  // Optional for pre-checkpoint metadata. Never infer historical state from today's files.
+  var messageCheckpoints: [String: String]?
   var permissions = AgentPermissions()
   var skippedFiles = 0
 }
@@ -64,6 +66,71 @@ struct AgentProjectStore: Sendable {
     var state = try state()
     state.permissions = permissions
     try save(state)
+  }
+
+  func checkpoint(messageID: UUID) throws {
+    Self.mutation.lock()
+    defer { Self.mutation.unlock() }
+    let revision = try checkpoint("Conversation boundary", force: false)
+    var state = try state()
+    var checkpoints = state.messageCheckpoints ?? [:]
+    checkpoints[messageID.uuidString] = revision
+    state.messageCheckpoints = checkpoints
+    try save(state)
+  }
+
+  /// Each branch retains its own baseline. Applying one branch makes overlapping
+  /// changes in other branches conflict until explicitly reviewed/re-imported.
+  func fork(to destination: URL, at messageID: UUID, retaining messages: [UUID]) throws {
+    Self.mutation.lock()
+    defer { Self.mutation.unlock() }
+    var state = try state()
+    guard let revision = state.messageCheckpoints?[messageID.uuidString] else {
+      throw NSError(domain: "MLXL3.Project", code: 3, userInfo: [NSLocalizedDescriptionKey:
+        "No workspace checkpoint exists for this message. Start a new task instead."])
+    }
+    try requireRevision(revision)
+    let branch = AgentProjectStore(workspace: destination)
+    guard !FileManager.default.fileExists(atPath: destination.deletingLastPathComponent().path) else {
+      throw CocoaError(.fileWriteFileExists)
+    }
+    do {
+      try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o700])
+      try FileManager.default.createDirectory(at: branch.metadata, withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o700])
+      try FileManager.default.copyItem(at: repository, to: branch.repository)
+      _ = try branch.git(["reset", "--hard", revision])
+      let retained = Set(messages.map(\.uuidString))
+      state.messageCheckpoints = state.messageCheckpoints?.filter { retained.contains($0.key) }
+      try branch.save(state)
+    } catch {
+      try? FileManager.default.removeItem(at: destination.deletingLastPathComponent())
+      throw error
+    }
+  }
+
+  private struct FileSnapshot {
+    let data: Data
+    let mode: mode_t
+  }
+
+  private func treeFile(_ path: String, revision: String) throws -> FileSnapshot {
+    try requireRevision(revision)
+    guard Self.validPath(path) else { throw CocoaError(.fileReadNoPermission) }
+    let entry = String(decoding: try git(["ls-tree", "-z", revision, "--", ":(literal)" + path]), as: UTF8.self)
+    guard entry.hasPrefix("100644 blob ") || entry.hasPrefix("100755 blob ") else {
+      throw CocoaError(.fileReadCorruptFile)
+    }
+    return FileSnapshot(data: try contents(path, revision: revision), mode: entry.hasPrefix("100755") ? 0o755 : 0o644)
+  }
+
+  private static func diskFile(_ path: String, root: URL) throws -> FileSnapshot {
+    let url = root.appendingPathComponent(path)
+    let data = try HTMLPreview.data(at: url, in: root)
+    let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+    guard let mode = attrs[.posixPermissions] as? NSNumber else { throw CocoaError(.fileReadCorruptFile) }
+    return FileSnapshot(data: data, mode: mode.uint16Value & 0o777)
   }
 
   static func validPath(_ path: String) -> Bool {
@@ -389,16 +456,19 @@ struct AgentProjectStore: Sendable {
       decoding: try git(["diff", "--name-only", "-z", baseline, latest, "--"]), as: UTF8.self
     ).split(separator: "\0").map(String.init)
     // Check the whole change set before writing any original file.
-    var replacements: [String: Data] = [:]
-    var originals: [String: Data] = [:]
+    var replacements: [String: FileSnapshot] = [:]
+    var originals: [String: FileSnapshot] = [:]
+    let baselinePaths = Set(try paths(at: baseline))
     for path in changes {
       guard Self.validPath(path) else { throw CocoaError(.fileWriteInvalidFileName) }
       let url = root.appendingPathComponent(path)
       let old =
         FileManager.default.fileExists(atPath: url.path)
-        ? try HTMLPreview.data(at: url, in: root) : nil
-      let current = old.map(Self.digest)
-      guard current == state.originalHashes[path] else {
+        ? try Self.diskFile(path, root: root) : nil
+      let current = old.map { Self.digest($0.data) }
+      let baselineFile = try baselinePaths.contains(path) ? treeFile(path, revision: baseline) : nil
+      guard current == state.originalHashes[path],
+        old.map({ $0.mode & 0o111 != 0 }) == baselineFile.map({ $0.mode & 0o111 != 0 }) else {
         throw NSError(
           domain: "MLXL3.Project", code: 1,
           userInfo: [
@@ -407,10 +477,10 @@ struct AgentProjectStore: Sendable {
       }
       originals[path] = old
       if reviewedPaths.contains(path) {
-        let reviewed = try contents(path, revision: latest)
+        let reviewed = try treeFile(path, revision: latest)
+        let live = try Self.diskFile(path, root: workspace)
         guard
-          reviewed
-            == (try HTMLPreview.data(at: workspace.appendingPathComponent(path), in: workspace))
+          reviewed.data == live.data && (reviewed.mode & 0o111 != 0) == (live.mode & 0o111 != 0)
         else { throw Self.changedWorkspace() }
         replacements[path] = reviewed
       }
@@ -418,27 +488,27 @@ struct AgentProjectStore: Sendable {
     var applied: [String] = []
     do {
       for path in changes {
-        if let data = replacements[path] {
-          try Self.write(data, path: path, root: root)
-          state.originalHashes[path] = Self.digest(data)
+        if let file = replacements[path] {
+          try Self.write(file.data, path: path, root: root, mode: file.mode)
+          state.originalHashes[path] = Self.digest(file.data)
         } else {
           try Self.remove(path: path, root: root)
           state.originalHashes[path] = nil
         }
         applied.append(path)
       }
+      state.baseline = latest
+      try save(state)
     } catch {
       for path in applied.reversed() {
         if let original = originals[path] {
-          try Self.write(original, path: path, root: root)
+          try Self.write(original.data, path: path, root: root, mode: original.mode)
         } else {
           try Self.remove(path: path, root: root)
         }
       }
       throw error
     }
-    state.baseline = latest
-    try save(state)
   }
 
   private static func remove(path: String, root: URL) throws {

@@ -52,6 +52,16 @@ pub(crate) enum Command {
         #[arg(long, default_value_t = 256 * 1024 * 1024)]
         max_scratch_bytes: u64,
     },
+    /// Owned sequential tile service; retains one Metal device, queue and pipeline.
+    QuantizeWorker {
+        root: PathBuf,
+        #[arg(long)]
+        k: u32,
+        #[arg(long, default_value_t = 0)]
+        codebook: u32,
+        #[arg(long, default_value_t = 256 * 1024 * 1024)]
+        max_scratch_bytes: u64,
+    },
     /// Multiply finite FP32 matrices for the converter's feedback boundary.
     ConvertMatmul {
         left: PathBuf,

@@ -20,7 +20,7 @@ struct GenerationProfile: Codable, Identifiable, Sendable {
     var responseSchema: String
 }
 
-struct LibraryDocument: Codable, Identifiable, Sendable {
+struct LibraryDocument: Codable, Identifiable, Sendable, Equatable {
     var id = UUID()
     var projectID: UUID
     var fileName: String
@@ -49,21 +49,24 @@ enum DocumentSearch {
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber }).filter { $0.count > 1 }.map(String.init))
     }
 
-    static func search(_ query: String, documents: [LibraryDocument], limit: Int = 5) -> [DocumentExcerpt] {
-        let terms = words(query)
-        guard !terms.isEmpty, limit > 0 else { return [] }
-        var candidates: [(Int, Int, DocumentExcerpt)] = []
+    struct IndexedPassage: Sendable {
+        let terms: Set<String>
+        let excerpt: DocumentExcerpt
+    }
+
+    static func index(_ documents: [LibraryDocument]) -> [IndexedPassage] {
+        var passages: [IndexedPassage] = []
         for document in documents {
             var page: Int?
             var passage = ""
             var ordinal = 0
             func flush() {
                 guard !passage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                let score = words(passage).intersection(terms).count
-                if score > 0 {
+                let terms = words(passage)
+                if !terms.isEmpty {
                     let excerpt = DocumentExcerpt(id: "\(document.id.uuidString)-\(ordinal)", documentID: document.id,
                         fileName: document.fileName, originalPath: document.originalPath, page: page, text: passage)
-                    candidates.append((score, candidates.count, excerpt))
+                    passages.append(IndexedPassage(terms: terms, excerpt: excerpt))
                 }
                 ordinal += 1
                 passage = ""
@@ -86,7 +89,30 @@ enum DocumentSearch {
             }
             flush()
         }
-        return candidates.sorted { $0.0 == $1.0 ? $0.1 < $1.1 : $0.0 > $1.0 }.prefix(min(limit, 8)).map(\.2)
+        return passages
+    }
+
+    static func search(_ query: String, index: [IndexedPassage], limit: Int = 5) -> [DocumentExcerpt] {
+        let terms = words(query)
+        guard !terms.isEmpty, limit > 0 else { return [] }
+        let capacity = min(limit, 8)
+        var best: [(score: Int, excerpt: DocumentExcerpt)] = []
+        for passage in index {
+            let score = passage.terms.intersection(terms).count
+            guard score > 0 else { continue }
+            // Insert after equal scores: ties retain original document/passage order.
+            let position = best.firstIndex { $0.score < score } ?? best.count
+            if position < capacity {
+                best.insert((score, passage.excerpt), at: position)
+                if best.count > capacity { best.removeLast() }
+            }
+        }
+        return best.map(\.excerpt)
+    }
+
+    static func search(_ query: String, documents: [LibraryDocument], limit: Int = 5) -> [DocumentExcerpt] {
+        guard limit > 0, !words(query).isEmpty else { return [] }
+        return search(query, index: index(documents), limit: limit)
     }
 
     static func context(_ sources: [DocumentExcerpt]) -> String {
@@ -132,5 +158,28 @@ struct ModelAdvice {
         case .exceeds: L("Poids trop proches de la RAM totale : une variante plus petite est conseillée.", "Weights are too close to total RAM: a smaller variant is recommended.")
         case .unknown: L("Taille inconnue : budget mémoire non estimé.", "Unknown size: memory budget not estimated.")
         }
+    }
+}
+
+/// Serial worker owns the cached immutable passages, never UI objects. Changed or
+/// removed documents invalidate their entry; retained entries preserve source order.
+actor DocumentSearchWorker {
+    private var entries: [UUID: (document: LibraryDocument, passages: [DocumentSearch.IndexedPassage])] = [:]
+    private(set) var buildCount = 0
+
+    func search(_ query: String, documents: [LibraryDocument], limit: Int = 5) -> [DocumentExcerpt] {
+        let ids = Set(documents.map(\.id))
+        entries = entries.filter { ids.contains($0.key) }
+        var passages: [DocumentSearch.IndexedPassage] = []
+        for document in documents {
+            if Task.isCancelled { return [] }
+            if entries[document.id]?.document != document {
+                entries[document.id] = (document, DocumentSearch.index([document]))
+                buildCount += 1
+            }
+            passages += entries[document.id]?.passages ?? []
+        }
+        guard !Task.isCancelled else { return [] }
+        return DocumentSearch.search(query, index: passages, limit: limit)
     }
 }

@@ -85,8 +85,11 @@ elif command == "bridge":
     for line in sys.stdin:
         request = json.loads(line)
         if request["type"] == "set_mcp":
+            # Exercise the real asynchronous handshake gap before Agent regeneration.
+            time.sleep(0.2)
             emit(
                 "mcp_status",
+                request_id=request.get("request_id"),
                 mcp_servers=1 if request["enabled"] else 0,
                 mcp_tools=1 if request["enabled"] else 0,
                 mcp_errors={},

@@ -1,0 +1,11 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized] target(s) in 12.98s
+     Running unittests native/src/lib.rs (/tmp/pr163-native-target/debug/deps/mlxl3_native-02c72cde4ee8f2cf)
+
+running 4 tests
+test draft_storage::tests::malformed_last_plane_and_nonfinite_producer_do_not_commit_earlier_layers ... ok
+test draft_storage::tests::packed_affine_matches_independent_dense_reference_for_every_code ... ok
+test draft_storage::tests::all_finite_bf16_words_roundtrip_bitwise_with_half_the_dense_payload ... ok
+test draft_storage::tests::ring_commit_matches_unbounded_history_without_reallocating_planes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 394 filtered out; finished in 0.03s

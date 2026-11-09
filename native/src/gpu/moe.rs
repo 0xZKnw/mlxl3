@@ -48,9 +48,12 @@ pub struct FlashMoeRow<'a> {
     pub(super) extra_wave_enabled: bool,
     pub(super) record_reuse_enabled: bool,
     last: Vec<CommandBuffer>,
+    health: Rc<crate::gpu_wait_policy::CommandHealth>,
+    layer: String,
 }
 
 pub struct MoeOutput {
+    health: Rc<crate::gpu_wait_policy::CommandHealth>,
     spin_wait_enabled: bool,
     #[cfg(test)]
     spin_wait_stats: Rc<[std::cell::Cell<u64>; 4]>,
@@ -83,11 +86,10 @@ impl MoeOutput {
             }
             #[cfg(not(test))]
             let _ = stats;
-            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
-                failure = Some(anyhow::anyhow!(
-                    "Flash MoE command failed ({:?})",
-                    command.status()
-                ));
+            if let Err(error) = super::command_status::completed(command, "Flash MoE output")
+                && failure.is_none()
+            {
+                failure = Some(error);
             }
             #[cfg(test)]
             crate::flash_profile::native_gpu_interval(command, "moe");
@@ -99,6 +101,8 @@ impl MoeOutput {
             }
             drop(hot);
         }
+        self.health
+            .observe(failure.is_none() && self.hot_error.borrow().is_none());
         if !crate::device_hot_policy::hot_publishable(
             failure.is_none(),
             self.hot_error.borrow().is_none(),
@@ -117,6 +121,10 @@ impl MoeOutput {
         ensure!(
             !self.injected_failure,
             "injected deferred MoE producer failure"
+        );
+        ensure!(
+            self.health.observe(true),
+            "Flash MoE producer failed; reload the model before reuse"
         );
         Ok(&self.values)
     }
@@ -230,6 +238,8 @@ impl<'a> FlashMoeRow<'a> {
             record_reuse_enabled,
             switch: read_weight(&gpu.device, switch, 5120)?,
             last: Vec::new(),
+            health: Rc::default(),
+            layer: prefix.to_owned(),
         })
     }
 
@@ -255,12 +265,13 @@ impl<'a> FlashMoeRow<'a> {
         self.forward(x, false, next, depth)
     }
     pub(super) fn joint_gate_eligible(&self, depth: usize) -> bool {
-        crate::flash_support::hc_gate_chain_eligible(
-            self.gpu.hc_gate_chain.get(),
-            self.gpu.hc_chain.get(),
-            depth,
-            self.prefetcher.is_some(),
-        )
+        self.health.observe(true)
+            && crate::flash_support::hc_gate_chain_eligible(
+                self.gpu.hc_gate_chain.get(),
+                self.gpu.hc_chain.get(),
+                depth,
+                self.prefetcher.is_some(),
+            )
     }
     pub(super) fn device_hot_gate_eligible(&self, depth: usize) -> bool {
         self.gpu.device_resident_route_available()
@@ -269,14 +280,16 @@ impl<'a> FlashMoeRow<'a> {
 
     /// Encoding P may overlap the previous H/F; H still requires its exclusive lease.
     pub(super) fn device_hot_gate_eligible_for_encoding(&self, depth: usize) -> bool {
-        if !crate::device_hot_policy::admitted(
-            self.gpu.device_resident_route_enabled(),
-            self.record_backings.len(),
-            self.gpu.ssd_direct_enabled,
-            depth,
-            self.prefetcher.is_some(),
-            self.record_reuse_enabled,
-        ) || self.record_backings.len() != self.gpu.device_hot_slots()
+        if !self.health.observe(true)
+            || !crate::device_hot_policy::admitted(
+                self.gpu.device_resident_route_enabled(),
+                self.record_backings.len(),
+                self.gpu.ssd_direct_enabled,
+                depth,
+                self.prefetcher.is_some(),
+                self.record_reuse_enabled,
+            )
+            || self.record_backings.len() != self.gpu.device_hot_slots()
             || self.gpu.moe_finish_mix.get()
             || !self.gpu.expert_ar_enabled[3].get()
         {
@@ -338,6 +351,7 @@ impl<'a> FlashMoeRow<'a> {
             std::ptr::eq(self.gpu, owner),
             "MoE gate chain requires the same Metal instance"
         );
+        self.ensure_healthy()?;
         self.gate.encode(owner, cmd, x, Storage::StorageModePrivate)
     }
     pub(super) fn with_completed_gate(
@@ -366,6 +380,7 @@ impl<'a> FlashMoeRow<'a> {
         routing: Option<super::RouteOutput>,
         mut device_hot: Option<SettledHot>,
     ) -> Result<MoeOutput> {
+        self.ensure_healthy()?;
         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         if let Some(pool) = &self.prefetcher {
             pool.borrow_mut().poll(None, &[], false)?;
@@ -406,13 +421,9 @@ impl<'a> FlashMoeRow<'a> {
             self.drain_commands()?;
             true
         } else {
-            for last in self.last.drain(..) {
-                ensure!(
-                    last.status() == MTLCommandBufferStatus::Completed,
-                    "previous Flash MoE command failed ({:?})",
-                    last.status()
-                );
-            }
+            // The completed router follows the previous row on the same queue.
+            // Visit every owner even if one failed, before any cache reuse.
+            self.drain_commands()?;
             false
         };
         let reuse = crate::ssd_reads::record_reuse_eligible(
@@ -626,6 +637,7 @@ impl<'a> FlashMoeRow<'a> {
                 loop {
                     let mut ready = Vec::new();
                     for (lease, payload) in wave {
+                        gpu.check_cancelled()?;
                         let direct = matches!(&payload, crate::ssd_reads::ReadPayload::Shared(_));
                         let backing = gpu.completed_record(payload)?;
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
@@ -790,6 +802,7 @@ impl<'a> FlashMoeRow<'a> {
             #[cfg(not(test))]
             let _ = retired_bytes;
             Ok(MoeOutput {
+                health: self.health.clone(),
                 spin_wait_enabled: gpu.spin_wait_enabled,
                 #[cfg(test)]
                 spin_wait_stats: gpu.spin_wait_stats.clone(),
@@ -824,6 +837,7 @@ impl<'a> FlashMoeRow<'a> {
         Ok(output)
     }
     fn prefetch(&mut self, ids: &[u32], budget: usize) -> Result<()> {
+        self.ensure_healthy()?;
         ensure!(
             !ids.is_empty() && ids.len() <= 32 && ids.iter().all(|&id| id < 512),
             "invalid predicted experts"
@@ -891,22 +905,39 @@ impl FlashMoeRow<'_> {
         }
         Ok(())
     }
+    fn ensure_healthy(&self) -> Result<()> {
+        ensure!(
+            self.health.observe(true),
+            "Flash MoE layer {} failed; reload the model before reuse",
+            self.layer
+        );
+        Ok(())
+    }
     pub(super) fn drain(&mut self) -> Result<()> {
-        if let Some(pool) = &self.prefetcher {
-            pool.borrow_mut().drain()?;
-        }
-        self.gpu.ensure_reads_idle()?;
-        self.drain_commands()
+        // An SSD failure must not bypass GPU retirement. Cancelled SSD workers
+        // retain their own backings until completion.
+        let prefetch = self
+            .prefetcher
+            .as_ref()
+            .map_or(Ok(()), |pool| pool.borrow_mut().drain());
+        let reads = self.gpu.ensure_reads_idle();
+        let commands = self.drain_commands();
+        prefetch.and(reads).and(commands)
     }
     fn drain_commands(&mut self) -> Result<()> {
-        crate::gpu_wait_policy::retire_commands(&mut self.last, |command| {
+        let result = crate::gpu_wait_policy::retire_commands(&mut self.last, |command| {
+            if command.status() == MTLCommandBufferStatus::Completed {
+                return Ok(());
+            }
             self.gpu.wait_command(command);
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Flash MoE command failed during drain"
-            );
-            Ok(())
-        })
+            super::command_status::completed(
+                command,
+                &format!("Flash MoE drain layer {}", self.layer),
+            )
+        });
+        self.health.observe(result.is_ok());
+        result?;
+        self.ensure_healthy()
     }
     #[cfg(test)]
     pub(super) fn clear_test_cache(&mut self) -> Result<()> {
@@ -989,6 +1020,7 @@ mod tests {
                 Ok(command.to_owned())
             })?;
             let output = MoeOutput {
+                health: Rc::default(),
                 spin_wait_enabled: gpu.spin_wait_enabled,
                 spin_wait_stats: gpu.spin_wait_stats.clone(),
                 commands: vec![command.clone()],
@@ -1018,6 +1050,9 @@ mod tests {
             .to_string();
         ensure!(first == second && first.contains("injected resident publication failure"));
         ensure!(output.hot.borrow().is_none() && output.hot_error.borrow().is_some());
+        // The row shares this latch: clearing terminal command ownership must
+        // never make the failed producer's cache usable again.
+        ensure!(!output.health.observe(true));
         ensure!(
             final_command.status() == MTLCommandBufferStatus::Completed
                 && gpu.device_resident_route_available()

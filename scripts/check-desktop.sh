@@ -180,6 +180,13 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/MTPPanelLayoutCombined.swift" -o "${test_dir}/mtp-layout-check"
 run_fixture_check "${test_dir}/mtp-layout-check"
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/issue163-runtime-contract-check.swift > "${test_dir}/RuntimeContractCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/RuntimeContractCombined.swift" -o "${test_dir}/runtime-contract-check"
+run_fixture_check "${test_dir}/runtime-contract-check"
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
@@ -217,6 +224,10 @@ swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/workspace-features-check.swift -o "${test_dir}/workspace-features-check"
 "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
+
+swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
+    tests/responsiveness-check.swift -o "${test_dir}/responsiveness-check"
+"${test_dir}/responsiveness-check"
 
 "${binary_dir}/MLXL3Studio" --check-chat-timeline
 "${binary_dir}/MLXL3Studio" --check-mcp-preferences

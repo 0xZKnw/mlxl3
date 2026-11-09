@@ -112,6 +112,11 @@ impl Fixture {
     }
 
     async fn with_program(limits: Limits, api_key: &str, program: &str) -> Self {
+        Self::with_ready(limits, api_key, program,
+            json!({"runtime_version":"1.4.5","bridge_protocol":1,"model_context_limit":131072,"mtp_supported":true,"dflash_supported":false,"runtime_executable":"/private/secret","api_key":"secret"})).await
+    }
+
+    async fn with_ready(limits: Limits, api_key: &str, program: &str, ready: Value) -> Self {
         let folder = tempfile::tempdir().unwrap();
         let log = folder.path().join("events.jsonl");
         let mut child = Command::new("python3")
@@ -127,9 +132,7 @@ impl Fixture {
         let state = Arc::new(State {
             model: "small".into(),
             api_key: api_key.into(),
-            bridge_info: bridge_capabilities(
-                &json!({"runtime_version":"1.4.5","bridge_protocol":1,"model_context_limit":131072,"mtp_supported":true,"dflash_supported":false,"runtime_executable":"/private/secret","api_key":"secret"}),
-            ),
+            bridge_info: bridge_capabilities(&ready),
 
             bridge: Mutex::new(Bridge {
                 stdin: child.stdin.take().unwrap(),
@@ -686,17 +689,23 @@ async fn capabilities_describe_validator_and_hide_private_ready_fields() {
         serde_json::from_slice(&to_bytes(response.into_body()).await.unwrap()).unwrap();
     assert_eq!(caps["bridge"]["mtp_supported"], true);
     assert_eq!(caps["api"]["mtp"], false);
+    assert_eq!(caps["api"]["json_schema"], true);
+    assert_eq!(caps["api"]["validated_json"], true);
+    assert_eq!(caps["api"]["constrained_decoding"], false);
+    for format in [
+        json!({"type":"json_object"}),
+        json!({"type":"json_schema","json_schema":{"schema":{"type":"object"}}}),
+    ] {
+        let mut body: Value = serde_json::from_str(&completion_body("eos", false)).unwrap();
+        body["response_format"] = format;
+        assert!(bridge_request(&body, "small").is_ok());
+    }
     assert_eq!(caps["bridge"]["runtime_version"], "1.4.5");
     assert!(caps["bridge"].get("runtime_executable").is_none());
     assert!(caps["bridge"].get("api_key").is_none());
     for (flag, field, value) in [
         ("stop_sequences", "stop", json!(["halt"])),
         ("tool_calls", "tools", json!([{"type":"function"}])),
-        (
-            "json_schema",
-            "response_format",
-            json!({"type":"json_schema"}),
-        ),
         ("seed", "seed", json!(1)),
         ("logit_bias", "logit_bias", json!({"1":1})),
         ("multiple_choices", "n", json!(2)),
@@ -734,6 +743,48 @@ async fn capabilities_describe_validator_and_hide_private_ready_fields() {
     assert_eq!(caps["api"]["images"], false);
     assert!(bridge_request(&body, "small").is_err());
     fixture.finish().await;
+}
+
+#[tokio::test]
+async fn model_capabilities_gate_image_requests_and_preserve_backend() {
+    for (backend, images) in [("direct-metal", false), ("qwen", false), ("lfm3", true)] {
+        let fixture = Fixture::with_ready(
+            Limits::default(),
+            "secret",
+            &FAKE.replace("mode=request['messages'][0]['content']", "mode='eos'"),
+            json!({"backend":backend,"images_supported":images}),
+        )
+        .await;
+        let caps = api_capabilities(&fixture.state);
+        assert_eq!(caps["api"]["images"], images);
+        assert_eq!(caps["api"]["text_only"], !images);
+        assert_eq!(caps["bridge"]["backend"], backend);
+        let body = json!({"model":"small","messages":[{"role":"user","content":[
+            {"type":"text","text":"eos"},
+            {"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="}}
+        ]}]});
+        // Adapter contract only; the fixture is not an image decoder/model.
+        assert!(bridge_request(&body, "small").is_ok());
+        let response = handle(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/chat/completions")
+                .header("authorization", "Bearer secret")
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+            fixture.state.clone(),
+        )
+        .await
+        .unwrap();
+        if images {
+            assert_eq!(response.status(), StatusCode::OK);
+        } else {
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+        drop(response);
+        fixture.finish().await;
+    }
 }
 
 #[test]

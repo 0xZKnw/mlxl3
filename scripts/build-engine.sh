@@ -113,4 +113,8 @@ assert loaded.strip(), 'dynamic loader did not emit its dependency evidence'
 assert not any(name in linked+loaded for name in ('libmlx.', 'libjaccl.', 'mlx.metallib'))
 CHECK
 fi
-"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist" --backend "${package_backend}"
+identity_args=()
+if [[ -n "${MLXL3_ENGINE_RELEASE_TAG:-}" ]]; then
+    identity_args+=(--release-tag "${MLXL3_ENGINE_RELEASE_TAG}")
+fi
+"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist" --backend "${package_backend}" "${identity_args[@]}"

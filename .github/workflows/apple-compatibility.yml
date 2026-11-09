@@ -39,6 +39,10 @@ jobs:
           build/ci/metal-os-capabilities
           cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
           cargo build --locked --release --features mlx,chat
+          # External callers cannot obtain a host-readable pending model output.
+          # This compiles API contracts only; no physical GPU execution is claimed.
+          cargo test --locked --doc --features mlx,chat gpu::model_ops | tee build/ci/model-api-doctests.log
+          python -c 'from pathlib import Path; assert "test result: ok. 4 passed; 0 failed; 0 ignored;" in Path("build/ci/model-api-doctests.log").read_text()'
           compatibility_tests=(
             array::tests::metal_os_capability_query_and_rejections_need_no_gpu_work
             dflash::tests::packed_q4_rejects_older_macos_before_loading_weights

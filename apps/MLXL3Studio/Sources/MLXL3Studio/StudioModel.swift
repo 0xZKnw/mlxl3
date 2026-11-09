@@ -23,11 +23,39 @@ final class StudioModel: ObservableObject {
     private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = []
     @Published var selectedModelName: String?
-    @Published var conversations: [Conversation] = [Conversation()]
-    @Published var selectedConversationID: UUID?
+    @Published var conversations: [Conversation] = [Conversation()] {
+        didSet { observeSidebarChanges() }
+    }
+    private var sidebarObservations: [AnyCancellable]?
+    private var sidebarCache: (query: String, agent: Bool, project: UUID?, rows: [Conversation])?
+
+    private func observeSidebarChanges() {
+        sidebarCache = nil
+        sidebarObservations = conversations.map { conversation in
+            let agent = conversation.agent, project = conversation.projectID
+            return conversation.messageChanges.sink { [weak self] in
+                guard let self, let cached = self.sidebarCache, !cached.query.isEmpty,
+                      cached.agent == agent, cached.project == project else { return }
+                self.sidebarCache = nil
+                // Rows excluded by the filter do not observe their message views.
+                // Publish once until the next render, only for the active search.
+                if cached.agent == (self.selectedMode == .agent),
+                   cached.project == self.selectedProjectID {
+                    self.objectWillChange.send()
+                }
+            }
+        }
+    }
+    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation() } } }
     @Published var projects: [WorkspaceProject] = []
     @Published var profiles: [GenerationProfile] = []
-    @Published var documents: [LibraryDocument] = []
+    @Published var documents: [LibraryDocument] = [] { didSet { documentRevision &+= 1 } }
+    private var documentRevision = 0
+    private let documentSearchWorker = DocumentSearchWorker()
+    @Published private(set) var preparingDocuments = false
+    private var documentSearchTask: Task<Void, Never>?
+    private var documentSearchTicket: UUID?
+    private weak var activeMessageReference: ChatMessage?
     @Published var selectedProjectID: UUID?
     @Published var showWorkspace = false
     @Published var showMCPManager = false
@@ -37,8 +65,8 @@ final class StudioModel: ObservableObject {
     @Published var mcpTools: [MCPToolDescriptor] = []
     @Published private(set) var workspaceFeaturesAvailable = false
     let voice = VoiceController()
-    @Published var draft = ""
-    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:]
+    @Published var draft = "" { didSet { schedulePersistence() } }
+    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence() } }
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
     @Published private(set) var isImportingFiles = false
     private var attachmentImportID: UUID?
@@ -105,15 +133,22 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpTuneRows: [MTPTuningRow] = []
     @Published private(set) var mtpTunedAt: Date?
     private var mtpTuningKey: String?
+    private var tuneCancellationFallback: Task<Void, Never>?
     private var tuneRequestID: String?
     private var tuneConfiguration: MTPConfigurationKey?
     private var tuneCancellationRequested = false
     @Published private(set) var runtimeIdentity: String?
+    @Published private(set) var runtimeQwenProfile: String?
     @Published var systemPrompt = ""
     @Published private(set) var mcpServerCount = 0
     @Published private(set) var mcpToolCount = 0
     @Published private(set) var mcpErrors: [String: String] = [:]
     @Published private(set) var mcpEnabled = false
+    private var regenerationTask: Task<Void, Never>?
+    private var regenerationTicket: UUID?
+    private var mcpUpdateID: String?
+    private var mcpPendingWorkspace: URL?
+    private var mcpAcknowledgedWorkspace: URL?
     @Published private(set) var mcpUpdating = false {
         didSet { updateModelIdleUnload() }
     }
@@ -239,6 +274,11 @@ final class StudioModel: ObservableObject {
             profiles = snapshot.profiles ?? []
             documents = snapshot.documents ?? []
             responseSchema = snapshot.responseSchema ?? ""
+            for saved in snapshot.drafts ?? [] {
+                drafts[saved.conversationID] = saved.text
+                attachmentDrafts[saved.conversationID] = saved.attachments
+            }
+            draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
             selectedProjectID = conversations.first(where: { $0.id == selectedConversationID })?.projectID
         } else {
             selectedConversationID = conversations.first?.id
@@ -269,6 +309,8 @@ final class StudioModel: ObservableObject {
             self.cancelDFlashPreparation()
             self.finishMTPTuning(error: nil)
             self.loadSelectedModel()
+            self.featureError = L("Le moteur installé est incompatible. Le moteur intégré est utilisé.", "The managed engine is incompatible. Using the bundled engine.")
+            Task { await self.updateManager.refreshEngineIdentity() }
         }
         bridge.onExit = { [weak self] message in
             guard let self, let message, !message.isEmpty else { return }
@@ -281,6 +323,7 @@ final class StudioModel: ObservableObject {
             self.dflashSupported = nil
             self.mtpActive = nil; self.mtpSupported = nil; self.mtpAutoDownloadSupported = nil
             self.runtimeIdentity = nil
+            self.runtimeQwenProfile = nil
             if self.activeRequestID != nil {
                 self.failActiveTurn(message)
             } else {
@@ -343,14 +386,26 @@ final class StudioModel: ObservableObject {
 
     func sidebarConversations(matching query: String) -> [Conversation] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return conversations.enumerated().filter {
+        if sidebarObservations == nil { observeSidebarChanges() }
+        if let cached = sidebarCache, cached.query == query,
+           cached.agent == (selectedMode == .agent), cached.project == selectedProjectID {
+            return cached.rows
+        }
+        let rows = conversations.enumerated().filter {
             $0.element.agent == (selectedMode == .agent) && $0.element.projectID == selectedProjectID
                 && (query.isEmpty || $0.element.title.localizedCaseInsensitiveContains(query)
                     || $0.element.messages.contains { $0.content.localizedCaseInsensitiveContains(query) })
         }.sorted {
             if $0.element.isPinned != $1.element.isPinned { return $0.element.isPinned }
+            if !$0.element.isPinned {
+                let left = $0.element.updatedAt ?? .distantPast
+                let right = $1.element.updatedAt ?? .distantPast
+                if left != right { return left > right }
+            }
             return $0.offset < $1.offset
         }.map(\.element)
+        sidebarCache = (query, selectedMode == .agent, selectedProjectID, rows)
+        return rows
     }
 
     var mtpUsesModelCheckpoint: Bool { selectedModel?.modelType == "qwen4_exp" && mtpConfigureSupported }
@@ -527,10 +582,31 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
+        !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
             && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
-            && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
+            && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
+    }
+
+    var sendBlockReason: String? {
+        if preparingDocuments { return L("Recherche dans les documents…", "Searching documents…") }
+        if isGenerating { return cancellationReason ?? L("Génération en cours", "Generating") }
+        guard !canSend else { return nil }
+        if isImportingFiles || libraryImporting { return L("Import de fichiers en cours", "Importing files") }
+        if isTuningMTP { return L("Réglage du moteur en cours", "Tuning engine") }
+        if mcpUpdating { return L("Connexion aux outils en cours", "Connecting tools") }
+        if dflashDownloading || mtpDownloading || modelInstallState.isWorking || updateManager.isInstalling {
+            return L("Installation en cours", "Installation in progress")
+        }
+        if quantizer.converting { return L("Conversion en cours", "Conversion in progress") }
+        if agentStudioBusy { return L("Préparation du projet en cours", "Preparing project") }
+        if modeTransition != nil || dflashConfigurationPending || mtpConfigurationPending {
+            return L("Configuration du moteur en cours", "Configuring engine")
+        }
+        if !engineState.isReady { return L("Chargez un modèle et attendez qu’il soit prêt", "Load a model and wait until it is ready") }
+        if localServer.active || (selectedMode != .chat && selectedMode != .agent) { return L("Choisissez Chat ou Agent pour envoyer", "Choose Chat or Agent to send") }
+        if selectedMode == .agent && (!bridgeUsesAgentRegistry || mcpToolCount == 0 || !mcpErrors.isEmpty) { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
+        return nil
     }
 
     var pendingAttachments: [ChatAttachment] {
@@ -835,6 +911,7 @@ final class StudioModel: ObservableObject {
         readyInfo = nil
         dflashActive = nil
         runtimeIdentity = nil
+        runtimeQwenProfile = nil
         dflashSupported = nil
         mtpActive = nil
         mtpSupported = nil
@@ -901,7 +978,35 @@ final class StudioModel: ObservableObject {
     }
 
     func send() {
+        guard canSend, let conversation = currentConversation else { return }
+        let projectDocuments = documents.filter { $0.projectID == conversation.projectID }
+        guard !projectDocuments.isEmpty else { sendPrepared(sources: []); return }
+        let ticket = UUID()
+        documentSearchTicket = ticket
+        preparingDocuments = true
+        let revision = documentRevision, selectedDraft = draft
+        let attachments = pendingAttachments, model = selectedModelName, mode = selectedMode
+        let load = modelLoadID
+        let trimmed = selectedDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = trimmed.isEmpty ? L("Analyse les fichiers joints.", "Analyze the attached files.") : trimmed
+        documentSearchTask = Task { [weak self, documentSearchWorker] in
+            let sources = await documentSearchWorker.search(text, documents: projectDocuments)
+            guard let self, documentSearchTicket == ticket else { return }
+            preparingDocuments = false
+            documentSearchTask = nil
+            documentSearchTicket = nil
+            guard !Task.isCancelled, selectedConversationID == conversation.id,
+                currentConversation?.projectID == conversation.projectID,
+                documentRevision == revision, draft == selectedDraft,
+                pendingAttachments == attachments, selectedModelName == model, modelLoadID == load,
+                selectedMode == mode, canSend else { return }
+            sendPrepared(sources: sources)
+        }
+    }
+
+    private func sendPrepared(sources: [DocumentExcerpt]) {
         guard canSend, !agentStudioBusy, let conversationIndex else { return }
+        cancelPendingRegeneration()
         if selectedMode != .agent && !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             guard workspaceFeaturesAvailable else { featureError = L("Ce moteur ne prend pas en charge le JSON validé. Mettez le moteur à jour.", "This engine does not support validated JSON. Update the engine."); return }
             do {
@@ -910,6 +1015,11 @@ final class StudioModel: ObservableObject {
         }
         if mcpEnabled && currentProject != nil && !workspaceFeaturesAvailable {
             featureError = L("Ce moteur ne prend pas en charge les permissions par projet. Mettez le moteur à jour.", "This engine does not support per-project permissions. Update the engine."); return
+        }
+        let userID = UUID()
+        if currentConversation?.agent == true, let workspace = agentWorkspaceURL {
+            do { try AgentProjectStore(workspace: workspace).checkpoint(messageID: userID) }
+            catch { featureError = error.localizedDescription; return }
         }
         voice.stop()
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -922,9 +1032,7 @@ final class StudioModel: ObservableObject {
         if conversations[conversationIndex].messages.isEmpty {
             conversations[conversationIndex].title = title(for: trimmed.isEmpty ? attachments.first?.fileName ?? text : text)
         }
-        let projectDocuments = documents.filter { $0.projectID == conversations[conversationIndex].projectID }
-        let sources = DocumentSearch.search(text, documents: projectDocuments)
-        let user = ChatMessage(role: .user, content: text, attachments: attachments)
+        let user = ChatMessage(id: userID, role: .user, content: text, attachments: attachments)
         user.sources = sources
         conversations[conversationIndex].messages.append(user)
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
@@ -936,6 +1044,7 @@ final class StudioModel: ObservableObject {
         activeRequestID = requestID
         cancelledGenerationID = nil
         activeResponseID = assistant.id
+        activeMessageReference = assistant
         if selectedMode == .agent {
             generationStartedAt = .now
             generationLastActivity = .now
@@ -1002,7 +1111,16 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    private func cancelDocumentPreparation() {
+        documentSearchTask?.cancel()
+        documentSearchTask = nil
+        documentSearchTicket = nil
+        preparingDocuments = false
+    }
+
     func stopGeneration() {
+        cancelDocumentPreparation()
+        cancelPendingRegeneration()
         if isTuningMTP { cancelMTPTuning(); return }
         guard isGenerating else { return }
         requestGenerationStop(L("Génération arrêtée", "Generation stopped"))
@@ -1057,9 +1175,13 @@ final class StudioModel: ObservableObject {
 
     private func updateMCPConnection() {
         guard !isPreview, bridge.isRunning else { return }
+        let request = UUID().uuidString
+        mcpUpdateID = request
+        mcpPendingWorkspace = bridgeUsesAgentRegistry ? agentWorkspaceURL : nil
+        mcpAcknowledgedWorkspace = nil
         mcpUpdating = true
         do {
-            try bridge.setMCPEnabled(bridgeUsesAgentRegistry || mcpEnabled)
+            try bridge.setMCPEnabled(bridgeUsesAgentRegistry || mcpEnabled, requestID: request)
         } catch {
             mcpUpdating = false
             mcpErrors = ["connexion": error.localizedDescription]
@@ -1402,15 +1524,29 @@ final class StudioModel: ObservableObject {
     }
 
     func cancelMTPTuning() {
-        guard isTuningMTP else { return }
+        guard isTuningMTP, !tuneCancellationRequested else { return }
         tuneCancellationRequested = true
         mtpTuneStatus = L("Arrêt du test…", "Stopping test…")
+        let request = tuneRequestID
+        let load = modelLoadID
         if !bridge.cancelGeneration() {
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
+            return
+        }
+        tuneCancellationFallback?.cancel()
+        tuneCancellationFallback = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self, self.isTuningMTP, self.tuneCancellationRequested,
+                  self.tuneRequestID == request, self.modelLoadID == load else { return }
+            await self.bridge.stopAndWait()
+            guard self.tuneRequestID == request, self.modelLoadID == load else { return }
+            self.finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
+            self.ejectModel()
         }
     }
 
     private func finishMTPTuning(error: String?) {
+        tuneCancellationFallback?.cancel(); tuneCancellationFallback = nil
         isTuningMTP = false; tuneRequestID = nil; tuneConfiguration = nil
         if let error { if tuneIsDFlash { dflashDownloadError = error } else { mtpError = error } }
         tuneIsDFlash = false
@@ -1495,6 +1631,7 @@ final class StudioModel: ObservableObject {
         guard !localServer.active, modeTransition == nil else { return }
         if isGenerating && (currentConversation?.agent == true || conversation.agent) && selectedConversationID != id { return }
         let previousID = selectedConversationID
+        cancelPendingRegeneration()
         let previousAgent = bridgeUsesAgentRegistry
         if let previous = selectedConversationID { drafts[previous] = draft }
         voice.stop()
@@ -1627,6 +1764,7 @@ final class StudioModel: ObservableObject {
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
         runtimeIdentity = nil
+        runtimeQwenProfile = nil
         contextLengthDraft = savedContextLength
         if isPreview {
             modelContextLimit = 262144
@@ -1748,11 +1886,12 @@ final class StudioModel: ObservableObject {
             mtpMaxDepth = min(3, max(1, event.mtpMaxDepth ?? 1))
             mtpTuneSupported = event.mtpTuneSupported == true && mtpMaxDepth == 3
             mtpTuningKey = event.mtpTuningKey
-            runtimeIdentity = [event.runtimeCommit, event.runtimeProfile, event.mlxVersion.map { "MLX \($0)" }]
+            runtimeQwenProfile = event.qwenProfile
+            runtimeIdentity = [event.backend, event.version, event.qwenProfile.map { "Qwen profile \($0)" }, event.effectiveOptions.isEmpty ? nil : event.effectiveOptions, event.runtimeCommit, event.runtimeProfile, event.mlxVersion.map { "MLX \($0)" }]
                 .compactMap { $0 }.joined(separator: " · ")
             activeContextLimit = event.contextLimit
             modelContextLimit = event.modelContextLimit
-            contextMemory = event.contextMemory
+            contextMemory = event.contextMemory ?? event.nativeContextMemory
             modelResidentBytes = event.residentGB.map { $0 * 1e9 }
             let info = (
                 model: event.model ?? selectedModelName ?? "modèle",
@@ -1776,6 +1915,10 @@ final class StudioModel: ObservableObject {
             else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
             else if !mtpAvailable { mtpEnabled = false }
         case "mcp_status":
+            // Ignore delayed replies for a different workspace/handshake. Older engines
+            // may still enable manual Send, but cannot auto-send a regeneration ticket.
+            if let request = event.requestID, request != mcpUpdateID { return }
+            mcpAcknowledgedWorkspace = event.requestID != nil ? mcpPendingWorkspace : nil
             if let tools = event.mcpToolCatalog { mcpTools = tools }
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0
@@ -1857,6 +2000,9 @@ final class StudioModel: ObservableObject {
             if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
             }
+            if let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }) {
+                conversations[index].updatedAt = .now
+            }
             finishAgentTurn()
             activeRequestID = nil
             activeResponseID = nil
@@ -1866,6 +2012,7 @@ final class StudioModel: ObservableObject {
             guard event.requestID == activeRequestID else { return }
             labConfiguration = nil
             activeMessage()?.fail(cancellationReason ?? L("Génération arrêtée", "Generation stopped"))
+            finishAgentTurn()
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -1891,6 +2038,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func failActiveTurn(_ message: String) {
+        cancelPendingRegeneration()
         labConfiguration = nil
         mcpUpdating = false
         let detail = message.hasPrefix("Context full (")
@@ -1908,11 +2056,13 @@ final class StudioModel: ObservableObject {
     }
 
     private func activeMessage() -> ChatMessage? {
-        guard let activeResponseID else { return nil }
+        guard let activeResponseID else { activeMessageReference = nil; return nil }
+        if let message = activeMessageReference, message.id == activeResponseID { return message }
         for conversation in conversations.indices {
             if let message = conversations[conversation].messages.first(
                 where: { $0.id == activeResponseID }
             ) {
+                activeMessageReference = message
                 return message
             }
         }
@@ -1940,6 +2090,23 @@ final class StudioModel: ObservableObject {
             responseSchema: responseSchema
         )
         snapshot.labSamples = labSamples
+        var savedDrafts: [ConversationDraft] = []
+        var bytes = 0
+        var omitted = false
+        // Current draft first; older drafts retain conversation ordering. Bounds
+        // exclude only oversized drafts, never truncate text or block history saves.
+        let ordered = conversations.sorted { $0.id == selectedConversationID && $1.id != selectedConversationID }
+        for conversation in ordered {
+            let text = conversation.id == selectedConversationID ? draft : (drafts[conversation.id] ?? "")
+            let attachments = attachmentDrafts[conversation.id] ?? []
+            guard !text.isEmpty || !attachments.isEmpty else { continue }
+            let saved = ConversationDraft(conversationID: conversation.id, text: text, attachments: attachments)
+            guard saved.valid, savedDrafts.count < 128, saved.byteCount <= 16 * 1024 * 1024 - bytes else { omitted = true; continue }
+            savedDrafts.append(saved)
+            bytes += saved.byteCount
+        }
+        snapshot.drafts = savedDrafts
+        if omitted { storageError = L("Certains brouillons dépassent la limite de sauvegarde (64 Kio de texte par conversation, 128 brouillons, 16 Mio au total). Ils restent ouverts mais ne seront pas restaurés.", "Some drafts exceed the save limit (64 KiB text per conversation, 128 drafts, 16 MiB total). They remain open but will not be restored.") }
         return snapshot
     }
 
@@ -2058,12 +2225,13 @@ extension StudioModel {
     }
 
     private func finishAgentTurn() {
-        guard currentConversation?.agent == true, let workspace = agentWorkspaceURL else { return }
+        guard currentConversation?.agent == true, let workspace = agentWorkspaceURL,
+            let messageID = activeResponseID else { return }
         let store = AgentProjectStore(workspace: workspace)
         agentStudioBusy = true
         Task {
             defer { agentStudioBusy = false }
-            do { _ = try await Task.detached { try store.checkpoint("Agent turn") }.value }
+            do { try await Task.detached { try store.checkpoint(messageID: messageID) }.value }
             catch { featureError = error.localizedDescription }
         }
     }
@@ -2082,6 +2250,7 @@ extension StudioModel {
     }
 
     func stopServices() {
+        cancelPendingRegeneration()
         modelLoadID = UUID()
         modelLoadTask?.cancel(); modelLoadTask = nil
         quantizer.cancel()
@@ -2164,6 +2333,7 @@ extension StudioModel {
             else if previousContext != profile.contextLength { contextLengthDraft = profile.contextLength; loadSelectedModel() }
         }
         if mtpEnabled { setMTPEnabled(false) }
+        if dflash2Enabled { setDFlash2Enabled(false) }
         schedulePersistence()
     }
 
@@ -2176,13 +2346,24 @@ extension StudioModel {
 
     @discardableResult
     func branchConversation(at messageID: UUID, includeMessage: Bool = true) -> Bool {
-        guard !isGenerating, let original = currentConversation,
+        guard !isGenerating, !agentStudioBusy, let original = currentConversation,
             let index = original.messages.firstIndex(where: { $0.id == messageID }) else { return false }
         var branch = Conversation(title: original.title + L(" · branche", " · branch"))
         branch.agent = original.agent
         branch.projectID = original.projectID
         branch.parentConversationID = original.id
         branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }
+        if original.agent, let workspace = agentWorkspaceURL {
+            // User checkpoints are before the request; assistant checkpoints are after its tools.
+            let boundary = !includeMessage && original.messages[index].role == .assistant
+                ? original.messages[..<index].last(where: { $0.role == .user })?.id : messageID
+            guard let boundary else { return false }
+            let destination = workspace.deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("\(branch.id.uuidString)/files")
+            do { try AgentProjectStore(workspace: workspace).fork(to: destination, at: boundary,
+                retaining: branch.messages.map(\.id)) }
+            catch { featureError = error.localizedDescription; return false }
+        }
         conversations.insert(branch, at: 0)
         selectConversation(branch.id)
         schedulePersistence()
@@ -2198,11 +2379,49 @@ extension StudioModel {
     }
 
     func regenerate(_ id: UUID) {
-        guard !isGenerating, engineState.isReady, let messages = currentConversation?.messages,
+        guard !isGenerating, !agentStudioBusy, let messages = currentConversation?.messages,
             let index = messages.firstIndex(where: { $0.id == id }), messages[index].role == .assistant,
             let user = messages[..<index].last(where: { $0.role == .user }) else { return }
+        let previous = selectedConversationID
         editMessage(user.id)
-        send()
+        guard let conversation = selectedConversationID, conversation != previous else { return }
+        let ticket = UUID(), load = modelLoadID, model = selectedModelName, text = draft
+        let attachments = pendingAttachments.map(\.id)
+        regenerationTicket = ticket
+        regenerationTask = Task { [weak self] in
+            for _ in 0..<600 {
+                guard !Task.isCancelled, let self, regenerationTicket == ticket else { return }
+                guard selectedConversationID == conversation, selectedModelName == model,
+                    modelLoadID == load, draft == text, pendingAttachments.map(\.id) == attachments else {
+                    cancelPendingRegeneration(); return
+                }
+                if case .failed = engineState { cancelPendingRegeneration(); return }
+                if !mcpUpdating && !mcpErrors.isEmpty {
+                    featureError = L("Échec de connexion aux outils. Réessayez la régénération.", "Tool connection failed. Retry regeneration.")
+                    cancelPendingRegeneration(); return
+                }
+                if canSend && !agentStudioBusy {
+                    if currentConversation?.agent == true && mcpAcknowledgedWorkspace != agentWorkspaceURL {
+                        featureError = L("Mettez le moteur à jour pour régénérer automatiquement avec les outils. Le brouillon est conservé.", "Update the engine for automatic tool regeneration. Your draft is preserved.")
+                        cancelPendingRegeneration(); return
+                    }
+                    // Consume before send: another ready/status event cannot duplicate the request.
+                    regenerationTicket = nil
+                    regenerationTask = nil
+                    send(); return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            guard let self, regenerationTicket == ticket else { return }
+            featureError = L("La régénération attendait le moteur ou les outils. Réessayez.", "Regeneration timed out waiting for the engine or tools. Retry.")
+            cancelPendingRegeneration()
+        }
+    }
+
+    private func cancelPendingRegeneration() {
+        regenerationTicket = nil
+        regenerationTask?.cancel()
+        regenerationTask = nil
     }
 
     func exportMarkdown() {

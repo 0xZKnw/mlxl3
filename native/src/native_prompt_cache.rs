@@ -68,21 +68,57 @@ impl PromptCache {
         if usize::try_from(target.retained_bytes()?)? > budget {
             return Ok(None);
         }
-        let auxiliary = match (head, draft) {
-            (None, None) => AuxiliaryPrefix::Ar,
-            (Some(head), None) => AuxiliaryPrefix::Mtp(head.snapshot_prefix()),
-            (None, Some(draft)) => AuxiliaryPrefix::Draft(draft.snapshot_prefix(model)?),
-            _ => bail!("cannot cache two speculative modes"),
-        };
-        let cache = Self {
-            conversation: conversation.to_owned(),
-            tokens: tokens.to_vec(),
-            target,
-            logits: logits.to_vec(),
-            auxiliary,
-        };
-        Ok(mlxl3_native::memory_policy::cache_fits(cache.components()?, budget).then_some(cache))
+        // Target/MTP snapshots own handles, not deep copies. Admit the complete
+        // prospective payload before cloning the potentially 80 MiB draft ring.
+        let mtp = head.map(FlashMtpHead::snapshot_prefix);
+        ensure!(
+            !(head.is_some() && draft.is_some()),
+            "cannot cache two speculative modes"
+        );
+        let parts = [
+            usize::try_from(target.retained_bytes()?)?,
+            logits
+                .len()
+                .checked_mul(2)
+                .context("cached logits overflow")?,
+            draft
+                .map(RoundDraft::prefix_clone_bytes)
+                .transpose()?
+                .unwrap_or(0),
+            mtp.as_ref()
+                .map(|prefix| prefix.retained_bytes())
+                .transpose()?
+                .map(usize::try_from)
+                .transpose()?
+                .unwrap_or(0),
+            tokens
+                .len()
+                .checked_mul(4)
+                .context("cached token overflow")?,
+            conversation.len(),
+        ];
+        mlxl3_native::memory_policy::capture_if_fits(parts, budget, || -> Result<Option<Self>> {
+            let auxiliary = match (mtp, draft) {
+                (None, None) => AuxiliaryPrefix::Ar,
+                (Some(prefix), None) => AuxiliaryPrefix::Mtp(prefix),
+                (None, Some(draft)) => AuxiliaryPrefix::Draft(draft.snapshot_prefix(model)?),
+                _ => bail!("cannot cache two speculative modes"),
+            };
+            let cache = Self {
+                conversation: conversation.to_owned(),
+                tokens: tokens.to_vec(),
+                target,
+                logits: logits.to_vec(),
+                auxiliary,
+            };
+            Ok(
+                mlxl3_native::memory_policy::cache_fits(cache.components()?, budget)
+                    .then_some(cache),
+            )
+        })
+        .map(Option::flatten)
     }
+
     fn matches_mode(&self, head: bool, draft: bool) -> bool {
         matches!(
             (&self.auxiliary, head, draft),

@@ -14,8 +14,10 @@ pub mod codec;
 pub(crate) mod cold_ready;
 mod contracts;
 pub mod convert_matmul;
+pub mod image_budget;
 pub mod quantize;
 pub mod tensor_layout;
+pub mod transaction;
 pub use contracts::{
     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, native_prompt_reuse,
     reusable_prefix_len, smallm_kernel_key,
@@ -31,6 +33,12 @@ pub(crate) mod dense_epilogue;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod device_hot_policy;
 pub mod dflash;
+#[cfg(any(
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
+mod draft_storage;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
@@ -119,11 +127,14 @@ pub mod qwen35;
 mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
+pub mod qwen_profile;
 pub mod registry;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod resident_scratch_policy;
 #[cfg(feature = "mlx")]
 pub mod router;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod router_network;
 pub mod runtime_stats;
 pub mod speculation_plan;
 pub mod speculative;

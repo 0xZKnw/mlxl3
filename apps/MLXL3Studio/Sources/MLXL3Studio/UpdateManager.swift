@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CryptoKit
 import Darwin
 import Foundation
@@ -157,6 +158,44 @@ struct SemanticVersion: Comparable, Sendable {
     }
 }
 
+/// Release ordering is independent from the numeric runtime/protocol version.
+/// Legacy provenance is unknown: wait for stable rather than risk replacing a
+/// historical stable with an older beta of the same base.
+struct EngineReleaseIdentity: Comparable, Sendable {
+    let version: SemanticVersion
+    let rawValue: String
+    let beta: Int?
+    let legacy: Bool
+    init?(_ value: String) {
+        let raw = value.hasPrefix("engine-v") ? String(value.dropFirst(8)) : value
+        let legacy = raw.hasSuffix("-legacy")
+        let parts = (legacy ? String(raw.dropLast(7)) : raw).components(separatedBy: "-beta.")
+        guard (1...2).contains(parts.count),
+              parts[0].split(separator: ".", omittingEmptySubsequences: false).count == 3,
+              parts[0].utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
+              let version = SemanticVersion(parts[0]) else { return nil }
+        var beta: Int?
+        if parts.count == 2 {
+            guard !legacy, !parts[1].hasPrefix("0"),
+                  parts[1].utf8.allSatisfy({ (48...57).contains($0) }),
+                  let number = Int(parts[1]), number > 0 else { return nil }
+            beta = number
+        }
+        self.version = version; self.rawValue = raw; self.beta = beta; self.legacy = legacy
+    }
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        if lhs.version != rhs.version { return lhs.version < rhs.version }
+        if lhs.legacy != rhs.legacy {
+            return lhs.legacy ? rhs.beta == nil : lhs.beta != nil
+        }
+        switch (lhs.beta, rhs.beta) {
+        case let (.some(a), .some(b)): return a < b
+        case (.some, .none): return true
+        default: return false
+        }
+    }
+}
+
 @MainActor
 final class UpdateManager: ObservableObject {
     nonisolated static let repository = "0xZKnw/mlxl3"
@@ -170,6 +209,8 @@ final class UpdateManager: ObservableObject {
     @Published private(set) var currentEngineVersion: String
     @Published private(set) var updateChannel: UpdateChannel
 
+    private var runtimeObservation: AnyCancellable?
+    private var identityRefreshID = UUID()
     private let preferences: UserDefaults
     private let session: URLSession
     private let cacheDirectory: URL?
@@ -196,15 +237,30 @@ final class UpdateManager: ObservableObject {
         self.currentVersion = currentVersion
         self.currentBuild = currentBuild ?? Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
         self.releasesURL = releasesURL
-        self.currentEngineVersion = EngineRuntimeStore.installedVersion()
+        self.currentEngineVersion = EngineRuntimeStore.bundledVersion
         self.preferences = preferences
         self.session = session
         self.cacheDirectory = cacheDirectory
         self.updateChannel = UpdateChannel(rawValue: preferences.string(forKey: "updates.channel") ?? "") ?? .stable
+        runtimeObservation = NotificationCenter.default.publisher(for: EngineRuntimeStore.identityChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in await self?.refreshEngineIdentity() }
+            }
+        Task { [weak self] in await self?.refreshEngineIdentity() }
+
     }
 
     deinit {
         updateTask?.cancel()
+    }
+
+    func refreshEngineIdentity() async {
+        let ticket = UUID()
+        identityRefreshID = ticket
+        let identity = await Task.detached(priority: .utility) { EngineRuntimeStore.installedVersion() }.value
+        guard ticket == identityRefreshID else { return }
+        currentEngineVersion = identity
     }
 
     var hasAppUpdate: Bool {
@@ -225,8 +281,8 @@ final class UpdateManager: ObservableObject {
         switch engineState {
         case .downloading, .ready, .installing: true
         default:
-            if let release = engineRelease, let current = SemanticVersion(currentEngineVersion),
-               let latest = SemanticVersion(release.version) { latest > current } else { false }
+            if let release = engineRelease, let current = EngineReleaseIdentity(currentEngineVersion),
+               let latest = EngineReleaseIdentity(release.tag) { latest > current } else { false }
         }
     }
     var hasReadyUpdate: Bool { state.readyRelease != nil || engineState.readyRelease != nil }
@@ -301,8 +357,10 @@ final class UpdateManager: ObservableObject {
                 }
                 let engine = try Self.selectRelease(data, channel: .engine, updateChannel: selectedChannel)
                 engineRelease = engine
-                if let engine, let current = SemanticVersion(currentEngineVersion),
-                   let latest = SemanticVersion(engine.version), latest > current {
+                await refreshEngineIdentity()
+                guard !Task.isCancelled, operation == updateOperationID else { return }
+                if let engine, let current = EngineReleaseIdentity(currentEngineVersion),
+                   let latest = EngineReleaseIdentity(engine.tag), latest > current {
                     engineState = .downloading(engine)
                     do {
                         let archive = try await Self.downloadAndVerify(release: engine, session: session, cacheDirectory: cacheDirectory) { [weak self] progress in
@@ -344,7 +402,7 @@ final class UpdateManager: ObservableObject {
                 try await Task.detached(priority: .userInitiated) {
                     try EngineRuntimeStore.install(archive: archive, release: release, appVersion: version)
                 }.value
-                currentEngineVersion = release.version
+                await refreshEngineIdentity()
                 engineState = .upToDate(checkedAt: Date())
                 engineInstalled = true
             } catch {

@@ -32,6 +32,19 @@ pub fn cache_fits(components: [usize; 6], budget: usize) -> bool {
         .is_some_and(|bytes| bytes <= budget)
 }
 
+/// Admission runs before the closure may clone an expensive prefix. The caller
+/// supplies prospective payload lengths and can recheck allocator capacities.
+pub fn capture_if_fits<T, E>(
+    components: [usize; 6],
+    budget: usize,
+    capture: impl FnOnce() -> Result<T, E>,
+) -> Result<Option<T>, E> {
+    if !cache_fits(components, budget) {
+        return Ok(None);
+    }
+    capture().map(Some)
+}
+
 /// Eight blocks between changes, 5% hysteresis, occasional eight-block probes.
 /// Costs are nanoseconds per committed target input, never acceptance alone.
 pub fn adaptive_depth(current: usize, costs: [u64; 4], dwell: usize, probe: bool) -> Option<usize> {
@@ -351,5 +364,35 @@ mod verification {
                 kani::cover!(current == 3 && next == 0);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+    #[test]
+    fn admission_rejects_before_clone_and_propagates_capture_failure() {
+        let clones = std::cell::Cell::new(0);
+        let capture = || -> Result<Vec<u8>, &'static str> {
+            clones.set(clones.get() + 1);
+            Ok(vec![1; 80])
+        };
+        assert_eq!(capture_if_fits([10, 2, 80, 0, 4, 1], 96, capture), Ok(None));
+        assert_eq!(clones.get(), 0);
+        assert!(
+            capture_if_fits([10, 2, 80, 0, 4, 1], 97, capture)
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(clones.get(), 1);
+        assert_eq!(
+            capture_if_fits([usize::MAX, 1, 0, 0, 0, 0], usize::MAX, capture),
+            Ok(None)
+        );
+        assert_eq!(clones.get(), 1);
+        assert_eq!(
+            capture_if_fits([1; 6], 6, || -> Result<(), &str> { Err("capture fault") }),
+            Err("capture fault")
+        );
     }
 }

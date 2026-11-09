@@ -18,6 +18,7 @@ pub struct ThinkingSplitter {
     mode: Channel,
     buffer: String,
     drop_newline: bool,
+    channel_header: Option<String>,
 }
 
 impl ThinkingSplitter {
@@ -31,6 +32,7 @@ impl ThinkingSplitter {
             },
             buffer: String::new(),
             drop_newline: false,
+            channel_header: None,
         }
     }
 
@@ -55,6 +57,65 @@ impl ThinkingSplitter {
         }
     }
 
+    /// Production token-aware path. `control` must come from the tokenizer's
+    /// declared delimiter-ID table, never from searching decoded text.
+    pub fn feed_token(&mut self, text: &str, control: Option<&str>) -> Vec<Fragment> {
+        let Some(control) = control.filter(|marker| text.ends_with(marker)) else {
+            return self.feed_literal(text);
+        };
+        let mut out = self.feed_literal(&text[..text.len() - control.len()]);
+        if let Some(header) = self.channel_header.take() {
+            self.fragment(format!("<|channel>{header}"), &mut out);
+        }
+        match control {
+            "<think>" | "<|channel>thought" => {
+                self.mode = Channel::Thinking;
+                self.drop_newline = true;
+            }
+            "</think>" | "<channel|>" if self.mode == Channel::Thinking => {
+                self.mode = Channel::Answer;
+                self.drop_newline = true;
+            }
+            "<|channel>" => self.channel_header = Some(String::new()),
+            _ => self.fragment(control.to_owned(), &mut out),
+        }
+        out
+    }
+
+    pub fn feed_literal(&mut self, text: &str) -> Vec<Fragment> {
+        let mut out = Vec::new();
+        let combined;
+        let text = if !self.buffer.is_empty() {
+            combined = std::mem::take(&mut self.buffer) + text;
+            combined.as_str()
+        } else {
+            text
+        };
+        if self.drop_newline && text == "\r" {
+            self.buffer.push('\r');
+            return out;
+        }
+        if let Some(mut header) = self.channel_header.take() {
+            header.push_str(text);
+            if header.len() < "thought".len() && "thought".starts_with(&header) {
+                self.channel_header = Some(header);
+                return out;
+            }
+            if let Some(tail) = header.strip_prefix("thought") {
+                self.mode = Channel::Thinking;
+                self.drop_newline = true;
+                self.fragment(tail.to_owned(), &mut out);
+            } else {
+                self.fragment(format!("<|channel>{header}"), &mut out);
+            }
+        } else {
+            self.fragment(text.to_owned(), &mut out);
+        }
+        out
+    }
+
+    // Legacy text-only CLI splitter: lexical markers are its explicit input
+    // protocol. Model generation uses feed_token instead.
     pub fn feed(&mut self, text: &str) -> Vec<Fragment> {
         self.buffer.push_str(text);
         let mut out = Vec::new();
@@ -103,6 +164,9 @@ impl ThinkingSplitter {
 
     pub fn finish(&mut self) -> Vec<Fragment> {
         let mut out = Vec::new();
+        if let Some(header) = self.channel_header.take() {
+            self.fragment(format!("<|channel>{header}"), &mut out);
+        }
         let tail = std::mem::take(&mut self.buffer);
         self.fragment(tail, &mut out);
         out
@@ -112,6 +176,34 @@ impl ThinkingSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn literal_markers_preserve_every_chunk_boundary() {
+        let input = "En XML, `</think>` est littéral. <think>code<channel|> </think>";
+        for cut in input
+            .char_indices()
+            .map(|(i, _)| i)
+            .chain(std::iter::once(input.len()))
+        {
+            let mut splitter = ThinkingSplitter::new("");
+            let mut out = splitter.feed_token(&input[..cut], None);
+            out.extend(splitter.feed_token(&input[cut..], None));
+            out.extend(splitter.finish());
+            assert!(out.iter().all(|f| f.channel == Channel::Answer));
+            assert_eq!(out.into_iter().map(|f| f.text).collect::<String>(), input);
+        }
+        let mut splitter = ThinkingSplitter::new("");
+        assert!(splitter.feed_token("<think>", Some("<think>")).is_empty());
+        assert_eq!(
+            splitter.feed_token("reason", None)[0].channel,
+            Channel::Thinking
+        );
+        assert!(splitter.feed_token("</think>", Some("</think>")).is_empty());
+        assert_eq!(
+            splitter.feed_token("answer", None)[0].channel,
+            Channel::Answer
+        );
+    }
+
     #[test]
     fn markers_split_at_every_character() {
         for (open, close) in [("<think>", "</think>"), ("<|channel>thought", "<channel|>")] {

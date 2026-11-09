@@ -1,0 +1,41 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_worker_failure_reaps_before_root_cleanup[foreign] ____________
+
+worker_engine = PosixPath('/tmp/pytest-of-agent/pytest-7/test_worker_failure_reaps_befo0/worker')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f506e7b0410>
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_worker_failure_reaps_befo0')
+fault = 'foreign'
+
+    @pytest.mark.parametrize(
+        "fault", ["exit", "invalid", "foreign", "partial", "flood", "stderr-flood", "silent"]
+    )
+    def test_worker_failure_reaps_before_root_cleanup(worker_engine, monkeypatch, tmp_path, fault):
+        from mlxl3_quantizer.process import TileWorker
+
+        monkeypatch.setenv("TILE_FAULT", fault)
+        root = tmp_path / "requests"
+        root.mkdir()
+        with (
+>           pytest.raises((ValueError, RuntimeError, TimeoutError)),
+            TileWorker(
+                [
+                    str(worker_engine),
+                    "quantize-worker",
+                    str(root),
+                    "--k",
+                    "4",
+                    "--codebook",
+                    "0",
+                    "--max-scratch-bytes",
+                    str(1 << 28),
+                ]
+            ) as worker,
+        ):
+E       Failed: DID NOT RAISE (<class 'ValueError'>, <class 'RuntimeError'>, <class 'TimeoutError'>)
+
+tests/test_native_quantizer.py:218: Failed
+=========================== short test summary info ============================
+FAILED tests/test_native_quantizer.py::test_worker_failure_reaps_before_root_cleanup[foreign]
+1 failed in 0.11s
+MUTATION DETECTED: foreign ID accepted without production predicate; disk source unchanged

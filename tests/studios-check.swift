@@ -52,6 +52,13 @@ import SwiftUI
       (try files.attributesOfItem(atPath: workspace.appendingPathComponent("test.sh").path)[
         .posixPermissions] as? NSNumber)?.intValue == 0o755, "Executable mode lost on import")
     let first = try store.versions()[0].id
+    let boundary = UUID()
+    try store.checkpoint(messageID: boundary)
+    var restricted = try store.state().permissions
+    restricted.commandSeconds = 2
+    restricted.run = false
+    restricted.write = false
+    try store.setPermissions(restricted)
     try AgentProjectStore.write(
       Data("<!doctype html><p>after</p>".utf8), path: "index.html", root: workspace)
     try AgentProjectStore.write(Data("window.result = 2".utf8), path: "main.js", root: workspace)
@@ -60,6 +67,24 @@ import SwiftUI
       try String(contentsOf: source.appendingPathComponent("index.html"), encoding: .utf8).contains(
         "before"), "Agent changed originals before review")
     let second = try store.checkpoint("Edit files")
+    let branchURL = root.appendingPathComponent("historical-branch/files")
+    try store.fork(to: branchURL, at: boundary, retaining: [boundary])
+    let historical = AgentProjectStore(workspace: branchURL)
+    check(try historical.contents("main.js", revision: historical.versions()[0].id)
+      == Data("window.result = 1".utf8), "Fork copied latest files instead of historical boundary")
+    check(try historical.state().permissions == restricted, "Fork relaxed tool permissions")
+    check(try historical.state().source == source.path, "Fork lost original project")
+    check(!files.fileExists(atPath: branchURL.appendingPathComponent("nested/new.txt").path),
+      "Historical fork contains later file")
+    check((try files.attributesOfItem(atPath: branchURL.appendingPathComponent("test.sh").path)[.posixPermissions]
+      as? NSNumber)?.intValue == 0o755, "Fork lost executable mode")
+    try AgentProjectStore.write(Data("branch only".utf8), path: "main.js", root: branchURL)
+    check(try Data(contentsOf: workspace.appendingPathComponent("main.js")) == Data("window.result = 2".utf8),
+      "Fork mutation leaked to parent")
+    do {
+      try store.fork(to: root.appendingPathComponent("missing/files"), at: UUID(), retaining: [])
+      preconditionFailure("Missing historical checkpoint silently used current workspace")
+    } catch { checks += 1 }
     let diff = try store.diff(from: first, to: second)
     check(
       diff.contains("-window.result = 1") && diff.contains("+window.result = 2"),
@@ -85,6 +110,43 @@ import SwiftUI
     check(
       try String(contentsOf: source.appendingPathComponent(".env"), encoding: .utf8) == "PRIVATE",
       "Excluded private file changed")
+    // Exercise apply's actual tree/mode path, not a source-text checklist.
+    try AgentProjectStore.write(Data("window.result = 3".utf8), path: "main.js", root: workspace, mode: 0o755)
+    try AgentProjectStore.write(Data("#!/bin/sh\nprintf ok".utf8), path: "test.sh", root: workspace, mode: 0o644)
+    try AgentProjectStore.write(Data("#!/bin/sh\ntrue".utf8), path: "new.sh", root: workspace, mode: 0o755)
+    let modeRevision = try store.checkpoint("Reviewed executable changes")
+    try store.apply(reviewedRevision: modeRevision)
+    for (path, mode) in [("main.js", 0o755), ("test.sh", 0o644), ("new.sh", 0o755)] {
+      check((try files.attributesOfItem(atPath: source.appendingPathComponent(path).path)[.posixPermissions]
+        as? NSNumber)?.intValue == mode, "Apply ignored reviewed executable mode: \(path)")
+    }
+    try AgentProjectStore.write(Data("changed".utf8), path: "new.sh", root: workspace, mode: 0o755)
+    let conflictingMode = try store.checkpoint("Content with external chmod")
+    try files.setAttributes([.posixPermissions: 0o644], ofItemAtPath: source.appendingPathComponent("new.sh").path)
+    do {
+      try store.apply(reviewedRevision: conflictingMode)
+      preconditionFailure("Concurrent original chmod was overwritten")
+    } catch { checks += 1 }
+    try files.setAttributes([.posixPermissions: 0o755], ofItemAtPath: source.appendingPathComponent("new.sh").path)
+    try store.apply(reviewedRevision: conflictingMode)
+    // A parent-path collision fails only during writes, after a deletion and chmod.
+    try files.removeItem(at: workspace.appendingPathComponent("main.js"))
+    try AgentProjectStore.write(Data("changed again".utf8), path: "new.sh", root: workspace, mode: 0o644)
+    try AgentProjectStore.write(Data("child".utf8), path: "zz-blocked/child", root: workspace)
+    try Data("not a directory".utf8).write(to: source.appendingPathComponent("zz-blocked"))
+    let failedApply = try store.checkpoint("Rollback bytes and modes")
+    do {
+      try store.apply(reviewedRevision: failedApply)
+      preconditionFailure("Blocked parent path unexpectedly applied")
+    } catch { checks += 1 }
+    check(try Data(contentsOf: source.appendingPathComponent("main.js")) == Data("window.result = 3".utf8),
+      "Rollback failed to restore deleted executable bytes")
+    for path in ["main.js", "new.sh"] {
+      check((try files.attributesOfItem(atPath: source.appendingPathComponent(path).path)[.posixPermissions]
+        as? NSNumber)?.intValue == 0o755, "Rollback lost executable mode")
+    }
+    check(try store.state().baseline == conflictingMode, "Failed apply advanced baseline")
+    try store.restore(conflictingMode)
     try AgentProjectStore.write(Data("pending".utf8), path: "index.html", root: workspace)
     try AgentProjectStore.write(Data("pending".utf8), path: "main.js", root: workspace)
     _ = try store.checkpoint("Conflicting edits")
@@ -139,6 +201,12 @@ import SwiftUI
         try await Task.sleep(for: .milliseconds(20))
       }
       preconditionFailure("Quantization controller did not finish within 7 seconds")
+    }
+    for malformed in ["array", "incomplete", "invalid"] {
+      quantizer.input = "malformed/" + malformed
+      quantizer.inspect()
+      try await wait { !quantizer.inspecting }
+      check(quantizer.error != nil && quantizer.source == nil, "Malformed probe did not fail gracefully")
     }
     quantizer.input = "fixture/model"
     quantizer.inspect()
@@ -230,6 +298,11 @@ import SwiftUI
       try FileHandle.standardOutput.write(contentsOf: data)
     }
     if request["operation"] as? String == "probe" {
+      if let source = request["source"] as? String, source.hasPrefix("malformed/") {
+        let response = source.hasSuffix("array") ? "[]\n" : source.hasSuffix("incomplete") ? "{}\n" : "not-json\n"
+        try FileHandle.standardOutput.write(contentsOf: Data(response.utf8))
+        return
+      }
       try emit([
         "type": "result",
         "result": [

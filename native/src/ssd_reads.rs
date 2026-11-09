@@ -10,7 +10,7 @@ use std::{
     os::unix::fs::FileExt,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc::{self, Receiver, Sender, SyncSender},
     },
     thread::JoinHandle,
@@ -497,6 +497,8 @@ fn dedicated_readahead_never_accepts_unqualified_source_or_replaced_inode() {
 mod readahead;
 
 pub(crate) struct ReadService {
+    cancelled: Arc<AtomicBool>,
+    draining: Arc<AtomicBool>,
     #[cfg(test)]
     shared_trace: std::cell::RefCell<Option<SharedTrace>>,
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -537,6 +539,10 @@ pub(crate) struct ReadService {
     wave_gates: std::cell::RefCell<Option<[Arc<TestReadGate>; 2]>>,
 }
 impl ReadService {
+    #[cfg(any(test, all(target_os = "macos", feature = "direct-metal")))]
+    pub(crate) fn set_cancellation(&mut self, cancelled: Arc<AtomicBool>) {
+        self.cancelled = cancelled;
+    }
     pub(crate) fn new(readers: usize) -> Result<Self> {
         Self::new_with_split_default(readers, false)
     }
@@ -590,6 +596,8 @@ impl ReadService {
     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
             #[cfg(test)]
             shared_trace: std::cell::RefCell::new(None),
             #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -920,6 +928,17 @@ impl ReadService {
     }
     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
         ensure!(
+            !self.cancelled.load(Ordering::Acquire),
+            "generation cancelled"
+        );
+        if self.draining.load(Ordering::Acquire) {
+            ensure!(
+                self.in_flight() == 0,
+                "cancelled native SSD reads are still draining"
+            );
+            self.draining.store(false, Ordering::Release);
+        }
+        ensure!(
             !self.window_active.get(),
             "native SSD window still owns the reader pool"
         );
@@ -954,10 +973,15 @@ impl ReadService {
         let (result, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
             receiver,
+            cancelled: Arc::clone(&self.cancelled),
+            draining: Arc::clone(&self.draining),
+            abandoned: false,
             remaining: 0,
             deadline: Instant::now() + limit,
             #[cfg(test)]
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         self.enqueue_payloads(&mut batch, &result, reads, background, allow_split)?;
         Ok(batch)
@@ -972,6 +996,7 @@ impl ReadService {
     ) -> Result<()> {
         let count = reads.len();
         for item in reads {
+            batch.check_cancelled()?;
             let (lease, file, offset, bytes, payload) = item?;
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
@@ -1083,21 +1108,86 @@ impl Drop for ReadService {
     }
 }
 
+fn latch_cancellation(abandoned: &mut bool, requested: bool) -> bool {
+    *abandoned |= requested;
+    *abandoned
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn batch_cancellation_is_irreversible_across_flag_reset() {
+    let initial: bool = kani::any();
+    let requested: bool = kani::any();
+    let mut abandoned = initial;
+    let observed = latch_cancellation(&mut abandoned, requested);
+    assert_eq!(observed, initial || requested);
+    assert_eq!(latch_cancellation(&mut abandoned, false), observed);
+    assert!(latch_cancellation(&mut abandoned, true));
+    assert!(latch_cancellation(&mut abandoned, false));
+    kani::cover!(!initial && requested);
+    kani::cover!(initial && !requested);
+}
+
 pub(crate) struct ReadBatch {
     receiver: Receiver<Completed>,
+    cancelled: Arc<AtomicBool>,
+    draining: Arc<AtomicBool>,
+    abandoned: bool,
     remaining: usize,
     deadline: Instant,
     #[cfg(test)]
     pub(crate) trace: Vec<(SlotLease, Instant, Instant)>,
+    #[cfg(test)]
+    wait_started: Option<Sender<()>>,
 }
 impl ReadBatch {
+    /// Logical cancellation detaches publication. Workers retain their file,
+    /// destination and active count until the actual syscall has completed.
+    pub(crate) fn abandon(&mut self) {
+        self.draining.store(true, Ordering::Release);
+        self.abandoned = true;
+        self.remaining = 0;
+        self.receiver = mpsc::channel().1;
+    }
+    fn check_cancelled(&mut self) -> Result<()> {
+        if latch_cancellation(&mut self.abandoned, self.cancelled.load(Ordering::Acquire)) {
+            self.abandon();
+            anyhow::bail!("generation cancelled");
+        }
+        Ok(())
+    }
+    fn wait_next(&mut self) -> Result<Completed> {
+        loop {
+            self.check_cancelled()?;
+            let left = self.deadline.saturating_duration_since(Instant::now());
+            #[cfg(test)]
+            if let Some(started) = self.wait_started.take() {
+                let _ = started.send(());
+            }
+            match self
+                .receiver
+                .recv_timeout(left.min(Duration::from_millis(10)))
+            {
+                Ok(next) => {
+                    self.check_cancelled()?;
+                    return Ok(next);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) if Instant::now() < self.deadline => {}
+                Err(error) => {
+                    return Err(error).context("native SSD demand deadline or reader failure");
+                }
+            }
+        }
+    }
     pub(crate) fn remaining(&self) -> usize {
         self.remaining
     }
     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+        self.check_cancelled()?;
         ensure!(self.remaining == 1, "prefetch must own one pending read");
         match self.receiver.try_recv() {
             Ok(next) => {
+                self.check_cancelled()?;
                 self.remaining = 0;
                 Ok(Some((next.lease, next.result?)))
             }
@@ -1119,6 +1209,7 @@ impl ReadBatch {
         })
     }
     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+        self.check_cancelled()?;
         ensure!(
             ready_minimum_valid(minimum, self.remaining),
             "invalid native SSD ready minimum"
@@ -1126,9 +1217,7 @@ impl ReadBatch {
         let mut completed = Vec::new();
         while self.remaining > 0 {
             let next = if completed.len() < minimum {
-                self.receiver
-                    .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
-                    .context("native SSD demand deadline or reader failure")?
+                self.wait_next()?
             } else {
                 match self.receiver.try_recv() {
                     Ok(next) => next,
@@ -1136,6 +1225,7 @@ impl ReadBatch {
                     Err(error) => return Err(error.into()),
                 }
             };
+            self.check_cancelled()?;
             self.remaining -= 1;
             #[cfg(test)]
             self.trace.push((next.lease, next.timing.0, next.timing.1));
@@ -1147,11 +1237,7 @@ impl ReadBatch {
 impl Drop for ReadBatch {
     fn drop(&mut self) {
         while self.remaining > 0 {
-            if self
-                .receiver
-                .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
-                .is_err()
-            {
+            if self.wait_next().is_err() {
                 break;
             }
             self.remaining -= 1;
@@ -1275,6 +1361,89 @@ mod tests {
         Ok(())
     }
     #[test]
+    fn cancellation_ack_detaches_before_physical_drain_and_blocks_reuse() -> Result<()> {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut pool = ReadService::new(1)?;
+        pool.set_cancellation(cancelled.clone());
+        let mut file = tempfile::tempfile()?;
+        file.write_all(b"retained")?;
+        let gate = Arc::new(std::sync::Barrier::new(2));
+        pool.set_test_gate(Some(gate.clone()));
+        let mut batch = pool.start(
+            vec![(lease()?, file.try_clone()?, 0, 8)],
+            Duration::from_secs(2),
+        )?;
+        let (started, entered) = mpsc::channel();
+        batch.wait_started = Some(started);
+        let (done, ack) = mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            let failed = batch.ready(true).is_err();
+            drop(batch); // Must not wait for the held worker after logical cancel.
+            let _ = done.send(failed);
+        });
+        let entered = entered.recv_timeout(Duration::from_secs(1));
+        // Only the original worker is gated; a failed admission assertion must
+        // not strand a second worker during cleanup.
+        pool.set_test_gate(None);
+        let at = Instant::now();
+        cancelled.store(true, Ordering::Release);
+        let acknowledged = ack.recv_timeout(Duration::from_millis(250));
+        let ack_elapsed = at.elapsed();
+        let retained = pool.in_flight();
+        cancelled.store(false, Ordering::Release);
+        let refused_demand = pool.start(Vec::new(), Duration::ZERO).is_err();
+        let refused_background = pool
+            .start_mode(
+                vec![(lease()?, file.try_clone()?, 0, 8)],
+                Duration::ZERO,
+                true,
+            )
+            .is_err();
+        // Always release and join, even when the acknowledgement assertion fails.
+        gate.wait();
+        waiter
+            .join()
+            .map_err(|_| anyhow::anyhow!("cancel waiter panicked"))?;
+        let until = Instant::now() + Duration::from_secs(2);
+        while pool.in_flight() != 0 && Instant::now() < until {
+            std::thread::yield_now();
+        }
+        assert!(entered.is_ok());
+        assert_eq!(acknowledged.ok(), Some(true));
+        assert!(ack_elapsed < Duration::from_millis(250));
+        assert_eq!(retained, 1);
+        assert!(refused_demand && refused_background);
+        assert_eq!(pool.in_flight(), 0);
+        let mut retry = pool.start(vec![(lease()?, file, 0, 8)], Duration::from_secs(2))?;
+        assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"retained");
+        Ok(())
+    }
+
+    #[test]
+    fn queued_cancelled_completion_cannot_revive_after_flag_clear() -> Result<()> {
+        let (sender, receiver) = mpsc::channel();
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let mut batch = ReadBatch {
+            receiver,
+            cancelled: cancelled.clone(),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
+            remaining: 1,
+            deadline: Instant::now() + Duration::from_secs(2),
+            trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
+        };
+        sender.send(Completed::new(lease()?, Ok(vec![7])))?;
+        assert!(batch.ready(true).is_err());
+        cancelled.store(false, Ordering::Release);
+        assert!(batch.ready(true).is_err());
+        assert!(batch.poll().is_err());
+        assert!(sender.send(Completed::new(lease()?, Ok(vec![8]))).is_err());
+        Ok(())
+    }
+
+    #[test]
     fn timeout_preserves_the_real_worker_and_rejects_reuse_until_drain() -> Result<()> {
         let pool = ReadService::new(1)?;
         let mut file = tempfile::tempfile()?;
@@ -1384,9 +1553,14 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
             receiver,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
             remaining: 2,
             deadline: Instant::now() + Duration::from_secs(1),
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         sender.send(Completed::new(token, Ok(vec![2])))?;
         sender.send(Completed::new(token, Ok(vec![1])))?;
@@ -1401,9 +1575,14 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let mut timed = ReadBatch {
             receiver,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            draining: Arc::new(AtomicBool::new(false)),
+            abandoned: false,
             remaining: 1,
             deadline: Instant::now(),
             trace: Vec::new(),
+            #[cfg(test)]
+            wait_started: None,
         };
         assert!(timed.ready(true).is_err());
         assert_eq!(timed.remaining(), 1);

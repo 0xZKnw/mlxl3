@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -136,3 +137,218 @@ def test_launch_scratch_matches_independent_byte_counts_for_all_supported_k():
             assert launch_tiles(768, k, cb, memory * 2) == 2
             with pytest.raises(ValueError):
                 launch_tiles(256, k, cb, memory - 1)
+
+
+WORKER = """#!/usr/bin/env python3
+import argparse,json,os,sys,time
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('command');p.add_argument('root');p.add_argument('--k',type=int);p.add_argument('--codebook',type=int);p.add_argument('--max-scratch-bytes',type=int);a=p.parse_args()
+if a.command != 'quantize-worker': sys.exit(9)
+fault=os.environ.get('TILE_FAULT','')
+if os.environ.get('TILE_PID'):Path(os.environ['TILE_PID']).write_text(str(os.getpid()))
+for line in sys.stdin:
+    i=int(line);root=Path(a.root)/str(i)
+    if fault=='silent' or (fault=='second-silent' and i==2):time.sleep(30)
+    if fault=='exit':sys.exit(3)
+    if fault=='invalid':print('oops',flush=True);continue
+    if fault in ('flood','stderr-flood'):
+        stream=sys.stderr if fault=='stderr-flood' else sys.stdout
+        stream.write('x'*100000);stream.flush();time.sleep(30)
+    raw=(root/'tiles.f32').read_bytes();n=len(raw)//4;tiles=n//256
+    stage=root/'stage';stage.mkdir()
+    (stage/'decoded.f32').write_bytes(raw)
+    (stage/'states.u16').write_bytes(bytes(n*2))
+    (stage/'packed.u16').write_bytes(bytes(tiles*16*a.k*2))
+    r={'schema':1,'status':'complete','tiles':tiles,'values':n,'k':a.k,'codebook':a.codebook,'launch_tiles':min(tiles,a.max_scratch_bytes//(516*(1<<(16-a.k)))),'max_scratch_bytes':a.max_scratch_bytes}
+    (stage/'report.json').write_text(json.dumps(r))
+    if fault=='partial':(stage/'states.u16').write_bytes(b'')
+    stage.rename(root/'result')
+    print(json.dumps({'id':i+1 if fault=='foreign' else i,'report':r}),flush=True)
+"""
+
+
+@pytest.fixture
+def worker_engine(tmp_path):
+    path = tmp_path / "worker"
+    path.write_text(WORKER)
+    path.chmod(0o755)
+    return path
+
+
+@pytest.mark.parametrize("k", range(2, 9))
+@pytest.mark.parametrize("cb", range(3))
+def test_owned_worker_reuses_one_child_across_bounded_batches(worker_engine, monkeypatch, k, cb):
+    import sys
+    from pathlib import Path
+
+    from mlxl3_quantizer import native, process
+
+    vendor = Path(__file__).resolve().parents[1] / "apps/MLXL3Studio/Vendor/PonyExl3"
+    monkeypatch.syspath_prepend(str(vendor))
+    monkeypatch.setenv("MLXL3_NATIVE_ENGINE", str(worker_engine))
+    monkeypatch.setenv("MLXL3_NATIVE_CONVERTER_WORKER", "1")
+    monkeypatch.setattr(native, "_CONVERTER_TILE_BATCH", 2)
+    children = []
+    original = subprocess.Popen
+
+    def launch(*args, **kwargs):
+        child = original(*args, **kwargs)
+        children.append(child)
+        return child
+
+    monkeypatch.setattr(process.subprocess, "Popen", launch)
+    values = np.arange(5 * 256, dtype=np.float32).reshape(5, 256)[:, ::-1]
+    decoded, states = native.converter_tiles(values, k, cb)
+    np.testing.assert_array_equal(decoded, values)
+    assert states.shape == values.shape and not states.any()
+    assert len(children) == 1 and children[0].poll() is not None
+    assert "mlx.core" not in sys.modules
+
+
+@pytest.mark.parametrize(
+    "fault", ["exit", "invalid", "foreign", "partial", "flood", "stderr-flood", "silent"]
+)
+def test_worker_failure_reaps_before_root_cleanup(worker_engine, monkeypatch, tmp_path, fault):
+    from mlxl3_quantizer.process import TileWorker
+
+    monkeypatch.setenv("TILE_FAULT", fault)
+    root = tmp_path / "requests"
+    root.mkdir()
+    with (
+        pytest.raises((ValueError, RuntimeError, TimeoutError)),
+        TileWorker(
+            [
+                str(worker_engine),
+                "quantize-worker",
+                str(root),
+                "--k",
+                "4",
+                "--codebook",
+                "0",
+                "--max-scratch-bytes",
+                str(1 << 28),
+            ]
+        ) as worker,
+    ):
+        quantize_tiles_native(
+            np.zeros((1, 256)), 4, engine=worker_engine, timeout=0.2, _worker=(worker, root)
+        )
+    assert worker.process.poll() is not None
+    assert list(root.iterdir()) == []
+
+
+def test_worker_cancellation_after_success_does_not_publish_partial_second_request(
+    worker_engine, monkeypatch, tmp_path
+):
+    from mlxl3_quantizer.process import TileWorker
+
+    monkeypatch.setenv("TILE_FAULT", "second-silent")
+
+    class Cancelled(Exception):
+        pass
+
+    root = tmp_path / "requests"
+    root.mkdir()
+    with (
+        pytest.raises(Cancelled),
+        TileWorker(
+            [
+                str(worker_engine),
+                "quantize-worker",
+                str(root),
+                "--k",
+                "4",
+                "--codebook",
+                "0",
+                "--max-scratch-bytes",
+                str(1 << 28),
+            ]
+        ) as worker,
+    ):
+        quantize_tiles_native(np.zeros((1, 256)), 4, engine=worker_engine, _worker=(worker, root))
+
+        def cancel():
+            if worker.request_id == 2:
+                raise Cancelled
+
+        quantize_tiles_native(
+            np.ones((1, 256)),
+            4,
+            engine=worker_engine,
+            cancel_check=cancel,
+            _worker=(worker, root),
+        )
+    assert worker.process.poll() is not None and list(root.iterdir()) == []
+
+
+@pytest.mark.skipif(
+    not os.environ.get("MLXL3_PHYSICAL_WORKER_ENGINE"),
+    reason="explicit physical Apple GPU worker engine required",
+)
+def test_physical_worker_all_codebooks_match_independent_frozen_corpus(tmp_path):
+    """Explicit hardware gate, not exercised by CPU/fake-worker success."""
+    from mlxl3_quantizer.process import TileWorker
+
+    engine = os.environ["MLXL3_PHYSICAL_WORKER_ENGINE"]
+    corpus = Path(__file__).parent / "fixtures/native-quantizer"
+    values = np.fromfile(corpus / "tiles.f32", "<f4").reshape(-1, 256)
+    for k in range(2, 9):
+        for cb in range(3):
+            root = tmp_path / f"{k}-{cb}"
+            root.mkdir()
+            expected = np.fromfile(corpus / f"oracle-{k}-{cb}-decoded.f32", "<f4").reshape(
+                values.shape
+            )
+            indices = np.fromfile(corpus / f"oracle-{k}-{cb}-states.u16", "<u2").reshape(
+                values.shape
+            )
+            with TileWorker(
+                [
+                    engine,
+                    "quantize-worker",
+                    str(root),
+                    "--k",
+                    str(k),
+                    "--codebook",
+                    str(cb),
+                    "--max-scratch-bytes",
+                    str(1 << 28),
+                ]
+            ) as worker:
+                for _ in range(2):
+                    decoded, states = quantize_tiles_native(
+                        values, k, cb, engine=engine, _worker=(worker, root)
+                    )
+                    np.testing.assert_array_equal(decoded.view(np.uint32), expected.view(np.uint32))
+                    np.testing.assert_array_equal(states, indices)
+
+
+def test_waiting_converter_lock_remains_cancellable():
+    from mlxl3_quantizer import native
+
+    class Cancelled(Exception):
+        pass
+
+    def cancel():
+        raise Cancelled
+
+    with native._CONVERTER_LOCK, pytest.raises(Cancelled), native._converter_lock(cancel):
+        pytest.fail("contended lock was acquired")
+
+
+def test_worker_startup_failure_is_fatal_and_next_call_recovers(worker_engine, monkeypatch):
+    from mlxl3_quantizer import native
+
+    vendor = Path(__file__).resolve().parents[1] / "apps/MLXL3Studio/Vendor/PonyExl3"
+    monkeypatch.syspath_prepend(str(vendor))
+    monkeypatch.setenv("MLXL3_NATIVE_CONVERTER_WORKER", "1")
+    monkeypatch.setenv("MLXL3_NATIVE_ENGINE", str(worker_engine.with_name("missing")))
+    with pytest.raises(RuntimeError, match="native converter service failed"):
+        native.converter_tiles(np.zeros((1, 256)), 4)
+    monkeypatch.setenv("MLXL3_NATIVE_ENGINE", str(worker_engine))
+    worker_engine.chmod(0o644)
+    with pytest.raises(RuntimeError, match="worker launch failed"):
+        native.converter_tiles(np.zeros((1, 256)), 4)
+    worker_engine.chmod(0o755)
+    actual, _ = native.converter_tiles(np.ones((1, 256)), 4)
+    assert np.all(actual == 1)

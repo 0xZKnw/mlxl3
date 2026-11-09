@@ -1,0 +1,15 @@
+   Compiling mlxl3-native v2.0.4 (/workspace/scratch/f0ba1f683224/mlxl3-pr163-recovery)
+    Finished `test` profile [unoptimized] target(s) in 14.21s
+     Running unittests native/src/lib.rs (/tmp/pr163-protocol-target/debug/deps/mlxl3_native-02c72cde4ee8f2cf)
+
+running 8 tests
+test tokenizer::tests::explicit_thinking_preserves_undefined_default_and_other_context ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tokenizer::tests::actual_tokenizer_distinguishes_literal_and_declared_marker_ids ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 393 filtered out; finished in 0.01s

@@ -737,17 +737,9 @@ impl QwenVerification<'_, '_> {
     }
 }
 
-fn opt_in(name: &str) -> Result<bool> {
-    match std::env::var(name) {
-        Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
-        Err(std::env::VarError::NotPresent) => crate::flash_support::hc_chain_flag(None, false),
-        Err(error) => return Err(error.into()),
-    }
-    .with_context(|| format!("{name} must be 0 or 1"))
-}
-
 pub struct Qwen35<'a> {
     gpu: &'a Metal,
+    profile: crate::qwen_profile::QwenProfile,
     embed: TensorInfo,
     head: Projection<'a>,
     norm: MatrixView,
@@ -765,16 +757,17 @@ pub struct Qwen35<'a> {
 }
 impl<'a> Qwen35<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
-        let join_moe = opt_in("MLXL3_NATIVE_QWEN_MOE_JOIN")?;
-        let join_layers = opt_in("MLXL3_NATIVE_QWEN_LAYER_JOIN")?;
-        let chain_layers = join_layers && opt_in("MLXL3_NATIVE_QWEN_LAYER_CHAIN")?;
-        let device_greedy = join_layers
-            && opt_in("MLXL3_NATIVE_QWEN_DEVICE_GREEDY")?
-            && gpu.device_greedy_available();
-        let prefill_last_head = join_layers && opt_in("MLXL3_NATIVE_QWEN_PREFILL_LAST_HEAD")?;
-        let group_expert_qmv = join_layers && opt_in("MLXL3_NATIVE_QWEN_GROUP_EXPERT_QMV")?;
-        let group_expert_stages =
-            group_expert_qmv && opt_in("MLXL3_NATIVE_QWEN_GROUP_EXPERT_STAGES")?;
+        let profile = crate::qwen_profile::QwenProfile::from_environment()?;
+        let [
+            join_moe,
+            join_layers,
+            chain_layers,
+            _,
+            prefill_last_head,
+            group_expert_qmv,
+            group_expert_stages,
+            device_greedy,
+        ] = profile.effective(gpu.device_greedy_available(), true);
         let root: serde_json::Value =
             serde_json::from_reader(std::fs::File::open(c.path.join("config.json"))?)?;
         let config = &root["text_config"];
@@ -841,10 +834,9 @@ impl<'a> Qwen35<'a> {
             context > 0 && context <= limit,
             "native Qwen context exceeds checkpoint limit"
         );
-        let device_limit = (join_layers
-            && opt_in("MLXL3_NATIVE_QWEN_DEVICE_KV")?
-            && context <= crate::flash_support::FLASH_MAX_CONTEXT)
-            .then_some(context);
+        let device_limit =
+            (join_layers && profile.flags[3] && context <= crate::flash_support::FLASH_MAX_CONTEXT)
+                .then_some(context);
         let embed = c
             .tensors
             .get("model.language_model.embed_tokens.weight")
@@ -868,10 +860,15 @@ impl<'a> Qwen35<'a> {
                     device_limit,
                 )?))
             } else {
-                Mixer::Gdn(Box::new(QwenGdn::from_checkpoint(
+                Mixer::Gdn(Box::new(QwenGdn::load(
                     gpu,
                     c,
                     &format!("{prefix}.linear_attn"),
+                    HIDDEN,
+                    16,
+                    32,
+                    4,
+                    EPS,
                 )?))
             };
             let mut mlp = Moe::load(gpu, c, &format!("{prefix}.mlp"))?;
@@ -884,8 +881,9 @@ impl<'a> Qwen35<'a> {
                 mlp,
             });
         }
-        Ok(Self {
+        let model = Self {
             gpu,
+            profile,
             embed,
             head,
             norm,
@@ -900,8 +898,29 @@ impl<'a> Qwen35<'a> {
             context,
             offset: 0,
             owner: Rc::new(()),
+        };
+        eprintln!(
+            "Native Qwen profile={} effective={}",
+            model.profile_name(),
+            model.effective_flags()
+        );
+        Ok(model)
+    }
+    pub fn profile_name(&self) -> &'static str {
+        self.profile.name
+    }
+
+    pub fn effective_flags(&self) -> serde_json::Value {
+        serde_json::json!({
+            "moe_join": self.join_moe, "layer_join": self.join_layers,
+            "layer_chain": self.chain_layers, "device_kv": self.device_kv_enabled(),
+            "prefill_last_head": self.prefill_last_head,
+            "group_expert_qmv": self.grouped_expert_qmv_enabled(),
+            "group_expert_stages": self.grouped_expert_stages_enabled(),
+            "device_greedy": self.device_greedy,
         })
     }
+
     pub fn context_limit(&self) -> u32 {
         self.context
     }
@@ -1088,8 +1107,24 @@ impl<'a> Qwen35<'a> {
         Ok(self.run(token, false)?.0)
     }
     pub fn forward_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
-        let (logits, _) = self.run(token, false)?;
-        Ok((logits, self.state_trace()?))
+        self.forward_trace_export(token, Self::state_trace)
+    }
+    fn forward_trace_export(
+        &mut self,
+        token: u32,
+        export: impl FnOnce(&Self) -> Result<Vec<FlashTraceTensor>>,
+    ) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
+        // Keep rollback state until fallible private-to-shared export completes.
+        let before = self.snapshot();
+        crate::transaction::with_rollback(
+            self,
+            &before,
+            |model| {
+                let (logits, _) = model.run(token, false)?;
+                Ok((logits, export(model)?))
+            },
+            Self::restore,
+        )
     }
     pub fn layer_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<Vec<u16>>)> {
         self.run(token, true)
@@ -1554,6 +1589,43 @@ mod tests {
             assert_eq!(a.data, e.data);
         }
         println!("Qwen strict greedy ties, nonfinite rejection, rollback and one fewer command");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Qwen checkpoint: joined/nonjoined export failure and retry"]
+    fn qwen_failed_trace_export_preserves_state_and_continuation() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = Qwen35::load(&gpu, &c, 16)?;
+        for joined in [false, true] {
+            model.reset();
+            model.join_layers = joined;
+            model.prefill(&[63611, 222460])?;
+            let prefix = model.snapshot();
+            let before = model.state_trace()?;
+            let expected = model.forward_trace(177571)?;
+            let continuation = model.forward(644)?;
+            model.restore(&prefix)?;
+            let failed =
+                model.forward_trace_export(177571, |_| anyhow::bail!("injected export failure"));
+            assert!(failed.is_err());
+            assert_eq!(model.offset(), 2);
+            let same = |a: &[FlashTraceTensor], b: &[FlashTraceTensor]| {
+                assert!(!a.is_empty());
+                assert_eq!(a.len(), b.len());
+                for (a, b) in a.iter().zip(b) {
+                    assert_eq!(a.name, b.name);
+                    assert_eq!(a.shape, b.shape);
+                    assert_eq!(a.data, b.data);
+                }
+            };
+            same(&model.state_trace()?, &before);
+            let actual = model.forward_trace(177571)?;
+            assert_eq!(actual.0, expected.0);
+            same(&actual.1, &expected.1);
+            assert_eq!(model.forward(644)?, continuation);
+        }
         Ok(())
     }
 

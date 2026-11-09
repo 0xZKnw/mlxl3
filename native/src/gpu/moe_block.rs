@@ -340,6 +340,7 @@ impl FlashMoeRow<'_> {
                                     );
                                     let backing = self.gpu.completed_record(payload)?;
                                     let expert = FlashExpert::from_backing(self.gpu, &backing)?;
+                                    self.gpu.check_cancelled()?;
                                     ensure!(
                                         plan.publish(lease),
                                         "stale Flash block SSD completion"
@@ -476,6 +477,7 @@ impl FlashMoeRow<'_> {
                     );
                 }
                 Ok(MoeOutput {
+                    health: self.health.clone(),
                     spin_wait_enabled: self.gpu.spin_wait_enabled,
                     #[cfg(test)]
                     spin_wait_stats: self.gpu.spin_wait_stats.clone(),

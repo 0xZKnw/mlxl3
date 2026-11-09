@@ -80,6 +80,20 @@ pub fn run_tiles(
     codebook: u32,
     scratch: u64,
 ) -> anyhow::Result<()> {
+    let report = run_tiles_with(input, destination, k, codebook, scratch, None)?;
+    println!("{report}");
+    Ok(())
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+fn run_tiles_with(
+    input: &std::path::Path,
+    destination: &std::path::Path,
+    k: u32,
+    codebook: u32,
+    scratch: u64,
+    worker: Option<&crate::gpu::quantize::TileQuantizer>,
+) -> anyhow::Result<serde_json::Value> {
     use anyhow::{Context, ensure};
     use std::{
         io::{Read, Write},
@@ -97,6 +111,10 @@ pub fn run_tiles(
     let values = usize::try_from(bytes / 4)?;
     let (launch_tiles, _) =
         tile_search_plan(values, k, scratch).context("invalid tile count, K or scratch budget")?;
+    ensure!(
+        worker.is_none() || values / 256 == launch_tiles,
+        "worker request exceeds one bounded scratch launch"
+    );
     let cb = crate::codec::Codebook::try_from(codebook)?;
     ensure!(
         !destination.try_exists()?,
@@ -139,9 +157,11 @@ pub fn run_tiles(
             }
         }
     }
-    let result = (|| -> anyhow::Result<()> {
-        let (decoded, states) =
-            crate::gpu::quantize::quantize_tiles(&tiles, k, cb, scratch, &cancelled)?;
+    let result = (|| -> anyhow::Result<serde_json::Value> {
+        let (decoded, states) = match worker {
+            Some(worker) => worker.quantize(&tiles, scratch, &cancelled)?,
+            None => crate::gpu::quantize::quantize_tiles(&tiles, k, cb, scratch, &cancelled)?,
+        };
         let packed = crate::codec::pack(&states, k as usize)?;
         for (name, data) in [
             (
@@ -172,13 +192,125 @@ pub fn run_tiles(
         )?;
         publish_directory(stage.path(), destination)?;
         let _ = stage.keep();
-        println!("{report}");
-        Ok(())
+        Ok(report)
     })();
     for signal in signals {
         signal_hook::low_level::unregister(signal);
     }
     result
+}
+
+/// Only canonical, sequential u64 IDs are accepted. Paths/config never come from stdin.
+pub fn worker_request_id(line: &[u8], previous: u64) -> Option<u64> {
+    if line.len() > 21 || line.last() != Some(&b'\n') {
+        return None;
+    }
+    let digits = &line[..line.len() - 1];
+    if digits.is_empty() || digits[0] == b'0' {
+        return None;
+    }
+    let mut value = 0u64;
+    for digit in digits {
+        if !digit.is_ascii_digit() {
+            return None;
+        }
+        value = value
+            .checked_mul(10)?
+            .checked_add(u64::from(digit - b'0'))?;
+    }
+    (previous.checked_add(1)? == value).then_some(value)
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+pub fn run_worker(
+    root: &std::path::Path,
+    k: u32,
+    codebook: u32,
+    scratch: u64,
+) -> anyhow::Result<()> {
+    use anyhow::{Context, ensure};
+    use std::io::{BufRead, Read, Write};
+    ensure!(
+        scratch <= 256 * 1024 * 1024,
+        "worker scratch exceeds 256 MiB"
+    );
+    tile_search_plan(256, k, scratch).context("invalid worker configuration")?;
+    ensure!(root.is_dir() && !root.is_symlink(), "invalid worker root");
+    let root = root.canonicalize()?;
+    let worker = objc::rc::autoreleasepool(|| {
+        crate::gpu::quantize::TileQuantizer::new(k, crate::codec::Codebook::try_from(codebook)?)
+    })?;
+    let mut stdin = std::io::stdin().lock();
+    let mut stdout = std::io::stdout().lock();
+    let mut previous = 0;
+    loop {
+        let mut line = Vec::new();
+        let count = (&mut stdin).take(22).read_until(b'\n', &mut line)?;
+        if count == 0 {
+            return Ok(());
+        }
+        let id = worker_request_id(&line, previous).context("invalid worker request ID")?;
+        let request = root.join(id.to_string());
+        ensure!(
+            request.is_dir() && !request.is_symlink(),
+            "invalid request directory"
+        );
+        let input = request.join("tiles.f32");
+        ensure!(
+            input.is_file() && !input.is_symlink(),
+            "invalid request input"
+        );
+        let report = objc::rc::autoreleasepool(|| {
+            run_tiles_with(
+                &input,
+                &request.join("result"),
+                k,
+                codebook,
+                scratch,
+                Some(&worker),
+            )
+        })?;
+        writeln!(stdout, "{}", serde_json::json!({"id":id,"report":report}))?;
+        stdout.flush()?;
+        previous = id;
+    }
+}
+
+#[test]
+fn worker_requests_reject_replay_paths_overflow_and_unbounded_frames() {
+    assert_eq!(worker_request_id(b"1\n", 0), Some(1));
+    assert_eq!(
+        worker_request_id(b"18446744073709551615\n", u64::MAX - 1),
+        Some(u64::MAX)
+    );
+    for line in [
+        b"".as_slice(),
+        b"1",
+        b"0\n",
+        b"01\n",
+        b"2\n",
+        b"../1\n",
+        b"1\n2\n",
+        b"18446744073709551616\n",
+    ] {
+        assert_eq!(worker_request_id(line, 0), None);
+    }
+    assert_eq!(worker_request_id(b"1\n", u64::MAX), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(24)]
+fn worker_request_ids_never_replay_or_overflow() {
+    let line: [u8; 21] = kani::any();
+    let length: usize = kani::any();
+    kani::assume(length <= line.len());
+    let previous: u64 = kani::any();
+    if let Some(id) = worker_request_id(&line[..length], previous) {
+        assert!(id > previous && id - previous == 1);
+        assert!(length >= 2 && line[length - 1] == b'\n');
+        kani::cover!(id == 1);
+    }
 }
 
 #[cfg(all(test, target_os = "macos", feature = "direct-metal"))]

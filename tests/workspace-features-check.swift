@@ -198,8 +198,16 @@ import SwiftUI
         var project = engine.currentProject!; project.instructions = "Project instruction"; project.allowedTools = ["local.read"]
         engine.updateProject(project)
         engine.documents = [LibraryDocument(projectID: project.id, fileName: "flight.txt", originalPath: "", text: "The launch vehicle is named Orion.")]
+        engine.draft = "cancel pending retrieval"; engine.send()
+        check(engine.preparingDocuments && !engine.canSend, "Retrieval has visible pending state")
+        engine.stopGeneration()
+        check(!engine.preparingDocuments && engine.currentConversation!.messages.isEmpty && engine.draft == "cancel pending retrieval", "Cancel before retrieval preserves draft and transcript")
+        engine.draft = "stale retrieval"; engine.send()
+        engine.draft = "edited while searching"
+        try await wait { !engine.preparingDocuments }
+        check(engine.currentConversation!.messages.isEmpty && engine.draft == "edited while searching", "Stale retrieval never sends newer draft")
         engine.draft = "What is the launch vehicle?"; engine.send()
-        try await wait { !engine.isGenerating }
+        try await wait { !engine.isGenerating && !engine.preparingDocuments }
         let response = engine.currentConversation!.messages.last!
         let payload = try JSONSerialization.jsonObject(with: Data(response.content.utf8)) as! [String: Any]
         check(payload["allowed_tools"] as? [String] == ["local.read"], "Permissions cross real subprocess boundary")
@@ -208,13 +216,14 @@ import SwiftUI
         check((messages.last!["content"] as! String).contains("Orion") && response.sources.count == 1, "Retrieval reaches production bridge")
         let count = engine.conversations.count
         engine.regenerate(response.id)
-        try await wait { !engine.isGenerating }
+        try await wait { engine.currentConversation?.messages.count == 2 && !engine.isGenerating && !engine.preparingDocuments }
         check(engine.conversations.count == count + 1 && engine.currentConversation?.messages.count == 2, "Regeneration end-to-end preserves original")
         engine.responseSchema = "{\"type\":\"object\"}"; engine.draft = "JSON"; engine.send()
-        try await wait { !engine.isGenerating }
+        try await wait { !engine.isGenerating && !engine.preparingDocuments }
         let jsonPayload = try JSONSerialization.jsonObject(with: Data(engine.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
         check(jsonPayload["response_schema"] as? String == engine.responseSchema, "Schema reaches bridge")
         engine.responseSchema = "broken"; engine.draft = "invalid"; engine.send()
+        try await wait { !engine.preparingDocuments }
         check(!engine.isGenerating && engine.featureError != nil && engine.draft == "invalid", "Invalid schema keeps draft")
         engine.ejectModel()
         let oldEngine = StudioModel(conversationFileURL: root.appendingPathComponent("old-engine.json"), preferences: preferences)

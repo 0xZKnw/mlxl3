@@ -60,16 +60,20 @@ struct StudioCodeEditor: NSViewRepresentable {
     guard let editor = scroll.documentView as? NSTextView else { return }
     let changedDocument = context.coordinator.parent.documentID != documentID
     let changedFont = context.coordinator.parent.fontSize != fontSize
+      || context.coordinator.parent.language != language || context.coordinator.parent.diff != diff
     context.coordinator.parent = self
     editor.isEditable = editable
     editor.isSelectable = true
     scroll.rulersVisible = !diff
     if editor.string != text || changedDocument {
+      guard !editor.hasMarkedText() || changedDocument else { return }
       editor.string = text
+      context.coordinator.resetLines(editor)
       editor.undoManager?.removeAllActions()
       if changedDocument { editor.scrollRangeToVisible(NSRange(location: 0, length: 0)) }
       context.coordinator.style(editor)
     } else if changedFont || editor.textStorage?.length == 0 {
+      context.coordinator.resetLines(editor)
       context.coordinator.style(editor)
     }
   }
@@ -77,9 +81,39 @@ struct StudioCodeEditor: NSViewRepresentable {
   @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
     var parent: StudioCodeEditor
     private var task: Task<Void, Never>?
+    private var styling: Task<Void, Never>?
+    private var lexer: Task<[SyntaxHighlighter.Token], Never>?
+    private var revision = UUID()
+    private var changedRange: NSRange?
+    private var previouslyHighlighted = false
+
+    func resetLines(_ editor: NSTextView) {
+      invalidateStyle()
+      changedRange = nil
+      if let ruler = editor.enclosingScrollView?.verticalRulerView as? SourceLineRuler {
+        ruler.offsets = SourceLineOffsets.build(editor.string)
+      }
+    }
+
+    func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange,
+                  replacementString: String?) -> Bool {
+      guard let replacementString else { return true }
+      invalidateStyle()
+      if let ruler = textView.enclosingScrollView?.verticalRulerView as? SourceLineRuler {
+        ruler.offsets = SourceLineOffsets.replacing(ruler.offsets, range: affectedCharRange,
+                                                   replacement: replacementString)
+        ruler.needsDisplay = true
+      }
+      // Attribute inheritance already styles inserted text. Keep subsequent plain
+      // large-document styling confined to the changed span, never the full buffer.
+      let edit = NSRange(location: affectedCharRange.location, length: (replacementString as NSString).length)
+      changedRange = changedRange.map { NSUnionRange($0, edit) } ?? edit
+      return true
+    }
     init(_ parent: StudioCodeEditor) { self.parent = parent }
     func textDidChange(_ notification: Notification) {
       guard let editor = notification.object as? NSTextView else { return }
+      invalidateStyle()
       parent.text = editor.string
       task?.cancel()
       task = Task { [weak self, weak editor] in
@@ -88,60 +122,80 @@ struct StudioCodeEditor: NSViewRepresentable {
         style(editor)
       }
     }
+
+    private func invalidateStyle() {
+      revision = UUID()
+      styling?.cancel()
+      lexer?.cancel()
+    }
+
+    func waitForStyling() async { await styling?.value }
+
     func style(_ editor: NSTextView) {
+      guard !editor.hasMarkedText(), let storage = editor.textStorage else { return }
+      invalidateStyle()
+      let ticket = revision
       let source = editor.string
+      let highlight = source.utf8.count <= 256 * 1024
+      let fullRange = NSRange(location: 0, length: storage.length)
+      let requested = (!highlight && !previouslyHighlighted ? changedRange : nil) ?? fullRange
+      let range = NSIntersectionRange(requested, fullRange)
+      let language = parent.language, diff = parent.diff
+      let work = Task.detached(priority: .utility) {
+        let fragment = (source as NSString).substring(with: range)
+        if highlight { return SyntaxHighlighter.tokens(fragment, language: language, diff: diff) }
+        return [SyntaxHighlighter.Token(range: NSRange(location: 0, length: range.length), color: 0)]
+      }
+      lexer = work
+      styling = Task { [weak self, weak editor] in
+        let tokens = await work.value
+        guard !Task.isCancelled, let self, let editor, self.revision == ticket,
+              !editor.hasMarkedText(), editor.string == source else { return }
+        self.apply(tokens, range: range, highlight: highlight, editor: editor)
+      }
+    }
+
+    private func apply(_ tokens: [SyntaxHighlighter.Token], range: NSRange,
+                       highlight: Bool, editor: NSTextView) {
+      guard let storage = editor.textStorage else { return }
       let attributes: [NSAttributedString.Key: Any] = [
         .font: NSFont.monospacedSystemFont(ofSize: parent.fontSize, weight: .regular),
         .foregroundColor: NSColor(StudioTheme.ink),
       ]
-      let result = NSMutableAttributedString(string: source, attributes: attributes)
-      // shortcut: files above 256 KiB stay plain; add visible-range lexing if larger files need colors.
-      if source.utf8.count <= 256 * 1024, !parent.diff {
-        result.setAttributedString(
-          NSAttributedString(SyntaxHighlighter.highlight(source, language: parent.language)))
-        result.addAttribute(
-          .font, value: attributes[.font]!, range: NSRange(location: 0, length: result.length))
-        if result.length > 0, result.attribute(.foregroundColor, at: 0, effectiveRange: nil) == nil
-        {
-          result.addAttribute(
-            .foregroundColor, value: NSColor(StudioTheme.ink),
-            range: NSRange(location: 0, length: result.length))
-        }
-      }
-      if parent.diff {
-        var offset = 0
-        for line in source.components(separatedBy: "\n") {
-          let length = (line as NSString).length
-          let color: NSColor? =
-            line.hasPrefix("+") && !line.hasPrefix("+++")
-            ? NSColor.systemGreen
-            : line.hasPrefix("-") && !line.hasPrefix("---")
-              ? NSColor.systemRed : line.hasPrefix("@@") ? NSColor.systemTeal : nil
-          if let color, length > 0 {
-            result.addAttributes(
-              [
-                .foregroundColor: color.blended(withFraction: 0.3, of: NSColor(StudioTheme.ink))
-                  ?? color, .backgroundColor: color.withAlphaComponent(0.08),
-              ], range: NSRange(location: offset, length: length))
-          }
-          offset += length + 1
-        }
-      }
       let paragraph = NSMutableParagraphStyle()
       paragraph.lineSpacing = 4
       paragraph.defaultTabInterval = 30
-      result.addAttribute(
-        .paragraphStyle, value: paragraph, range: NSRange(location: 0, length: result.length))
       let ranges = editor.selectedRanges
       let registration = editor.undoManager?.isUndoRegistrationEnabled == true
       if registration { editor.undoManager?.disableUndoRegistration() }
-      editor.textStorage?.setAttributedString(result)
+      storage.beginEditing()
+      // Apply attributes only. Replacing the string here disrupts marked text,
+      // undo coalescing and selections even when characters are identical.
+      for token in tokens where token.range.length > 0 {
+        var desired = attributes
+        desired[.paragraphStyle] = paragraph
+        if highlight {
+          let color = SyntaxHighlighter.color(token.color)
+          desired[.foregroundColor] = color
+          if token.color >= 7 {
+            desired[.foregroundColor] = color.blended(withFraction: 0.3, of: NSColor(StudioTheme.ink)) ?? color
+            desired[.backgroundColor] = color.withAlphaComponent(0.08)
+          }
+        }
+        let target = NSRange(location: range.location + token.range.location, length: token.range.length)
+        var edits: [NSRange] = []
+        storage.enumerateAttributes(in: target) { current, run, _ in
+          if !NSDictionary(dictionary: current).isEqual(to: desired) { edits.append(run) }
+        }
+        for edit in edits { storage.setAttributes(desired, range: edit) }
+      }
+      storage.endEditing()
+      changedRange = nil
+      previouslyHighlighted = highlight
       if registration { editor.undoManager?.enableUndoRegistration() }
       editor.selectedRanges = ranges
       editor.typingAttributes = attributes
       if let ruler = editor.enclosingScrollView?.verticalRulerView as? SourceLineRuler {
-        ruler.offsets =
-          [0] + source.utf16.enumerated().compactMap { $0.element == 10 ? $0.offset + 1 : nil }
         ruler.needsDisplay = true
       }
     }
@@ -188,5 +242,23 @@ private final class SourceLineRuler: NSRulerView {
           x: 35 - label.size().width,
           y: lineRect.minY + text.textContainerInset.height - text.visibleRect.minY + 2))
     }
+  }
+}
+
+/// UTF-16 offsets match AppKit's edit ranges, including surrogate pairs.
+enum SourceLineOffsets {
+  static func build(_ text: String) -> [Int] {
+    [0] + text.utf16.enumerated().compactMap { $0.element == 10 ? $0.offset + 1 : nil }
+  }
+
+  static func replacing(_ offsets: [Int], range: NSRange, replacement: String) -> [Int] {
+    let end = NSMaxRange(range)
+    let delta = replacement.utf16.count - range.length
+    let before = offsets.prefix { $0 <= range.location }
+    let inserted = replacement.utf16.enumerated().compactMap {
+      $0.element == 10 ? range.location + $0.offset + 1 : nil
+    }
+    let after = offsets.drop { $0 <= end }.map { $0 + delta }
+    return Array(before) + inserted + after
   }
 }

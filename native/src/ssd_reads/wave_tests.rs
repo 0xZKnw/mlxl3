@@ -34,9 +34,14 @@ fn ready_min_waits_for_two_then_returns_before_the_held_tail() -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut batch = ReadBatch {
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 3,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     sender.send(Completed::new(leases[0], Ok(vec![17])))?;
     let (started, entered) = mpsc::channel();
@@ -95,9 +100,14 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
     let deadline = Instant::now();
     let mut batch = ReadBatch {
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 2,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     assert!(batch.ready_min(0).is_err());
     assert!(batch.ready_min(3).is_err());
@@ -125,9 +135,14 @@ fn ready_min_preserves_absolute_deadline_and_rejects_invalid_or_failed_completio
     drop(sender);
     let mut disconnected = ReadBatch {
         receiver,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        draining: Arc::new(AtomicBool::new(false)),
+        abandoned: false,
         remaining: 1,
         deadline,
         trace: Vec::new(),
+        #[cfg(test)]
+        wait_started: None,
     };
     assert!(disconnected.ready_min(1).is_err());
     Ok(())

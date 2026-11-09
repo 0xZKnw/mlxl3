@@ -5,6 +5,12 @@ import SwiftUI
 extension StudioModel {
   func modesRegistryForCheck() throws -> URL { try prepareAgentRegistry() }
   var modesBridgeRunning: Bool { bridge.isRunning }
+  func modesStatusForCheck(_ requestID: String?) throws {
+    var event: [String: Any] = ["type": "mcp_status", "mcp_servers": 1, "mcp_tools": 1,
+      "mcp_errors": [:] as [String: String]]
+    if let requestID { event["request_id"] = requestID }
+    handle(try JSONDecoder().decode(BridgeEvent.self, from: JSONSerialization.data(withJSONObject: event)))
+  }
 
   static func checkAgentGuards(root: URL, prefs: UserDefaults, model: LocalModel) async throws
     -> Int
@@ -47,7 +53,7 @@ extension StudioModel {
     }
     let pending = cooperative.currentConversation!.messages.last!
     cooperative.stopGeneration()
-    try await wait { !cooperative.isGenerating }
+    try await wait { !cooperative.isGenerating && !cooperative.agentStudioBusy }
     check(
       cooperative.engineState.isReady && pending.error != nil,
       "Cooperative Stop preserves the loaded model and partial response")
@@ -270,6 +276,7 @@ extension StudioModel {
       studio.labSamples[0].stats.decodeTps == 30 && studio.labSamples[0].stats.prefillTps == 120,
       "Lab retains metrics without recomputation")
     let messageID = studio.currentConversation!.messages.last!.id
+    try await wait { !studio.agentStudioBusy }
     check(
       studio.branchConversation(at: messageID) && studio.currentConversation?.agent == true,
       "Agent branch retains mode")
@@ -279,6 +286,43 @@ extension StudioModel {
     check(
       restored.selectedMode == .agent && restored.currentConversation?.agent == true
         && restored.labSamples.count == 1, "Mode and Lab survive relaunch")
+    studio.regenerate(messageID)
+    let regeneratedBranch = studio.selectedConversationID!
+    check(studio.mcpUpdating && !studio.isGenerating,
+      "Regeneration must wait for delayed MCP handshake")
+    try studio.modesStatusForCheck("obsolete-workspace-handshake")
+    check(studio.mcpUpdating && !studio.isGenerating,
+      "A stale workspace handshake released regeneration")
+    try await wait { studio.currentConversation?.messages.last?.isStreaming == false
+      && studio.currentConversation?.messages.last?.role == .assistant && !studio.agentStudioBusy }
+    let regenerated = studio.currentConversation!.messages.last!
+    check(studio.selectedConversationID == regeneratedBranch && regenerated.error == nil
+      && regenerated.content.contains("Create a file"), "Agent regeneration never produced its response")
+    check(studio.currentConversation!.messages.count == 2, "Regeneration sent more than once")
+    // Allow an extra status/ready polling interval: no second request may appear.
+    try await Task.sleep(for: .milliseconds(300))
+    check(studio.currentConversation!.messages.count == 2, "Late handshake duplicated regeneration")
+    studio.regenerate(regenerated.id)
+    let abandonedBranch = studio.selectedConversationID!
+    studio.selectConversation(regeneratedBranch)
+    try await wait { !studio.mcpUpdating }
+    try await Task.sleep(for: .milliseconds(300))
+    check(studio.conversations.first(where: { $0.id == abandonedBranch })?.messages.isEmpty == true,
+      "Navigating away did not cancel pending regeneration")
+    studio.regenerate(regenerated.id)
+    studio.stopGeneration()
+    try await wait { !studio.mcpUpdating }
+    try await Task.sleep(for: .milliseconds(300))
+    check(studio.currentConversation?.messages.isEmpty == true,
+      "Stop did not cancel regeneration waiting for tools")
+    studio.selectConversation(regeneratedBranch)
+    try await wait { !studio.mcpUpdating }
+    studio.regenerate(regenerated.id)
+    try studio.modesStatusForCheck(nil)
+    try await Task.sleep(for: .milliseconds(100))
+    check(studio.currentConversation?.messages.isEmpty == true && studio.featureError != nil,
+      "An uncorrelated legacy handshake silently auto-sent a regeneration")
+    try await wait { !studio.mcpUpdating }
     for ttft in [0.0, 1, -1, .infinity, .nan] {
       for prefill in [0.0, 1, -1, .infinity, .nan] {
         for decode in [0.0, 1, -1, .infinity, .nan] {
