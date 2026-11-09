@@ -154,9 +154,10 @@ fn new_attempt_invalidates_completed_marker_even_with_same_identity() {
 
 #[test]
 fn legacy_completion_markers_never_hide_unverified_installations() {
-    let root = tempfile::tempdir().unwrap();
-    let stage = root.path().join("0123456789ab");
-    fs::create_dir(&stage).unwrap();
+    let root = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
+    let downloads = root.path().join(".downloads");
+    let stage = downloads.join("0123456789ab");
+    fs::create_dir_all(&stage).unwrap();
     let request = PendingDownload {
         id: "0123456789ab".into(),
         repo: "test/model".into(),
@@ -168,19 +169,19 @@ fn legacy_completion_markers_never_hide_unverified_installations() {
         retained_bytes: 0,
     };
     write_json(&stage.join("request.json"), &request).unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
+    assert_eq!(pending_downloads_in(&downloads).unwrap().len(), 1);
     write_json(&stage.join("completed.json"), &request).unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
+    assert_eq!(pending_downloads_in(&downloads).unwrap().len(), 1);
     fs::write(stage.join("completed.json"), b"not JSON").unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
+    assert_eq!(pending_downloads_in(&downloads).unwrap().len(), 1);
     let mut foreign = serde_json::to_value(&request).unwrap();
     foreign["commit"] = serde_json::json!("b".repeat(40));
     write_json(&stage.join("completed.json"), &foreign).unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
+    assert_eq!(pending_downloads_in(&downloads).unwrap().len(), 1);
     write_json(&stage.join("completed.json"), &request).unwrap();
     // Same identity retry invalidates the old marker before the first fallible step.
     begin_download_attempt(&stage).unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap()[0].id, request.id);
+    assert_eq!(pending_downloads_in(&downloads).unwrap()[0].id, request.id);
     write_json(&stage.join("completed.json"), &request).unwrap();
-    assert_eq!(pending_downloads_in(root.path()).unwrap().len(), 1);
+    assert_eq!(pending_downloads_in(&downloads).unwrap().len(), 1);
 }

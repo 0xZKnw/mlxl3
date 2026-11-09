@@ -345,7 +345,7 @@ mod tests {
             }
             ensure!(failed);
             drop(broken);
-            ensure!(pool.in_flight() == 0 && !pool.window_active.get());
+            ensure!(super::super::failure_tests::drained(&pool) && !pool.window_active.get());
             drop(ReadWindow::new(
                 &pool,
                 sources(&file, count, None)?,

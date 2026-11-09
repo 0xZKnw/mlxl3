@@ -1470,6 +1470,44 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
 mod install_transaction;
 use install_transaction::{InstallTransaction, completed_download, recover_publication};
 
+fn valid_download_id(id: &[u8]) -> bool {
+    id.len() == 12 && id.iter().all(u8::is_ascii_hexdigit)
+}
+
+fn validate_download_request(request: &PendingDownload, root: &Path) -> Result<()> {
+    ensure!(
+        valid_download_id(request.id.as_bytes()),
+        "invalid download identifier"
+    );
+    let destination = Path::new(&request.destination);
+    ensure!(
+        destination.parent() == Some(root) && destination.file_name().is_some(),
+        "model destination escaped managed storage"
+    );
+    Ok(())
+}
+
+fn real_download_directory(path: &Path, description: &str) -> Result<()> {
+    match path.symlink_metadata() {
+        Ok(metadata) => ensure!(metadata.file_type().is_dir(), "invalid {description}"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
+}
+
+fn download_lock(path: &Path) -> Result<File> {
+    if let Ok(metadata) = path.symlink_metadata() {
+        ensure!(metadata.file_type().is_file(), "invalid download lock");
+    }
+    Ok(OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)?)
+}
+
 fn begin_download_attempt(stage: &Path) -> Result<()> {
     match fs::remove_file(stage.join("completed.json")) {
         Ok(()) => {
@@ -1498,19 +1536,24 @@ fn run_download(
     registry_path: &Path,
     mut progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
+    ensure!(
+        valid_download_id(request.id.as_bytes()),
+        "invalid download identifier"
+    );
     let root = managed_models_path()?;
     fs::create_dir_all(&root)?;
     let root = root.canonicalize()?;
-    let stage = root.join(".downloads").join(&request.id);
+    validate_download_request(request, &root)?;
+    let downloads = root.join(".downloads");
+    real_download_directory(&downloads, "downloads directory")?;
+    let stage = downloads.join(&request.id);
+    real_download_directory(&stage, "download directory")?;
     fs::create_dir_all(&stage)?;
     let lock_path = stage
         .parent()
         .context("download stage has no parent")?
         .join(format!("{}.lock", request.id));
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(lock_path)?;
+    let lock = download_lock(&lock_path)?;
     lock.try_lock_exclusive()
         .context("this variant is already downloading")?;
     if let Some(entry) = recover_publication(&stage, request, registry_path)? {
@@ -1691,18 +1734,38 @@ fn pending_downloads_in(downloads: &Path) -> Result<Vec<PendingDownload>> {
 }
 
 fn download_requests_in(downloads: &Path, pending_only: bool) -> Result<Vec<PendingDownload>> {
+    real_download_directory(downloads, "downloads directory")?;
     let Ok(entries) = fs::read_dir(downloads) else {
         return Ok(Vec::new());
     };
+    let root = downloads
+        .parent()
+        .context("downloads have no root")?
+        .canonicalize()?;
     let mut result = Vec::new();
-    for entry in entries.flatten().filter(|entry| entry.path().is_dir()) {
+    for entry in entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+    {
         let path = entry.path();
+        if !path
+            .join("request.json")
+            .symlink_metadata()
+            .is_ok_and(|metadata| metadata.file_type().is_file())
+        {
+            continue;
+        }
         let Ok(file) = File::open(path.join("request.json")) else {
             continue;
         };
         let Ok(mut request) = serde_json::from_reader::<_, PendingDownload>(file) else {
             continue;
         };
+        if entry.file_name() != std::ffi::OsStr::new(&request.id)
+            || validate_download_request(&request, &root).is_err()
+        {
+            continue;
+        }
         if pending_only && completed_download(&path, &request) {
             continue;
         }
@@ -1718,6 +1781,10 @@ pub fn resume_with_phase(
     registry_path: &Path,
     progress: impl FnMut(u64, u64, &str),
 ) -> Result<(String, crate::registry::ModelEntry)> {
+    ensure!(
+        valid_download_id(id.as_bytes()),
+        "invalid download identifier"
+    );
     // Read retained requests even if already committed: retry must be idempotent.
     let request = download_requests_in(&managed_models_path()?.join(".downloads"), false)?
         .into_iter()
@@ -1728,22 +1795,17 @@ pub fn resume_with_phase(
 
 pub fn discard(id: &str) -> Result<()> {
     ensure!(
-        id.len() == 12 && id.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        valid_download_id(id.as_bytes()),
         "invalid download identifier"
     );
-    let root = managed_models_path()?.join(".downloads");
+    let managed = managed_models_path()?;
+    fs::create_dir_all(&managed)?;
+    let root = managed.canonicalize()?.join(".downloads");
+    real_download_directory(&root, "downloads directory")?;
     fs::create_dir_all(&root)?;
     let stage = root.join(id);
-    ensure!(
-        !stage
-            .symlink_metadata()
-            .is_ok_and(|metadata| metadata.file_type().is_symlink()),
-        "invalid download directory"
-    );
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(root.join(format!("{id}.lock")))?;
+    real_download_directory(&stage, "download directory")?;
+    let lock = download_lock(&root.join(format!("{id}.lock")))?;
     lock.try_lock_exclusive()
         .context("pause the download before removing its partial files")?;
     if stage.is_dir() {

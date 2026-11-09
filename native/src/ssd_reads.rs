@@ -1010,6 +1010,17 @@ impl ReadService {
         background: bool,
         allow_split: bool,
     ) -> Result<()> {
+        let outcome = self.enqueue_payloads_inner(batch, result, reads, background, allow_split);
+        terminal_batch_result(outcome, || batch.abandon())
+    }
+    fn enqueue_payloads_inner(
+        &self,
+        batch: &mut ReadBatch,
+        result: &Sender<Completed>,
+        reads: impl ExactSizeIterator<Item = Result<(SlotLease, File, u64, usize, ReadPayload)>>,
+        background: bool,
+        allow_split: bool,
+    ) -> Result<()> {
         let count = reads.len();
         for item in reads {
             batch.check_cancelled()?;
@@ -1130,6 +1141,18 @@ impl Drop for ReadService {
     }
 }
 
+/// Stop a failed batch before its caller unwinds or can request another result.
+/// Preserve the original error rather than replacing it with cleanup status.
+fn terminal_batch_result<T, E>(
+    result: std::result::Result<T, E>,
+    stop: impl FnOnce(),
+) -> std::result::Result<T, E> {
+    if result.is_err() {
+        stop();
+    }
+    result
+}
+
 fn latch_cancellation(abandoned: &mut bool, requested: bool) -> bool {
     *abandoned |= requested;
     *abandoned
@@ -1180,7 +1203,7 @@ impl ReadBatch {
             self.cancelled.load(Ordering::Acquire) || self.io_cancelled.load(Ordering::Acquire),
         ) {
             self.abandon();
-            anyhow::bail!("generation cancelled");
+            anyhow::bail!("native SSD batch cancelled or abandoned after failure");
         }
         Ok(())
     }
@@ -1202,6 +1225,7 @@ impl ReadBatch {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) if Instant::now() < self.deadline => {}
                 Err(error) => {
+                    self.abandon();
                     return Err(error).context("native SSD demand deadline or reader failure");
                 }
             }
@@ -1213,7 +1237,7 @@ impl ReadBatch {
     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
         self.check_cancelled()?;
         ensure!(self.remaining == 1, "prefetch must own one pending read");
-        match self.receiver.try_recv() {
+        let result = (|| match self.receiver.try_recv() {
             Ok(next) => {
                 self.check_cancelled()?;
                 self.remaining = 0;
@@ -1227,7 +1251,8 @@ impl ReadBatch {
                 Ok(None)
             }
             Err(error) => Err(error.into()),
-        }
+        })();
+        terminal_batch_result(result, || self.abandon())
     }
     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
         self.ready_min(if all {
@@ -1242,24 +1267,27 @@ impl ReadBatch {
             ready_minimum_valid(minimum, self.remaining),
             "invalid native SSD ready minimum"
         );
-        let mut completed = Vec::new();
-        while self.remaining > 0 {
-            let next = if completed.len() < minimum {
-                self.wait_next()?
-            } else {
-                match self.receiver.try_recv() {
-                    Ok(next) => next,
-                    Err(mpsc::TryRecvError::Empty) => break,
-                    Err(error) => return Err(error.into()),
-                }
-            };
-            self.check_cancelled()?;
-            self.remaining -= 1;
-            #[cfg(test)]
-            self.trace.push((next.lease, next.timing.0, next.timing.1));
-            completed.push((next.lease, next.result?));
-        }
-        Ok(completed)
+        let result = (|| {
+            let mut completed = Vec::new();
+            while self.remaining > 0 {
+                let next = if completed.len() < minimum {
+                    self.wait_next()?
+                } else {
+                    match self.receiver.try_recv() {
+                        Ok(next) => next,
+                        Err(mpsc::TryRecvError::Empty) => break,
+                        Err(error) => return Err(error.into()),
+                    }
+                };
+                self.check_cancelled()?;
+                self.remaining -= 1;
+                #[cfg(test)]
+                self.trace.push((next.lease, next.timing.0, next.timing.1));
+                completed.push((next.lease, next.result?));
+            }
+            Ok(completed)
+        })();
+        terminal_batch_result(result, || self.abandon())
     }
 }
 impl Drop for ReadBatch {
@@ -1307,7 +1335,8 @@ mod tests {
         });
         let result = pool.start_fallible_payloads(reads, Duration::from_secs(2), false, false);
         held.release();
-        assert!(result.is_err() && queued_before_second && pool.in_flight() == 0);
+        assert!(result.is_err() && queued_before_second);
+        assert!(failure_tests::drained(&pool));
         *pool.held_first.borrow_mut() = None;
         let mut batch = pool.start(
             vec![(lease, file.try_clone()?, 1, 1)],
@@ -1358,7 +1387,7 @@ mod tests {
             )?;
             assert!(broken.ready(true).is_err());
             drop(broken);
-            assert_eq!(pool.in_flight(), 0);
+            assert!(failure_tests::drained(&pool));
             let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
             assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"0123456789abcdef");
         }
@@ -1617,8 +1646,9 @@ mod tests {
             wait_started: None,
         };
         assert!(timed.ready(true).is_err());
-        assert_eq!(timed.remaining(), 1);
-        sender.send(Completed::new(token, Ok(vec![9])))?;
+        assert_eq!(timed.remaining(), 0);
+        assert!(sender.send(Completed::new(token, Ok(vec![9]))).is_err());
+        assert!(timed.ready(true).is_err());
         drop(timed);
         Ok(())
     }
@@ -1627,6 +1657,10 @@ mod tests {
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/direct_tests.rs"]
 mod direct_tests;
+
+#[cfg(test)]
+#[path = "ssd_reads/failure_tests.rs"]
+mod failure_tests;
 
 #[cfg(test)]
 #[path = "ssd_reads/cancellation_tests.rs"]
@@ -1652,3 +1686,19 @@ mod split_record_tests;
 mod window;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub(crate) use window::BlockReads;
+
+#[cfg(kani)]
+#[kani::proof]
+fn terminal_batch_error_stops_before_return_and_preserves_the_error() {
+    let fails: bool = kani::any();
+    let value: u32 = kani::any();
+    let original = if fails { Err(value) } else { Ok(value) };
+    let mut stopped = false;
+    let result = terminal_batch_result(original, || stopped = true);
+    assert_eq!(result, original);
+    assert_eq!(stopped, fails);
+    // After termination, a reset request flag cannot revive the batch.
+    assert_eq!(latch_cancellation(&mut stopped, false), fails);
+    kani::cover!(fails && value == u32::MAX);
+    kani::cover!(!fails && value == 0);
+}

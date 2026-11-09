@@ -2321,7 +2321,10 @@
     ".take": 2
   },
   "native/src/hub/install_transaction_tests.rs": {
-    "config MLXL3_MODELS_DIR": 1,
+    "config MLXL3_MODELS_DIR": 2,
+    "config MLXL3_RETAINED_TEST_ERROR": 2,
+    "config MLXL3_RETAINED_TEST_OPERATION": 2,
+    "config MLXL3_RETAINED_TEST_ROOT": 2,
     "config MLXL3_TRANSACTION_TEST_BOUNDARY": 3,
     "config MLXL3_TRANSACTION_TEST_ROOT": 3
   },
@@ -3322,7 +3325,7 @@
   },
   "native/src/ssd_reads.rs": {
     ".add": 1,
-    ".ready": 16,
+    ".ready": 17,
     ".run": 3,
     ".start": 12,
     ".take": 3,
@@ -3345,6 +3348,11 @@
   "native/src/ssd_reads/direct_tests.rs": {
     ".ready": 7,
     ".try_clone": 8
+  },
+  "native/src/ssd_reads/failure_tests.rs": {
+    ".ready": 8,
+    ".start": 6,
+    ".try_clone": 4
   },
   "native/src/ssd_reads/readahead.rs": {
     ".try_clone": 1,

@@ -99,6 +99,11 @@ fn crash_boundary_child() {
         std::process::exit(86);
     }
     transaction.register(&registry, &request).unwrap();
+    if boundary == "partial-cleanup" {
+        // remove_dir_all is not atomic: an earlier entry can disappear before
+        // a later unlink fails, leaving the request but not the transaction.
+        fs::remove_file(stage.join("transaction.json")).unwrap();
+    }
     // Exit without destructors, completion marker, or staging cleanup.
     std::process::exit(86);
 }
@@ -258,7 +263,7 @@ fn directory_fsync_failures_after_rename_are_reconciled_without_rollback() {
 
 #[test]
 fn production_resume_completes_published_and_committed_crashes() {
-    for boundary in ["publication", "registry"] {
+    for boundary in ["publication", "registry", "partial-cleanup"] {
         let root = tempdir();
         let run = |boundary: &str| {
             wait_child(
@@ -268,6 +273,15 @@ fn production_resume_completes_published_and_committed_crashes() {
                     .env("MLXL3_TRANSACTION_TEST_ROOT", root.path())
                     .env("MLXL3_MODELS_DIR", root.path())
                     .env("MLXL3_TRANSACTION_TEST_BOUNDARY", boundary)
+                    // A recovery regression must not contact external metadata.
+                    .env("HOME", root.path())
+                    .env_remove("HF_TOKEN")
+                    .env("https_proxy", "http://127.0.0.1:1")
+                    .env("all_proxy", "http://127.0.0.1:1")
+                    .env("no_proxy", "")
+                    .env("HTTPS_PROXY", "http://127.0.0.1:1")
+                    .env("ALL_PROXY", "http://127.0.0.1:1")
+                    .env("NO_PROXY", "")
                     .spawn()
                     .unwrap(),
             )
@@ -283,6 +297,333 @@ fn production_resume_completes_published_and_committed_crashes() {
             1
         );
     }
+}
+
+#[test]
+fn partial_cleanup_reconciles_committed_receipt_without_stage_transaction() {
+    let root = tempdir();
+    let (stage, assembled, request, registry) = fixture(root.path());
+    let transaction = InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
+    publish(&assembled, &request);
+    let original = transaction.register(&registry, &request).unwrap();
+    cleanup_download_stage(&stage, |stage| {
+        fs::remove_file(stage.join("transaction.json"))?;
+        Err(std::io::ErrorKind::PermissionDenied.into())
+    });
+    assert!(stage.join("request.json").is_file());
+    assert!(completed_download(&stage, &request));
+    assert!(
+        pending_downloads_in(stage.parent().unwrap())
+            .unwrap()
+            .is_empty()
+    );
+    let registry_before = fs::read(&registry).unwrap();
+    let recovered = recover_publication(&stage, &request, &registry)
+        .unwrap()
+        .unwrap();
+    assert_eq!(recovered.installation_id, original.installation_id);
+    assert_eq!(recovered.added_at, original.added_at);
+    assert_eq!(fs::read(&registry).unwrap(), registry_before);
+}
+
+#[test]
+fn partial_cleanup_never_creates_or_replaces_registry_identity() {
+    for change in [
+        "missing",
+        "corrupt",
+        "attempt",
+        "destination",
+        "request",
+        "transaction",
+    ] {
+        let root = tempdir();
+        let (stage, assembled, mut request, registry) = fixture(root.path());
+        let transaction =
+            InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
+        publish(&assembled, &request);
+        transaction.register(&registry, &request).unwrap();
+        fs::remove_file(stage.join("transaction.json")).unwrap();
+        match change {
+            "missing" => fs::remove_file(&registry).unwrap(),
+            "corrupt" => fs::write(&registry, "not JSON").unwrap(),
+            "attempt" | "destination" => {
+                let mut value: serde_json::Value =
+                    serde_json::from_reader(File::open(&registry).unwrap()).unwrap();
+                let entry = &mut value["models"][&request.name];
+                if change == "attempt" {
+                    entry["installation_id"] = "other-attempt".into();
+                } else {
+                    entry["path"] = root
+                        .path()
+                        .join("another-installation")
+                        .display()
+                        .to_string()
+                        .into();
+                }
+                write_json(&registry, &value).unwrap();
+            }
+            "request" => request.commit = "b".repeat(40),
+            "transaction" => fs::write(stage.join("transaction.json"), "not JSON").unwrap(),
+            _ => unreachable!(),
+        }
+        let registry_before = fs::read(&registry).ok();
+        assert!(!completed_download(&stage, &request), "{change}");
+        assert!(
+            recover_publication(&stage, &request, &registry).is_err(),
+            "{change}"
+        );
+        assert_eq!(fs::read(&registry).ok(), registry_before, "{change}");
+        assert!(
+            Path::new(&request.destination)
+                .join("model.safetensors")
+                .is_file()
+        );
+    }
+}
+
+#[test]
+fn receipt_only_recovery_cannot_restore_a_later_removed_registration() {
+    for replace in [false, true] {
+        let root = tempdir();
+        let (stage, assembled, request, registry) = fixture(root.path());
+        let transaction =
+            InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
+        publish(&assembled, &request);
+        transaction.register(&registry, &request).unwrap();
+        fs::remove_file(stage.join("transaction.json")).unwrap();
+        let recovered = InstallTransaction::load(&stage, &request).unwrap().unwrap();
+        if replace {
+            crate::registry::register(
+                &registry,
+                &request.name,
+                Path::new(&request.destination),
+                false,
+            )
+            .unwrap();
+        } else {
+            fs::remove_file(&registry).unwrap();
+        }
+        let registry_before = fs::read(&registry).ok();
+        assert!(recovered.register(&registry, &request).is_err());
+        assert_eq!(fs::read(&registry).ok(), registry_before);
+        assert!(
+            Path::new(&request.destination)
+                .join("model.safetensors")
+                .is_file()
+        );
+    }
+}
+
+#[test]
+fn pending_listing_recognizes_committed_install_through_root_alias() {
+    let root = tempdir();
+    let managed = root.path().join("models");
+    fs::create_dir(&managed).unwrap();
+    let (stage, assembled, request, registry) = fixture(&managed);
+    let transaction = InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
+    publish(&assembled, &request);
+    transaction.register(&registry, &request).unwrap();
+    let alias = root.path().join("alias");
+    std::os::unix::fs::symlink(&managed, &alias).unwrap();
+    for partial_cleanup in [false, true] {
+        if partial_cleanup {
+            fs::remove_file(stage.join("transaction.json")).unwrap();
+        }
+        assert!(completed_download(
+            &alias.join(".downloads").join(&request.id),
+            &request
+        ));
+        assert!(
+            pending_downloads_in(&alias.join(".downloads"))
+                .unwrap()
+                .is_empty()
+        );
+    }
+}
+
+fn retained_fixture(case: &str) -> (tempfile::TempDir, PathBuf, PathBuf, PendingDownload) {
+    let root = tempdir();
+    let managed = root.path().join("models");
+    fs::create_dir(&managed).unwrap();
+    let (stage, _, mut request, _) = fixture(&managed);
+    let outside = root.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    fs::write(outside.join("sentinel"), b"must remain unchanged").unwrap();
+    match case {
+        "invalid-id" => {
+            request.id = "../outside".into();
+            write_json(&stage.join("request.json"), &request).unwrap();
+        }
+        "mismatch" => {
+            request.id = "ffffffffffff".into();
+            write_json(&stage.join("request.json"), &request).unwrap();
+        }
+        "destination" => {
+            request.destination = outside.display().to_string();
+            write_json(&stage.join("request.json"), &request).unwrap();
+        }
+        "stage-symlink" => {
+            fs::rename(&stage, outside.join("stage")).unwrap();
+            std::os::unix::fs::symlink(outside.join("stage"), &stage).unwrap();
+        }
+        "downloads-symlink" => {
+            fs::rename(managed.join(".downloads"), outside.join("downloads")).unwrap();
+            std::os::unix::fs::symlink(outside.join("downloads"), managed.join(".downloads"))
+                .unwrap();
+        }
+        "lock-symlink" => {
+            std::os::unix::fs::symlink(
+                outside.join("sentinel"),
+                managed.join(".downloads/0123456789ab.lock"),
+            )
+            .unwrap();
+        }
+        "request-symlink" => {
+            fs::rename(stage.join("request.json"), outside.join("request.json")).unwrap();
+            std::os::unix::fs::symlink(outside.join("request.json"), stage.join("request.json"))
+                .unwrap();
+        }
+        _ => panic!("unknown fixture case"),
+    }
+    (root, managed, stage, request)
+}
+
+#[test]
+fn retained_listing_rejects_malformed_or_redirected_stages() {
+    for case in [
+        "invalid-id",
+        "mismatch",
+        "destination",
+        "stage-symlink",
+        "downloads-symlink",
+        "request-symlink",
+    ] {
+        let (root, managed, _, _) = retained_fixture(case);
+        let before = tree_snapshot(root.path());
+        let result = pending_downloads_in(&managed.join(".downloads"));
+        if case == "downloads-symlink" {
+            assert!(result.is_err(), "{case}");
+        } else {
+            assert!(result.unwrap().is_empty(), "{case}");
+        }
+        assert_eq!(tree_snapshot(root.path()), before, "{case}");
+    }
+}
+
+#[test]
+fn retained_request_boundary_child() {
+    let Ok(root) = std::env::var("MLXL3_RETAINED_TEST_ROOT") else {
+        return;
+    };
+    let operation = std::env::var("MLXL3_RETAINED_TEST_OPERATION").unwrap();
+    let expected = std::env::var("MLXL3_RETAINED_TEST_ERROR").unwrap();
+    let root = Path::new(&root);
+    let fail_progress = |_, _, _: &str| panic!("invalid retained request started transfer");
+    let result = match operation.as_str() {
+        "run" => {
+            let request: PendingDownload = serde_json::from_reader(
+                File::open(root.join(".downloads/0123456789ab/request.json")).unwrap(),
+            )
+            .unwrap();
+            run_download(&request, &root.join("models.json"), fail_progress).map(|_| ())
+        }
+        "resume-invalid" => {
+            resume_with_phase("../outside", &root.join("models.json"), fail_progress).map(|_| ())
+        }
+        "resume" => {
+            resume_with_phase("0123456789ab", &root.join("models.json"), fail_progress).map(|_| ())
+        }
+        "discard" => discard("0123456789ab"),
+        _ => panic!("unexpected operation"),
+    };
+    let error = result.unwrap_err().to_string();
+    assert!(
+        error.contains(&expected),
+        "{operation}: {error}, expected {expected}"
+    );
+}
+
+#[test]
+fn production_retained_operations_never_touch_redirected_files() {
+    for (case, operation, expected) in [
+        ("invalid-id", "run", "invalid download identifier"),
+        (
+            "invalid-id",
+            "resume-invalid",
+            "invalid download identifier",
+        ),
+        ("mismatch", "resume", "interrupted download not found"),
+        (
+            "destination",
+            "run",
+            "model destination escaped managed storage",
+        ),
+        ("stage-symlink", "run", "invalid download directory"),
+        ("stage-symlink", "resume", "interrupted download not found"),
+        ("stage-symlink", "discard", "invalid download directory"),
+        ("downloads-symlink", "run", "invalid downloads directory"),
+        ("downloads-symlink", "resume", "invalid downloads directory"),
+        (
+            "downloads-symlink",
+            "discard",
+            "invalid downloads directory",
+        ),
+        ("lock-symlink", "run", "invalid download lock"),
+        ("lock-symlink", "discard", "invalid download lock"),
+        (
+            "request-symlink",
+            "resume",
+            "interrupted download not found",
+        ),
+    ] {
+        let (root, managed, _, _) = retained_fixture(case);
+        let before = tree_snapshot(root.path());
+        let status = wait_child(
+            std::process::Command::new(std::env::current_exe().unwrap())
+                .arg("--exact")
+                .arg("hub::install_transaction::tests::retained_request_boundary_child")
+                .env("MLXL3_RETAINED_TEST_ROOT", &managed)
+                .env("MLXL3_MODELS_DIR", &managed)
+                .env("MLXL3_RETAINED_TEST_OPERATION", operation)
+                .env("MLXL3_RETAINED_TEST_ERROR", expected)
+                .env("HOME", root.path())
+                .env_remove("HF_TOKEN")
+                .env("https_proxy", "http://127.0.0.1:1")
+                .env("all_proxy", "http://127.0.0.1:1")
+                .env("no_proxy", "")
+                .env("HTTPS_PROXY", "http://127.0.0.1:1")
+                .env("ALL_PROXY", "http://127.0.0.1:1")
+                .env("NO_PROXY", "")
+                .spawn()
+                .unwrap(),
+        );
+        assert!(status.success(), "{case}: {operation}");
+        assert_eq!(tree_snapshot(root.path()), before, "{case}: {operation}");
+    }
+}
+
+fn tree_snapshot(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+    fn visit(root: &Path, path: &Path, tree: &mut BTreeMap<PathBuf, Vec<u8>>) {
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let key = path.strip_prefix(root).unwrap().to_path_buf();
+            if entry.file_type().unwrap().is_symlink() {
+                tree.insert(
+                    key,
+                    format!("symlink:{}", fs::read_link(path).unwrap().display()).into_bytes(),
+                );
+            } else if entry.file_type().unwrap().is_dir() {
+                tree.insert(key, b"directory".to_vec());
+                visit(root, &path, tree);
+            } else {
+                tree.insert(key, fs::read(path).unwrap());
+            }
+        }
+    }
+    let mut tree = BTreeMap::new();
+    visit(root, root, &mut tree);
+    tree
 }
 
 fn wait_child(mut child: std::process::Child) -> std::process::ExitStatus {

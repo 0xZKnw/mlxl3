@@ -78,3 +78,22 @@ The earlier reconstruction reports retain negative trials and former partial sta
 - [Physical I/O cancellation limits](issue163-physical-io-cancellation.md)
 - [Download crash recovery](issue163-download-recovery.md)
 - [Incremental lexer](issue163-incremental-lexer.md)
+
+## Functional re-review on 8080c96c
+
+The following additional defects were reproduced and corrected separately from
+CI maintenance. This does not close the outstanding physical qualification or
+route-proof limits above.
+
+- N03: terminal read, enqueue and timeout errors now abandon the batch before
+  return; late completions cannot revive it. Producer-owned buffers survive until
+  physical drain. See [native recovery](issue163-functional-native.md).
+- N05: partial cleanup may delete the staging intent before the request. Recovery
+  now uses the installed receipt only when the existing registry agrees on the
+  exact request, path and installation identity. Retained IDs/paths and symlinks
+  are checked before staging mutation. This is not race-free containment against
+  hostile concurrent ancestor replacement. See [download recovery](issue163-functional-download.md).
+- T06: recursive const/enum equality and unique-item hashing/confirmation consume
+  an irreversible node/byte work budget. Hash collisions never determine equality.
+  Parsing, final serialization and existing length scans are still bounded by
+  input sizes rather than interruptible at each byte. See [structured validation](issue163-functional-structured.md).

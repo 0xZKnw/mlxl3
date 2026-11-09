@@ -9,6 +9,9 @@ pub(super) struct InstallTransaction {
     attempt: String,
     registry: PathBuf,
     request: PendingDownload,
+    /// In-memory provenance only; a receipt never grants a new registration.
+    #[serde(skip)]
+    receipt_only: bool,
 }
 
 fn same_request(a: &PendingDownload, b: &PendingDownload) -> bool {
@@ -43,6 +46,7 @@ impl InstallTransaction {
                 .into_owned(),
             registry: std::path::absolute(registry)?,
             request: request.clone(),
+            receipt_only: false,
         };
         write_json(&assembled.join(RECEIPT), &transaction)?;
         // Payloads may be hard links or copies. Sync both before directory publication.
@@ -63,23 +67,36 @@ impl InstallTransaction {
     }
 
     fn load(stage: &Path, request: &PendingDownload) -> Result<Option<Self>> {
-        let file = match File::open(stage.join("transaction.json")) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        let root = stage
+            .parent()
+            .and_then(Path::parent)
+            .context("invalid stage root")?
+            .canonicalize()?;
+        validate_download_request(request, &root)?;
+        let (file, recovered_receipt) = match File::open(stage.join("transaction.json")) {
+            Ok(file) => (file, false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                // Stage removal can fail after deleting the intent but before
+                // deleting the request. The installed receipt survives cleanup.
+                match File::open(Path::new(&request.destination).join(RECEIPT)) {
+                    Ok(file) => (file, true),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                    Err(error) => return Err(error.into()),
+                }
+            }
             Err(error) => return Err(error.into()),
         };
-        let transaction: Self = serde_json::from_reader(file)?;
+        let mut transaction: Self = serde_json::from_reader(file)?;
+        transaction.receipt_only = recovered_receipt;
         ensure!(
             same_request(&transaction.request, request),
             "download transaction identity changed"
         );
-        let root = stage
-            .parent()
-            .and_then(Path::parent)
-            .context("invalid stage root")?;
+        // A receipt alone cannot authorize a new registration. Only the exact
+        // committed registry identity permits recovery without durable intent.
         ensure!(
-            Path::new(&request.destination).parent() == Some(root),
-            "transaction escaped managed storage"
+            !recovered_receipt || transaction.registered()?.is_some(),
+            "missing transaction for uncommitted installation"
         );
         Ok(Some(transaction))
     }
@@ -133,6 +150,10 @@ impl InstallTransaction {
             File::open(self.registry.parent().context("registry has no parent")?)?.sync_all()?;
             return Ok(entry);
         }
+        ensure!(
+            !self.receipt_only,
+            "receipt-only recovery requires an existing matching registration"
+        );
         crate::registry::register_managed(
             registry,
             &request.name,
@@ -186,5 +207,30 @@ mod verification {
         assert_eq!(committed, receipt && path && attempt);
         kani::cover!(committed);
         kani::cover!(receipt && path && !attempt && !committed);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(16)]
+    fn retained_download_ids_are_bounded_hex_components() {
+        // Retained requests must also have one bounded, non-traversing component.
+        let bytes: [u8; 13] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let id = &bytes[..len];
+        let accepted = super::valid_download_id(id);
+        assert_eq!(
+            accepted,
+            len == 12
+                && id
+                    .iter()
+                    .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))
+        );
+        if accepted {
+            assert!(!id.contains(&b'/'));
+            assert!(!id.contains(&b'\\'));
+            assert!(!id.contains(&b'.'));
+        }
+        kani::cover!(accepted);
+        kani::cover!(!accepted);
     }
 }
