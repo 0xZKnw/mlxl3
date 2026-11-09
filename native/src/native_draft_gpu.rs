@@ -168,7 +168,7 @@ kernel void draft_projection(device const float* x [[buffer(0)]],
                             "invalid GPU affine storage"
                         );
                         // Validate actual reconstructed values without an FP32 weight allocation.
-                        for (group, &[s, b]) in codes.chunks_exact(32).zip(parameters) {
+                        for (group, &[s, b]) in codes.as_chunks::<32>().0.iter().zip(parameters) {
                             let (s, b) = (
                                 half::bf16::from_bits(s).to_f32(),
                                 half::bf16::from_bits(b).to_f32(),
@@ -321,9 +321,11 @@ mod tests {
             // Independent f64 accumulation, exact for these small dyadic operands.
             let expected: Vec<_> = x
                 .values
-                .chunks_exact(64)
+                .as_chunks::<64>()
+                .0
+                .iter()
                 .flat_map(|a| {
-                    dense.values.chunks_exact(64).map(move |b| {
+                    dense.values.as_chunks::<64>().0.iter().map(move |b| {
                         crate::native_bf16::round(
                             a.iter()
                                 .zip(b)
@@ -341,7 +343,10 @@ mod tests {
             cols: 1,
             payload: CompactWeight::from_bytes(&[0x80, 0x3f, 0x80, 0x3f])?,
         };
-        let tied = backend.linear(&Matrix::new(2, 1, vec![1.00390625, 1.01171875])?, &tie)?;
+        let tied = backend.linear(
+            &Matrix::new(2, 1, vec![1. + 1. / 256., 1. + 3. / 256.])?,
+            &tie,
+        )?;
         assert_eq!(tied.values, vec![1., 1., 1.015625, 1.015625]);
         assert!(
             backend

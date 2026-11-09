@@ -159,10 +159,14 @@ pub(crate) mod weighted_epilogue;
 
 #[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
 mod native_bf16;
-#[cfg(any(all(target_os = "macos", feature = "direct-metal", feature = "chat"), test, kani))]
-mod native_draft_gpu;
 #[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
 pub mod native_draft;
+#[cfg(any(
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
+mod native_draft_gpu;
 
 #[cfg(feature = "chat")]
 pub mod vision_input;

@@ -1,5 +1,10 @@
 use super::*;
 
+fn tempdir() -> tempfile::TempDir {
+    // Match production's canonical storage root, including macOS /var symlinks.
+    tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap()
+}
+
 fn fixture(root: &Path) -> (PathBuf, PathBuf, PendingDownload, PathBuf) {
     let stage = root.join(".downloads/0123456789ab");
     let assembled = stage.join("model");
@@ -101,7 +106,7 @@ fn crash_boundary_child() {
 #[test]
 fn restart_reconciles_every_commit_boundary_without_network() {
     for boundary in ["intent", "publication", "registry"] {
-        let root = tempfile::tempdir().unwrap();
+        let root = tempdir();
         let status = wait_child(
             std::process::Command::new(std::env::current_exe().unwrap())
                 .arg("--exact")
@@ -156,7 +161,7 @@ fn restart_reconciles_every_commit_boundary_without_network() {
 
 #[test]
 fn failed_registration_retains_publication_and_retry_finishes() {
-    let root = tempfile::tempdir().unwrap();
+    let root = tempdir();
     let (stage, assembled, request, registry) = fixture(root.path());
     let transaction = InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
     publish(&assembled, &request);
@@ -175,7 +180,7 @@ fn failed_registration_retains_publication_and_retry_finishes() {
 
 #[test]
 fn reinstall_requires_new_registry_identity_and_rejects_foreign_receipt() {
-    let root = tempfile::tempdir().unwrap();
+    let root = tempdir();
     let (stage, assembled, request, registry) = fixture(root.path());
     let first = InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
     publish(&assembled, &request);
@@ -200,7 +205,7 @@ fn reinstall_requires_new_registry_identity_and_rejects_foreign_receipt() {
 
 #[test]
 fn registry_destination_and_request_mismatch_never_hide_or_delete_files() {
-    let root = tempfile::tempdir().unwrap();
+    let root = tempdir();
     let (stage, assembled, request, registry) = fixture(root.path());
     InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
     publish(&assembled, &request);
@@ -219,7 +224,7 @@ fn registry_destination_and_request_mismatch_never_hide_or_delete_files() {
 #[test]
 fn directory_fsync_failures_after_rename_are_reconciled_without_rollback() {
     for registry_failure in [false, true] {
-        let root = tempfile::tempdir().unwrap();
+        let root = tempdir();
         let (stage, assembled, request, registry) = fixture(root.path());
         let transaction =
             InstallTransaction::prepare(&stage, &assembled, &request, &registry).unwrap();
@@ -254,7 +259,7 @@ fn directory_fsync_failures_after_rename_are_reconciled_without_rollback() {
 #[test]
 fn production_resume_completes_published_and_committed_crashes() {
     for boundary in ["publication", "registry"] {
-        let root = tempfile::tempdir().unwrap();
+        let root = tempdir();
         let run = |boundary: &str| {
             wait_child(
                 std::process::Command::new(std::env::current_exe().unwrap())

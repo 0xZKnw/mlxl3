@@ -341,6 +341,7 @@ impl Draft {
         }
         self.linear(&Matrix::new(x.rows, 4096, out)?, &format!("{p}.o_proj"))
     }
+    #[cfg(test)]
     pub fn forward(&self, input: &Matrix, proposals: usize) -> Result<(Matrix, Vec<Matrix>)> {
         self.forward_inner(input, proposals, true)
     }
