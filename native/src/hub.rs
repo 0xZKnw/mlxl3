@@ -291,13 +291,26 @@ pub fn kv_bytes_per_token(layers: u64, heads: u64, dimension: u64) -> Option<u64
         .checked_mul(4)
 }
 
+fn model_type_supported(model_type: Option<&str>) -> bool {
+    matches!(
+        model_type,
+        Some(
+            "qwen3_5"
+                | "qwen3_5_moe"
+                | "lfm2"
+                | "lfm2_moe"
+                | "lfm3"
+                | "lfm3_vl"
+                | "gemma4"
+                | "bailing_hybrid"
+        )
+    )
+}
+
 fn model_preview(config: &Value) -> ModelPreview {
     let text = config.get("text_config").unwrap_or(config);
     let model_type = config["model_type"].as_str().map(str::to_owned);
-    let architecture_supported = matches!(
-        model_type.as_deref(),
-        Some("qwen3_5" | "qwen3_5_moe" | "lfm2" | "lfm2_moe" | "gemma4" | "bailing_hybrid")
-    );
+    let architecture_supported = model_type_supported(model_type.as_deref());
     let qwen_cache = || -> Option<(u64, u64)> {
         let kinds = text["layer_types"].as_array()?;
         if kinds.len() as u64 != text["num_hidden_layers"].as_u64()?
@@ -1973,6 +1986,36 @@ mod tests {
     }
 
     #[test]
+    fn preview_supports_lfm3_text_and_vision() {
+        for (kind, config) in [
+            (
+                "lfm3",
+                serde_json::json!({"model_type":"lfm3","max_position_embeddings":262144}),
+            ),
+            (
+                "lfm3_vl",
+                serde_json::json!({"model_type":"lfm3_vl","text_config":{"max_position_embeddings":262144}}),
+            ),
+        ] {
+            let preview = model_preview(&config);
+            assert!(
+                preview.architecture_supported,
+                "{kind} is supported by the runtime"
+            );
+            assert_eq!(preview.model_type.as_deref(), Some(kind));
+            assert_eq!(preview.maximum_context, Some(262144));
+            assert_eq!(preview.kv_bytes_per_token, None);
+            assert_eq!(preview.recurrent_bytes, None);
+        }
+        for kind in ["lfm3_unknown", "lfm3_vl_extra", "unknown"] {
+            assert!(
+                !model_preview(&serde_json::json!({"model_type": kind})).architecture_supported
+            );
+        }
+        assert!(!model_preview(&serde_json::json!({})).architecture_supported);
+    }
+
+    #[test]
     fn preview_reports_architecture_and_keeps_hybrid_cache_unknown() {
         let hybrid = model_preview(
             &serde_json::json!({"model_type":"qwen3_5_moe","text_config":{"max_position_embeddings":32768,"num_hidden_layers":40,"num_key_value_heads":4,"head_dim":128}}),
@@ -2438,6 +2481,25 @@ mod verification {
 
 #[cfg(kani)]
 mod preview_proofs {
+    #[kani::proof]
+    #[kani::unwind(20)]
+    fn lfm3_text_and_vision_are_supported() {
+        let vision: bool = kani::any();
+        let unknown: bool = kani::any();
+        let kind = match (vision, unknown) {
+            (false, false) => "lfm3",
+            (true, false) => "lfm3_vl",
+            (false, true) => "lfm3_unknown",
+            (true, true) => "lfm3_vl_extra",
+        };
+        assert_eq!(super::model_type_supported(Some(kind)), !unknown);
+        assert!(!super::model_type_supported(None));
+        kani::cover!(vision && !unknown);
+        kani::cover!(!vision && !unknown);
+        kani::cover!(vision && unknown);
+        kani::cover!(!vision && unknown);
+    }
+
     #[kani::proof]
     fn preview_cache_arithmetic() {
         let layers = u64::from(kani::any::<u8>());

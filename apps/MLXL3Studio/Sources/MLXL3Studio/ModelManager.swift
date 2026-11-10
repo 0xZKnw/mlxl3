@@ -290,7 +290,7 @@ private struct HubBrowserView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
                 ForEach(ModelLibrary.recommendedModels) { model in
                     Button {
-                        library.open(model.id, revision: model.revision)
+                        library.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
                     } label: {
                         VStack(alignment: .leading, spacing: 9) {
                             HStack {

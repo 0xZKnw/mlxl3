@@ -222,6 +222,11 @@ swiftc "${swiftc_args[@]}" \
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
+    tests/image-input-check.swift -o "${test_dir}/image-input-check"
+run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
+
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
     tests/workspace-features-check.swift -o "${test_dir}/workspace-features-check"
 "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
 

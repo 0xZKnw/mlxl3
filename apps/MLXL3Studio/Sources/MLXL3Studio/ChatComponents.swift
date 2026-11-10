@@ -527,20 +527,25 @@ struct ChatAttachmentView: View {
     var body: some View {
         HStack(spacing: 8) {
             Button { showPreview = true } label: {
-                Label(attachment.fileName, systemImage: attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
+                Label(attachment.fileName, systemImage: attachment.image != nil ? "photo" : attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             .buttonStyle(.plain)
-            .help(L("Afficher le texte extrait", "Preview extracted text"))
+            .help(attachment.image != nil ? L("Afficher l’image", "Preview image") : L("Afficher le texte extrait", "Preview extracted text"))
             .popover(isPresented: $showPreview) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(attachment.fileName).font(.headline)
-                    ScrollView {
-                        Text(attachment.text)
-                            .font(.system(size: 12, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    if let data = attachment.image?.data, let image = NSImage(data: data) {
+                        Image(nsImage: image).resizable().scaledToFit()
+                            .accessibilityLabel(attachment.fileName)
+                    } else {
+                        ScrollView {
+                            Text(attachment.text)
+                                .font(.system(size: 12, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
                 .padding(18)
@@ -713,7 +718,9 @@ private struct ComposerFooterView: View {
                 .disabled(!studio.canImportFiles)
                 .keyboardShortcut("o", modifiers: [.command, .shift])
                 .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
-                .help(L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
+                .help(studio.canImportImages
+                    ? L("Joindre des images, PDF ou fichiers texte (⌘⇧O).", "Attach images, PDFs or text files (⌘⇧O).")
+                    : L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 if studio.selectedMode == .agent {
                     Label(L("Sandbox native", "Native sandbox"), systemImage: "lock.shield")

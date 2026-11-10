@@ -21,16 +21,35 @@ import SwiftUI
         let history = root.appendingPathComponent("history.json")
         let studio = StudioModel(conversationFileURL: history, isPreview: true, preferences: preferences)
         let recommended = ModelLibrary.recommendedModels
-        check(recommended.map(\.id) == ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], "Four requested local model origins")
-        check(Set(recommended.map(\.id)).count == 4 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
+        check(recommended.map(\.id) == ["0xzknw/LFM3-1.7B-Heretic-NX-EXL3", "0xzknw/LFM3-1.7B-EXL3", "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], "Requested original and Heretic LFM3 recommendations preserve existing models")
+        check(Set(recommended.map(\.id)).count == 6 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
+        check(recommended.prefix(2).allSatisfy { $0.preferredVariant == "8bpw" && $0.quantization == "8 bpw" }, "LFM3 cards pin the validated eight-bit variant")
         let catalogue = ModelLibrary()
         for model in recommended {
-            catalogue.open(model.id, revision: model.revision)
+            catalogue.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
             try await wait { !catalogue.loadingDetail }
             check(catalogue.detail?.id == model.id && catalogue.error == nil, "Recommendation opens its exact repository")
+            check(catalogue.detail?.commit == model.revision, "Recommendation forwards the immutable revision")
+            if let preferred = model.preferredVariant {
+                check(catalogue.selectedVariant?.id == preferred, "Recommendation selects its advertised quantization")
+                check(catalogue.selectedVariant?.preview?.architectureSupported == true, "LFM3 support metadata is decoded")
+            }
             check(catalogue.downloading == nil, "Opening a recommendation never starts a download")
             catalogue.back()
         }
+        let baseLfm3 = recommended[1]
+        catalogue.open(baseLfm3.id, revision: baseLfm3.revision)
+        try await wait { !catalogue.loadingDetail }
+        check(catalogue.selectedVariant?.id == "4bpw", "Ordinary catalogue opens retain the first-variant behavior")
+        catalogue.open(baseLfm3.id, revision: baseLfm3.revision, preferredVariant: "8bpw")
+        try await wait { !catalogue.loadingDetail }
+        check(catalogue.selectedVariant?.id == "8bpw", "Cached details still honor the requested variant")
+        catalogue.back()
+        catalogue.open(baseLfm3.id, revision: baseLfm3.revision, preferredVariant: "missing")
+        try await wait { !catalogue.loadingDetail }
+        check(catalogue.error != nil && catalogue.detail == nil, "A missing preferred variant cannot silently select another quantization")
+        check(catalogue.downloading == nil, "Invalid recommendation never starts a download")
+        catalogue.back()
         studio.addProject("Astronomie")
         let projectA = studio.selectedProjectID!
         studio.addProject("Cuisine")

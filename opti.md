@@ -28050,3 +28050,69 @@ PR163-CI correction inventaire seule publiée33bb6ff0, cinq workflows exacthead 
 - N05 clôture locale : nettoyage partiel et alias de racine reproduits avant correction ; fallback reçu seul exige une inscription exacte existante et ne peut la recréer après suppression/remplacement concurrent. Les requêtes retenues sont admises avant mutation ; 13 scénarios subprocess conservent les témoins externes. Les 37 tests hub passent, Clippy strict chat et format passent. Kani final : 274 checks, 13 obligations inatteignables et quatre couvertures ; l'extension initiale du harnais paths avait dépassé la mémoire et reste documentée, harnais historique restauré. Rapport : docs/issue163-functional-download.md.
 - Validation finale combinée : 420 tests Rust passent, zéro échec, dix ignorés, 46.11 s ; inventaire de 314 fichiers conforme, rustfmt et diff-check passent. Relectures indépendantes sans défaut bloquant. Les quatre harnais des lots SSD/JSON et deux du téléchargement sont des preuves bornées de helpers, pas de concurrence, filesystem, Metal ou modèle complet. Les limites physiques et C03 historiques restent ouvertes ; aucune vitesse mesurée.
 - Lot fonctionnel gelé sur 8080c96c, sources et preuves nouvelles uniquement ; ancien patch CI/C03 exclu. Archivage des logs avant publication, scan des fichiers pour exclure .env et secrets courants. Publication autorisée à tenter ; état encore local, aucune fusion ni installation. Tous essais locaux terminés.
+### HUB-LFM3-2026-11-11 — aperçu LFM3 et recommandations — préenregistré
+
+- Demande : corriger le faux statut non pris en charge pour LFM3 et recommander
+  le LFM3 de base ainsi que Heretic NX. Base isolée `e4b5ff4e` depuis GitHub,
+  sans intégrer les nombreux changements locaux de l'ancien checkout.
+- Reproduction : moteur publié 2.0.4/ead60d03, `hub details` marque `lfm3`
+  unsupported pour toutes les variantes du dépôt de base et pour Heretic NX,
+  alors que 104 forwards, 499 tokens et le chat natif Heretic passent.
+- Hypothèse : allowlist obsolète dans `hub::model_preview`; ajouter les deux
+  identifiants réellement pris en charge (`lfm3`, `lfm3_vl`). Aucun calcul
+  d'inférence ni estimation mémoire inventée. Régression sur les deux familles,
+  contexte conservé, inconnus toujours refusés; tentative Kani réelle.
+- Recommandations : dépôts EXL3 publics personnels de base et Heretic, SHA
+  immuables, sélectionner explicitement `8bpw` (ne pas ouvrir la première
+  variante 4.49 du dépôt de base sous une étiquette 8 bits).
+- Vérification : test rouge puis correctif, fixture CLI/Swift, variantes
+  préférées présentes/absentes et cache, tests Rust CPU/chat et Swift,
+  fmt/Clippy, build, parcours Hub réel et rendu des six cartes. Aucun benchmark,
+  merge, release ni remplacement de l'application installé demandé.
+
+HUB-LFM3 verification progress: red regression reproduced `lfm3` unsupported,
+then all 13 Hub tests passed. Full Rust CPU/chat suite passed, Clippy strict
+and CPU/chat CLI build passed. Swift's default macOS27.2 SDK failed on the
+preexisting SwiftUI StateMacro plugin; the repository's documented SDK26.5
+override builds successfully, and the full Desktop checks are running.
+
+The first Kani harness through serde_json allocation plus symbolic u16
+context exceeded the practical six-minute budget (roughly 5.5 GiB CBMC);
+interrupted, no proof claimed. Keep its log at ../mlxl3-hub-kani.log. Extract
+the unchanged production support predicate and verify the actual classifier
+directly for both symbolic family selectors and near-name rejection, with
+four reachable covers and unwind20. JSON parsing/context preservation remain
+regression-tested; this proof does not claim the entire JSON path or GPU.
+
+### VISION-DESKTOP-2026-11-11 — images LFM3-VL — préenregistré
+
+- Extension explicite de la demande : joindre des images dans le chat LFM3-VL.
+  Le moteur/bridge accepte déjà `images` et annonce `images_supported`; le
+  Desktop n'importe que PDF/texte et ne décode/transmet pas cette capacité.
+- Réutiliser cette voie, sans changer les kernels : images PNG/JPEG/WebP
+  contrôlées par ImageIO, octets préservés, limites d'import bornées et
+  annoncées, aperçu, encodage `images` sur les messages utilisateur, historique
+  autonome et refus clair sur un modèle texte ou un ancien moteur.
+- Vérifier import invalide/trop gros, mélange documents/images, doublons,
+  ancien historique, conservation après suppression du fichier, changement
+  de modèle, échange via le vrai pipe Swift et moteur VL physique si modèle
+  disponible. Les documents de bibliothèque restent textuels.
+- La première suite Desktop est arrêtée avant validation finale : le SDK27.2
+  manque le plugin StateMacro; le SDK26.5 documenté compile. Une fixture déjà
+  présente sur main a une fermeture raw-string sans `#` dans
+  issue163-runtime-contract-check.swift, qui bloque la suite après les tests
+  MTP rendus. Réparer ce caractère pour terminer les contrôles pertinents.
+- La preuve Kani directe du prédicat utilisé en production réussit : 33
+  checks, quatre couvertures, 0,19s, unwind20 et deux booléens symboliques
+  (texte/vision, nom exact/nom voisin invalide). L'ancien essai JSON reste
+  interrompu/non prouvé. Pas de preuve Swift/Metal revendiquée.
+
+- Extension de livraison autorisée ensuite : publier Desktop v2.0.0-beta.11
+  (build42) et moteur engine-v2.0.5-beta.1. Construire depuis la source isolée
+  figée, embarquer exactement le nouveau moteur, vérifier le DMG et l'archive,
+  publier en prerelease sans remplacer l'application installée ni fusionner
+  les travaux concurrents. Aucun gain de vitesse demandé ou revendiqué.
+- Le modèle VL8 a été téléchargé une fois après inventaire des caches ; SHA
+  22e6da660378840af9e5d2aaadec96d66018870cfedef8b9509427658c632457
+  vérifié. Pas de nouvelle quantification. Les contrôles physiques attendent
+  la fin des compilations/proveurs pour éviter la contention.

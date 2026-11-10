@@ -334,8 +334,12 @@ remove only its registration, or move its managed files to the Trash.
 ### Desktop behavior
 
 - Return sends; Control-Return inserts a newline.
-- **Attach** (Command-Shift-O) or drag PDF/text files onto the composer. Preview
-  extracted text or remove a file before sending. TXT, Markdown, CSV, JSON and
+- **Attach** (Command-Shift-O) or drag PDF/text files onto the composer. With a
+  loaded LFM3-VL model and an image-capable engine, you can also attach PNG,
+  JPEG and WebP images. Image bytes are kept in local history and sent as image
+  inputs, with a preview available from the attachment chip. The conversation
+  limit is eight images / 8 MiB; image conversations require a vision model.
+  Preview extracted text or remove a file before sending. TXT, Markdown, CSV, JSON and
   source code are supported in UTF-8 or UTF-16 with a BOM. PDF extraction keeps
   page numbers; scanned or password-protected PDFs require preparation first.
   Up to eight files can be attached per message (20 MiB per file, 256 KiB of

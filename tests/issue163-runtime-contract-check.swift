@@ -81,7 +81,7 @@ extension StudioModel {
         if [ "$2" = bad-protocol ]; then protocol=99; fi
         printf '{"type":"ready","model":"fixture","bridge_protocol":%s,"backend":"direct-metal","runtime_version":"2.0.2","qwen_profile":"%s","qwen_effective_flags":{"device_kv":true,"moe_join":false,"device_greedy":false},"qwen_device_kv":true,"context_memory_profile":{"fixed_bytes":100,"layers":[{"bytes_per_token":61440,"step":64}]}}\n' "$protocol" "${MLXL3_NATIVE_QWEN_PROFILE:-reference}"
         while IFS= read -r line; do :; done
-        """
+        """#
         func stage(_ suffix: String, alternate: Bool = false) throws -> URL {
             let directory = root.appendingPathComponent("stage-" + UUID().uuidString)
             try files.createDirectory(at: directory, withIntermediateDirectories: true)
