@@ -150,12 +150,10 @@ private struct ImageCheckFailure: Error { let message: String }
     studio.send()
     try await wait { !studio.isGenerating }
     try check(studio.currentConversation!.messages[0].attachments[0].image == images[1].image, "Image-only send lost attachment")
-    let id = studio.selectedConversationID!
-    studio.attachmentDrafts[id] = (0..<8).map { n in
-      ChatAttachment(fileName: "\(n).png", text: "", fileBytes: image.fileBytes, image: image.image)
-    }
+    let additional = try (0..<8).map { try file("\($0).png", image.image!.data) }
+    await studio.importChatFiles(additional)
     try check(!studio.canSend && studio.sendBlockReason != nil, "Ninth image across turns passed engine limit")
-    studio.attachmentDrafts[id] = nil
+    for attachment in studio.pendingAttachments { studio.removeChatAttachment(attachment.id) }
 
     _ = NSApplication.shared
     let host = NSHostingView(rootView: VStack {
