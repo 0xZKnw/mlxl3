@@ -58,6 +58,8 @@ struct ModelManagerView: View {
             Divider().overlay(StudioTheme.edge)
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
+                    DownloadNotificationButton(library: studio.modelLibrary)
+                        .padding(.bottom, 8)
                     navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize)
                     {
                         discover = false
@@ -95,7 +97,6 @@ struct ModelManagerView: View {
                 .id(quantize ? "quantize" : discover ? "discover" : "library")
                 .transition(.opacity)
             }
-            LibraryDownloadView(library: studio.modelLibrary)
         }
         .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: appTheme))
         .onAppear { if studio.quantizer.converting { quantize = true } }
@@ -490,24 +491,6 @@ private struct PendingDownloadsView: View {
             isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } })
         ) {
             Button(L("Supprimer", "Delete"), role: .destructive) { if let removal { library.discard(removal) } }
-        }
-    }
-}
-
-private struct LibraryDownloadView: View {
-    @ObservedObject var library: ModelLibrary
-    @EnvironmentObject private var studio: StudioModel
-    var body: some View {
-        if let repo = library.lastDownloadRepo {
-            let job = library.pending.first { $0.repo == repo }
-            DownloadProgressCard(
-                repository: repo, progress: library.downloadProgress,
-                status: library.downloadStatus, message: library.downloadMessage,
-                pause: library.cancelDownload,
-                resume: library.downloadStatus == .paused && job != nil
-                    ? { if let job { library.resume(job, studio: studio) } } : nil
-            )
-            .padding(.horizontal, 25).padding(.vertical, 16)
         }
     }
 }

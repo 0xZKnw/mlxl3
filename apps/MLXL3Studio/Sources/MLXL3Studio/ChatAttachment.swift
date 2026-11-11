@@ -174,33 +174,7 @@ enum ChatAttachmentImporter {
       guard data.count <= maxFileBytes else { throw AttachmentImportError.fileTooLarge }
     }
 
-    if isImage {
-      guard data.count <= maxTotalImageBytes else { throw AttachmentImportError.imagesTooLarge }
-      let options = [kCGImageSourceShouldCache: false] as CFDictionary
-      guard let source = CGImageSourceCreateWithData(data as CFData, options),
-        let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0,
-        CGImageSourceGetStatus(source) == .statusComplete
-      else { throw AttachmentImportError.invalidImage }
-      let formats = [
-        UTType.png.identifier: "image/png", UTType.jpeg.identifier: "image/jpeg",
-        UTType.webP.identifier: "image/webp",
-      ]
-      guard let mime = formats[type as String] else { throw AttachmentImportError.unsupportedImage }
-      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [String: Any]
-      let width = (properties?[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue ?? 0
-      let height = (properties?[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue ?? 0
-      guard width > 0, height > 0 else { throw AttachmentImportError.invalidImage }
-      let pixels = width.multipliedReportingOverflow(by: height)
-      guard !pixels.overflow, pixels.partialValue <= 64_000_000 else {
-        throw AttachmentImportError.imageResolution
-      }
-      guard CGImageSourceCreateImageAtIndex(source, 0, options) != nil else {
-        throw AttachmentImportError.invalidImage
-      }
-      return ChatAttachment(
-        fileName: url.lastPathComponent, text: "", fileBytes: data.count,
-        image: ChatImage(mimeType: mime, data: data))
-    }
+    if isImage { return try readImage(data, fileName: url.lastPathComponent) }
 
     let text: String
     if ext == "pdf" {
@@ -227,6 +201,62 @@ enum ChatAttachmentImporter {
     }
     guard text.utf8.count <= maxTextBytes else { throw AttachmentImportError.textTooLarge }
     return ChatAttachment(fileName: url.lastPathComponent, text: text, fileBytes: data.count)
+  }
+
+  static func readPastedImage(_ data: Data) throws -> ChatAttachment {
+    guard data.count <= 256 * 1_024 * 1_024 else { throw AttachmentImportError.imagesTooLarge }
+    let options = [kCGImageSourceShouldCache: false] as CFDictionary
+    guard let source = CGImageSourceCreateWithData(data as CFData, options),
+      let type = CGImageSourceGetType(source) else { throw AttachmentImportError.invalidImage }
+    if type as String != UTType.tiff.identifier {
+      return try readImage(data, fileName: "Image")
+    }
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [String: Any]
+    let width = (properties?[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue ?? 0
+    let height = (properties?[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue ?? 0
+    let pixels = width.multipliedReportingOverflow(by: height)
+    guard width > 0, height > 0, !pixels.overflow, pixels.partialValue <= 64_000_000 else {
+      throw AttachmentImportError.imageResolution
+    }
+    guard CGImageSourceGetStatus(source) == .statusComplete,
+      let image = CGImageSourceCreateImageAtIndex(source, 0, options) else {
+      throw AttachmentImportError.invalidImage
+    }
+    let png = NSMutableData()
+    guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil) else {
+      throw AttachmentImportError.invalidImage
+    }
+    CGImageDestinationAddImage(destination, image, nil)
+    guard CGImageDestinationFinalize(destination) else { throw AttachmentImportError.invalidImage }
+    return try readImage(png as Data, fileName: "Image.png")
+  }
+
+  static func readImage(_ data: Data, fileName: String) throws -> ChatAttachment {
+    guard data.count <= maxTotalImageBytes else { throw AttachmentImportError.imagesTooLarge }
+    let options = [kCGImageSourceShouldCache: false] as CFDictionary
+    guard let source = CGImageSourceCreateWithData(data as CFData, options),
+      let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0,
+      CGImageSourceGetStatus(source) == .statusComplete
+    else { throw AttachmentImportError.invalidImage }
+    let formats = [
+      UTType.png.identifier: "image/png", UTType.jpeg.identifier: "image/jpeg",
+      UTType.webP.identifier: "image/webp",
+    ]
+    guard let mime = formats[type as String] else { throw AttachmentImportError.unsupportedImage }
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [String: Any]
+    let width = (properties?[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue ?? 0
+    let height = (properties?[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue ?? 0
+    guard width > 0, height > 0 else { throw AttachmentImportError.invalidImage }
+    let pixels = width.multipliedReportingOverflow(by: height)
+    guard !pixels.overflow, pixels.partialValue <= 64_000_000 else {
+      throw AttachmentImportError.imageResolution
+    }
+    guard CGImageSourceCreateImageAtIndex(source, 0, options) != nil else {
+      throw AttachmentImportError.invalidImage
+    }
+    return ChatAttachment(
+      fileName: fileName, text: "", fileBytes: data.count,
+      image: ChatImage(mimeType: mime, data: data))
   }
 
   static func decodeText(_ data: Data) throws -> String {

@@ -47,6 +47,35 @@ private struct ImageCheckFailure: Error { let message: String }
       images.append(parsed)
     }
     let image = images[0]
+    _ = NSApplication.shared
+    let board = NSPasteboard(name: NSPasteboard.Name("mlxl3-test-\(UUID())"))
+    defer { board.releaseGlobally() }
+    board.clearContents()
+    board.setString("ordinary text", forType: .string)
+    try check(ComposerPasteboard.image(from: board) == nil, "Text paste was intercepted")
+    board.clearContents()
+    board.setData(image.image!.data, forType: .png)
+    guard case .data(let clipboardPNG) = ComposerPasteboard.image(from: board) else {
+      throw ImageCheckFailure(message: "PNG clipboard data was not detected")
+    }
+    try check(try ChatAttachmentImporter.readPastedImage(clipboardPNG).image == image.image, "PNG clipboard data changed")
+    let tiff = NSBitmapImageRep(data: image.image!.data)!.representation(using: .tiff, properties: [:])!
+    board.clearContents()
+    board.setData(tiff, forType: .tiff)
+    guard case .data(let clipboardTIFF) = ComposerPasteboard.image(from: board) else {
+      throw ImageCheckFailure(message: "TIFF clipboard data was not detected")
+    }
+    let converted = try ChatAttachmentImporter.readPastedImage(clipboardTIFF)
+    try check(converted.image?.mimeType == "image/png" && NSImage(data: converted.image!.data) != nil,
+              "Clipboard TIFF was not converted to a valid PNG")
+    board.clearContents()
+    board.writeObjects([root.appendingPathComponent("red.png") as NSURL])
+    guard case .files(let urls) = ComposerPasteboard.image(from: board) else {
+      throw ImageCheckFailure(message: "Copied image file was not detected")
+    }
+    try check(urls == [root.appendingPathComponent("red.png")], "Copied file URL changed")
+    try rejects(.invalidImage) { _ = try ChatAttachmentImporter.readPastedImage(Data("broken".utf8)) }
+    try rejects(.imageResolution) { _ = try ChatAttachmentImporter.readPastedImage(Data(contentsOf: fixtures.appendingPathComponent("oversized.png"))) }
     try check(try ChatAttachmentImporter.read(file("png-named-jpeg.jpeg", image.image!.data), allowImages: true).image?.mimeType == "image/png", "MIME trusted the extension instead of image bytes")
     try rejects(.unsupportedImage) {
       _ = try ChatAttachmentImporter.read(fixtures.appendingPathComponent("red.gif"), allowImages: true)
@@ -104,6 +133,9 @@ private struct ImageCheckFailure: Error { let message: String }
         sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
     }
     try check(!studio.canImportImages, "Images enabled before READY")
+    await studio.importPastedImage(clipboardPNG)
+    try check(studio.pendingAttachments.isEmpty && studio.attachmentImportError != nil, "Clipboard image bypassed model capability")
+    studio.dismissAttachmentImportError()
     try check(studio.sendBlockReason == nil && !studio.canAttemptSend, "Empty composer showed an unloaded-model warning")
     studio.send()
     try check(studio.sendBlockReason == nil, "Empty send showed an unloaded-model warning")
@@ -125,7 +157,10 @@ private struct ImageCheckFailure: Error { let message: String }
     try check(studio.sendBlockReason == nil && !studio.attemptedSendWithoutModel, "Warning survived model load")
     studio.draft = ""
     try check(studio.canImportImages, "Vision capability ignored")
-    await studio.importChatFiles([root.appendingPathComponent("red.png"), documentURL])
+    ComposerPasteboard.importImage(.data(clipboardPNG), into: studio)
+    try await wait { !studio.pendingAttachments.isEmpty || studio.attachmentImportError != nil }
+    try check(studio.pendingAttachments.first?.image == image.image, "Clipboard image was not attached")
+    await studio.importChatFiles([documentURL])
     try check(studio.pendingAttachments.count == 2 && studio.canSend, "Mixed image/document import failed")
     studio.send()
     try await wait { !studio.isGenerating }
@@ -228,6 +263,36 @@ private struct ImageCheckFailure: Error { let message: String }
         try png.write(to: URL(fileURLWithPath: destination).appendingPathComponent("lfm3-image-chat-\(Int(width)).png"))
       }
       try check(redPixels > 100, "Image pixels are not visible inline at \(width): \(redPixels) red samples")
+    }
+    var transfer = ModelDownloadProgress(total: 12_000_000_000)
+    transfer.update(completed: 4_000_000_000, total: 12_000_000_000, at: 1)
+    transfer.update(completed: 4_100_000_000, total: 12_000_000_000, at: 2)
+    for (name, status, message) in [("transfer", ModelDownloadStatus.transferring, Optional<String>.none),
+                                    ("paused", .paused, "Téléchargement suspendu."),
+                                    ("failed", .failed, "Connexion interrompue.")] {
+      let card = DownloadProgressCard(repository: "owner/LFM3-VL-2B-EXL3-very-long-model-name", progress: transfer,
+        status: status, message: message, pause: {}, resume: status == .transferring ? nil : {})
+      let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 330, height: 220),
+                            styleMask: .borderless, backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      defer { window.close() }
+      let host = NSHostingView(rootView: VStack(alignment: .leading, spacing: 16) {
+        Text("Téléchargements").font(.system(size: 14, weight: .semibold))
+        card
+      }.padding(18).frame(width: 330, height: 220, alignment: .topLeading)
+        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: .midnightBlue))
+        .studioAppearance(.midnightBlue))
+      window.contentView = host
+      host.frame = CGRect(x: 0, y: 0, width: 330, height: 220)
+      try await Task.sleep(for: .milliseconds(100))
+      host.layoutSubtreeIfNeeded()
+      try check(host.fittingSize.width <= 330 && host.fittingSize.height <= 220, "Download \(name) overflowed its popover")
+      if let destination = ProcessInfo.processInfo.environment["MLXL3_IMAGE_CHECK_OUTPUT"],
+         let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        try bitmap.representation(using: .png, properties: [:])!.write(
+          to: URL(fileURLWithPath: destination).appendingPathComponent("download-\(name).png"))
+      }
     }
     print("Image input checks passed: \(checks) checks, PNG/JPEG/WebP, boundaries, bridge, history, model changes and two UI widths")
   }

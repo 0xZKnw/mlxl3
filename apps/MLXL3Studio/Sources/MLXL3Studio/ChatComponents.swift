@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct StreamingScrollState {
   var followsBottom = true
@@ -650,6 +651,11 @@ struct ComposerView: View {
                     .padding(.vertical, 5)
                     .frame(minHeight: 24, alignment: .topLeading)
                     .contentShape(Rectangle())
+                    .background(ComposerPasteMonitor(focused: focused, studio: studio))
+                    .onPasteCommand(of: [.image]) { _ in
+                        guard focused, let image = ComposerPasteboard.image(from: .general) else { return }
+                        ComposerPasteboard.importImage(image, into: studio)
+                    }
                     .disabled(studio.isGenerating)
                     .onSubmit { studio.send() }
                     .onKeyPress(.return, phases: .down) { press in
@@ -702,6 +708,72 @@ struct ComposerView: View {
                 focused = true
             }
         }
+    }
+}
+
+enum ComposerPasteboard {
+    enum Image {
+        case files([URL])
+        case data(Data)
+    }
+
+    static func image(from board: NSPasteboard) -> Image? {
+        let urls = (board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? [])
+            .filter { UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true }
+        if !urls.isEmpty { return .files(urls) }
+        for type in [NSPasteboard.PasteboardType.png, .init(UTType.jpeg.identifier), .init(UTType.webP.identifier), .tiff] {
+            if let data = board.data(forType: type) { return .data(data) }
+        }
+        return nil
+    }
+
+    @MainActor static func importImage(_ image: Image, into studio: StudioModel) {
+        let conversationID = studio.selectedConversationID
+        Task {
+            guard studio.selectedConversationID == conversationID else { return }
+            switch image {
+            case .files(let urls): await studio.importChatFiles(urls)
+            case .data(let data): await studio.importPastedImage(data)
+            }
+        }
+    }
+}
+
+private struct ComposerPasteMonitor: NSViewRepresentable {
+    let focused: Bool
+    let studio: StudioModel
+
+    func makeNSView(context: Context) -> PasteMonitorView { PasteMonitorView() }
+    func updateNSView(_ view: PasteMonitorView, context: Context) {
+        view.focused = focused
+        view.studio = studio
+    }
+
+    final class PasteMonitorView: NSView {
+        var focused = false
+        weak var studio: StudioModel?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                let handled = MainActor.assumeIsolated {
+                    guard let self, self.focused, self.window?.isKeyWindow == true,
+                          self.window?.firstResponder is NSTextView,
+                          event.charactersIgnoringModifiers?.lowercased() == "v",
+                          event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                          let studio = self.studio, studio.canImportFiles else { return false }
+                    guard let image = ComposerPasteboard.image(from: .general) else { return false }
+                    ComposerPasteboard.importImage(image, into: studio)
+                    return true
+                }
+                return handled ? nil : event
+            }
+        }
+
+        isolated deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
 

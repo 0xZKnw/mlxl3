@@ -116,6 +116,7 @@ private struct SidebarView: View {
             HStack {
                 MonogramMark(size: 44)
                 Spacer()
+                DownloadNotificationButton(library: studio.modelLibrary)
                 Button(action: studio.newConversation) {
                     Image(systemName: "square.and.pencil").font(.system(size: 15))
                         .frame(width: 32, height: 32)
@@ -346,6 +347,10 @@ private struct WorkspaceHeader: View {
             .help(sidebarVisible ? L("Masquer l’historique", "Hide history") : L("Afficher l’historique", "Show history"))
             .accessibilityLabel(L("Afficher ou masquer l’historique", "Toggle history"))
             .keyboardShortcut("s", modifiers: [.command, .control])
+
+            if !sidebarVisible {
+                DownloadNotificationButton(library: studio.modelLibrary)
+            }
 
             Text(studio.selectedMode == .server || studio.selectedMode == .lab ? studio.selectedMode.title
                  : studio.currentConversation?.messages.isEmpty == false ? (studio.currentConversation?.title ?? "Conversation") : studio.selectedMode.title)

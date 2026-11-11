@@ -675,7 +675,32 @@ final class StudioModel: ObservableObject {
     }
 
     func importChatFiles(_ urls: [URL]) async {
-        guard canImportFiles, !urls.isEmpty, let id = selectedConversationID else { return }
+        guard !urls.isEmpty else { return }
+        await importChatAttachments { existing, allowImages in
+            ChatAttachmentImporter.load(urls, existing: existing, allowImages: allowImages)
+        }
+    }
+
+    func importPastedImage(_ data: Data) async {
+        guard canImportFiles, let id = selectedConversationID else { return }
+        guard canImportImages else {
+            attachmentImportErrors[id] = L("Chargez un modèle compatible avec les images.", "Load a model that supports images.")
+            return
+        }
+        await importChatAttachments { existing, _ in
+            do {
+                let image = try ChatAttachmentImporter.readPastedImage(data)
+                return .init(attachments: try ChatAttachmentImporter.adding(image, to: existing), errors: [])
+            } catch {
+                return .init(attachments: existing, errors: [error.localizedDescription])
+            }
+        }
+    }
+
+    private func importChatAttachments(
+        _ load: @escaping @Sendable ([ChatAttachment], Bool) -> ChatAttachmentImporter.Batch
+    ) async {
+        guard canImportFiles, let id = selectedConversationID else { return }
         let token = UUID()
         attachmentImportID = token
         attachmentImportConversationID = id
@@ -684,7 +709,7 @@ final class StudioModel: ObservableObject {
         let existing = pendingAttachments
         let allowImages = canImportImages
         let task = Task.detached(priority: .userInitiated) {
-            ChatAttachmentImporter.load(urls, existing: existing, allowImages: allowImages)
+            load(existing, allowImages)
         }
         let result = await withTaskCancellationHandler {
             await task.value

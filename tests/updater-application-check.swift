@@ -38,7 +38,7 @@ extension UpdateManager {
             precondition(CommandLine.arguments.dropFirst() == ["runtime-info"]
                 || CommandLine.arguments.dropFirst() == ["list", "--json"])
             print(CommandLine.arguments[1] == "runtime-info"
-                ? #"{"bridge_protocol":1,"version":"1.4.5","mlx_enabled":true}"# : "[]")
+                ? #"{"bridge_protocol":1,"version":"1.4.5","backend":"mlx","mlx_enabled":true}"# : "[]")
             return
         }
         if executable.lastPathComponent == "MLXL3Studio" { return }

@@ -1,5 +1,62 @@
 import SwiftUI
 
+struct DownloadNotificationButton: View {
+    @ObservedObject var library: ModelLibrary
+    @EnvironmentObject private var studio: StudioModel
+    @State private var isPresented = false
+
+    private var statusDescription: String {
+        switch library.downloadStatus {
+        case .idle: L("Aucun téléchargement", "No downloads")
+        case .transferring:
+            library.downloadProgress.fraction.map {
+                L("En cours, \($0.formatted(.percent.precision(.fractionLength(0))))", "In progress, \($0.formatted(.percent.precision(.fractionLength(0))))")
+            } ?? L("En cours", "In progress")
+        case .paused: L("En pause", "Paused")
+        case .complete: L("Terminé", "Complete")
+        case .failed: L("Interrompu", "Interrupted")
+        }
+    }
+
+    var body: some View {
+        Button { isPresented.toggle() } label: {
+            Image(systemName: "arrow.down.circle")
+                .frame(width: 30, height: 30)
+                .overlay(alignment: .topTrailing) {
+                    if library.downloadStatus == .transferring || library.downloadStatus == .paused || library.downloadStatus == .failed || library.downloadStatus == .complete {
+                        Circle().fill(library.downloadStatus == .failed ? Color.orange : StudioTheme.accent)
+                            .frame(width: 6, height: 6).offset(x: -2, y: 2)
+                    }
+                }
+        }
+        .buttonStyle(StudioControlStyle(emphasized: isPresented))
+        .help(L("Téléchargements", "Downloads"))
+        .accessibilityLabel(L("Téléchargements", "Downloads"))
+        .accessibilityValue(statusDescription)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(L("Téléchargements", "Downloads"))
+                    .font(.system(size: 14, weight: .semibold))
+                if let repo = library.lastDownloadRepo {
+                    let job = library.pending.first { $0.repo == repo }
+                    DownloadProgressCard(
+                        repository: repo, progress: library.downloadProgress,
+                        status: library.downloadStatus, message: library.downloadMessage,
+                        pause: library.cancelDownload,
+                        resume: (library.downloadStatus == .paused || library.downloadStatus == .failed) && job != nil
+                            ? { if let job { library.resume(job, studio: studio) } } : nil)
+                } else {
+                    Text(L("Aucun téléchargement en cours", "No downloads in progress"))
+                        .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                }
+            }
+            .padding(18)
+            .frame(width: 330, alignment: .leading)
+            .foregroundStyle(StudioTheme.ink)
+        }
+    }
+}
+
 struct DownloadProgressCard: View {
     let repository: String
     let progress: ModelDownloadProgress
@@ -11,105 +68,66 @@ struct DownloadProgressCard: View {
 
     private var active: Bool { status == .transferring }
     private var transferring: Bool { progress.phase == .download }
-    private var phaseTitle: String {
-        switch progress.phase {
-        case .download: L("TÉLÉCHARGEMENT DU MODÈLE", "MODEL DOWNLOAD")
-        case .verify: L("VÉRIFICATION DES FICHIERS", "VERIFYING FILES")
-        case .publication: L("PUBLICATION DU MODÈLE", "PUBLISHING MODEL")
-        case .install: L("INSTALLATION DU MODÈLE", "INSTALLING MODEL")
-        case .processing: L("PRÉPARATION DU MODÈLE", "PREPARING MODEL")
-        }
-    }
-    private var icon: String {
-        switch status {
-        case .complete: "checkmark"
-        case .paused: "pause"
-        case .failed: "exclamationmark"
-        default: transferring ? "arrow.down" : "gearshape"
-        }
-    }
     private var title: String {
         switch status {
-        case .complete: L("AJOUTÉ À VOTRE BIBLIOTHÈQUE", "ADDED TO YOUR LIBRARY")
-        case .paused: L("TÉLÉCHARGEMENT EN PAUSE", "DOWNLOAD PAUSED")
-        case .failed: L("TÉLÉCHARGEMENT INTERROMPU", "DOWNLOAD INTERRUPTED")
-        default: phaseTitle
+        case .complete: L("Terminé", "Complete")
+        case .paused: L("En pause", "Paused")
+        case .failed: L("Interrompu", "Interrupted")
+        default:
+            switch progress.phase {
+            case .download: L("Téléchargement", "Downloading")
+            case .verify: L("Vérification", "Verifying")
+            case .publication: L("Publication", "Publishing")
+            case .install: L("Installation", "Installing")
+            case .processing: L("Préparation", "Preparing")
+            }
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .light))
-                    .foregroundStyle(status == .failed ? .orange : StudioTheme.accent)
-                    .frame(width: 46, height: 46)
-                    .background(StudioTheme.contrast.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay { RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 0.5) }
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title).font(.system(size: 8, weight: .medium)).tracking(1.4)
-                        .foregroundStyle(StudioTheme.quiet)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: status == .complete ? "checkmark.circle" : status == .failed ? "exclamationmark.circle" : "shippingbox")
+                    .font(.system(size: 16)).foregroundStyle(status == .failed ? .orange : StudioTheme.secondary)
+                    .frame(width: 20, height: 22)
+                VStack(alignment: .leading, spacing: 3) {
                     Text(repository.split(separator: "/").last.map(String.init) ?? repository)
-                        .font(.system(size: 14, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                    if let owner = repository.split(separator: "/").dropLast().first {
-                        Text(owner).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
-                    }
+                        .font(.system(size: 12, weight: .semibold)).lineLimit(2).truncationMode(.middle)
+                    Text(title).font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
                 }
-                Spacer(minLength: 16)
-                if let fraction = progress.fraction {
-                    Text(fraction.formatted(.percent.precision(.fractionLength(0))))
-                        .font(.system(size: 27, weight: .regular, design: .serif)).monospacedDigit()
-                }
+                Spacer(minLength: 4)
                 if active {
-                    Button(action: pause) { Image(systemName: "pause.fill").frame(width: 32, height: 32) }
-                        .buttonStyle(RoundGlassButtonStyle())
+                    Button(action: pause) { Image(systemName: "pause.fill").frame(width: 28, height: 28) }
+                        .buttonStyle(StudioControlStyle())
                         .help(L("Suspendre le téléchargement", "Pause download"))
                         .accessibilityLabel(L("Suspendre le téléchargement", "Pause download"))
                 } else if let resume {
-                    Button(action: resume) { Label(L("Reprendre", "Resume"), systemImage: "play.fill") }
-                        .buttonStyle(GlassPillButtonStyle())
+                    Button(L("Reprendre", "Resume"), action: resume).controlSize(.small)
                 }
             }
             if let fraction = progress.fraction {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(StudioTheme.contrast.opacity(0.07))
-                        Capsule().fill(LinearGradient(colors: [StudioTheme.accent.opacity(0.6), StudioTheme.accent],
-                                                      startPoint: .leading, endPoint: .trailing))
-                            .frame(width: geometry.size.width * fraction)
-                    }
-                }.frame(height: 6)
+                ProgressView(value: fraction).tint(StudioTheme.accent)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: fraction)
                     .accessibilityLabel(L("Progression du téléchargement", "Download progress"))
                     .accessibilityValue(fraction.formatted(.percent.precision(.fractionLength(0))))
-            } else if active {
-                ProgressView().controlSize(.small).accessibilityLabel(phaseTitle)
-            }
-            if transferring {
-                HStack(alignment: .firstTextBaseline) {
+                HStack {
                     Text(volume(progress.completed) + " / " + (progress.total > 0 ? volume(progress.total) : "—"))
-                        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
                     Spacer()
-                    if active {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.down").font(.system(size: 9))
-                            Text(progress.bytesPerSecond.map {
-                                ($0 / 1_000_000).formatted(.number.precision(.fractionLength(1))) + " " + L("Mo/s", "MB/s")
-                            } ?? L("Calcul du débit…", "Measuring speed…"))
-                            .monospacedDigit()
-                        }.font(.system(size: 11, weight: .medium)).foregroundStyle(StudioTheme.accent)
-                    }
-                }
+                    Text(fraction.formatted(.percent.precision(.fractionLength(0))))
+                }.font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
+            } else if active {
+                ProgressView().controlSize(.small).accessibilityLabel(title)
             }
-            if let message {
+            if active && transferring, let rate = progress.bytesPerSecond {
+                Text((rate / 1_000_000).formatted(.number.precision(.fractionLength(1))) + " " + L("Mo/s", "MB/s"))
+                    .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
+            }
+            if let message, status != .complete {
                 Text(message).font(.system(size: 11))
                     .foregroundStyle(status == .failed ? .orange : StudioTheme.secondary)
-                    .textSelection(.enabled).lineLimit(3)
+                    .textSelection(.enabled)
             }
         }
-        .padding(18).foregroundStyle(StudioTheme.ink)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
-        .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
     }
 
     private func volume(_ bytes: Double) -> String {
