@@ -185,6 +185,10 @@ uniquement pour remplir le journal, ni publier sans demande de l'utilisateur.
 
 ## Changelogs et releases
 
+- Après chaque publication d'une release MLXL3, annoncer la version en anglais
+  dans le salon Discord `#releases` avec le bot MLXL3 Releases et la mention
+  du rôle `Update Notifications`. Vérifier le résultat du workflow Discord ;
+  ne pas annoncer un succès si le bot ou ses identifiants ne sont pas configurés.
 - **All release notes and patch notes must be written in English**, both in
   `docs/release-*.md` and in GitHub release bodies, for Desktop and engine
   releases, including stable releases and prereleases. Preserve exact versions,

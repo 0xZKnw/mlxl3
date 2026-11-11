@@ -1,0 +1,34 @@
+name: Discord release announcement
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to announce
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    if: github.repository == '0xZKnw/mlxl3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Post release to Discord
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ vars.DISCORD_GUILD_ID }}
+          DISCORD_RELEASES_CHANNEL_ID: ${{ vars.DISCORD_RELEASES_CHANNEL_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/discord_release.py
