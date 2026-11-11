@@ -5,9 +5,9 @@ SwiftUI desktop app, a Rust inference engine using MLX on Metal, a
 command-line client, and an OpenAI-compatible HTTP API. Supported families
 include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
-[Download Desktop beta 11](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.11)
+[Download Desktop beta 13](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.13)
 · [Engine 2.0.5 beta](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.5-beta.1)
-· [Release notes](docs/release-v2.0.0-beta.11.md)
+· [Release notes](docs/release-v2.0.0-beta.13.md)
 · [Website](https://mlxl3.0xzknw.tech/)
 · [MIT license](LICENSE)
 
@@ -27,7 +27,7 @@ Homebrew or separate MLX installation is needed to use the app.
 The builds are ad-hoc signed, not notarized. If macOS blocks first launch,
 approve this specific app in **System Settings → Privacy & Security**.
 
-Desktop **2.0.0-beta.11 / build 42** bundles engine **2.0.5**. App and engine
+Desktop **2.0.0-beta.13 / build 44** bundles engine **2.0.5**. App and engine
 updates have separate stable/beta channels in Settings. Updating an engine
 validates its manifest, hashes, architecture, protocol and app compatibility;
 a failed startup can fall back to the bundled runtime. Engine releases do not
@@ -69,7 +69,9 @@ The Desktop catalogue recommends these pinned exports:
 The LFM3 text and vision cards open **8 bpw** by default and offer **4**, **4.49**
 and **8 bpw** as separate repositories. Heretic NX is available at 8 bpw. Projection bpw excludes embeddings, output
 heads, scales and metadata; it is not the whole-file bitrate. Model licenses
-apply separately from MLXL3's license.
+apply separately from MLXL3's license. For LFM3-VL, use the calibrated 8 bpw
+checkpoint: the 4 bpw vision export is uncalibrated and 4.49 bpw has not met
+the native feature-parity threshold.
 
 ### LFM3-VL image input
 
@@ -115,6 +117,88 @@ local samples, not universal speed claims. The [measurement record](docs/measure
 contains each run, exact weights and revisions, the prompt, quality checks and
 reproduction commands.
 
+### MTP and DFlash2 observations
+
+On the same Apple M5 / 24 GiB and engine 2.0.5, Qwen3.6 35B-A3B EXL3
+2.49 bpw produced these rates with a 4,096-token context, greedy decoding and
+128 output tokens:
+
+| Prompt | Mode | Decode median (range) | TTFT median | Total median |
+|---|---|---:|---:|---:|
+| Snapshot, 62 prompt tokens | Ordinary | 50.60 (50.27–50.61) tok/s | 0.243 s | 2.752 s |
+| Snapshot, 62 prompt tokens | MTP1 | 75.12 (74.45–75.75) tok/s | 0.243 s | 1.935 s |
+| Snapshot, 62 prompt tokens | DFlash2 Auto | 70.56 (70.22–70.69) tok/s | 0.251 s | 2.051 s |
+| French, 27 prompt tokens | MTP1 | 70.71 (70.60–71.04) tok/s | 0.128 s | 1.925 s |
+| French, 27 prompt tokens | DFlash2 Auto | 61.11 (60.74–61.21) tok/s | 0.138 s | 2.216 s |
+
+MTP and DFlash2 used the same prompts in alternating passes and matched output
+hashes. The ordinary run also matched the snapshot output but ran separately;
+swap in use rose from about 2.48 to 6.97 GiB between its preflight and the
+speculative passes. Do not treat this as a controlled speedup comparison.
+The [measurement record](docs/measurements/v2-speculative-20261111/) includes
+each sample, draft identity, acceptance counts and reproduction commands.
+
+The same engine and Mac were also measured with Qwen3.8 27B EXL3 2 bpw:
+
+| Prompt | Mode | Decode median (range) | TTFT median | Total median |
+|---|---|---:|---:|---:|
+| Snapshot, 104 prompt tokens | Ordinary | 8.88 (8.61–9.04) tok/s | 1.310 s | 15.612 s |
+| Snapshot, 104 prompt tokens | MTP1 | 12.73 (12.57–13.23) tok/s | 1.329 s | 11.312 s |
+| Snapshot, 104 prompt tokens | DFlash2 Auto | 6.55 (6.36–6.60) tok/s | 1.378 s | 20.766 s |
+| French, 69 prompt tokens | MTP1 | 12.76 (12.49–12.97) tok/s | 1.103 s | 11.052 s |
+| French, 69 prompt tokens | DFlash2 Auto | 6.00 (5.85–6.23) tok/s | 1.099 s | 22.253 s |
+
+Both speculative modes produced matching outputs, and the ordinary snapshot
+output matched too. The ordinary run was not interleaved, swap use changed
+substantially, and individual speculative samples varied by up to about 6.5%.
+These results show that DFlash2 can be slower for a given workload; they do not
+establish a universal ranking. See the [27B record](docs/measurements/v2-speculative-20261111/qwen27/)
+for all samples and conditions.
+
+The following are **historical campaigns**, measured on an Apple M5 with 24 GiB;
+they do not benchmark the v2 executable above. The modes use different draft
+weights and can increase memory use. Rates measure decode after the first token;
+they do not include model loading or represent the complete response time.
+
+For Qwen3.6 35B-A3B EXL3 2.49 bpw, engine 1.4.3 used greedy decoding, a
+4,096-token context, 128 output tokens, a warmup per prompt and two repetitions
+in each of four alternating passes. MTP1 and DFlash2 Auto were measured using
+the same target and prompts:
+
+| Prompt | MTP1 decode | DFlash2 Auto decode | Total MTP1 / DFlash2 |
+|---|---:|---:|---:|
+| French, 27 prompt tokens | 70.52 tok/s | 61.28 tok/s | 1.93 / 2.21 s |
+| Technical document, 2,825 prompt tokens | 56.64 tok/s | 42.55 tok/s | 8.01 / 9.27 s |
+
+Outputs matched for these samples, but the long-prompt MTP control drifted by
+5.32%, above the campaign's 3% limit. The ordering is therefore an observation,
+not a confirmed general ranking. The full [protocol and results](docs/dflash2-stable-validation.md)
+include TTFT, memory, acceptance and the unexecuted confirmation.
+
+For Qwen3.8 Flash Next EXL3 2.05 bpw, a separate 1 November campaign used two
+short prompts, 128 output tokens and an explicitly configured 3 GiB expert
+cache. Its measured executable had additional experimental Hot/Wide/Unique
+options enabled, so these are not default-setting v2 numbers:
+
+| Prompt | Ordinary decode | MTP1 decode | DFlash2 decode |
+|---|---:|---:|---:|
+| MAIN, 87 prompt tokens | 11.47 tok/s | 12.09 tok/s | 12.65 tok/s |
+| HOLD, 82 prompt tokens | 11.37 tok/s | 11.26 tok/s | 12.15 tok/s |
+
+Each process warmed each prompt once; ordinary decoding had two measured
+processes and MTP/DFlash2 had three. Values are aggregate decode rates, with
+small samples and different draft residency between modes. See the
+[campaign record](docs/measurements/post-p09-dynamic-cold-20261101/README.md)
+for all settings, prefill tradeoffs and source identities.
+
+The historical Qwen3.8 27B 2 bpw MTP1 campaign recorded 11.08 tok/s in French
+and 10.94 tok/s for code on its own workload; its
+[measurement record](docs/qwen27-max-optimisations-20261016.md) describes the
+conditions. It is not paired with the v2 baseline above. The listed LFM models
+do not currently expose these MTP/DFlash2 paths in MLXL3; no speculative rates
+are implied for them. Use the built-in tuner on compatible targets to compare
+modes for your model, Mac and workload.
+
 One fully recorded **Apple M5 / 24 GiB** campaign for LFM2.5-24B-A2B EXL3
 4 bpw used two 266-token templated prompts, 128 generated tokens, one warmup
 per prompt and five measured repetitions, without MTP, DFlash or prompt reuse:
@@ -139,6 +223,9 @@ The [optimization journal](opti.md) records the experiments and decisions.
 
 ## Desktop workspaces
 
+The capabilities below describe the current source; the latest published beta
+may not yet include every change.
+
 - **Chat:** streaming responses and reasoning, Markdown/code/math rendering,
   saved conversations, editing, regeneration, branches and export.
 - **Agent:** work on an isolated project copy, inspect files and diffs, retain
@@ -146,6 +233,9 @@ The [optimization journal](opti.md) records the experiments and decisions.
   original project requires review; conflicting external edits are refused.
 - **Server:** start the local HTTP API with a resident model.
 - **Lab:** inspect locally recorded generation samples and their settings.
+
+Model details render Hugging Face cards with Markdown, HTML and repository
+images. Card scripts are disabled, and external links open in the browser.
 
 Projects keep instructions and documents together. Saved profiles restore
 sampling settings. Text/PDF retrieval includes source excerpts and page
@@ -155,8 +245,10 @@ message, 20 MiB per source file, 256 KiB extracted text per file and 512 KiB
 text per message. The model's context limit still applies.
 
 On-device dictation and reply speech use macOS services. Agent/project and
-versioned artifact features require working Git. Themes, accent colors, message
-spacing, reading width and text size are available in Settings.
+versioned artifact features require working Git. Appearance settings include
+12 themes, preset or custom accent colors, conversation fonts and bubble
+styles, message spacing, reading width, text size and sidebar width. Choices
+apply immediately and persist locally; the appearance reset restores defaults.
 
 ### MTP and DFlash
 
@@ -177,7 +269,7 @@ Use the extracted engine's `mlxl3`, or the copy bundled with the app:
 ```sh
 export MLXL3_BIN="/Applications/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
 "$MLXL3_BIN" runtime-info
-"$MLXL3_BIN" register lfm3 /absolute/path/to/LFM3-EXL3/8bpw
+"$MLXL3_BIN" register lfm3 /absolute/path/to/LFM3-1.7B-EXL3-8bpw
 "$MLXL3_BIN" run lfm3 --prompt 'Explain how a ring buffer works.' --max-tokens 128
 ```
 

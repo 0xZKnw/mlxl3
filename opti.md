@@ -28300,3 +28300,94 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   Les 240 contrôles mémoire de contexte et la compilation Swift passent.
   Les captures utilisent des fixtures rouges et ne prouvent pas la qualité
   de compréhension visuelle du modèle physique.
+
+## README-MTP-DFLASH-20261111 — v2 reference measurement
+
+Requested: document the models' MTP and DFlash2 performance. This is a
+measurement of existing behavior, not an optimization or a new release.
+Target: Qwen3.6-35B-A3B EXL3 2.49 bpw; target safetensors SHA-256
+`76ea0f66974e6af9768510e71e9cfd3ee7a5fedd2f2f6697c47916cd6a90e4bd` and
+`d6c35735289908bd61c2f11dad7b4e4f3fd9b70b19dcd5ab4e77a461b475aa57`.
+Runtime: installed engine 2.0.5, commit `a3cffdcaa7ba`, executable SHA-256
+`7f5ea49e6768ffddf0ad10e39dfb2cae48410789ce92842d4d1a42e7660338a0`.
+MTP stock 4-bit head SHA-256 `77fbc6594cdd830cae89e0b693f18278dd0a7a7c5749fd33d4bc5817dbb91bad`;
+DFlash2 packed Q4 manifest SHA-256 `22aa0f68a76fa8b84245b81eb1606f25aaa002259663f84f361fd7c66f244418`.
+
+Plan: after all UI builds/tests finish, run the existing `v2_snapshot.py`
+ordinary-mode workload, followed by `compare_native.py --compare-mtp-dflash`
+with MTP depth 1, DFlash Auto, the same snapshot prompt plus the driver's short
+French prompt, context 4096, greedy, no prompt reuse, warmup and two measured
+runs per prompt/pass, ABBA order. Only one model process at a time. Compare
+output hashes and record complete/failed status and sampled decode, TTFT and
+total times; report EOS-short runs, thermal/background conditions, drift and
+the unpaired ordinary baseline rather than claiming a universal gain. Do not
+run simultaneously with builds, other inference or GPU benchmarks. Raw local
+results and conditions: `../ui-review/readme-benchmark/`.
+
+Status: closed; completed results follow.
+
+Result: ordinary run complete (one warmup, three measurements); MTP1 and
+DFlash Auto completed all four ABBA processes, two prompts, one warmup and two
+measurements per prompt/pass. All 24 speculative responses matched token, text
+and history hashes; the ordinary snapshot output matched as well. Snapshot
+62-token prompt: ordinary 50.60 (50.27–50.61), MTP1 75.12 (74.45–75.75),
+DFlash Auto 70.56 (70.22–70.69) decode tok/s. French 27-token prompt: MTP1
+70.71 (70.60–71.04), DFlash 61.11 (60.74–61.21); no new ordinary French run.
+TTFT, complete latency, acceptance counters, prompts and repeat-level samples
+are in [the report](docs/measurements/v2-speculative-20261111/README.md).
+
+Before and after the campaign, process-list probes showed Desktop open without
+an engine child and no other known inference, compiler or prover. These probes
+were not continuous and cannot exclude brief concurrent work. AC throughout, no reported thermal
+warning, clocks and GPU occupancy unmeasured. Swap in use rose from 2.48 GiB
+before the ordinary process to about 6.97 GiB at speculative preflight probes;
+it was about 6.99 GiB after closure. The ordinary run was unpaired and no
+relative speedup is claimed. Exact-output checks are sampled, not a proof of
+arbitrary prompts or runtimes. All benchmark children exited; `status=complete`,
+`parity=true`. Local raw outputs remain in `../ui-review/readme-benchmark/`;
+the checked-in JSON redacts paths, PIDs and battery identifiers. No weights or
+engine code changed. This measurement does not replace the historical Flash
+Next or 27B campaigns and does not justify an optimization claim.
+
+## README-QWEN27-SPEC-20261111 — v2 reference measurement
+
+Requested model coverage: Qwen3.8-27B EXL3 2 bpw, existing local weights and
+matching MTP/DFlash drafts, on engine 2.0.5 (`a3cffdcaa7ba`, executable SHA-256
+`7f5ea49e6768ffddf0ad10e39dfb2cae48410789ce92842d4d1a42e7660338a0`).
+Target safetensors match the prior v2 snapshot: `c6557d7a8cc61277ecee4582530b138b9c89df3cfc2c00f2a05e30faabfb0c98`
+and `29e7a567199b701ec80688faeaf21f0919cbab569a1903a17f098d40e4096bd3`.
+MTP 4-bit head SHA-256 `76663c101e7e8ea9c0ae17bcb95183cd7f733ce424c912b8b264a7b1c48e4cc6`;
+the six local DFlash draft file hashes are retained in the raw identity file.
+No changes to the executable, model or quantization.
+
+Plan: existing `v2_snapshot.py` ordinary snapshot first, then
+`compare_native.py --compare-mtp-dflash`, same v2 prompt plus the short French
+prompt, context 4096, 128 output tokens, greedy, prompt-cache off, one warmup,
+two measured responses/prompt/pass, ABBA with 3 s between passes. One model
+at a time. A process-list watchdog polls for another local model/compile/proof
+and stops only this campaign if a conflict appears; polling is not a GPU
+occupancy measurement. Check complete status, outputs, draft counters, drift,
+thermal/power and memory before presenting numbers. Preserve and report any
+failure, interruption or collision; the ordinary run is unpaired.
+Raw local records: `../ui-review/readme-benchmark/qwen27/`.
+
+Status: closed; completed results follow.
+
+Result: ordinary and all four speculative ABBA processes completed; one warmup
+and two measurements per prompt/pass. All 24 speculative responses matched
+within each prompt for token, text and history hashes, and ordinary matched the
+snapshot output. Snapshot 104-token input: ordinary 8.88 (8.61–9.04), MTP1
+12.73 (12.57–13.23), DFlash Auto 6.55 (6.36–6.60) decode tok/s. French
+69-token input: MTP1 12.76 (12.49–12.97), DFlash Auto 6.00 (5.85–6.23).
+All responses generated 128 tokens. No ordinary French run. Full metrics,
+acceptance, identities and conditions: [27B report](docs/measurements/v2-speculative-20261111/qwen27/).
+
+Process-list watchdog (one-second polling) observed no competing model, compiler
+or prover. It does not measure exclusive GPU usage or exclude short processes.
+Swap changed from 6.43 GiB at ordinary preflight to 3.44–6.37 GiB during
+speculative passes; individual speculative rates spanned up to about 6.5%.
+The ordinary result was not interleaved and no stable speedup is inferred.
+Sampled output parity is not a proof for arbitrary inputs. Both child processes
+exited normally; campaign `complete`, `parity=true`. Raw files are in
+`../ui-review/readme-benchmark/qwen27/`; checked-in receipts redact local paths,
+PIDs and battery identifiers. No engine, checkpoint or quantization changed.
