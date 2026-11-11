@@ -28202,6 +28202,15 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   prêt, que le brouillon est vidé ou que la conversation change. Les autres
   états bloquants restent visibles. Les images remplissent désormais leur
   aperçu arrondi sans grande bulle ; le bouton de retrait reste accessible.
+- Retrait demandé ensuite : l'icône de contexte quitte aussi le composeur ;
+  les réglages du modèle et les informations de contexte restent accessibles
+  depuis l'en-tête.
+- Le contrôle MTP adopte le style discret des autres boutons d'en-tête ; son
+  état et ses erreurs restent visibles et annoncés à l'accessibilité.
+- Compilation Swift, 72 contrôles images et 24 rendus MTP FR/EN passent après
+  ces ajustements. États MTP off/on/en attente/erreur et panneaux de 200 à
+  320 points vérifiés ; captures des deux états et du composeur sans icône
+  de contexte inspectées. La suite Desktop complète reste à terminer.
 - Vérification locale du parcours : 72 contrôles images/bridge/historique et
   affichage à 680 et 1040 points, dont avertissement avant/après tentative,
   chargement, conservation du brouillon et proportions des aperçus carrés,

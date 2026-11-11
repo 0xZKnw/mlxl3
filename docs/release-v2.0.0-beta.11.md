@@ -25,12 +25,14 @@ the attached validation report.
 - Shorter French/English interface copy replaces promotional headings and
   redundant helper text in Models, Settings, Projects and Agent. Existing
   themes, artwork, navigation and functional explanations are retained.
-- The compact composer groups attachments/tools under **+**, with context,
-  dictation and send controls on the right. The model selector remains in the
+- The compact composer groups attachments/tools under **+**, with dictation
+  and send controls on the right. The model selector remains in the
   header. Permanent engine-state and keyboard-hint text is removed; native
   menus, tooltips and accessible names retain the actions and shortcuts.
 - Image previews fit tightly around their contents, and the unloaded-model
   message appears only after an attempted send with a nonempty draft.
+- The MTP control uses the same compact style as the other header controls,
+  with its state still visible and available to assistive technology.
 
 ## Fixes
 

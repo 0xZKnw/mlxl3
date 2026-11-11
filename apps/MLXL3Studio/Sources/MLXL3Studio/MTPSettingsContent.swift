@@ -6,36 +6,36 @@ struct MTPToolbarControl: View {
 
     private var badge: String {
         if studio.mtpError != nil { return "!" }
-        if !studio.mtpRememberedEnabled { return "OFF" }
-        return studio.mtpEnabled && !studio.mtpDownloading ? "ON" : "AUTO"
+        if !studio.mtpRememberedEnabled { return "Off" }
+        return studio.mtpEnabled && !studio.mtpDownloading ? "On" : "Auto"
+    }
+
+    private var accessibleStatus: String {
+        if studio.mtpError != nil { return L("Erreur", "Error") }
+        if studio.mtpDownloading || studio.isTuningMTP { return L("En cours", "In progress") }
+        if !studio.mtpRememberedEnabled { return L("Désactivé", "Off") }
+        return studio.mtpEnabled ? L("Activé", "On") : L("En attente", "Pending")
     }
 
     var body: some View {
         Button { presented.toggle() } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 if studio.mtpDownloading || studio.isTuningMTP {
                     ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: "bolt.fill")
                 }
                 Text("MTP")
                 Text(badge)
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 5).padding(.vertical, 3)
-                    .background(StudioTheme.contrast.opacity(0.07), in: Capsule())
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(studio.mtpError != nil ? Color.orange : studio.mtpRememberedEnabled ? StudioTheme.blueAccent : StudioTheme.quiet)
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(studio.mtpRememberedEnabled ? StudioTheme.blueAccent : StudioTheme.secondary)
-            .padding(.horizontal, 11).frame(height: 32)
-            .background(studio.mtpRememberedEnabled ? StudioTheme.blueAccent.opacity(0.10) : StudioTheme.panel,
-                        in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(studio.mtpRememberedEnabled
-                ? StudioTheme.blueAccent.opacity(0.30) : StudioTheme.edge, lineWidth: 0.7))
+            .padding(.horizontal, 8).frame(height: 30)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StudioControlStyle(emphasized: presented))
         .disabled(!studio.mtpAvailable && !studio.isTuningMTP)
         .help(L("Accélération MTP · activation mémorisée par modèle", "MTP acceleration · remembered per model"))
         .accessibilityLabel(L("Réglages MTP", "MTP settings"))
+        .accessibilityValue(accessibleStatus)
         .onChange(of: studio.isTuningMTP) { _, active in
             if active { presented = false }
         }

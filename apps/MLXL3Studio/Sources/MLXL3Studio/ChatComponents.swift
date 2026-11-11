@@ -750,12 +750,6 @@ private struct ComposerFooterView: View {
                         .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
                 }
                 Spacer()
-                Button { studio.showInspector.toggle() } label: {
-                    Image(systemName: "chart.bar").frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .help(L("Contexte utilisé : \(studio.contextLabel). Cliquer pour régler la limite.", "Context used: \(studio.contextLabel). Click to adjust the limit."))
-                .accessibilityLabel(L("Contexte utilisé", "Context used") + " " + studio.contextLabel)
                 ComposerVoiceControl(studio: studio, voice: studio.voice)
                 if studio.isGenerating || studio.preparingDocuments {
                     Button(action: studio.stopGeneration) {
