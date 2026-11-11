@@ -81,12 +81,17 @@ def release_message(release, role_id):
 
 def publish(event, event_name, bot_token, github_token, guild_id, channel_id, *, opener=None):
     guild_id, channel_id = snowflake(guild_id), snowflake(channel_id)
+    if not isinstance(event, dict):
+        raise TypeError("invalid event")
     if not bot_token or "\n" in bot_token or "\r" in bot_token:
         raise ValueError("missing or invalid bot token")
     if event_name == "release" and event.get("action") == "published":
         release = event.get("release")
     elif event_name == "workflow_dispatch":
-        tag = event.get("inputs", {}).get("tag")
+        inputs = event.get("inputs")
+        if not isinstance(inputs, dict):
+            raise TypeError("invalid workflow inputs")
+        tag = inputs.get("tag")
         if (
             not isinstance(tag, str)
             or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}", tag) is None
@@ -106,6 +111,8 @@ def publish(event, event_name, bot_token, github_token, guild_id, channel_id, *,
     roles = request_json(
         f"{DISCORD_API}/guilds/{guild_id}/roles", f"Bot {bot_token}", opener=opener
     )
+    if not isinstance(roles, list):
+        raise TypeError("invalid roles response")
     matches = [
         role.get("id") for role in roles if isinstance(role, dict) and role.get("name") == ROLE_NAME
     ]

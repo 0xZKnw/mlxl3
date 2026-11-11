@@ -8,7 +8,7 @@ role. It handles both stable releases and prereleases. Drafts are rejected.
 
 1. Add the MLXL3 Releases application to the MLXL3 server. Keep administrator,
    moderation and privileged gateway intents disabled.
-2. Give its server role access to `#releases` and allow **View Channel**,
+2. Give the bot a member or role override in `#releases` and allow **View Channel**,
    **Send Messages** and **Mention @everyone, @here, and All Roles** for that
    channel only. The workflow explicitly allows notifications for only the
    Update Notifications role. Members can opt in by receiving that role.

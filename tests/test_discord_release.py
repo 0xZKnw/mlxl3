@@ -1,8 +1,12 @@
 import importlib.util
 import io
 import json
+import os
+import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "discord_release", Path(__file__).parents[1] / "scripts/discord_release.py"
@@ -204,6 +208,35 @@ class DiscordReleaseTests(unittest.TestCase):
                         CHANNEL,
                         opener=opener,
                     )
+
+    def test_malformed_event_and_response_rejected(self):
+        for event, kind, responses in (
+            ([], "release", []),
+            ({"inputs": None}, "workflow_dispatch", []),
+            ({"action": "published", "release": RELEASE}, "release", [{}]),
+        ):
+            with self.subTest(event=event), self.assertRaises(TypeError):
+                bot.publish(event, kind, "token", "", GUILD, CHANNEL, opener=FakeOpener(responses))
+
+    def test_main_does_not_print_credentials_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            event = Path(directory) / "event.json"
+            event.write_text(json.dumps({"action": "published", "release": RELEASE}))
+            env = {
+                "GITHUB_EVENT_PATH": str(event),
+                "GITHUB_EVENT_NAME": "release",
+                "DISCORD_BOT_TOKEN": "sensitive-test-token",
+                "DISCORD_GUILD_ID": GUILD,
+                "DISCORD_RELEASES_CHANNEL_ID": CHANNEL,
+            }
+            output = io.StringIO()
+            with (
+                patch.dict(os.environ, env, clear=True),
+                patch.object(bot, "publish", side_effect=OSError("sensitive-test-token")),
+                redirect_stderr(output),
+            ):
+                self.assertEqual(bot.main(), 1)
+            self.assertNotIn("sensitive-test-token", output.getvalue())
 
     def test_redirects_are_refused(self):
         handler = bot.NoRedirect()
