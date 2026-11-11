@@ -20,8 +20,8 @@ struct MCPManagerView: View {
             StudioPanelHeader(
                 title: L("Serveurs MCP", "MCP servers"),
                 detail: L(
-                    "Connectez vos outils et choisissez ceux que chaque projet peut utiliser.",
-                    "Connect your tools and choose what each project can use."),
+                    "Serveurs MCP et autorisations par projet.",
+                    "MCP servers and project permissions."),
                 close: { studio.showMCPManager = false })
             Divider().overlay(StudioTheme.edge)
             HStack(spacing: 0) {

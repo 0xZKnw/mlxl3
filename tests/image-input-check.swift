@@ -154,22 +154,44 @@ private struct ImageCheckFailure: Error { let message: String }
     await studio.importChatFiles(additional)
     try check(!studio.canSend && studio.sendBlockReason != nil, "Ninth image across turns passed engine limit")
     for attachment in studio.pendingAttachments { studio.removeChatAttachment(attachment.id) }
+    await studio.importChatFiles([root.appendingPathComponent("red.jpeg")])
 
     _ = NSApplication.shared
-    let host = NSHostingView(rootView: VStack {
-      ComposerView()
-      MessagesView(messages: [user])
-    }.environmentObject(reopened))
     for width in [680.0, 1040.0] {
+      let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: width, height: 600),
+                            styleMask: .borderless, backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      defer { window.close() }
+      let host = NSHostingView(rootView: VStack {
+        MessagesView(messages: [user])
+        ComposerView()
+      }.foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: .midnightBlue))
+        .environmentObject(studio).studioAppearance(.midnightBlue))
+      window.contentView = host
       host.frame = CGRect(x: 0, y: 0, width: width, height: 600)
+      try await Task.sleep(for: .milliseconds(250))
       host.layoutSubtreeIfNeeded()
       try check(host.fittingSize.height > 0, "Image UI failed to render")
-      if let destination = ProcessInfo.processInfo.environment["MLXL3_IMAGE_CHECK_OUTPUT"],
-        let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = bitmap.representation(using: .png, properties: [:])!
+      guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+        throw ImageCheckFailure(message: "Image bitmap missing")
+      }
+      host.cacheDisplay(in: host.bounds, to: bitmap)
+      let png = bitmap.representation(using: .png, properties: [:])!
+      let pixels = NSBitmapImageRep(data: png)!
+      var redPixels = 0
+      for y in stride(from: 0, to: pixels.pixelsHigh, by: 8) {
+        for x in stride(from: 0, to: pixels.pixelsWide, by: 8) {
+          if let pixel = pixels.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+            pixel.redComponent > 0.8 && pixel.redComponent > pixel.greenComponent + 0.5
+              && pixel.redComponent > pixel.blueComponent + 0.5 {
+            redPixels += 1
+          }
+        }
+      }
+      if let destination = ProcessInfo.processInfo.environment["MLXL3_IMAGE_CHECK_OUTPUT"] {
         try png.write(to: URL(fileURLWithPath: destination).appendingPathComponent("lfm3-image-chat-\(Int(width)).png"))
       }
+      try check(redPixels > 100, "Image pixels are not visible inline at \(width): \(redPixels) red samples")
     }
     print("Image input checks passed: \(checks) checks, PNG/JPEG/WebP, boundaries, bridge, history, model changes and two UI widths")
   }

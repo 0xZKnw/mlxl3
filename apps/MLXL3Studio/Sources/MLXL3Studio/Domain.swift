@@ -611,7 +611,7 @@ enum EngineState: Equatable {
         switch self {
         case .idle: L("Modèle éjecté", "Model unloaded")
         case let .loading(model): L("Chargement de \(model)…", "Loading \(model)…")
-        case .ready: L("Prêt sur Metal", "Ready on Metal")
+        case .ready: L("Prêt", "Ready")
         case .generating: L("Génération…", "Generating…")
         case .failed: L("Indisponible", "Unavailable")
         }

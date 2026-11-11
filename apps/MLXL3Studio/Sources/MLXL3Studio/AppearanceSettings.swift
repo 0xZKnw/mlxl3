@@ -79,12 +79,6 @@ struct AppearanceSettings: View {
             }
             Button(L("Rétablir l’apparence par défaut", "Restore default appearance"), action: studio.resetAppearance)
                 .buttonStyle(GlassPillButtonStyle()).padding(.vertical, 6)
-            Text(
-                L(
-                    "Ces réglages sont enregistrés sur ce Mac. Vos conversations et les paramètres du modèle restent conservés.",
-                    "These settings are saved on this Mac. Your conversations and model settings are kept.")
-            )
-            .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
         }
     }
 }

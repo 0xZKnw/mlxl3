@@ -1,698 +1,335 @@
-# MLXL3 — EXL3 inference on macOS
+# MLXL3 v2: EXL3 inference on Apple Silicon
 
-**An open-source EXL3 inference engine for macOS and Apple Silicon, built with Rust, MLX and custom Metal kernels.**
+MLXL3 runs EXL3 language and vision models locally on macOS. It includes a
+SwiftUI desktop app, a Rust inference engine with MLX and Metal backends, a
+command-line client, and an OpenAI-compatible HTTP API. Supported families
+include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
-[MLXL3 website](https://mlxl3.0xzknw.tech/)
-· [Download MLXL3 Desktop](https://github.com/0xZKnw/mlxl3/releases/latest)
-· [Validation scope](docs/v1-validation.md)
-· [Optimization journal](opti.md)
-· [Third-party notices](THIRD_PARTY_NOTICES.md)
+[Download Desktop beta 11](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.11)
+· [Engine 2.0.5 beta](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.5-beta.1)
+· [Release notes](docs/release-v2.0.0-beta.11.md)
+· [Website](https://mlxl3.0xzknw.tech/)
+· [MIT license](LICENSE)
 
-MLXL3 runs supported EXL3 language models locally on an Apple Silicon Mac.
-To run an EXL3 model on macOS, install MLXL3 Desktop, download or import a
-compatible checkpoint, then load it and start a conversation. The desktop
-distribution includes its native runtime; no Python or Homebrew installation
-is required. Model weights are downloaded separately.
+**Requirements:** Apple Silicon, macOS **26.2+**, and enough unified memory
+for the selected model. The DMG bundles the engine, MLX libraries, Metal assets
+and conversion environment. Model weights are downloaded separately. No Python,
+Homebrew or separate MLX installation is needed to use the app.
 
-The project ships three pieces that share the same native engine:
+## Install and run your first model
 
-- **MLXL3 Desktop**, a SwiftUI chat application with model management, Markdown,
-  saved conversations, MCP tools and live performance metrics;
-- **`mlxl3`**, a streaming terminal client and model-management CLI;
-- **the Rust/Metal runtime**, which reads EXL3 checkpoints directly and executes
-  them through MLX plus architecture-specific Metal kernels.
+1. Download the **v2 beta DMG** above and drag **MLXL3 Desktop** into Applications.
+2. Open **Models → Hugging Face**, or import a complete local EXL3 folder.
+3. Choose the repository revision and quantization, download it, then load it
+   from the model selector.
+4. Write a message. Use **+** to attach files or configure tools.
 
-The downloadable DMG is self-contained: it includes the app, Rust engine, MLX
-runtime and Metal assets. It deliberately contains no model weights.
+The builds are ad-hoc signed, not notarized. If macOS blocks first launch,
+approve this specific app in **System Settings → Privacy & Security**.
 
-> [!IMPORTANT]
-> The current DMG is ad-hoc signed, not Developer ID signed or notarized. On
-> first launch, macOS may require **Open Anyway** in **System Settings → Privacy
-> & Security**. Do not disable Gatekeeper globally.
+Desktop **2.0.0-beta.11 / build 42** bundles engine **2.0.5**. App and engine
+updates have separate stable/beta channels in Settings. Updating an engine
+validates its manifest, hashes, architecture, protocol and app compatibility;
+a failed startup can fall back to the bundled runtime. Engine releases do not
+replace the Desktop download channel.
 
-## Desktop 1.5.0
+Managed models live in
+`~/Library/Application Support/io.mlxl3.desktop/Models`. Imported folders can
+stay on another disk. An EXL3 checkpoint needs its configuration, tokenizer,
+quantization descriptor and every weight shard; copying only a `.safetensors`
+file is insufficient.
 
-Desktop **1.5.0, build 30** adds conversation editing, regeneration and branches;
-projects and saved profiles; local text/PDF retrieval with citations; a graphical
-MCP manager with project permissions; validated JSON output; on-device dictation,
-reply speech and Markdown export. The new panels have opaque dark backgrounds.
-OCR is excluded. The bundle includes **engine 1.5.0**; the independent engine
-release channel remains at 1.4.8.
+## Models and compatibility
 
-Apple Silicon and **macOS 26.2+** are required. Existing history migrates to
-format 2, which older Desktop versions cannot read: keep a separate copy of
-format 1 before updating if you need to roll back. No new speed or memory gain
-is claimed. See the [release notes](docs/release-v1.5.0.md) and
-[verification, test counts and limits](docs/desktop-v1.5.0-verification.md).
+EXL3 support depends on the model architecture and tensor layout, as well as
+the container format. These are the implemented runtime families:
 
-## Desktop 1.4.8
+| Family | Configuration type | Input / execution |
+|---|---|---|
+| LFM2 / LFM2.5, dense and MoE | `lfm2`, `lfm2_moe` | Text; convolution, recurrent state and routed experts |
+| LFM3-1.7B | `lfm3` | Text; gated attention, sliding window and seven-tap convolutions |
+| LFM3-VL-2B | `lfm3_vl` | Text and images; vision encoder, projector and LFM3 decoder |
+| Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text; hybrid Gated DeltaNet/attention, dense and MoE |
+| Qwen 3.8 Flash Next | `qwen4_exp` | Native Metal helper, SSD expert streaming and bounded cache |
+| Gemma 4 | `gemma4` | Text and native tool-call parsing; image/audio inputs excluded |
+| Ling / Bailing | `bailing_hybrid` | Text, routed experts and Ling-native tool-call parsing |
 
-Desktop **1.4.8, build 29** adds a continuous 120 ms token fade and smooth
-scroll following that pauses while reading earlier messages. Reduce Motion is
-respected. Equal-opacity text is drawn in groups, and fully opaque lines use
-the direct drawing path.
+The Desktop catalogue recommends these pinned exports:
 
-The bundle reuses the published **engine 1.4.8 byte for byte**. No engine code
-or model weights change in this Desktop release. The app version also matches
-the runtime so older updaters accept the bundle. Measurements, CPU/memory costs
-and validation limits are in the [Desktop changelog](docs/release-v1.4.8.md);
-the independent [engine release](docs/release-engine-v1.4.8.md) is unchanged.
+| Model | Projection bpw | Repository |
+|---|---:|---|
+| LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3) |
+| LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3) |
+| Qwen3.6-35B-A3B | 2.49 | [UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw](https://huggingface.co/UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw) |
+| Qwen3.8-27B | 2.00 | [turboderp/Qwen3.8-27B-exl3](https://huggingface.co/turboderp/Qwen3.8-27B-exl3) |
+| Qwen3.8 Flash Next | 2.05, SSD | [turboderp/Qwen3.8-Flash-Next-exl3](https://huggingface.co/turboderp/Qwen3.8-Flash-Next-exl3) |
+| LFM2.5-24B-A2B | 4 | [0xzknw/LFM2.5-24B-A2B-EXL3-4bpw](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw) |
 
-## Desktop 1.4.6 and engine 1.4.6
+The two LFM3 text cards explicitly select **`8bpw/`**, rather than whichever
+variant the repository lists first. Projection bpw excludes embeddings, output
+heads, scales and metadata; it is not the whole-file bitrate. Model licenses
+apply separately from MLXL3's license.
 
-Desktop **1.4.6, build 28** bundles engine **1.4.6**. It fixes arm64 verification
-with LLVM lipo in recent Xcode versions and removes the MTPLX settings footer.
-The app updater supports independent app and engine versions. Version 1.4.4 was withdrawn
-from the stable channel because Desktop 1.4.3 rejected its bundled engine version.
-LFM models without MTP no
-longer inherit a sampling lock, and their context-memory estimate is available.
-The local HTTP API now reports explicit stop causes, rejects concurrent work,
-recovers disconnected requests and bounds transport waits. It also exposes
-readiness and capabilities. Standard `\dots` and `\boxed{…}` math commands
-also render correctly instead of falling back to raw LaTeX.
+### LFM3-VL image input
 
-The numerically qualified LFM V2 microblock path remains an explicit experimental
-opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability criteria for a
-release speedup; the default remains canonical. The unsuccessful capacity-cache
-prototype was removed. Model weights are unchanged.
+Use [LFM3-VL-2B EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3), selecting
+its calibrated **`8bpw/`** folder. Load the vision model, then attach PNG, JPEG
+or WebP images through **+**, or drag them onto the composer. Images appear in
+the draft and sent message; click one for the larger preview. Documents and
+images can be sent together.
 
-[Desktop changelog](docs/release-v1.4.6.md) ·
-[Engine changelog](docs/release-engine-v1.4.6.md) ·
-[Audit decisions and verification](docs/measurements/audit-api-lfm-20261016/lfm-final.md).
+Desktop limits are **eight images / 8 MiB per conversation**, with at most
+64 million source pixels per image. The engine separately bounds decoded and
+resized image inputs. Image bytes are embedded in local history, so moving or
+deleting the original file does not break later turns. A text-only model cannot
+silently continue an image conversation. Remote image URLs, video and audio
+model input are unsupported.
 
-## DFlash2 in v1.4.3
+## Benchmarks: measured results and scope
 
-In **Generation → DFlash2**, one switch downloads, verifies and loads the
-matching Q4 draft for **Qwen3.6-35B-A3B** (~457 MiB) or **Qwen3.8-27B**
-(~1.18 GiB). Greedy settings apply automatically. The selection persists across
-relaunches; model changes select the matching draft, and OFF releases it.
-Desktop 1.4.3 provides this setup and tuning flow.
+Measurements are tied to a checkpoint, source revision, prompt, generation
+budget, hardware and execution mode. Decode rate, prefill rate and time to first
+token are different metrics. Process footprint, active GPU allocation and model
+file size are also different quantities.
 
-**Tune DFlash2** compares ordinary decoding, Auto (2/5 proposals), fixed 2 and
-fixed 7. It checks target-token parity, uses local code and French prompts in reversed
-measurement order, and saves the result per target, draft, runtime, context
-and Mac. Ordinary decoding wins when no eligible mode exceeds it by 3%.
-An interrupted or invalid test preserves the previous setting. MTP and DFlash2
-use the same tuning controls and cannot be enabled together.
+One fully recorded **Apple M5 / 24 GiB** campaign for LFM2.5-24B-A2B EXL3
+4 bpw used two 266-token templated prompts, 128 generated tokens, one warmup
+per prompt and five measured repetitions, without MTP, DFlash or prompt reuse:
 
-The native downloader pins each draft revision and verifies every file's size
-and SHA-256. It excludes Splash's target weights. To prepare the matching draft
-from the CLI:
+| Workload | Decode, median | Prefill, median | First token, median | Total response, median |
+|---|---:|---:|---:|---:|
+| French | 58.38 tok/s | 42.84 tok/s | 6.21 s | 8.39 s |
+| Code | 58.34 tok/s | 42.95 tok/s | 6.19 s | 8.35 s |
 
-```sh
-target/release/mlxl3-rs dflash-draft --target /path/to/EXL3-target
-```
+These are **historical October 14 measurements**, not a fresh measurement of
+every v2 build. The [complete report](docs/lfm25-measurements-2026-10-14.md)
+records source identity, file hashes, numerical quality checks and the
+56.64–59.65 tok/s decode range. It does not claim an A/B speedup.
 
-[Validation, measurements and checkpoint research](docs/dflash2-stable-validation.md).
+Other recorded campaigns include
+[Qwen27B MTP and activation-layout experiments](docs/qwen27-max-optimisations-20261016.md),
+[Flash Next SSD streaming](docs/flash-next-ssd-implementation.md) and
+[the merged native/MTP composition](docs/pr161-fixes-2026-11-08.md).
+Their workloads and settings differ; the reports preserve rejected experiments,
+control drift and opt-in status. They are not an interchangeable leaderboard.
+The [optimization journal](opti.md) records the experiments and decisions.
 
-The engine also provides an optional context-copy path for **35B Auto**:
-set `MLXL3_DFLASH_CONTEXT_COPY=1` in the engine's environment. It proposes
-matching text from the recent context and still verifies every token with the
-target. Chat and Tune share this policy, with separate tuning profiles for ON
-and OFF. It remains **OFF by default**: the copy-code benchmark showed a positive
-signal, but its confirmation failed the control-drift limit. Fixed modes and
-27B keep their existing path. [Upstream research, tests and measurement limits](docs/dflash2-web-optimisations-2026-10-08.md).
+## Desktop workspaces
 
-The engine also avoids key copies on Metal kernel-cache hits. See the
-[exact 35B optimization results and verification limits](docs/dflash2-exact-optimisations-2026-10-08.md)
-for the CPU microtest, unchanged output checks and rejected GPU prototypes.
+- **Chat:** streaming responses and reasoning, Markdown/code/math rendering,
+  saved conversations, editing, regeneration, branches and export.
+- **Agent:** work on an isolated project copy, inspect files and diffs, retain
+  Git checkpoints, restore versions and export ZIP. Applying changes to the
+  original project requires review; conflicting external edits are refused.
+- **Server:** start the local HTTP API with a resident model.
+- **Lab:** inspect locally recorded generation samples and their settings.
 
-## Desktop and engine v1.4.3
+Projects keep instructions and documents together. Saved profiles restore
+sampling settings. Text/PDF retrieval includes source excerpts and page
+references. Scanned PDFs need prior text extraction; attaching a PDF does not
+turn it into native vision input. File attachments are limited to eight per
+message, 20 MiB per source file, 256 KiB extracted text per file and 512 KiB
+text per message. The model's context limit still applies.
 
-Desktop **1.4.3, build 25** bundles engine **1.4.3**. It includes the DFlash2
-setup and Tune above, optional memory saving, a context recommendation to apply
-manually, bounded prefill checkpoints and conditional lossless cache compaction.
-Tune keeps the conversation visible and shows progress, cancellation and results
-in the toolbar. Adaptive MTP, packed embeddings and additional dense execution
-paths remain optional and off by default. No new global speedup is claimed.
+On-device dictation and reply speech use macOS services. Agent/project and
+versioned artifact features require working Git. Themes, accent colors, message
+spacing, reading width and text size are available in Settings.
 
-[Desktop changelog](docs/release-v1.4.3.md) ·
-[Engine changelog](docs/release-engine-v1.4.3.md).
+### MTP and DFlash
 
-## Desktop and engine v1.4.2
+For eligible Qwen targets, enable **MTP** or **DFlash2** in Generation settings.
+Matching heads/drafts are downloaded and verified separately from target
+weights. The modes are mutually exclusive and use target verification before
+accepting proposed tokens. Tune records a configuration for the current model,
+head, runtime, context and Mac; a speculative path is not automatically faster.
 
-Desktop **1.4.2, build 24** includes engine **1.4.2**, fixes Send/Tune becoming
-disabled during background update checks/downloads, and adds automatic model
-unloading after inactivity. The default is 15 minutes; choose **Never** or a
-different delay in Settings. Generation, tools and MTP preparation/tuning suspend
-the deadline. MTP preparation also recovers from malformed replies and an
-unacknowledged OFF request instead of leaving the composer blocked. Installing
-an update still blocks inference; these UI changes require the Desktop update.
+Hardware and OS gates matter: M5 cooperative-input TensorOps require macOS
+26.3+, and the packed Q4 DFlash path requires macOS 26.4+. See the
+[Apple Silicon support and validation matrix](docs/apple-silicon-stability-20261030.md).
 
-[Desktop changelog](docs/release-v1.4.2.md) ·
-[Engine changelog](docs/release-engine-v1.4.2.md).
+## Native command-line inference
 
-An explicitly prepared **compact Q4 MTP draft projection** can accelerate
-Qwen3.6-35B-A3B EXL3 without changing its target vocabulary or greedy results.
-On M5, MTP2 decode improved **8.2% on the code prompt** and **11.6–15.3% in
-the tuner** against engine1.4.1. The extra projection and ID map use **87.77 MiB**;
-the full Q4 prototype used 272.81 MiB and regressed on code, so it is not a
-general speed recommendation. These measurements use fixed token budgets,
-not complete-task accuracy evaluations, and do not establish gains for other models.
-
-MTP target-layer graphs are also submitted progressively on the measured
-Qwen3.6-35B-A3B geometry on **Apple M5**. With the stock head, MTP2 code
-decode improved **7.16–7.80%** versus the same 1.4.2 binary with submission
-disabled; complete time fell **6.27–6.80%**, confirmed in opposite pass orders.
-This result is separate from the compact-head gain above. The default applies
-to MTP only; `MLXL3_QWEN_PIPELINE=0` disables it. Value `1` experimentally
-extends submission to all Qwen trunk paths. Other geometries and devices keep
-the previous default. See [protocols and limits](docs/engine-v1.4.2-pipeline.md).
-
-A separate prompt-lookup experiment can draft continuations of repeated code
-with `MLXL3_MTP_LOOKUP=1`. It is **off by default**: the initial copy speed
-signal was not reproduced within the control-drift limits. The full target
-verifies its proposals and the runtime repairs exact caches before continuing.
-It falls back to the neural draft after a full rejection. See the
-[Sushi/TensorFold review](docs/measurements/engine-v1.4.2/sushi-tensorfold-deepening.json)
-for examined mechanisms and numerical compatibility limits.
-
-Protocols, rejected experiments, tests and limits are in the
-[optimization journal](opti.md) and [validation evidence](docs/measurements/engine-v1.4.2/validation.json).
-
-## v1.4.0
-
-MTP automatically selects and downloads the pinned head for **Qwen3.8-27B**
-or **Qwen3.6-35B-A3B**. Switching models unloads the previous head; the global
-ON/OFF preference remains in force even with saved Tune MTP results. Desktop
-build23 includes engine1.4.0; the independent engine update requires Desktop
-1.4.0. [Release notes](docs/release-v1.4.0.md) and
-[validation/measurements](docs/mtp-dense-1.4.0-validation.md).
-
-## MTP and independent updates
-
-Desktop now uses native **MTP** for Qwen3.5/3.6 checkpoints with a matching
-MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
-from a pinned revision with full SHA-256 verification. Version 1 uses one
-proposal per verification block in greedy mode (temperature 0 / top-k 1,
-repetition penalty 1); other settings use ordinary decoding. Proposed tokens
-are delivered only after target verification. This describes v1.2.0; the next
-build also offers the DFlash2 path described above.
-
-The app and engine have independent GitHub release channels: `vX.Y.Z` for
-DMGs and `engine-vX.Y.Z` for `MLXL3-Engine-vX.Y.Z-arm64.tar.gz`. Engine updates
-are validated against manifest/protocol/OS/app versions, file hashes, Mach-O
-architecture and signatures, then activated through an atomic pointer outside
-the app bundle. A managed engine that fails before ready is disabled and the
-bundled engine is selected on the next load. Both channels can be updated in
-one installation action. Publish engine releases with `--latest=false` so
-older Desktop versions keep receiving app DMGs from GitHub's latest endpoint.
-
-M3 branding fills the icon canvas, and whole-message copy is below each
-message. See [release notes](docs/release-v1.2.0.md) and
-[verification and limitations](docs/desktop-v1.2.0-validation.md).
-
-## Platform and model support
-
-The release build requires an **Apple Silicon Mac (M1–M5) running macOS 26.2 or
-newer**. Development and performance validation currently happen on M5. M1–M4
-use compatible Metal paths where M5 TensorOps are unavailable, but they have not
-received the same physical performance campaign.
-
-Optional kernels also depend on the running macOS version: EXL3 cooperative-input
-TensorOps require M5 **and macOS 26.3+**; macOS 26.2 uses the portable EXL3 path.
-The packed Q4 DFlash drafts for Qwen3.6/3.8 require **macOS 26.4+** and fail
-explicitly on earlier versions; ordinary generation and native MTP remain
-available for supported models. Flash Next's raw draft/MLX affine-Q4 path is
-separate. See the [support matrix and hardware validation procedure](docs/apple-silicon-stability-20261030.md).
-
-The native loader currently accepts these `config.json` model types:
-
-| Family | Config type | Current scope |
-| --- | --- | --- |
-| Liquid AI LFM2 / LFM2 MoE | `lfm2`, `lfm2_moe` | Text chat, recurrent state, EXL3 dense and routed experts |
-| Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text chat, hybrid Gated DeltaNet/attention, dense and MoE |
-| Gemma 4 | `gemma4` | Text chat and native tool-call parsing; no image/audio input |
-| Ling 3 / Bailing V3 | `bailing_hybrid` | Text chat and Ling-native MCP tool calls |
-
-EXL3 is a file format, not a promise that every EXL3 repository is compatible.
-The app inspects architecture, tensor inventory, expert count, shapes and kernel
-constraints before loading. Unsupported layouts fail visibly instead of falling
-back to a different numerical path. Mapped MoE projections at K=7 are currently
-unsupported; ordinary dense K=7 projections remain supported.
-
-## Measured performance
-
-These are physical-engine measurements, not estimates. Results from different
-rows use different workloads and must not be combined.
-
-The current source build batches dense Qwen27B MLP verification at widths
-**2 and 4** on supported M5/EXL3 shapes. Width 3 uses the serial MLP after its
-isolated batching regression. `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH=0` restores
-the previous dispatch; grouped MB3 remains opt-in. Tune uses a new calibration
-key for this policy. See the [October 16 protocol and limits](docs/qwen27-optimization-20261016.md).
-
-The local source build also provides MLXL3_EXL3_LANE_ORDER=1 for the measured dense Qwen27B path. This opt-in setting is off by default and separates Tune profiles. It is validated on the M5 standard with the original EXL3 checkpoint and MTP head; the installed desktop app is unchanged.
-
-| Model and workload | Decode | Prefill / TTFT | Notes |
-| --- | ---: | ---: | --- |
-| Qwen3.8-27B EXL3, MTP1, French 130 tokens / code 256 tokens | **11.08 / 10.94 tok/s** ABBA medians | See October 16 report | MacBook Pro (M5), 24 GB, AC; +20.7% / +21.4% versus serial MLP; local source build |
-| Qwen3.8-27B EXL3, MTP1, optional activation layout | **13.65 / 13.38 tok/s** combined ABBA/BAAB medians | [October 16 research and validation](docs/qwen27-max-optimisations-20261016.md) | M5 standard,24GB,battery; +24.4% / +24.3% versus paired layout-off controls; local source build, opt-in |
-| Qwen3.6-35B-A3B EXL3 2.49 bpw, greedy, 48 generated tokens | **47.545 tok/s** latest median | Captured prefill 0.153–0.154 s | Apple M5, three alternating runs |
-| Same target with experimental lossless DFlash2 | **74.645 tok/s** steady-state confirmation | Draft-context setup 0.006–0.007 s | **+43.8%** paired after the shared MoE route-preparation gain, five useful head rows/proposals per block, 86.7% accepted, exact sequences |
-| Ling 3.0 Tiny EXL3 4 bpw, 84-token prompt / 128-token generation | **102.873 tok/s** best control median | **105.524 tok/s**, 796.23 ms TTFT | M5, battery-powered diagnostic campaign |
-| LFM2.5-8B-A1B EXL3 3.10 bpw, historical 12-run warm campaign | **65.8 tok/s** paired median | **113.9 tok/s** on a 51-token prompt | 4.02 GB peak MLX allocation |
-
-The DFlash2 number measures delivered output tokens from a complete draft →
-select → exact target verify → accept → state commit loop. The optimized commit
-costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The target
-sequence and all **80 recurrent/KV state arrays** were compared with ordinary
-greedy execution for retained widths 1 through 8. Desktop v1.1.0–v1.1.3 exposed
-this path for Qwen3.6-35B-A3B; v1.2.0 replaces it with MTP. The historical
-DFlash campaign required separate draft weights; the benchmark rate is not a guarantee
-of in-app speed or of performance on another Mac.
-
-Peak MLX allocation is not the model file size, process RSS or total macOS
-physical footprint. Unified memory also holds compiled graphs, caches, recurrent
-state, scratch buffers, the UI and the operating system.
-
-Full protocols, negative results and hardware conditions are preserved in
-[`opti.md`](opti.md). That journal is authoritative when a headline number and
-an older document disagree.
-
-## Install MLXL3 Desktop
-
-1. Download the latest `MLXL3-Desktop-…-Apple-Silicon.dmg` from
-    [GitHub Releases](https://github.com/0xZKnw/mlxl3/releases/latest).
-2. Open the DMG and drag **MLXL3 Desktop** to **Applications**.
-3. Launch it. If Gatekeeper blocks the ad-hoc-signed build, approve this specific
-   app in **Privacy & Security**.
-4. Open **Models**, then either search Hugging Face or import an existing EXL3
-   folder. Select the desired branch, tag or quantization before downloading.
-5. Load the model and start a conversation.
-
-### Optional native MTP for Qwen3.5/3.6/3.8
-
-In **Generation → MTP**, enable the switch. For Qwen3.8-27B (~228 MiB) or
-Qwen3.6-35B-A3B (~453 MiB), MLXL3 downloads and verifies the matching affine
-4-bit head. Switching models cancels obsolete preparation and loads the
-matching head before chat becomes available; OFF releases head and caches.
-Downloads resume after cancellation. Other Qwen3.5-family models require a matching
-MLX 4-bit/group64 head selected through the folder button; mismatched layouts
-are rejected. The DMG contains neither target nor MTP weights.
-
-MTP applies greedy settings and checks every proposal against the target.
-The first request can take longer while Metal compiles kernels. A prefix
-checkpoint retains both target state and MTP KV when the conversation's
-encoded prefix and chunk boundary match. DFlash2 has its own switch and
-matching draft in the next build.
-
-#### Experimental compact draft preparation
-
-Preparation uses the development Python/MLX environment and supports unbiased
-Default/MCG EXL3 heads. The native runtime reads the resulting files directly.
-Automatic head downloads keep the stock projection. For the tested Qwen3.6
-tokenizer, save the pinned [TensorFold draft ID list](https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt)
-as `draft-vocab.txt`, then use new disposable output folders:
+Use the extracted engine's `mlxl3`, or the copy bundled with the app:
 
 ```sh
-python scripts/experimental-draft-head.py /path/to/EXL3-target /tmp/mtp-full
-ln -s /absolute/path/to/MTP-head/config.json /tmp/mtp-full/config.json
-ln -s /absolute/path/to/MTP-head/model.safetensors /tmp/mtp-full/model.safetensors
-python scripts/experimental-draft-head.py /tmp/mtp-full /tmp/mtp-compact --draft-vocab /path/to/draft-vocab.txt
+export MLXL3_BIN="/Applications/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
+"$MLXL3_BIN" runtime-info
+"$MLXL3_BIN" register lfm3 /absolute/path/to/LFM3-EXL3/8bpw
+"$MLXL3_BIN" run lfm3 --prompt 'Explain how a ring buffer works.' --max-tokens 128
 ```
 
-Select `/tmp/mtp-compact` with the MTP folder button and run **Tune MTP**.
-The ID map is sorted, validated and padded to whole 64-row tiles; only draft
-scores are pruned. Every proposed token is still verified by the full target.
-`conversion.json` reports conversion, not validated parity or speed. The full
-Q4 projection is an intermediate; original checkpoints are read only, and
-existing output files or symlinks are refused.
+The CLI also accepts a complete checkpoint directory directly. LFM3-VL accepts
+repeated `--image` arguments with a prompt:
 
-No Python, Homebrew, Hugging Face CLI or separate MLX installation is required
-for the DMG. Managed weights are stored under:
-
-```text
-~/Library/Application Support/io.mlxl3.desktop/Models
+```sh
+"$MLXL3_BIN" run /absolute/path/to/LFM3-VL-EXL3/8bpw \
+  --image /absolute/path/to/photo.png \
+  --prompt 'Describe this image.' --max-tokens 128
 ```
 
-Models imported from Documents, Downloads or an external disk can trigger the
-normal macOS Files & Folders permission dialog. Managed downloads avoid that
-permission. The library can reveal a checkpoint in Finder, repair a moved path,
-remove only its registration, or move its managed files to the Trash.
+Browse and resume Hugging Face downloads without a separate HF CLI:
 
-### Desktop behavior
-
-- Return sends; Control-Return inserts a newline.
-- **Attach** (Command-Shift-O) or drag PDF/text files onto the composer. With a
-  loaded LFM3-VL model and an image-capable engine, you can also attach PNG,
-  JPEG and WebP images. Image bytes are kept in local history and sent as image
-  inputs, with a preview available from the attachment chip. The conversation
-  limit is eight images / 8 MiB; image conversations require a vision model.
-  Preview extracted text or remove a file before sending. TXT, Markdown, CSV, JSON and
-  source code are supported in UTF-8 or UTF-16 with a BOM. PDF extraction keeps
-  page numbers; scanned or password-protected PDFs require preparation first.
-  Up to eight files can be attached per message (20 MiB per file, 256 KiB of
-  extracted text per file, 512 KiB total). Their text is included in the model
-  context and saved with the conversation, so the originals can be moved later.
-  The model's context limit still applies; oversized prompts fail visibly.
-- Reasoning, tool calls and final answers stream as separate visual phases.
-- Markdown, tables, LaTeX and syntax-highlighted code render incrementally.
-- Code blocks have a one-click copy action.
-- Conversations and partial long generations are saved atomically.
-- Stop cooperatively cancels the current generation while retaining the model.
-- Eject releases the model and its Metal memory without deleting its files.
-- The menu-bar panel shows physical footprint, active model, context and the
-  latest decode/prefill/TTFT measurements.
-- Settings provide French/English UI, context sizing, sampling controls and
-  build-aware GitHub updates.
-
-Conversation data lives at:
-
-```text
-~/Library/Application Support/io.mlxl3.desktop/conversations.json
+```sh
+"$MLXL3_BIN" hub search 'LFM3 EXL3'
+"$MLXL3_BIN" hub details 0xzknw/LFM3-1.7B-Heretic-NX-EXL3
+"$MLXL3_BIN" hub download 0xzknw/LFM3-1.7B-Heretic-NX-EXL3 --folder 8bpw
+"$MLXL3_BIN" hub pending all
+"$MLXL3_BIN" hub resume DOWNLOAD_ID
 ```
 
-The context setting is saved per model. `0` means the model-declared maximum,
-or 32,768 when the checkpoint declares none. **Save and reload model** clears
-engine cache, not chat history. Oversized prompts are rejected rather than
-silently truncated.
+Downloads resolve an immutable commit, validate sizes and SHA-256, and publish
+only a complete selected variant. Private/gated repositories need a saved
+Hugging Face token and any required license acceptance.
 
-## CLI
+## OpenAI-compatible local API
 
-The bundled runtime is native and uses the same engine as Desktop. A source
-build produces `target/release/mlxl3-rs`; installed builds may expose it as
-`mlxl3`.
-
-```bash
-mlxl3 list
-mlxl3 inspect /absolute/path/to/model
-mlxl3 register my-model /absolute/path/to/model
-mlxl3 run my-model
-mlxl3 remove my-model
-```
-
-`mlxl3 run` opens a streaming multi-turn chat. Use `/clear` to reset the current
-conversation and `/exit` to quit. A one-shot prompt is also supported:
-
-```bash
-mlxl3 run my-model --prompt "Explain speculative decoding simply." --max-tokens 256
-```
-
-Set `--max-tokens 0` to continue until EOS or the context limit. The interactive
-CLI is greedy; Desktop exposes temperature, top-k and repetition penalty through
-its native bridge.
-
-### Hugging Face catalogue and downloads
-
-Search, inspect and download EXL3 repositories without leaving the CLI:
-
-```bash
-mlxl3 hub search "Ling 3 EXL3"
-mlxl3 hub details owner/repository
-mlxl3 hub download owner/repository --revision 4bpw
-```
-
-Use `--folder` when a repository contains a selected variant in a subdirectory.
-Downloads are pinned to a resolved commit and only fetch the selected variant.
-Interrupted jobs are resumable:
-
-```bash
-mlxl3 hub pending all
-mlxl3 hub resume DOWNLOAD_ID
-mlxl3 hub discard DOWNLOAD_ID
-```
-
-Private or gated models use the locally saved Hugging Face token. Accept the
-repository license on Hugging Face first.
-
-## MCP tools and privacy boundary
-
-Inference, caches and Metal kernels stay on the Mac. Network activity is a
-separate, explicit boundary:
-
-- Hugging Face is contacted only for catalogue/auth/download actions;
-- GitHub is contacted for update checks and release downloads;
-- remote MCP servers receive the tool arguments sent to them;
-- local stdio MCP servers run with the current user's permissions and can make
-  their own network requests.
-
-MCP is off on first launch. The composer switch persists your choice across
-restarts. Exa is preconfigured but is not contacted until MCP is enabled. When
-enabled, search queries and fetched URLs are sent to Exa; model inference still
-runs locally.
-
-Configure additional local MCP servers with the CLI:
-
-```bash
-mlxl3 mcp add filesystem npx -y @modelcontextprotocol/server-filesystem "$HOME/Documents"
-mlxl3 mcp list
-mlxl3 mcp check --json
-```
-
-The shared configuration is `~/.config/mlxl3/mcp.json` and follows the common
-`mcpServers` shape:
-
-```json
-{
-  "version": 1,
-  "mcpServers": {
-    "exa": {
-      "url": "https://mcp.exa.ai/mcp",
-      "enabled": true
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"],
-      "enabled": true
-    }
-  }
-}
-```
-
-Commands are launched directly, without a shell. Browser OAuth and legacy
-HTTP+SSE endpoints are not supported. Only configure MCP processes and remote
-servers you trust.
-
-## How the engine is structured
-
-```text
-SwiftUI Desktop / native CLI
-             │
-             ▼
-Rust runtime: registry · tokenizer · templates · streaming · MCP
-             │
-             ▼
-Model runtime: LFM2 · Qwen · Gemma 4 · Ling 3
-             │
-             ▼
-MLX graph ops + MLXL3 Metal kernels
-             │
-             ▼
-Serialized EXL3 weights in unified memory
-```
-
-The runtime implements EXL3 trellis packing/unpacking, all three procedural
-codebooks, fused QMV for token decode, serialized QMM for prefill, grouped
-QKV/gate-up projections, routed MoE execution and architecture-specific
-attention/recurrent kernels. Ordinary inference never reconstructs a full dense
-copy of each EXL3 weight.
-
-ExLlamaV3 is the EXL3 format and numerical reference. MLXL3 is an independent
-Apple-Silicon runtime, not an ExLlamaV3 fork. See
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for exact provenance and
-licenses.
-
-## Build from source
-
-### Standalone Rust checks
-
-Rust 1.89 or newer is required:
-
-```bash
-cargo build --release --locked
-cargo test --locked
-./target/release/mlxl3-rs --help
-```
-
-This build covers registry/checkpoint/codec tooling without linking MLX.
-
-### Native inference build
-
-Inference links to MLX 0.32.2 but does not embed Python. A local wheel is the
-simplest way to supply the headers, dynamic libraries and metallib while
-developing:
-
-```bash
-python3.12 -m venv .venv
-.venv/bin/pip install -e ".[dev,bundle]"
-export MLXL3_MLX_ROOT="$PWD/.venv/lib/python3.12/site-packages/mlx"
-export MACOSX_DEPLOYMENT_TARGET=26.2
-cargo build --release --locked --features mlx,chat
-./target/release/mlxl3-rs run /absolute/path/to/exl3-model --max-tokens 256
-```
-
-Python supplies the optional development/conversion environment only. The
-compiled CLI and distributed Desktop app do not start or embed Python.
-
-### OpenAI-compatible API
-
-Build with `--features mlx,chat`, then serve a registered EXL3 model on
-loopback. The process keeps one model resident and exposes text-only Chat
-Completions (including SSE streaming), model listing and a health endpoint:
-
-```bash
-./target/release/mlxl3-rs serve my-model --port 8000 --api-key local-secret
+```sh
+"$MLXL3_BIN" serve lfm3 --host 127.0.0.1 --port 8000 --api-key local-secret
 curl http://127.0.0.1:8000/v1/chat/completions \
-  -H 'Authorization: Bearer local-secret' -H 'Content-Type: application/json' \
-  -d '{"model":"my-model","messages":[{"role":"user","content":"Hello"}],"stream":true}'
+  -H 'Authorization: Bearer local-secret' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"lfm3","messages":[{"role":"user","content":"Explain a mutex."}],"stream":true}'
 ```
 
-The server binds to `127.0.0.1` by default. A non-loopback host requires
-`--api-key`. OpenAI tool calls, image/audio inputs, stop sequences and output
-constraints are rejected because the native bridge does not support them.
+The API exposes `/v1/models`, `/v1/chat/completions`, `/v1/capabilities`,
+`/health` and `/ready`. Chat Completions support JSON and SSE streaming;
+LFM3-VL accepts image content parts with local base64 data URLs. JSON object
+and schema response modes validate the generated output; they are **not
+grammar-constrained decoding**. Query `/v1/capabilities` for the actual engine.
+OpenAI-style `tools` calls, custom stop sequences and audio are not supported.
+A non-loopback host requires an API key. One model stays resident per server.
 
-### Desktop and DMG
+## Tools, storage and network boundaries
 
-Building the app requires Swift, Xcode Command Line Tools, a compatible macOS
-SDK, Rust and the MLX development files above:
+Chat inference runs on the Mac. Hub actions contact Hugging Face; update checks
+and downloads contact GitHub. Optional MCP servers may receive prompts/tool
+arguments and make their own network requests. MCP is off by default; enabling
+it is a saved choice. Local stdio MCP servers run with the user's permissions.
 
-```bash
-./scripts/build-macos-app.sh
-open "dist/MLXL3 Desktop.app"
+The shared MCP configuration is `~/.config/mlxl3/mcp.json`. Manage servers in
+the Desktop or with `mlxl3 mcp list`, `mlxl3 mcp add` and `mlxl3 mcp check`.
+Agent file/command tools operate within their task copy under macOS sandboxing;
+external MCP servers retain their own trust boundary.
 
-./scripts/build-macos-dmg.sh
+History and image attachments are stored locally. Keep backups before a
+version downgrade: old applications do not preserve every newer history field.
+The app can export conversations without changing the model files.
+
+## Runtime architecture
+
+```mermaid
+flowchart TD
+    A[SwiftUI Desktop] -->|JSON-lines bridge| F[Hybrid engine dispatcher]
+    C[CLI] --> F
+    E[OpenAI-compatible HTTP API] -->|Bridge subprocess| F
+    F --> G[MLX helper: LFM, Qwen, Gemma, Ling]
+    F --> H[Native Metal helper: Flash Next]
+    G --> I[EXL3 projections and model state]
+    H --> J[Bounded expert cache and SSD reads]
 ```
 
-The second script creates an ad-hoc-signed, self-contained Apple Silicon DMG in
-`dist/`.
+Rust owns checkpoint validation, tokenization/templates, generation, streaming,
+state, downloads and tool protocols. Quantized projections are evaluated from
+their EXL3 representation; inference does not first export a dense BF16 model.
+The native Flash helper uses Metal without loading MLX. The MLX helper combines
+MLX graph operations with architecture-specific Metal kernels.
 
-## Verification and benchmarks
+MLXL3 is an independent Apple Silicon runtime. ExLlamaV3 provides the EXL3
+format and numerical reference; adapted components retain their upstream
+notices. See [third-party provenance](THIRD_PARTY_NOTICES.md).
 
-The default checks are intentionally small enough for CI:
+## Safetensors-to-EXL3 conversion
 
-```bash
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets --features chat -- -D warnings
-cargo test --locked --features chat
-cargo kani --lib --no-default-features
-python -m pytest -q
-scripts/check-desktop.sh
-```
+**Models → Quantization Studio** inspects a local source or Hugging Face model,
+then offers supported conversion settings and a separate output directory.
+Simple mode exposes 3/4/6 bpw; Expert adds calibration, head precision, excluded
+modules and optional held-out quality checks. Conversion unloads the chat model,
+uses the bundled conversion environment and runs only while requested.
 
-Kani verifies bounded pure-Rust safety and parser/shape properties. It cannot
-prove MLX, Metal shaders or their FFI. Those paths use exact physical-GPU
-differential tests against reference operations and imposed-token model runs.
-Passing either class of check is not a proof that the entire application has no
-bugs.
+The supplied adapters cover **LFM2, LFM2-MoE and native Ling/Bailing**.
+Inference support does not imply conversion support: LFM3, Qwen and Gemma
+imports are not automatically convertible by these adapters. A Safetensors
+extension alone is insufficient. See the
+[LFM conversion guide](docs/lfm26-local-quantization.md),
+[LFM2.5 MoE measurements](docs/lfm25-moe-quantization.md) and
+[Ling conversion guide](docs/ling-local-quantization.md).
 
-To check the production DFlash2 bridge on either supported target, run:
+## Build and verify
+
+Development requires Rust **1.89+**, Swift **6.2+**, a compatible macOS SDK
+and Xcode Command Line Tools. The inference helper links MLX **0.32.2**;
+Python **3.12** supplies build/conversion dependencies, not the chat runtime.
 
 ```sh
-python scripts/check_dflash2.py target/release/mlxl3-rs /path/to/EXL3-target \
-  /path/to/DFlash2-draft --output /tmp/dflash2-check.json
-```
-
-It checks all policies, budgets, cancellation/recovery, prompt reuse, ON/OFF
-and Tune with a bounded wait and an isolated registry. The report certifies
-parity only after every check completes. GPU speed comparisons run separately
-through `benchmarks/compare_native.py --dflash-mode 1 --dflash-draft ...`.
-
-To reproduce the historical Qwen3.6 DFlash2 campaign, place the target and
-draft package at the paths named by the ignored test, then run:
-
-```bash
+python3.12 -m venv .venv
+.venv/bin/pip install -e '.[dev,bundle]' -c packaging/constraints-macos.txt
+export MLXL3_BUILD_PYTHON="$PWD/.venv/bin/python"
 export MLXL3_MLX_ROOT="$PWD/.venv/lib/python3.12/site-packages/mlx"
-MLXL3_DFLASH_TOKENS=48 MLXL3_DFLASH_REPEATS=3 MLXL3_DFLASH_PROPOSALS=5 \
-  cargo test --release --features mlx,chat \
-  benchmarks_dflash_end_to_end_greedy -- --ignored --nocapture
+export MLXL3_ENGINE_BACKEND=hybrid
+scripts/build-engine.sh
+scripts/build-macos-dmg.sh
 ```
 
-The test alternates ordinary greedy and DFlash2, compares every emitted token,
-and reports acceptance plus draft/target/commit timing. Results are hardware,
-power, temperature, prompt and checkpoint dependent.
+For portable CPU/chat checks, without an inference backend:
 
-## Optional EXL3 conversion
-
-The installed app consumes EXL3 checkpoints; it does not include a quantizer.
-The developer environment retains the Python/PonyExl3 conversion workflow and
-exact Metal trellis-search optimizations for K=2 through K=8, including 2 bpw.
-These kernels accelerate conversion without changing the calibration recipe or
-float32 error metric.
-
-- [LFM local conversion guide](docs/lfm26-local-quantization.md)
-- [LFM2.5-24B-A2B MoE conversion, kernels and validation](docs/lfm25-moe-quantization.md)
-- [Ling local conversion guide](docs/ling-local-quantization.md)
-- [Metal quantization measurements](docs/metal-quantization-optimization.md)
-- [CUDA-to-Metal kernel inventory](docs/kernel-port.md)
-
-## Repository map
-
-```text
-apps/MLXL3Studio/   SwiftUI Desktop application
-native/src/         Rust runtime, loaders, model implementations and protocols
-native/shaders/     Custom Metal inference kernels
-src/mlxl3_quantizer Optional developer-only EXL3 conversion helpers
-scripts/            Build, packaging, release and validation tools
-docs/               Audits, release notes and focused investigations
-opti.md              Append-only optimization experiments and decisions
+```sh
+cargo test --locked --no-default-features --features chat
+cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings
 ```
 
-Local model weights, build products and benchmark artifacts are not committed.
+Additional checks:
 
-## Known limits
+```sh
+cargo fmt --check
+cargo kani --lib --no-default-features
+PYTHONPATH=src:apps/MLXL3Studio/Vendor/PonyExl3 .venv/bin/python -m pytest -q
+MLXL3_TEST_PYTHON="$PWD/.venv/bin/python" scripts/check-desktop.sh
+```
 
-- Apple Silicon/macOS only for native inference and Desktop.
-- No multimodal Gemma input.
-- DFlash2 is opt-in and greedy-only for Qwen3.6-35B-A3B and Qwen3.8-27B;
-  the separate draft weights are not bundled.
-- Apple GPU validation reports an inherited alignment violation in the 35B
-  DFlash2 Q4/MPP path; it remains open despite passing normal numerical checks.
-  [Reproducer and scope](docs/dflash2-exact-optimisations-2026-10-08.md).
-- Performance on M1–M4 is not inferred from M5 measurements.
-- The release is not notarized.
-- MCP processes are trusted external tools, not a sandbox.
-- Markdown/LaTeX rendering aims for robust chat output, not complete browser or
-  TeX compatibility.
+An installed SDK can be selected with `MLXL3_MACOS_SDK`. Kani checks bounded
+properties of actual Rust helpers with explicit domains and unwinding bounds;
+it does not prove MLX, Metal, I/O races or the complete application. Physical
+GPU tests and checkpoint/logit comparisons are recorded separately. CI runs
+Rust, Python, Desktop/protocol, packaging and proof checks on PRs and main.
 
-## License
+For controlled engine comparisons, use
+[`benchmarks/compare_native.py`](benchmarks/compare_native.py), which checks
+token/text parity, validates timings, bounds process waits and retains failed
+campaigns. Run GPU benchmarks separately from builds and other inference.
 
-MLXL3 is released under the [MIT License](LICENSE). Components and algorithms
-adapted from upstream projects retain their respective notices in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `LICENSES/`.
+## Limits and further reading
 
-## Flash Next 2.05 bpw with SSD streaming
+- Native inference and Desktop require Apple Silicon/macOS. M1–M4 have less
+  physical performance coverage than M5; M5 timings are not predictions for them.
+- Gemma multimodal input, remote image fetching, video/audio model input and
+  complete TeX/browser compatibility are outside the current scope.
+- SSD-streamed models depend on cache size, storage and memory pressure.
+  Model file size is not an estimate of peak process memory.
+- Greedy target verification does not establish an acceleration gain on every
+  prompt. Experimental settings retain their individual qualification limits.
 
-The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
-`2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
-GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
-when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
-Explicit cache environment settings remain available.
-Cold expert records now use up to four concurrent SSD readers, writing directly
-into the existing banks. `MLXL3_SSD_READERS=1` selects sequential reads (valid range: 1–4).
-On the M5 at a fixed 5 GiB expert budget, twelve paired comparisons measured
-5.5–10.4% faster decoding with exact outputs and no new system swap writes.
-Median decode was 7.29/7.05 tok/s OFF and 7.13/6.89 tok/s with MTP1 on two prompts.
-See the [reader protocol, full results and earlier inconclusive campaign](docs/flash-ssd-readers-2026-10-12.md).
-On the 24 GiB M5 with other applications open, the automatic budget reduced
-measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
-Outputs remained exact; system swap writes were zero in those runs, but this
-is not a guarantee against future system-wide swap or a throughput improvement.
-See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
-The corrected path matches the independent inference reference bit for bit on
-16 checked positions, including full logits and recurrent states. The first
-M5 baseline measured about 7 tokens/s before this correction. The built-in
-MTP head now supports depth-one greedy decoding through Desktop and the bridge,
-with exact target verification and rollback. Numerical and bridge checks pass.
-With an effective automatic cache of 5.24 GiB, median decode was
-6.93/6.96 tok/s without MTP and 6.96/6.76 tok/s with MTP1 on two fixed prompts
-(three runs of 64 tokens each, 63 decode tokens, alternating modes on one binary).
-These are separate throughput measurements of RAM-stage binary `938e2aa7`;
-prior measurements at 8 GiB remain in the linked report. No consistent MTP
-speedup is established, so MTP stays OFF by default.
-An exact two-token grouped MTP prototype was subsequently tested and withdrawn:
-its independent confirmation included a 2.29% paired gain, below the predeclared
-3% retention threshold. The validated four-reader engine is retained.
-See the [complete trials, rejected prototype and restoration checks](docs/flash-mtp-pairs-2026-10-12.md).
+[LFM3 text/vision integration](docs/lfm3-integration-2026-11-05.md)
+· [LFM3 kernel and numerical checks](docs/lfm3-kernels-2026-11-06.md)
+· [Flash SSD design](docs/flash-next-ssd-implementation.md)
+· [Optimization history](opti.md)
+· [All releases](https://github.com/0xZKnw/mlxl3/releases)
 
-## Native conversion feedback (issue 75)
+## Repository and credits
 
-The advanced converter's explicit `native` backend now supports direct and
-per-layer LDLQ conversion through `MLXL3_NATIVE_ENGINE`. The standalone engine
-owns trellis search and FP32 compensation, preserving M5 NAX/TF32 arithmetic;
-large products split rows/columns without changing their reduction dimension.
-Fourteen synthetic CLI comparisons reproduce 64,000 checkpoint words exactly.
-See the [intermediate products, failures, verification and remaining scope](docs/native-coverage/converter-feedback/verification.md).
-Raw source capture, grouped expert scale policy, automatic Studio conversion
-and the MLX-free converter bundle remain under implementation. No conversion
-throughput gain or complete-model qualification is claimed.
+| Path | Contents |
+|---|---|
+| `apps/MLXL3Studio/` | SwiftUI application and native UI checks |
+| `native/src/`, `native/shaders/` | Rust engine and Metal kernels |
+| `src/mlxl3_quantizer/` | Conversion adapters and calibration helpers |
+| `scripts/`, `benchmarks/`, `tests/` | Build tools, campaigns and regression checks |
+| `docs/`, `opti.md` | Release notes, numerical evidence and experiment history |
+
+Created by [0xZKnw](https://github.com/0xZKnw). Thanks to
+[ExLlamaV3](https://github.com/turboderp-org/exllamav3),
+[Apple MLX](https://github.com/ml-explore/mlx),
+[PonyExl3](https://github.com/beamivalice/PonyExl3),
+[MTPLX](https://github.com/youssofal/mtplx),
+[SwiftMath](https://github.com/mgriebling/SwiftMath) and model authors for the
+components and references recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MLXL3 uses the [MIT license](LICENSE); upstream components and model weights
+retain their respective licenses.

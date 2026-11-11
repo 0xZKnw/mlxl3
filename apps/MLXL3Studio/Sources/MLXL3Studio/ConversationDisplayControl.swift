@@ -57,7 +57,7 @@ struct ConversationDisplaySettings: View {
                         .accessibilityValue("\(Int(studio.responseTextSize)) pt")
                     Text("A").font(.system(size: 21)).accessibilityHidden(true)
                 }
-                Text(L("Un texte à votre taille.", "Text that suits you."))
+                Text(L("Exemple de texte", "Sample text"))
                     .font(.system(size: studio.responseTextSize))
                     .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                     .padding(.horizontal, 12)

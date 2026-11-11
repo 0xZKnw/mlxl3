@@ -294,7 +294,7 @@ struct AgentStudioView: View {
           history
         } else if model.selected.isEmpty {
           emptyState(
-            "doc.text", L("Votre espace de travail", "Your workspace"),
+            "doc.text", L("Fichiers du projet", "Project files"),
             L(
               "Sélectionnez un fichier ou ouvrez un projet pour commencer.",
               "Select a file or open a project to get started."))

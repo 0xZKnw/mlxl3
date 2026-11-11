@@ -8,11 +8,13 @@ the attached validation report.
 ## Changes
 
 - Attach PNG, JPEG and WebP images to a loaded LFM3-VL model through the file
-  picker or drag and drop. The attachment preview displays the image; local
+  picker or drag and drop. Images appear inline in messages and drafts, with
+  a larger preview on click; local
   history keeps its original bytes, including after the source file is removed.
 - Documents and images can be sent together. Images use the engine's dedicated
   image input rather than being inserted as base64 text in the prompt.
-- LFM3-1.7B Heretic NX and the original LFM3-1.7B are recommended in Discover.
+- LFM3-1.7B Heretic NX and the original LFM3-1.7B are recommended under
+  Models → Hugging Face.
   Both open immutable repository revisions and explicitly select the validated
   **8bpw** variant. Existing recommendations remain available.
 - Includes the already merged [PR #163](https://github.com/0xZKnw/mlxl3/pull/163)
@@ -20,6 +22,13 @@ the attached validation report.
   drafts, runtime contracts, structured responses and bounded background work.
   This release is built from current main plus the LFM3 changes, rather than
   rebundling the previous beta's source.
+- Shorter French/English interface copy replaces promotional headings and
+  redundant helper text in Models, Settings, Projects and Agent. Existing
+  themes, artwork, navigation and functional explanations are retained.
+- The compact composer groups attachments/tools under **+**, with context,
+  dictation and send controls on the right. The model selector remains in the
+  header. Permanent engine-state and keyboard-hint text is removed; native
+  menus, tooltips and accessible names retain the actions and shortcuts.
 
 ## Fixes
 

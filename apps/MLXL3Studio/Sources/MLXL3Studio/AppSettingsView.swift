@@ -31,7 +31,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .general: L("Langue et notifications.", "Language and notifications.")
-        case .appearance: L("Thèmes, couleurs et confort de lecture.", "Themes, colors and reading comfort.")
+        case .appearance: L("Thème, couleur et taille du texte.", "Theme, color and text size.")
         case .models:
             L("Démarrage automatique et gestion de la mémoire.", "Automatic startup and memory management.")
         case .conversations:
@@ -129,12 +129,6 @@ struct AppSettingsView: View {
                     }
                 }
                 SettingCard(title: L("Langue de l’app", "App language"), icon: "globe") {
-                    Text(
-                        L(
-                            "Choisissez la langue de l’interface. Vos conversations conservent leur texte d’origine.",
-                            "Choose the interface language. Your conversation text stays as written.")
-                    )
-                    .foregroundStyle(StudioTheme.secondary)
                     Picker(
                         L("Langue de l’app", "App language"),
                         selection: Binding(
@@ -279,8 +273,8 @@ struct AppSettingsView: View {
                         }
                         Text(
                             L(
-                                "Après les prochaines réponses, libère aussi le cache de contexte et les petits buffers inutilisés. Le modèle et tes conversations restent chargés. Le prochain message recalculera son contexte et peut démarrer plus lentement.",
-                                "After future responses, also frees the context cache and small unused buffers. The model and your conversations stay loaded. The next message recomputes its context and may start more slowly."
+                                "Libère le cache de contexte après chaque réponse sans décharger le modèle. Le prochain message peut démarrer plus lentement.",
+                                "Frees the context cache after each response while keeping the model loaded. The next message may start more slowly."
                             )
                         )
                         .font(.system(size: 12))
@@ -291,14 +285,8 @@ struct AppSettingsView: View {
                 }
             case .conversations:
                 SettingCard(
-                    title: L("Votre historique", "Your history"), icon: "bubble.left.and.bubble.right"
+                    title: L("Historique", "History"), icon: "bubble.left.and.bubble.right"
                 ) {
-                    Text(
-                        L(
-                            "Exportez vos échanges pour en garder une copie, ou importez une sauvegarde MLXL3.",
-                            "Export your conversations to keep a copy, or import an MLXL3 backup.")
-                    )
-                    .foregroundStyle(StudioTheme.secondary)
                     Button(action: studio.exportConversations) {
                         Label(
                             L("Exporter les conversations…", "Export conversations…"),

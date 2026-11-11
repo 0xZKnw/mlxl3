@@ -189,8 +189,9 @@ enum ChatAttachmentImporter {
       let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [String: Any]
       let width = (properties?[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue ?? 0
       let height = (properties?[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue ?? 0
+      guard width > 0, height > 0 else { throw AttachmentImportError.invalidImage }
       let pixels = width.multipliedReportingOverflow(by: height)
-      guard width > 0, height > 0, !pixels.overflow, pixels.partialValue <= 64_000_000 else {
+      guard !pixels.overflow, pixels.partialValue <= 64_000_000 else {
         throw AttachmentImportError.imageResolution
       }
       guard CGImageSourceCreateImageAtIndex(source, 0, options) != nil else {

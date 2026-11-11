@@ -29,13 +29,13 @@ struct ComposerVoiceControl: View {
             Button {
                 if voice.recording || voice.starting { voice.stop() } else { studio.startDictation() }
             } label: {
-                Label(voice.recording ? L("Arrêter la dictée", "Stop dictation") : L("Dicter", "Dictate"), systemImage: voice.recording ? "mic.fill" : "mic")
+                Label(voice.recording || voice.starting ? L("Arrêter la dictée", "Stop dictation") : L("Dicter", "Dictate"), systemImage: voice.recording ? "mic.fill" : "mic")
+                    .labelStyle(.iconOnly).frame(width: 28, height: 28)
+                    .foregroundStyle(voice.recording ? Color.red : StudioTheme.secondary)
             }.disabled(studio.isGenerating).help(L("Dictée sur ce Mac uniquement", "On-device dictation only"))
             if voice.starting { ProgressView().controlSize(.mini) }
-            if let error = voice.error { Text(error).foregroundStyle(.orange).lineLimit(2) }
-            Spacer()
-            Button { studio.exportMarkdown() } label: { Label(L("Exporter cette conversation en Markdown", "Export this conversation as Markdown"), systemImage: "square.and.arrow.up").labelStyle(.iconOnly) }
-        }.buttonStyle(.plain).font(.caption).foregroundStyle(StudioTheme.secondary).padding(.horizontal, 18).padding(.top, 10)
+            if let error = voice.error { Text(error).foregroundStyle(.orange).lineLimit(2).frame(maxWidth: 180) }
+        }.buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(StudioTheme.secondary)
         .onDisappear { voice.stop() }
     }
 }

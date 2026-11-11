@@ -28116,3 +28116,82 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   22e6da660378840af9e5d2aaadec96d66018870cfedef8b9509427658c632457
   vérifié. Pas de nouvelle quantification. Les contrôles physiques attendent
   la fin des compilations/proveurs pour éviter la contention.
+
+- Python complet : 2760 passés, 156 ignorés (GPU, Torch absent, Linux),
+  123 sous-tests, 10 avertissements, 259,62s. Inventaire MLX :314fichiers conforme.
+- Images : 56 contrôles passent (PNG/JPEG/WebP réels, MIME des octets,
+  GIF/invalide/tronqué/64M pixels/8Mio, pipe Swift, ancien moteur, changement
+  de modèle, historique autonome, neuvième image sur plusieurs tours).
+  Le premier harnais tentait de modifier un setter privé : remplacé par
+  l'importeur public. Le test tronqué révèle une mauvaise catégorie d'erreur
+  (dimensions absentes confondues avec trop grandes), corrigée puis retestée.
+- Les 251 contrôles workspace/recommandations passent. Les suites Desktop
+  sont continuées depuis le premier échec, sans répéter les contrôles déjà
+  réussis. Un autre ancien harnais crée un NSTextView sans fenêtre/undoManager
+  puis exige Undo ; rattacher la fixture à une fenêtre invisible et vérifier
+  l'inscription d'une vraie édition. Aucun code d'éditeur modifié.
+- Revue ciblée demandée ensuite, suivie d'une fusion si conforme : suivre
+  import→draft/historique→encodage→capacité moteur et les variantes épinglées.
+  Aucun blocage produit supplémentaire identifié à ce stade ; attendre les
+  vérifications restantes avant fusion et publication.
+
+### VISION-UI-COPY-2026-11-11 — extension utilisateur avant publication
+
+- Afficher l'image dans le message et le brouillon au lieu de la seule
+  pastille photo/nom. Conserver le ratio, l'aperçu complet au clic, le retrait
+  et le nom accessible. Utiliser SwiftUI/AppKit existants, sans dépendance.
+- Nettoyer les slogans dans modèles, accueil Agent, apparence et profils,
+  avec des libellés FR/EN concrets. Garder logo, thèmes, navigation et les
+  explications nécessaires (erreurs, permissions, coût mémoire).
+- Direction : application macOS pour modèles locaux, identité MLXL3 actuelle,
+  énergie1/rythme1/mouvement1. Motif conservé : vrai logo et titres sérif.
+  L'image est le point visuel utile, aucun décor nouveau. Vérifier pixels
+  rouges réellement rendus, deux largeurs, brouillon/historique et captures.
+  Revoir ces changements avant la fusion autorisée et les deux releases.
+
+- Itérations de densité demandées : suppression des libellés permanents
+  Prêt sur Metal/Joindre/Envoyer/Nouvelle ligne, menu + pour fichiers/outils,
+  sélecteur modèle déplacé près de la saisie (partagé avec Server/Lab), micro
+  et envoi sur une seule barre. Miniature brouillon96×72, message240×180,
+  ratio conservé. Références primaires : aide Claude get-started, sources
+  pingdotgg/t3code ChatComposer/ComposerAttachmentStrip/CompactControlsMenu.
+  Fenêtre Codex refusée par CUA ; aucune tentative de contournement.
+- Dernier rendu : 58 contrôles images passent, deux largeurs680/1040.
+  L'ancien oracle RGB absolu échoue malgré une image rouge visible : le
+  profil ICC convertit le rouge en RGB≈.944/.293/.178 ; vérifier sa dominance
+  rouge après décodage PNG/sRGB, sans changer l'image. Captures initiales
+  translucides et échecs gardés ; fenêtre hors écran + fond réel corrigent
+  le harnais. Aucun problème de pixels caché par une simple taille non nulle.
+- Desktop agrégé par continuation : suite principale jusqu'aux Studios
+  réussie ; 2240 contrôles responsiveness et suites bridge/rendu/transport
+  réussis. Studios39tests Python puis58contrôles Swift passent, sandbox25 et
+  protocole29 ; workspace44contrôles passent. Fixtures main réparées : raw
+  string, undoManager absent, comparaison de chemin canonique fork et attente
+  bornée de coloration asynchrone. Aucun code d'éditeur/AgentStore modifié.
+
+### README-V2-BENCH-2026-11-11 — préenregistré avant mesures
+
+- Demande explicite : README v2 complet, benchmarks des modèles disponibles,
+  installation/architecture/API actuelles, titres utiles à la recherche et
+  sources vérifiables. Ne pas reprendre les anciennes annonces 1.4/1.5 comme
+  description courante. Les rapports historiques restent liés et qualifiés.
+- Inventaire local : base LFM3-1.7B8, HereticNX8, VL2B8, Qwen27B2,
+  Qwen35B-A3B2.49 et FlashNext2.05 présents. LFM2.5-24B4 absent : reprendre
+  séparément les mesures historiques266prompt/128sorties/5répétitions, sans
+  le télécharger pour refaire un résultat existant.
+- Nouveau snapshot : Apple M5/24Gio, moteur hybrid2.0.5 propre construit
+  après gel source, un modèle GPU à la fois, aucun compilateur/proveur actif.
+  Même prompt UTF-8 de guide Rust, contexte4096, greedy/T=0/top-k0/pénalité1,
+  MTP/DFlash/outils/réutilisation prompt OFF. Une réponse128tokens de warmup,
+  puis trois répétitions de128 ; exiger comptages/hashes stables et métriques
+  positives finies. Sauvegarder tout échec ou EOS prématuré sans bon score.
+- Relever version/hash moteur, configs/poids, état alimentation/pression mémoire
+  et alertes thermiques connues. Rapporter médiane/plage decode, prefill, TTFT,
+  total et footprint processus séparé des allocations MLX. Applications usuelles
+  conservées ; pas de gain causal ou comparaison entre backends différents.
+- Qualité avant vitesse : contrôles natifs LFM3/VL texte/image et comparaison
+  numérique à l'ancien moteur sur entrées imposées (KL≤.002, états L2≤.01,
+  formes/128000logits/valeurs finies), plus contrôles existants Qwen/Flash.
+  Preuves/compilations et correction des échecs précèdent les chronométrages.
+
+- Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.

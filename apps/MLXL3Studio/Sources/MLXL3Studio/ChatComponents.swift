@@ -527,17 +527,24 @@ struct ChatAttachmentView: View {
     var body: some View {
         HStack(spacing: 8) {
             Button { showPreview = true } label: {
-                Label(attachment.fileName, systemImage: attachment.image != nil ? "photo" : attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if let data = attachment.image?.data, let image = NSImage(data: data) {
+                    Image(nsImage: image).renderingMode(.original).resizable().scaledToFit()
+                        .frame(width: onRemove == nil ? 240 : 96, height: onRemove == nil ? 180 : 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Label(attachment.fileName, systemImage: attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(attachment.fileName)
             .help(attachment.image != nil ? L("Afficher l’image", "Preview image") : L("Afficher le texte extrait", "Preview extracted text"))
             .popover(isPresented: $showPreview) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(attachment.fileName).font(.headline)
                     if let data = attachment.image?.data, let image = NSImage(data: data) {
-                        Image(nsImage: image).resizable().scaledToFit()
+                        Image(nsImage: image).renderingMode(.original).resizable().scaledToFit()
                             .accessibilityLabel(attachment.fileName)
                     } else {
                         ScrollView {
@@ -618,7 +625,6 @@ struct ComposerView: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
             }
-            ComposerVoiceControl(studio: studio, voice: studio.voice)
             HStack(alignment: .bottom, spacing: 12) {
                 TextField(studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…") : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -626,7 +632,7 @@ struct ComposerView: View {
                     .lineLimit(1...6)
                     .focused($focused)
                     .padding(.vertical, 5)
-                    .frame(minHeight: 48, alignment: .topLeading)
+                    .frame(minHeight: 24, alignment: .topLeading)
                     .contentShape(Rectangle())
                     .disabled(studio.isGenerating)
                     .onSubmit { studio.send() }
@@ -641,32 +647,10 @@ struct ComposerView: View {
                         return .handled
                     }
 
-                if studio.isGenerating || studio.preparingDocuments {
-                    Button(action: studio.stopGeneration) {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(StudioTheme.onAccent)
-                            .frame(width: 31, height: 31)
-                    }
-                    .buttonStyle(RoundGlassButtonStyle(bright: true))
-                    .help(L("Arrêter", "Stop"))
-                    .accessibilityLabel(L("Arrêter la génération", "Stop generation"))
-                } else {
-                    Button(action: studio.send) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(studio.canSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
-                            .frame(width: 31, height: 31)
-                    }
-                    .buttonStyle(RoundGlassButtonStyle(bright: true))
-                    .disabled(!studio.canSend)
-                    .help(L("Envoyer le message", "Send message"))
-                    .accessibilityLabel(L("Envoyer le message", "Send message"))
-                }
             }
             .padding(.horizontal, 18)
-            .padding(.top, 17)
-            .padding(.bottom, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
 
             if let reason = studio.sendBlockReason {
                 Text(reason).font(.caption).foregroundStyle(StudioTheme.secondary)
@@ -711,34 +695,35 @@ private struct ComposerFooterView: View {
 
     var body: some View {
             HStack(spacing: 7) {
-                Button(action: studio.chooseChatFiles) {
-                    Label(L("Joindre", "Attach"), systemImage: "paperclip")
-                }
-                .buttonStyle(.plain)
-                .disabled(!studio.canImportFiles)
-                .keyboardShortcut("o", modifiers: [.command, .shift])
-                .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
-                .help(studio.canImportImages
-                    ? L("Joindre des images, PDF ou fichiers texte (⌘⇧O).", "Attach images, PDFs or text files (⌘⇧O).")
-                    : L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
-                Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
-                if studio.selectedMode == .agent {
-                    Label(L("Sandbox native", "Native sandbox"), systemImage: "lock.shield")
-                    if studio.mcpUpdating { ProgressView().controlSize(.mini) }
-                } else {
-                  Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "network")
-                        Text("MCP")
+                Menu {
+                    Button(action: studio.chooseChatFiles) {
+                        Label(L("Joindre des fichiers…", "Attach files…"), systemImage: "paperclip")
                     }
+                    .disabled(!studio.canImportFiles)
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                    if studio.selectedMode != .agent {
+                        Divider()
+                        Toggle(L("Activer les outils MCP", "Enable MCP tools"), isOn: Binding(
+                            get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) }))
+                        .disabled(studio.isGenerating || studio.mcpUpdating)
+                        .help(L("Les serveurs configurés peuvent envoyer des données hors de ce Mac.", "Configured servers may send data outside this Mac."))
+                        Button(L("Configurer les outils…", "Configure tools…")) {
+                            studio.showMCPManager = true
+                        }.disabled(studio.isGenerating || studio.mcpUpdating)
+                    }
+                    Divider()
+                    Button(action: studio.exportMarkdown) {
+                        Label(L("Exporter la conversation…", "Export conversation…"), systemImage: "square.and.arrow.up")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 28, height: 28)
                 }
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .fixedSize()
-                .tint(StudioTheme.accent)
-                .disabled(studio.isGenerating || studio.mcpUpdating)
-                .accessibilityLabel(L("Activer les outils MCP", "Enable MCP tools"))
-                .help(L("Exa et les serveurs MCP configurés. Les requêtes peuvent quitter ce Mac. Choix mémorisé.", "Exa and configured MCP servers. Requests may leave this Mac. Your choice is saved."))
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
+                .accessibilityValue(studio.mcpEnabled ? L("Outils activés", "Tools enabled") : L("Outils désactivés", "Tools disabled"))
+                .help(L("Fichiers et outils (⌘⇧O pour joindre un fichier)", "Files and tools (⌘⇧O to attach a file)"))
                 if studio.mcpUpdating {
                     ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))
                 } else if studio.mcpEnabled && !studio.mcpErrors.isEmpty {
@@ -746,25 +731,40 @@ private struct ComposerFooterView: View {
                         .foregroundStyle(.orange)
                         .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
                 }
-                }
-                Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
-                HStack(spacing: 6) {
-                    StatusDot(state: studio.engineState)
-                    Text(studio.isGenerating ? L("Génération en cours", "Generating") : studio.engineState.label)
-                }
                 Spacer()
-                Text(L("↵ Envoyer     ⌃↵ Nouvelle ligne", "↵ Send     ⌃↵ New line"))
                 Button { studio.showInspector.toggle() } label: {
-                    Label(studio.contextLabel, systemImage: "chart.bar")
-                        .monospacedDigit()
+                    Image(systemName: "chart.bar").frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
-                .help(L("Contexte : prompt, outils et génération du dernier envoi. Brouillon non inclus. Cliquer pour régler la limite.", "Context: prompt, tools and generation from the last send. Draft excluded. Click to adjust the limit."))
+                .help(L("Contexte utilisé : \(studio.contextLabel). Cliquer pour régler la limite.", "Context used: \(studio.contextLabel). Click to adjust the limit."))
                 .accessibilityLabel(L("Contexte utilisé", "Context used") + " " + studio.contextLabel)
+                ComposerVoiceControl(studio: studio, voice: studio.voice)
+                if studio.isGenerating || studio.preparingDocuments {
+                    Button(action: studio.stopGeneration) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(StudioTheme.onAccent)
+                            .frame(width: 31, height: 31)
+                    }
+                    .buttonStyle(RoundGlassButtonStyle(bright: true))
+                    .help(L("Arrêter", "Stop"))
+                    .accessibilityLabel(L("Arrêter la génération", "Stop generation"))
+                } else {
+                    Button(action: studio.send) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(studio.canSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
+                            .frame(width: 31, height: 31)
+                    }
+                    .buttonStyle(RoundGlassButtonStyle(bright: true))
+                    .disabled(!studio.canSend)
+                    .help(L("Envoyer (Retour). Nouvelle ligne : Ctrl+Retour.", "Send (Return). New line: Control+Return."))
+                    .accessibilityLabel(L("Envoyer le message", "Send message"))
+                }
             }
             .font(.system(size: 10, weight: .regular))
             .foregroundStyle(StudioTheme.quiet)
             .padding(.horizontal, 18)
-            .padding(.bottom, 13)
+            .padding(.bottom, 10)
     }
 }
