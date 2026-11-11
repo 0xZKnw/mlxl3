@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 
 extension HubBrowserView {
     fileprivate var recommendedForCheck: some View { recommendedCards }
@@ -16,6 +17,9 @@ extension HubBrowserView {
         let preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
         let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: preferences)
+        func cardViews(_ view: NSView) -> [WKWebView] {
+            (view as? WKWebView).map { [$0] } ?? view.subviews.flatMap(cardViews)
+        }
         for width in [480, 840] {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 1100), styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
@@ -60,8 +64,18 @@ extension HubBrowserView {
                 .background(StudioTheme.canvas(for: .midnightBlue)))
             window.contentView = host
             host.frame = NSRect(x: 0, y: 0, width: width, height: 600)
-            try await Task.sleep(for: .milliseconds(200))
-            host.layoutSubtreeIfNeeded()
+            var card: WKWebView?
+            for _ in 0..<500 {
+                host.layoutSubtreeIfNeeded()
+                if let candidate = cardViews(host).first,
+                   (try? await candidate.evaluateJavaScript("document.body.innerText") as? String)?.contains("EXL3 checkpoint") == true {
+                    card = candidate
+                    break
+                }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            guard let card else { preconditionFailure("Model card did not load in details at \(width)pt") }
+            precondition(card.bounds.width >= 100 && card.bounds.height >= 100, "Model card was squeezed out at \(width)pt")
             guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { fatalError("No details bitmap") }
             host.cacheDisplay(in: host.bounds, to: bitmap)
             precondition(bitmap.pixelsWide >= width && bitmap.pixelsHigh >= 600, "Model details did not fill its window")
@@ -70,6 +84,6 @@ extension HubBrowserView {
             }
             window.close()
         }
-        print("Recommended models UI checks passed: cards and quantization picker at 480 and 840 points")
+        print("Recommended models UI checks passed: cards, model details and embedded model card at 480 and 840 points")
     }
 }

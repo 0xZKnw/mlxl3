@@ -12,7 +12,7 @@ struct StudioView: View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 if sidebarVisible {
-                    SidebarView().frame(width: 232)
+                    SidebarView().frame(width: studio.sidebarWidth.points)
                 }
                 ChatWorkspaceView(sidebarVisible: $sidebarVisible)
                     .background(StudioTheme.canvas(for: appTheme))
@@ -49,6 +49,8 @@ struct StudioView: View {
             }
         }
         .environment(\.conversationDensity, studio.conversationDensity)
+        .environment(\.conversationFont, studio.conversationFont)
+        .environment(\.messageBubbleStyle, studio.messageBubbleStyle)
         .environment(\.conversationReadingWidth, studio.readingWidth)
         .environment(\.conversationTextScale, CGFloat(studio.responseTextSize / ResponseTextSize.defaultValue))
         .id(studio.language)
@@ -213,7 +215,7 @@ private struct SidebarView: View {
                 utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
                 HStack(spacing: 0) {
                     utilityButton(L("Réglages", "Settings"), icon: "gearshape", action: studio.openAppSettings)
-                    SidebarUpdateBadge(updater: studio.updateManager, action: studio.openAppSettings)
+                    SidebarUpdateBadge(updater: studio.updateManager, action: studio.openUpdateSettings)
                         .padding(.trailing, 8)
                 }
             }

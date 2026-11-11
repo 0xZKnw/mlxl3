@@ -197,9 +197,15 @@ extension StudioModel {
       "get: { studio.mtpRememberedEnabled }, set: { studio.setMTPEnabled($0) }",
       ".disabled(studio.isGenerating || !studio.engineState.isReady)",
       "MTPTuningControls()",
-      ".disabled(!studio.canTuneMTP)",
     ] {
       try check(containsWiring(mtpSource, required), "Missing shared MTP production wiring: " + required)
+    }
+    try check(!containsWiring(mtpSource, "Button(action: studio.tuneMTP)"),
+      "MTP settings must not offer a duplicate tuning action")
+    let tuningSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
+      .deletingLastPathComponent().appendingPathComponent("MTPTuningControls.swift"), encoding: .utf8)
+    for required in ["Button(action: tune)", ".disabled(!canTune)", "studio.tuneMTP()", "studio.tuneDFlash()"] {
+      try check(containsWiring(tuningSource, required), "Missing tuning action or guard: " + required)
     }
     func checkInspector(greedy: Bool) async throws {
       host.layoutSubtreeIfNeeded()

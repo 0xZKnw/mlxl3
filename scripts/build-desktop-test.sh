@@ -27,6 +27,7 @@ bundle="${stage}/MLXL3 Desktop Test.app"
 mkdir -p "${bundle}/Contents/MacOS" "${bundle}/Contents/Resources"
 cp "${binary_dir}/MLXL3Studio" "${bundle}/Contents/MacOS/MLXL3Studio"
 cp apps/MLXL3Studio/Resources/Info.plist "${bundle}/Contents/Info.plist"
+cp apps/MLXL3Studio/Resources/marked.umd.js apps/MLXL3Studio/Resources/marked.LICENSE "${bundle}/Contents/Resources/"
 /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName MLXL3 Desktop Test' "${bundle}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Set :CFBundleName MLXL3 Desktop Test' "${bundle}/Contents/Info.plist"
 # The helper checks the installed runtime manifest and every file hash before copying.

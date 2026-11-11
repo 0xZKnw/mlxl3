@@ -377,15 +377,15 @@ private struct HubBrowserView: View {
                 .enabled)
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("BRANCHE / QUANTIFICATION", "BRANCH / QUANTIZATION")).font(
+                    Text(L("VERSION", "VERSION")).font(
                         .system(size: 12, weight: .medium)
                     ).tracking(1)
                     Picker(
-                        L("Branche ou quantification", "Branch or quantization"),
+                        L("Révision ou branche", "Revision or branch"),
                         selection: Binding(get: { detail.revision }, set: { library.open(detail.id, revision: $0) })
                     ) {
                         ForEach([detail.revision] + detail.branches.filter { $0 != detail.revision }, id: \.self) {
-                            Text($0.count == 40 ? String($0.prefix(8)) : $0).tag($0)
+                            Text($0.count == 40 ? L("Révision ", "Revision ") + String($0.prefix(8)) : $0).tag($0)
                         }
                     }.labelsHidden()
                     let choices = ModelLibrary.recommendedChoices(for: detail.id)
@@ -453,16 +453,10 @@ private struct HubBrowserView: View {
             }
             Text(L("FICHE DU MODÈLE", "MODEL CARD")).font(.system(size: 12, weight: .medium)).tracking(1.4)
                 .foregroundStyle(StudioTheme.quiet)
-            ScrollView {
-                MarkdownResponseView(
-                    detail.readme.isEmpty ? L("Aucun README disponible.", "No README available.") : detail.readme
-                ).frame(maxWidth: .infinity, alignment: .leading)
-            }.environment(
-                \.openURL,
-                OpenURLAction { url in
-                    guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { return .discarded }
-                    return .systemAction
-                })
+            ModelCardView(
+                source: detail.readme.isEmpty ? L("Aucun README disponible.", "No README available.") : detail.readme,
+                repo: detail.id, commit: detail.commit
+            ).frame(maxWidth: .infinity, maxHeight: .infinity)
             Text(
                 L(
                     "EXL3 indique le format, pas une garantie de compatibilité de l’architecture.",

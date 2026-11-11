@@ -16,7 +16,7 @@ struct ConversationDisplayControl: View {
             ConversationDisplaySettings()
                 .padding(20).frame(width: 300)
                 .background(StudioTheme.canvas(for: studio.theme))
-                .studioAppearance(studio.theme, accent: studio.accent)
+                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
                 .environmentObject(studio)
         }
     }
@@ -52,7 +52,7 @@ struct ConversationDisplaySettings: View {
                     Text("A").font(.system(size: 11)).accessibilityHidden(true)
                     Slider(value: Binding(get: { studio.responseTextSize }, set: { studio.setResponseTextSize($0) }),
                            in: ResponseTextSize.range, step: 1)
-                        .tint(studio.accent.color)
+                        .tint(studio.accentColor)
                         .accessibilityLabel(L("Taille du texte", "Text size"))
                         .accessibilityValue("\(Int(studio.responseTextSize)) pt")
                     Text("A").font(.system(size: 21)).accessibilityHidden(true)

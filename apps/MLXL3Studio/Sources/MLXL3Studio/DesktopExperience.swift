@@ -3,11 +3,17 @@ import CoreFoundation
 import SwiftUI
 
 enum ConversationReadingWidth: String, CaseIterable, Sendable {
-    case centered, wide
+    case narrow, centered, wide
     static let preferenceKey = "studio.readingWidth"
-    var title: String { self == .centered ? L("Centrée", "Centered") : L("Large", "Wide") }
-    var messageMaximum: CGFloat { self == .centered ? 820 : .infinity }
-    var composerMaximum: CGFloat { self == .centered ? 790 : .infinity }
+    var title: String {
+        switch self {
+        case .narrow: L("Étroite", "Narrow")
+        case .centered: L("Centrée", "Centered")
+        case .wide: L("Large", "Wide")
+        }
+    }
+    var messageMaximum: CGFloat { self == .narrow ? 620 : self == .centered ? 820 : .infinity }
+    var composerMaximum: CGFloat { self == .narrow ? 590 : self == .centered ? 790 : .infinity }
     static func load(from preferences: UserDefaults) -> Self {
         preferences.string(forKey: preferenceKey).flatMap(Self.init(rawValue:)) ?? .centered
     }

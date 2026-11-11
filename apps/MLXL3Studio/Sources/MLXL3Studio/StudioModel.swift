@@ -84,6 +84,7 @@ final class StudioModel: ObservableObject {
     @Published var showInspector = false
     @Published var showModelManager = false
     @Published var showAppSettings = false
+    @Published var appSettingsPage: SettingsPage = .general
     @Published private(set) var modelInstallState: ModelInstallState = .idle
     @Published var temperature = 0.2
     @Published var topK = 80
@@ -165,7 +166,13 @@ final class StudioModel: ObservableObject {
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
     @Published private(set) var accent: AppAccent = .neutral
+    @Published private(set) var customAccentHex = CustomAccent.defaultHex
+    var customAccentColor: Color { CustomAccent.color(customAccentHex) }
+    var accentColor: Color { accent == .custom ? customAccentColor : accent.color }
     @Published private(set) var conversationDensity: ConversationDensity = .comfortable
+    @Published private(set) var sidebarWidth: SidebarWidth = .standard
+    @Published private(set) var conversationFont: ConversationFont = .standard
+    @Published private(set) var messageBubbleStyle: MessageBubbleStyle = .subtle
     @Published private(set) var loadModelOnStartup = true
     @Published private(set) var startupModelPath = ""
     @Published private(set) var completionNotificationsEnabled = false
@@ -246,7 +253,11 @@ final class StudioModel: ObservableObject {
         self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
         self.accent = AppAccent.load(from: preferences)
+        self.customAccentHex = CustomAccent.normalized(preferences.string(forKey: CustomAccent.preferenceKey))
         self.conversationDensity = ConversationDensity.load(from: preferences)
+        self.sidebarWidth = SidebarWidth.load(from: preferences)
+        self.conversationFont = ConversationFont.load(from: preferences)
+        self.messageBubbleStyle = MessageBubbleStyle.load(from: preferences)
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
@@ -443,15 +454,42 @@ final class StudioModel: ObservableObject {
         preferences.set(value.rawValue, forKey: AppAccent.preferenceKey)
     }
 
+    func setCustomAccent(_ value: Color) {
+        guard let hex = CustomAccent.hex(value) else { return }
+        customAccentHex = hex
+        preferences.set(hex, forKey: CustomAccent.preferenceKey)
+        setAccent(.custom)
+    }
+
     func setConversationDensity(_ value: ConversationDensity) {
         conversationDensity = value
         preferences.set(value.rawValue, forKey: ConversationDensity.preferenceKey)
     }
 
+    func setSidebarWidth(_ value: SidebarWidth) {
+        sidebarWidth = value
+        preferences.set(value.rawValue, forKey: SidebarWidth.preferenceKey)
+    }
+
+    func setConversationFont(_ value: ConversationFont) {
+        conversationFont = value
+        preferences.set(value.rawValue, forKey: ConversationFont.preferenceKey)
+    }
+
+    func setMessageBubbleStyle(_ value: MessageBubbleStyle) {
+        messageBubbleStyle = value
+        preferences.set(value.rawValue, forKey: MessageBubbleStyle.preferenceKey)
+    }
+
     func resetAppearance() {
         setTheme(.dark)
         setAccent(.neutral)
+        customAccentHex = CustomAccent.defaultHex
+        preferences.set(customAccentHex, forKey: CustomAccent.preferenceKey)
         setConversationDensity(.comfortable)
+        setSidebarWidth(.standard)
+        setConversationFont(.standard)
+        setMessageBubbleStyle(.subtle)
         setReadingWidth(.centered)
         setResponseTextSize(ResponseTextSize.defaultValue)
     }
@@ -885,6 +923,12 @@ final class StudioModel: ObservableObject {
     }
 
     func openAppSettings() {
+        appSettingsPage = .general
+        showAppSettings = true
+    }
+
+    func openUpdateSettings() {
+        appSettingsPage = .updates
         showAppSettings = true
     }
 

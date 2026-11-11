@@ -110,6 +110,8 @@ import SwiftUI
   {
     let view = table.frame(width: width).fixedSize(horizontal: false, vertical: true)
       .padding(16).background(Color.black).preferredColorScheme(.dark)
+      // Separate captures must not compare different frames of the token fade.
+      .transaction { $0.animation = nil; $0.disablesAnimations = true }
     let host = NSHostingView(rootView: view)
     host.setFrameSize(NSSize(width: width + 32, height: 1000))
     let size = host.fittingSize

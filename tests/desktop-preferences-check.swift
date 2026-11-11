@@ -58,10 +58,51 @@ extension StudioModel {
             studio.setAccent(accent)
             check(make(preview: true).accent == accent, "Accent not persisted")
         }
+        for value in ["", "12345", "#FF0000", "GG0000", "１２３４５６"] {
+            check(CustomAccent.normalized(value) == CustomAccent.defaultHex, "Invalid custom color accepted")
+        }
+        check(CustomAccent.normalized("ab12ef") == "AB12EF", "Custom color normalization failed")
+        for value in 0...255 {
+            let hex = String(format: "%02X%02X%02X", value, 255 - value, value ^ 0x55)
+            check(CustomAccent.hex(CustomAccent.color(hex)) == hex, "Custom color round trip failed")
+        }
+        studio.setCustomAccent(Color(red: 1, green: 0.5, blue: 0))
+        check(studio.accent == .custom && studio.customAccentHex == "FF8000", "Custom color selection failed")
+        check(make(preview: true).customAccentHex == "FF8000" && make(preview: true).accent == .custom,
+              "Custom color did not persist")
         for density in ConversationDensity.allCases {
             studio.setConversationDensity(density)
             check(make(preview: true).conversationDensity == density, "Density not persisted")
         }
+        for width in SidebarWidth.allCases {
+            studio.setSidebarWidth(width)
+            check(make(preview: true).sidebarWidth == width, "Sidebar width not persisted")
+        }
+        for font in ConversationFont.allCases {
+            studio.setConversationFont(font)
+            check(make(preview: true).conversationFont == font, "Conversation font not persisted")
+        }
+        for style in MessageBubbleStyle.allCases {
+            studio.setMessageBubbleStyle(style)
+            check(make(preview: true).messageBubbleStyle == style, "Message bubble style not persisted")
+        }
+        preferences.set("unknown", forKey: SidebarWidth.preferenceKey)
+        preferences.set(true, forKey: ConversationFont.preferenceKey)
+        preferences.set(17, forKey: MessageBubbleStyle.preferenceKey)
+        let invalidAppearance = make(preview: true)
+        check(invalidAppearance.sidebarWidth == .standard && invalidAppearance.conversationFont == .standard
+              && invalidAppearance.messageBubbleStyle == .subtle, "Invalid appearance values must use defaults")
+        studio.openUpdateSettings()
+        check(studio.showAppSettings && studio.appSettingsPage == .updates, "Update shortcut did not open updates")
+        studio.openAppSettings()
+        check(studio.showAppSettings && studio.appSettingsPage == .general, "Ordinary settings must open general")
+        studio.appSettingsPage = .appearance
+        studio.openUpdateSettings()
+        check(studio.appSettingsPage == .updates, "Update shortcut failed while settings were open")
+        studio.showAppSettings = false
+        let studioViewSource = try String(contentsOfFile: "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift", encoding: .utf8)
+        check(studioViewSource.contains("SidebarUpdateBadge(updater: studio.updateManager, action: studio.openUpdateSettings)"),
+              "Sidebar update button is not wired to updates")
         preferences.set("unknown", forKey: AppAccent.preferenceKey)
         preferences.set(true, forKey: ConversationDensity.preferenceKey)
         check(make(preview: true).accent == .neutral && make(preview: true).conversationDensity == .comfortable,
@@ -71,7 +112,9 @@ extension StudioModel {
         studio.resetAppearance()
         let reset = make(preview: true)
         check(reset.theme == .dark && reset.accent == .neutral && reset.conversationDensity == .comfortable
-              && reset.readingWidth == .centered && reset.responseTextSize == 15,
+              && reset.readingWidth == .centered && reset.responseTextSize == 15
+              && reset.sidebarWidth == .standard && reset.conversationFont == .standard && reset.messageBubbleStyle == .subtle
+              && reset.customAccentHex == CustomAccent.defaultHex,
               "Appearance reset did not persist defaults")
         check(!reset.loadModelOnStartup && reset.startupModelPath == "/fixture/startup"
               && studio.draft == "Unsent text" && studio.selectedConversationID == conversation,
@@ -105,6 +148,7 @@ extension StudioModel {
         }
         // Render actual settings and rich text, not a parallel palette implementation.
         _ = NSApplication.shared
+        studio.appSettingsPage = .appearance
         let host = NSHostingView(rootView: AppSettingsView().environmentObject(studio))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 720),
                               styleMask: .borderless, backing: .buffered, defer: false)
@@ -245,6 +289,39 @@ extension StudioModel {
         let invalid = make(); invalid.start()
         try await wait("invalid catalogue", until: { if case .failed = invalid.engineState { true } else { false } })
         check(!invalid.fixtureRunning, "Invalid catalogue started engine")
+        let previewConversation = Conversation(title: "Preview", messages: [
+            ChatMessage(role: .user, content: "A custom message bubble"),
+            ChatMessage(role: .assistant, content: "A readable response with **emphasis**.")
+        ])
+        studio.conversations = [previewConversation]
+        studio.selectedConversationID = previewConversation.id
+        studio.setTheme(.midnightBlue)
+        studio.setCustomAccent(Color(red: 0.18, green: 0.65, blue: 0.80))
+        studio.setConversationFont(.serif)
+        studio.setMessageBubbleStyle(.tinted)
+        studio.setSidebarWidth(.wide)
+        studio.setReadingWidth(.narrow)
+        try await Task.sleep(for: .milliseconds(500))
+        blueHost.layoutSubtreeIfNeeded()
+        let customBitmap = blueHost.bitmapImageRepForCachingDisplay(in: blueHost.bounds)!
+        blueHost.cacheDisplay(in: blueHost.bounds, to: customBitmap)
+        check(customBitmap.pixelsWide == blueBitmap.pixelsWide && customBitmap.pixelsHigh == blueBitmap.pixelsHigh,
+              "Custom appearance changed the window dimensions")
+        if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
+           let data = customBitmap.representation(using: .png, properties: [:]) {
+            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("studio-custom.png"))
+        }
+        studio.openUpdateSettings()
+        try await Task.sleep(for: .milliseconds(500))
+        host.layoutSubtreeIfNeeded()
+        let updatesBitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+        host.cacheDisplay(in: host.bounds, to: updatesBitmap)
+        check(studio.appSettingsPage == .updates && updatesBitmap.pixelsWide > 0,
+              "Updates page failed to render after opening the shortcut")
+        if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
+           let data = updatesBitmap.representation(using: .png, properties: [:]) {
+            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-updates.png"))
+        }
         print("Desktop preference checks passed: \(checks) assertions, isolated persistence, appearance, actual startup/manual loading and errors")
     }
 }

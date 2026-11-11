@@ -222,6 +222,11 @@ run_fixture_check "${test_dir}/html-preview-check" "${test_python}" "$PWD/tests/
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
+    tests/model-card-check.swift -o "${test_dir}/model-card-check"
+run_fixture_check "${test_dir}/model-card-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
+
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
     tests/file-import-check.swift -o "${test_dir}/file-import-check"
 "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
 

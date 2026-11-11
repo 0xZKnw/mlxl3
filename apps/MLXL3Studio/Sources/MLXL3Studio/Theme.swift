@@ -31,6 +31,10 @@ enum StudioTheme {
         case .forest: Color(red: 0.08, green: 0.14, blue: 0.12)
         case .plum: Color(red: 0.15, green: 0.10, blue: 0.16)
         case .paper: Color(red: 0.97, green: 0.95, blue: 0.90)
+        case .ocean: Color(red: 0.07, green: 0.15, blue: 0.17)
+        case .coffee: Color(red: 0.17, green: 0.12, blue: 0.10)
+        case .sand: Color(red: 0.97, green: 0.94, blue: 0.90)
+        case .lavender: Color(red: 0.96, green: 0.94, blue: 0.98)
         default: canvas
         }
     }
@@ -41,6 +45,10 @@ enum StudioTheme {
         case .forest: Color(red: 0.05, green: 0.10, blue: 0.08)
         case .plum: Color(red: 0.10, green: 0.065, blue: 0.11)
         case .paper: Color(red: 0.92, green: 0.89, blue: 0.82)
+        case .ocean: Color(red: 0.045, green: 0.10, blue: 0.12)
+        case .coffee: Color(red: 0.12, green: 0.08, blue: 0.065)
+        case .sand: Color(red: 0.92, green: 0.88, blue: 0.82)
+        case .lavender: Color(red: 0.91, green: 0.88, blue: 0.95)
         default: sidebar
         }
     }
@@ -51,6 +59,10 @@ enum StudioTheme {
         case .forest: Color(red: 0.12, green: 0.19, blue: 0.16)
         case .plum: Color(red: 0.21, green: 0.15, blue: 0.22)
         case .paper: Color(red: 1, green: 0.99, blue: 0.96)
+        case .ocean: Color(red: 0.11, green: 0.20, blue: 0.22)
+        case .coffee: Color(red: 0.23, green: 0.17, blue: 0.14)
+        case .sand: Color(red: 1, green: 0.98, blue: 0.95)
+        case .lavender: Color(red: 0.99, green: 0.98, blue: 1)
         default: composer
         }
     }
@@ -69,10 +81,10 @@ extension EnvironmentValues {
 }
 
 extension View {
-    func studioAppearance(_ theme: AppTheme, accent: AppAccent = .neutral) -> some View {
+    func studioAppearance(_ theme: AppTheme, accent: AppAccent = .neutral, customAccent: Color = .blue) -> some View {
         environment(\.studioAppTheme, theme)
             .preferredColorScheme(theme.colorScheme)
-            .tint(accent == .neutral && theme == .midnightBlue ? StudioTheme.blueAccent : accent.color)
+            .tint(accent == .custom ? customAccent : accent == .neutral && theme == .midnightBlue ? StudioTheme.blueAccent : accent.color)
     }
 }
 

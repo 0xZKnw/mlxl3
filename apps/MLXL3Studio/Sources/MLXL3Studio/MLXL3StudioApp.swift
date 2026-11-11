@@ -51,7 +51,7 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .studioAppearance(studio.theme, accent: studio.accent)
+                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
                 .onAppear {
                     if !isPreview {
                         studio.start()

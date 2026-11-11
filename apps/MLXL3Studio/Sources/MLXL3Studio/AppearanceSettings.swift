@@ -30,7 +30,7 @@ struct AppearanceSettings: View {
             }
             SettingCard(title: L("Couleur d’accent", "Accent color"), icon: "circle.lefthalf.filled") {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 88))], spacing: 10) {
-                    ForEach(AppAccent.allCases, id: \.self) { accent in
+                    ForEach(AppAccent.allCases.filter { $0 != .custom }, id: \.self) { accent in
                         Button {
                             studio.setAccent(accent)
                         } label: {
@@ -39,7 +39,7 @@ struct AppearanceSettings: View {
                                     .overlay {
                                         if studio.accent == accent {
                                             Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
-                                                .foregroundStyle(accent == .neutral ? StudioTheme.onAccent : .white)
+                                                .foregroundStyle(accent == .neutral ? StudioTheme.onAccent : [.amber, .cyan, .mint].contains(accent) ? .black : .white)
                                         }
                                     }
                                 Text(accent.title).font(.system(size: 12))
@@ -54,6 +54,16 @@ struct AppearanceSettings: View {
                         .accessibilityAddTraits(studio.accent == accent ? .isSelected : [])
                     }
                 }
+                HStack {
+                    ColorPicker(L("Couleur personnalisée", "Custom color"), selection: Binding(
+                        get: { studio.customAccentColor }, set: { studio.setCustomAccent($0) }
+                    ), supportsOpacity: false)
+                    if studio.accent != .custom {
+                        Button(L("Utiliser", "Use")) { studio.setAccent(.custom) }
+                    } else {
+                        Image(systemName: "checkmark").accessibilityLabel(L("Sélectionnée", "Selected"))
+                    }
+                }
                 Text(
                     L(
                         "Appliquée aux sélecteurs, aux interrupteurs et aux contrôles de l’app.",
@@ -64,7 +74,6 @@ struct AppearanceSettings: View {
             SettingCard(title: L("Lecture & conversations", "Reading & conversations"), icon: "textformat.size") {
                 ConversationDisplaySettings(showsTitle: false)
                 Divider().overlay(StudioTheme.edge)
-                Text(L("Espacement des messages", "Message spacing")).fontWeight(.medium)
                 Picker(
                     L("Espacement des messages", "Message spacing"),
                     selection: Binding(
@@ -75,7 +84,31 @@ struct AppearanceSettings: View {
                         Text(density.title).tag(density)
                     }
                 }
-                .labelsHidden().pickerStyle(.segmented)
+                .pickerStyle(.menu)
+                Picker(L("Police des messages", "Message font"), selection: Binding(
+                    get: { studio.conversationFont }, set: { studio.setConversationFont($0) }
+                )) {
+                    ForEach(ConversationFont.allCases, id: \.self) { font in
+                        Text(font.title).tag(font)
+                    }
+                }
+                Picker(L("Bulles de vos messages", "Your message bubbles"), selection: Binding(
+                    get: { studio.messageBubbleStyle }, set: { studio.setMessageBubbleStyle($0) }
+                )) {
+                    ForEach(MessageBubbleStyle.allCases, id: \.self) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+            }
+            SettingCard(title: L("Barre latérale", "Sidebar"), icon: "sidebar.left") {
+                Picker(L("Largeur", "Width"), selection: Binding(
+                    get: { studio.sidebarWidth }, set: { studio.setSidebarWidth($0) }
+                )) {
+                    ForEach(SidebarWidth.allCases, id: \.self) { width in
+                        Text(width.title).tag(width)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
             Button(L("Rétablir l’apparence par défaut", "Restore default appearance"), action: studio.resetAppearance)
                 .buttonStyle(GlassPillButtonStyle()).padding(.vertical, 6)

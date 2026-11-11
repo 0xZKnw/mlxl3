@@ -47,7 +47,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 struct AppSettingsView: View {
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var selection: SettingsPage = .general
+    private var selection: SettingsPage { studio.appSettingsPage }
     @AppStorage(QwenRuntimeProfile.preferenceKey) private var requestedQwenProfile = "reference"
 
     var body: some View {
@@ -58,7 +58,7 @@ struct AppSettingsView: View {
                 VStack(spacing: 5) {
                     ForEach(SettingsPage.allCases) { page in
                         Button {
-                            selection = page
+                            studio.appSettingsPage = page
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: page.icon).frame(width: 20)
@@ -101,7 +101,7 @@ struct AppSettingsView: View {
         .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(StudioTheme.canvas(for: studio.theme))
-        .studioAppearance(studio.theme, accent: studio.accent)
+        .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .onExitCommand { studio.showAppSettings = false }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)

@@ -104,6 +104,9 @@ struct MessagesView: View {
 
 private struct MessageView: View {
     @Environment(\.conversationTextScale) private var textScale
+    @Environment(\.conversationFont) private var conversationFont
+    @Environment(\.messageBubbleStyle) private var bubbleStyle
+    @EnvironmentObject private var studio: StudioModel
     @ObservedObject var message: ChatMessage
 
     var body: some View {
@@ -121,13 +124,14 @@ private struct MessageView: View {
                 }
                 if !message.content.isEmpty {
                   Text(message.content)
-                    .font(.system(size: 15 * textScale, weight: .medium))
+                    .font(.system(size: 15 * textScale, weight: .medium, design: conversationFont.design))
                     .foregroundStyle(StudioTheme.ink)
                     .lineSpacing(5 * textScale)
                     .textSelection(.enabled)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
-                    .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+                    .background(bubbleStyle == .tinted ? studio.accentColor.opacity(0.18) : StudioTheme.contrast.opacity(bubbleStyle == .subtle ? 0.055 : 0), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay { RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : 0) }
                 }
                 HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
             }

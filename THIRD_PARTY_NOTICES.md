@@ -326,3 +326,10 @@ from [LiquidAI/LFM3-1.7B](https://huggingface.co/LiquidAI/LFM3-1.7B) and
 Apache License 2.0). Model weights remain subject to the separate LFM Open
 License v1.0 distributed with each checkpoint. The EXL3 loading conventions also
 follow [ExLlamaV3](https://github.com/turboderp-org/exllamav3) (MIT).
+
+## Marked
+
+Model cards use [Marked 18.0.14](https://github.com/markedjs/marked/tree/v18.0.14)
+to render GitHub-flavored Markdown. Copyright 2018–2026 MarkedJS and
+2011–2018 Christopher Jeffrey; MIT license. The complete license is in
+`apps/MLXL3Studio/Resources/marked.LICENSE` and is included with the desktop app.

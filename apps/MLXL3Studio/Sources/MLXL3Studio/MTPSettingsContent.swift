@@ -54,7 +54,7 @@ struct MTPToolbarControl: View {
             }
             .frame(width: 360).frame(maxHeight: 540)
             .background(StudioTheme.canvas(for: studio.theme))
-            .studioAppearance(studio.theme, accent: studio.accent)
+            .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
             .environmentObject(studio)
         }
     }
@@ -101,14 +101,6 @@ struct MTPSettingsContent: View {
             }
             Divider()
             MTPTuningControls()
-            if studio.mtpTuneSupported {
-                Button(action: studio.tuneMTP) {
-                    Label(L("Optimiser les réglages", "Optimize settings"), systemImage: "sparkles")
-                        .frame(maxWidth: .infinity).padding(.vertical, 10)
-                }
-                .buttonStyle(PrimaryGlassButtonStyle())
-                .disabled(!studio.canTuneMTP)
-            }
             if !studio.mtpUsesModelCheckpoint {
                 DisclosureGroup(L("Tête MTP · options avancées", "MTP head · advanced options")) {
                     Button(L("Choisir une tête compatible…", "Choose a matching head…"), action: studio.chooseMTPHead)

@@ -561,6 +561,7 @@ struct MarkdownResponseView: View, Equatable {
 }
 
 private struct MarkdownChunkView: View, Equatable {
+    @Environment(\.conversationFont) private var conversationFont
     let prepared: PreparedMarkdownChunk
     let streaming: Bool
     let textScale: CGFloat
@@ -659,7 +660,7 @@ private struct MarkdownChunkView: View, Equatable {
             source: source,
             streaming: streaming
         )
-        .font(.system(size: size * textScale, weight: weight))
+        .font(.system(size: size * textScale, weight: weight, design: conversationFont.design))
         .foregroundStyle(StudioTheme.contrast.opacity(0.92))
     }
 

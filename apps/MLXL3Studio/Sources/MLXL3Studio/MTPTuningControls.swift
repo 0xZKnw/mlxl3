@@ -27,7 +27,7 @@ struct MTPTuningToolbarControl: View {
                                 .tint(StudioTheme.accent).frame(width: 12, height: 12)
                                 .accessibilityHidden(true)
                         } else {
-                            Image(systemName: "sparkles")
+                            Image(systemName: "slider.horizontal.3")
                         }
                         Text(title)
                         if tuning {
@@ -120,9 +120,8 @@ struct MTPTuningControls: View {
                 Button(action: tune) {
                     HStack {
                         Image(systemName: "slider.horizontal.3")
-                        Text(dflash ? "Tune DFlash2" : "Tune MTP")
+                        Text(L("Comparer les vitesses", "Compare speeds"))
                         Spacer()
-                        Image(systemName: "sparkles").foregroundStyle(StudioTheme.accent)
                     }.frame(height: 29)
                 }
                 .buttonStyle(GlassPillButtonStyle()).disabled(!canTune)
