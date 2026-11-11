@@ -7,6 +7,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let popover = NSPopover()
     private weak var studio: StudioModel?
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard let url = Bundle.main.url(forResource: "MLXL3DockV2", withExtension: "icns"),
+              let image = NSImage(contentsOf: url) else { return }
+        NSApplication.shared.applicationIconImage = image
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         studio?.modelLibrary.cancelDownload()
         studio?.persistNow()

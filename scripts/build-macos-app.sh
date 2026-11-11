@@ -35,7 +35,7 @@ ditto "${runtime_dist_dir}" "${app_dir}/Contents/Resources/runtime"
 ditto "${repo_dir}/build/quantizer/mlxl3-quantize" "${app_dir}/Contents/Resources/quantizer"
 "${python_bin}" "${script_dir}/build_manifest.py" "${app_dir}/Contents/Resources/build-info.json"
 
-"${script_dir}/build-app-icon.sh" "${package_dir}/Resources/AppDockIcon.png" "${app_dir}/Contents/Resources/AppIcon.icns"
+"${script_dir}/build-app-icon.sh" "${package_dir}/Resources/AppDockIcon.png" "${app_dir}/Contents/Resources/MLXL3DockV2.icns"
 
 # Keep LaTeX fonts in the app's standard signed Resources directory. SwiftMath
 # is vendored only to make this release layout independent of SwiftPM's build

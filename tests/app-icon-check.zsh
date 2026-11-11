@@ -6,6 +6,7 @@ work_dir="$(mktemp -d)"
 trap 'rm -rf "${work_dir}"' EXIT
 expected_sha=4ba71e43ce8cb5f5be496091eba457612e44ddc4764594242e4bca4205fe8951
 [[ "$(shasum -a 256 "${source_image}" | cut -d ' ' -f 1)" == "${expected_sha}" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "${repo_dir}/apps/MLXL3Studio/Resources/Info.plist")" == MLXL3DockV2.icns ]]
 "${repo_dir}/scripts/build-app-icon.sh" "${source_image}" "${work_dir}/AppIcon.icns"
 iconutil -c iconset "${work_dir}/AppIcon.icns" -o "${work_dir}/AppIcon.iconset"
 sips -z 1024 1024 "${source_image}" --out "${work_dir}/expected.png" >/dev/null

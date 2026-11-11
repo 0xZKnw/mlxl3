@@ -33,7 +33,7 @@ cp apps/MLXL3Studio/Resources/marked.umd.js apps/MLXL3Studio/Resources/marked.LI
 # The helper checks the installed runtime manifest and every file hash before copying.
 python3 scripts/copy-test-runtime.py "${bundle}"
 ditto apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/mathFonts.bundle "${bundle}/Contents/Resources/mathFonts.bundle"
-"${repo_dir}/scripts/build-app-icon.sh" "${repo_dir}/apps/MLXL3Studio/Resources/AppDockIcon.png" "${bundle}/Contents/Resources/AppIcon.icns"
+"${repo_dir}/scripts/build-app-icon.sh" "${repo_dir}/apps/MLXL3Studio/Resources/AppDockIcon.png" "${bundle}/Contents/Resources/MLXL3DockV2.icns"
 codesign --force --deep --sign - --no-strict "${bundle}"
 codesign --verify --deep --strict "${bundle}"
 # Only replace this script's local test artifact, after the full stage is valid.
