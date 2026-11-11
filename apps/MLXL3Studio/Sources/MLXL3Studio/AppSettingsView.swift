@@ -552,12 +552,9 @@ private struct UpdateSettingsCard: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(StudioTheme.accent)
                     }
-                    Text(release.notes)
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(StudioTheme.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+                    MarkdownResponseView(release.notes, textScale: 13.0 / 15.0, htmlPreviewEnabled: false)
+                        .equatable()
+                        .accessibilityIdentifier("updates.release-notes")
                 }
             }
 

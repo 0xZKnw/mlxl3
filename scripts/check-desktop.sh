@@ -109,6 +109,9 @@ check_preferences() {
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
         tests/logo-appearance-check.swift -o "${test_dir}/logo-appearance-check"
     run_fixture_check "${test_dir}/logo-appearance-check"
+    swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
+        tests/update-release-notes-check.swift -o "${test_dir}/update-release-notes-check"
+    run_fixture_check "${test_dir}/update-release-notes-check"
     if ${preferences_only}; then
         check_response_ui
     fi
