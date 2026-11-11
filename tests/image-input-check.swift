@@ -104,8 +104,26 @@ private struct ImageCheckFailure: Error { let message: String }
         sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
     }
     try check(!studio.canImportImages, "Images enabled before READY")
+    try check(studio.sendBlockReason == nil && !studio.canAttemptSend, "Empty composer showed an unloaded-model warning")
+    studio.send()
+    try check(studio.sendBlockReason == nil, "Empty send showed an unloaded-model warning")
+    studio.draft = "A question"
+    try check(studio.sendBlockReason == nil && studio.canAttemptSend, "Unloaded warning appeared before send")
+    studio.send()
+    try check(studio.sendBlockReason != nil && studio.draft == "A question" && studio.currentConversation!.messages.isEmpty,
+              "Unloaded send did not show warning or preserve the draft")
+    studio.draft = ""
+    try check(studio.sendBlockReason == nil, "Unloaded warning remained after clearing the draft")
+    studio.draft = "A question"
+    try check(studio.sendBlockReason == nil, "Cleared warning reappeared without another send")
+    studio.newConversation()
+    try check(studio.sendBlockReason == nil, "Unloaded warning leaked into a new conversation")
+    studio.draft = "A question"
+    studio.send()
     studio.selectModel("image-import")
     try await wait { studio.engineState.isReady }
+    try check(studio.sendBlockReason == nil && !studio.attemptedSendWithoutModel, "Warning survived model load")
+    studio.draft = ""
     try check(studio.canImportImages, "Vision capability ignored")
     await studio.importChatFiles([root.appendingPathComponent("red.png"), documentURL])
     try check(studio.pendingAttachments.count == 2 && studio.canSend, "Mixed image/document import failed")
@@ -157,6 +175,24 @@ private struct ImageCheckFailure: Error { let message: String }
     await studio.importChatFiles([root.appendingPathComponent("red.jpeg")])
 
     _ = NSApplication.shared
+    let sentPreview = NSHostingView(rootView: ChatAttachmentView(attachment: image))
+    let draftPreview = NSHostingView(rootView: ChatAttachmentView(attachment: image, onRemove: {}))
+    try check(abs(sentPreview.fittingSize.width - sentPreview.fittingSize.height) < 1, "Sent image has extra bubble padding")
+    try check(abs(draftPreview.fittingSize.width - draftPreview.fittingSize.height) < 1, "Draft image has extra bubble padding")
+    for (width, height) in [(120, 40), (40, 120)] {
+      let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+      let png = bitmap.representation(using: .png, properties: [:])!
+      let rectangular = ChatAttachment(fileName: "rectangle.png", text: "", fileBytes: png.count,
+        image: ChatImage(mimeType: "image/png", data: png))
+      for draft in [false, true] {
+        let view = NSHostingView(rootView: ChatAttachmentView(attachment: rectangular, onRemove: draft ? {} : nil))
+        let size = view.fittingSize
+        try check(abs(size.width / size.height - CGFloat(width) / CGFloat(height)) < 0.01,
+                  "Image preview added margins for \(width)x\(height), draft=\(draft)")
+      }
+    }
     for width in [680.0, 1040.0] {
       let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: width, height: 600),
                             styleMask: .borderless, backing: .buffered, defer: false)

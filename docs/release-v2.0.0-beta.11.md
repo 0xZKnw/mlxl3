@@ -29,6 +29,8 @@ the attached validation report.
   dictation and send controls on the right. The model selector remains in the
   header. Permanent engine-state and keyboard-hint text is removed; native
   menus, tooltips and accessible names retain the actions and shortcuts.
+- Image previews fit tightly around their contents, and the unloaded-model
+  message appears only after an attempted send with a nonempty draft.
 
 ## Fixes
 

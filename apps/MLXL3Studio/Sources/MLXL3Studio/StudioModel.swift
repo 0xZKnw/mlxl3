@@ -46,7 +46,7 @@ final class StudioModel: ObservableObject {
             }
         }
     }
-    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation() } } }
+    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation(); attemptedSendWithoutModel = false } } }
     @Published var projects: [WorkspaceProject] = []
     @Published var profiles: [GenerationProfile] = []
     @Published var documents: [LibraryDocument] = [] { didSet { documentRevision &+= 1 } }
@@ -66,8 +66,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var workspaceFeaturesAvailable = false
     @Published private(set) var imagesSupported = false
     let voice = VoiceController()
-    @Published var draft = "" { didSet { schedulePersistence() } }
-    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence() } }
+    @Published var draft = "" { didSet { schedulePersistence(); if !hasDraftContent { attemptedSendWithoutModel = false } } }
+    @Published private(set) var attemptedSendWithoutModel = false
+    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence(); if !hasDraftContent { attemptedSendWithoutModel = false } } }
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
     @Published private(set) var isImportingFiles = false
     private var attachmentImportID: UUID?
@@ -78,7 +79,7 @@ final class StudioModel: ObservableObject {
     private var drafts: [UUID: String] = [:]
     private var deletedConversation: Conversation?
     @Published var engineState: EngineState = .idle {
-        didSet { updateModelIdleUnload() }
+        didSet { if engineState.isReady { attemptedSendWithoutModel = false }; updateModelIdleUnload() }
     }
     @Published var showInspector = false
     @Published var showModelManager = false
@@ -582,12 +583,18 @@ final class StudioModel: ObservableObject {
         return conversations.first { $0.id == selectedConversationID }
     }
 
+    var hasDraftContent: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
+    }
+
+    var canAttemptSend: Bool { canSend || (!engineState.isReady && !isGenerating && hasDraftContent) }
+
     var canSend: Bool {
         !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
             && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
             && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (conversationImages.isEmpty || canImportImages) && imageInputWithinLimits
-            && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
+            && hasDraftContent
     }
 
     var sendBlockReason: String? {
@@ -605,7 +612,10 @@ final class StudioModel: ObservableObject {
         if modeTransition != nil || dflashConfigurationPending || mtpConfigurationPending {
             return L("Configuration du moteur en cours", "Configuring engine")
         }
-        if !engineState.isReady { return L("Chargez un modèle et attendez qu’il soit prêt", "Load a model and wait until it is ready") }
+        if !engineState.isReady {
+            return attemptedSendWithoutModel && hasDraftContent
+                ? L("Chargez un modèle et attendez qu’il soit prêt", "Load a model and wait until it is ready") : nil
+        }
         if !conversationImages.isEmpty && !canImportImages {
             if selectedModel?.modelType == "lfm3_vl" {
                 return L("Mettez le moteur à jour pour envoyer des images avec LFM3-VL.", "Update the engine to send images with LFM3-VL.")
@@ -1007,6 +1017,7 @@ final class StudioModel: ObservableObject {
     }
 
     func send() {
+        if !engineState.isReady && !isGenerating && hasDraftContent { attemptedSendWithoutModel = true }
         guard canSend, let conversation = currentConversation else { return }
         let projectDocuments = documents.filter { $0.projectID == conversation.projectID }
         guard !projectDocuments.isEmpty else { sendPrepared(sources: []); return }

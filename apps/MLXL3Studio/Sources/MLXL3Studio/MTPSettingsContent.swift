@@ -69,10 +69,10 @@ struct MTPSettingsContent: View {
         if studio.mtpError != nil { return L("Activation à vérifier", "Activation needs attention") }
         if studio.isGenerating {
             return studio.mtpActive == true
-                ? L("Actif · propositions vérifiées par le modèle", "Active · proposals verified by the target model")
+                ? L("Actif", "Active")
                 : L("Décodage normal", "Ordinary decoding")
         }
-        if studio.mtpEnabled { return L("Prêt · propositions vérifiées par le modèle", "Ready · proposals verified by the target model") }
+        if studio.mtpEnabled { return L("Prêt", "Ready") }
         if studio.mtpRememberedEnabled { return L("Sera activé au chargement", "Will enable on model load") }
         return L("Désactivé", "Off")
     }
@@ -82,17 +82,13 @@ struct MTPSettingsContent: View {
             Toggle(isOn: Binding(get: { studio.mtpRememberedEnabled }, set: { studio.setMTPEnabled($0) })) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("Activer MTP", "Enable MTP")).font(.system(size: 13, weight: .semibold))
-                    Text(L("Choix mémorisé pour ce modèle", "Remembered for this model"))
-                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
             }
             .toggleStyle(.switch)
             .disabled(studio.isGenerating || !studio.engineState.isReady)
+            .help(L("Choix mémorisé par modèle. MTP utilise le décodage déterministe et vérifie les propositions avec le modèle cible.", "Remembered per model. MTP uses deterministic decoding and verifies proposals with the target model."))
             Text(status).font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
                 .accessibilityIdentifier("mtp-state")
-            Text(L("Après activation, MTP est préparé automatiquement aux prochains chargements, y compris au démarrage de l’app.", "Once enabled, MTP is prepared automatically on future model loads, including app startup."))
-                .font(.system(size: 10.5)).foregroundStyle(StudioTheme.quiet)
-                .fixedSize(horizontal: false, vertical: true)
             if studio.mtpDownloading {
                 if studio.mtpDownloadTotal > 0 {
                     ProgressView(value: studio.mtpDownloadCompleted, total: studio.mtpDownloadTotal)
@@ -122,8 +118,6 @@ struct MTPSettingsContent: View {
                     }
                 }.font(.system(size: 10.5))
             }
-            Text(L("MTP utilise le décodage déterministe. Le modèle cible vérifie les propositions ; aucune quantification supplémentaire n’est appliquée.", "MTP uses deterministic decoding. The target model verifies proposals; no additional quantization is applied."))
-                .font(.caption).foregroundStyle(StudioTheme.quiet)
         }
     }
 }

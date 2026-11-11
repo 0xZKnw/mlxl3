@@ -119,14 +119,14 @@ struct AppSettingsView: View {
                         Text(L("Référence", "Reference")).tag("reference")
                         Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
                     }
-                    Text(L("Profil annoncé par le moteur chargé : ", "Loaded engine reports profile: ")
-                         + (studio.runtimeQwenProfile ?? "—"))
-                        .font(.caption).foregroundStyle(StudioTheme.secondary)
-                    Text(L("Recharger le modèle pour appliquer. Les variables explicites du moteur restent prioritaires. Profil optimisé expérimental, non mesuré pour cette version : aucun gain garanti.", "Reload the model to apply. Explicit engine environment settings take precedence. Optimized profile is experimental and unmeasured on this build: no speedup guaranteed."))
-                        .font(.caption).foregroundStyle(StudioTheme.secondary)
-                    if let identity = studio.runtimeIdentity {
-                        Text(identity).font(.caption2).foregroundStyle(StudioTheme.quiet).textSelection(.enabled)
+                    .help(L("Rechargez le modèle pour appliquer le profil. Le profil optimisé est expérimental ; les variables du moteur restent prioritaires.", "Reload the model to apply the profile. The optimized profile is experimental; engine environment variables take precedence."))
+                    DisclosureGroup(L("Détails du moteur", "Engine details")) {
+                        Text(L("Profil actif : ", "Active profile: ") + (studio.runtimeQwenProfile ?? "—"))
+                        if let identity = studio.runtimeIdentity {
+                            Text(identity).textSelection(.enabled)
+                        }
                     }
+                    .font(.caption).foregroundStyle(StudioTheme.secondary)
                 }
                 SettingCard(title: L("Langue de l’app", "App language"), icon: "globe") {
                     Picker(
@@ -207,15 +207,6 @@ struct AppSettingsView: View {
                             )
                             .font(.caption).foregroundStyle(StudioTheme.secondary)
                         }
-                        Text(
-                            L(
-                                "À l’ouverture de MLXL3, charge le modèle choisi ci-dessus. Sinon, sélectionne un modèle pour le charger. Le changement s’applique au prochain démarrage.",
-                                "When MLXL3 opens, loads the model chosen above. Otherwise, select a model to load it. Changes apply on the next launch."
-                            )
-                        )
-                        .font(.system(size: 12))
-                        .foregroundStyle(StudioTheme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                     }
 
                 }
@@ -239,15 +230,7 @@ struct AppSettingsView: View {
                         }
                         .pickerStyle(.menu)
                         .accessibilityLabel(L("Délai de déchargement automatique", "Automatic unload delay"))
-                        Text(
-                            L(
-                                "Libère la mémoire du modèle lorsque tu ne l’utilises plus. Le délai commence après le chargement ou la fin de la dernière utilisation. Les générations et le tuning ne sont jamais interrompus. Tes conversations sont conservées ; sélectionne de nouveau le modèle pour le recharger.",
-                                "Frees the model’s memory when it is no longer in use. The delay starts after loading or the last use finishes. Generation and tuning are never interrupted. Your conversations are kept; select the model again to reload it."
-                            )
-                        )
-                        .font(.system(size: 12))
-                        .foregroundStyle(StudioTheme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .help(L("Le modèle est déchargé après ce délai d’inactivité. La génération et le tuning ne sont pas interrompus.", "The model unloads after this idle delay. Generation and tuning are not interrupted."))
                     }
 
                     Divider().overlay(StudioTheme.edge)

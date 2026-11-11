@@ -28195,3 +28195,17 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   Preuves/compilations et correction des échecs précèdent les chronométrages.
 
 - Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.
+
+- Nouvelle demande : centrer le +, alléger les réglages et ne montrer le
+  message de modèle absent qu'après une tentative d'envoi non vide. Le
+  brouillon reste intact ; l'avertissement s'efface lorsque le modèle est
+  prêt, que le brouillon est vidé ou que la conversation change. Les autres
+  états bloquants restent visibles. Les images remplissent désormais leur
+  aperçu arrondi sans grande bulle ; le bouton de retrait reste accessible.
+- Vérification locale du parcours : 72 contrôles images/bridge/historique et
+  affichage à 680 et 1040 points, dont avertissement avant/après tentative,
+  chargement, conservation du brouillon et proportions des aperçus carrés,
+  paysage et portrait, dans le brouillon et le message envoyé.
+  Les 240 contrôles mémoire de contexte et la compilation Swift passent.
+  Les captures utilisent des fixtures rouges et ne prouvent pas la qualité
+  de compréhension visuelle du modèle physique.

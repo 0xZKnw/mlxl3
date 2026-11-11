@@ -527,10 +527,14 @@ struct ChatAttachmentView: View {
     var body: some View {
         HStack(spacing: 8) {
             Button { showPreview = true } label: {
-                if let data = attachment.image?.data, let image = NSImage(data: data) {
+                if let data = attachment.image?.data, let image = NSImage(data: data),
+                   image.size.width > 0, image.size.height > 0 {
+                    let maxWidth: CGFloat = onRemove == nil ? 240 : 96
+                    let maxHeight: CGFloat = onRemove == nil ? 180 : 72
+                    let scale = min(maxWidth / image.size.width, maxHeight / image.size.height)
                     Image(nsImage: image).renderingMode(.original).resizable().scaledToFit()
-                        .frame(width: onRemove == nil ? 240 : 96, height: onRemove == nil ? 180 : 72)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .frame(width: image.size.width * scale, height: image.size.height * scale)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
                     Label(attachment.fileName, systemImage: attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
                         .lineLimit(1)
@@ -558,7 +562,7 @@ struct ChatAttachmentView: View {
                 .padding(18)
                 .frame(width: 500, height: 360)
             }
-            if let onRemove {
+            if attachment.image == nil, let onRemove {
                 Button(action: onRemove) {
                     Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
                 }
@@ -569,9 +573,21 @@ struct ChatAttachmentView: View {
         }
         .font(.system(size: 11))
         .foregroundStyle(StudioTheme.secondary)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
-        .background(StudioTheme.contrast.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, attachment.image == nil ? 11 : 0)
+        .padding(.vertical, attachment.image == nil ? 8 : 0)
+        .background(StudioTheme.contrast.opacity(attachment.image == nil ? 0.06 : 0), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .topTrailing) {
+            if attachment.image != nil, let onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white).frame(width: 22, height: 22)
+                        .background(.black.opacity(0.65), in: Circle())
+                }
+                .buttonStyle(.plain).padding(4)
+                .accessibilityLabel(L("Retirer \(attachment.fileName)", "Remove \(attachment.fileName)"))
+                .help(L("Retirer le fichier", "Remove file"))
+            }
+        }
         .frame(maxWidth: 300)
     }
 }
@@ -718,9 +734,11 @@ private struct ComposerFooterView: View {
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 15, weight: .medium))
-                        .frame(width: 28, height: 28)
+                        .frame(width: 30, height: 30, alignment: .center)
+                        .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+                .frame(width: 30, height: 30)
                 .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
                 .accessibilityValue(studio.mcpEnabled ? L("Outils activés", "Tools enabled") : L("Outils désactivés", "Tools disabled"))
                 .help(L("Fichiers et outils (⌘⇧O pour joindre un fichier)", "Files and tools (⌘⇧O to attach a file)"))
@@ -753,16 +771,16 @@ private struct ComposerFooterView: View {
                     Button(action: studio.send) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(studio.canSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
+                            .foregroundStyle(studio.canAttemptSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
                             .frame(width: 31, height: 31)
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
-                    .disabled(!studio.canSend)
+                    .disabled(!studio.canAttemptSend)
                     .help(L("Envoyer (Retour). Nouvelle ligne : Ctrl+Retour.", "Send (Return). New line: Control+Return."))
                     .accessibilityLabel(L("Envoyer le message", "Send message"))
                 }
             }
-            .font(.system(size: 10, weight: .regular))
+            .font(.system(size: 13, weight: .regular))
             .foregroundStyle(StudioTheme.quiet)
             .padding(.horizontal, 18)
             .padding(.bottom, 10)
