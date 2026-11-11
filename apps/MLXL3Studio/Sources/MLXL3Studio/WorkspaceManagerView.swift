@@ -41,15 +41,15 @@ struct WorkspaceManagerView: View {
                     title: titles[selectedTab],
                     detail: selectedTab == 1
                         ? L(
-                            "Les sources de vos conversations, regroupées par projet.",
-                            "Conversation sources, organized by project.")
+                            "Documents du projet.",
+                            "Project documents.")
                         : selectedTab == 2
                             ? L(
-                                "Retrouvez les bons réglages en un geste.", "Bring back the right settings in one step."
+                                "Réglages de génération enregistrés.", "Saved generation settings."
                             )
                             : L(
-                                "Un espace et des instructions pour chaque projet.",
-                                "A workspace and instructions for each project."),
+                                "Instructions et documents par projet.",
+                                "Instructions and documents by project."),
                     close: { studio.showWorkspace = false })
                 Divider().overlay(StudioTheme.edge)
                 Group {

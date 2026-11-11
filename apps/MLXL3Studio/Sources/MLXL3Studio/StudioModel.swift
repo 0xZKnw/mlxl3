@@ -46,7 +46,7 @@ final class StudioModel: ObservableObject {
             }
         }
     }
-    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation() } } }
+    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation(); attemptedSendWithoutModel = false } } }
     @Published var projects: [WorkspaceProject] = []
     @Published var profiles: [GenerationProfile] = []
     @Published var documents: [LibraryDocument] = [] { didSet { documentRevision &+= 1 } }
@@ -64,9 +64,11 @@ final class StudioModel: ObservableObject {
     @Published var libraryImporting = false
     @Published var mcpTools: [MCPToolDescriptor] = []
     @Published private(set) var workspaceFeaturesAvailable = false
+    @Published private(set) var imagesSupported = false
     let voice = VoiceController()
-    @Published var draft = "" { didSet { schedulePersistence() } }
-    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence() } }
+    @Published var draft = "" { didSet { schedulePersistence(); if !hasDraftContent { attemptedSendWithoutModel = false } } }
+    @Published private(set) var attemptedSendWithoutModel = false
+    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence(); if !hasDraftContent { attemptedSendWithoutModel = false } } }
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
     @Published private(set) var isImportingFiles = false
     private var attachmentImportID: UUID?
@@ -77,7 +79,7 @@ final class StudioModel: ObservableObject {
     private var drafts: [UUID: String] = [:]
     private var deletedConversation: Conversation?
     @Published var engineState: EngineState = .idle {
-        didSet { updateModelIdleUnload() }
+        didSet { if engineState.isReady { attemptedSendWithoutModel = false }; updateModelIdleUnload() }
     }
     @Published var showInspector = false
     @Published var showModelManager = false
@@ -398,8 +400,8 @@ final class StudioModel: ObservableObject {
         }.sorted {
             if $0.element.isPinned != $1.element.isPinned { return $0.element.isPinned }
             if !$0.element.isPinned {
-                let left = $0.element.updatedAt ?? .distantPast
-                let right = $1.element.updatedAt ?? .distantPast
+                let left = $0.element.updatedAt ?? $0.element.createdAt
+                let right = $1.element.updatedAt ?? $1.element.createdAt
                 if left != right { return left > right }
             }
             return $0.offset < $1.offset
@@ -581,11 +583,18 @@ final class StudioModel: ObservableObject {
         return conversations.first { $0.id == selectedConversationID }
     }
 
+    var hasDraftContent: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
+    }
+
+    var canAttemptSend: Bool { canSend || (!engineState.isReady && !isGenerating && hasDraftContent) }
+
     var canSend: Bool {
         !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
             && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
             && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
-            && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
+            && !isImportingFiles && (conversationImages.isEmpty || canImportImages) && imageInputWithinLimits
+            && hasDraftContent
     }
 
     var sendBlockReason: String? {
@@ -603,7 +612,19 @@ final class StudioModel: ObservableObject {
         if modeTransition != nil || dflashConfigurationPending || mtpConfigurationPending {
             return L("Configuration du moteur en cours", "Configuring engine")
         }
-        if !engineState.isReady { return L("Chargez un modèle et attendez qu’il soit prêt", "Load a model and wait until it is ready") }
+        if !engineState.isReady {
+            return attemptedSendWithoutModel && hasDraftContent
+                ? L("Chargez un modèle et attendez qu’il soit prêt", "Load a model and wait until it is ready") : nil
+        }
+        if !conversationImages.isEmpty && !canImportImages {
+            if selectedModel?.modelType == "lfm3_vl" {
+                return L("Mettez le moteur à jour pour envoyer des images avec LFM3-VL.", "Update the engine to send images with LFM3-VL.")
+            }
+            return L("Cette conversation contient des images. Chargez LFM3-VL pour continuer.", "This conversation contains images. Load LFM3-VL to continue.")
+        }
+        if !imageInputWithinLimits {
+            return L("Limite de 8 images et 8 Mio par conversation. Retirez des images ou ouvrez une nouvelle conversation.", "Limit of 8 images and 8 MiB per conversation. Remove images or start a new conversation.")
+        }
         if localServer.active || (selectedMode != .chat && selectedMode != .agent) { return L("Choisissez Chat ou Agent pour envoyer", "Choose Chat or Agent to send") }
         if selectedMode == .agent && (!bridgeUsesAgentRegistry || mcpToolCount == 0 || !mcpErrors.isEmpty) { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
         return nil
@@ -621,14 +642,31 @@ final class StudioModel: ObservableObject {
         !isGenerating && !isImportingFiles && currentConversation != nil
     }
 
+    var canImportImages: Bool {
+        readyInfo != nil && selectedModel?.modelType == "lfm3_vl" && imagesSupported
+    }
+
+    private var conversationImages: [ChatImage] {
+        (pendingAttachments + (currentConversation?.messages.flatMap(\.attachments) ?? [])).compactMap(\.image)
+    }
+
+    private var imageInputWithinLimits: Bool {
+        let images = conversationImages
+        return images.count <= ChatAttachmentImporter.maxFiles
+            && images.allSatisfy(\.withinLimits)
+            && images.reduce(0, { $0 + $1.data.count }) <= ChatAttachmentImporter.maxTotalImageBytes
+    }
+
     func chooseChatFiles() {
         guard canImportFiles else { return }
         let panel = NSOpenPanel()
         panel.title = L("Joindre des fichiers", "Attach files")
-        panel.message = L("PDF et texte · 8 fichiers maximum · 20 Mio par fichier", "PDF and text · up to 8 files · 20 MiB per file")
+        panel.message = canImportImages
+            ? L("PDF, texte et images PNG/JPEG/WebP · 8 fichiers · images : 8 Mio au total", "PDF, text and PNG/JPEG/WebP images · 8 files · images: 8 MiB total")
+            : L("PDF et texte · 8 fichiers maximum · 20 Mio par fichier", "PDF and text · up to 8 files · 20 MiB per file")
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = ChatAttachmentImporter.contentTypes
+        panel.allowedContentTypes = ChatAttachmentImporter.contentTypes + (canImportImages ? ChatAttachmentImporter.imageContentTypes : [])
         // Extensionless text files are valid too; unsupported formats get an explicit error.
         panel.allowsOtherFileTypes = true
         guard panel.runModal() == .OK else { return }
@@ -644,8 +682,9 @@ final class StudioModel: ObservableObject {
         isImportingFiles = true
         attachmentImportErrors[id] = nil
         let existing = pendingAttachments
+        let allowImages = canImportImages
         let task = Task.detached(priority: .userInitiated) {
-            ChatAttachmentImporter.load(urls, existing: existing)
+            ChatAttachmentImporter.load(urls, existing: existing, allowImages: allowImages)
         }
         let result = await withTaskCancellationHandler {
             await task.value
@@ -978,6 +1017,7 @@ final class StudioModel: ObservableObject {
     }
 
     func send() {
+        if !engineState.isReady && !isGenerating && hasDraftContent { attemptedSendWithoutModel = true }
         guard canSend, let conversation = currentConversation else { return }
         let projectDocuments = documents.filter { $0.projectID == conversation.projectID }
         guard !projectDocuments.isEmpty else { sendPrepared(sources: []); return }
@@ -1081,7 +1121,9 @@ final class StudioModel: ObservableObject {
             let context = message.role == .assistant
                 ? (message.cacheContext ?? message.content)
                 : message.promptContent
-            return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext)
+            let images = message.role == .user ? message.attachments.compactMap { $0.image?.dataURL } : []
+            return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext,
+                                 images: images.isEmpty ? nil : images)
         }
 
         do {
@@ -1879,6 +1921,7 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
+            imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
             dflashSupported = event.dflashSupported
             dflashTuneSupported = event.dflashTuneSupported == true

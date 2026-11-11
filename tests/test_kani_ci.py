@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "hub::preview_proofs::lfm3_text_and_vision_are_supported",
         "native_draft_gpu::draft_gpu_projection_admission_matches_dimensions",
         "ssd_reads::cancellable_io::ssd_read_submission_is_bounded_and_makes_progress",
         "hub::install_transaction::verification::completion_requires_all_three_identities",

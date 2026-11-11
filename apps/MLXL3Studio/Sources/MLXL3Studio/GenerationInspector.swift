@@ -50,20 +50,9 @@ struct GenerationInspector: View {
                                         Text(memory(model + cache)).monospacedDigit()
                                     }
                                     .font(.system(size: 13, weight: .semibold))
-                                    Text(
-                                        L(
-                                            "Modèle \(memory(model)) + cache \(memory(cache))",
-                                            "Model \(memory(model)) + cache \(memory(cache))")
-                                    )
-                                    .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet)
-                                    .monospacedDigit()
-                                    Text(
-                                        L(
-                                            "Estimation à contexte plein · 1 conversation. Hors buffers de calcul, autres caches et macOS.",
-                                            "Estimate at full context · 1 conversation. Excludes compute buffers, other caches and macOS."
-                                        )
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                                    Text(L("Estimation à contexte plein", "Full-context estimate"))
+                                        .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                                        .help(L("Modèle \(memory(model)) + cache \(memory(cache)). Hors buffers de calcul, autres caches et macOS.", "Model \(memory(model)) + cache \(memory(cache)). Excludes compute buffers, other caches and macOS."))
                                     if model + cache > Double(ProcessInfo.processInfo.physicalMemory) * 0.85 {
                                         Label(
                                             L(
@@ -101,13 +90,7 @@ struct GenerationInspector: View {
                                 }
                                 .font(.system(size: 12))
                                 .disabled(studio.isGenerating || studio.isTuningMTP)
-                                Text(
-                                    L(
-                                        "Estimation prudente avec la mémoire du moteur observée, le cache MTP si compatible, 512 Mio pour les caches et au moins 25 % / 4 Gio pour macOS et le calcul. Les autres apps peuvent réduire la marge. Enregistrer pour appliquer.",
-                                        "Conservative estimate using observed engine memory, compatible MTP cache, 512 MiB for caches and at least 25% / 4 GiB for macOS and compute. Other apps may reduce headroom. Save to apply."
-                                    )
-                                )
-                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                                .help(L("Estimation avec marge mémoire ; les autres applications peuvent réduire la marge disponible.", "Estimate includes memory headroom; other apps may reduce available memory."))
                             }
                             if let maximum = studio.modelContextLimit {
                                 Text(
@@ -124,13 +107,7 @@ struct GenerationInspector: View {
                             }
                             .buttonStyle(GlassPillButtonStyle())
                             .disabled(!studio.canSaveContext)
-                            Text(
-                                L(
-                                    "0 = maximum du modèle. Le rechargement libère le cache, pas l’historique. La mémoire augmente avec le contexte réellement utilisé.",
-                                    "0 = model maximum. Reloading clears the cache, not your history. Memory grows with the context actually used."
-                                )
-                            )
-                            .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                            .help(L("0 utilise le maximum du modèle. Recharger vide le cache et conserve l’historique.", "0 uses the model maximum. Reloading clears the cache and keeps history."))
                         }
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
                             VStack(spacing: 16) {
@@ -271,9 +248,9 @@ struct GenerationInspector: View {
                         }
 
                         if let runtime = studio.runtimeIdentity, !runtime.isEmpty {
-                            Text(L("Moteur chargé : ", "Loaded engine: ") + runtime)
-                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                .textSelection(.enabled)
+                            DisclosureGroup(L("Détails du moteur", "Engine details")) {
+                                Text(runtime).textSelection(.enabled)
+                            }.font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                         }
 
                         Button(L("Projets et profils enregistrés", "Projects and saved profiles")) {

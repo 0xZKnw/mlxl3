@@ -57,6 +57,11 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift \
     tests/context-memory-check.swift -o "${test_dir}/context-memory-check"
 "${test_dir}/context-memory-check"
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/VoiceController.swift \
+    tests/voice-callback-check.swift > "${test_dir}/VoiceCallbackCombined.swift"
+swiftc "${swiftc_args[@]}" apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    "${test_dir}/VoiceCallbackCombined.swift" -o "${test_dir}/voice-callback-check"
+run_fixture_check "${test_dir}/voice-callback-check"
 [[ -d "${binary_dir}/Modules" ]] && swiftc_args+=(-I "${binary_dir}/Modules")
 if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
     math_objects=("${binary_dir}/SwiftMath.o")
@@ -222,8 +227,20 @@ swiftc "${swiftc_args[@]}" \
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
+    tests/image-input-check.swift -o "${test_dir}/image-input-check"
+run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
+
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
     tests/workspace-features-check.swift -o "${test_dir}/workspace-features-check"
 "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift \
+    tests/recommended-models-ui-check.swift > "${test_dir}/RecommendedModelsCombined.swift"
+recommendation_sources=("${(@)sources:#*/ModelManager.swift}")
+swiftc "${swiftc_args[@]}" "${recommendation_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/RecommendedModelsCombined.swift" -o "${test_dir}/recommendations-check"
+run_fixture_check "${test_dir}/recommendations-check"
 
 swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
     tests/responsiveness-check.swift -o "${test_dir}/responsiveness-check"

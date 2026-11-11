@@ -308,9 +308,9 @@ struct QuantizationStudioView: View {
             Group {
               if !expert {
                 Picker(L("Objectif", "Target"), selection: $preset) {
-                  Text(L("Mémoire réduite · 3 bpw", "Smaller weights · 3 bpw")).tag(3.0)
-                  Text(L("Équilibré · 4 bpw", "Balanced · 4 bpw")).tag(4.0)
-                  Text(L("Plus fidèle · 6 bpw", "Higher fidelity · 6 bpw")).tag(6.0)
+                  Text("3 bpw").tag(3.0)
+                  Text("4 bpw").tag(4.0)
+                  Text("6 bpw").tag(6.0)
                 }.onChange(of: preset) { _, value in quantizer.settings.bits = value }
                 Text(
                   L(

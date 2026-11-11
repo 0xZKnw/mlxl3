@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "model": "qwen-27b",
+      "status": "passed",
+      "vocab": 248320,
+      "kl": 0.0,
+      "same_argmax": true
+    },
+    {
+      "model": "qwen-35b-a3b",
+      "status": "passed",
+      "vocab": 248320,
+      "kl": 0.0,
+      "same_argmax": true
+    },
+    {
+      "model": "flash-next",
+      "status": "passed",
+      "vocab": 248320,
+      "kl": 0.0,
+      "same_argmax": true
+    }
+  ],
+  "scope": "one forced 3-token prefix; old hybrid dispatch versus v2 MLX"
+}

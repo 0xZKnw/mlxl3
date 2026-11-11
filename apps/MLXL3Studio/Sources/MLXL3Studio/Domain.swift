@@ -177,6 +177,7 @@ struct BridgeEvent: Decodable {
     var tuningKey: String? = nil
     var rows: [MTPTuningRow]? = nil
     var workspaceFeatures: Bool? = nil
+    var imagesSupported: Bool? = nil
     var bridgeProtocol: Int? = nil
     var memorySaverSupported: Bool? = nil
     var mcpToolCatalog: [MCPToolDescriptor]? = nil
@@ -234,6 +235,7 @@ struct BridgeEvent: Decodable {
         case depth, completed, total, rows
         case bestDepth = "best_depth", tuningKey = "tuning_key"
         case workspaceFeatures = "workspace_features"
+        case imagesSupported = "images_supported"
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"
     }
@@ -258,8 +260,9 @@ struct PromptMessage: Codable, Hashable {
     let role: String
     let content: String
     var turnContext: String? = nil
+    var images: [String]? = nil
     enum CodingKeys: String, CodingKey {
-        case role, content
+        case role, content, images
         case turnContext = "turn_context"
     }
 }
@@ -608,7 +611,7 @@ enum EngineState: Equatable {
         switch self {
         case .idle: L("Modèle éjecté", "Model unloaded")
         case let .loading(model): L("Chargement de \(model)…", "Loading \(model)…")
-        case .ready: L("Prêt sur Metal", "Ready on Metal")
+        case .ready: L("Prêt", "Ready")
         case .generating: L("Génération…", "Generating…")
         case .failed: L("Indisponible", "Unavailable")
         }

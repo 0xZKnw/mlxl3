@@ -97,7 +97,13 @@ import SwiftUI
         catch { checks += 1 }
 
         _ = NSApplication.shared
-        let editor = NSTextView()
+        let editorWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
+                                    styleMask: .borderless, backing: .buffered, defer: false)
+        editorWindow.isReleasedWhenClosed = false
+        defer { editorWindow.close() }
+        let editor = NSTextView(frame: editorWindow.contentView!.bounds)
+        editorWindow.contentView = editor
+        editorWindow.makeFirstResponder(editor)
         editor.allowsUndo = true
         let coordinator = StudioCodeEditor.Coordinator(StudioCodeEditor(text: .constant(""), language: "swift", editable: true, documentID: "test"))
         for length in [200 * 1024, 256 * 1024, 2 * 1024 * 1024] {
@@ -111,10 +117,15 @@ import SwiftUI
         }
         editor.string = "abc"
         editor.setSelectedRange(NSRange(location: 3, length: 0))
+        guard let undo = editor.undoManager else { preconditionFailure("Editor fixture needs a window undo manager") }
+        undo.removeAllActions()
+        undo.beginUndoGrouping()
         editor.insertText("def", replacementRange: editor.selectedRange())
+        undo.endUndoGrouping()
+        check(undo.canUndo, "fixture registered a real text edit")
         coordinator.style(editor)
         await coordinator.waitForStyling()
-        editor.undoManager?.undo()
+        undo.undo()
         check(editor.string == "abc", "recoloring preserves undo")
         editor.setMarkedText("é", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: 0, length: 0))
         let marked = editor.markedRange(), markedText = editor.string

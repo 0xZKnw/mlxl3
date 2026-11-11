@@ -291,10 +291,15 @@ import SwiftUI
             && editor.enclosingScrollView!.layer?.masksToBounds == true,
           "Code gutter can paint behind file title")
         var colors = Set<String>()
-        editor.textStorage!.enumerateAttribute(
-          .foregroundColor, in: NSRange(location: 0, length: editor.textStorage!.length)
-        ) { value, _, _ in
-          if let value = value as? NSColor { colors.insert(value.description) }
+        for _ in 0..<250 {
+          colors.removeAll()
+          editor.textStorage!.enumerateAttribute(
+            .foregroundColor, in: NSRange(location: 0, length: editor.textStorage!.length)
+          ) { value, _, _ in
+            if let value = value as? NSColor { colors.insert(value.description) }
+          }
+          if colors.count >= 3 { break }
+          try await Task.sleep(for: .milliseconds(20))
         }
         check(colors.count >= 3, "Code has no actual syntax colors")
       }

@@ -6,36 +6,36 @@ struct MTPToolbarControl: View {
 
     private var badge: String {
         if studio.mtpError != nil { return "!" }
-        if !studio.mtpRememberedEnabled { return "OFF" }
-        return studio.mtpEnabled && !studio.mtpDownloading ? "ON" : "AUTO"
+        if !studio.mtpRememberedEnabled { return "Off" }
+        return studio.mtpEnabled && !studio.mtpDownloading ? "On" : "Auto"
+    }
+
+    private var accessibleStatus: String {
+        if studio.mtpError != nil { return L("Erreur", "Error") }
+        if studio.mtpDownloading || studio.isTuningMTP { return L("En cours", "In progress") }
+        if !studio.mtpRememberedEnabled { return L("Désactivé", "Off") }
+        return studio.mtpEnabled ? L("Activé", "On") : L("En attente", "Pending")
     }
 
     var body: some View {
         Button { presented.toggle() } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 if studio.mtpDownloading || studio.isTuningMTP {
                     ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: "bolt.fill")
                 }
                 Text("MTP")
                 Text(badge)
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 5).padding(.vertical, 3)
-                    .background(StudioTheme.contrast.opacity(0.07), in: Capsule())
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(studio.mtpError != nil ? Color.orange : studio.mtpRememberedEnabled ? StudioTheme.blueAccent : StudioTheme.quiet)
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(studio.mtpRememberedEnabled ? StudioTheme.blueAccent : StudioTheme.secondary)
-            .padding(.horizontal, 11).frame(height: 32)
-            .background(studio.mtpRememberedEnabled ? StudioTheme.blueAccent.opacity(0.10) : StudioTheme.panel,
-                        in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(studio.mtpRememberedEnabled
-                ? StudioTheme.blueAccent.opacity(0.30) : StudioTheme.edge, lineWidth: 0.7))
+            .padding(.horizontal, 8).frame(height: 30)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StudioControlStyle(emphasized: presented))
         .disabled(!studio.mtpAvailable && !studio.isTuningMTP)
         .help(L("Accélération MTP · activation mémorisée par modèle", "MTP acceleration · remembered per model"))
         .accessibilityLabel(L("Réglages MTP", "MTP settings"))
+        .accessibilityValue(accessibleStatus)
         .onChange(of: studio.isTuningMTP) { _, active in
             if active { presented = false }
         }
@@ -69,10 +69,10 @@ struct MTPSettingsContent: View {
         if studio.mtpError != nil { return L("Activation à vérifier", "Activation needs attention") }
         if studio.isGenerating {
             return studio.mtpActive == true
-                ? L("Actif · propositions vérifiées par le modèle", "Active · proposals verified by the target model")
+                ? L("Actif", "Active")
                 : L("Décodage normal", "Ordinary decoding")
         }
-        if studio.mtpEnabled { return L("Prêt · propositions vérifiées par le modèle", "Ready · proposals verified by the target model") }
+        if studio.mtpEnabled { return L("Prêt", "Ready") }
         if studio.mtpRememberedEnabled { return L("Sera activé au chargement", "Will enable on model load") }
         return L("Désactivé", "Off")
     }
@@ -82,17 +82,13 @@ struct MTPSettingsContent: View {
             Toggle(isOn: Binding(get: { studio.mtpRememberedEnabled }, set: { studio.setMTPEnabled($0) })) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("Activer MTP", "Enable MTP")).font(.system(size: 13, weight: .semibold))
-                    Text(L("Choix mémorisé pour ce modèle", "Remembered for this model"))
-                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
             }
             .toggleStyle(.switch)
             .disabled(studio.isGenerating || !studio.engineState.isReady)
+            .help(L("Choix mémorisé par modèle. MTP utilise le décodage déterministe et vérifie les propositions avec le modèle cible.", "Remembered per model. MTP uses deterministic decoding and verifies proposals with the target model."))
             Text(status).font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
                 .accessibilityIdentifier("mtp-state")
-            Text(L("Après activation, MTP est préparé automatiquement aux prochains chargements, y compris au démarrage de l’app.", "Once enabled, MTP is prepared automatically on future model loads, including app startup."))
-                .font(.system(size: 10.5)).foregroundStyle(StudioTheme.quiet)
-                .fixedSize(horizontal: false, vertical: true)
             if studio.mtpDownloading {
                 if studio.mtpDownloadTotal > 0 {
                     ProgressView(value: studio.mtpDownloadCompleted, total: studio.mtpDownloadTotal)
@@ -122,8 +118,6 @@ struct MTPSettingsContent: View {
                     }
                 }.font(.system(size: 10.5))
             }
-            Text(L("MTP utilise le décodage déterministe. Le modèle cible vérifie les propositions ; aucune quantification supplémentaire n’est appliquée.", "MTP uses deterministic decoding. The target model verifies proposals; no additional quantization is applied."))
-                .font(.caption).foregroundStyle(StudioTheme.quiet)
         }
     }
 }

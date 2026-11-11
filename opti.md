@@ -28061,3 +28061,242 @@ PR163-CI correction inventaire seule publiée33bb6ff0, cinq workflows exacthead 
 - N05 clôture locale : nettoyage partiel et alias de racine reproduits avant correction ; fallback reçu seul exige une inscription exacte existante et ne peut la recréer après suppression/remplacement concurrent. Les requêtes retenues sont admises avant mutation ; 13 scénarios subprocess conservent les témoins externes. Les 37 tests hub passent, Clippy strict chat et format passent. Kani final : 274 checks, 13 obligations inatteignables et quatre couvertures ; l'extension initiale du harnais paths avait dépassé la mémoire et reste documentée, harnais historique restauré. Rapport : docs/issue163-functional-download.md.
 - Validation finale combinée : 420 tests Rust passent, zéro échec, dix ignorés, 46.11 s ; inventaire de 314 fichiers conforme, rustfmt et diff-check passent. Relectures indépendantes sans défaut bloquant. Les quatre harnais des lots SSD/JSON et deux du téléchargement sont des preuves bornées de helpers, pas de concurrence, filesystem, Metal ou modèle complet. Les limites physiques et C03 historiques restent ouvertes ; aucune vitesse mesurée.
 - Lot fonctionnel gelé sur 8080c96c, sources et preuves nouvelles uniquement ; ancien patch CI/C03 exclu. Archivage des logs avant publication, scan des fichiers pour exclure .env et secrets courants. Publication autorisée à tenter ; état encore local, aucune fusion ni installation. Tous essais locaux terminés.
+### HUB-LFM3-2026-11-11 — aperçu LFM3 et recommandations — préenregistré
+
+- Demande : corriger le faux statut non pris en charge pour LFM3 et recommander
+  le LFM3 de base ainsi que Heretic NX. Base isolée `e4b5ff4e` depuis GitHub,
+  sans intégrer les nombreux changements locaux de l'ancien checkout.
+- Reproduction : moteur publié 2.0.4/ead60d03, `hub details` marque `lfm3`
+  unsupported pour toutes les variantes du dépôt de base et pour Heretic NX,
+  alors que 104 forwards, 499 tokens et le chat natif Heretic passent.
+- Hypothèse : allowlist obsolète dans `hub::model_preview`; ajouter les deux
+  identifiants réellement pris en charge (`lfm3`, `lfm3_vl`). Aucun calcul
+  d'inférence ni estimation mémoire inventée. Régression sur les deux familles,
+  contexte conservé, inconnus toujours refusés; tentative Kani réelle.
+- Recommandations : dépôts EXL3 publics personnels de base et Heretic, SHA
+  immuables, sélectionner explicitement `8bpw` (ne pas ouvrir la première
+  variante 4.49 du dépôt de base sous une étiquette 8 bits).
+- Vérification : test rouge puis correctif, fixture CLI/Swift, variantes
+  préférées présentes/absentes et cache, tests Rust CPU/chat et Swift,
+  fmt/Clippy, build, parcours Hub réel et rendu des six cartes. Aucun benchmark,
+  merge, release ni remplacement de l'application installé demandé.
+
+HUB-LFM3 verification progress: red regression reproduced `lfm3` unsupported,
+then all 13 Hub tests passed. Full Rust CPU/chat suite passed, Clippy strict
+and CPU/chat CLI build passed. Swift's default macOS27.2 SDK failed on the
+preexisting SwiftUI StateMacro plugin; the repository's documented SDK26.5
+override builds successfully, and the full Desktop checks are running.
+
+The first Kani harness through serde_json allocation plus symbolic u16
+context exceeded the practical six-minute budget (roughly 5.5 GiB CBMC);
+interrupted, no proof claimed. Keep its log at ../mlxl3-hub-kani.log. Extract
+the unchanged production support predicate and verify the actual classifier
+directly for both symbolic family selectors and near-name rejection, with
+four reachable covers and unwind20. JSON parsing/context preservation remain
+regression-tested; this proof does not claim the entire JSON path or GPU.
+
+### VISION-DESKTOP-2026-11-11 — images LFM3-VL — préenregistré
+
+- Extension explicite de la demande : joindre des images dans le chat LFM3-VL.
+  Le moteur/bridge accepte déjà `images` et annonce `images_supported`; le
+  Desktop n'importe que PDF/texte et ne décode/transmet pas cette capacité.
+- Réutiliser cette voie, sans changer les kernels : images PNG/JPEG/WebP
+  contrôlées par ImageIO, octets préservés, limites d'import bornées et
+  annoncées, aperçu, encodage `images` sur les messages utilisateur, historique
+  autonome et refus clair sur un modèle texte ou un ancien moteur.
+- Vérifier import invalide/trop gros, mélange documents/images, doublons,
+  ancien historique, conservation après suppression du fichier, changement
+  de modèle, échange via le vrai pipe Swift et moteur VL physique si modèle
+  disponible. Les documents de bibliothèque restent textuels.
+- La première suite Desktop est arrêtée avant validation finale : le SDK27.2
+  manque le plugin StateMacro; le SDK26.5 documenté compile. Une fixture déjà
+  présente sur main a une fermeture raw-string sans `#` dans
+  issue163-runtime-contract-check.swift, qui bloque la suite après les tests
+  MTP rendus. Réparer ce caractère pour terminer les contrôles pertinents.
+- La preuve Kani directe du prédicat utilisé en production réussit : 33
+  checks, quatre couvertures, 0,19s, unwind20 et deux booléens symboliques
+  (texte/vision, nom exact/nom voisin invalide). L'ancien essai JSON reste
+  interrompu/non prouvé. Pas de preuve Swift/Metal revendiquée.
+
+- Extension de livraison autorisée ensuite : publier Desktop v2.0.0-beta.11
+  (build42) et moteur engine-v2.0.5-beta.1. Construire depuis la source isolée
+  figée, embarquer exactement le nouveau moteur, vérifier le DMG et l'archive,
+  publier en prerelease sans remplacer l'application installée ni fusionner
+  les travaux concurrents. Aucun gain de vitesse demandé ou revendiqué.
+- Le modèle VL8 a été téléchargé une fois après inventaire des caches ; SHA
+  22e6da660378840af9e5d2aaadec96d66018870cfedef8b9509427658c632457
+  vérifié. Pas de nouvelle quantification. Les contrôles physiques attendent
+  la fin des compilations/proveurs pour éviter la contention.
+
+- Python complet : 2760 passés, 156 ignorés (GPU, Torch absent, Linux),
+  123 sous-tests, 10 avertissements, 259,62s. Inventaire MLX :314fichiers conforme.
+- Images : 56 contrôles passent (PNG/JPEG/WebP réels, MIME des octets,
+  GIF/invalide/tronqué/64M pixels/8Mio, pipe Swift, ancien moteur, changement
+  de modèle, historique autonome, neuvième image sur plusieurs tours).
+  Le premier harnais tentait de modifier un setter privé : remplacé par
+  l'importeur public. Le test tronqué révèle une mauvaise catégorie d'erreur
+  (dimensions absentes confondues avec trop grandes), corrigée puis retestée.
+- Les 251 contrôles workspace/recommandations passent. Les suites Desktop
+  sont continuées depuis le premier échec, sans répéter les contrôles déjà
+  réussis. Un autre ancien harnais crée un NSTextView sans fenêtre/undoManager
+  puis exige Undo ; rattacher la fixture à une fenêtre invisible et vérifier
+  l'inscription d'une vraie édition. Aucun code d'éditeur modifié.
+- Revue ciblée demandée ensuite, suivie d'une fusion si conforme : suivre
+  import→draft/historique→encodage→capacité moteur et les variantes épinglées.
+  Aucun blocage produit supplémentaire identifié à ce stade ; attendre les
+  vérifications restantes avant fusion et publication.
+
+### VISION-UI-COPY-2026-11-11 — extension utilisateur avant publication
+
+- Afficher l'image dans le message et le brouillon au lieu de la seule
+  pastille photo/nom. Conserver le ratio, l'aperçu complet au clic, le retrait
+  et le nom accessible. Utiliser SwiftUI/AppKit existants, sans dépendance.
+- Nettoyer les slogans dans modèles, accueil Agent, apparence et profils,
+  avec des libellés FR/EN concrets. Garder logo, thèmes, navigation et les
+  explications nécessaires (erreurs, permissions, coût mémoire).
+- Direction : application macOS pour modèles locaux, identité MLXL3 actuelle,
+  énergie1/rythme1/mouvement1. Motif conservé : vrai logo et titres sérif.
+  L'image est le point visuel utile, aucun décor nouveau. Vérifier pixels
+  rouges réellement rendus, deux largeurs, brouillon/historique et captures.
+  Revoir ces changements avant la fusion autorisée et les deux releases.
+
+- Itérations de densité demandées : suppression des libellés permanents
+  Prêt sur Metal/Joindre/Envoyer/Nouvelle ligne, menu + pour fichiers/outils,
+  sélecteur modèle déplacé près de la saisie (partagé avec Server/Lab), micro
+  et envoi sur une seule barre. Miniature brouillon96×72, message240×180,
+  ratio conservé. Références primaires : aide Claude get-started, sources
+  pingdotgg/t3code ChatComposer/ComposerAttachmentStrip/CompactControlsMenu.
+  Fenêtre Codex refusée par CUA ; aucune tentative de contournement.
+- Dernier rendu : 58 contrôles images passent, deux largeurs680/1040.
+  L'ancien oracle RGB absolu échoue malgré une image rouge visible : le
+  profil ICC convertit le rouge en RGB≈.944/.293/.178 ; vérifier sa dominance
+  rouge après décodage PNG/sRGB, sans changer l'image. Captures initiales
+  translucides et échecs gardés ; fenêtre hors écran + fond réel corrigent
+  le harnais. Aucun problème de pixels caché par une simple taille non nulle.
+- Desktop agrégé par continuation : suite principale jusqu'aux Studios
+  réussie ; 2240 contrôles responsiveness et suites bridge/rendu/transport
+  réussis. Studios39tests Python puis58contrôles Swift passent, sandbox25 et
+  protocole29 ; workspace44contrôles passent. Fixtures main réparées : raw
+  string, undoManager absent, comparaison de chemin canonique fork et attente
+  bornée de coloration asynchrone. Aucun code d'éditeur/AgentStore modifié.
+
+### README-V2-BENCH-2026-11-11 — préenregistré avant mesures
+
+- Demande explicite : README v2 complet, benchmarks des modèles disponibles,
+  installation/architecture/API actuelles, titres utiles à la recherche et
+  sources vérifiables. Ne pas reprendre les anciennes annonces 1.4/1.5 comme
+  description courante. Les rapports historiques restent liés et qualifiés.
+- Inventaire local : base LFM3-1.7B8, HereticNX8, VL2B8, Qwen27B2,
+  Qwen35B-A3B2.49 et FlashNext2.05 présents. LFM2.5-24B4 absent : reprendre
+  séparément les mesures historiques266prompt/128sorties/5répétitions, sans
+  le télécharger pour refaire un résultat existant.
+- Nouveau snapshot : Apple M5/24Gio, moteur hybrid2.0.5 propre construit
+  après gel source, un modèle GPU à la fois, aucun compilateur/proveur actif.
+  Même prompt UTF-8 de guide Rust, contexte4096, greedy/T=0/top-k0/pénalité1,
+  MTP/DFlash/outils/réutilisation prompt OFF. Une réponse128tokens de warmup,
+  puis trois répétitions de128 ; exiger comptages/hashes stables et métriques
+  positives finies. Sauvegarder tout échec ou EOS prématuré sans bon score.
+- Relever version/hash moteur, configs/poids, état alimentation/pression mémoire
+  et alertes thermiques connues. Rapporter médiane/plage decode, prefill, TTFT,
+  total et footprint processus séparé des allocations MLX. Applications usuelles
+  conservées ; pas de gain causal ou comparaison entre backends différents.
+- Qualité avant vitesse : contrôles natifs LFM3/VL texte/image et comparaison
+  numérique à l'ancien moteur sur entrées imposées (KL≤.002, états L2≤.01,
+  formes/128000logits/valeurs finies), plus contrôles existants Qwen/Flash.
+  Preuves/compilations et correction des échecs précèdent les chronométrages.
+- Prompt UTF-8 fixé avant mesures : SHA-256
+  `7447c24f4d66adca67c19034f192b182d5f8a4d680489adcaec41e5de7a16e13`.
+  Moteur hybrid2.0.5 construit depuis `82b6dba7033b` propre ; exécutable
+  SHA-256 `932cfbd7ffb5f192c34ef397f17b2d89050d8c0eb07370c84b8964a265a29250`.
+  Après fermeture volontaire de l'app, aucun modèle ni compilateur détecté ;
+  secteur, batterie100 %, mémoire libre système71 %. La parité précède les
+  mesures ; les échecs et EOS précoces restent enregistrés.
+- Après construction de ce candidat hybride, comparaison 2.0.4→2.0.5 sur
+  LFM3 original/Heretic/VL : KL0 sur3 et499 tokens ; 35 états courts identiques
+  octet pour octet. Parcours réel Studio→bridge→VL8 : images rouge et bleue
+  reconnues. Aucun benchmark de vitesse exécuté. L'utilisateur a ensuite
+  poussé `f3f181e8` : livraison v2 désormais exclusivement MLX. Le candidat
+  hybride et ses résultats ne qualifient pas le nouvel artefact MLX ; intégrer
+  la nouvelle base, reconstruire et répéter les contrôles avant mesure.
+- Protocole remplacé avant mesure : même prompt et même nombre de répétitions,
+  mais moteur exclusivement MLX issu de `f3f181e8` intégré à cette branche.
+  Comparer d'abord la parité LFM3 texte/VL, vérifier le vrai parcours image,
+  identifier le binaire et les poids, puis mesurer chaque modèle séparément.
+  Aucune mesure hybride ne sera étiquetée comme résultat du moteur MLX.
+- Moteur MLX 2.0.5 construit depuis `a3cffdcaa7bafb513eb127c15319dc3c0a1f5046`
+  propre, exécutable SHA-256 `7f5ea49e6768ffddf0ad10e39dfb2cae48410789ce92842d4d1a42e7660338a0`.
+  Après intégration de la politique MLX : 84 tests packaging passés/13 natifs
+  volontairement ignorés ; Rust CPU/chat 424+37+17+37+1 passés, 10 ignorés,
+  Clippy et rustfmt passent, inventaire314 conforme. Comparaison 2.0.4→MLX :
+  KL0 pour six cas LFM3 (3 et499 tokens), 35 états courts égaux par modèle ;
+  trois cas Qwen de3 tokens KL0. VL réel : rouge et bleu reconnus via Desktop
+  et bridge. Ces exemples bornés ne prouvent pas la qualité générale.
+- Six modèles mesurés sur M5/24Gio, secteur, MLX0.32.2, prompt SHA enregistré,
+  context4096,128sorties, warmup+3 passages, MTP/DFlash/cache OFF : médianes
+  decode original49.47, Heretic46.80, VL texte46.62, Qwen27B8.33,
+  Qwen35B-A3B42.75, FlashNext10.05 tokens/s. Les plages, TTFT, prefill, mémoire,
+  poids SHA et contexte mémoire/SSD sont dans `docs/measurements/v2-models-20261111/`.
+  L'OS avait environ2.8Gio de swap utilisé ; aucun contrôle de cache disque ou
+  d'occupation GPU globale n'est revendiqué. Quatre tests vérifient les données
+  et le runner, y compris interruption et données non finies.
+- Le paquet Desktop construit depuis ce même commit est signé ad hoc et embarque
+  exactement le binaire mesuré. Archive moteur `c2de4f7081823d8779f64619cb39ec3d5b0c9a3d8c1aad992eecefc0dc17c1cf`,
+  DMG `a52665c603060e59bc120b73a189c05bdc17a601de090dc1351dc821ed246002` ;
+  tous les fichiers runtime/hashes comparés, version/architecture/signature
+  contrôlées et vraie installation moteur + préflight DMG réussis en bac jetable.
+- CI Apple : le changement du backend par défaut rendait invisibles quatre
+  doctests natifs. Ajouter `direct-metal` explicitement au seul contrôle de
+  contrat conservé ; les quatre doctests passent localement, sans changer le
+  moteur MLX livré. Les deux preuves Kani Flash non modifiées ont expiré à600s
+  sur le précédent run, sans contre-exemple ; l'utilisateur demande de ne pas
+  attendre la CI distante avant fusion/publication.
+
+- Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.
+
+- Nouvelle demande : centrer le +, alléger les réglages et ne montrer le
+  message de modèle absent qu'après une tentative d'envoi non vide. Le
+  brouillon reste intact ; l'avertissement s'efface lorsque le modèle est
+  prêt, que le brouillon est vidé ou que la conversation change. Les autres
+  états bloquants restent visibles. Les images remplissent désormais leur
+  aperçu arrondi sans grande bulle ; le bouton de retrait reste accessible.
+- Retrait demandé ensuite : l'icône de contexte quitte aussi le composeur ;
+  les réglages du modèle et les informations de contexte restent accessibles
+  depuis l'en-tête.
+- Le contrôle MTP adopte le style discret des autres boutons d'en-tête ; son
+  état et ses erreurs restent visibles et annoncés à l'accessibilité.
+- Compilation Swift, 72 contrôles images et 24 rendus MTP FR/EN passent après
+  ces ajustements. États MTP off/on/en attente/erreur et panneaux de 200 à
+  320 points vérifiés ; captures des deux états et du composeur sans icône
+  de contexte inspectées. La suite Desktop complète reste à terminer.
+
+### DESKTOP-FOLLOWUP-2026-11-11 — catalogue, ordre et dictée
+
+- LFM3-VL 2B EXL3 ajouté aux recommandations LFM, révision immuable
+  `15d4ec5cc43c5a6146dc675de0d89f939ec9c2da` et variante `8bpw` vérifiées
+  sur le Hub ; cartes organisées en familles LFM et Qwen. Les 257 contrôles
+  workspace vérifient les sept dépôts, les groupes, révisions et variantes.
+- Reproduction du tri : une conversation nouvelle sans `updatedAt` était
+  classée après des conversations déjà actives. Le test échoue avant correction,
+  puis passe avec la date de création comme repli ; épingles, créations
+  successives et rechargement sont vérifiés (48 contrôles expérience).
+- Cinq rapports macOS montrent le même crash : callback d'autorisation Speech
+  reçu sur une queue TCC hors MainActor, assertion d'isolation Swift. Les
+  callbacks Speech et audio sont explicitement `@Sendable`, et l'accès au
+  flux audio/sa fermeture est synchronisé. Le contrôle Swift 6 exécute 100
+  retours d'autorisation sur un thread de fond et des appels audio concurrents ;
+  la reconnaissance vocale réelle dépend encore des permissions et du matériel.
+- Les préférences Desktop, notifications, logo et rendus de longues réponses
+  passent après correction. Les groupes LFM/Qwen ont été inspectés sur des
+  rendus de 480 et 840 points ; un premier harnais ne rendait qu'un fond vide,
+  puis a été corrigé et contrôle maintenant la présence de pixels de texte.
+- PR163 : `e4b5ff4ed410119c83be29d865ebe143de7791ba` est à la fois son
+  merge et la base de cette branche. Les artefacts des deux bêtas restent à
+  construire et comparer ; le Desktop de développement ouvert par l'utilisateur
+  utilise encore le moteur installé 2.0.4.
+- Vérification locale du parcours : 72 contrôles images/bridge/historique et
+  affichage à 680 et 1040 points, dont avertissement avant/après tentative,
+  chargement, conservation du brouillon et proportions des aperçus carrés,
+  paysage et portrait, dans le brouillon et le message envoyé.
+  Les 240 contrôles mémoire de contexte et la compilation Swift passent.
+  Les captures utilisent des fixtures rouges et ne prouvent pas la qualité
+  de compréhension visuelle du modèle physique.

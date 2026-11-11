@@ -41,11 +41,28 @@ import SwiftUI
         }
         let file = root.appendingPathComponent("pins.json")
         let visual = make(preview: true, file: file)
-        let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")])
-        let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")])
-        let c = Conversation(title: "Notes", messages: [ChatMessage(role: .assistant, content: "C")])
+        let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
+        let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")], createdAt: Date(timeIntervalSince1970: 200))
+        let c = Conversation(title: "Notes", messages: [ChatMessage(role: .assistant, content: "C")], createdAt: Date(timeIntervalSince1970: 100))
         visual.conversations = [a, b, c]
         visual.selectedConversationID = a.id; visual.draft = "Brouillon conservé"
+        let orderingFile = root.appendingPathComponent("ordering.json")
+        let ordering = make(preview: true, file: orderingFile)
+        let old = Conversation(title: "Older", createdAt: Date(timeIntervalSince1970: 100))
+        var active = old
+        active.updatedAt = Date(timeIntervalSince1970: 200)
+        ordering.conversations = [active]
+        ordering.newConversation()
+        let first = ordering.selectedConversationID!
+        try check(ordering.sidebarConversations(matching: "").first?.id == first, "New conversation must precede older activity")
+        ordering.newConversation()
+        let second = ordering.selectedConversationID!
+        try check(ordering.sidebarConversations(matching: "").prefix(2).map(\.id) == [second, first], "Repeated new conversations must stay newest first")
+        ordering.setConversationPinned(active.id, true)
+        try check(ordering.sidebarConversations(matching: "").map(\.id) == [active.id, second, first], "Pinned conversations must remain above new conversations")
+        try check(ordering.persistNow(), "New conversation ordering did not persist")
+        let reloadedOrdering = make(preview: true, file: orderingFile)
+        try check(reloadedOrdering.sidebarConversations(matching: "").map(\.id) == [active.id, second, first], "New conversation ordering changed after reload")
         try check(ConversationReadingWidth.load(from: prefs) == .centered, "Default width changed")
         for width in ConversationReadingWidth.allCases {
             visual.setReadingWidth(width)

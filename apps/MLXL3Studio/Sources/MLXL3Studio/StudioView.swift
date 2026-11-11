@@ -356,49 +356,7 @@ private struct WorkspaceHeader: View {
 
             Spacer(minLength: 12)
 
-            Menu {
-                ForEach(studio.models) { model in
-                    Button { studio.selectModel(model.name) } label: {
-                        if model.name == studio.selectedModelName {
-                            Label(model.name, systemImage: "checkmark")
-                        } else {
-                            Text(model.name)
-                        }
-                    }
-                }
-                if !studio.models.isEmpty { Divider() }
-                Button(action: studio.openModelManager) {
-                    Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    StatusDot(state: studio.engineState)
-                    Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
-                        .font(.system(size: 11, weight: .medium))
-                        .lineLimit(1).truncationMode(.middle)
-                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(StudioTheme.quiet)
-                }
-                .padding(.horizontal, 11)
-                .frame(height: 30)
-                .frame(maxWidth: 260)
-            }
-            .menuStyle(.button)
-            .buttonStyle(StudioControlStyle())
-            .menuIndicator(.hidden)
-            .fixedSize(horizontal: false, vertical: true)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 6))
-            .disabled(studio.isGenerating || studio.localServer.active)
-            .help(studio.engineState.label)
-            .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
-
-            Button(action: studio.ejectModel) {
-                Image(systemName: "eject").frame(width: 30, height: 30)
-            }
-            .buttonStyle(StudioControlStyle())
-            .disabled(!studio.canEject)
-            .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
-            .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
+            ModelSelectionMenu()
 
             ConversationDisplayControl()
 
@@ -481,11 +439,9 @@ private struct AgentWelcomeView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 35)
             MonogramMark(size: 80).frame(height: 48).clipped()
-            Text(L("Que voulez-vous construire ?", "What would you like to build?"))
+            Text(L("Nouvelle tâche", "New task"))
                 .font(.system(size: 32, weight: .regular, design: .serif)).tracking(-0.7)
                 .multilineTextAlignment(.center).padding(.top, 20)
-            Text(L("Votre modèle local, un espace de travail isolé.", "Your local model, an isolated workspace."))
-                .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet).padding(.top, 12)
             Spacer(minLength: 45)
             VStack(spacing: 0) {
                 AgentWorkspaceBar().padding(.horizontal, 12).padding(.bottom, -7)
@@ -516,11 +472,11 @@ private struct WelcomeView: View {
                     .font(.system(size: 34, weight: .regular, design: .serif))
                     .tracking(-0.8)
                     .foregroundStyle(StudioTheme.ink)
-                Text(studio.models.isEmpty
-                     ? L("Ajoutez un modèle pour commencer.", "Add a model to get started.")
-                     : L("Échangez avec un modèle exécuté sur ce Mac.", "Chat with a model running on this Mac."))
-                    .font(.system(size: 13))
-                    .foregroundStyle(StudioTheme.quiet)
+                if studio.models.isEmpty {
+                    Text(L("Ajoutez un modèle.", "Add a model."))
+                        .font(.system(size: 13))
+                        .foregroundStyle(StudioTheme.quiet)
+                }
             }
             .padding(.horizontal, 4)
             .padding(.bottom, 30)

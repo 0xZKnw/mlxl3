@@ -67,9 +67,10 @@ struct ConversationDraft: Codable, Sendable {
     // Text is embedded, so restoring a draft never rereads a missing source file.
     var valid: Bool {
         text.utf8.count <= 64 * 1024 && attachments.count <= 8
-            && attachments.allSatisfy { $0.text.utf8.count <= ChatAttachmentImporter.maxTextBytes }
+            && attachments.allSatisfy { $0.text.utf8.count <= ChatAttachmentImporter.maxTextBytes && ($0.image?.withinLimits ?? true) }
+            && attachments.reduce(0, { $0 + ($1.image?.data.count ?? 0) }) <= ChatAttachmentImporter.maxTotalImageBytes
     }
-    var byteCount: Int { text.utf8.count + attachments.reduce(0) { $0 + $1.text.utf8.count } }
+    var byteCount: Int { text.utf8.count + attachments.reduce(0) { $0 + $1.text.utf8.count + ($1.image?.data.count ?? 0) } }
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {

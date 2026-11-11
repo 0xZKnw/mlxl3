@@ -73,7 +73,8 @@ import SwiftUI
     check(try historical.contents("main.js", revision: historical.versions()[0].id)
       == Data("window.result = 1".utf8), "Fork copied latest files instead of historical boundary")
     check(try historical.state().permissions == restricted, "Fork relaxed tool permissions")
-    check(try historical.state().source == source.path, "Fork lost original project")
+    check(try initial.source != nil && historical.state().source == initial.source,
+      "Fork lost original project")
     check(!files.fileExists(atPath: branchURL.appendingPathComponent("nested/new.txt").path),
       "Historical fork contains later file")
     check((try files.attributesOfItem(atPath: branchURL.appendingPathComponent("test.sh").path)[.posixPermissions]

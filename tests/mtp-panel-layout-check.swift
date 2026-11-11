@@ -3,7 +3,15 @@ import AppKit
 import SwiftUI
 
 extension StudioModel {
+    fileprivate func seedToolbar(_ state: String) {
+        mtpSupported = true
+        mtpRememberedEnabled = state != "off"
+        mtpEnabled = state == "on"
+        mtpError = state == "error" ? "Fixture error" : nil
+    }
+
     fileprivate func seedMTPLayout(results: Bool) {
+        mtpError = nil
         mtpEnabled = true
         mtpRememberedEnabled = true
         mtpMaxDepth = 3
@@ -35,6 +43,26 @@ extension StudioModel {
         var cases = 0
         for language in [AppLanguage.fr, .en] {
             AppLocalization.set(language)
+            for state in ["off", "on", "pending", "error"] {
+                studio.seedToolbar(state)
+                let host = NSHostingView(rootView: MTPToolbarControl().environmentObject(studio)
+                    .studioAppearance(.midnightBlue).background(StudioTheme.canvas(for: .midnightBlue)))
+                let size = host.fittingSize
+                cases += 1
+                if !size.width.isFinite || size.width > 95 || size.height > 30 || size.height <= 0 {
+                    failures.append("\(language.rawValue)-\(state): MTP toolbar exceeds its compact bounds")
+                }
+                if let output = ProcessInfo.processInfo.environment["MLXL3_MTP_LAYOUT_SNAPSHOTS"] {
+                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 120, height: 50), styleMask: .borderless, backing: .buffered, defer: false)
+                    window.isReleasedWhenClosed = false; window.contentView = host
+                    host.frame = NSRect(x: 0, y: 0, width: 120, height: 50)
+                    try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded()
+                    let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                    host.cacheDisplay(in: host.bounds, to: bitmap)
+                    try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(language.rawValue)-\(state).png"))
+                    window.close()
+                }
+            }
             for results in [false, true] {
                 studio.seedMTPLayout(results: results)
                 for width in [200, 244, 280, 320] {
@@ -89,6 +117,6 @@ extension StudioModel {
             throw NSError(domain: "MTPPanelLayoutCheck", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: failures.joined(separator: "; ")])
         }
-        print("MTP panel layout checks passed: \(cases) rendered cases, FR/EN, 200–320pt, with/without results")
+        print("MTP layout checks passed: \(cases) toolbar and panel cases, FR/EN, 200–320pt, with/without results")
     }
 }

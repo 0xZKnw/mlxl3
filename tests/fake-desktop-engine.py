@@ -42,9 +42,15 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
         print(json.dumps([{'id': 'fixture-download', 'repo': 'fixture/download-exl3',
                            'size_bytes': 100_000_000, 'retained_bytes': 40_000_000}]), flush=True)
     elif command == 'details':
-        print(json.dumps({'id': query, 'revision': 'main', 'commit': 'fixture',
-                          'branches': ['main'], 'variants': [
-                              {'id': '.', 'label': '2.49 bpw', 'size_bytes': 128}],
+        revision = sys.argv[sys.argv.index('--revision') + 1] if '--revision' in sys.argv else 'main'
+        variants = [{'id': '.', 'label': '2.49 bpw', 'size_bytes': 128}]
+        if query in ('0xzknw/LFM3-1.7B-EXL3', '0xzknw/LFM3-1.7B-Heretic-NX-EXL3', '0xzknw/LFM3-VL-2B-EXL3'):
+            variants = [{'id': bits, 'label': bits, 'size_bytes': 128,
+                         'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3', 'architecture_supported': True,
+                                     'maximum_context': 262144}}
+                        for bits in ('4bpw', '8bpw')]
+        print(json.dumps({'id': query, 'revision': revision, 'commit': revision,
+                          'branches': ['main'], 'variants': variants,
                           'readme': '# Fixture', 'gated': False, 'downloads': 73, 'likes': 2}), flush=True)
     else:
         sys.exit(2)
@@ -188,6 +194,8 @@ if flash_dflash:
     capabilities.pop('dflash_family', None)
 if model in ('mtp-memory-saver', 'dflash-memory-saver'):
     capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
+if model == 'image-import':
+    capabilities['images_supported'] = True
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and not model.startswith('flash'),
      **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),
@@ -333,8 +341,8 @@ for line in sys.stdin:
             time.sleep(0.005)
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
-        answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
-            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'dflash2': request.get('dflash2'), 'dflash_draft_path': request.get('dflash_draft_path'), 'dflash_mode': request.get('dflash_mode'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
+        answer = json.dumps(request['messages'], ensure_ascii=False) if model in ('file-import', 'image-import') else (
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'dflash2': request.get('dflash2'), 'dflash_draft_path': request.get('dflash_draft_path'), 'dflash_mode': request.get('dflash_mode'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith(('mtp-', 'flash')) else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)

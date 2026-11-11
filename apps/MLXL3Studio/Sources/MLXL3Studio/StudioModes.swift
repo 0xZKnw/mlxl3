@@ -216,8 +216,8 @@ struct ServerWorkspaceView: View {
         Label("Server", systemImage: "server.rack").font(.system(size: 32, design: .serif))
         Text(
           L(
-            "Une API compatible OpenAI pour vos applications locales.",
-            "An OpenAI-compatible API for your local applications.")
+            "API locale compatible OpenAI.",
+            "Local OpenAI-compatible API.")
         ).foregroundStyle(StudioTheme.secondary)
         GroupBox {
           VStack(alignment: .leading, spacing: 16) {

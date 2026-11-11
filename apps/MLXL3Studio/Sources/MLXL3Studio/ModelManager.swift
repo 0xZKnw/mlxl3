@@ -1,6 +1,44 @@
 import AppKit
 import SwiftUI
 
+struct ModelSelectionMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        Menu {
+            ForEach(studio.models) { model in
+                Button { studio.selectModel(model.name) } label: {
+                    if model.name == studio.selectedModelName {
+                        Label(model.name, systemImage: "checkmark")
+                    } else { Text(model.name) }
+                }
+            }
+            if !studio.models.isEmpty { Divider() }
+            Button(action: studio.openModelManager) {
+                Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
+            }
+            Button(action: studio.ejectModel) {
+                Label(L("Décharger le modèle", "Unload model"), systemImage: "eject")
+            }.disabled(!studio.canEject)
+        } label: {
+            HStack(spacing: 7) {
+                StatusDot(state: studio.engineState)
+                Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1).truncationMode(.middle)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(StudioTheme.quiet)
+            }
+            .padding(.horizontal, 8).frame(height: 28).frame(maxWidth: 210)
+        }
+        .menuStyle(.button).buttonStyle(StudioControlStyle()).menuIndicator(.hidden)
+        .fixedSize(horizontal: false, vertical: true)
+        .disabled(studio.isGenerating || studio.localServer.active)
+        .help(studio.engineState.label)
+        .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
+    }
+}
+
 struct ModelManagerView: View {
     @Environment(\.studioAppTheme) private var appTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -14,8 +52,8 @@ struct ModelManagerView: View {
             StudioPanelHeader(
                 title: L("Modèles", "Models"),
                 detail: L(
-                    "Gérez votre bibliothèque, découvrez des modèles ou préparez une quantification.",
-                    "Manage your library, discover models or prepare a quantization."),
+                    "Bibliothèque, téléchargements et quantification.",
+                    "Library, downloads and quantization."),
                 close: { studio.showModelManager = false })
             Divider().overlay(StudioTheme.edge)
             HStack(spacing: 0) {
@@ -25,7 +63,7 @@ struct ModelManagerView: View {
                         discover = false
                         quantize = false
                     }
-                    navigation(L("Découvrir", "Discover"), icon: "magnifyingglass", active: discover && !quantize) {
+                    navigation("Hugging Face", icon: "magnifyingglass", active: discover && !quantize) {
                         discover = true
                         quantize = false
                     }
@@ -104,10 +142,8 @@ struct ModelManagerView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(L("Votre collection.", "Your collection.")).font(
+                    Text(L("Modèles installés", "Installed models")).font(
                         .system(size: 29, weight: .regular, design: .serif))
-                    Text(L("Des modèles locaux, prêts à vous répondre.", "Local models, ready when you are."))
-                        .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
                 Button(action: studio.importModelFolder) {
@@ -129,8 +165,8 @@ struct ModelManagerView: View {
                     if studio.models.isEmpty {
                         Text(
                             L(
-                                "Aucun modèle installé. Découvrez les checkpoints EXL3 ou importez un dossier.",
-                                "No models installed. Discover EXL3 checkpoints or import a folder.")
+                                "Aucun modèle installé. Téléchargez un modèle EXL3 ou importez un dossier.",
+                                "No models installed. Download an EXL3 model or import a folder.")
                         )
                         .foregroundStyle(StudioTheme.quiet).padding(.vertical, 50)
                     }
@@ -206,7 +242,7 @@ private struct HubBrowserView: View {
             if let detail = library.detail {
                 details(detail)
             } else {
-                Text(L("Trouvez votre prochain modèle.", "Find your next model.")).font(
+                Text(L("Modèles Hugging Face", "Hugging Face models")).font(
                     .system(size: 29, weight: .regular, design: .serif))
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass").foregroundStyle(StudioTheme.quiet)
@@ -287,10 +323,13 @@ private struct HubBrowserView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("RECOMMANDÉS", "RECOMMENDED"))
                 .font(.system(size: 12, weight: .medium)).tracking(1.4).foregroundStyle(StudioTheme.quiet)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
-                ForEach(ModelLibrary.recommendedModels) { model in
+            ForEach(ModelLibrary.recommendedFamilies) { family in
+              VStack(alignment: .leading, spacing: 10) {
+                Text(family.id).font(.system(size: 14, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
+                  ForEach(family.models) { model in
                     Button {
-                        library.open(model.id, revision: model.revision)
+                        library.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
                     } label: {
                         VStack(alignment: .leading, spacing: 9) {
                             HStack {
@@ -314,7 +353,10 @@ private struct HubBrowserView: View {
                             .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                             .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
                     }.buttonStyle(StudioControlStyle()).help(model.id)
+                  }
                 }
+              }
+              .padding(.top, 8)
             }
         }
     }
