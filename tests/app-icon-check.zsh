@@ -1,10 +1,10 @@
 #!/bin/zsh
 set -euo pipefail
 repo_dir="${0:A:h:h}"
-source_image="${repo_dir}/apps/MLXL3Studio/Resources/AppIcon.png"
+source_image="${repo_dir}/apps/MLXL3Studio/Resources/AppDockIcon.png"
 work_dir="$(mktemp -d)"
 trap 'rm -rf "${work_dir}"' EXIT
-expected_sha=e9bae3204b80cae5959d72dfd3bc6c791774b297c7f485e4e635e225d1bcddb1
+expected_sha=4ba71e43ce8cb5f5be496091eba457612e44ddc4764594242e4bca4205fe8951
 [[ "$(shasum -a 256 "${source_image}" | cut -d ' ' -f 1)" == "${expected_sha}" ]]
 "${repo_dir}/scripts/build-app-icon.sh" "${source_image}" "${work_dir}/AppIcon.icns"
 iconutil -c iconset "${work_dir}/AppIcon.icns" -o "${work_dir}/AppIcon.iconset"

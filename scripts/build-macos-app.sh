@@ -30,12 +30,12 @@ rm -rf "${app_dir}" "${legacy_app_dir}"
 install -d "${app_dir}/Contents/MacOS" "${app_dir}/Contents/Resources"
 install -m 755 "${binary_dir}/MLXL3Studio" "${app_dir}/Contents/MacOS/MLXL3Studio"
 install -m 644 "${package_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
-install -m 644 "${package_dir}/Resources/marked.umd.js" "${package_dir}/Resources/marked.LICENSE" "${app_dir}/Contents/Resources/"
+install -m 644 "${package_dir}/Resources/marked.umd.js" "${package_dir}/Resources/marked.LICENSE" "${package_dir}/Resources/AppIcon.png" "${app_dir}/Contents/Resources/"
 ditto "${runtime_dist_dir}" "${app_dir}/Contents/Resources/runtime"
 ditto "${repo_dir}/build/quantizer/mlxl3-quantize" "${app_dir}/Contents/Resources/quantizer"
 "${python_bin}" "${script_dir}/build_manifest.py" "${app_dir}/Contents/Resources/build-info.json"
 
-"${script_dir}/build-app-icon.sh" "${package_dir}/Resources/AppIcon.png" "${app_dir}/Contents/Resources/AppIcon.icns"
+"${script_dir}/build-app-icon.sh" "${package_dir}/Resources/AppDockIcon.png" "${app_dir}/Contents/Resources/AppIcon.icns"
 
 # Keep LaTeX fonts in the app's standard signed Resources directory. SwiftMath
 # is vendored only to make this release layout independent of SwiftPM's build

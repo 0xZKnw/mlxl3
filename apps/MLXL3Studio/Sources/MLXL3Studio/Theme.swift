@@ -120,7 +120,7 @@ enum StudioBrand {
     static let logoURL: URL? = {
         let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().appending(path: "Resources/AppIcon.png")
-        return [Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), source]
+        return [Bundle.main.url(forResource: "AppIcon", withExtension: "png"), source]
             .compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }()
     static let logo: NSImage? = {

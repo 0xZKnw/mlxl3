@@ -11,7 +11,8 @@ import SwiftUI
             precondition(value, message)
         }
         if ProcessInfo.processInfo.environment["MLXL3_TEST_PACKAGED_ICON"] == "1" {
-            check(StudioBrand.logoURL?.pathExtension == "icns", "Packaged icon was not loaded")
+            check(StudioBrand.logoURL == Bundle.main.url(forResource: "AppIcon", withExtension: "png"),
+                  "Packaged transparent artwork was not loaded")
         }
         func render<V: View>(_ view: V, theme: AppTheme) async throws -> NSBitmapImageRep {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 128, height: 128),

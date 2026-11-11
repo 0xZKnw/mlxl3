@@ -116,7 +116,8 @@ check_preferences() {
     mkdir -p "${logo_app}/Contents/MacOS" "${logo_app}/Contents/Resources"
     cp "${test_dir}/logo-appearance-check" "${logo_app}/Contents/MacOS/MLXL3Studio"
     cp apps/MLXL3Studio/Resources/Info.plist "${logo_app}/Contents/Info.plist"
-    scripts/build-app-icon.sh apps/MLXL3Studio/Resources/AppIcon.png "${logo_app}/Contents/Resources/AppIcon.icns"
+    cp apps/MLXL3Studio/Resources/AppIcon.png "${logo_app}/Contents/Resources/AppIcon.png"
+    scripts/build-app-icon.sh apps/MLXL3Studio/Resources/AppDockIcon.png "${logo_app}/Contents/Resources/AppIcon.icns"
     run_fixture_check /usr/bin/env MLXL3_TEST_PACKAGED_ICON=1 "${logo_app}/Contents/MacOS/MLXL3Studio"
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
         tests/update-release-notes-check.swift -o "${test_dir}/update-release-notes-check"
