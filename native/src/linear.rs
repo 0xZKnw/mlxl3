@@ -235,6 +235,7 @@ pub struct Exl3Linear {
     dense_epilogue: bool,
     dec_one: bool,
     lane_indices: Option<Array>,
+    lfm3_prefill: [bool; 2],
 }
 
 impl Exl3Linear {
@@ -329,6 +330,13 @@ impl Exl3Linear {
             k,
             cb,
         )?;
+        let qualified = crate::lfm3::m5_text8(
+            checkpoint.model_type == "lfm3",
+            checkpoint.bits,
+            array::is_m5_gpu()?,
+        ) && linear.k == 8
+            && linear.cb == Codebook::Mcg;
+        linear.lfm3_prefill = lfm3_prefill_options(qualified);
         if checkpoint.model_type == "qwen4_exp" {
             linear.dense_epilogue = dense_epilogue;
             linear.dec_one = dec_one;
@@ -419,7 +427,12 @@ impl Exl3Linear {
             dense_epilogue: false,
             dec_one: false,
             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
+            lfm3_prefill: [false; 2],
         })
+    }
+
+    pub(crate) fn lfm3_grouped_prefill_enabled(&self) -> bool {
+        self.lfm3_prefill[1]
     }
 
     pub fn input_dims(&self) -> i32 {
@@ -533,6 +546,18 @@ impl Exl3Linear {
             return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
         if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
+            if self.lfm3_prefill[0]
+                && x.dtype() == Dtype::Float16
+                && x.shape() == [1, matrix_rows, self.rows]
+                && crate::lfm3::reconstructed_prefill_allowed(
+                    matrix_rows,
+                    self.rows,
+                    self.cols,
+                    self.k,
+                )
+            {
+                return lfm3_prefill::reconstruct_mm(self, x);
+            }
             return self.forward_qmm_tensor(x);
         }
         if matrix_rows >= 24 {
@@ -973,6 +998,7 @@ pub struct Exl3Group {
     cb: Codebook,
     simdgroups: i32,
     lane_indices: Option<Array>,
+    lfm3_prefill: bool,
 }
 
 impl Exl3Group {
@@ -1024,6 +1050,7 @@ impl Exl3Group {
         for array in [&trellis, &suh, &svh, &tile_sub] {
             array.eval()?;
         }
+        let lfm3_prefill = linears.iter().all(|v| v.lfm3_prefill[1]);
         let biases = linears.into_iter().map(|l| l.bias).collect();
         let lane_indices =
             if widths.as_slice() == [10240, 6144] || widths.as_slice() == [17408, 17408] {
@@ -1045,6 +1072,7 @@ impl Exl3Group {
             cb,
             simdgroups,
             lane_indices,
+            lfm3_prefill,
         })
     }
 
@@ -1061,6 +1089,15 @@ impl Exl3Group {
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
         if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
+            if self.lfm3_prefill
+                && matrix_rows <= 256
+                && x.shape() == [1, matrix_rows, self.rows]
+                && x.dtype() == Dtype::Float16
+                && crate::lfm3::grouped_prefill_layout(matrix_rows, self.rows, &self.widths)
+                    .is_some()
+            {
+                return lfm3_prefill::grouped_qmm(self, x);
+            }
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
             let mut outputs = Vec::with_capacity(self.widths.len());
@@ -2908,4 +2945,29 @@ mod tests {
         );
         Ok(())
     }
+}
+
+#[path = "linear/lfm3_prefill.rs"]
+mod lfm3_prefill;
+#[cfg(test)]
+#[path = "linear/lfm3_prefill_tests.rs"]
+mod lfm3_prefill_tests;
+#[cfg(test)]
+thread_local! {
+    static PREFILL_OVERRIDE: std::cell::Cell<Option<[bool; 2]>> = const { std::cell::Cell::new(None) };
+    static PREFILL_DISPATCHES: std::cell::Cell<[usize; 2]> = const { std::cell::Cell::new([0; 2]) };
+}
+
+pub(crate) fn lfm3_prefill_options(qualified: bool) -> [bool; 2] {
+    #[cfg(test)]
+    if let Some(flags) = PREFILL_OVERRIDE.get() {
+        return flags.map(|flag| qualified && flag);
+    }
+    ["MLXL3_LFM3_PREFILL_GEMM", "MLXL3_LFM3_PREFILL_GROUPED"].map(|name| {
+        match std::env::var(name) {
+            Ok(value) => crate::lfm3::prefill_selected(qualified, Some(&value)),
+            Err(std::env::VarError::NotPresent) => crate::lfm3::prefill_selected(qualified, None),
+            Err(std::env::VarError::NotUnicode(_)) => false,
+        }
+    })
 }

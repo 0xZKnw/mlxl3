@@ -78,6 +78,9 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "lfm3::lfm3_reconstruction_grid_and_trellis_bounds_are_checked",
+        "lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds",
+        "lfm3::lfm3_prefill_defaults_require_qualified_hardware_and_exact_overrides",
         "hub::preview_proofs::lfm3_text_and_vision_are_supported",
         "native_draft_gpu::draft_gpu_projection_admission_matches_dimensions",
         "ssd_reads::cancellable_io::ssd_read_submission_is_bounded_and_makes_progress",

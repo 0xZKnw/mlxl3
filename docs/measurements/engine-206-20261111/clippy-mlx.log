@@ -1,0 +1,44 @@
+   Compiling generic-array v0.14.7
+    Checking typenum v1.20.1
+    Checking cpufeatures v0.2.17
+   Compiling mlxl3-native v2.0.5 (/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0)
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking digest v0.10.7
+    Checking sha2 v0.10.9
+    Checking sha1 v0.10.7
+error: function `reconstruction_elements` is never used
+  --> native/src/lfm3.rs:10:15
+   |
+10 | pub(crate) fn reconstruction_elements(input: i32, output: i32, bits: usize) -> Option<i32> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: function `reconstructed_prefill_allowed` is never used
+  --> native/src/lfm3.rs:23:15
+   |
+23 | pub(crate) fn reconstructed_prefill_allowed(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `grouped_prefill_layout` is never used
+  --> native/src/lfm3.rs:35:15
+   |
+35 | pub(crate) fn grouped_prefill_layout(rows: i32, input: i32, widths: &[i32]) -> Option<[i32; 3]> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^
+
+error: function `m5_text8` is never used
+   --> native/src/lfm3.rs:658:15
+    |
+658 | pub(crate) fn m5_text8(lfm3: bool, bits: Option<f64>, m5: bool) -> bool {
+    |               ^^^^^^^^
+
+error: function `prefill_selected` is never used
+   --> native/src/lfm3.rs:663:15
+    |
+663 | pub(crate) fn prefill_selected(qualified: bool, setting: Option<&str>) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+
+error: could not compile `mlxl3-native` (lib) due to 5 previous errors
+warning: build failed, waiting for other jobs to finish...

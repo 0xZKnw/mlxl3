@@ -1,0 +1,1564 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.6 (/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1151:17
+     |
+1151 |         None => assert!(!(2..=8).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1304:17
+     |
+1304 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:354:21
+    |
+354 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: constant `FLAGS` is never used
+ --> native/src/ar10_defaults.rs:4:18
+  |
+4 | pub(crate) const FLAGS: [&str; 13] = [
+  |                  ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `setting_value` is never used
+  --> native/src/ar10_defaults.rs:29:4
+   |
+29 | fn setting_value(value: std::result::Result<String, std::env::VarError>, m5: bool) -> Result<bool> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `setting` is never used
+  --> native/src/ar10_defaults.rs:38:15
+   |
+38 | pub(crate) fn setting(name: &str, qualified_m5: bool) -> Result<bool> {
+   |               ^^^^^^^
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `defines` is never used
+ --> native/src/ar20_kernel_policy.rs:9:15
+  |
+9 | pub(crate) fn defines(bits: u32) -> String {
+  |               ^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `capacity` is never used
+ --> native/src/device_hot_policy.rs:5:15
+  |
+5 | pub(crate) fn capacity(value: Option<&str>) -> Option<usize> {
+  |               ^^^^^^^^
+
+warning: enum `CompactWeight` is never used
+ --> native/src/draft_storage.rs:6:17
+  |
+6 | pub(crate) enum CompactWeight {
+  |                 ^^^^^^^^^^^^^
+
+warning: associated items `from_bytes`, `len`, `retained_bytes`, `decode`, and `quantize` are never used
+  --> native/src/draft_storage.rs:14:12
+   |
+13 | impl CompactWeight {
+   | ------------------ associated items in this implementation
+14 |     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+   |            ^^^^^^^^^^
+...
+28 |     pub fn len(&self) -> usize {
+   |            ^^^
+...
+34 |     pub fn retained_bytes(&self) -> Result<usize> {
+   |            ^^^^^^^^^^^^^^
+...
+44 |     pub fn decode(&self) -> Result<Vec<f32>> {
+   |            ^^^^^^
+...
+69 |     pub fn quantize(&mut self) -> Result<()> {
+   |            ^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `position`, `feature`, and `accepted` are never read
+   --> native/src/flash_draft_budget.rs:128:5
+    |
+127 | struct Label {
+    |        ----- fields in this struct
+128 |     position: usize,
+    |     ^^^^^^^^
+129 |     feature: f64,
+    |     ^^^^^^^
+130 |     accepted: bool,
+    |     ^^^^^^^^
+    |
+    = note: `Label` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `logit` is never used
+   --> native/src/flash_draft_budget.rs:149:4
+    |
+149 | fn logit(p: f64) -> f64 {
+    |    ^^^^^
+
+warning: function `sigmoid` is never used
+   --> native/src/flash_draft_budget.rs:153:4
+    |
+153 | fn sigmoid(z: f64) -> f64 {
+    |    ^^^^^^^
+
+warning: function `seed` is never used
+   --> native/src/flash_draft_budget.rs:157:4
+    |
+157 | fn seed(rows: f64) -> f64 {
+    |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:210:8
+    |
+205 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+...
+210 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+223 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+229 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+247 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+298 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+315 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: constant `CAPACITIES` is never used
+ --> native/src/flash_expert_scratch.rs:4:18
+  |
+4 | pub(crate) const CAPACITIES: [u64; 2] = [5120, 10240];
+  |                  ^^^^^^^^^^
+
+warning: methods `ready_slot_snapshot`, `enable_slru`, and `slru_enabled` are never used
+    --> native/src/flash_support.rs:1601:19
+     |
+1425 | impl ExpertCache {
+     | ---------------- methods in this implementation
+...
+1601 |     pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
+     |                   ^^^^^^^^^^^^^^^^^^^
+...
+1651 |     pub(crate) fn enable_slru(&mut self) {
+     |                   ^^^^^^^^^^^
+...
+1657 |     pub(crate) fn slru_enabled(&self) -> bool {
+     |                   ^^^^^^^^^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1801:19
+     |
+1801 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve`, `reserve_block`, `reserve_access`, and `publish` are never used
+    --> native/src/flash_support.rs:1809:19
+     |
+1808 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1809 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1816 |     pub(crate) fn reserve_block(
+     |                   ^^^^^^^^^^^^^
+...
+1824 |     fn reserve_access(
+     |        ^^^^^^^^^^^^^^
+...
+1846 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3824:15
+     |
+3824 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3891:15
+     |
+3891 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CAPACITY` is never used
+ --> native/src/frame_arena.rs:2:18
+  |
+2 | pub(crate) const CAPACITY: usize = 9;
+  |                  ^^^^^^^^
+
+warning: enum `ReadPayload` is never used
+  --> native/src/ssd_reads.rs:26:17
+   |
+26 | pub(crate) enum ReadPayload {
+   |                 ^^^^^^^^^^^
+
+warning: struct `Completed` is never constructed
+   --> native/src/ssd_reads.rs:149:19
+    |
+149 | pub(crate) struct Completed {
+    |                   ^^^^^^^^^
+
+warning: struct `Ticket` is never constructed
+   --> native/src/ssd_reads.rs:167:8
+    |
+167 | struct Ticket(Arc<AtomicUsize>);
+    |        ^^^^^^
+
+warning: struct `Read` is never constructed
+   --> native/src/ssd_reads.rs:175:8
+    |
+175 | struct Read {
+    |        ^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:192:8
+    |
+191 | impl Read {
+    | --------- method in this implementation
+192 |     fn run(self) {
+    |        ^^^
+
+warning: enum `ReadWork` is never used
+   --> native/src/ssd_reads.rs:275:6
+    |
+275 | enum ReadWork {
+    |      ^^^^^^^^
+
+warning: method `run` is never used
+   --> native/src/ssd_reads.rs:284:8
+    |
+283 | impl ReadWork {
+    | ------------- method in this implementation
+284 |     fn run(self) {
+    |        ^^^
+
+warning: struct `SplitState` is never constructed
+   --> native/src/ssd_reads.rs:296:8
+    |
+296 | struct SplitState {
+    |        ^^^^^^^^^^
+
+warning: struct `SplitRecord` is never constructed
+   --> native/src/ssd_reads.rs:304:8
+    |
+304 | struct SplitRecord {
+    |        ^^^^^^^^^^^
+
+warning: associated items `new` and `run_part` are never used
+   --> native/src/ssd_reads.rs:317:8
+    |
+316 | impl SplitRecord {
+    | ---------------- associated items in this implementation
+317 |     fn new(
+    |        ^^^
+...
+371 |     fn run_part(&self, index: usize, file: File) {
+    |        ^^^^^^^^
+
+warning: struct `ReadService` is never constructed
+   --> native/src/ssd_reads.rs:510:19
+    |
+510 | pub(crate) struct ReadService {
+    |                   ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+    --> native/src/ssd_reads.rs:559:19
+     |
+ 554 | impl ReadService {
+     | ---------------- associated items in this implementation
+...
+ 559 |     pub(crate) fn new(readers: usize) -> Result<Self> {
+     |                   ^^^
+...
+ 574 |     fn new_with_split_default(readers: usize, qualified_default: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 609 |     fn new_with_options(readers: usize, dynamic: bool, split_enabled: bool) -> Result<Self> {
+     |        ^^^^^^^^^^^^^^^^
+...
+ 737 |     pub(crate) fn in_flight(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+ 740 |     pub(crate) fn submit(
+     |                   ^^^^^^
+...
+ 891 |     fn sources(
+     |        ^^^^^^^
+...
+ 926 |     fn start(
+     |        ^^^^^
+...
+ 933 |     fn start_mode(
+     |        ^^^^^^^^^^
+...
+ 944 |     fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+     |        ^^^^^^^^^^^^^^
+...
+ 971 |     fn start_payloads(
+     |        ^^^^^^^^^^^^^^
+...
+ 980 |     fn start_fallible_payloads(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1005 |     fn enqueue_payloads(
+     |        ^^^^^^^^^^^^^^^^
+...
+1016 |     fn enqueue_payloads_inner(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+1104 |     fn enqueue(&self, work: ReadWork) -> Result<()> {
+     |        ^^^^^^^
+
+warning: struct `ReadBatch` is never constructed
+    --> native/src/ssd_reads.rs:1176:19
+     |
+1176 | pub(crate) struct ReadBatch {
+     |                   ^^^^^^^^^
+
+warning: multiple methods are never used
+    --> native/src/ssd_reads.rs:1193:19
+     |
+1189 | impl ReadBatch {
+     | -------------- methods in this implementation
+...
+1193 |     pub(crate) fn abandon(&mut self) {
+     |                   ^^^^^^^
+...
+1200 |     fn check_cancelled(&mut self) -> Result<()> {
+     |        ^^^^^^^^^^^^^^^
+...
+1210 |     fn wait_next(&mut self) -> Result<Completed> {
+     |        ^^^^^^^^^
+...
+1234 |     pub(crate) fn remaining(&self) -> usize {
+     |                   ^^^^^^^^^
+...
+1237 |     pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
+     |                   ^^^^
+...
+1257 |     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^
+...
+1264 |     pub(crate) fn ready_min(&mut self, minimum: usize) -> Result<Vec<(SlotLease, ReadPayload)>> {
+     |                   ^^^^^^^^^
+
+warning: struct `ReadCancellation` is never constructed
+  --> native/src/ssd_reads/cancellable_io.rs:21:19
+   |
+21 | pub(super) struct ReadCancellation {
+   |                   ^^^^^^^^^^^^^^^^
+
+warning: methods `check`, `read_exact_at`, and `read_with` are never used
+  --> native/src/ssd_reads/cancellable_io.rs:29:19
+   |
+28 | impl ReadCancellation {
+   | --------------------- methods in this implementation
+29 |     pub(super) fn check(&self) -> io::Result<()> {
+   |                   ^^^^^
+...
+40 |     pub(super) fn read_exact_at(
+   |                   ^^^^^^^^^^^^^
+...
+63 |     fn read_with(
+   |        ^^^^^^^^^
+
+warning: struct `Source` is never constructed
+  --> native/src/ssd_reads/window.rs:12:8
+   |
+12 | struct Source {
+   |        ^^^^^^
+
+warning: enum `Destination` is never used
+  --> native/src/ssd_reads/window.rs:21:6
+   |
+21 | enum Destination {
+   |      ^^^^^^^^^^^
+
+warning: struct `ReadWindow` is never constructed
+  --> native/src/ssd_reads/window.rs:27:19
+   |
+27 | pub(crate) struct ReadWindow<'a> {
+   |                   ^^^^^^^^^^
+
+warning: associated items `new`, `refill`, `remaining`, and `ready` are never used
+   --> native/src/ssd_reads/window.rs:39:8
+    |
+ 38 | impl<'a> ReadWindow<'a> {
+    | ----------------------- associated items in this implementation
+ 39 |     fn new(
+    |        ^^^
+...
+ 81 |     fn refill(&mut self) -> Result<()> {
+    |        ^^^^^^
+...
+123 |     pub(crate) fn remaining(&self) -> usize {
+    |                   ^^^^^^^^^
+...
+127 |     pub(crate) fn ready(&mut self) -> Result<Vec<(SlotLease, ReadPayload)>> {
+    |                   ^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.38s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.6 (/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/kani-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/81c961ffbe8d80ae/out/mlxl3_native-81c961ffbe8d80ae__RNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm365lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 56 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::ne thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 56 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::ne thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 9 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 10 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 11 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 12 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs line 714 column 15 function std::result::Result::<i32, std::num::TryFromIntError>::ok thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 11 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 12 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Not unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 13 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function lfm3::grouped_prefill_layout thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 49 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 49 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 9 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 10 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 11 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 12 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[i32; 3]>::is_some thread 0
+aborting path on assume(false) at file native/src/lfm3.rs line 113 column 1 function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 9 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 10 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 11 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 12 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4IterlENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldlNCNvNtCs8gshrB3Z6tB_12mlxl3_native4lfm322grouped_prefill_layout0INtNtBa_6option6OptionlEEB1G_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function lfm3::grouped_prefill_layout thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[i32; 3]>::is_some thread 0
+Runtime Symex: 1.63152s
+size of program expression: 34422 steps
+slicing removed 24214 assignments
+Generated 1653 VCC(s), 398 remaining after simplification
+Runtime Postprocess Equation: 0.0207143s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.205548s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.0330712s
+Solving with CaDiCaL 3.0.0
+209750 variables, 815700 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0619341s
+Runtime decision procedure: 0.271967s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+209751 variables, 815701 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.351627s
+Runtime decision procedure: 0.352886s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+209752 variables, 815702 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 1.02359s
+Runtime decision procedure: 1.02463s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+209753 variables, 815703 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0377154s
+Runtime decision procedure: 0.0387395s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+209754 variables, 815704 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.0547765s
+Runtime decision procedure: 0.0551893s
+
+RESULTS:
+Check 1: std::ptr::NonNull::<i32>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 2: std::ptr::NonNull::<i32>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 3: <std::option::Option<[i32; 3]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<[i32; 3]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 4: memcmp.precondition.1
+	 - Status: SUCCESS
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 5: memcmp.precondition.2
+	 - Status: SUCCESS
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 6: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 7: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 8: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 9: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 10: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 11: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 12: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 13: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 14: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 15: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:123:23 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 16: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/lfm3.rs:129:12 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 17: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:130:12 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 18: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:130:12 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 19: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:131:12 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 20: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.9
+	 - Status: SUCCESS
+	 - Description: "assertion failed: result.is_some() == valid"
+	 - Location: native/src/lfm3.rs:132:5 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 21: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lfm3.rs:113:1 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 22: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.10
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/lfm3.rs:134:49 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 23: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/lfm3.rs:134:71 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 24: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.12
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/lfm3.rs:134:71 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 25: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/lfm3.rs:134:71 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 26: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/lfm3.rs:134:71 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 27: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.13
+	 - Status: SUCCESS
+	 - Description: "assertion failed: rows >= 24 && padded >= rows && padded - rows < 32 && padded % 32 == 0"
+	 - Location: native/src/lfm3.rs:134:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 28: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.14
+	 - Status: SUCCESS
+	 - Description: "assertion failed: input == 2048 &&
+((groups == 2 && output == 15360) || (groups == 3 && output == 3072))"
+	 - Location: native/src/lfm3.rs:135:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 29: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.15
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:138:17 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 30: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.16
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:138:17 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 31: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.17
+	 - Status: SUCCESS
+	 - Description: "assertion failed: i64::from(padded) * i64::from(input) * i64::from(groups) <=
+i64::from(i32::MAX)"
+	 - Location: native/src/lfm3.rs:138:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 32: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.18
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:139:17 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 33: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.assertion.19
+	 - Status: SUCCESS
+	 - Description: "assertion failed: i64::from(padded) * i64::from(output) <= i64::from(i32::MAX)"
+	 - Location: native/src/lfm3.rs:139:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 34: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 66 && groups == 3 && padded == 96"
+	 - Location: native/src/lfm3.rs:140:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 35: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 256 && groups == 2 && padded == 256"
+	 - Location: native/src/lfm3.rs:141:9 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 36: lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 1 && grouped_prefill_layout(rows, input, &widths).is_none()"
+	 - Location: native/src/lfm3.rs:143:5 in function lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds
+
+Check 37: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 38: kani::rustc_intrinsics::offset::<i32, *mut i32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *mut i32, usize>
+
+Check 39: kani::rustc_intrinsics::offset::<i32, *mut i32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *mut i32, usize>
+
+Check 40: kani::rustc_intrinsics::offset::<i32, *mut i32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *mut i32, usize>
+
+Check 41: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 42: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 43: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 44: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::ne.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::ne
+
+Check 45: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 46: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 47: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 48: <std::option::Option<i32> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<i32> as std::ops::Try>::branch
+
+Check 49: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 50: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq
+
+Check 51: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 52: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::ne.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::ne
+
+Check 53: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 54: <std::option::Option<i32> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<i32> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 55: std::result::Result::<i32, std::num::TryFromIntError>::ok.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:714:15 in function std::result::Result::<i32, std::num::TryFromIntError>::ok
+
+Check 56: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 57: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 58: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 59: lfm3::grouped_prefill_layout.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/lfm3.rs:43:18 in function lfm3::grouped_prefill_layout
+
+Check 60: lfm3::grouped_prefill_layout.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/lfm3.rs:43:18 in function lfm3::grouped_prefill_layout
+
+Check 61: lfm3::grouped_prefill_layout.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/lfm3.rs:43:18 in function lfm3::grouped_prefill_layout
+
+Check 62: lfm3::grouped_prefill_layout.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/lfm3.rs:43:18 in function lfm3::grouped_prefill_layout
+
+Check 63: lfm3::grouped_prefill_layout.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/lfm3.rs:43:18 in function lfm3::grouped_prefill_layout
+
+Check 64: lfm3::grouped_prefill_layout.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function lfm3::grouped_prefill_layout
+
+Check 65: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 66: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 67: core::slice::<impl [i32]>::as_array::<2>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 68: core::slice::<impl [i32]>::as_array::<2>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 69: core::slice::<impl [i32]>::as_array::<3>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 70: core::slice::<impl [i32]>::as_array::<3>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 71: <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2490:21 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>
+
+Check 72: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq
+
+Check 73: std::option::Option::<[i32; 3]>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 74: core::slice::<impl [i32]>::as_array::<2>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:861:13 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 75: core::slice::<impl [i32]>::as_array::<3>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:861:13 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 76: <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:29 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>
+
+Check 77: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 78: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 79: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 80: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 81: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 82: lfm3::grouped_prefill_layout::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/lfm3.rs:42:54 in function lfm3::grouped_prefill_layout::{closure#0}
+
+Check 83: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 84: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 85: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 86: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 87: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 88: std::option::Option::<[i32; 3]>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[i32; 3]>::is_some
+
+Check 89: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 90: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 91: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 92: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 93: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 94: std::ptr::NonNull::<i32>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<i32>::as_ref::<'_>
+
+Check 95: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq
+
+Check 96: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::ne
+
+Check 97: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq
+
+Check 98: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::ne
+
+Check 99: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 100: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 101: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 102: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 103: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 104: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 105: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 106: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 107: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 108: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 109: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 110: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 111: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 112: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 113: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 114: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 115: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 116: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 117: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 118: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 119: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 120: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 121: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 122: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 123: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 124: <std::slice::Iter<'_, i32> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::next
+
+Check 125: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 126: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 127: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 128: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 129: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 130: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 131: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 132: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 133: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 134: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 135: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 136: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::ne
+
+Check 137: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 138: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 139: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 140: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 141: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 142: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 143: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 144: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 145: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 146: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 147: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 148: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::ne
+
+Check 149: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 150: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 151: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 152: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 153: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 154: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 155: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 156: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 157: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 158: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 159: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 160: <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<i32> as std::cmp::PartialEq>::eq
+
+Check 161: memcmp.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 162: memcmp.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 163: memcmp.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 164: memcmp.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 165: memcmp.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 166: memcmp.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 167: memcmp.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 168: memcmp.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 169: memcmp.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 170: memcmp.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 171: memcmp.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 172: memcmp.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 173: <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:9 in function <std::slice::Iter<'_, i32> as std::iter::Iterator>::try_fold::<i32, {closure@native/src/lfm3.rs:42:25: 42:37}, std::option::Option<i32>>
+
+
+SUMMARY:
+ ** 0 of 170 failed (1 unreachable)
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 5.284134s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

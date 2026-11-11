@@ -7,6 +7,143 @@ pub fn window_contains(query: u32, key: u32, window: u32) -> bool {
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn reconstruction_elements(input: i32, output: i32, bits: usize) -> Option<i32> {
+    if bits != 8
+        || !matches!(
+            (input, output),
+            (2048, 7680) | (7680, 2048) | (2048, 6144) | (2048, 2048)
+        )
+    {
+        return None;
+    }
+    input.checked_mul(output)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn reconstructed_prefill_allowed(
+    rows: i32,
+    input: i32,
+    output: i32,
+    bits: usize,
+) -> bool {
+    rows <= 256
+        && rows >= if output == 2048 { 128 } else { 256 }
+        && reconstruction_elements(input, output, bits).is_some()
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn grouped_prefill_layout(rows: i32, input: i32, widths: &[i32]) -> Option<[i32; 3]> {
+    if rows < 24 || input != 2048 || (widths != [7680, 7680] && widths != [2048, 512, 512]) {
+        return None;
+    }
+    let groups = i32::try_from(widths.len()).ok()?;
+    let output = widths
+        .iter()
+        .try_fold(0i32, |sum, width| sum.checked_add(*width))?;
+    let padded = rows.checked_add(31)? / 32 * 32;
+    padded.checked_mul(input)?.checked_mul(groups)?;
+    padded.checked_mul(output)?;
+    Some([padded, output, groups])
+}
+
+#[test]
+fn prefill_prototypes_reject_invalid_shapes_and_overflow() {
+    assert_eq!(reconstruction_elements(2048, 7680, 8), Some(15728640));
+    assert!(reconstructed_prefill_allowed(128, 7680, 2048, 8));
+    assert!(!reconstructed_prefill_allowed(127, 7680, 2048, 8));
+    assert!(!reconstructed_prefill_allowed(128, 2048, 6144, 8));
+    assert!(reconstructed_prefill_allowed(256, 2048, 6144, 8));
+    assert!(!reconstructed_prefill_allowed(257, 2048, 6144, 8));
+    assert!(reconstruction_elements(2048, 7680, 7).is_none());
+    assert!(reconstruction_elements(i32::MAX - 127, 2048, 8).is_none());
+    assert_eq!(
+        grouped_prefill_layout(66, 2048, &[2048, 512, 512]),
+        Some([96, 3072, 3])
+    );
+    assert!(grouped_prefill_layout(23, 2048, &[7680, 7680]).is_none());
+    assert!(grouped_prefill_layout(256, 2048, &[7680, 512]).is_none());
+    assert!(grouped_prefill_layout(i32::MAX, 2048, &[7680, 7680]).is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm3_reconstruction_grid_and_trellis_bounds_are_checked() {
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let bits: usize = kani::any();
+    let rows: i32 = kani::any();
+    assert_eq!(
+        reconstructed_prefill_allowed(rows, input, output, bits),
+        rows <= 256
+            && rows >= if output == 2048 { 128 } else { 256 }
+            && bits == 8
+            && matches!(
+                (input, output),
+                (2048, 7680) | (7680, 2048) | (2048, 6144) | (2048, 2048)
+            )
+    );
+    let elements = reconstruction_elements(input, output, bits);
+    let count = i64::from(input) * i64::from(output);
+    assert_eq!(
+        elements.is_some(),
+        bits == 8
+            && matches!(
+                (input, output),
+                (2048, 7680) | (7680, 2048) | (2048, 6144) | (2048, 2048)
+            )
+            && count <= i64::from(i32::MAX)
+    );
+    if let Some(elements) = elements {
+        let index: u32 = kani::any();
+        if index < elements as u32 {
+            let row = index / output as u32;
+            let col = index % output as u32;
+            assert!(row < input as u32 && col < output as u32);
+            let tile = (row / 16) * (output as u32 / 16) + col / 16;
+            assert!(u64::from(tile) * 64 + 63 < elements as u64 / 4);
+        }
+        kani::cover!(input == 2048 && output == 7680);
+    }
+    kani::cover!(input == 2048 && output == 2048 && bits == 7 && elements.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds() {
+    let rows: i32 = kani::any();
+    let input: i32 = kani::any();
+    let a: i32 = kani::any();
+    let b: i32 = kani::any();
+    let c: i32 = kani::any();
+    let triple: bool = kani::any();
+    let widths = [a, b, c];
+    let selected = &widths[..if triple { 3 } else { 2 }];
+    let result = grouped_prefill_layout(rows, input, selected);
+    let padded_wide = (i64::from(rows) + 31) / 32 * 32;
+    let groups_wide = if triple { 3 } else { 2 };
+    let output_wide = if triple { 3072 } else { 15360 };
+    let valid = rows >= 24
+        && input == 2048
+        && (selected == [7680, 7680] || selected == [2048, 512, 512])
+        && i64::from(rows) + 31 <= i64::from(i32::MAX)
+        && padded_wide * 2048 * groups_wide <= i64::from(i32::MAX)
+        && padded_wide * output_wide <= i64::from(i32::MAX);
+    assert_eq!(result.is_some(), valid);
+    if let Some([padded, output, groups]) = result {
+        assert!(rows >= 24 && padded >= rows && padded - rows < 32 && padded % 32 == 0);
+        assert!(
+            input == 2048 && ((groups == 2 && output == 15360) || (groups == 3 && output == 3072))
+        );
+        assert!(i64::from(padded) * i64::from(input) * i64::from(groups) <= i64::from(i32::MAX));
+        assert!(i64::from(padded) * i64::from(output) <= i64::from(i32::MAX));
+        kani::cover!(rows == 66 && groups == 3 && padded == 96);
+        kani::cover!(rows == 256 && groups == 2 && padded == 256);
+    }
+    kani::cover!(rows == 1 && grouped_prefill_layout(rows, input, &widths).is_none());
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn short_conv_sizes(dim: i32) -> Option<[i32; 2]> {
     if dim <= 0 {
         return None;
@@ -515,4 +652,64 @@ fn lfm3_attention_gate_buffers_are_bounded() {
 fn allocator_default_runtime_has_no_rust_panics() {
     let bytes: u32 = kani::any();
     let _ = crate::array::set_default_cache_limit(u64::from(bytes));
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn m5_text8(lfm3: bool, bits: Option<f64>, m5: bool) -> bool {
+    lfm3 && bits == Some(8.0) && m5
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn prefill_selected(qualified: bool, setting: Option<&str>) -> bool {
+    qualified && matches!(setting, None | Some("1"))
+}
+
+#[test]
+fn prefill_defaults_and_overrides_keep_unqualified_models_off() {
+    for qualified in [false, true] {
+        for value in [
+            None,
+            Some("0"),
+            Some("1"),
+            Some(""),
+            Some("true"),
+            Some("01"),
+            Some("é"),
+        ] {
+            assert_eq!(
+                prefill_selected(qualified, value),
+                qualified && (value.is_none() || value == Some("1"))
+            );
+        }
+    }
+    assert!(m5_text8(true, Some(8.), true));
+    assert!(!m5_text8(false, Some(8.), true));
+    assert!(!m5_text8(true, Some(4.), true));
+    assert!(!m5_text8(true, Some(8.), false));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn lfm3_prefill_defaults_require_qualified_hardware_and_exact_overrides() {
+    let lfm3: bool = kani::any();
+    let m5: bool = kani::any();
+    let bits: Option<f64> = kani::any();
+    let qualified = m5_text8(lfm3, bits, m5);
+    assert_eq!(qualified, lfm3 && bits == Some(8.) && m5);
+    let none: bool = kani::any();
+    let bytes: [u8; 2] = kani::any();
+    let length = (kani::any::<u8>() % 3) as usize;
+    if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+        let setting = if none { None } else { Some(value) };
+        let selected = prefill_selected(qualified, setting);
+        assert_eq!(
+            selected,
+            lfm3 && bits == Some(8.) && m5 && (none || value == "1")
+        );
+        kani::cover!(selected && none);
+        kani::cover!(selected && setting == Some("1"));
+        kani::cover!(!selected && qualified && setting == Some("0"));
+        kani::cover!(!selected && !m5 && none);
+    }
 }

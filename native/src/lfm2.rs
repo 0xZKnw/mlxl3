@@ -384,13 +384,15 @@ impl Projection {
     }
 }
 
-pub(crate) enum Qkv {
-    Separate(Box<[Projection; 3]>),
+pub(crate) enum ProjectionBundle<const N: usize> {
+    Separate(Box<[Projection; N]>),
     Grouped(Box<Exl3Group>),
 }
 
-impl Qkv {
-    pub(crate) fn new(projections: [Projection; 3]) -> Result<Self> {
+pub(crate) type Qkv = ProjectionBundle<3>;
+
+impl<const N: usize> ProjectionBundle<N> {
+    pub(crate) fn new(projections: [Projection; N]) -> Result<Self> {
         let linears: Vec<_> = projections
             .iter()
             .filter_map(|p| match &p.weights {
@@ -398,7 +400,16 @@ impl Qkv {
                 _ => None,
             })
             .collect();
-        if linears.len() == 3 && Exl3Group::compatible(&linears) {
+        if linears.len() == N
+            && Exl3Group::compatible(&linears)
+            && (N != 2
+                || projections.iter().zip(&linears).all(|(p, l)| {
+                    p.bias.is_none()
+                        && l.lfm3_grouped_prefill_enabled()
+                        && p.logical_input == l.input_dims()
+                        && p.logical_output == l.output_dims()
+                }))
+        {
             let linears = projections
                 .into_iter()
                 .map(|p| match p.weights {
@@ -741,10 +752,10 @@ struct Layer {
     post_ffn_norm: Option<Array>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum FeedForward {
     Dense {
-        w1: Projection,
-        w3: Projection,
+        inputs: ProjectionBundle<2>,
         w2: Projection,
     },
     Moe {
@@ -762,10 +773,9 @@ enum FeedForward {
 impl FeedForward {
     fn forward(&self, x: &Array) -> Result<Array> {
         match self {
-            Self::Dense { w1, w3, w2 } => {
-                let gate = w1.forward(x)?;
-                let up = w3.forward(x)?;
-                w2.forward(&gate.swiglu(&up)?)
+            Self::Dense { inputs, w2 } => {
+                let projected = inputs.forward(x)?;
+                w2.forward(&projected[0].swiglu(&projected[1])?)
             }
             Self::Moe {
                 gate,
@@ -938,21 +948,34 @@ impl Layer {
                     dim,
                 }
             } else {
-                FeedForward::Dense {
-                    w1: Projection::load(
+                let inputs = [
+                    Projection::load(
                         checkpoint,
                         &format!("{prefix}.feed_forward.w1"),
                         dim,
                         ff_dim,
                         false,
                     )?,
-                    w3: Projection::load(
+                    Projection::load(
                         checkpoint,
                         &format!("{prefix}.feed_forward.w3"),
                         dim,
                         ff_dim,
                         false,
                     )?,
+                ];
+                let qualified = crate::lfm3::m5_text8(
+                    checkpoint.model_type == "lfm3",
+                    checkpoint.bits,
+                    array::is_m5_gpu()?,
+                );
+                let grouped = crate::linear::lfm3_prefill_options(qualified)[1];
+                FeedForward::Dense {
+                    inputs: if grouped {
+                        ProjectionBundle::new(inputs)?
+                    } else {
+                        ProjectionBundle::Separate(Box::new(inputs))
+                    },
                     w2: Projection::load(
                         checkpoint,
                         &format!("{prefix}.feed_forward.w2"),
@@ -1693,3 +1716,64 @@ mod flash_hc_tests {
 #[cfg(test)]
 #[path = "lfm2_prefill_tests.rs"]
 mod prefill_tests;
+
+#[cfg(test)]
+mod lfm3_prefill_release_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "physical M5 LFM3 MCG8; FFN production grouping and semantic fallbacks"]
+    fn grouped_ffn_preserves_bias_padding_and_unqualified_fallbacks() -> Result<()> {
+        for case in 0..5 {
+            let mut cp = checkpoint::inspect(Path::new(&std::env::var("MLXL3_LFM3_MODEL")?))?;
+            if case == 3 {
+                cp.model_type = "lfm2".to_owned();
+            }
+            if case == 4 {
+                cp.bits = Some(4.);
+            }
+            let mut pair = [
+                Projection::load(&cp, "model.layers.0.feed_forward.w1", 2048, 7680, false)?,
+                Projection::load(&cp, "model.layers.0.feed_forward.w3", 2048, 7680, false)?,
+            ];
+            if case == 1 {
+                pair[0].bias =
+                    Some(Array::from_f32(&vec![0.125; 7680], &[7680])?.astype(Dtype::Float16)?);
+            }
+            let width = if case == 2 {
+                for p in &mut pair {
+                    p.logical_input = 2047;
+                }
+                2047
+            } else {
+                2048
+            };
+            let values = (0..24 * width)
+                .map(|v| ((v * 37 % 997) as f32 / 997.) - 0.5)
+                .collect::<Vec<_>>();
+            let x = Array::from_f32(&values, &[1, 24, width])?.astype(Dtype::Float16)?;
+            let expected = pair
+                .iter()
+                .map(|p| p.forward(&x))
+                .collect::<Result<Vec<_>>>()?;
+            let inputs = ProjectionBundle::new(pair)?;
+            ensure!(matches!(&inputs, ProjectionBundle::Grouped(_)) == (case == 0));
+            let actual = inputs.forward(&x)?;
+            ensure!(actual.len() == 2 && expected.len() == 2);
+            for (a, e) in actual.iter().zip(&expected) {
+                ensure!(a.shape() == [1, 24, 7680] && a.shape() == e.shape());
+                let values = a.to_f32()?;
+                ensure!(
+                    values.len() == 24 * 7680
+                        && values.iter().all(|v| v.is_finite())
+                        && values.iter().any(|v| v.abs() > 0.001)
+                );
+                ensure!(
+                    a.to_bytes()? == e.to_bytes()?,
+                    "FFN fallback changed case{case}"
+                );
+            }
+        }
+        Ok(())
+    }
+}
