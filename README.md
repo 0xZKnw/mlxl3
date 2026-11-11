@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/MLXL3Studio/Resources/AppIcon.png">
+    <img src="apps/MLXL3Studio/Resources/LogoDark.png" alt="MLXL3 logo" width="128">
+  </picture>
+</p>
+
 # MLXL3 v2: EXL3 inference on Apple Silicon
 
 MLXL3 runs EXL3 language and vision models locally on macOS. It includes a

@@ -124,26 +124,11 @@ enum StudioBrand {
             .compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }()
     static let logo: NSImage? = {
-        guard let original = logoURL.flatMap({ NSImage(contentsOf: $0) }) else { return nil }
-        let renderer = ImageRenderer(content: LogoArtwork(image: original))
-        renderer.scale = 2
-        return renderer.nsImage
+        logoURL.flatMap { NSImage(contentsOf: $0) }
     }()
 }
 
-private struct LogoArtwork: View {
-    let image: NSImage
-    var body: some View {
-        Image(nsImage: image).resizable().scaledToFit()
-            .mask {
-                Image(nsImage: image).resizable().scaledToFit()
-                    .brightness(0.30).contrast(16).luminanceToAlpha()
-            }
-            .frame(width: 256, height: 256)
-    }
-}
-
-/// Keep the real artwork and mask its dark icon background in the view.
+/// Keep the transparent artwork legible in both light and dark themes.
 struct MonogramMark: View {
     @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 20

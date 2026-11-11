@@ -10,6 +10,9 @@ import SwiftUI
             checks += 1
             precondition(value, message)
         }
+        if ProcessInfo.processInfo.environment["MLXL3_TEST_PACKAGED_ICON"] == "1" {
+            check(StudioBrand.logoURL?.pathExtension == "icns", "Packaged icon was not loaded")
+        }
         func render<V: View>(_ view: V, theme: AppTheme) async throws -> NSBitmapImageRep {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 128, height: 128),
                                   styleMask: .borderless, backing: .buffered, defer: false)
@@ -47,6 +50,10 @@ import SwiftUI
         }
         for theme in [AppTheme.light, .dark, .midnightBlue] {
             let bitmap = try await render(MonogramMark(size: 96), theme: theme)
+            if let folder = ProcessInfo.processInfo.environment["MLXL3_LOGO_SNAPSHOTS"] {
+                let output = URL(fileURLWithPath: folder).appendingPathComponent("logo-\(theme.rawValue).png")
+                try bitmap.representation(using: .png, properties: [:])!.write(to: output)
+            }
             let background = pixel(bitmap, 2, 2)
             for point in [(18, 18), (109, 18), (18, 109), (109, 109), (64, 18), (64, 109)] {
                 let value = pixel(bitmap, point.0, point.1)

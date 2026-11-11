@@ -15,6 +15,8 @@ fi
 test_dir="$(mktemp -d -t mlxl3-check)"
 trap 'rm -rf "${test_dir}"' EXIT
 
+zsh tests/app-icon-check.zsh
+
 # The new I/O fixtures must also be reaped if a Swift assertion aborts the check.
 run_fixture_check() {
     "${test_python}" - "$@" <<'PY'
@@ -91,6 +93,7 @@ check_response_ui() {
 # The focused PR job and the full suite execute the same production fixtures.
 check_preferences() {
     local -a idle_sources
+    local logo_app
     idle_sources=("${(@)sources:#*/StudioModel.swift}")
     # Appearance persistence, startup gate and actual subprocess lifecycle.
     awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
@@ -109,6 +112,12 @@ check_preferences() {
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
         tests/logo-appearance-check.swift -o "${test_dir}/logo-appearance-check"
     run_fixture_check "${test_dir}/logo-appearance-check"
+    logo_app="${test_dir}/Logo Check.app"
+    mkdir -p "${logo_app}/Contents/MacOS" "${logo_app}/Contents/Resources"
+    cp "${test_dir}/logo-appearance-check" "${logo_app}/Contents/MacOS/MLXL3Studio"
+    cp apps/MLXL3Studio/Resources/Info.plist "${logo_app}/Contents/Info.plist"
+    scripts/build-app-icon.sh apps/MLXL3Studio/Resources/AppIcon.png "${logo_app}/Contents/Resources/AppIcon.icns"
+    run_fixture_check /usr/bin/env MLXL3_TEST_PACKAGED_ICON=1 "${logo_app}/Contents/MacOS/MLXL3Studio"
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
         tests/update-release-notes-check.swift -o "${test_dir}/update-release-notes-check"
     run_fixture_check "${test_dir}/update-release-notes-check"

@@ -35,17 +35,7 @@ ditto "${runtime_dist_dir}" "${app_dir}/Contents/Resources/runtime"
 ditto "${repo_dir}/build/quantizer/mlxl3-quantize" "${app_dir}/Contents/Resources/quantizer"
 "${python_bin}" "${script_dir}/build_manifest.py" "${app_dir}/Contents/Resources/build-info.json"
 
-icon_work_dir="$(mktemp -d)"
-trap 'rm -rf "${icon_work_dir}"' EXIT
-iconset_dir="${icon_work_dir}/AppIcon.iconset"
-install -d "${iconset_dir}"
-sips -z 1024 1024 "${package_dir}/Resources/AppIcon.png" --out "${icon_work_dir}/icon-1024.png" >/dev/null
-for size in 16 32 128 256 512; do
-    sips -z "${size}" "${size}" "${icon_work_dir}/icon-1024.png" --out "${iconset_dir}/icon_${size}x${size}.png" >/dev/null
-    double_size=$((size * 2))
-    sips -z "${double_size}" "${double_size}" "${icon_work_dir}/icon-1024.png" --out "${iconset_dir}/icon_${size}x${size}@2x.png" >/dev/null
-done
-iconutil -c icns "${iconset_dir}" -o "${app_dir}/Contents/Resources/AppIcon.icns"
+"${script_dir}/build-app-icon.sh" "${package_dir}/Resources/AppIcon.png" "${app_dir}/Contents/Resources/AppIcon.icns"
 
 # Keep LaTeX fonts in the app's standard signed Resources directory. SwiftMath
 # is vendored only to make this release layout independent of SwiftPM's build
