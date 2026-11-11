@@ -28223,6 +28223,33 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   Comparer d'abord la parité LFM3 texte/VL, vérifier le vrai parcours image,
   identifier le binaire et les poids, puis mesurer chaque modèle séparément.
   Aucune mesure hybride ne sera étiquetée comme résultat du moteur MLX.
+- Moteur MLX 2.0.5 construit depuis `a3cffdcaa7bafb513eb127c15319dc3c0a1f5046`
+  propre, exécutable SHA-256 `7f5ea49e6768ffddf0ad10e39dfb2cae48410789ce92842d4d1a42e7660338a0`.
+  Après intégration de la politique MLX : 84 tests packaging passés/13 natifs
+  volontairement ignorés ; Rust CPU/chat 424+37+17+37+1 passés, 10 ignorés,
+  Clippy et rustfmt passent, inventaire314 conforme. Comparaison 2.0.4→MLX :
+  KL0 pour six cas LFM3 (3 et499 tokens), 35 états courts égaux par modèle ;
+  trois cas Qwen de3 tokens KL0. VL réel : rouge et bleu reconnus via Desktop
+  et bridge. Ces exemples bornés ne prouvent pas la qualité générale.
+- Six modèles mesurés sur M5/24Gio, secteur, MLX0.32.2, prompt SHA enregistré,
+  context4096,128sorties, warmup+3 passages, MTP/DFlash/cache OFF : médianes
+  decode original49.47, Heretic46.80, VL texte46.62, Qwen27B8.33,
+  Qwen35B-A3B42.75, FlashNext10.05 tokens/s. Les plages, TTFT, prefill, mémoire,
+  poids SHA et contexte mémoire/SSD sont dans `docs/measurements/v2-models-20261111/`.
+  L'OS avait environ2.8Gio de swap utilisé ; aucun contrôle de cache disque ou
+  d'occupation GPU globale n'est revendiqué. Quatre tests vérifient les données
+  et le runner, y compris interruption et données non finies.
+- Le paquet Desktop construit depuis ce même commit est signé ad hoc et embarque
+  exactement le binaire mesuré. Archive moteur `c2de4f7081823d8779f64619cb39ec3d5b0c9a3d8c1aad992eecefc0dc17c1cf`,
+  DMG `a52665c603060e59bc120b73a189c05bdc17a601de090dc1351dc821ed246002` ;
+  tous les fichiers runtime/hashes comparés, version/architecture/signature
+  contrôlées et vraie installation moteur + préflight DMG réussis en bac jetable.
+- CI Apple : le changement du backend par défaut rendait invisibles quatre
+  doctests natifs. Ajouter `direct-metal` explicitement au seul contrôle de
+  contrat conservé ; les quatre doctests passent localement, sans changer le
+  moteur MLX livré. Les deux preuves Kani Flash non modifiées ont expiré à600s
+  sur le précédent run, sans contre-exemple ; l'utilisateur demande de ne pas
+  attendre la CI distante avant fusion/publication.
 
 - Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.
 

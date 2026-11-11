@@ -93,6 +93,29 @@ budget, hardware and execution mode. Decode rate, prefill rate and time to first
 token are different metrics. Process footprint, active GPU allocation and model
 file size are also different quantities.
 
+On an **Apple M5 / 24 GiB**, macOS 27.2, the MLX 0.32.2 engine from commit
+`a3cffdcaa7ba` produced the following results. Each model used the same text
+prompt, a 4,096-token context, greedy decoding, 128 output tokens, one warmup
+and three measured runs. MTP, DFlash, tools and prompt reuse were off.
+
+| Model | Prefill median | Decode median (range) | TTFT median | Total median | Peak footprint |
+|---|---:|---:|---:|---:|---:|
+| LFM3 1.7B original · 8 bpw | 886.35 tok/s | 49.47 (46.94–51.20) tok/s | 0.069 s | 2.64 s | 2.58 GiB |
+| LFM3 1.7B Heretic NX · 8 bpw | 868.87 tok/s | 46.80 (46.31–48.65) tok/s | 0.071 s | 2.78 s | 2.58 GiB |
+| LFM3-VL 2B · 8 bpw, text | 885.66 tok/s | 46.62 (46.07–48.32) tok/s | 0.069 s | 2.79 s | 2.76 GiB |
+| Qwen3.8 27B · 2 bpw | 73.74 tok/s | 8.33 (8.13–9.13) tok/s | 1.411 s | 16.67 s | 11.19 GiB |
+| Qwen3.6 35B-A3B · 2.49 bpw | 223.11 tok/s | 42.75 (41.08–44.15) tok/s | 0.278 s | 3.25 s | 13.02 GiB |
+| Qwen3.8 Flash Next · 2.05 bpw | 9.97 tok/s | 10.05 (9.87–10.24) tok/s | 10.433 s | 23.17 s | 9.67 GiB |
+
+The VL row measures **text-only** input. Tokenizers rendered the same prompt
+as 61–104 tokens depending on the model, so prefill rates and TTFT are not
+identical-work comparisons. TTFT and total exclude model loading; footprint is
+the largest process lifetime peak among measured runs, not model file size or
+total system memory. SSD and OS caches were not controlled. These are small
+local samples, not universal speed claims. The [measurement record](docs/measurements/v2-models-20261111/)
+contains each run, exact weights and revisions, the prompt, quality checks and
+reproduction commands.
+
 One fully recorded **Apple M5 / 24 GiB** campaign for LFM2.5-24B-A2B EXL3
 4 bpw used two 266-token templated prompts, 128 generated tokens, one warmup
 per prompt and five measured repetitions, without MTP, DFlash or prompt reuse:
