@@ -28211,6 +28211,31 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   ces ajustements. États MTP off/on/en attente/erreur et panneaux de 200 à
   320 points vérifiés ; captures des deux états et du composeur sans icône
   de contexte inspectées. La suite Desktop complète reste à terminer.
+
+### DESKTOP-FOLLOWUP-2026-11-11 — catalogue, ordre et dictée
+
+- LFM3-VL 2B EXL3 ajouté aux recommandations LFM, révision immuable
+  `15d4ec5cc43c5a6146dc675de0d89f939ec9c2da` et variante `8bpw` vérifiées
+  sur le Hub ; cartes organisées en familles LFM et Qwen. Les 257 contrôles
+  workspace vérifient les sept dépôts, les groupes, révisions et variantes.
+- Reproduction du tri : une conversation nouvelle sans `updatedAt` était
+  classée après des conversations déjà actives. Le test échoue avant correction,
+  puis passe avec la date de création comme repli ; épingles, créations
+  successives et rechargement sont vérifiés (48 contrôles expérience).
+- Cinq rapports macOS montrent le même crash : callback d'autorisation Speech
+  reçu sur une queue TCC hors MainActor, assertion d'isolation Swift. Les
+  callbacks Speech et audio sont explicitement `@Sendable`, et l'accès au
+  flux audio/sa fermeture est synchronisé. Le contrôle Swift 6 exécute 100
+  retours d'autorisation sur un thread de fond et des appels audio concurrents ;
+  la reconnaissance vocale réelle dépend encore des permissions et du matériel.
+- Les préférences Desktop, notifications, logo et rendus de longues réponses
+  passent après correction. Les groupes LFM/Qwen ont été inspectés sur des
+  rendus de 480 et 840 points ; un premier harnais ne rendait qu'un fond vide,
+  puis a été corrigé et contrôle maintenant la présence de pixels de texte.
+- PR163 : `e4b5ff4ed410119c83be29d865ebe143de7791ba` est à la fois son
+  merge et la base de cette branche. Les artefacts des deux bêtas restent à
+  construire et comparer ; le Desktop de développement ouvert par l'utilisateur
+  utilise encore le moteur installé 2.0.4.
 - Vérification locale du parcours : 72 contrôles images/bridge/historique et
   affichage à 680 et 1040 points, dont avertissement avant/après tentative,
   chargement, conservation du brouillon et proportions des aperçus carrés,

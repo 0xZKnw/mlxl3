@@ -60,12 +60,13 @@ The Desktop catalogue recommends these pinned exports:
 |---|---:|---|
 | LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3) |
 | LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3) |
+| LFM3-VL-2B | 8 | [0xzknw/LFM3-VL-2B-EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3) |
+| LFM2.5-24B-A2B | 4 | [0xzknw/LFM2.5-24B-A2B-EXL3-4bpw](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw) |
 | Qwen3.6-35B-A3B | 2.49 | [UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw](https://huggingface.co/UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw) |
 | Qwen3.8-27B | 2.00 | [turboderp/Qwen3.8-27B-exl3](https://huggingface.co/turboderp/Qwen3.8-27B-exl3) |
 | Qwen3.8 Flash Next | 2.05, SSD | [turboderp/Qwen3.8-Flash-Next-exl3](https://huggingface.co/turboderp/Qwen3.8-Flash-Next-exl3) |
-| LFM2.5-24B-A2B | 4 | [0xzknw/LFM2.5-24B-A2B-EXL3-4bpw](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw) |
 
-The two LFM3 text cards explicitly select **`8bpw/`**, rather than whichever
+The LFM3 text and vision cards explicitly select **`8bpw/`**, rather than whichever
 variant the repository lists first. Projection bpw excludes embeddings, output
 heads, scales and metadata; it is not the whole-file bitrate. Model licenses
 apply separately from MLXL3's license.

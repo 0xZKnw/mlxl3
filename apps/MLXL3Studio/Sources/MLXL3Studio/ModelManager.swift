@@ -323,8 +323,11 @@ private struct HubBrowserView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("RECOMMANDÉS", "RECOMMENDED"))
                 .font(.system(size: 12, weight: .medium)).tracking(1.4).foregroundStyle(StudioTheme.quiet)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
-                ForEach(ModelLibrary.recommendedModels) { model in
+            ForEach(ModelLibrary.recommendedFamilies) { family in
+              VStack(alignment: .leading, spacing: 10) {
+                Text(family.id).font(.system(size: 14, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
+                  ForEach(family.models) { model in
                     Button {
                         library.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
                     } label: {
@@ -350,7 +353,10 @@ private struct HubBrowserView: View {
                             .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                             .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
                     }.buttonStyle(StudioControlStyle()).help(model.id)
+                  }
                 }
+              }
+              .padding(.top, 8)
             }
         }
     }

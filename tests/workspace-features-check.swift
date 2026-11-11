@@ -21,9 +21,10 @@ import SwiftUI
         let history = root.appendingPathComponent("history.json")
         let studio = StudioModel(conversationFileURL: history, isPreview: true, preferences: preferences)
         let recommended = ModelLibrary.recommendedModels
-        check(recommended.map(\.id) == ["0xzknw/LFM3-1.7B-Heretic-NX-EXL3", "0xzknw/LFM3-1.7B-EXL3", "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], "Requested original and Heretic LFM3 recommendations preserve existing models")
-        check(Set(recommended.map(\.id)).count == 6 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
-        check(recommended.prefix(2).allSatisfy { $0.preferredVariant == "8bpw" && $0.quantization == "8 bpw" }, "LFM3 cards pin the validated eight-bit variant")
+        check(ModelLibrary.recommendedFamilies.map(\.id) == ["LFM", "Qwen"], "Recommended families are grouped in a stable order")
+        check(ModelLibrary.recommendedFamilies.map { $0.models.map(\.id) } == [["0xzknw/LFM3-1.7B-Heretic-NX-EXL3", "0xzknw/LFM3-1.7B-EXL3", "0xzknw/LFM3-VL-2B-EXL3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3"]], "Families retain every model and group LFM3-VL with LFM")
+        check(Set(recommended.map(\.id)).count == 7 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
+        check(recommended.prefix(3).allSatisfy { $0.preferredVariant == "8bpw" && $0.quantization == "8 bpw" }, "LFM3 text and vision cards pin the eight-bit variant")
         let catalogue = ModelLibrary()
         for model in recommended {
             catalogue.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)

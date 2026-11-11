@@ -400,8 +400,8 @@ final class StudioModel: ObservableObject {
         }.sorted {
             if $0.element.isPinned != $1.element.isPinned { return $0.element.isPinned }
             if !$0.element.isPinned {
-                let left = $0.element.updatedAt ?? .distantPast
-                let right = $1.element.updatedAt ?? .distantPast
+                let left = $0.element.updatedAt ?? $0.element.createdAt
+                let right = $1.element.updatedAt ?? $1.element.createdAt
                 if left != right { return left > right }
             }
             return $0.offset < $1.offset

@@ -13,10 +13,9 @@ the attached validation report.
   history keeps its original bytes, including after the source file is removed.
 - Documents and images can be sent together. Images use the engine's dedicated
   image input rather than being inserted as base64 text in the prompt.
-- LFM3-1.7B Heretic NX and the original LFM3-1.7B are recommended under
-  Models → Hugging Face.
-  Both open immutable repository revisions and explicitly select the validated
-  **8bpw** variant. Existing recommendations remain available.
+- LFM3-1.7B Heretic NX, the original LFM3-1.7B and LFM3-VL-2B are recommended
+  under Models → Hugging Face. Their cards open immutable revisions and select
+  **8bpw**. Recommendations are grouped into LFM and Qwen families.
 - Includes the already merged [PR #163](https://github.com/0xZKnw/mlxl3/pull/163)
   safeguards for checkpoint identity/recovery, download phases, retained chat
   drafts, runtime contracts, structured responses and bounded background work.
@@ -42,6 +41,10 @@ the attached validation report.
 - Corrupt, unsupported and oversized images are rejected before sending.
   Limits: eight images / 8 MiB per conversation, PNG/JPEG/WebP, 64 million
   source pixels per image. The engine also enforces its resized-pixel budget.
+- New conversations appear above older unpinned activity; pinned conversations
+  remain at the top.
+- Speech permission and audio callbacks no longer assume they run on the main
+  thread, fixing a crash when starting dictation.
 
 ## Installation and compatibility
 

@@ -81,6 +81,11 @@ struct RecommendedHubModel: Identifiable, Sendable {
     let preferredVariant: String?
 }
 
+struct RecommendedModelFamily: Identifiable, Sendable {
+    let id: String
+    let models: [RecommendedHubModel]
+}
+
 struct PendingDownload: Decodable, Identifiable {
     let id: String
     let repo: String
@@ -90,14 +95,20 @@ struct PendingDownload: Decodable, Identifiable {
 
 @MainActor
 final class ModelLibrary: ObservableObject {
-    static let recommendedModels: [RecommendedHubModel] = [
+    static let recommendedFamilies: [RecommendedModelFamily] = [
+      .init(id: "LFM", models: [
         .init(id: "0xzknw/LFM3-1.7B-Heretic-NX-EXL3", title: "LFM3", parameters: "1.7B · Heretic NX", quantization: "8 bpw", symbol: "waveform.path", revision: "a7cff0c15b6b1ab26ea77e29bd7a4ba66b0a25b8", preferredVariant: "8bpw"),
         .init(id: "0xzknw/LFM3-1.7B-EXL3", title: "LFM3", parameters: "1.7B · Original", quantization: "8 bpw", symbol: "waveform.path", revision: "794219432967af4826d8276d370b2d1676d1f870", preferredVariant: "8bpw"),
+        .init(id: "0xzknw/LFM3-VL-2B-EXL3", title: "LFM3-VL", parameters: "2B · Vision", quantization: "8 bpw", symbol: "photo", revision: "15d4ec5cc43c5a6146dc675de0d89f939ec9c2da", preferredVariant: "8bpw"),
+        .init(id: "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw", title: "LFM2.5", parameters: "24B · A2B", quantization: "4 bpw · v2", symbol: "waveform.path", revision: "649b501fcc29910453eea313a763b7f7a12f4b41", preferredVariant: nil),
+      ]),
+      .init(id: "Qwen", models: [
         .init(id: "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", title: "Qwen3.6", parameters: "35B · A3B", quantization: "2.49 bpw", symbol: "sparkles", revision: "91a4efc46c1fece6426ece167f127d29d075f392", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-27B-exl3", title: "Qwen3.8", parameters: "27B", quantization: "2.00 bpw", symbol: "square.stack.3d.up", revision: "e5e1f4b37c77641e465e24adf5f44d01bdd48de2", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-Flash-Next-exl3", title: "Qwen3.8", parameters: "Flash Next", quantization: "2.05 bpw · SSD", symbol: "bolt", revision: "65c895314393431c09050b2e04e250836b3a6eb4", preferredVariant: nil),
-        .init(id: "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw", title: "LFM2.5", parameters: "24B · A2B", quantization: "4 bpw · v2", symbol: "waveform.path", revision: "649b501fcc29910453eea313a763b7f7a12f4b41", preferredVariant: nil),
+      ]),
     ]
+    static var recommendedModels: [RecommendedHubModel] { recommendedFamilies.flatMap(\.models) }
 
     @Published var query = ""
     @Published private(set) var results: [HubModel] = []
