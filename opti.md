@@ -1,6 +1,12 @@
 # MLXL3 — journal des optimisations
 
-### RELEASE-2026-11-11-ENGINE-206 — PRÉENREGISTRÉ — intégration prefill qualifiée et publication moteur
+### RELEASE-2026-11-11-ENGINE-206 — PUBLIÉ — moteur2.0.6-beta.1, limites explicites
+
+- Publication effective : release non-draft/prerelease/latest=false, tag engine-v2.0.6-beta.1 sur b13eb5f3d6b1782a8f268c0832ad038b74ba1a22, PR169 fusionnée. Trois assets revérifiés par taille/SHA256 ; archive et checksum publics téléchargés et comparés aux fichiers locaux. Archive67 873 120octets, c56ad2f3e0f6e5f1e87535618ed4a789f759a9471788bdbb5f73286eb214d0a2. Aucun DMG/app installée remplacé.
+- Notification Discord automatique43065017813 passée, étape Post release to Discord success. Premier lecteur de métadonnées attendait SUCCESS majuscule, alors que gh renvoie success ; assertion du lecteur corrigée, erreur conservée, aucun workflow/message rejoué. Reçus published-release.json et discord-notification.json.
+- Tous les essais lancés ici sont clos et les processus propres rejoints. Tests numériques/contrôles locaux du source et intégrité/loader du paquet passés ; contrôle FR final interrompu par inférence externe, parityfalse conservé. EOS français complet et reprise/annulation sous défaut du paquet restent non vérifiés. CI distante partiellement réussie/en cours/queue à clôture, aucune CI globale verte annoncée. Pas de nouveau benchmark ni boost decode.
+- Changelog anglais et rapport final : docs/release-engine-v2.0.6-beta.1.md et docs/release-engine-v2.0.6-beta.1-validation.md. Le binaire est construit du commitfusionné/tagB ; les commits de reçus/documents ultérieurs ne changent pas ce source/runtime. Les états antérieurs ci-dessous sont historiques.
+
 
 - Autorisation : « nouvelle version du moteur pour intégrer ça », après les essais P1/P2. Préparer engine-v2.0.6-beta.1/runtime2.0.6 depuis main e6c53952, worktree isolé codex/lfm3-engine-2.0.6 ; les deux checkouts modifiés antérieurs sont conservés. Canal MLX seul/macOS26.2+, --latest=false, aucune modification du DMG/app installée.
 - Périmètre : porter uniquement reconstruction temporaire+GEMM et QMM réellement groupé, leurs shaders/gardes/tests, avec défaut ON pour racine lfm3/MCG8/M5/batch1/F16/formes/tailles qualifiées ; variables0 de repli. Réutiliser le groupe Exl3 existant pour la paire FFN, sans doubler les poids persistants. Aucun port de DSpark, sampler GPU, pipeline anticipé, Hadamard expérimental ou slabs KV. Les autres optimisations historiques du worktree ne sont pas incluses automatiquement.
