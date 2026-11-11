@@ -1,0 +1,605 @@
+import copy
+import hashlib
+import json
+import math
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from native_json_process import JsonProcess
+
+OLDUP = Path(
+    "/Users/justin/.codex/worktrees/lfm3-kernels-20261110/mix-stq1_0/docs/measurements/lfm3-upstream-20261111"
+)
+DECODE_D = Path(
+    "/Users/justin/.codex/worktrees/lfm3-kernels-20261110/mix-stq1_0/docs/measurements/lfm3-decode-20261111"
+)
+PREFILL_D = Path("docs/measurements/engine-206-20261111")
+D = PREFILL_D / "package"
+B = Path("build/engine-206-20261111/extracted").resolve()
+OLD = Path(
+    "/Users/justin/.codex/worktrees/lfm3-kernels-20261110/mix-stq1_0/docs/measurements/lfm3-kernels-20261110"
+)
+MODEL = json.loads((OLDUP / "installed-model.json").read_text())["path"]
+CASES = [
+    {"name": "hello", "prompt": "Bonjour.", "budget": 64},
+    {"name": "sum", "prompt": "Combien font 17 + 25 ?", "budget": 64},
+    {
+        "name": "short",
+        "prompt": (OLD / "short-prompt.txt").read_text(),
+        "budget": 64,
+        "prompt_tokens": 34,
+        "hash": "6aebf2c9f577f5b5",
+    },
+    {
+        "name": "long",
+        "prompt": (OLD / "long-prompt.txt").read_text(),
+        "budget": 128,
+        "prompt_tokens": 1090,
+        "hash": "0a38db50faa9ae0a",
+    },
+]
+CASES = [
+    CASES[2],
+    CASES[3],
+    {
+        "name": "fr-full",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Aide-moi à écrire un message naturel à un ami : on devait déjeuner ensemble demain midi, mais je dois décaler. Je voudrais proposer jeudi soir à la place, en restant sympa et sans me justifier pendant trois paragraphes. Donne deux versions un peu différentes.",
+            }
+        ],
+        "prompt": "",
+        "budget": 2048,
+        "prompt_tokens": 78,
+        "hash": "89dbe8d241a302c4",
+        "eos_count": 1209,
+    },
+]
+for case in CASES:
+    case.pop("hash", None)
+    case.pop("eos_count", None)
+MODE = sys.argv[1]
+assert MODE in {"quality", "measure", "self-check"}
+SCRIPT_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+REPORT = {
+    "script_sha256": SCRIPT_SHA256,
+    "status": "running",
+    "parity": False,
+    "mode": MODE,
+    "runs": [],
+    "waiting": [],
+}
+
+
+def save():
+    (D / ("bridge-" + MODE + ".json")).write_text(json.dumps(REPORT, indent=2) + "\n")
+
+
+def guard(owned=()):
+    heavy = {
+        "cargo",
+        "rustc",
+        "cbmc",
+        "cargo-kani",
+        "kani",
+        "mlxl3-rs",
+        "mlxl3",
+        "mlxl3-hybrid",
+        "response-check",
+        "mlxl3-real-release-check",
+    }
+    for line in subprocess.check_output(["ps", "-axo", "pid=,comm="], text=True).splitlines():
+        pid, command = line.strip().split(None, 1)
+        name = command.rsplit("/", 1)[-1]
+        engine = name.endswith(("mlxl3-rs", "-libtest", "-bintest")) or name.startswith(
+            ("mlxl3_native-", "mlxl3_rs-")
+        )
+        if int(pid) not in owned and (name in heavy or engine):
+            raise RuntimeError(f"external heavy job: {pid}/{name}")
+
+
+def arm_environment(arm, home=None):
+    env = os.environ.copy()
+    if home is not None:
+        env["MLXL3_HOME"] = home
+    env["MLXL3_LFM3_DECODE_PIPELINE"] = "0"
+    enabled = "1" if arm == "default" else "0"
+    env["MLXL3_LFM3_FUSED_HADAMARD"] = "0"
+    env["MLXL3_LFM3_KV_SLAB"] = "0"
+    for name in ["MLXL3_LFM3_PREFILL_GEMM", "MLXL3_LFM3_PREFILL_GROUPED"]:
+        if enabled == "1":
+            env.pop(name, None)
+        else:
+            env[name] = "0"
+    env["DYLD_LIBRARY_PATH"] = str(B / arm)
+    return env
+
+
+def wait_quiet():
+    deadline = time.monotonic() + 600
+    since = None
+    while time.monotonic() < deadline:
+        try:
+            guard()
+            since = since or time.monotonic()
+            if time.monotonic() - since >= 5:
+                return
+        except RuntimeError as error:
+            since = None
+            if not REPORT["waiting"] or REPORT["waiting"][-1]["error"] != str(error):
+                REPORT["waiting"].append({"epoch": time.time(), "error": str(error)})
+                save()
+        time.sleep(1)
+    raise TimeoutError("no quiet resource window")
+
+
+def validate(response, case):
+    stats = response["stats"]
+    assert response["text"] and len(response["token_hash"]) == 16
+    count = stats["generated_tokens"]
+    for key in ["client_seconds", "client_first_delta_seconds"]:
+        assert (
+            isinstance(response[key], (float, int))
+            and math.isfinite(response[key])
+            and response[key] > 0
+        )
+    assert response["client_first_delta_seconds"] <= response["client_seconds"]
+    assert 0 < count <= case["budget"]
+    assert stats["context_limit"] == 4096
+    assert stats["cached_prompt_tokens"] == 0
+    assert stats["evaluated_prompt_tokens"] == stats["prompt_tokens"] > 0
+    assert stats["decode_tokens"] == count - 1
+    for key in ["prefill_seconds", "ttft_seconds", "elapsed_seconds"]:
+        assert math.isfinite(stats[key]) and stats[key] > 0
+    assert math.isfinite(stats["decode_tps"]) and stats["decode_tps"] >= 0
+    if "hash" in case:
+        assert response["token_hash"] == case["hash"] and count == case.get(
+            "eos_count", case["budget"]
+        )
+        assert stats["prompt_tokens"] == case["prompt_tokens"]
+        if "eos_count" in case:
+            assert count == case["eos_count"]
+            assert response["stop_reason"] == "eos"
+    else:
+        assert stats["prompt_tokens"] > 0
+        if case["name"] in {"hello", "sum"}:
+            assert 2 <= stats["prompt_tokens"] < 24
+
+
+def generate(child, case, label, *, cancel=False, image=False):
+    deadline = time.monotonic() + 120
+    message = {"role": "user", "content": case["prompt"]}
+    if image:
+        message["images"] = ["data:image/png;base64,AAAA"]
+    request_started = time.perf_counter()
+    first_delta = None
+    first_answer = None
+    child.send(
+        {
+            "type": "generate",
+            "request_id": label,
+            "conversation_id": label,
+            "messages": case.get("messages", [message]),
+            "max_tokens": case["budget"],
+            "temperature": 0.0,
+            "top_k": 0,
+            "repetition_penalty": 1.0,
+            "reuse_prompt_cache": False,
+            "mtp": False,
+            "dflash2": False,
+            "memory_saver": False,
+        },
+        deadline,
+    )
+    text = ""
+    last_guard = time.monotonic()
+    cancel_sent = False
+    while True:
+        if time.monotonic() - last_guard > 1:
+            guard([child.process.pid])
+            last_guard = time.monotonic()
+        event = child.receive(deadline)
+        if event.get("request_id") != label:
+            continue
+        kind = event.get("type")
+        if (
+            cancel
+            and kind == ("delta" if cancel == "decode" else "context_usage")
+            and not cancel_sent
+        ):
+            os.kill(child.process.pid, signal.SIGUSR1)
+            cancel_sent = True
+        if kind == "delta":
+            text += event.get("text", "")
+            if event.get("text"):
+                first_delta = first_delta or time.perf_counter() - request_started
+                if event.get("phase") == "answer":
+                    first_answer = first_answer or time.perf_counter() - request_started
+        elif kind == "cancelled":
+            assert cancel and cancel_sent
+            return {"cancelled": True}
+        elif kind == "error":
+            if image:
+                assert "does not support images" in event["message"]
+                return {"rejected": event["message"]}
+            raise RuntimeError(event)
+        elif kind == "complete":
+            assert not cancel and not image
+            guard([child.process.pid])
+            result = {
+                "stats": event["stats"],
+                "token_hash": event["token_hash"],
+                "text": text,
+                "stop_reason": event.get("stop_reason"),
+                "client_seconds": time.perf_counter() - request_started,
+                "client_first_delta_seconds": first_delta,
+                "client_first_answer_seconds": first_answer,
+            }
+            validate(result, case)
+            return result
+
+
+def same(actual, expected):
+    for key in ["token_hash", "text", "stop_reason"]:
+        assert actual[key] == expected[key], f"generation divergence: {key}"
+    for key in ["generated_tokens", "prompt_tokens"]:
+        assert actual["stats"][key] == expected["stats"][key], key
+
+
+def process_run(arm, label, action):
+    guard()
+    run = {"arm": arm, "label": label, "status": "running", "reaped": False}
+    REPORT["runs"].append(run)
+    save()
+    child = None
+    try:
+        run["conditions"] = {
+            "epoch": time.time(),
+            "power": subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5),
+            "vm": subprocess.check_output(["vm_stat"], text=True, timeout=5),
+            "processes": subprocess.check_output(
+                ["ps", "-axo", "pid=,pcpu=,rss=,comm="], text=True, timeout=5
+            ),
+        }
+        save()
+        with (
+            tempfile.TemporaryDirectory(prefix="lfm3-upstream-") as home,
+            (D / (label + ".stderr")).open("w") as stderr,
+        ):
+            env = arm_environment(arm, home)
+            run["environment"] = {
+                k: v for k, v in env.items() if k.startswith(("MLX", "MLXL3")) and k != "MLXL3_HOME"
+            }
+            command = [str(B / arm / "mlxl3"), "bridge", MODEL, "--context-length", "4096"]
+            run["command"] = command
+            run["binary_sha256"] = hashlib.sha256((B / arm / "mlxl3").read_bytes()).hexdigest()
+            if MODE == "measure":
+                assert {r["binary_sha256"] for r in quality["runs"] if r["arm"] == arm} == {
+                    run["binary_sha256"]
+                }
+            integrity = json.loads((DECODE_D / "review-model-integrity.json").read_text())
+            st = Path(integrity["path"]).stat()
+            assert st.st_size == integrity["size"] and st.st_mtime_ns == integrity["mtime_ns"]
+            with JsonProcess(command, stderr=stderr, env=env) as child:
+                run["pid"] = child.process.pid
+                ready_deadline = time.monotonic() + 60
+                while True:
+                    event = child.receive(ready_deadline)
+                    assert event.get("type") != "error", event
+                    if event.get("type") == "ready":
+                        break
+                guard([child.process.pid])
+                action(child, run)
+            run["status"] = "passed"
+    except BaseException as error:
+        run.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        run["reaped"] = child is None or child.process.poll() is not None
+        save()
+    return run
+
+
+def f16_logits(data):
+    values = data["logits"]
+    assert len(values) == 128000 and all(isinstance(v, int) and 0 <= v <= 65535 for v in values)
+    values = np.asarray(values, dtype=np.uint16).view(np.float16).astype(np.float64)
+    assert np.isfinite(values).all()
+    return values
+
+
+def kl(actual, expected):
+    assert len(actual) == len(expected) == 128000
+    assert np.isfinite(actual).all() and np.isfinite(expected).all()
+    za = actual.max() + np.log(np.exp(actual - actual.max()).sum())
+    ze = expected.max() + np.log(np.exp(expected - expected.max()).sum())
+    result = float(np.sum(np.exp(expected - ze) * (expected - ze - actual + za)))
+    assert math.isfinite(result) and result <= 0.001, result
+    return result
+
+
+def cli_quality():
+    case = json.loads((OLDUP / "installed8-reference.json").read_text())["cases"][0]
+    results = {}
+    REPORT["cli"] = []
+    for length in [5, 128, 256, 499]:
+        for arm in ["off", "default"]:
+            guard()
+            label = f"cli-{length}-{arm}"
+            command = [
+                str(B / arm / "mlxl3"),
+                "forward",
+                MODEL,
+                "--tokens",
+                ",".join(map(str, case["tokens"][:length])),
+                "--batch",
+            ]
+            if length in [5, 256]:
+                command.append("--states")
+            with (
+                (D / (label + ".json")).open("w") as out,
+                (D / (label + ".stderr")).open("w") as err,
+            ):
+                child = subprocess.Popen(
+                    command,
+                    stdout=out,
+                    stderr=err,
+                    env=arm_environment(arm),
+                    start_new_session=True,
+                )
+                try:
+                    deadline = time.monotonic() + 120
+                    while child.poll() is None:
+                        guard([child.pid])
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError("CLI forward timed out")
+                        time.sleep(1)
+                    assert child.returncode == 0
+                finally:
+                    if child.poll() is None:
+                        os.killpg(child.pid, signal.SIGTERM)
+                        try:
+                            child.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            os.killpg(child.pid, signal.SIGKILL)
+                            child.wait(timeout=5)
+            data = json.loads((D / (label + ".json")).read_text())
+            logits = f16_logits(data)
+            record = {
+                "arm": arm,
+                "length": length,
+                "command": command,
+                "reaped": child.poll() is not None,
+            }
+            if length == 499:
+                record["independent_ExLlama_KL"] = kl(
+                    logits, np.asarray(case["logits"], dtype=np.float64)
+                )
+            if arm == "off":
+                results[length] = (data, logits)
+            else:
+                gold, gold_logits = results[length]
+                record["baseline_KL"] = kl(logits, gold_logits)
+                if length in [5, 256]:
+                    assert len(data["states"]) == len(gold["states"]) == 35
+                    errors = []
+                    for actual, expected in zip(data["states"], gold["states"]):
+                        assert (actual["name"], actual["shape"]) == (
+                            expected["name"],
+                            expected["shape"],
+                        )
+                        av = np.frombuffer(bytes(actual["data"]), dtype=np.float16).astype(
+                            np.float64
+                        )
+                        ev = np.frombuffer(bytes(expected["data"]), dtype=np.float16).astype(
+                            np.float64
+                        )
+                        assert len(av) == len(ev) == math.prod(actual["shape"]) > 0
+                        assert np.isfinite(av).all() and np.isfinite(ev).all()
+                        error = float(np.linalg.norm(av - ev) / max(np.linalg.norm(ev), 1e-30))
+                        assert error <= 0.01
+                        errors.append(error)
+                    record["max_state_relative_L2"] = max(errors)
+            REPORT["cli"].append(record)
+            save()
+
+
+def guard_self_checks():
+    valid = {
+        "client_seconds": 0.04,
+        "client_first_delta_seconds": 0.02,
+        "client_first_answer_seconds": None,
+        "stop_reason": "max_tokens",
+        "text": "ok",
+        "token_hash": "0" * 16,
+        "stats": {
+            "generated_tokens": 2,
+            "decode_tokens": 1,
+            "prompt_tokens": 10,
+            "evaluated_prompt_tokens": 10,
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "prefill_seconds": 0.01,
+            "ttft_seconds": 0.02,
+            "elapsed_seconds": 0.03,
+            "decode_tps": 50.0,
+        },
+    }
+    validate(valid, {"name": "guards", "budget": 2})
+    for path, value in [
+        ("token_hash", ""),
+        ("text", ""),
+        ("stats.generated_tokens", 0),
+        ("stats.cached_prompt_tokens", 1),
+        ("stats.prefill_seconds", float("nan")),
+        ("stats.evaluated_prompt_tokens", 0),
+        ("client_seconds", float("nan")),
+        ("client_first_delta_seconds", None),
+        ("client_first_delta_seconds", 0.05),
+    ]:
+        bad = copy.deepcopy(valid)
+        if "." in path:
+            outer, inner = path.split(".")
+            bad[outer][inner] = value
+        else:
+            bad[path] = value
+        try:
+            validate(bad, {"name": "guards", "budget": 2})
+        except (AssertionError, KeyError, TypeError):
+            pass
+        else:
+            raise AssertionError("negative metric guard accepted " + path)
+    bad = copy.deepcopy(valid)
+    bad["token_hash"] = "1" * 16
+    try:
+        same(bad, valid)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("divergence guard accepted different hashes")
+    original = subprocess.check_output
+    names = [
+        "mlxl3-rs",
+        "mlxl3",
+        "mlxl3-hybrid",
+        "response-check",
+        "mlxl3-real-release-check",
+        "qualified-kernels-mlxl3-rs",
+        "baseline-mlxl3-rs",
+        "p12-v2-mlxl3-rs",
+        "d23-release-libtest",
+        "d23-release-bintest",
+        "mlxl3_native-abcdef",
+        "mlxl3_rs-abcdef",
+        "rustc",
+        "cbmc",
+    ]
+    try:
+        for name in names:
+            subprocess.check_output = lambda *a, _name=name, **kw: f"123 /tmp/{_name}\n"
+            try:
+                guard()
+            except RuntimeError as error:
+                assert "external heavy job" in str(error)
+            else:
+                raise AssertionError(f"missed external heavy process {name}")
+            guard([123])
+        subprocess.check_output = lambda *a, **kw: "123 /Applications/Deezer Helper\n"
+        guard()
+    finally:
+        subprocess.check_output = original
+    for arm, enabled in [("off", "0"), ("default", "1")]:
+        env = arm_environment(arm, "/isolated")
+        assert env["MLXL3_LFM3_DECODE_PIPELINE"] == "0"
+        assert env["MLXL3_LFM3_FUSED_HADAMARD"] == env["MLXL3_LFM3_KV_SLAB"] == "0"
+        assert (
+            env.get("MLXL3_LFM3_PREFILL_GEMM")
+            == env.get("MLXL3_LFM3_PREFILL_GROUPED")
+            == (None if enabled == "1" else "0")
+        )
+        assert env["MLXL3_HOME"] == "/isolated"
+    REPORT["guard_self_checks"] = 42
+
+
+if MODE == "self-check":
+    guard_self_checks()
+    REPORT.update(status="passed", parity=False)
+    save()
+    sys.exit(0)
+
+try:
+    guard_self_checks()
+    for filename in ["small-quality.json", "progressive-production-quality.json"]:
+        assert json.loads((OLDUP / filename).read_text())["status"] == "passed"
+    save()
+    wait_quiet()
+    REPORT["numerical_receipts"] = {}
+    for receipt in [PREFILL_D / "physical-status.json", PREFILL_D / "library-r2-status.json"]:
+        assert json.loads(receipt.read_text())["status"] == "passed", receipt
+        REPORT["numerical_receipts"][str(receipt)] = hashlib.sha256(
+            receipt.read_bytes()
+        ).hexdigest()
+    integrity = json.loads((DECODE_D / "review-model-integrity.json").read_text())
+    weights = Path(integrity["path"])
+    st = weights.stat()
+    assert (
+        weights.parent == Path(MODEL)
+        and st.st_size == integrity["size"]
+        and st.st_mtime_ns == integrity["mtime_ns"]
+    )
+    REPORT["weights"] = integrity
+    save()
+    if MODE == "quality":
+        cli_quality()
+        reference = {}
+        for arm in ["off", "default"]:
+
+            def action(child, run, arm=arm):
+                run["responses"] = {}
+                for case in CASES:
+                    result = generate(child, case, arm + case["name"])
+                    if arm == "off":
+                        reference[case["name"]] = result
+                    else:
+                        same(result, reference[case["name"]])
+                    run["responses"][case["name"]] = result
+                    save()
+                run["image"] = generate(child, CASES[0], arm + "-image", image=True)
+                same(generate(child, CASES[0], arm + "-image-recovery"), reference["short"])
+                run["cancel"] = generate(child, CASES[1], arm + "-cancel", cancel=True)
+                same(generate(child, CASES[0], arm + "-cancel-recovery"), reference["short"])
+                run["decode_cancel"] = generate(
+                    child, CASES[1], arm + "-decode-cancel", cancel="decode"
+                )
+                same(generate(child, CASES[0], arm + "-decode-cancel-recovery"), reference["short"])
+
+            process_run(arm, "quality-" + arm, action)
+    else:
+        quality = json.loads((D / "bridge-quality.json").read_text())
+        assert quality["status"] == "passed" and quality["parity"] is True
+        assert quality["script_sha256"] == SCRIPT_SHA256
+        assert quality["numerical_receipts"] == REPORT["numerical_receipts"]
+        assert quality["weights"] == REPORT["weights"]
+        reference = quality["runs"][0]["responses"]
+        REPORT.update(order="ABBA", repetitions_per_process=3, warmup="same full prompt and budget")
+        for case in CASES:
+            for position, arm in enumerate(
+                [
+                    "off",
+                    "default",
+                    "default",
+                    "off",
+                ]
+            ):
+                label = f"measure-{case['name']}-{position}"
+
+                def action(child, run, case=case, label=label):
+                    run["case"] = case["name"]
+                    run["warmup"] = generate(child, case, label + "-warm")
+                    same(run["warmup"], reference[case["name"]])
+                    run["samples"] = []
+                    for repeat in range(1 if case["name"] == "fr-full" else 3):
+                        result = generate(child, case, f"{label}-{repeat}")
+                        same(result, reference[case["name"]])
+                        run["samples"].append(result)
+                        save()
+
+                process_run(arm, label, action)
+                print(label, "passed", flush=True)
+        assert len(REPORT["runs"]) == 12 and sum(len(r["samples"]) for r in REPORT["runs"]) == 28
+    assert all(r["status"] == "passed" and r["reaped"] for r in REPORT["runs"])
+    REPORT.update(status="passed", parity=True)
+except BaseException as error:
+    REPORT.update(status="failed_or_interrupted", parity=False, error=repr(error))
+    raise
+finally:
+    save()

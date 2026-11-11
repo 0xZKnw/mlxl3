@@ -67,3 +67,18 @@ and TensorOps foundations. Thanks also to
 [PonyExl3](https://github.com/beamivalice/PonyExl3) and
 [MTPLX](https://github.com/youssofal/mtplx) for the retained engine foundations.
 Existing license notices remain included.
+
+## Source and archive
+
+Source commit: `b13eb5f3d6b1782a8f268c0832ad038b74ba1a22` ([PR #169](https://github.com/0xZKnw/mlxl3/pull/169)).
+
+- `MLXL3-Engine-v2.0.6-beta.1-arm64.tar.gz` — 67873120 bytes.
+- SHA-256: `c56ad2f3e0f6e5f1e87535618ed4a789f759a9471788bdbb5f73286eb214d0a2`.
+- Companion checksum and `release-engine-v2.0.6-beta.1-validation.md` are attached.
+
+Local numerical checks and packaged short/long responses passed. The final
+packaged French control was interrupted by an external inference; its OFF
+reference reached the2048-token cap. Complete French/EOS parity and default
+cancellation/recovery on the final archive remain unverified. No new release
+throughput benchmark was run. Hosted CI was still queued/running when the
+archive was prepared; local results are not a claim that all hosted CI passed.
