@@ -52,11 +52,22 @@ import WebKit
         server.arguments = [CommandLine.arguments[2], metadata.path]
         try server.run()
         defer { if server.isRunning { server.terminate() }; server.waitUntilExit() }
-        for _ in 0..<500 where !FileManager.default.fileExists(atPath: metadata.path) && server.isRunning {
-            try await Task.sleep(for: .milliseconds(10))
+        var port: Int?
+        for _ in 0..<600 {
+            if let data = try? Data(contentsOf: metadata),
+               let info = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+               let value = info["port"] as? Int, (1...65535).contains(value) {
+                port = value
+                break
+            }
+            if !server.isRunning { break }
+            try await Task.sleep(for: .milliseconds(50))
         }
-        let info = try JSONSerialization.jsonObject(with: Data(contentsOf: metadata)) as! [String: Any]
-        let local = "http://127.0.0.1:\(info["port"]!)"
+        guard let port else {
+            let reason = server.isRunning ? "did not become ready within 30 seconds" : "exited with status \(server.terminationStatus)"
+            throw NSError(domain: "ModelCardCheck", code: 1, userInfo: [NSLocalizedDescriptionKey: "Test server \(reason)"])
+        }
+        let local = "http://127.0.0.1:\(port)"
         let hostile = fixture + "\n<script>window.cardPwned = true; fetch('\(local)/script')</script>\n" +
             "<img src=\"\(local)/image\" onerror=\"window.cardPwned=true\">\n" +
             "<style>@import url('\(local)/style');</style>\n<iframe src=\"\(local)/frame\"></iframe>"
