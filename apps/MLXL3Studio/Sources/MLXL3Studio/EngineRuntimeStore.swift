@@ -3,6 +3,8 @@ import Foundation
 /// An engine update lives outside the signed application. Activation changes
 /// one atomic pointer only after every file and the actual executable pass.
 enum EngineRuntimeStore {
+  // Keep native support available in source while v2 ships only MLX.
+  static let nativeEngineEnabled = false
   static let protocolVersion = 1
   static let identityChanged = Notification.Name("MLXL3EngineIdentityChanged")
   static let runtimeFiles = Set(["mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib"])
@@ -37,7 +39,8 @@ enum EngineRuntimeStore {
     }
 
     func validateRuntimeInfo(_ payload: [String: Any]?) throws {
-      guard payload?["bridge_protocol"] as? Int == protocolVersion,
+      guard (nativeEngineEnabled || payload?["backend"] as? String == "mlx"),
+        payload?["bridge_protocol"] as? Int == protocolVersion,
         payload?["version"] as? String == version,
         payload?["mlx_enabled"] as? Bool == (schema == 1),
         schema == 1 || (payload?["backend"] as? String == "metal"
@@ -50,7 +53,8 @@ enum EngineRuntimeStore {
       appVersion: String, expectedVersion: String? = nil,
       osVersion: String = EngineRuntimeStore.osVersion
     ) throws {
-      guard ((schema == 1 && backend == nil) || (schema == 2 && backend == "metal")), bridgeProtocol == protocolVersion, architecture == "arm64",
+      guard (nativeEngineEnabled || schema == 1),
+        ((schema == 1 && backend == nil) || (schema == 2 && backend == "metal")), bridgeProtocol == protocolVersion, architecture == "arm64",
         let incoming = SemanticVersion(version), version.split(separator: ".").count == 3,
         version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
         let minimumApp = SemanticVersion(minimumAppVersion),
@@ -133,7 +137,11 @@ enum EngineRuntimeStore {
       else { return nil }
       try verifyPointer(pointer, directory: directory, appVersion: appVersion)
       let executable = directory.appendingPathComponent("mlxl3")
-      return FileManager.default.isExecutableFile(atPath: executable.path) ? executable : nil
+      guard FileManager.default.isExecutableFile(atPath: executable.path) else { return nil }
+      // Historical hybrid archives also use schema 1: inspect the real backend.
+      let data = try UpdateManager.runProcess(executable.path, arguments: ["runtime-info"], outputLimit: 64 * 1_024, timeout: 3)
+      try readManifest(directory).validateRuntimeInfo(JSONSerialization.jsonObject(with: data) as? [String: Any])
+      return executable
     } catch { return nil }
   }
 

@@ -489,6 +489,15 @@ Apple-Silicon runtime, not an ExLlamaV3 fork. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for exact provenance and
 licenses.
 
+## v2 engine policy
+
+v2 uses the MLX engine for every model, including Flash Next, across Desktop,
+the CLI and the OpenAI-compatible API. The autonomous Metal engine and hybrid
+dispatcher remain in source for future work, but their packaging modes are
+disabled. Desktop rejects native engine updates and falls back to its bundled
+MLX engine when an older native or hybrid runtime is selected. Native Qwen
+profile controls are hidden while this policy is active.
+
 ## Build from source
 
 ### Standalone Rust checks
@@ -496,8 +505,8 @@ licenses.
 Rust 1.89 or newer is required:
 
 ```bash
-cargo build --release --locked
-cargo test --locked
+cargo build --release --locked --no-default-features
+cargo test --locked --no-default-features
 ./target/release/mlxl3-rs --help
 ```
 
@@ -559,8 +568,8 @@ The default checks are intentionally small enough for CI:
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --features chat -- -D warnings
-cargo test --locked --features chat
+cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings
+cargo test --locked --no-default-features --features chat
 cargo kani --lib --no-default-features
 python -m pytest -q
 scripts/check-desktop.sh

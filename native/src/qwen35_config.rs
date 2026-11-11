@@ -1,6 +1,7 @@
 //! CPU guards shared by Qwen loaders; rejected configurations allocate no weights.
 
 /// Validate before a token can change any layer state. No wrapping cursor arithmetic.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn native_step_end(token: u32, vocab: u32, offset: u32, limit: u32) -> Option<u32> {
     if token >= vocab || offset >= limit {
         return None;

@@ -7,9 +7,10 @@ license = "MIT"
 description = "Native Rust/Metal port of MLXL3 (experimental)"
 
 [features]
-default = ["direct-metal"]
+default = ["mlx"]
 direct-metal = ["dep:metal", "dep:objc"]
-mlx = []
+# MLX uses the Metal device query without enabling the standalone native engine.
+mlx = ["dep:metal"]
 hybrid-dispatch = ["chat"]
 chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib", "dep:image", "dep:base64"]
 

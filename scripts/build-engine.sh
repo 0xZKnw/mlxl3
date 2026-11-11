@@ -25,6 +25,10 @@ if [[ ! -x "${cargo_bin}" ]]; then
 fi
 
 backend="${MLXL3_ENGINE_BACKEND:-mlx}"
+if [[ "${backend}" == metal || "${backend}" == hybrid ]]; then
+    print -u2 "Les moteurs metal et hybrid sont désactivés pour la v2. Utilise MLXL3_ENGINE_BACKEND=mlx."
+    exit 2
+fi
 engine_binary="${CARGO_TARGET_DIR:-${repo_dir}/target}/release/mlxl3-rs"
 package_backend="${backend}"
 case "${backend}" in
@@ -41,7 +45,7 @@ case "${backend}" in
             exit 2
         fi
         MLXL3_MLX_ROOT="${mlx_root}" MACOSX_DEPLOYMENT_TARGET=26.2 \
-            "${cargo_bin}" build --release --locked --features mlx,chat --bin mlxl3-rs --manifest-path "${repo_dir}/Cargo.toml"
+            "${cargo_bin}" build --release --locked --no-default-features --features mlx,chat --bin mlxl3-rs --manifest-path "${repo_dir}/Cargo.toml"
         if [[ "${backend}" == hybrid ]]; then
             helper_dir="${repo_dir}/build/hybrid-helpers"
             install -d "${helper_dir}"

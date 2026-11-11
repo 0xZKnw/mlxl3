@@ -11,6 +11,9 @@ folder = Path(sys.argv[1])
 folder.mkdir(parents=True, exist_ok=True)
 names = ["mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib"]
 files = {name: (name + " disposable test\n").encode() for name in names}
+files["mlxl3"] = (
+    b'#!/bin/sh\nprintf \'%s\\n\' \'{"version":"1.2.0","bridge_protocol":1,"backend":"mlx","mlx_enabled":true}\'\n'
+)
 manifest = {
     "schema": 1,
     "version": "1.2.0",
@@ -26,6 +29,10 @@ manifest = {
 files["engine.json"] = json.dumps(manifest).encode()
 for variant in [
     "valid",
+    "hybrid",
+    "silent",
+    "invalid-runtime",
+    "incomplete-runtime",
     "duplicate",
     "traversal",
     "extra",
@@ -47,6 +54,19 @@ for variant in [
     "native-manifest-duplicate",
 ]:
     entries = dict(files)
+    if variant in ["hybrid", "silent", "invalid-runtime", "incomplete-runtime"]:
+        entries["mlxl3"] = {
+            "hybrid": files["mlxl3"].replace(b'"backend":"mlx"', b'"backend":"hybrid"'),
+            "silent": b"#!/bin/sh\nexec /bin/sleep 30\n",
+            "invalid-runtime": b"#!/bin/sh\necho invalid-json\n",
+            "incomplete-runtime": b"#!/bin/sh\necho '{}'\n",
+        }[variant]
+        changed = json.loads(files["engine.json"])
+        changed["files"]["mlxl3"] = {
+            "size": len(entries["mlxl3"]),
+            "sha256": hashlib.sha256(entries["mlxl3"]).hexdigest(),
+        }
+        entries["engine.json"] = json.dumps(changed).encode()
     if variant.startswith("native"):
         entries = {"mlxl3": files["mlxl3"]}
         changed = dict(

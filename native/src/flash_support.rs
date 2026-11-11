@@ -1597,12 +1597,7 @@ impl ExpertCache {
     }
 
     /// Read identity only: this does not grant permission to overwrite a GPU-read backing.
-    #[cfg(any(
-        feature = "mlx",
-        all(target_os = "macos", feature = "direct-metal"),
-        test,
-        kani
-    ))]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
     pub(crate) fn ready_slot_snapshot(&self) -> Vec<Option<(u32, u64)>> {
         self.keys
             .iter()
