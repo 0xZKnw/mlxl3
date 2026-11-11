@@ -28193,6 +28193,20 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   numérique à l'ancien moteur sur entrées imposées (KL≤.002, états L2≤.01,
   formes/128000logits/valeurs finies), plus contrôles existants Qwen/Flash.
   Preuves/compilations et correction des échecs précèdent les chronométrages.
+- Prompt UTF-8 fixé avant mesures : SHA-256
+  `7447c24f4d66adca67c19034f192b182d5f8a4d680489adcaec41e5de7a16e13`.
+  Moteur hybrid2.0.5 construit depuis `82b6dba7033b` propre ; exécutable
+  SHA-256 `932cfbd7ffb5f192c34ef397f17b2d89050d8c0eb07370c84b8964a265a29250`.
+  Après fermeture volontaire de l'app, aucun modèle ni compilateur détecté ;
+  secteur, batterie100 %, mémoire libre système71 %. La parité précède les
+  mesures ; les échecs et EOS précoces restent enregistrés.
+- Après construction de ce candidat hybride, comparaison 2.0.4→2.0.5 sur
+  LFM3 original/Heretic/VL : KL0 sur3 et499 tokens ; 35 états courts identiques
+  octet pour octet. Parcours réel Studio→bridge→VL8 : images rouge et bleue
+  reconnues. Aucun benchmark de vitesse exécuté. L'utilisateur a ensuite
+  poussé `f3f181e8` : livraison v2 désormais exclusivement MLX. Le candidat
+  hybride et ses résultats ne qualifient pas le nouvel artefact MLX ; intégrer
+  la nouvelle base, reconstruire et répéter les contrôles avant mesure.
 
 - Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.
 
