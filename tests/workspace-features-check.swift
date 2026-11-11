@@ -22,9 +22,9 @@ import SwiftUI
         let studio = StudioModel(conversationFileURL: history, isPreview: true, preferences: preferences)
         let recommended = ModelLibrary.recommendedModels
         check(ModelLibrary.recommendedFamilies.map(\.id) == ["LFM", "Qwen"], "Recommended families are grouped in a stable order")
-        check(ModelLibrary.recommendedFamilies.map { $0.models.map(\.id) } == [["0xzknw/LFM3-1.7B-Heretic-NX-EXL3", "0xzknw/LFM3-1.7B-EXL3", "0xzknw/LFM3-VL-2B-EXL3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3"]], "Families retain every model and group LFM3-VL with LFM")
+        check(ModelLibrary.recommendedFamilies.map { $0.models.map(\.id) } == [["0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw", "0xzknw/LFM3-1.7B-EXL3-8bpw", "0xzknw/LFM3-VL-2B-EXL3-8bpw", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3"]], "Families point at the standalone models")
         check(Set(recommended.map(\.id)).count == 7 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
-        check(recommended.prefix(3).allSatisfy { $0.preferredVariant == "8bpw" && $0.quantization == "8 bpw" }, "LFM3 text and vision cards pin the eight-bit variant")
+        check(recommended.prefix(3).allSatisfy { $0.preferredVariant == "" }, "LFM3 cards select their standalone root checkpoint")
         let catalogue = ModelLibrary()
         for model in recommended {
             catalogue.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
@@ -32,24 +32,45 @@ import SwiftUI
             check(catalogue.detail?.id == model.id && catalogue.error == nil, "Recommendation opens its exact repository")
             check(catalogue.detail?.commit == model.revision, "Recommendation forwards the immutable revision")
             if let preferred = model.preferredVariant {
-                check(catalogue.selectedVariant?.id == preferred, "Recommendation selects its advertised quantization")
+                check(catalogue.selectedVariant?.id == preferred, "Recommendation selects its advertised checkpoint")
                 check(catalogue.selectedVariant?.preview?.architectureSupported == true, "LFM3 support metadata is decoded")
             }
             check(catalogue.downloading == nil, "Opening a recommendation never starts a download")
             catalogue.back()
         }
-        let baseLfm3 = recommended[1]
-        catalogue.open(baseLfm3.id, revision: baseLfm3.revision)
+        check(ModelLibrary.recommendedChoices(for: recommended[0].id).isEmpty, "Heretic exposes only the accepted 8 bpw checkpoint")
+        check(ModelLibrary.recommendedChoices(for: "unrelated/model").isEmpty, "Other models do not acquire LFM choices")
+        for model in recommended[1...2] {
+            check(model.choices.map(\.label) == ["8 bpw", "4.49 bpw", "4 bpw"], "All quantizations are listed in order")
+            check(Set(model.choices.map(\.id)).count == 3 && model.choices.allSatisfy { $0.revision.count == 40 }, "Choices use distinct pinned repositories")
+            catalogue.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
+            try await wait { !catalogue.loadingDetail }
+            for choice in model.choices {
+                let current = catalogue.detail!.id
+                catalogue.selectRecommendedChoice(choice.id, from: current)
+                try await wait { !catalogue.loadingDetail }
+                check(catalogue.detail?.id == choice.id && catalogue.detail?.commit == choice.revision, "Quantization switch opens the selected pinned repo")
+                check(catalogue.selectedVariant?.id == "", "Quantization switch selects the root checkpoint")
+            }
+            let current = catalogue.detail!.id
+            catalogue.selectRecommendedChoice("unrelated/model", from: current)
+            check(catalogue.detail?.id == current && !catalogue.loadingDetail, "Unknown choices cannot change the model")
+            catalogue.back()
+        }
+        catalogue.open("fixture/multi-exl3", revision: "fixture", preferredVariant: "8bpw")
         try await wait { !catalogue.loadingDetail }
-        check(catalogue.selectedVariant?.id == "4bpw", "Ordinary catalogue opens retain the first-variant behavior")
-        catalogue.open(baseLfm3.id, revision: baseLfm3.revision, preferredVariant: "8bpw")
-        try await wait { !catalogue.loadingDetail }
-        check(catalogue.selectedVariant?.id == "8bpw", "Cached details still honor the requested variant")
+        check(catalogue.selectedVariant?.id == "8bpw", "Multi-variant repositories still select their requested folder")
         catalogue.back()
-        catalogue.open(baseLfm3.id, revision: baseLfm3.revision, preferredVariant: "missing")
+        let choice = recommended[1].choices[1]
+        catalogue.open(choice.id, revision: choice.revision, preferredVariant: "")
+        try await wait { !catalogue.loadingDetail }
+        catalogue.download(studio: studio)
+        try await wait { catalogue.downloadStatus == .complete || catalogue.downloadStatus == .failed }
+        check(catalogue.downloadStatus == .complete, "Selected standalone quantization downloads from its root")
+        catalogue.back()
+        catalogue.open(recommended[1].id, revision: recommended[1].revision, preferredVariant: "missing")
         try await wait { !catalogue.loadingDetail }
         check(catalogue.error != nil && catalogue.detail == nil, "A missing preferred variant cannot silently select another quantization")
-        check(catalogue.downloading == nil, "Invalid recommendation never starts a download")
         catalogue.back()
         studio.addProject("Astronomie")
         let projectA = studio.selectedProjectID!

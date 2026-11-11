@@ -77,20 +77,25 @@ evidence, not a general language/VQA/OCR/video benchmark.
 
 ## Authorized Hugging Face publication
 
+The original multi-variant repositories were later retired. Their files and
+validation reports were copied into standalone variant repositories with matching
+content identities. The commit IDs below identify the original publication;
+the links now lead to the corresponding standalone checkpoints.
+
 The following exact public commits were verified anonymously after upload:
 
-- [LFM3-1.7B-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3/tree/794219432967af4826d8276d370b2d1676d1f870):
+- [LFM3-1.7B-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3-4.49bpw):
   new `4.49bpw/`, 1,874,771,227 weight bytes,
   SHA-256 `d40fb15cf81742d0a1e5f913437d56602b93a041101cce990b320f8496a6d5ea`.
   Existing strict 4/8 variants are unchanged. Twenty-two staged files verified.
-- [LFM3-VL-2B-EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3/tree/97d5195410f269eb73c155d15cf846d694efcdb6):
+- [LFM3-VL-2B-EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw):
   recalibrated `8bpw/`, 2,708,140,652 weight bytes,
   SHA-256 `22e6da660378840af9e5d2aaadec96d66018870cfedef8b9509427658c632457`.
   Legacy public 4-bpw remains but is explicitly marked not recommended.
   Seventeen staged files verified.
 
 A later explicit owner instruction authorized the R4 VL candidate despite the
-missed 0.10 gate. Published and anonymously verified: [VL mixed 4.49 bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3/tree/15d4ec5cc43c5a6146dc675de0d89f939ec9c2da/4.49bpw),
+missed 0.10 gate. Published and anonymously verified: [VL mixed 4.49 bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-4.49bpw),
 commit `15d4ec5cc43c5a6146dc675de0d89f939ec9c2da`, 26 staged files checked. Weight bytes
 1,970,205,068; SHA-256
 `c7d7d8da15eec844c2333ac99d65388f995267a2df47f4e3ced3261731873654`. The root card and raw report preserve

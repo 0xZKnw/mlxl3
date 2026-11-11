@@ -71,6 +71,12 @@ private struct HubDownloadEvent: Decodable {
     let model: LocalModel?
 }
 
+struct RecommendedHubChoice: Identifiable, Sendable {
+    let id: String
+    let label: String
+    let revision: String
+}
+
 struct RecommendedHubModel: Identifiable, Sendable {
     let id: String
     let title: String
@@ -79,6 +85,7 @@ struct RecommendedHubModel: Identifiable, Sendable {
     let symbol: String
     let revision: String
     let preferredVariant: String?
+    var choices: [RecommendedHubChoice] = []
 }
 
 struct RecommendedModelFamily: Identifiable, Sendable {
@@ -97,9 +104,17 @@ struct PendingDownload: Decodable, Identifiable {
 final class ModelLibrary: ObservableObject {
     static let recommendedFamilies: [RecommendedModelFamily] = [
       .init(id: "LFM", models: [
-        .init(id: "0xzknw/LFM3-1.7B-Heretic-NX-EXL3", title: "LFM3", parameters: "1.7B · Heretic NX", quantization: "8 bpw", symbol: "waveform.path", revision: "a7cff0c15b6b1ab26ea77e29bd7a4ba66b0a25b8", preferredVariant: "8bpw"),
-        .init(id: "0xzknw/LFM3-1.7B-EXL3", title: "LFM3", parameters: "1.7B · Original", quantization: "8 bpw", symbol: "waveform.path", revision: "794219432967af4826d8276d370b2d1676d1f870", preferredVariant: "8bpw"),
-        .init(id: "0xzknw/LFM3-VL-2B-EXL3", title: "LFM3-VL", parameters: "2B · Vision", quantization: "8 bpw", symbol: "photo", revision: "15d4ec5cc43c5a6146dc675de0d89f939ec9c2da", preferredVariant: "8bpw"),
+        .init(id: "0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw", title: "LFM3", parameters: "1.7B · Heretic NX", quantization: "8 bpw", symbol: "waveform.path", revision: "25511dcbc1f7c099509361cf1e2e9de034c56e22", preferredVariant: ""),
+        .init(id: "0xzknw/LFM3-1.7B-EXL3-8bpw", title: "LFM3", parameters: "1.7B · Original", quantization: "4 · 4.49 · 8 bpw", symbol: "waveform.path", revision: "19aa14c461813d7a5abc462bdf2af2d90f7b771f", preferredVariant: "", choices: [
+            .init(id: "0xzknw/LFM3-1.7B-EXL3-8bpw", label: "8 bpw", revision: "19aa14c461813d7a5abc462bdf2af2d90f7b771f"),
+            .init(id: "0xzknw/LFM3-1.7B-EXL3-4.49bpw", label: "4.49 bpw", revision: "783640451c6b960b0db8c79b066c9416d3a782dc"),
+            .init(id: "0xzknw/LFM3-1.7B-EXL3-4bpw", label: "4 bpw", revision: "26f5e42026aab68cd0797207f655748fe760c68c"),
+        ]),
+        .init(id: "0xzknw/LFM3-VL-2B-EXL3-8bpw", title: "LFM3-VL", parameters: "2B · Vision", quantization: "4 · 4.49 · 8 bpw", symbol: "photo", revision: "1e634d4bf8d3ede00988c1405121e8030b8bcde6", preferredVariant: "", choices: [
+            .init(id: "0xzknw/LFM3-VL-2B-EXL3-8bpw", label: "8 bpw", revision: "1e634d4bf8d3ede00988c1405121e8030b8bcde6"),
+            .init(id: "0xzknw/LFM3-VL-2B-EXL3-4.49bpw", label: "4.49 bpw", revision: "00f0e5078ad49f1ca1afabd7459bcaf07ea85cd3"),
+            .init(id: "0xzknw/LFM3-VL-2B-EXL3-4bpw", label: "4 bpw", revision: "112c47cddfa6929d9c266bc45ed0154ed7665fab"),
+        ]),
         .init(id: "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw", title: "LFM2.5", parameters: "24B · A2B", quantization: "4 bpw · v2", symbol: "waveform.path", revision: "649b501fcc29910453eea313a763b7f7a12f4b41", preferredVariant: nil),
       ]),
       .init(id: "Qwen", models: [
@@ -109,6 +124,15 @@ final class ModelLibrary: ObservableObject {
       ]),
     ]
     static var recommendedModels: [RecommendedHubModel] { recommendedFamilies.flatMap(\.models) }
+
+    static func recommendedChoices(for repo: String) -> [RecommendedHubChoice] {
+        recommendedModels.first { $0.choices.contains { $0.id == repo } }?.choices ?? []
+    }
+
+    func selectRecommendedChoice(_ repo: String, from currentRepo: String) {
+        guard let choice = Self.recommendedChoices(for: currentRepo).first(where: { $0.id == repo }) else { return }
+        open(choice.id, revision: choice.revision, preferredVariant: "")
+    }
 
     @Published var query = ""
     @Published private(set) var results: [HubModel] = []

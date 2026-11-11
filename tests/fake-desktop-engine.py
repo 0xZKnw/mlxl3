@@ -27,6 +27,10 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
             ]
         print(json.dumps(rows), flush=True)
     elif command in ('download', 'resume'):
+        if (query.startswith('0xzknw/LFM3-') and query.endswith('bpw')
+                and ('--folder' not in sys.argv or sys.argv[sys.argv.index('--folder') + 1] != '')):
+            print('standalone checkpoint must use the root variant', file=sys.stderr)
+            sys.exit(3)
         total = 100_000_000
         for completed in [40_000_000, 50_000_000, 70_000_000, total]:
             print(json.dumps({'type': 'progress', 'completed': completed, 'total': total}), flush=True)
@@ -44,7 +48,11 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
     elif command == 'details':
         revision = sys.argv[sys.argv.index('--revision') + 1] if '--revision' in sys.argv else 'main'
         variants = [{'id': '.', 'label': '2.49 bpw', 'size_bytes': 128}]
-        if query in ('0xzknw/LFM3-1.7B-EXL3', '0xzknw/LFM3-1.7B-Heretic-NX-EXL3', '0xzknw/LFM3-VL-2B-EXL3'):
+        if query.startswith('0xzknw/LFM3-') and query.endswith('bpw'):
+            variants = [{'id': '', 'label': 'Root', 'size_bytes': 128,
+                         'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3',
+                                     'architecture_supported': True, 'maximum_context': 262144}}]
+        elif query == 'fixture/multi-exl3':
             variants = [{'id': bits, 'label': bits, 'size_bytes': 128,
                          'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3', 'architecture_supported': True,
                                      'maximum_context': 262144}}

@@ -58,23 +58,22 @@ The Desktop catalogue recommends these pinned exports:
 
 | Model | Projection bpw | Repository |
 |---|---:|---|
-| LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3) |
-| LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3) |
-| LFM3-VL-2B | 8 | [0xzknw/LFM3-VL-2B-EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3) |
+| LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw) |
+| LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3-8bpw) |
+| LFM3-VL-2B | 8 | [0xzknw/LFM3-VL-2B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw) |
 | LFM2.5-24B-A2B | 4 | [0xzknw/LFM2.5-24B-A2B-EXL3-4bpw](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw) |
 | Qwen3.6-35B-A3B | 2.49 | [UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw](https://huggingface.co/UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw) |
 | Qwen3.8-27B | 2.00 | [turboderp/Qwen3.8-27B-exl3](https://huggingface.co/turboderp/Qwen3.8-27B-exl3) |
 | Qwen3.8 Flash Next | 2.05, SSD | [turboderp/Qwen3.8-Flash-Next-exl3](https://huggingface.co/turboderp/Qwen3.8-Flash-Next-exl3) |
 
-The LFM3 text and vision cards explicitly select **`8bpw/`**, rather than whichever
-variant the repository lists first. Projection bpw excludes embeddings, output
+The LFM3 text and vision cards open **8 bpw** by default and offer **4**, **4.49**
+and **8 bpw** as separate repositories. Heretic NX is available at 8 bpw. Projection bpw excludes embeddings, output
 heads, scales and metadata; it is not the whole-file bitrate. Model licenses
 apply separately from MLXL3's license.
 
 ### LFM3-VL image input
 
-Use [LFM3-VL-2B EXL3](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3), selecting
-its calibrated **`8bpw/`** folder. Load the vision model, then attach PNG, JPEG
+Use the calibrated [LFM3-VL-2B EXL3 8 bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw) checkpoint. Load the vision model, then attach PNG, JPEG
 or WebP images through **+**, or drag them onto the composer. Images appear in
 the draft and sent message; click one for the larger preview. Documents and
 images can be sent together.
@@ -186,7 +185,7 @@ The CLI also accepts a complete checkpoint directory directly. LFM3-VL accepts
 repeated `--image` arguments with a prompt:
 
 ```sh
-"$MLXL3_BIN" run /absolute/path/to/LFM3-VL-EXL3/8bpw \
+"$MLXL3_BIN" run /absolute/path/to/LFM3-VL-2B-EXL3-8bpw \
   --image /absolute/path/to/photo.png \
   --prompt 'Describe this image.' --max-tokens 128
 ```
@@ -195,8 +194,8 @@ Browse and resume Hugging Face downloads without a separate HF CLI:
 
 ```sh
 "$MLXL3_BIN" hub search 'LFM3 EXL3'
-"$MLXL3_BIN" hub details 0xzknw/LFM3-1.7B-Heretic-NX-EXL3
-"$MLXL3_BIN" hub download 0xzknw/LFM3-1.7B-Heretic-NX-EXL3 --folder 8bpw
+"$MLXL3_BIN" hub details 0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw
+"$MLXL3_BIN" hub download 0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw --revision 25511dcbc1f7c099509361cf1e2e9de034c56e22
 "$MLXL3_BIN" hub pending all
 "$MLXL3_BIN" hub resume DOWNLOAD_ID
 ```

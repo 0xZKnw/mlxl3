@@ -3,6 +3,7 @@ import SwiftUI
 
 extension HubBrowserView {
     fileprivate var recommendedForCheck: some View { recommendedCards }
+    fileprivate func detailsForCheck(_ detail: HubDetails) -> some View { details(detail) }
 }
 
 @main struct RecommendedModelsUICheck {
@@ -46,6 +47,29 @@ extension HubBrowserView {
             precondition(brightPixels > 80, "Recommendation labels did not render")
             window.close()
         }
-        print("Recommended models UI checks passed: 480 and 840 point layouts")
+        for width in [480, 840] {
+            let model = ModelLibrary.recommendedModels[1]
+            let detail = HubDetails(id: model.id, revision: model.revision, commit: model.revision,
+                branches: ["main"], variants: [], readme: "EXL3 checkpoint", gated: false, downloads: 0, likes: 0)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 600), styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            let host = NSHostingView(rootView: HubBrowserView(library: studio.modelLibrary).detailsForCheck(detail)
+                .padding(20).environmentObject(studio).studioAppearance(.midnightBlue)
+                .foregroundStyle(StudioTheme.ink)
+                .frame(width: CGFloat(width), height: 600, alignment: .topLeading)
+                .background(StudioTheme.canvas(for: .midnightBlue)))
+            window.contentView = host
+            host.frame = NSRect(x: 0, y: 0, width: width, height: 600)
+            try await Task.sleep(for: .milliseconds(200))
+            host.layoutSubtreeIfNeeded()
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { fatalError("No details bitmap") }
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            precondition(bitmap.pixelsWide >= width && bitmap.pixelsHigh >= 600, "Model details did not fill its window")
+            if let output = ProcessInfo.processInfo.environment["MLXL3_RECOMMENDATION_SNAPSHOTS"] {
+                try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: output).appendingPathComponent("details-\(width).png"))
+            }
+            window.close()
+        }
+        print("Recommended models UI checks passed: cards and quantization picker at 480 and 840 points")
     }
 }

@@ -388,6 +388,15 @@ private struct HubBrowserView: View {
                             Text($0.count == 40 ? String($0.prefix(8)) : $0).tag($0)
                         }
                     }.labelsHidden()
+                    let choices = ModelLibrary.recommendedChoices(for: detail.id)
+                    if choices.count > 1 {
+                        Picker(L("Quantification", "Quantization"), selection: Binding(
+                            get: { detail.id },
+                            set: { library.selectRecommendedChoice($0, from: detail.id) }
+                        )) {
+                            ForEach(choices) { Text($0.label).tag($0.id) }
+                        }
+                    }
                     if detail.variants.count > 1 {
                         Picker(L("Variante", "Variant"), selection: $library.variantID) {
                             ForEach(detail.variants) { Text($0.label).tag($0.id) }
