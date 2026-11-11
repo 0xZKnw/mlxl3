@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -81,6 +82,26 @@ def run(project, **overrides):
     )
 
 
+def test_default_engine_is_mlx():
+    config = tomllib.loads((ROOT / "Cargo.toml").read_text())
+    assert config["features"]["default"] == ["mlx"]
+
+
+@pytest.mark.parametrize("backend", ["metal", "hybrid"])
+def test_v2_rejects_native_modes_without_building_or_replacing_runtime(project, backend):
+    root, _ = project
+    runtime = root / "build/rust-runtime"
+    runtime.mkdir(parents=True)
+    executable = runtime / "mlxl3"
+    executable.write_bytes(b"previous runtime")
+    result = run(project, MLXL3_ENGINE_BACKEND=backend)
+    assert result.returncode == 2 and "désactiv" in result.stderr
+    assert not (root / "cargo.json").exists()
+    assert executable.read_bytes() == b"previous runtime"
+    assert not (root / "dist").exists()
+
+
+@pytest.mark.skip(reason="Native/hybrid v2 packaging is disabled; retained for future reactivation")
 def test_native_builder_uses_chat_without_loading_mlx_and_packages_embedded_shaders(project):
     root, _ = project
     result = run(project)
@@ -103,6 +124,7 @@ def test_native_builder_uses_chat_without_loading_mlx_and_packages_embedded_shad
         ("architecture", "x86_64"),
     ],
 )
+@pytest.mark.skip(reason="Native/hybrid v2 packaging is disabled; retained for future reactivation")
 def test_native_builder_rejects_mismatched_runtime_before_publication(project, field, value):
     runtime = {
         "backend": "metal",
@@ -118,6 +140,7 @@ def test_native_builder_rejects_mismatched_runtime_before_publication(project, f
 
 @pytest.mark.parametrize("variable", ["FIXTURE_LINKED", "FIXTURE_LOADED"])
 @pytest.mark.parametrize("name", ["libmlx.dylib", "libjaccl.dylib", "mlx.metallib"])
+@pytest.mark.skip(reason="Native/hybrid v2 packaging is disabled; retained for future reactivation")
 def test_native_builder_rejects_mlx_dependencies_before_publication(project, variable, name):
     result = run(project, **{variable: name})
     assert result.returncode != 0
@@ -132,15 +155,17 @@ def test_unknown_backend_fails_before_build_or_runtime_replacement(project):
     assert not (root / "build").exists()
 
 
-def test_legacy_builder_preserves_the_explicit_mlx_bundle(project):
+@pytest.mark.parametrize("backend", ["", "mlx"])
+def test_mlx_builder_preserves_the_bundle_and_disables_native_features(project, backend):
     root, _ = project
     mlx = root / "reference/lib"
     mlx.mkdir(parents=True)
     for name in ["libmlx.dylib", "libjaccl.dylib", "mlx.metallib"]:
         (mlx / name).write_bytes(name.encode())
-    result = run(project, MLXL3_ENGINE_BACKEND="mlx", MLXL3_MLX_ROOT=str(mlx.parent))
+    result = run(project, MLXL3_ENGINE_BACKEND=backend, MLXL3_MLX_ROOT=str(mlx.parent))
     assert result.returncode == 0, result.stderr
     args = json.loads((root / "cargo.json").read_text())
+    assert "--no-default-features" in args
     assert args[args.index("--features") + 1] == "mlx,chat"
     data = json.loads((root / "build/rust-runtime/engine.json").read_text())
     assert data["schema"] == 1 and "backend" not in data
@@ -154,6 +179,7 @@ def test_legacy_builder_requires_reference_libraries_before_compiling(project):
     assert not (root / "cargo.json").exists()
 
 
+@pytest.mark.skip(reason="Native/hybrid v2 packaging is disabled; retained for future reactivation")
 def test_hybrid_builder_embeds_verified_helpers_and_preserves_schema_one(project):
     root, _ = project
     mlx = root / "reference/lib"
@@ -173,6 +199,7 @@ def test_hybrid_builder_embeds_verified_helpers_and_preserves_schema_one(project
     assert set(data["files"]) == {"mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib"}
 
 
+@pytest.mark.skip(reason="Native/hybrid v2 packaging is disabled; retained for future reactivation")
 def test_hybrid_builder_rejects_native_mlx_dependency_before_embedding(project):
     root, _ = project
     mlx = root / "reference/lib"

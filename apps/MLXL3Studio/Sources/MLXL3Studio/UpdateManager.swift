@@ -757,7 +757,8 @@ final class UpdateManager: ObservableObject {
     nonisolated static func runProcess(
         _ executable: String,
         arguments: [String],
-        outputLimit: Int = 256 * 1_024 * 1_024
+        outputLimit: Int = 256 * 1_024 * 1_024,
+        timeout: TimeInterval = 60
     ) throws -> Data {
         let process = Process()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-updater-" + UUID().uuidString)
@@ -779,9 +780,10 @@ final class UpdateManager: ObservableObject {
         process.standardOutput = output
         process.standardError = errors
         try process.run()
-        if finished.wait(timeout: .now() + 60) == .timedOut {
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
             process.terminate()
             if finished.wait(timeout: .now() + 2) == .timedOut { Darwin.kill(process.processIdentifier, SIGKILL) }
+            process.waitUntilExit()
             throw UpdateError.commandFailed("Update helper timed out")
         }
         guard (try outURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= outputLimit,

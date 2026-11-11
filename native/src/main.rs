@@ -81,7 +81,7 @@ struct CodecRequest {
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     path: String,
     #[serde(default)]
-    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     prefix: String,
     #[serde(default)]
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
@@ -4606,6 +4606,16 @@ fn native_chat(
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mlx_checkpoint_codec_keeps_the_requested_projection_prefix() {
+        let request: CodecRequest =
+            serde_json::from_str(r#"{"op":"mlx-checkpoint-switch","prefix":"model.layers.0.mlp"}"#)
+                .unwrap();
+        assert_eq!(request.prefix, "model.layers.0.mlp");
+        let request: CodecRequest = serde_json::from_str(r#"{"op":"pack"}"#).unwrap();
+        assert!(request.prefix.is_empty());
+    }
 
     #[test]
     #[ignore = "requires local Flash target/DFlash checkpoints and Apple GPU; run alone"]

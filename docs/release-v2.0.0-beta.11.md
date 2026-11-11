@@ -5,6 +5,9 @@ Bundled engine **2.0.5**, also published independently as
 **engine-v2.0.5-beta.1**. Exact source and artifact identities are recorded in
 the attached validation report.
 
+This v2 beta uses MLX for every model. Older managed native or hybrid engines
+are rejected in favour of the bundled MLX runtime.
+
 ## Changes
 
 - Attach PNG, JPEG and WebP images to a loaded LFM3-VL model through the file

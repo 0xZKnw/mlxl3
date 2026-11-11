@@ -111,22 +111,24 @@ struct AppSettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
             switch selection {
             case .general:
-                SettingCard(title: L("Profil Qwen natif", "Native Qwen profile"), icon: "cpu") {
-                    Picker(L("Profil demandé", "Requested profile"), selection: Binding(
-                        get: { QwenRuntimeProfile.requested(requestedQwenProfile).rawValue },
-                        set: { requestedQwenProfile = $0 }
-                    )) {
-                        Text(L("Référence", "Reference")).tag("reference")
-                        Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
-                    }
-                    .help(L("Rechargez le modèle pour appliquer le profil. Le profil optimisé est expérimental ; les variables du moteur restent prioritaires.", "Reload the model to apply the profile. The optimized profile is experimental; engine environment variables take precedence."))
-                    DisclosureGroup(L("Détails du moteur", "Engine details")) {
-                        Text(L("Profil actif : ", "Active profile: ") + (studio.runtimeQwenProfile ?? "—"))
-                        if let identity = studio.runtimeIdentity {
-                            Text(identity).textSelection(.enabled)
+                if EngineRuntimeStore.nativeEngineEnabled {
+                    SettingCard(title: L("Profil Qwen natif", "Native Qwen profile"), icon: "cpu") {
+                        Picker(L("Profil demandé", "Requested profile"), selection: Binding(
+                            get: { QwenRuntimeProfile.requested(requestedQwenProfile).rawValue },
+                            set: { requestedQwenProfile = $0 }
+                        )) {
+                            Text(L("Référence", "Reference")).tag("reference")
+                            Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
                         }
+                        .help(L("Rechargez le modèle pour appliquer le profil. Le profil optimisé est expérimental ; les variables du moteur restent prioritaires.", "Reload the model to apply the profile. The optimized profile is experimental; engine environment variables take precedence."))
+                        DisclosureGroup(L("Détails du moteur", "Engine details")) {
+                            Text(L("Profil actif : ", "Active profile: ") + (studio.runtimeQwenProfile ?? "—"))
+                            if let identity = studio.runtimeIdentity {
+                                Text(identity).textSelection(.enabled)
+                            }
+                        }
+                        .font(.caption).foregroundStyle(StudioTheme.secondary)
                     }
-                    .font(.caption).foregroundStyle(StudioTheme.secondary)
                 }
                 SettingCard(title: L("Langue de l’app", "App language"), icon: "globe") {
                     Picker(

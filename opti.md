@@ -1,5 +1,16 @@
 # MLXL3 — journal des optimisations
 
+### CONFIG-2026-11-10-V2-MLX — VALIDÉ localement — livraison/configuration MLX, génération physique non rejouée
+
+- Demande : remettre MLX partout en v2, conserver les sources du moteur direct Metal et du dispatcher hybride. Base propre `e4b5ff4ed410119c83be29d865ebe143de7791ba`, branche isolée `codex/v2-mlx-default` ; checkout personnel modifié conservé. Historique relu : HYBRID-2026-11-06-FLASH-LFM3 ; changement de politique, aucun nouvel essai de performance.
+- Périmètre avant modification : défaut Cargo MLX, packaging MLX seul (refus explicite metal/hybrid avant compilation/remplacement), Desktop refuse les paquets natifs et vérifie le backend réel des moteurs gérés, masque le profil natif sans supprimer son code. Conserver les implémentations et anciens contrôles natifs pour une réactivation future ; CI de livraison MLX, contrôles CPU explicites sans défauts.
+- Vérifications prévues : régressions packaging (défaut et refus sans toucher les anciens fichiers), archives/identité/résolution et repli Desktop, build Swift et moteur mlx/chat, lint/format, suites pertinentes et tentative Kani CPU existante. Tests natifs de livraison devenus inapplicables conservés mais explicitement ignorés. Mutations négatives avant correctif lorsque praticable. Sources Swift : pas de vérificateur comportemental adapté disponible ; compilateur et tests finis, pas de preuve UI/FFI/GPU.
+- Échecs de compilation conservés : `engine-build.log` (requête GPU MLX dépendant du crate Metal), puis `engine-build-r2.log` (champ codec prefix gardé à tort par direct-metal). Correction minimale : MLX dépend du crate Metal pour la détection matérielle sans activer le moteur autonome ; garde prefix commune MLX/native et test de désérialisation ; accesseurs réservés au natif/tests/Kani. Aucun calcul de modèle/kernel changé.
+- Clôture : défaut Cargo/packaging MLX, refus metal/hybrid, rejet natif/hybride géré et profil UI masqué intégrés localement. Python109 passés/13 tests natifs volontairement ignorés ; CPU515/10 ignorés ; MLX553/240 ignorés ; Clippy strict CPU/MLX, Swift6+SIL, updater réel avec paquet signé installé en stockage jetable et contrats de repli réussis. Kani deux harnais CPU : 69 contrôles/2 couvertures et17/3, bornes/limites dans le rapport ; pas de preuve du pipeline ni de génération. Mutation de réactivation détectée. CrossHair indisponible. Captures hors écran960×720 et1280×900 inspectées. Actionlint/format/inventaire314 fichiers conformes. Aucun modèle GPU/benchmark, autre compilation lourde externe active ; tests physiques/logits/CLI-inférence/HTTP réels non rejoués. Aucune CI distante des modifications locales. Tous contrôles de cette tâche clos ; app installée inchangée.
+- Rapport : [retour MLX v2](docs/v2-mlx-2026-11-10.md), [preuves conservées](docs/measurements/v2-mlx-20261110/evidence.tar.gz). Artefacts locaux : `build/v2-mlx/`, CLI signé `build/rust-runtime/mlxl3`, paquet `dist/MLXL3-Engine-v2.0.4-arm64.tar.gz`. Pas de benchmark, modèle/quantification/contexte/tokens sans objet ; vitesse et mémoire non mesurées. Aucune publication, push, merge ou installation d'app autorisée.
+
+- Livraison autorisée le 11 novembre 2026 : demande explicite de push direct sur `main`. Tête distante/base `e4b5ff4e` inchangée ; identités des artefacts et diff des15 fichiers exécutables/configurations comparés aux preuves archivées, tous identiques. Réutilisation des suites précédentes, aucun nouvel essai/benchmark ; commit de cette seule bascule et de ses preuves, puis push normal sans force et vérification du SHA distant/état CI. Le refus de publication ci-dessus décrit la clôture locale du10novembre ; la nouvelle autorisation couvre le push, aucun tag/release/remplacement d’app.
+
 ### DESKTOP-2026-11-06-MENUS-GLASS — publié beta10 — vérification limitée explicitée
 
 - Demande : resserrer le bandeau logo, Liquid Glass Apple mesuré, même traitement Modèles/MCP/Projets-profils. Base locale SETTINGS sur71530f09, modifications de la passe précédente conservées. Aucun benchmark ni modèle GPU ; compilation et inspection visuelle uniquement selon la limite de tests demandée.
@@ -28207,6 +28218,11 @@ regression-tested; this proof does not claim the entire JSON path or GPU.
   poussé `f3f181e8` : livraison v2 désormais exclusivement MLX. Le candidat
   hybride et ses résultats ne qualifient pas le nouvel artefact MLX ; intégrer
   la nouvelle base, reconstruire et répéter les contrôles avant mesure.
+- Protocole remplacé avant mesure : même prompt et même nombre de répétitions,
+  mais moteur exclusivement MLX issu de `f3f181e8` intégré à cette branche.
+  Comparer d'abord la parité LFM3 texte/VL, vérifier le vrai parcours image,
+  identifier le binaire et les poids, puis mesurer chaque modèle séparément.
+  Aucune mesure hybride ne sera étiquetée comme résultat du moteur MLX.
 
 - Correction finale utilisateur de placement : conserver le sélecteur modèle uniquement dans l’en-tête, + à gauche du composeur et contexte/micro/envoi à droite. Les chiffres de contexte restent accessibles par infobulle et inspecteur. L’essai de sélecteur dans la barre est retiré ; aucun modèle ni état utilisateur modifié.
 

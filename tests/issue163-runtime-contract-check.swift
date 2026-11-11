@@ -14,7 +14,7 @@ extension StudioModel {
         precondition(engineState.isReady)
         precondition(contextMemory?.bytes(tokens: 2048) == 125829220)
         precondition(contextMemory?.bytes(tokens: 8192) == 503316580)
-        precondition(runtimeIdentity?.contains("direct-metal") == true)
+        precondition(runtimeIdentity?.contains("mlx") == true)
         precondition(runtimeIdentity?.contains("qwen_device_kv=true") == true)
         precondition(runtimeIdentity?.contains("qwen_moe_join=false") == true)
         precondition(runtimeQwenProfile != nil && runtimeIdentity?.contains("Qwen profile") == true)
@@ -73,13 +73,17 @@ extension StudioModel {
         precondition(requested[QwenRuntimeProfile.environmentKey] == "optimized" && requested["MLXL3_NATIVE_QWEN_DEVICE_KV"] == "0")
         let script = #"""
         #!/bin/sh
+        if [ "$1" = runtime-info ]; then
+          echo '{"version":"2.0.2","bridge_protocol":1,"backend":"mlx","mlx_enabled":true}'
+          exit 0
+        fi
         case "$2" in
           bad-model|bad-context|low-memory) echo 'model setup failed' >&2; exit 1;;
           ignore) trap '' USR1 TERM;;
         esac
         protocol=1
         if [ "$2" = bad-protocol ]; then protocol=99; fi
-        printf '{"type":"ready","model":"fixture","bridge_protocol":%s,"backend":"direct-metal","runtime_version":"2.0.2","qwen_profile":"%s","qwen_effective_flags":{"device_kv":true,"moe_join":false,"device_greedy":false},"qwen_device_kv":true,"context_memory_profile":{"fixed_bytes":100,"layers":[{"bytes_per_token":61440,"step":64}]}}\n' "$protocol" "${MLXL3_NATIVE_QWEN_PROFILE:-reference}"
+        printf '{"type":"ready","model":"fixture","bridge_protocol":%s,"backend":"mlx","runtime_version":"2.0.2","qwen_profile":"%s","qwen_effective_flags":{"device_kv":true,"moe_join":false,"device_greedy":false},"qwen_device_kv":true,"context_memory_profile":{"fixed_bytes":100,"layers":[{"bytes_per_token":61440,"step":64}]}}\n' "$protocol" "${MLXL3_NATIVE_QWEN_PROFILE:-reference}"
         while IFS= read -r line; do :; done
         """#
         func stage(_ suffix: String, alternate: Bool = false) throws -> URL {
@@ -88,11 +92,16 @@ extension StudioModel {
             let executable = directory.appendingPathComponent("mlxl3")
             try Data((script + (alternate ? "\n# alternate" : "")).utf8).write(to: executable)
             try files.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
-            let metadata: [String: Any] = ["schema": 2, "backend": "metal", "version": "2.0.2",
+            var records: [String: [String: Any]] = [:]
+            for name in EngineRuntimeStore.runtimeFiles {
+                let file = directory.appendingPathComponent(name)
+                if name != "mlxl3" { try Data("fixture".utf8).write(to: file) }
+                records[name] = ["size": try Data(contentsOf: file).count,
+                                 "sha256": try UpdateManager.sha256(at: file)]
+            }
+            let metadata: [String: Any] = ["schema": 1, "version": "2.0.2",
                 "release_tag": "engine-v2.0.2" + suffix, "bridge_protocol": 1, "architecture": "arm64",
-                "minimum_macos": "1.0.0", "minimum_app_version": "2.0.0",
-                "files": ["mlxl3": ["size": try Data(contentsOf: executable).count,
-                                    "sha256": try UpdateManager.sha256(at: executable)]]]
+                "minimum_macos": "1.0.0", "minimum_app_version": "2.0.0", "files": records]
             try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]).write(to: directory.appendingPathComponent("engine.json"))
             return directory
         }

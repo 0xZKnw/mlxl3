@@ -1,7 +1,7 @@
 # MLXL3 v2: EXL3 inference on Apple Silicon
 
 MLXL3 runs EXL3 language and vision models locally on macOS. It includes a
-SwiftUI desktop app, a Rust inference engine with MLX and Metal backends, a
+SwiftUI desktop app, a Rust inference engine using MLX on Metal, a
 command-line client, and an OpenAI-compatible HTTP API. Supported families
 include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
@@ -50,7 +50,7 @@ the container format. These are the implemented runtime families:
 | LFM3-1.7B | `lfm3` | Text; gated attention, sliding window and seven-tap convolutions |
 | LFM3-VL-2B | `lfm3_vl` | Text and images; vision encoder, projector and LFM3 decoder |
 | Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text; hybrid Gated DeltaNet/attention, dense and MoE |
-| Qwen 3.8 Flash Next | `qwen4_exp` | Native Metal helper, SSD expert streaming and bounded cache |
+| Qwen 3.8 Flash Next | `qwen4_exp` | MLX inference, SSD expert streaming and bounded cache |
 | Gemma 4 | `gemma4` | Text and native tool-call parsing; image/audio inputs excluded |
 | Ling / Bailing | `bailing_hybrid` | Text, routed experts and Ling-native tool-call parsing |
 
@@ -220,20 +220,21 @@ The app can export conversations without changing the model files.
 
 ```mermaid
 flowchart TD
-    A[SwiftUI Desktop] -->|JSON-lines bridge| F[Hybrid engine dispatcher]
+    A[SwiftUI Desktop] -->|JSON-lines bridge| F[Rust and MLX engine]
     C[CLI] --> F
     E[OpenAI-compatible HTTP API] -->|Bridge subprocess| F
-    F --> G[MLX helper: LFM, Qwen, Gemma, Ling]
-    F --> H[Native Metal helper: Flash Next]
-    G --> I[EXL3 projections and model state]
-    H --> J[Bounded expert cache and SSD reads]
+    F --> G[EXL3 projections and model state]
+    F --> H[Metal kernels via MLX]
+    F --> J[Flash Next expert cache and SSD reads]
 ```
 
 Rust owns checkpoint validation, tokenization/templates, generation, streaming,
 state, downloads and tool protocols. Quantized projections are evaluated from
 their EXL3 representation; inference does not first export a dense BF16 model.
-The native Flash helper uses Metal without loading MLX. The MLX helper combines
-MLX graph operations with architecture-specific Metal kernels.
+All supported models use MLX in v2, including Flash Next. The independent native
+Metal engine and hybrid dispatcher remain in the source tree but are not shipped
+in this release. Desktop rejects incompatible native engine updates and falls
+back to its bundled MLX engine.
 
 MLXL3 is an independent Apple Silicon runtime. ExLlamaV3 provides the EXL3
 format and numerical reference; adapted components retain their upstream
@@ -266,7 +267,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev,bundle]' -c packaging/constraints-macos.txt
 export MLXL3_BUILD_PYTHON="$PWD/.venv/bin/python"
 export MLXL3_MLX_ROOT="$PWD/.venv/lib/python3.12/site-packages/mlx"
-export MLXL3_ENGINE_BACKEND=hybrid
+export MLXL3_ENGINE_BACKEND=mlx
 scripts/build-engine.sh
 scripts/build-macos-dmg.sh
 ```
