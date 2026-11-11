@@ -1,0 +1,50 @@
+[
+  {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "lfm3::lfm3_reconstruction_grid_and_trellis_bounds_are_checked",
+      "--output-format",
+      "regular"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_s": 25.99876458302606,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds",
+      "--output-format",
+      "regular"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_s": 16.168150124984095,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "lfm3::lfm3_prefill_defaults_require_qualified_hardware_and_exact_overrides",
+      "--output-format",
+      "regular"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_s": 11.144125457998598,
+    "reaped": true
+  }
+]

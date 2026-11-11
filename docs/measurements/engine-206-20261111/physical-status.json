@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "parity": true,
+  "runs": [
+    {
+      "name": "codec",
+      "command": [
+        "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/release-libtest",
+        "linear::lfm3_prefill_tests::reconstructed_weights_match_independent_cpu_codec",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "reaped": true,
+      "elapsed_s": 1.0280908749846276
+    },
+    {
+      "name": "grouped",
+      "command": [
+        "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/release-libtest",
+        "linear::lfm3_prefill_tests::grouped_prefill_cached_factory_preserves_production_shapes_and_fallbacks",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "reaped": true,
+      "elapsed_s": 2.0600587080116384
+    },
+    {
+      "name": "ffn-fallback",
+      "command": [
+        "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/release-libtest",
+        "lfm2::lfm3_prefill_release_tests::grouped_ffn_preserves_bias_padding_and_unqualified_fallbacks",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "reaped": true,
+      "elapsed_s": 1.035227083018981
+    },
+    {
+      "name": "model-default",
+      "command": [
+        "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/release-libtest",
+        "linear::lfm3_prefill_tests::prefill_production_composition_preserves_model_states_and_logits",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "reaped": true,
+      "elapsed_s": 28.94133983302163
+    },
+    {
+      "name": "library",
+      "command": [
+        "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/release-libtest",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "error": "RuntimeError('external heavy job 68802: release-libtest')",
+      "reaped": true,
+      "elapsed_s": 20.87313074999838,
+      "initial_status": "failed_or_interrupted_own_child_misclassified",
+      "rerun_receipt": "library-r2-status.json"
+    }
+  ],
+  "waiting": [],
+  "error": "RuntimeError('external heavy job 68802: release-libtest')",
+  "library_initial_failure_preserved": "physical-status-first.json"
+}
