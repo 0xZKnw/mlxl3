@@ -2352,16 +2352,17 @@ extension StudioModel {
         }
     }
 
-    func startServer(port: Int) {
+    func startServer(port: Int, host: String = "127.0.0.1", context: Int? = nil) {
         guard !quantizer.converting, !isGenerating, modeTransition == nil, !localServer.active, let name = selectedModelName,
-              (1024...65535).contains(port) else { featureError = L("Choisissez un modèle et un port entre 1024 et 65535.", "Choose a model and a port between 1024 and 65535."); return }
+              (1024...65535).contains(port), ["127.0.0.1", "0.0.0.0"].contains(host),
+              (0...(modelContextLimit ?? Int(Int32.max))).contains(context ?? savedContextLength) else { featureError = L("Vérifiez le modèle et les réglages du serveur.", "Check the model and server settings."); return }
         selectedMode = .server
         modeTransition = Task {
             await bridge.stopAndWait()
             ejectModel()
             modeTransition = nil
             guard !Task.isCancelled else { return }
-            localServer.start(model: name, port: port, context: savedContextLength)
+            localServer.start(model: name, port: port, context: context ?? savedContextLength, host: host)
         }
     }
 
