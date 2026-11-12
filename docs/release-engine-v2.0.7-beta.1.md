@@ -55,3 +55,11 @@ for the allocator controls, [Qwen](https://huggingface.co/Qwen) for the model,
 [ExLlamaV3](https://github.com/turboderp-org/exllamav3) and
 [PonyExl3](https://github.com/beamivalice/PonyExl3) for EXL3 foundations, and
 [MTPLX](https://github.com/youssofal/mtplx) for the retained MTP implementation.
+
+## Source and archive
+
+Source built: `b05e6579081c5bcae25238f49f32e6b6feef7d6d` ([PR #171](https://github.com/0xZKnw/mlxl3/pull/171)).
+
+- `MLXL3-Engine-v2.0.7-beta.1-arm64.tar.gz` — 67873627 bytes.
+- SHA-256: `f33b40edd6710d22ee3b6b56846b690b65794beb25a58e7c33e260332fc6ffc4`.
+- A companion SHA-256 file and validation report are attached.
