@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/package-controller.py", line 565, in <module>
+    process_run(arm, "quality-" + arm, action)
+  File "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/package-controller.py", line 301, in process_run
+    action(child, run)
+  File "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/package-controller.py", line 549, in action
+    result = generate(child, case, arm + case["name"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/package-controller.py", line 208, in generate
+    guard([child.process.pid])
+  File "/Users/justin/.codex/worktrees/lfm3-engine-206-20261111/mix-stq1_0/build/engine-206-20261111/package-controller.py", line 107, in guard
+    raise RuntimeError(f"external heavy job: {pid}/{name}")
+RuntimeError: external heavy job: 71361/mlxl3

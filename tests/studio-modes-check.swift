@@ -275,6 +275,24 @@ extension StudioModel {
     check(
       studio.labSamples[0].stats.decodeTps == 30 && studio.labSamples[0].stats.prefillTps == 120,
       "Lab retains metrics without recomputation")
+    let sample = studio.labSamples[0]
+    check(LabMetric.decode.value(sample) == 30 && LabMetric.prefill.value(sample) == 120,
+      "Charts use the recorded speeds")
+    check(LabMetric.prompt.value(sample) == 12 && LabMetric.generated.value(sample) == 6,
+      "Charts use actual token counts")
+    check(LabMetric.memory.value(sample) == nil && LabMetric.endToEndTTFT.value(sample) == nil,
+      "Missing measurements stay absent instead of becoming zero")
+    let otherSample = LabSample(model: "other", modelPath: "", bits: nil, mode: "chat", runtime: "",
+      system: "", hardware: "", context: 0, temperature: 0, topK: 1, mtp: false, dflash: false,
+      stats: sample.stats)
+    let historySamples = [sample, otherSample]
+    check(LabMetric.decode.history(historySamples, model: "").map(\.model) == ["other", "modes"],
+      "History includes every model in reverse recorded order")
+    check(LabMetric.decode.history(historySamples, model: "other").map(\.model) == ["other"]
+      && LabMetric.decode.history(historySamples, model: "missing").isEmpty,
+      "History filters by the selected model")
+    check(LabMetric.memory.history(historySamples, model: "").isEmpty,
+      "History excludes samples without the selected metric")
     let messageID = studio.currentConversation!.messages.last!.id
     try await wait { !studio.agentStudioBusy }
     check(
@@ -341,6 +359,8 @@ extension StudioModel {
                 generated == 1 && prompt >= 0
                 && [ttft, prefill, decode].allSatisfy { $0 == 0 || $0 == 1 }
               check(sample.valid == expected, "Lab excludes nonfinite/negative/empty measurements")
+              check((LabMetric.decode.value(sample) != nil) == (decode == 0 || decode == 1),
+                "Chart excludes non-finite and negative values")
             }
           }
         }
@@ -365,6 +385,12 @@ extension StudioModel {
     check(!studio.canSend, "Lab cannot trigger inference")
     studio.startServer(port: 0)
     check(!studio.localServer.active && studio.featureError != nil, "Invalid server port refused")
+    studio.startServer(port: 8000, host: "example.com")
+    check(!studio.localServer.active, "Unsupported server host refused")
+    studio.startServer(port: 8000, context: -1)
+    check(!studio.localServer.active, "Negative server context refused")
+    studio.startServer(port: 8000, context: Int(Int32.max))
+    check(!studio.localServer.active, "Context above the loaded model limit refused")
     // Use a disposable high port and verify the endpoint, not only a ready label.
     let port = 39000 + Int(getpid() % 10000)
     studio.startServer(port: port)
@@ -388,6 +414,18 @@ extension StudioModel {
       studio.selectedMode == .chat && studio.engineState.isReady && !studio.localServer.active
     }
     check(!studio.localServer.running, "Returning to Chat stops and joins Server")
+    studio.startServer(port: port, host: "0.0.0.0", context: 1024)
+    try await wait { studio.localServer.running || studio.localServer.error != nil }
+    check(studio.localServer.running && studio.localServer.log.contains("0.0.0.0")
+          && studio.localServer.log.contains("1024"), "Network host and context reach the server")
+    var networkRequest = URLRequest(url: endpoint)
+    networkRequest.setValue("Bearer \(studio.localServer.apiKey!)", forHTTPHeaderField: "Authorization")
+    let (_, networkResponse) = try await URLSession.shared.data(for: networkRequest)
+    check((networkResponse as? HTTPURLResponse)?.statusCode == 200, "Network-mode server accepts its generated key")
+    let (_, networkRefused) = try await URLSession.shared.data(from: endpoint)
+    check((networkRefused as? HTTPURLResponse)?.statusCode == 401, "Network-mode server requires a key")
+    studio.selectMode(.chat)
+    try await wait { studio.selectedMode == .chat && studio.engineState.isReady && !studio.localServer.active }
     studio.localServer.start(model: "serve-fail", port: port, context: 0)
     try await wait { !studio.localServer.active }
     check(

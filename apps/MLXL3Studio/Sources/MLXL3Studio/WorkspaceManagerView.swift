@@ -271,6 +271,7 @@ struct ModelAdviceView: View {
     let sizeBytes: Int64
     var preview: HubModelPreview? = nil
     @State private var context = 4096
+    @State private var expanded = false
     var body: some View {
         let tokens = min(UInt64(context), preview?.maximumContext ?? UInt64(context))
         let cache = preview?.kvBytesPerToken.map { Double($0) * Double(tokens) + Double(preview?.recurrentBytes ?? 0) }
@@ -278,15 +279,8 @@ struct ModelAdviceView: View {
         let advice = ModelAdvice(
             weights: sizeBytes > 0 ? Int64(min(estimate, Double(Int64.max / 2))) : 0,
             memory: ProcessInfo.processInfo.physicalMemory)
-        VStack(alignment: .leading, spacing: 7) {
-            if let preview {
-                Label(
-                    (preview.modelType ?? L("Architecture inconnue", "Unknown architecture")) + " · "
-                        + (preview.architectureSupported
-                            ? L("famille prise en charge", "supported family")
-                            : L("famille non prise en charge", "unsupported family")),
-                    systemImage: preview.architectureSupported ? "checkmark.circle" : "exclamationmark.triangle")
-            }
+        DisclosureGroup(isExpanded: $expanded) {
+          VStack(alignment: .leading, spacing: 7) {
             Stepper(
                 L("Contexte prévu : \(tokens) tokens", "Planned context: \(tokens) tokens"), value: $context,
                 in: 512...131072, step: 512)
@@ -315,6 +309,16 @@ struct ModelAdviceView: View {
                 )
             )
             .foregroundStyle(.secondary)
+          }.padding(.top, 10)
+        } label: {
+            HStack(spacing: 10) {
+                Label(preview?.modelType ?? L("Architecture inconnue", "Unknown architecture"),
+                      systemImage: preview.map { $0.architectureSupported ? "checkmark.circle" : "exclamationmark.triangle" } ?? "info.circle")
+                Text(preview.map { $0.architectureSupported ? L("prise en charge", "supported") : L("non prise en charge", "unsupported") } ?? L("à vérifier", "check support"))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Text(L("Estimation mémoire", "Memory estimate")).foregroundStyle(.secondary)
+            }
         }.font(.caption).padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 }

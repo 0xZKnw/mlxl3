@@ -39,6 +39,8 @@ if command == "serve":
         sys.exit(0)
     port = int(sys.argv[sys.argv.index("--port") + 1])
     api_key = sys.argv[sys.argv.index("--api-key") + 1]
+    host = sys.argv[sys.argv.index("--host") + 1]
+    context = int(sys.argv[sys.argv.index("--context-length") + 1])
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -53,8 +55,8 @@ if command == "serve":
         def log_message(self, *_):
             pass
 
-    server = HTTPServer(("127.0.0.1", port), Handler)
-    emit("ready", port=port, model=model)
+    server = HTTPServer((host, port), Handler)
+    emit("ready", port=port, model=model, host=host, context=context)
     server.serve_forever()
 elif command == "bridge":
     active = None

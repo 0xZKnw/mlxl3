@@ -456,7 +456,7 @@ private struct HubBrowserView: View {
             ModelCardView(
                 source: detail.readme.isEmpty ? L("Aucun README disponible.", "No README available.") : detail.readme,
                 repo: detail.id, commit: detail.commit
-            ).frame(maxWidth: .infinity, maxHeight: .infinity)
+            ).frame(maxWidth: .infinity, maxHeight: .infinity).layoutPriority(1)
             Text(
                 L(
                     "EXL3 indique le format, pas une garantie de compatibilité de l’architecture.",
