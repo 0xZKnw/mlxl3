@@ -1020,6 +1020,9 @@ impl Qwen35Moe {
     }
 
     pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        if checkpoint.model_type == "qwen3_5_moe" {
+            crate::array::set_default_cache_limit(512 << 20)?;
+        }
         let path = &checkpoint.path;
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         let json: serde_json::Value =
@@ -2379,6 +2382,41 @@ mod tests {
             modules: Vec::new(),
             tensors: std::collections::BTreeMap::new(),
         }
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; run alone, allocator override absent or 0/1 MiB"]
+    fn moe_loading_bounds_allocator_cache_and_preserves_live_arrays() -> Result<()> {
+        let limit = match std::env::var("MLXL3_ALLOCATOR_CACHE_MIB") {
+            Ok(value) => value.parse::<u64>()?,
+            Err(std::env::VarError::NotPresent) => 512,
+            Err(error) => return Err(error.into()),
+        } << 20;
+        crate::array::set_default_cache_limit(4096 << 20)?;
+        let live = Array::from_f32(&[1.25, -3.5, 0.0], &[3])?;
+        live.eval()?;
+        {
+            let temporary = Array::zeros_dtype(&[320 * 1024 * 1024], Dtype::Float16)?;
+            temporary.eval()?;
+        }
+        let directory = tempfile::tempdir()?;
+        std::fs::write(
+            directory.path().join("config.json"),
+            r#"{"text_config":{}}"#,
+        )?;
+        let mut checkpoint = empty_checkpoint(directory.path());
+        checkpoint.model_type = "qwen3_5_moe".to_owned();
+        let error = Qwen35Moe::from_checkpoint(&checkpoint)
+            .err()
+            .context("incomplete checkpoint accepted")?;
+        assert!(error.to_string().contains("missing field"), "{error:#}");
+        let next = live.add(&live)?;
+        next.eval()?;
+        crate::array::synchronize()?;
+        assert!(crate::array::memory_stats(false)?.mlx_cache_bytes <= limit);
+        assert_eq!(next.to_f32()?, [2.5, -7.0, 0.0]);
+        assert_eq!(live.to_f32()?, [1.25, -3.5, 0.0]);
+        Ok(())
     }
 
     #[test]
