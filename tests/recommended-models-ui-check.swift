@@ -17,6 +17,12 @@ extension HubBrowserView {
         let preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
         let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: preferences)
+        for width in [480, 840] {
+            let advice = NSHostingView(rootView: ModelAdviceView(sizeBytes: 13_000_000_000)
+                .frame(width: CGFloat(width)).studioAppearance(.midnightBlue))
+            let height = advice.fittingSize.height
+            precondition(height > 10 && height < 65, "Collapsed memory estimate should leave room for the model card")
+        }
         func cardViews(_ view: NSView) -> [WKWebView] {
             (view as? WKWebView).map { [$0] } ?? view.subviews.flatMap(cardViews)
         }
