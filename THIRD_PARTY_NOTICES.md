@@ -129,8 +129,11 @@ Source: <https://github.com/ashhart/TensorFold>, revision
 (`LICENSES/Apache-2.0.txt`). Its draft-only vocabulary pruning and grouped target-layer submission
 informed independent Q4 row selection, native token-ID remapping and MLX
 graph submission. The public
-`src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt` list was used for local
-measurements; neither that list nor upstream implementation code is bundled.
+`src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt` list is bundled as
+`native/data/qwen36_mtp_vocab.txt` (SHA-256
+`88d5b483a849ae9245b78b69f41f11cdfc8b5c024f0786c1c8196263857cc93e`)
+for the default Qwen3.6-35B-A3B compact MTP projection. Copyright TensorFold
+contributors; Apache-2.0. No upstream implementation code is bundled.
 The target retains its full vocabulary and exact verification.
 
 ## Sushi

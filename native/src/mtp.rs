@@ -426,15 +426,42 @@ mod native {
 
     impl Head {
         pub fn load(path: &Path, target: &Qwen35Moe) -> Result<Self> {
+            Self::load_cancellable(path, target, &std::sync::atomic::AtomicBool::new(false))
+        }
+
+        pub fn load_cancellable(
+            path: &Path,
+            target: &Qwen35Moe,
+            cancelled: &std::sync::atomic::AtomicBool,
+        ) -> Result<Self> {
+            ensure!(
+                !cancelled.load(std::sync::atomic::Ordering::Relaxed),
+                "generation cancelled"
+            );
             let (checkpoint, layout) = inspect(path)?;
             ensure!(
                 target.mtp_layout() == &layout,
                 "MTP head does not match the target model dimensions"
             );
             let h = layout.hidden_size;
-            // Optional, explicitly generated experiment. The target projection
-            // remains untouched and validates every proposed token.
-            let draft_metadata = path.join("draft_head_q4.json");
+            let projection_path = if path.join("draft_head_q4.json").exists() {
+                path.to_owned()
+            } else {
+                match target.mtp_projection_path(cancelled) {
+                    Ok(Some(cache)) => cache,
+                    Ok(None) => path.to_owned(),
+                    Err(error) => {
+                        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+                            return Err(error);
+                        }
+                        eprintln!(
+                            "Compact MTP projection unavailable; using target head: {error:#}"
+                        );
+                        path.to_owned()
+                    }
+                }
+            };
+            let draft_metadata = projection_path.join("draft_head_q4.json");
             let mut draft_ids = None;
             let draft_head = if draft_metadata.exists() {
                 #[derive(Deserialize)]
@@ -464,7 +491,7 @@ mod native {
                     ),
                     "draft Q4 projection does not match MTP target"
                 );
-                let file = path.join("draft_head_q4.safetensors");
+                let file = projection_path.join("draft_head_q4.safetensors");
                 let tensors = read_header(&file)?;
                 ensure!(
                     tensors.len() == 3
@@ -482,7 +509,7 @@ mod native {
                     draft_ids = Some(Array::from_u32(ids, &[metadata.output])?);
                 }
                 let checkpoint = Checkpoint {
-                    path: path.to_owned(),
+                    path: projection_path,
                     model_type: "draft_head_q4".into(),
                     bits: Some(4.),
                     size_bytes: file.metadata()?.len(),
@@ -557,7 +584,7 @@ mod native {
                     multiplier: linear(&format!("{prefix}.shared_expert_gate"), h, 1, None)?,
                 }))
             };
-            Ok(Self {
+            let loaded = Self {
                 embedding_norm: norm("pre_fc_norm_embedding.weight", h)?,
                 hidden_norm: norm("pre_fc_norm_hidden.weight", h)?,
                 fc: linear("fc", h * 2, h, None)?,
@@ -579,7 +606,12 @@ mod native {
                 mlp,
                 draft_head,
                 draft_ids,
-            })
+            };
+            ensure!(
+                !cancelled.load(std::sync::atomic::Ordering::Relaxed),
+                "generation cancelled"
+            );
+            Ok(loaded)
         }
 
         pub fn reset(&mut self) -> Result<()> {
@@ -972,6 +1004,62 @@ mod native {
     #[cfg(test)]
     mod cache_tests {
         use super::*;
+
+        #[test]
+        #[ignore = "physical Apple GPU, local stock/compact Qwen MTP; run alone"]
+        fn default_projection_loads_reuses_cache_and_respects_explicit_head() -> Result<()> {
+            use std::{sync::atomic::AtomicBool, time::Instant};
+            let target = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_MTP_TEST_MODEL")?))?;
+            let stock = std::env::var("MLXL3_MTP_TEST_HEAD")?;
+            let explicit = std::env::var("MLXL3_MTP_TEST_COMPACT_HEAD")?;
+            ensure!(
+                !Path::new(&stock).join("draft_head_q4.json").exists(),
+                "requires stock fixture"
+            );
+            assert!(
+                Head::load_cancellable(Path::new(&stock), &target, &AtomicBool::new(true)).is_err()
+            );
+            let started = Instant::now();
+            let automatic = Head::load(Path::new(&stock), &target)?;
+            eprintln!(
+                "Default head first load: {:.3}s",
+                started.elapsed().as_secs_f64()
+            );
+            assert_eq!(automatic.draft_ids.as_ref().unwrap().shape(), &[79_616]);
+            let path = target
+                .mtp_projection_path(&AtomicBool::new(false))?
+                .unwrap();
+            let stamp = std::fs::metadata(path.join("draft_head_q4.safetensors"))?.modified()?;
+            let started = Instant::now();
+            let warm = Head::load(Path::new(&stock), &target)?;
+            eprintln!(
+                "Default head cached load: {:.3}s",
+                started.elapsed().as_secs_f64()
+            );
+            assert_eq!(
+                std::fs::metadata(path.join("draft_head_q4.safetensors"))?.modified()?,
+                stamp
+            );
+            let explicit = Head::load(Path::new(&explicit), &target)?;
+            let expected = explicit.draft_head.as_ref().unwrap().weight_arrays();
+            for head in [&automatic, &warm] {
+                assert_eq!(
+                    head.draft_ids.as_ref().unwrap().to_u32()?,
+                    explicit.draft_ids.as_ref().unwrap().to_u32()?
+                );
+                for (actual, expected) in head
+                    .draft_head
+                    .as_ref()
+                    .unwrap()
+                    .weight_arrays()
+                    .iter()
+                    .zip(&expected)
+                {
+                    assert_eq!(actual.to_bytes()?, expected.to_bytes()?);
+                }
+            }
+            Ok(())
+        }
 
         #[test]
         fn lookup_history_is_bounded_and_disabled_until_seeded() -> Result<()> {

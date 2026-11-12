@@ -79,6 +79,7 @@ def manifest(
             name: (Path(__file__).resolve().parents[1] / path).read_text()
             for name, path in {
                 "MTPLX": "LICENSES/MTPLX-NOTICE.txt",
+                "TensorFold": "LICENSES/TensorFold-NOTICE.txt",
                 "Apache-2.0": "LICENSES/Apache-2.0.txt",
                 "MLX-VLM": "LICENSES/MLX-VLM-MIT.txt",
                 "PonyExl3": "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",

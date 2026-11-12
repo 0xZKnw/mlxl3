@@ -13,6 +13,10 @@ target/
 # Local weights, calibration corpora and upstream checkouts are not source.
 models/
 data/
+# Source vocabulary, kept separate from local weights and calibration data.
+!/native/data/
+/native/data/*
+!/native/data/qwen36_mtp_vocab.txt
 benchmarks/data/
 benchmarks/results/local/
 references/

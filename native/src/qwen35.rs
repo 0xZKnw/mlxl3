@@ -1009,6 +1009,7 @@ pub struct Qwen35Moe {
     offset: i32,
     last_hidden: Option<Array>,
     mtp_layout: crate::mtp::Layout,
+    mtp_projection_source: Option<Box<Checkpoint>>,
     pipeline: bool,
     mtp_pipeline: bool,
 }
@@ -1027,7 +1028,7 @@ impl Qwen35Moe {
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         let json: serde_json::Value =
             serde_json::from_reader(File::open(path.join("config.json"))?)?;
-        let mtp_layout = serde_json::from_value(json["text_config"].clone())?;
+        let mtp_layout: crate::mtp::Layout = serde_json::from_value(json["text_config"].clone())?;
         let config = root.text_config;
         ensure!(
             root.model_type == "qwen3_5" || root.model_type == "qwen3_5_moe",
@@ -1162,6 +1163,12 @@ impl Qwen35Moe {
                 crate::array::is_m5_gpu()?,
             ),
         };
+        let mtp_projection_source =
+            if mtp_layout.managed_head(layers.len()) == Some(crate::mtp::ManagedHead::Qwen36Moe) {
+                crate::mtp_projection::source(checkpoint).map(Box::new)
+            } else {
+                None
+            };
         Ok(Self {
             embeddings,
             norm,
@@ -1173,6 +1180,7 @@ impl Qwen35Moe {
             offset: 0,
             last_hidden: None,
             mtp_layout,
+            mtp_projection_source,
             pipeline,
             mtp_pipeline,
         })
@@ -1560,6 +1568,16 @@ impl Qwen35Moe {
             serde_json::json!({"fixed_bytes":fixed,"draft_bytes_per_token":draft_per_token,
                 "layers":[{"bytes_per_token":per_token,"step":1,"max_tokens":null}]}),
         )
+    }
+
+    pub(crate) fn mtp_projection_path(
+        &self,
+        cancelled: &std::sync::atomic::AtomicBool,
+    ) -> Result<Option<std::path::PathBuf>> {
+        self.mtp_projection_source
+            .as_ref()
+            .map(|source| crate::mtp_projection::prepare(source, cancelled))
+            .transpose()
     }
 
     pub fn mtp_layout(&self) -> &crate::mtp::Layout {

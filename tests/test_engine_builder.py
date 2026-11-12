@@ -20,6 +20,7 @@ def project(tmp_path):
         "scripts/package_engine.py",
         "Cargo.toml",
         "LICENSES/MTPLX-NOTICE.txt",
+        "LICENSES/TensorFold-NOTICE.txt",
         "LICENSES/Apache-2.0.txt",
         "LICENSES/MLX-VLM-MIT.txt",
         "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",

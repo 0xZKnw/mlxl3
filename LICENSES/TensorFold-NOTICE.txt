@@ -1,0 +1,9 @@
+TensorFold draft vocabulary
+Copyright TensorFold contributors. Licensed under the Apache License, Version 2.0.
+See the Apache-2.0 notice included in this engine manifest.
+
+MLXL3 bundles the draft-only token-ID list from:
+https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt
+SHA-256: 88d5b483a849ae9245b78b69f41f11cdfc8b5c024f0786c1c8196263857cc93e
+MLXL3 pads this list to 79,616 IDs and builds its native Q4 projection independently.
+The target model retains its complete vocabulary and validates every proposal.

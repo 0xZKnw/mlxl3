@@ -2158,10 +2158,14 @@ enum ChatMtpHead {
 }
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl ChatMtpHead {
-    fn load(path: &std::path::Path, model: &NativeChatModel) -> Result<Self> {
+    fn load(
+        path: &std::path::Path,
+        model: &NativeChatModel,
+        cancelled: &AtomicBool,
+    ) -> Result<Self> {
         match model {
             NativeChatModel::Qwen(target) => Ok(Self::Qwen(Box::new(
-                mlxl3_native::mtp::Head::load(path, target)?,
+                mlxl3_native::mtp::Head::load_cancellable(path, target, cancelled)?,
             ))),
             NativeChatModel::Flash(target) => Ok(Self::Flash(Box::new(
                 mlxl3_native::qwen4::FlashMtpHead::load(&checkpoint::inspect(path)?, target)?,
@@ -3843,6 +3847,7 @@ fn load_mtp_head(
     requested: &str,
     model: &mut NativeChatModel,
     dflash_weights: &mut Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)>,
+    cancelled: &AtomicBool,
 ) -> Result<bool> {
     // A direct generate request can switch modes without a preceding set_mtp.
     // Release both possible DFlash owners before validating or allocating MTP,
@@ -3870,7 +3875,7 @@ fn load_mtp_head(
     *revision = None;
     mlxl3_native::array::synchronize()?;
     mlxl3_native::array::clear_cache()?;
-    *head = Some((path.clone(), ChatMtpHead::load(&path, model)?));
+    *head = Some((path.clone(), ChatMtpHead::load(&path, model, cancelled)?));
     *revision = Some(next_revision);
     Ok(true)
 }
@@ -4027,6 +4032,7 @@ fn native_bridge(
                 }))?;
             }
             "set_mtp" => {
+                cancelled.store(false, Ordering::Relaxed);
                 prompt_cache = None;
                 model.reset();
                 let result = (|| -> Result<()> {
@@ -4042,6 +4048,7 @@ fn native_bridge(
                             &request.mtp_head_path,
                             &mut model,
                             &mut dflash_weights,
+                            &cancelled,
                         )?;
                     } else {
                         mtp_head = None;
@@ -4166,6 +4173,7 @@ fn native_bridge(
                         &request.mtp_head_path,
                         &mut model,
                         &mut dflash_weights,
+                        &cancelled,
                     )?;
                     let ChatMtpHead::Qwen(head) =
                         &mut mtp_head.as_mut().context("missing MTP head")?.1
@@ -4254,6 +4262,7 @@ fn native_bridge(
                             &request.mtp_head_path,
                             &mut model,
                             &mut dflash_weights,
+                            &cancelled,
                         )? {
                             prompt_cache = None;
                             draft_load_seconds += started.elapsed().as_secs_f64();
@@ -4656,6 +4665,7 @@ mod tests {
                     requested,
                     &mut model,
                     &mut packed_draft,
+                    &AtomicBool::new(false),
                 )
                 .is_err()
             );

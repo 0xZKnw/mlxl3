@@ -15,6 +15,8 @@ pub(crate) mod cold_ready;
 mod contracts;
 pub mod convert_matmul;
 pub mod image_budget;
+#[cfg(any(feature = "mlx", test, kani))]
+mod mtp_projection;
 pub mod quantize;
 pub mod tensor_layout;
 pub mod transaction;

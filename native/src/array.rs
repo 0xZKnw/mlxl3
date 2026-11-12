@@ -1374,7 +1374,7 @@ impl Array {
     }
     pub(crate) fn quantize4(&self) -> Result<(Self, Self, Self)> {
         ensure!(
-            self.dtype() == Dtype::BFloat16
+            matches!(self.dtype(), Dtype::BFloat16 | Dtype::Float16)
                 && self.shape().len() == 2
                 && self.shape().iter().all(|&n| n > 0)
                 && self.shape()[1] % 64 == 0,
@@ -1645,6 +1645,49 @@ mod splash_verification {
         assert!(input.slice_update(&input, &[-1, 0]).is_err());
         assert!(input.slice_update(&input, &[0, 0]).is_ok());
         kani::cover!(rows == 8);
+    }
+}
+#[cfg(test)]
+mod compact_quantization_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires physical Apple GPU"]
+    fn q4_supports_f16_and_preserves_bf16_with_invalid_input_recovery() -> Result<()> {
+        let values = (0..128)
+            .map(|i| (i % 64) as f32 / 16. - 2.)
+            .collect::<Vec<_>>();
+        let input = Array::from_f32(&values, &[2, 64])?;
+        assert!(input.quantize4().is_err());
+        let mut expected = None;
+        for dtype in [Dtype::Float16, Dtype::BFloat16] {
+            let (w, s, b) = input.astype(dtype)?.quantize4()?;
+            assert_eq!(w.shape(), &[2, 8]);
+            assert_eq!(s.shape(), &[2, 1]);
+            assert_eq!(b.shape(), &[2, 1]);
+            let actual = (
+                w.to_u32()?,
+                s.astype(Dtype::Float32)?.to_f32()?,
+                b.astype(Dtype::Float32)?.to_f32()?,
+            );
+            assert!(actual.1.iter().chain(&actual.2).all(|x| x.is_finite()));
+            if let Some(expected) = &expected {
+                assert_eq!(&actual, expected);
+            }
+            expected = Some(actual);
+        }
+        assert!(
+            Array::zeros_dtype(&[1, 63], Dtype::Float16)?
+                .quantize4()
+                .is_err()
+        );
+        assert!(
+            Array::from_f16_bits(&[0x7c00; 64], &[1, 64])?
+                .quantize4()
+                .is_err()
+        );
+        assert!(input.astype(Dtype::Float16)?.quantize4().is_ok());
+        Ok(())
     }
 }
 pub fn concatenate(inputs: &[&Array], axis: i32) -> Result<Array> {

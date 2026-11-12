@@ -657,7 +657,7 @@ fn managed_models_path() -> Result<PathBuf> {
     }
 }
 
-fn managed_drafts_path() -> Result<PathBuf> {
+pub(crate) fn managed_drafts_path() -> Result<PathBuf> {
     Ok(managed_models_path()?
         .parent()
         .context("managed models directory has no parent")?

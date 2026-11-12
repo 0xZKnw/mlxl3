@@ -266,6 +266,13 @@ weights. The modes are mutually exclusive and use target verification before
 accepting proposed tokens. Tune records a configuration for the current model,
 head, runtime, context and Mac; a speculative path is not automatically faster.
 
+With engine 2.0.8+, Qwen3.6-35B-A3B MTP automatically prepares a compact
+draft vocabulary projection on first use and reuses an integrity-checked cache.
+MTP1 remains the default depth. The target keeps its full vocabulary and
+verifies every proposal; no manual Python conversion is needed. Explicit draft
+projections take precedence. See the [engine release notes](docs/release-engine-v2.0.8-beta.1.md)
+for measurements, startup costs and validation limits.
+
 Hardware and OS gates matter: M5 cooperative-input TensorOps require macOS
 26.3+, and the packed Q4 DFlash path requires macOS 26.4+. See the
 [Apple Silicon support and validation matrix](docs/apple-silicon-stability-20261030.md).

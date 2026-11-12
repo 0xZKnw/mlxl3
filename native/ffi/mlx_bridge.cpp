@@ -787,9 +787,9 @@ int mlxl3_array_quantize4(void* input, void** weight, void** scales, void** bias
   return protect([&] {
     if (!weight || !scales || !biases) throw std::invalid_argument("null quantization output");
     const auto& x = arr(input);
-    if (x.ndim() != 2 || x.dtype() != mx::bfloat16 || x.shape(0) <= 0 ||
+    if (x.ndim() != 2 || (x.dtype() != mx::bfloat16 && x.dtype() != mx::float16) || x.shape(0) <= 0 ||
         x.shape(1) <= 0 || x.shape(1) % 64)
-      throw std::invalid_argument("Q4 requires BF16 [output,input] with whole groups of 64");
+      throw std::invalid_argument("Q4 requires BF16/F16 [output,input] with whole groups of 64");
     if (!mx::all(mx::isfinite(x)).item<bool>()) throw std::invalid_argument("non-finite Q4 weight");
     auto result = mx::quantize(x, 64, 4, "affine");
     if (!mx::all(mx::isfinite(result[1])).item<bool>() || !mx::all(mx::isfinite(result[2])).item<bool>())

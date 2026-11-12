@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
         "lfm3::lfm3_reconstruction_grid_and_trellis_bounds_are_checked",
         "lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds",
         "lfm3::lfm3_prefill_defaults_require_qualified_hardware_and_exact_overrides",
