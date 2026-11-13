@@ -43,6 +43,8 @@ import SwiftUI
         let visual = make(preview: true, file: file)
         checkAuroraPlayback()
         try await checkSettingsSurfaces()
+        try await checkDisabledControls()
+        try await checkWidgetSizing(studio: visual)
         try await checkAurora(studio: visual, preferences: prefs)
         try await checkWorkspaceControls(studio: visual, preferences: prefs)
         let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
@@ -349,6 +351,14 @@ extension DesktopExperienceCheck {
 
 extension DesktopExperienceCheck {
     @MainActor static func checkWorkspaceControls(studio: StudioModel, preferences: UserDefaults) async throws {
+        var agent = Conversation()
+        agent.agent = true
+        studio.conversations = [agent]
+        studio.selectConversation(agent.id)
+        studio.selectMode(.lab)
+        studio.newConversation()
+        precondition(studio.selectedMode == .chat && studio.conversations.count == 2,
+                     "New conversation from Lab must create exactly one Chat when only Agent tasks exist")
         let bounds = NSRect(x: 0, y: 0, width: 1230, height: 780)
         let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -384,5 +394,59 @@ extension DesktopExperienceCheck {
         try await click(1188, 52)
         precondition(!studio.showInspector && studio.draft == "Brouillon conservé")
         print("Workspace controls passed: full-width new conversation, inspector close and retained draft")
+    }
+}
+
+
+extension DesktopExperienceCheck {
+    @MainActor static func checkDisabledControls() async throws {
+        var values: [CGFloat] = []
+        for disabled in [false, true] {
+            let bounds = NSRect(x: 0, y: 0, width: 100, height: 60)
+            let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            let host = NSHostingView(rootView: Button {} label: {
+                Rectangle().fill(.white).frame(width: 50, height: 20)
+            }.buttonStyle(StudioToolbarStyle()).disabled(disabled)
+                .padding(20).background(.black).studioAppearance(.dark))
+            window.contentView = host
+            host.frame = bounds
+            try await Task.sleep(for: .milliseconds(150))
+            host.layoutSubtreeIfNeeded()
+            let bitmap = host.bitmapImageRepForCachingDisplay(in: bounds)!
+            host.cacheDisplay(in: bounds, to: bitmap)
+            let color = bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2)!.usingColorSpace(.sRGB)!
+            values.append(color.redComponent)
+        }
+        precondition(values[0] > 0.9 && values[1] < values[0] - 0.3,
+                     "Disabled glass controls must visibly dim")
+        print("Disabled controls passed: real enabled/disabled toolbar rendering")
+    }
+
+    @MainActor static func checkWidgetSizing(studio: StudioModel) async throws {
+        var measured = CGSize.zero
+        let bounds = NSRect(x: 0, y: 0, width: 340, height: 600)
+        let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close(); studio.engineState = .idle; studio.selectedModelName = nil }
+        let host = NSHostingView(rootView: MenuBarPanel(sizeChanged: { measured = $0 })
+            .environmentObject(studio).studioAppearance(.dark))
+        window.contentView = host
+        host.frame = bounds
+        studio.engineState = .idle
+        try await Task.sleep(for: .milliseconds(150))
+        host.layoutSubtreeIfNeeded()
+        let unloaded = measured
+        precondition(unloaded.width == 340 && unloaded.height > 250 && unloaded.height < 500)
+        precondition(abs(unloaded.height - host.fittingSize.height) < 1)
+        studio.selectedModelName = String(repeating: "Long model name ", count: 8)
+        studio.engineState = .loading(studio.selectedModelName!)
+        try await Task.sleep(for: .milliseconds(150))
+        host.layoutSubtreeIfNeeded()
+        precondition(measured.width == 340 && measured.height > unloaded.height)
+        precondition(abs(measured.height - host.fittingSize.height) < 1,
+                     "The menu widget must resize its popover as the model changes")
+        print("Widget sizing passed: intrinsic height updates for unloaded and long loading model")
     }
 }

@@ -6,6 +6,9 @@ import signal
 import sys
 import time
 
+if sys.argv[1:2] == ["--registry"]:
+    del sys.argv[1:3]
+
 if len(sys.argv) > 1 and sys.argv[1] == 'hub':
     command = sys.argv[2]
     query = sys.argv[3]

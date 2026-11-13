@@ -477,7 +477,11 @@ jobs:
           done
       - name: Reject malformed expert codec routes without GPU work
         if: matrix.os == 'macos-26'
-        run: cargo test --locked --features mlx,chat --bin mlxl3-rs tests::moe_codec_rejects_invalid_routes_before_gpu_or_checkpoint_loading -- --exact --test-threads=1
+        shell: bash
+        run: |
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          cargo test --locked --features mlx,chat --bin mlxl3-rs tests::moe_codec_rejects_invalid_routes_before_gpu_or_checkpoint_loading -- --exact --test-threads=1
       - name: Check LFM prefill CPU oracles against the MLX-feature source
         if: matrix.os == 'macos-26'
         shell: bash

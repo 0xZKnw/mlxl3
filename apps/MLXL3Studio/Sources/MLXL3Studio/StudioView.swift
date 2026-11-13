@@ -392,7 +392,7 @@ private struct WorkspaceHeader: View {
                 }
             }
             .padding(4)
-            .glassEffect(.regular, in: Capsule())
+            .premiumGlass(radius: 100)
         }
         .font(.system(size: 13))
         .padding(.leading, sidebarVisible ? 22 : 82)

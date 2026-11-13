@@ -151,6 +151,12 @@ extension StudioModel {
         tick(idle, idleClock, 1)
         check(idle.engineState == .idle && !idle.fixtureEngineRunning, "Deadline did not stop the real bridge")
         check(idle.selectedModelName == "idle" && idle.engineMemoryFootprintBytes == 0, "Selection or engine release lost")
+        for mode in [StudioMode.agent, .chat] {
+            idle.selectMode(mode)
+            try await Task.sleep(for: .milliseconds(100))
+            check(idle.engineState == .idle && !idle.fixtureEngineRunning,
+                  "Chat/Agent navigation must respect an automatic unload")
+        }
         idle.selectModel("idle")
         try await wait("same-model reload", until: { idle.engineState.isReady })
         tick(idle, idleClock, 59)

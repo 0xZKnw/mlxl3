@@ -331,7 +331,7 @@ struct GenerationInspector: View {
                 StudioAurora()
                     .opacity(0.32)
                     .background(StudioTheme.composer(for: appTheme).opacity(0.90))
-                    .glassEffect(.regular, in: shape)
+                    .premiumGlass(radius: 22)
                     .clipShape(shape)
             }
         }
@@ -409,7 +409,7 @@ private struct ContextSettings: View {
                 Label(L("Appliquer et recharger", "Apply and reload"), systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity).padding(.vertical, 5)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(StudioToolbarStyle())
             .disabled(!studio.canSaveContext)
             .help(L("0 utilise le maximum du modèle. Recharger vide le cache et conserve l’historique.", "0 uses the model maximum. Reloading clears the cache and keeps history."))
         }

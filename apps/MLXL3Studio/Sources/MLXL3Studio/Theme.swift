@@ -105,27 +105,30 @@ struct StudioSidebarSurface: ViewModifier {
 }
 
 struct StudioControlStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
     var emphasized = false
+    var cornerRadius: CGFloat = 6
 
     func makeBody(configuration: Configuration) -> some View {
-        ControlSurface(configuration: configuration, emphasized: emphasized, enabled: isEnabled)
+        ControlSurface(configuration: configuration, emphasized: emphasized, radius: cornerRadius)
     }
 
     private struct ControlSurface: View {
         let configuration: ButtonStyle.Configuration
         let emphasized: Bool
-        let enabled: Bool
+        let radius: CGFloat
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var hovered = false
 
         var body: some View {
             configuration.label
                 .foregroundStyle(emphasized ? StudioTheme.ink : StudioTheme.secondary)
-                .background(StudioTheme.contrast.opacity(configuration.isPressed ? 0.11 : (hovered ? 0.075 : (emphasized ? 0.055 : 0))),
-                            in: RoundedRectangle(cornerRadius: 6))
-                .contentShape(RoundedRectangle(cornerRadius: 6))
+                .background(StudioTheme.contrast.opacity(!enabled ? 0 : configuration.isPressed ? 0.11 : (hovered ? 0.075 : (emphasized ? 0.055 : 0))),
+                            in: RoundedRectangle(cornerRadius: radius))
+                .contentShape(RoundedRectangle(cornerRadius: radius))
                 .opacity(enabled ? 1 : 0.32)
                 .onHover { hovered = $0 }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
         }
     }
 }
@@ -197,36 +200,21 @@ struct MonogramMark: View {
 }
 
 struct PremiumGlass: ViewModifier {
+    @Environment(\.studioAppTheme) private var theme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let radius: CGFloat
     let tint: Color
 
     func body(content: Content) -> some View {
-        content
-            .background(
-                Color.black.opacity(0.18),
-                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
-            )
-            .glassEffect(
-                .clear.tint(tint),
-                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            stops: [
-                                .init(color: StudioTheme.contrast.opacity(0.14), location: 0),
-                                .init(color: StudioTheme.contrast.opacity(0.055), location: 0.42),
-                                .init(color: StudioTheme.contrast.opacity(0.10), location: 1),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.7
-                    )
-                    .allowsHitTesting(false)
+        content.background {
+            let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+            if reduceTransparency {
+                shape.fill(StudioTheme.composer(for: theme))
+            } else {
+                shape.fill(.ultraThinMaterial)
+                    .overlay { shape.fill(tint).allowsHitTesting(false) }
             }
-            .shadow(color: Color.black.opacity(0.18), radius: 12, y: 4)
+        }
     }
 }
 
@@ -247,7 +235,6 @@ struct RoundGlassButtonStyle: ButtonStyle {
                 .foregroundStyle(StudioTheme.onAccent.opacity(0.9))
                 .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
                             in: RoundedRectangle(cornerRadius: 8))
-                .glassEffect(.clear.interactive(isEnabled), in: RoundedRectangle(cornerRadius: 8))
                 .opacity(isEnabled ? 1 : 0.3)
         } else {
             StudioControlStyle().makeBody(configuration: configuration)
@@ -296,15 +283,12 @@ struct StatusDot: View {
 
 /// Explicit sizing avoids the system glass button's extra padding and accent fill.
 struct StudioToolbarStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(StudioTheme.ink)
-            .background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 9))
-            .glassEffect(.clear.interactive(enabled), in: RoundedRectangle(cornerRadius: 9))
-            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
+        StudioControlStyle(emphasized: true, cornerRadius: 9).makeBody(configuration: configuration)
+            .premiumGlass(radius: 9)
+            .opacity(configuration.isPressed ? 0.75 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }

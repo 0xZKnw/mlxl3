@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct MenuBarPanel: View {
+    var sizeChanged: ((CGSize) -> Void)? = nil
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.openWindow) private var openWindow
 
@@ -10,62 +11,66 @@ struct MenuBarPanel: View {
             let engine = studio.engineMemoryFootprintBytes
             let interface = studio.interfaceMemoryFootprintBytes
             let total = engine.flatMap { engine in interface.map { engine + $0 } }
-            VStack(alignment: .leading, spacing: 21) {
-                HStack(spacing: 12) {
-                    MonogramMark(size: 25)
-                    Text("MLXL3").font(.system(size: 27, weight: .regular, design: .serif))
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 9) {
+                    MonogramMark(size: 26)
+                    Text("MLXL3").font(.system(size: 16, weight: .semibold)).tracking(-0.5)
                     Spacer()
                     StatusDot(state: studio.engineState)
-                    Text(studio.isGenerating ? L("Génération", "Generating") : studio.engineState.isReady ? L("Prêt", "Ready") : studio.canEject ? L("Chargement", "Loading") : L("Au repos", "Idle"))
-                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+                    Text(studio.engineState.label)
+                        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                        .lineLimit(1).help(studio.engineState.label)
                 }
-                Divider().overlay(StudioTheme.edge)
-                VStack(alignment: .leading, spacing: 8) {
-                    caption(L("MÉMOIRE DE L’APP", "APP MEMORY"))
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(L("Modèle actif", "Active model"))
+                        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                    Text(studio.loadedModel?.name ?? (studio.canEject ? studio.selectedModelName : nil)
+                         ?? L("Aucun modèle chargé", "No model loaded"))
+                        .font(.system(size: 23, weight: .regular, design: .serif))
+                        .tracking(-0.5).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    if let model = studio.loadedModel {
+                        HStack {
+                            Text(model.architectureLabel)
+                            Spacer()
+                            Text(studio.contextLabel).monospacedDigit()
+                        }.font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    metric("Decode", studio.latestGenerationStats.map { String(format: "%.1f", $0.decodeTps) }, "tok/s")
+                    metric("Prefill", studio.latestGenerationStats.map { String(format: "%.1f", $0.prefillTps) }, "tok/s")
+                    metric("TTFT", studio.latestGenerationStats.map { String(format: "%.0f", $0.ttftSeconds * 1000) }, "ms")
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 9) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(memory(total)).font(.system(size: 38, weight: .regular, design: .serif)).monospacedDigit()
+                        Text(L("Mémoire de l’app", "App memory")).font(.system(size: 12, weight: .medium))
                         Spacer()
-                        Text(L("sur \(memory(ProcessInfo.processInfo.physicalMemory))", "of \(memory(ProcessInfo.processInfo.physicalMemory))"))
-                            .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+                        Text(memory(total)).font(.system(size: 15, weight: .medium)).monospacedDigit()
                     }
                     if let total {
                         ProgressView(value: min(Double(total) / Double(ProcessInfo.processInfo.physicalMemory), 1))
-                            .tint(StudioTheme.ink).scaleEffect(y: 0.65)
+                            .tint(StudioTheme.ink)
                     } else {
-                        Text(L("Mesure indisponible", "Measurement unavailable")).font(.caption).foregroundStyle(StudioTheme.quiet)
+                        Text(L("Mesure indisponible", "Measurement unavailable"))
+                            .font(.caption).foregroundStyle(StudioTheme.quiet)
                     }
                     HStack {
                         Text(L("Moteur \(memory(engine))", "Engine \(memory(engine))"))
                         Spacer()
                         Text("UI \(memory(interface))")
-                    }.font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).monospacedDigit()
-                }.help(L("Empreinte mémoire macOS : moteur et interface, allocations Metal comprises. Ce n’est pas la taille du modèle sur disque.", "macOS memory footprint: engine and interface, including Metal allocations. Not the model size on disk."))
-                VStack(alignment: .leading, spacing: 10) {
-                    caption(L("MODÈLE ACTIF", "ACTIVE MODEL"))
-                    if let model = studio.loadedModel {
-                        Text(model.name).font(.system(size: 14, weight: .medium)).lineLimit(2)
-                        Text(model.architectureLabel + " · EXL3" + (model.bits.map { String(format: " · %.2f BPW", $0) } ?? ""))
-                            .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-                        HStack {
-                            Text(L("Contexte", "Context"))
-                            Spacer()
-                            Text(studio.contextLabel).monospacedDigit()
-                        }.font(.system(size: 10)).foregroundStyle(StudioTheme.secondary)
-                    } else {
-                        Text(L("Aucun modèle chargé", "No model loaded"))
-                            .font(.system(size: 20, weight: .regular, design: .serif)).foregroundStyle(StudioTheme.secondary)
-                    }
+                    }.font(.system(size: 10)).foregroundStyle(StudioTheme.secondary).monospacedDigit()
                 }
-                .padding(15).frame(maxWidth: .infinity, alignment: .leading)
-                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 9))
-                HStack(spacing: 0) {
-                    metric("DECODE", studio.latestGenerationStats.map { String(format: "%.1f", $0.decodeTps) }, "tok/s")
-                    Divider().frame(height: 30)
-                    metric("PREFILL", studio.latestGenerationStats.map { String(format: "%.1f", $0.prefillTps) }, "tok/s")
-                    Divider().frame(height: 30)
-                    metric("TTFT", studio.latestGenerationStats.map { String(format: "%.0f", $0.ttftSeconds * 1000) }, "ms")
-                }
-                Divider().overlay(StudioTheme.edge)
+                .help(L("Empreinte mémoire macOS du moteur et de l’interface sur \(memory(ProcessInfo.processInfo.physicalMemory)).",
+                        "macOS memory footprint of the engine and interface, out of \(memory(ProcessInfo.processInfo.physicalMemory))."))
+
                 HStack(spacing: 8) {
                     Button {
                         if let window = NSApplication.shared.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
@@ -73,36 +78,41 @@ struct MenuBarPanel: View {
                         } else { openWindow(id: "studio") }
                         NSApplication.shared.activate()
                     } label: {
-                        Label(L("Ouvrir", "Open"), systemImage: "arrow.up.forward.app").frame(maxWidth: .infinity).frame(height: 33)
-                    }.buttonStyle(PrimaryGlassButtonStyle())
+                        Label(L("Ouvrir", "Open"), systemImage: "arrow.up.forward.app")
+                            .frame(maxWidth: .infinity).frame(height: 32)
+                    }.buttonStyle(StudioToolbarStyle())
                     Button(action: studio.ejectModel) {
-                        Label(L("Décharger", "Unload"), systemImage: "eject").frame(maxWidth: .infinity).frame(height: 33)
-                    }.buttonStyle(GlassPillButtonStyle()).disabled(!studio.canEject)
+                        Label(L("Décharger", "Unload"), systemImage: "eject")
+                            .frame(maxWidth: .infinity).frame(height: 32)
+                    }.buttonStyle(StudioControlStyle()).disabled(!studio.canEject)
                     Button { NSApplication.shared.terminate(nil) } label: {
-                        Image(systemName: "power").frame(width: 30, height: 33)
-                    }.buttonStyle(RoundGlassButtonStyle()).help(L("Quitter MLXL3", "Quit MLXL3"))
+                        Image(systemName: "power").frame(width: 28, height: 32)
+                    }.buttonStyle(WorkspaceControlStyle())
+                        .help(L("Quitter MLXL3", "Quit MLXL3"))
                         .accessibilityLabel(L("Quitter MLXL3", "Quit MLXL3"))
-                }.font(.system(size: 11, weight: .medium))
-            }.padding(23)
+                }.font(.system(size: 12, weight: .medium))
+            }
+            .padding(20)
         }
         .id(studio.language)
-        .frame(width: 360)
+        .frame(width: 340)
         .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeChanged?($0) }
         .foregroundStyle(StudioTheme.ink)
-        .background(StudioTheme.canvas(for: studio.theme))
+        .background {
+            StudioAurora().opacity(0.65)
+                .background(StudioTheme.canvas(for: studio.theme).opacity(0.85))
+        }
+        .premiumGlass(radius: 18)
         .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
     }
 
-    private func caption(_ text: String) -> some View {
-        Text(text).font(.system(size: 8, weight: .medium)).tracking(1.3).foregroundStyle(StudioTheme.quiet)
-    }
-
     private func metric(_ title: String, _ value: String?, _ unit: String) -> some View {
-        VStack(spacing: 5) {
-            caption(title)
-            Text(value ?? "—").font(.system(size: 23, weight: .regular, design: .serif)).monospacedDigit()
-            Text(unit).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-        }.frame(maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.system(size: 10)).foregroundStyle(StudioTheme.secondary)
+            Text(value ?? "—").font(.system(size: 21, weight: .medium)).monospacedDigit()
+            Text(unit).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func memory(_ bytes: UInt64?) -> String {

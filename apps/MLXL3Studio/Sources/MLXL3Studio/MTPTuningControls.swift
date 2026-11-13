@@ -118,13 +118,11 @@ struct MTPTuningControls: View {
                     .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
             } else if !dflash || studio.selectedModel?.modelType != "qwen4_exp" || supported {
                 Button(action: tune) {
-                    HStack {
-                        Image(systemName: "slider.horizontal.3")
-                        Text(L("Comparer les vitesses", "Compare speeds"))
-                        Spacer()
-                    }.frame(height: 29)
+                    Label(L("Comparer les vitesses", "Compare speeds"), systemImage: "speedometer")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 12).frame(height: 32)
                 }
-                .buttonStyle(GlassPillButtonStyle()).disabled(!canTune)
+                .buttonStyle(StudioToolbarStyle()).disabled(!canTune)
             }
             if !rows.isEmpty && !tuning {
                 let winner = MTPTuning.winner(rows)

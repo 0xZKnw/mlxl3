@@ -20,12 +20,12 @@ extension StudioModel {
       precondition(value(), message)
       count += 1
     }
-    func wait(_ predicate: @MainActor () -> Bool) async throws {
+    func wait(line: UInt = #line, _ predicate: @MainActor () -> Bool) async throws {
       for _ in 0..<400 {
         if predicate() { return }
         try await Task.sleep(for: .milliseconds(20))
       }
-      preconditionFailure("Agent guard timed out")
+      preconditionFailure("Agent guard timed out at line \(line)")
     }
     func launches() throws -> [[String: Any]] {
       try String(contentsOf: root.appendingPathComponent("mode-launches.jsonl"), encoding: .utf8)
@@ -152,12 +152,12 @@ extension StudioModel {
       precondition(value(), message)
       count += 1
     }
-    func wait(_ predicate: @MainActor () -> Bool) async throws {
+    func wait(line: UInt = #line, _ predicate: @MainActor () -> Bool) async throws {
       for _ in 0..<400 {
         if predicate() { return }
         try await Task.sleep(for: .milliseconds(20))
       }
-      preconditionFailure("Mode fixture timed out")
+      preconditionFailure("Mode fixture timed out at line \(line): mode=\(studio.selectedMode), engine=\(studio.engineState), MCP updating=\(studio.mcpUpdating), tools=\(studio.mcpToolCount), server=\(studio.localServer.log), error=\(studio.featureError ?? "none")")
     }
     let model = LocalModel(
       name: "modes", path: "/tmp/fixture-model", modelType: "fixture", format: "EXL3", bits: 2.5,

@@ -260,12 +260,49 @@ extension StudioModel {
         try await wait("off lists models", until: { off.models.count == 2 })
         check(!off.fixtureRunning && off.engineState == .idle, "Disabled startup loaded a model")
         check(off.selectedModelName == "first", "No-model selection fallback lost")
+        for mode in [StudioMode.agent, .chat, .agent, .chat] {
+            off.selectMode(mode)
+            try await Task.sleep(for: .milliseconds(100))
+            check(off.selectedMode == mode && !off.fixtureRunning && off.engineState == .idle,
+                  "Switching Chat/Agent must not load an unloaded model")
+            if mode == .agent {
+                let editor = AgentStudioModel()
+                await editor.open(workspace: off.agentWorkspaceURL!, file: nil)
+                check(editor.error == nil, "Agent workspace must open before loading the model")
+            }
+        }
         off.selectModel("second")
         try await wait("manual load when off", until: { off.engineState.isReady })
         check(off.fixtureRunning, "Manual model loading disabled by startup option")
+        off.selectMode(.agent)
+        try await wait("loaded Chat to Agent", until: { off.engineState.isReady })
+        check(off.fixtureRunning && off.loadedModel?.name == "second", "Loaded model lost on Agent navigation: state=\(off.engineState), loaded=\(off.loadedModel?.name ?? "nil"), selected=\(off.selectedModelName ?? "nil"), running=\(off.fixtureRunning)")
+        off.selectMode(.chat)
+        try await wait("loaded Agent to Chat", until: { off.engineState.isReady })
+        off.ejectModel()
+        for mode in [StudioMode.agent, .chat] {
+            off.selectMode(mode)
+            try await Task.sleep(for: .milliseconds(100))
+            check(!off.fixtureRunning && off.engineState == .idle, "Navigation reversed a manual unload")
+        }
+        off.selectModel("second")
+        try await wait("explicit reload after navigation", until: { off.engineState.isReady })
         off.setLoadModelOnStartup(true)
         check(off.engineState.isReady, "Toggling preference must not interrupt loaded model")
         off.persistNow(); off.ejectModel()
+        for mode in [StudioMode.agent, .chat] {
+            off.selectMode(mode)
+            try await Task.sleep(for: .milliseconds(100))
+            check(!off.fixtureRunning && off.engineState == .idle,
+                  "Startup opt-in must not reverse a manual unload during navigation")
+        }
+        off.engineState = .failed("fixture")
+        for mode in [StudioMode.agent, .chat] {
+            off.selectMode(mode)
+            try await Task.sleep(for: .milliseconds(100))
+            check(!off.fixtureRunning && off.engineState == .failed("fixture"),
+                  "Navigation must not silently retry a failed model")
+        }
         let on = make(); on.start()
         try await wait("last selected model startup", until: { on.engineState.isReady })
         check(on.selectedModelName == "second" && on.loadedModel?.name == "second", "Last selected model not restored")

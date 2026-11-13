@@ -1051,7 +1051,12 @@ final class StudioModel: ObservableObject {
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
         conversation.agent = selectedMode == .agent
-        if selectedMode == .lab || selectedMode == .server { selectMode(.chat) }
+        if selectedMode == .lab || selectedMode == .server {
+            let count = conversations.count
+            selectMode(.chat)
+            // Changing modes already creates a Chat when that history is empty.
+            if conversations.count > count { return }
+        }
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
         draft = ""
@@ -1754,7 +1759,7 @@ final class StudioModel: ObservableObject {
         selectedProjectID = currentConversation?.projectID
         draft = drafts[id] ?? ""
         selectedMode = conversation.agent ? .agent : .chat
-        if previousAgent != conversation.agent { loadSelectedModel() }
+        if previousAgent != conversation.agent && canEject { loadSelectedModel() }
         else if conversation.agent && previousID != id { refreshAgentWorkspace() }
         schedulePersistence()
     }
@@ -2264,7 +2269,7 @@ extension StudioModel {
             selectConversation(conversation.id)
         } else {
             newConversation()
-            if mode != .agent { loadSelectedModel() }
+            if mode != .agent && canEject { loadSelectedModel() }
         }
     }
 
@@ -2328,6 +2333,7 @@ extension StudioModel {
     }
 
     private func refreshAgentWorkspace() {
+        guard canEject else { return }
         if engineState.isReady && bridge.isRunning && bridgeUsesAgentRegistry {
             do { _ = try prepareAgentRegistry(); updateMCPConnection() }
             catch { mcpToolCount = 0; mcpErrors = ["sandbox": error.localizedDescription] }

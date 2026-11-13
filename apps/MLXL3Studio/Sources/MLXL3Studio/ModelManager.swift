@@ -33,7 +33,7 @@ struct ModelSelectionMenu: View {
         }
         .menuStyle(.button).buttonStyle(WorkspaceControlStyle()).menuIndicator(.hidden)
         .foregroundStyle(StudioTheme.ink)
-        .glassEffect(.regular, in: Capsule())
+        .premiumGlass(radius: 100)
         .accessibilityIdentifier("toolbar.model")
         .fixedSize(horizontal: false, vertical: true)
         .disabled(studio.isGenerating || studio.localServer.active)

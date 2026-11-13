@@ -34,9 +34,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.sendAction(on: [.leftMouseUp])
         }
 
-        let root = MenuBarPanel().environmentObject(studio)
+        let root = MenuBarPanel { [weak self] size in
+            self?.popover.contentSize = size
+        }.environmentObject(studio)
         popover.contentViewController = NSHostingController(rootView: root)
-        popover.contentSize = NSSize(width: 360, height: 470)
+        popover.contentSize = NSSize(width: 340, height: 390)
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
