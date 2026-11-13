@@ -1,5 +1,85 @@
 //! CPU guards shared by Qwen loaders; rejected configurations allocate no weights.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn replay_enabled(
+    qualified_model: bool,
+    qualified_runtime: bool,
+    override_value: Option<bool>,
+) -> bool {
+    override_value.unwrap_or(qualified_model && qualified_runtime)
+}
+
+#[cfg(test)]
+#[test]
+fn replay_default_and_explicit_overrides() {
+    for model in [false, true] {
+        for runtime in [false, true] {
+            assert_eq!(replay_enabled(model, runtime, None), model && runtime);
+            assert!(!replay_enabled(model, runtime, Some(false)));
+            assert!(replay_enabled(model, runtime, Some(true)));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn replay_defaults_only_on_the_qualified_model_and_runtime() {
+    let model: bool = kani::any();
+    let runtime: bool = kani::any();
+    let requested: Option<bool> = kani::any();
+    let enabled = replay_enabled(model, runtime, requested);
+    assert_eq!(
+        enabled,
+        requested == Some(true) || (requested.is_none() && model && runtime)
+    );
+    kani::cover!(enabled && requested.is_none());
+    kani::cover!(!enabled && model && runtime && requested == Some(false));
+    kani::cover!(enabled && !model && requested == Some(true));
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn replay_gdn_shape(shape: [i32; 6], moe: bool, enabled: bool) -> bool {
+    enabled && moe && shape == [1, 2048, 16, 32, 128, 128]
+}
+
+#[cfg(test)]
+#[test]
+fn replay_requires_exact_single_row_gdn_geometry() {
+    let shape = [1, 2048, 16, 32, 128, 128];
+    assert!(replay_gdn_shape(shape, true, true));
+    assert!(!replay_gdn_shape(shape, false, true));
+    assert!(!replay_gdn_shape(shape, true, false));
+    for index in 0..6 {
+        for value in [i32::MIN, -1, 0, 7, i32::MAX] {
+            let mut wrong = shape;
+            wrong[index] = value;
+            assert!(!replay_gdn_shape(wrong, true, true));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn replay_admission_requires_all_real_gdn_dimensions() {
+    let shape: [i32; 6] = kani::any();
+    let moe: bool = kani::any();
+    let enabled: bool = kani::any();
+    let result = replay_gdn_shape(shape, moe, enabled);
+    assert_eq!(
+        result,
+        enabled
+            && moe
+            && shape[0] == 1
+            && shape[1] == 2048
+            && shape[2] == 16
+            && shape[3] == 32
+            && shape[4] == 128
+            && shape[5] == 128
+    );
+    kani::cover!(result);
+    kani::cover!(!result && enabled && moe);
+}
+
 /// Validate before a token can change any layer state. No wrapping cursor arithmetic.
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn native_step_end(token: u32, vocab: u32, offset: u32, limit: u32) -> Option<u32> {

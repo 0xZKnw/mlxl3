@@ -643,7 +643,11 @@ mod tests {
             );
         }
         let wrong_dtype = Array::from_f32(&[0.; 256], &[1, 256])?;
-        assert!(topk(&wrong_dtype, 8, true).is_err());
+        let fp32 = topk(&wrong_dtype, 8, false)?;
+        assert_eq!(fp32.0.to_u32()?, (248..256).collect::<Vec<u32>>());
+        assert_eq!(fp32.1.dtype(), Dtype::Float32);
+        assert_eq!(fp32.1.to_f32()?, vec![0.; 8]);
+        assert!(topk(&wrong_dtype.astype(Dtype::UInt32)?, 8, true).is_err());
         assert!(topk(&wrong_dtype.astype(Dtype::Float16)?, 0, true).is_err());
         assert!(topk(&wrong_dtype.astype(Dtype::Float16)?, 257, true).is_err());
         let fallback = Array::from_f16_bits(&[0x3800; 1280], &[5, 256])?;

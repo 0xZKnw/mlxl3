@@ -297,6 +297,13 @@ repeated `--image` arguments with a prompt:
   --prompt 'Describe this image.' --max-tokens 128
 ```
 
+Qwen3.6 35B AR decode automatically replays the original GDN operation graph
+on qualified M5/MLX 0.32.2 configurations. Weights, quantization and numerical
+operations are unchanged. Set `MLXL3_Q36_AR_REPLAY=0` before loading to use the
+ordinary path. Engine 2.0.9 also prepares small routed K2/K3 expert inputs in the
+order consumed by the Metal kernel. This applies to AR and fixed or tuned MTP
+depths 1–3. [Engine 2.0.9 release notes](docs/release-engine-v2.0.9-beta.1.md).
+
 Browse and resume Hugging Face downloads without a separate HF CLI:
 
 ```sh

@@ -236,6 +236,10 @@ fn routed_inputs(x: &Array, scales: &Array, plan: &RoutePlan, input: i32) -> Res
     .remove(0))
 }
 
+// The mapped half4 reader consumes four values from each 16-element tile.
+const LANE_STORE: &str =
+    "((column & ~15u) | (column & 1u) | ((column & 6u) << 1u) | ((column & 8u) >> 2u))";
+
 fn routed_inputs_small(
     x: &Array,
     scales: &Array,
@@ -243,6 +247,7 @@ fn routed_inputs_small(
     rows: i32,
     top_k: i32,
     input: i32,
+    lane_order: bool,
 ) -> Result<Array> {
     let slots = rows.checked_mul(top_k).context("MoE slot overflow")?;
     ensure!(
@@ -254,6 +259,7 @@ fn routed_inputs_small(
             && input % 128 == 0,
         "invalid small routed input"
     );
+    let output_column = if lane_order { LANE_STORE } else { "column" };
     let source = format!(
         r#"
             constexpr uint INPUT_DIMS = {input}u;
@@ -294,7 +300,8 @@ fn routed_inputs_small(
                 }}
             }}
             for (uint r = 0u; r < 4u; ++r) {{
-                out[((route * 2u + projection) * INPUT_DIMS) + base + r] =
+                uint column = base + r;
+                out[((route * 2u + projection) * INPUT_DIMS) + {output_column}] =
                     half(float(half(v[r])) * 0.08838834764831845f);
             }}
         "#
@@ -381,6 +388,7 @@ fn glu_down_input(
     selected: &Array,
     activation: GluActivation,
     logical_hidden: i32,
+    lane_order: bool,
 ) -> Result<Array> {
     let [rows, hidden]: [i32; 2] = gate_up_raw
         .shape()
@@ -406,6 +414,7 @@ fn glu_down_input(
         logical_hidden > 0 && logical_hidden <= hidden,
         "invalid logical GLU width"
     );
+    let output_column = if lane_order { LANE_STORE } else { "column" };
     let gelu = matches!(activation, GluActivation::Gelu);
     let gate = butterfly("gate_a", "gate_b", gelu);
     let up = butterfly("up_a", "up_b", gelu);
@@ -469,7 +478,7 @@ fn glu_down_input(
             ));
             {down}
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            xhat[slot * HIDDEN + column] = half({down_finish} * HAD_SCALE);
+            xhat[slot * HIDDEN + {output_column}] = half({down_finish} * HAD_SCALE);
         "#
     );
     Ok(array::metal_kernel(
@@ -519,6 +528,7 @@ pub fn swiglu_down_input(
         selected,
         GluActivation::Silu,
         hidden,
+        false,
     )
 }
 
@@ -626,7 +636,13 @@ impl Exl3SwitchGlu {
         activation: GluActivation,
         logical_hidden: Option<i32>,
     ) -> Result<Self> {
-        ensure!(experts > 0, "invalid expert count");
+        ensure!(
+            experts > 0
+                && top_k > 0
+                && top_k <= experts
+                && experts as usize <= checkpoint.tensors.len() / 3,
+            "invalid expert count or incomplete expert bank"
+        );
         let names = |projection: &str| {
             (0..experts)
                 .map(|expert| format!("{prefix}.{expert}.{projection}"))
@@ -643,6 +659,10 @@ impl Exl3SwitchGlu {
                 .tensors
                 .get(&format!("{name}.trellis"))
                 .with_context(|| format!("missing expert trellis {name}"))?;
+            ensure!(
+                matches!(trellis.dtype.as_str(), "I16" | "U16"),
+                "{name}: expert trellis must contain 16-bit integers"
+            );
             let bits = *trellis.shape.last().context("empty expert trellis")? / 16;
             ensure!(
                 k.is_none_or(|value| value == bits),
@@ -676,7 +696,11 @@ impl Exl3SwitchGlu {
                 .iter()
                 .map(|name| format!("{name}.trellis"))
                 .collect::<Vec<_>>();
-            checkpoint_arrays(checkpoint, &keys, workers)
+            // Signed and unsigned trellis words carry bits, never numeric values.
+            checkpoint_arrays(checkpoint, &keys, workers)?
+                .into_iter()
+                .map(|array| array.view(Dtype::UInt16))
+                .collect()
         };
         let mut gu_trellises = trellises(&gates)?;
         gu_trellises.extend(trellises(&ups)?);
@@ -779,23 +803,25 @@ impl Exl3SwitchGlu {
             .shape()
             .try_into()
             .map_err(|_| anyhow::anyhow!("gate/up output scales must have rank 3"))?;
+        let [gu_tiles, down_tiles, packed] =
+            crate::contracts::switch_glu_layout(experts, top_k, input, hidden, k)
+                .context("invalid or overflowing SwitchGLU dimensions")?;
         ensure!(
-            experts > 0
-                && projections == 2
-                && scale_experts == experts
-                && scale_projections == 2
-                && top_k > 0
-                && top_k <= experts
-                && input % 128 == 0
-                && hidden % 128 == 0,
+            projections == 2 && scale_experts == experts && scale_projections == 2,
             "invalid SwitchGLU dimensions"
         );
         ensure!(
             down_suh.shape() == [experts, hidden]
                 && down_svh.shape() == [experts, input]
-                && gu_trellis.shape() == [input / 16, experts * hidden / 8, (16 * k) as i32]
-                && down_trellis.shape() == [hidden / 16, experts * input / 16, (16 * k) as i32],
+                && gu_trellis.shape() == [input / 16, gu_tiles, packed]
+                && down_trellis.shape() == [hidden / 16, down_tiles, packed],
             "SwitchGLU trellis/scales disagree"
+        );
+        ensure!(
+            [&gu_trellis, &down_trellis]
+                .iter()
+                .all(|a| matches!(a.dtype(), Dtype::Int16 | Dtype::UInt16)),
+            "expert trellis must contain 16-bit integers"
         );
         for value in [
             &gu_trellis,
@@ -845,20 +871,30 @@ impl Exl3SwitchGlu {
         if rows >= 64 && self.experts <= 256 && self.k != 7 && array::supports_exl3_tensor_ops()? {
             return self.forward_segmented(x, &selected, scores, rows);
         }
-        let x_gu = routed_inputs_small(x, &self.gu_suh, &selected, rows, self.top_k, self.input)?;
-        let gate_up = expert_mapped(
+        let lane_order = crate::contracts::q36_expert_lane_shape(
+            [rows, self.input, self.hidden, self.experts, self.top_k],
+            self.k,
+            self.cb == Codebook::Mcg,
+        );
+        let x_gu = routed_inputs_small(
+            x,
+            &self.gu_suh,
+            &selected,
+            rows,
+            self.top_k,
+            self.input,
+            lane_order,
+        )?;
+        let gate_up = crate::linear::prepared_expert_raw(
             &x_gu,
             &self.gu_trellis,
-            None,
-            None,
             &selected,
             self.hidden,
             2,
             self.experts * self.hidden / 16,
             self.k,
             self.cb,
-            true,
-            true,
+            lane_order,
         )?;
         let down_input = glu_down_input(
             &gate_up,
@@ -867,20 +903,18 @@ impl Exl3SwitchGlu {
             &selected,
             self.activation,
             self.logical_hidden,
+            lane_order,
         )?;
-        let down = expert_mapped(
+        let down = crate::linear::prepared_expert_raw(
             &down_input,
             &self.down_trellis,
-            None,
-            None,
             &selected,
             self.input,
             1,
             0,
             self.k,
             self.cb,
-            true,
-            true,
+            lane_order,
         )?;
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
     }
@@ -936,6 +970,7 @@ impl Exl3SwitchGlu {
             &sorted,
             self.activation,
             self.logical_hidden,
+            false,
         )?;
         let down = expert_segmented_qmm(
             &Array::concatenate(
@@ -1036,6 +1071,126 @@ mod tests {
     use super::*;
     use half::f16;
 
+    #[test]
+    #[ignore = "physical Apple GPU; disposable signed/unsigned EXL3 checkpoint"]
+    fn mixed_signed_trellises_preserve_checkpoint_bits() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("experts.safetensors");
+        let prefix = "model.layers.0.mlp.experts";
+        let mut header = serde_json::Map::new();
+        let mut payload = Vec::new();
+        let mut words = Vec::new();
+        for (index, name) in ["gate_proj", "up_proj", "down_proj"].iter().enumerate() {
+            let data = (0..2048)
+                .map(|i| {
+                    (i as u16)
+                        .wrapping_mul(1777)
+                        .wrapping_add(0x8001 + index as u16)
+                })
+                .collect::<Vec<_>>();
+            let start = payload.len();
+            payload.extend(data.iter().flat_map(|w| w.to_le_bytes()));
+            header.insert(format!("{prefix}.0.{name}.trellis"), serde_json::json!({"dtype":if index==1 {"U16"} else {"I16"},"shape":[8,8,32],"data_offsets":[start,payload.len()]}));
+            words.push(data);
+            for scale in ["suh", "svh"] {
+                let start = payload.len();
+                payload.extend([f16::ONE.to_le_bytes(); 128].into_iter().flatten());
+                header.insert(format!("{prefix}.0.{name}.{scale}"), serde_json::json!({"dtype":"F16","shape":[128],"data_offsets":[start,payload.len()]}));
+            }
+        }
+        let json = serde_json::to_vec(&header)?;
+        let mut bytes = (json.len() as u64).to_le_bytes().to_vec();
+        bytes.extend(json);
+        bytes.extend(payload);
+        std::fs::write(&file, bytes)?;
+        let mut checkpoint = Checkpoint {
+            path: dir.path().to_path_buf(),
+            model_type: "qwen3_5_moe".into(),
+            bits: None,
+            size_bytes: 0,
+            modules: Vec::new(),
+            tensors: crate::checkpoint::read_header(&file)?,
+        };
+        let layer = Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, 1, 1)?;
+        assert_eq!(layer.gu_trellis.dtype(), Dtype::UInt16);
+        assert_eq!(layer.down_trellis.dtype(), Dtype::UInt16);
+        let mut expected = Vec::new();
+        for row in 0..8 {
+            for bank in &words[..2] {
+                expected.extend(
+                    bank[row * 256..(row + 1) * 256]
+                        .iter()
+                        .flat_map(|w| w.to_le_bytes()),
+                );
+            }
+        }
+        assert_eq!(expected.len(), 8192);
+        assert_eq!(layer.gu_trellis.to_bytes()?, expected);
+        assert_eq!(
+            layer.down_trellis.to_bytes()?,
+            words[2]
+                .iter()
+                .flat_map(|w| w.to_le_bytes())
+                .collect::<Vec<_>>()
+        );
+        // Metadata rejection must happen before loading any tensor payload.
+        assert!(Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, i32::MAX, 1).is_err());
+        checkpoint
+            .tensors
+            .get_mut(&format!("{prefix}.0.gate_proj.trellis"))
+            .unwrap()
+            .dtype = "BOOL".into();
+        let error = Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, 1, 1)
+            .err()
+            .context("accepted BOOL checkpoint trellis")?;
+        assert!(error.to_string().contains("16-bit integers"));
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; constructor admission, no invalid shader dispatch"]
+    fn switch_glu_rejects_invalid_trellis_before_evaluation() -> Result<()> {
+        let make = |gate_dtype, down_dtype, k| {
+            Exl3SwitchGlu::new(
+                Array::zeros_dtype(&[8, 32, 16 * k as i32], gate_dtype)?,
+                Array::from_f16_bits(&[f16::ONE.to_bits(); 512], &[2, 2, 128])?,
+                Array::from_f16_bits(&[f16::ONE.to_bits(); 512], &[2, 2, 128])?,
+                Array::zeros_dtype(&[8, 16, 16 * k as i32], down_dtype)?,
+                Array::from_f16_bits(&[f16::ONE.to_bits(); 256], &[2, 128])?,
+                Array::from_f16_bits(&[f16::ONE.to_bits(); 256], &[2, 128])?,
+                1,
+                k,
+                Codebook::Mcg,
+            )
+        };
+        for bad in [
+            Dtype::Bool,
+            Dtype::UInt8,
+            Dtype::Float16,
+            Dtype::Float32,
+            Dtype::Int32,
+        ] {
+            assert!(
+                make(bad, Dtype::UInt16, 2).is_err(),
+                "accepted gate/up {bad:?}"
+            );
+            assert!(
+                make(Dtype::UInt16, bad, 2).is_err(),
+                "accepted down {bad:?}"
+            );
+        }
+        for k in [0, 7, 9] {
+            assert!(
+                make(Dtype::UInt16, Dtype::UInt16, k).is_err(),
+                "accepted K={k}"
+            );
+        }
+        for dtype in [Dtype::Int16, Dtype::UInt16] {
+            make(dtype, dtype, 2)?;
+        }
+        Ok(())
+    }
+
     #[cfg(feature = "mlx")]
     #[test]
     #[ignore = "requires an Apple GPU"]
@@ -1064,9 +1219,113 @@ mod tests {
                 .reshape(&[routes * 2, INPUT / 128, 128])?
                 .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
                 .reshape(&[routes * 2, INPUT])?;
-            let actual = routed_inputs_small(&x, &scales, &selected, rows, top_k, INPUT)?;
+            let actual = routed_inputs_small(&x, &scales, &selected, rows, top_k, INPUT, false)?;
             assert_eq!(actual.to_f16_bits()?, reference.to_f16_bits()?);
         }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "Qwen 35B checkpoint on a physical Apple GPU"]
+    fn q36_expert_lane_matches_canonical_intermediates() -> Result<()> {
+        use crate::linear::prepared_expert_raw;
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&path))?;
+        let mut cases = 0;
+        for (layer, k) in [(0, 3), (17, 2)] {
+            let bank = Exl3SwitchGlu::from_checkpoint(
+                &checkpoint,
+                &format!("model.language_model.layers.{layer}.mlp.experts"),
+                256,
+                8,
+            )?;
+            assert_eq!(bank.k, k);
+            for rows in [1, 2, 4] {
+                let x = Array::from_f16_bits(
+                    &(0..rows * 2048)
+                        .map(|i| f16::from_f32(((i * 17 % 113) as f32 - 55.0) / 50.0).to_bits())
+                        .collect::<Vec<_>>(),
+                    &[rows, 2048],
+                )?;
+                let ids = Array::from_u32(
+                    &(0..rows * 8)
+                        .map(|i| [0, 1, 31, 255, 87, 201, 33, 76][(i % 8) as usize])
+                        .collect::<Vec<_>>(),
+                    &[rows * 8],
+                )?;
+                let compare_prepared = |canonical: &Array, permuted: &Array| -> Result<()> {
+                    let original = canonical.to_f16_bits()?;
+                    let actual = permuted.to_f16_bits()?;
+                    assert_eq!(canonical.shape(), permuted.shape());
+                    assert!(
+                        !original.is_empty()
+                            && original.len() == actual.len()
+                            && original.len() % 16 == 0
+                    );
+                    assert!(original.iter().all(|&v| f16::from_bits(v).is_finite()));
+                    assert_ne!(original, actual);
+                    for (i, value) in actual.into_iter().enumerate() {
+                        assert_eq!(
+                            value,
+                            original[crate::contracts::exl3_lane_source_index(i as u32) as usize]
+                        );
+                    }
+                    Ok(())
+                };
+                let mut outputs = Vec::new();
+                for permuted in [false, true] {
+                    let a = routed_inputs_small(&x, &bank.gu_suh, &ids, rows, 8, 2048, permuted)?;
+                    let gu = prepared_expert_raw(
+                        &a,
+                        &bank.gu_trellis,
+                        &ids,
+                        512,
+                        2,
+                        8192,
+                        k,
+                        bank.cb,
+                        permuted,
+                    )?;
+                    let b = glu_down_input(
+                        &gu,
+                        &bank.gu_svh,
+                        &bank.down_suh,
+                        &ids,
+                        bank.activation,
+                        512,
+                        permuted,
+                    )?;
+                    let down = prepared_expert_raw(
+                        &b,
+                        &bank.down_trellis,
+                        &ids,
+                        2048,
+                        1,
+                        0,
+                        k,
+                        bank.cb,
+                        permuted,
+                    )?;
+                    outputs.push((a, gu, b, down));
+                }
+                let [old, new] = outputs.as_slice() else {
+                    unreachable!()
+                };
+                compare_prepared(&old.0, &new.0)?;
+                compare_prepared(&old.2, &new.2)?;
+                for (a, b, expected) in [
+                    (&old.1, &new.1, vec![rows * 16, 512]),
+                    (&old.3, &new.3, vec![rows * 8, 2048]),
+                ] {
+                    assert_eq!(a.shape(), expected);
+                    assert_eq!(b.shape(), expected);
+                    let v = a.to_f32()?;
+                    assert!(v.iter().all(|n| n.is_finite()) && v.iter().any(|n| *n != 0.0));
+                    assert_eq!(a.to_bytes()?, b.to_bytes()?);
+                }
+                cases += 1;
+            }
+        }
+        assert_eq!(cases, 6);
         Ok(())
     }
 }

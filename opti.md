@@ -28441,3 +28441,5 @@ Sampled output parity is not a proof for arbitrary inputs. Both child processes
 exited normally; campaign `complete`, `parity=true`. Raw files are in
 `../ui-review/readme-benchmark/qwen27/`; checked-in receipts redact local paths,
 PIDs and battery identifiers. No engine, checkpoint or quantization changed.
+
+- Q36-ENGINE-209, préenregistrement de release. Base origin/main 369e0e63 et moteur publié 2.0.8-beta.1. Porter le replay AR R3 qualifié, les corrections de robustesse associées et la préparation experts T1 confirmée. Garder MTP1 par défaut et le tune existant. Exclure les lecteurs K4/K6 et les autres essais non confirmés. Vérifier la parité du paquet livré (12 instantanés/80 états, 4 logits CLI, sessions et bridge profondeurs1/2/3), puis comparer la version publiée et le paquet extrait en AR/MTP1/2/3 sur FR27/code43 en ordre BAAB, 128 de chauffe/sortie, deux répétitions et aucun job GPU simultané. Pour isoler et confirmer MTP3, comparer aussi au témoin 52307481 par BAAB ; la composition sera identifiée séparément. Publier le profilage historique du 35B en issue et le canal moteur en prerelease/latest=false après validation.

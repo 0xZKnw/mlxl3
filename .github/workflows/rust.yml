@@ -462,6 +462,10 @@ jobs:
           mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
           export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
           compatibility_tests=(
+            contracts::switch_glu_layout_rejects_invalid_and_overflowing_banks
+            contracts::switch_glu_cpu_routes_reject_empty_ragged_and_out_of_bank_ids
+            qwen35_config::replay_default_and_explicit_overrides
+            qwen35_config::replay_requires_exact_single_row_gdn_geometry
             array::tests::metal_os_capability_query_and_rejections_need_no_gpu_work
             dflash::tests::packed_q4_rejects_older_macos_before_loading_weights
             qwen35::tests::invalid_config_is_rejected_before_weight_loading
@@ -471,6 +475,9 @@ jobs:
             cargo test --locked --lib --features mlx,chat "$test_name" -- --exact --test-threads=1 | tee build/ci/compatibility-test.log
             python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/compatibility-test.log").read_text()'
           done
+      - name: Reject malformed expert codec routes without GPU work
+        if: matrix.os == 'macos-26'
+        run: cargo test --locked --features mlx,chat --bin mlxl3-rs tests::moe_codec_rejects_invalid_routes_before_gpu_or_checkpoint_loading -- --exact --test-threads=1
       - name: Check LFM prefill CPU oracles against the MLX-feature source
         if: matrix.os == 'macos-26'
         shell: bash

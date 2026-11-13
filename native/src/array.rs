@@ -612,6 +612,150 @@ pub struct Array {
     _thread: PhantomData<Rc<()>>,
 }
 
+pub(crate) struct GraphReplay {
+    handle: NonNull<c_void>,
+    outputs: usize,
+    _thread: PhantomData<Rc<()>>,
+}
+
+unsafe extern "C" {
+    fn mlxl3_replay_capture(
+        inputs: *const *mut c_void,
+        count: usize,
+        outputs: *const *mut c_void,
+        output_count: usize,
+        result: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_replay_apply(
+        replay: *mut c_void,
+        inputs: *const *mut c_void,
+        count: usize,
+        outputs: *mut *mut c_void,
+        output_count: usize,
+    ) -> i32;
+    fn mlxl3_replay_free(replay: *mut c_void);
+}
+
+#[cfg(test)]
+thread_local! { static REPLAY_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+pub(crate) fn replay_calls_for_check() -> usize {
+    REPLAY_CALLS.with(std::cell::Cell::get)
+}
+
+impl GraphReplay {
+    pub(crate) fn capture(inputs: &[&Array], outputs: &[&Array]) -> Result<Self> {
+        ensure!(
+            (1..=4).contains(&inputs.len()) && (1..=4).contains(&outputs.len()),
+            "invalid replay arity"
+        );
+        let inputs = inputs.iter().map(|a| a.handle.as_ptr()).collect::<Vec<_>>();
+        let handles = outputs
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let mut result = std::ptr::null_mut();
+        checked(unsafe {
+            mlxl3_replay_capture(
+                inputs.as_ptr(),
+                inputs.len(),
+                handles.as_ptr(),
+                handles.len(),
+                &mut result,
+            )
+        })?;
+        Ok(Self {
+            handle: NonNull::new(result).context("null replay plan")?,
+            outputs: outputs.len(),
+            _thread: PhantomData,
+        })
+    }
+    pub(crate) fn apply(&self, inputs: &[&Array]) -> Result<Vec<Array>> {
+        ensure!(
+            (1..=4).contains(&inputs.len()),
+            "invalid replay input arity"
+        );
+        let inputs = inputs.iter().map(|a| a.handle.as_ptr()).collect::<Vec<_>>();
+        let mut outputs = vec![std::ptr::null_mut(); self.outputs];
+        checked(unsafe {
+            mlxl3_replay_apply(
+                self.handle.as_ptr(),
+                inputs.as_ptr(),
+                inputs.len(),
+                outputs.as_mut_ptr(),
+                outputs.len(),
+            )
+        })?;
+        let mut result = Vec::with_capacity(outputs.len());
+        for (i, &handle) in outputs.iter().enumerate() {
+            match Array::owned(handle) {
+                Ok(array) => result.push(array),
+                Err(error) => {
+                    for &remaining in &outputs[i + 1..] {
+                        unsafe { mlxl3_array_free(remaining) };
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        #[cfg(test)]
+        REPLAY_CALLS.with(|n| n.set(n.get() + 1));
+        Ok(result)
+    }
+}
+impl Drop for GraphReplay {
+    fn drop(&mut self) {
+        unsafe { mlxl3_replay_free(self.handle.as_ptr()) };
+    }
+}
+
+#[cfg(test)]
+mod graph_replay_checks {
+    use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU; replay original multi-output primitives"]
+    fn graph_replay_rebinds_roots_siblings_and_rejects_bad_inputs() -> Result<()> {
+        let make = |seed: f32| {
+            Array::from_f16_bits(
+                &(0..2048)
+                    .map(|i| half::f16::from_f32((i as f32 * 0.01 + seed).sin()).to_bits())
+                    .collect::<Vec<_>>(),
+                &[1, 1, 2048],
+            )
+        };
+        let x = make(1.)?;
+        let y = make(2.)?;
+        let weight = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 2048], &[2048])?;
+        let (sum, normalized) = x.add_rms_norm(&y, &weight, 1e-6)?;
+        let plan = GraphReplay::capture(&[&x, &y], &[&sum, &normalized])?;
+        let old = sum.to_f16_bits()?;
+        for seed in [3., 7., -4.] {
+            let a = make(seed)?;
+            let b = make(seed + 0.7)?;
+            let expected = a.add_rms_norm(&b, &weight, 1e-6)?;
+            let actual = plan.apply(&[&a, &b])?;
+            assert_eq!(actual.len(), 2);
+            assert_ne!(old, expected.0.to_f16_bits()?);
+            for (a, e) in actual.iter().zip([&expected.0, &expected.1]) {
+                let a = a.to_f16_bits()?;
+                assert_eq!(a.len(), 2048);
+                assert!(a.iter().all(|&v| half::f16::from_bits(v).is_finite()));
+                assert_eq!(a, e.to_f16_bits()?);
+            }
+        }
+        assert!(plan.apply(&[&x]).is_err());
+        assert!(plan.apply(&[&x.astype(Dtype::Float32)?, &y]).is_err());
+        assert!(plan.apply(&[&x.reshape(&[2048])?, &y]).is_err());
+        assert!(GraphReplay::capture(&[], &[&sum]).is_err());
+        assert!(GraphReplay::capture(&[&x, &x], &[&sum]).is_err());
+        let aliases = GraphReplay::capture(&[&x], &[&x, &weight])?.apply(&[&y])?;
+        assert_eq!(aliases[0].to_f16_bits()?, y.to_f16_bits()?);
+        assert_eq!(aliases[1].to_f16_bits()?, weight.to_f16_bits()?);
+        assert_eq!(plan.apply(&[&x, &y])?[0].to_f16_bits()?, old);
+        Ok(())
+    }
+}
+
 /// Allocations and file stay on the inference thread until the worker is joined.
 pub(crate) struct PreparedRead {
     handle: NonNull<c_void>,

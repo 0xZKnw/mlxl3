@@ -204,6 +204,58 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     tokens: Vec<u32>,
 }
+#[cfg(feature = "mlx")]
+impl CodecRequest {
+    fn validate_moe_codec(&self) -> Result<()> {
+        match self.op.as_str() {
+            "mlx-switch" => {
+                let experts = i32::try_from(self.key_heads)?;
+                let top_k = if self.top_k > 0 {
+                    self.top_k
+                } else {
+                    self.selected.len()
+                };
+                let rows = mlxl3_native::switch_glu_route_rows(&self.selected, experts, top_k)
+                    .context("invalid SwitchGLU routes")? as usize;
+                anyhow::ensure!(self.x.len().is_multiple_of(rows), "invalid SwitchGLU rows");
+                mlxl3_native::switch_glu_layout(
+                    experts,
+                    i32::try_from(top_k)?,
+                    i32::try_from(self.x.len() / rows)?,
+                    i32::try_from(self.cols)?,
+                    self.k,
+                )
+                .context("invalid SwitchGLU layout")?;
+            }
+            "mlx-checkpoint-switch" => {
+                anyhow::ensure!(!self.x.is_empty(), "empty SwitchGLU input");
+                mlxl3_native::switch_glu_route_rows(
+                    &self.selected,
+                    i32::try_from(self.key_heads)?,
+                    self.selected.len(),
+                )
+                .context("invalid checkpoint SwitchGLU routes")?;
+            }
+            "mlx-swiglu-prepare" => {
+                let width = self
+                    .cols
+                    .checked_mul(2)
+                    .filter(|&n| n > 0)
+                    .context("invalid gate/up width")?;
+                anyhow::ensure!(
+                    self.suh.len().is_multiple_of(width),
+                    "invalid gate/up scales"
+                );
+                let experts = i32::try_from(self.suh.len() / width)?;
+                mlxl3_native::switch_glu_route_rows(&self.selected, experts, 1)
+                    .context("invalid SwiGLU routes")?;
+            }
+            _ => (),
+        }
+        Ok(())
+    }
+}
+
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
 impl CodecRequest {
     fn input_view(&self, gpu: &mlxl3_native::gpu::Metal) -> Result<mlxl3_native::gpu::MatrixView> {
@@ -241,6 +293,8 @@ fn codec_loop() -> Result<()> {
             let request: CodecRequest =
                 serde_json::from_str(&line?).context("invalid codec request")?;
             let cb = Codebook::try_from(request.mode)?;
+            #[cfg(feature = "mlx")]
+            request.validate_moe_codec()?;
             match request.op.as_str() {
                 "pack" => Ok(json!(codec::pack(&request.data, request.k)?)),
                 "unpack" => Ok(json!(codec::unpack(&request.data, request.k)?)),
@@ -4615,6 +4669,31 @@ fn native_chat(
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn moe_codec_rejects_invalid_routes_before_gpu_or_checkpoint_loading() -> Result<()> {
+        for request in [
+            json!({"op":"mlx-switch","key_heads":2,"cols":128,"top_k":1}),
+            json!({"op":"mlx-switch","key_heads":2,"cols":128,"selected":[2]}),
+            json!({"op":"mlx-switch","key_heads":2,"cols":128,"selected":[0,1,0],"top_k":2}),
+            json!({"op":"mlx-checkpoint-switch","key_heads":256,"selected":[256],"x":[0],"path":"/missing"}),
+            json!({"op":"mlx-checkpoint-switch","key_heads":256,"x":[0],"path":"/missing"}),
+            json!({"op":"mlx-swiglu-prepare","cols":128,"suh":vec![0;256],"selected":[1]}),
+            json!({"op":"mlx-swiglu-prepare","cols":0,"selected":[0]}),
+        ] {
+            let request: CodecRequest = serde_json::from_value(request)?;
+            assert!(request.validate_moe_codec().is_err());
+        }
+        let request: CodecRequest = serde_json::from_value(
+            json!({"op":"mlx-switch","key_heads":2,"cols":128,"selected":[1],"x":vec![0;128]}),
+        )?;
+        request.validate_moe_codec()?;
+        let request: CodecRequest = serde_json::from_value(
+            json!({"op":"mlx-swiglu-prepare","cols":128,"selected":[1],"suh":vec![0;512]}),
+        )?;
+        request.validate_moe_codec()?;
+        Ok(())
+    }
 
     #[test]
     fn mlx_checkpoint_codec_keeps_the_requested_projection_prefix() {

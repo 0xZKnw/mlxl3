@@ -30,6 +30,7 @@
 #include "disk_read_batch.h"
 #include "process_memory.h"
 #include "mlx/array.h"
+#include "graph_replay.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
 #include "mlx/device.h"
@@ -145,6 +146,33 @@ struct PreparedDiskBatch {
 }
 
 extern "C" {
+
+int mlxl3_replay_capture(void* const* inputs, size_t count, void* const* outputs,
+                        size_t output_count, void** result) noexcept {
+  return protect([&] {
+    if (!inputs || !outputs || !result || count == 0 || count > 4 || output_count == 0 || output_count > 4)
+      throw std::invalid_argument("invalid replay capture arguments");
+    std::vector<mx::array> in, out;
+    for (size_t i = 0; i < count; ++i) in.push_back(arr(inputs[i]));
+    for (size_t i = 0; i < output_count; ++i) out.push_back(arr(outputs[i]));
+    *result = new mlxl3::GraphReplay(in, out);
+  });
+}
+int mlxl3_replay_apply(void* replay, void* const* inputs, size_t count,
+                      void** outputs, size_t output_count) noexcept {
+  return protect([&] {
+    if (!replay || !inputs || !outputs || count == 0 || count > 4 || output_count == 0 || output_count > 4)
+      throw std::invalid_argument("invalid replay apply arguments");
+    std::vector<mx::array> in;
+    for (size_t i = 0; i < count; ++i) in.push_back(arr(inputs[i]));
+    auto result = static_cast<mlxl3::GraphReplay*>(replay)->apply(in);
+    if (result.size() != output_count) throw std::invalid_argument("replay output count differs");
+    std::vector<std::unique_ptr<mx::array>> owned;
+    for (const auto& a : result) owned.push_back(std::make_unique<mx::array>(a));
+    for (size_t i = 0; i < owned.size(); ++i) outputs[i] = owned[i].release();
+  });
+}
+void mlxl3_replay_free(void* replay) noexcept { delete static_cast<mlxl3::GraphReplay*>(replay); }
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
 int mlxl3_metal_os_capabilities(uint32_t* out) noexcept {
   return protect([&] {
