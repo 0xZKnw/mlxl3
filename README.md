@@ -24,6 +24,20 @@ for the selected model. The DMG bundles the engine, MLX libraries, Metal assets
 and conversion environment. Model weights are downloaded separately. No Python,
 Homebrew or separate MLX installation is needed to use the app.
 
+## What’s in v2
+
+| In Desktop | What you can do |
+| --- | --- |
+| **Chat** | Stream responses with code, math and reasoning. Attach documents, add images with LFM3-VL, branch a conversation or call an MCP tool. |
+| **Agent** | Work on an isolated copy of a project. Inspect diffs, restore checkpoints and review changes before applying them to the original files. |
+| **Server and Lab** | Serve a loaded model through an OpenAI-compatible local endpoint. Inspect generation samples and compare supported MTP or DFlash2 configurations on your own Mac. |
+| **Models** | Browse pinned EXL3 variants, resume downloads, import an existing checkpoint or convert supported weights with the bundled converter. |
+| **Workspace and controls** | Choose a theme, text size and reading width. Open the generation inspector or check the loaded model from the menu bar. Switching between Chat and Agent respects a manually unloaded model. |
+
+The next v2 Desktop build adds a fine ASCII aurora with a high reflection and a lower amber glow. As the light passes, the characters in each cell change from dots to crosses in the main window and the menu bar widget. It responds to generation and respects Reduce Motion. The model selector, generation controls and New Conversation button use native macOS glass. The screenshot shows this development build. The downloadable v2 build above is **beta 21**.
+
+![MLXL3 Desktop development build with the ASCII aurora and the new conversation composer](docs/desktop/assets/mlxl3-ascii.png)
+
 ## Install and run your first model
 
 1. Download the **v2 beta DMG** above and drag **MLXL3 Desktop** into Applications.
@@ -254,7 +268,7 @@ text per message. The model's context limit still applies.
 
 On-device dictation and reply speech use macOS services. Agent/project and
 versioned artifact features require working Git. Appearance settings include
-12 themes, preset or custom accent colors, conversation fonts and bubble
+System, Light and Dark appearances, Iris, Rose, Amber, Neutral or custom accents, conversation fonts and bubble
 styles, message spacing, reading width, text size and sidebar width. Choices
 apply immediately and persist locally; the appearance reset restores defaults.
 
