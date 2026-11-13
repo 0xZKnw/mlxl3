@@ -14,7 +14,7 @@ include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
 [Download Desktop beta 21](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.21)
 · [Engine 2.0.9 beta](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.9-beta.1)
-· [Release notes](docs/release-v2.0.0-beta.21.md)
+· [Release notes](docs/releases/desktop/release-v2.0.0-beta.21.md)
 · [Website](https://mlxl3.0xzknw.tech/)
 · [Discord](https://discord.gg/9hU46NVNnY)
 · [MIT license](LICENSE)
@@ -180,7 +180,7 @@ the same target and prompts:
 
 Outputs matched for these samples, but the long-prompt MTP control drifted by
 5.32%, above the campaign's 3% limit. The ordering is therefore an observation,
-not a confirmed general ranking. The full [protocol and results](docs/dflash2-stable-validation.md)
+not a confirmed general ranking. The full [protocol and results](docs/performance/flash-dflash/dflash2-stable-validation.md)
 include TTFT, memory, acceptance and the unexecuted confirmation.
 
 For Qwen3.8 Flash Next EXL3 2.05 bpw, a separate 1 November campaign used two
@@ -201,7 +201,7 @@ for all settings, prefill tradeoffs and source identities.
 
 The historical Qwen3.8 27B 2 bpw MTP1 campaign recorded 11.08 tok/s in French
 and 10.94 tok/s for code on its own workload; its
-[measurement record](docs/qwen27-max-optimisations-20261016.md) describes the
+[measurement record](docs/modeles/qwen/qwen27-max-optimisations-20261016.md) describes the
 conditions. It is not paired with the v2 baseline above. The listed LFM models
 do not currently expose these MTP/DFlash2 paths in MLXL3; no speculative rates
 are implied for them. Use the built-in tuner on compatible targets to compare
@@ -217,14 +217,14 @@ per prompt and five measured repetitions, without MTP, DFlash or prompt reuse:
 | Code | 58.34 tok/s | 42.95 tok/s | 6.19 s | 8.35 s |
 
 These are **historical October 14 measurements**, not a fresh measurement of
-every v2 build. The [complete report](docs/lfm25-measurements-2026-10-14.md)
+every v2 build. The [complete report](docs/modeles/lfm/lfm25-measurements-2026-10-14.md)
 records source identity, file hashes, numerical quality checks and the
 56.64–59.65 tok/s decode range. It does not claim an A/B speedup.
 
 Other recorded campaigns include
-[Qwen27B MTP and activation-layout experiments](docs/qwen27-max-optimisations-20261016.md),
-[Flash Next SSD streaming](docs/flash-next-ssd-implementation.md) and
-[the merged native/MTP composition](docs/pr161-fixes-2026-11-08.md).
+[Qwen27B MTP and activation-layout experiments](docs/modeles/qwen/qwen27-max-optimisations-20261016.md),
+[Flash Next SSD streaming](docs/performance/flash-dflash/flash-next-ssd-implementation.md) and
+[the merged native/MTP composition](docs/issues/reviews/pr161-fixes-2026-11-08.md).
 Their workloads and settings differ; the reports preserve rejected experiments,
 control drift and opt-in status. They are not an interchangeable leaderboard.
 The [optimization journal](opti.md) records the experiments and decisions.
@@ -270,12 +270,12 @@ With engine 2.0.8+, Qwen3.6-35B-A3B MTP automatically prepares a compact
 draft vocabulary projection on first use and reuses an integrity-checked cache.
 MTP1 remains the default depth. The target keeps its full vocabulary and
 verifies every proposal; no manual Python conversion is needed. Explicit draft
-projections take precedence. See the [engine release notes](docs/release-engine-v2.0.8-beta.1.md)
+projections take precedence. See the [engine release notes](docs/releases/engine/release-engine-v2.0.8-beta.1.md)
 for measurements, startup costs and validation limits.
 
 Hardware and OS gates matter: M5 cooperative-input TensorOps require macOS
 26.3+, and the packed Q4 DFlash path requires macOS 26.4+. See the
-[Apple Silicon support and validation matrix](docs/apple-silicon-stability-20261030.md).
+[Apple Silicon support and validation matrix](docs/operations/memory-hardware/apple-silicon-stability-20261030.md).
 
 ## Native command-line inference
 
@@ -302,7 +302,7 @@ on qualified M5/MLX 0.32.2 configurations. Weights, quantization and numerical
 operations are unchanged. Set `MLXL3_Q36_AR_REPLAY=0` before loading to use the
 ordinary path. Engine 2.0.9 also prepares small routed K2/K3 expert inputs in the
 order consumed by the Metal kernel. This applies to AR and fixed or tuned MTP
-depths 1–3. [Engine 2.0.9 release notes](docs/release-engine-v2.0.9-beta.1.md).
+depths 1–3. [Engine 2.0.9 release notes](docs/releases/engine/release-engine-v2.0.9-beta.1.md).
 
 Browse and resume Hugging Face downloads without a separate HF CLI:
 
@@ -388,9 +388,9 @@ The supplied adapters cover **LFM2, LFM2-MoE and native Ling/Bailing**.
 Inference support does not imply conversion support: LFM3, Qwen and Gemma
 imports are not automatically convertible by these adapters. A Safetensors
 extension alone is insufficient. See the
-[LFM conversion guide](docs/lfm26-local-quantization.md),
-[LFM2.5 MoE measurements](docs/lfm25-moe-quantization.md) and
-[Ling conversion guide](docs/ling-local-quantization.md).
+[LFM conversion guide](docs/modeles/lfm/lfm26-local-quantization.md),
+[LFM2.5 MoE measurements](docs/modeles/lfm/lfm25-moe-quantization.md) and
+[Ling conversion guide](docs/modeles/ling/ling-local-quantization.md).
 
 ## Build and verify
 
@@ -446,9 +446,9 @@ campaigns. Run GPU benchmarks separately from builds and other inference.
 - Greedy target verification does not establish an acceleration gain on every
   prompt. Experimental settings retain their individual qualification limits.
 
-[LFM3 text/vision integration](docs/lfm3-integration-2026-11-05.md)
-· [LFM3 kernel and numerical checks](docs/lfm3-kernels-2026-11-06.md)
-· [Flash SSD design](docs/flash-next-ssd-implementation.md)
+[LFM3 text/vision integration](docs/modeles/lfm/lfm3-integration-2026-11-05.md)
+· [LFM3 kernel and numerical checks](docs/modeles/lfm/lfm3-kernels-2026-11-06.md)
+· [Flash SSD design](docs/performance/flash-dflash/flash-next-ssd-implementation.md)
 · [Optimization history](opti.md)
 · [All releases](https://github.com/0xZKnw/mlxl3/releases)
 

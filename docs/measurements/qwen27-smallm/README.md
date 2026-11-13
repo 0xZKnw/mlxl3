@@ -7,7 +7,7 @@ démontrent pas une accélération stable des générations longues.
 
 ## Parcours de revue
 
-1. Lire le [rapport et ses décisions](../../qwen27-smallm-m5.md).
+1. Lire le [rapport et ses décisions](../../modeles/qwen/qwen27-smallm-m5.md).
 2. Consulter les [80 géométries EXL3 et 21 lignes GDN](inventory-table.md).
 3. Examiner les cinq drivers `benchmarks/benchmark_smallm*.py`, leurs tests
    dans `tests/test_smallm_benchmark.py` et leur couverture dans le workflow

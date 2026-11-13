@@ -1,6 +1,6 @@
 # Audit qualité LFM2.5 EXL3 v1
 
-[Rapport et portée des conclusions](../../lfm25-quality-audit-2026-10-14.md), [journal préenregistré](../../../opti.md).
+[Rapport et portée des conclusions](../../modeles/lfm/lfm25-quality-audit-2026-10-14.md), [journal préenregistré](../../../opti.md).
 
 - `real-projections-plan.json` : sélection des 12 projections, captures hashées, paramètres et deadline.
 - `real-projections.json` : comparaison bit à bit entre les deux hooks Pony originaux, les hooks MLXL3 et les tenseurs exportés v1, sources identifiées.

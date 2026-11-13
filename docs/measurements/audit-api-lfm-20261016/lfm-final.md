@@ -202,7 +202,7 @@ footprint incluent le warmup ; aucune réduction de RAM n'est présumée.
 Aucune nouvelle quantification, calibration, mesure BF16/KL/PPL ou publication HF.
 L'égalité numérique vérifie la fidélité au chemin canonique de ces mêmes poids
 EXL3 sur les entrées testées. Les fonctionnalités/R&D restantes des40propositions
-restent dans la [matrice de l'audit](../../audit-api-lfm-status.md). L'app installée
+restent dans la [matrice de l'audit](../../performance/general/audit-api-lfm-status.md). L'app installée
 est conservée selon la décision utilisateur ; un build ou une release ne vaut
 pas installation.
 

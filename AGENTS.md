@@ -190,11 +190,11 @@ uniquement pour remplir le journal, ni publier sans demande de l'utilisateur.
   du rôle `Update Notifications`. Vérifier le résultat du workflow Discord ;
   ne pas annoncer un succès si le bot ou ses identifiants ne sont pas configurés.
 - **All release notes and patch notes must be written in English**, both in
-  `docs/release-*.md` and in GitHub release bodies, for Desktop and engine
+  `docs/releases/{desktop,engine}/release-*.md` and in GitHub release bodies, for Desktop and engine
   releases, including stable releases and prereleases. Preserve exact versions,
   filenames, source SHAs, sizes, checksums, validation limits and credits.
 - Pour chaque release demandée, rédiger un changelog clair et structuré dans
-  `docs/release-*.md`, puis reprendre ce contenu dans la release GitHub.
+  `docs/releases/{desktop,engine}/release-*.md`, puis reprendre ce contenu dans la release GitHub.
   Présenter les nouveautés, performances, correctifs, installation/compatibilité
   et vérification/limites dans des sections distinctes, selon leur pertinence.
 - Expliquer les changements visibles pour l'utilisateur, les réglages par

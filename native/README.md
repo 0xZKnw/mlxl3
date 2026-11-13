@@ -9,8 +9,8 @@ This document describes the source tree reviewed on 16 October 2026. A source
 capability, a tested local package, a published engine and the installed app are
 separate states. Use `mlxl3-rs runtime-info`, Desktop's loaded-engine identity and
 the relevant release report to identify the executable actually used.
-The [previous README is archived verbatim](../docs/native-runtime-readme-before-audit-2026-10-16.md).
-The [audit status matrix](../docs/audit-api-lfm-status.md) records remaining work
+The [previous README is archived verbatim](../docs/engine/native-runtime-readme-before-audit-2026-10-16.md).
+The [audit status matrix](../docs/performance/general/audit-api-lfm-status.md) records remaining work
 and its acceptance conditions; planned features there are not current support.
 
 ## Components and capabilities

@@ -83,7 +83,7 @@ Les candidats3/4 sont des fusions plus ambitieuses, pas «activer un flag». Ils
 - Q27-06/07 hoistingdecode/NT/MB4 : aucun filtre utile. Q27-08 LUTcomplet : pasgain stable.
 - Q27-10 Q4compact et Q27-12 blocsEXL3 : tête seule68%plusrapide maisrégressiongénération FR; acceptationbaisse.
 - HENK0O-QWEN27-02 fenêtreunique8K2 uint32 : régressions3–8%; PERF106 K6/MCG −3,35%.
-- docs/qwen38-decode-local.md : N-majortranspose, cooperativeshuffleloads, K3windows, SGdifférents, unrolling, packedcodebook/FP16dotdéjàrejetés. Anciencheckpoint2,75bpw différent n'autorisepasrépétition sansmécanisme/précondition nouvelle.
+- docs/modeles/qwen/qwen38-decode-local.md : N-majortranspose, cooperativeshuffleloads, K3windows, SGdifférents, unrolling, packedcodebook/FP16dotdéjàrejetés. Anciencheckpoint2,75bpw différent n'autorisepasrépétition sansmécanisme/précondition nouvelle.
 - PERF111 repackhead[N/2,K,Nlocal,words] exactmais0,76..1,81%microseulement/copiedupoids+QMM àadapter; pas une nouvelleidée.
 - PERF07 forward_lazy→argmax : régressionaprèsretrace, retiré. Ne pasleconfondreavecrun-ahead.
 - PERF04 compileHadamard/scales : −4,49%; PERF09 compilesortieMoE −0,65%.
@@ -94,4 +94,4 @@ Les candidats3/4 sont des fusions plus ambitieuses, pas «activer un flag». Ils
 
 ## Sources lues
 
-opti.md Q27-00..14 et entrées nommées ci-dessus; AGENTS.md; rapport utilisateur téléchargé (sections4/5/6/8); docs/qwen27-vers-15-20261016.md; docs/qwen27-optimization-20261016.md; docs/qwen27-speed-20261008.md; docs/qwen27-smallm-m5.md; docs/qwen27-m5-round2.md; docs/qwen38-decode-local.md; docs/engine-v1.4.2-upstream.md; docs/measurements/qwen27-smallm/inventory-table.md et sources Rust/Metal/FFI/bench ciblées. Lecture ciblée, pas audit intégral. Aucun débit nouveau mesuré.
+opti.md Q27-00..14 et entrées nommées ci-dessus; AGENTS.md; rapport utilisateur téléchargé (sections4/5/6/8); docs/modeles/qwen/qwen27-vers-15-20261016.md; docs/modeles/qwen/qwen27-optimization-20261016.md; docs/modeles/qwen/qwen27-speed-20261008.md; docs/modeles/qwen/qwen27-smallm-m5.md; docs/modeles/qwen/qwen27-m5-round2.md; docs/modeles/qwen/qwen38-decode-local.md; docs/engine/engine-v1.4.2-upstream.md; docs/measurements/qwen27-smallm/inventory-table.md et sources Rust/Metal/FFI/bench ciblées. Lecture ciblée, pas audit intégral. Aucun débit nouveau mesuré.

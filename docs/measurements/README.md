@@ -1,22 +1,13 @@
-# Index des mesures et archives
+# Mesures et campagnes
 
-[Retour à l’index de la documentation](../README.md) ·
-[Journal des optimisations](../../opti.md)
+[Documentation](../README.md) · [Journal des optimisations](../../opti.md)
 
-Chaque entrée ci-dessous représente un dossier de campagne ou un fichier brut
-au premier niveau de `measurements/`. Les noms servent de repères (sujet,
-version, date ou identifiant d’essai) ; consulter le rapport associé et son
-protocole avant de tirer une conclusion. Les dossiers peuvent contenir des
-résultats négatifs, incomplets ou interrompus ainsi que des fichiers volumineux.
-Un `README.md` présent dans une campagne donne souvent son contexte ; sinon,
-chercher son nom ou son identifiant dans `opti.md` et les rapports de `docs/`.
+Chaque dossier contient les preuves d’une campagne ou d’un groupe de fichiers
+historiques. Chercher l’identifiant, le modèle ou la date dans le journal et les
+rapports avant d’interpréter les résultats ; ils peuvent être négatifs,
+incomplets ou interrompus. Un fichier brut seul ne prouve pas une validation.
 
-Pour limiter la lecture, chercher d’abord une campagne précise, par exemple
-`rg -n 'identifiant|modèle' opti.md docs/*.md`, puis inspecter uniquement ses
-fichiers pertinents. Cet index ne classe pas les essais par statut et ne
-certifie ni leur parité ni leur reproductibilité.
-
-## Entrées par nom
+## Campagnes par nom
 
 
 ### A
@@ -37,14 +28,12 @@ certifie ni leur parité ni leur reproductibilité.
 
 - [decode-profile-20261031/](decode-profile-20261031/)
 - [decode-profile-p09-20261101/](decode-profile-p09-20261101/)
-- [desktop-aurora-20261113.json](desktop-aurora-20261113.json)
-- [desktop-beta10-release.json](desktop-beta10-release.json)
 - [desktop-blue-theme-20261102/](desktop-blue-theme-20261102/)
 - [desktop-experience-20261102/](desktop-experience-20261102/)
 - [desktop-features-20261018/](desktop-features-20261018/)
 - [desktop-followup-20261102/](desktop-followup-20261102/)
-- [desktop-matte-20261113.json](desktop-matte-20261113.json)
 - [desktop-preferences-20261102/](desktop-preferences-20261102/)
+- [desktop-snapshots/](desktop-snapshots/)
 - [desktop-text-size-20261103/](desktop-text-size-20261103/)
 - [desktop-updater-html-agent/](desktop-updater-html-agent/)
 - [desktop-v1.1.3/](desktop-v1.1.3/)
@@ -67,11 +56,7 @@ certifie ni leur parité ni leur reproductibilité.
 ### E
 
 - [engine-206-20261111/](engine-206-20261111/)
-- [engine-v1.2.1-build.log](engine-v1.2.1-build.log)
-- [engine-v1.2.1-install.log](engine-v1.2.1-install.log)
-- [engine-v1.2.1-package-tests.log](engine-v1.2.1-package-tests.log)
-- [engine-v1.2.1-proof.json](engine-v1.2.1-proof.json)
-- [engine-v1.2.1-selection.log](engine-v1.2.1-selection.log)
+- [engine-v1.2.1/](engine-v1.2.1/)
 - [engine-v1.3.1/](engine-v1.3.1/)
 - [engine-v1.4.1/](engine-v1.4.1/)
 - [engine-v1.4.2/](engine-v1.4.2/)
@@ -165,60 +150,7 @@ certifie ni leur parité ni leur reproductibilité.
 - [merge-validation-20261101/](merge-validation-20261101/)
 - [mia-prefill-20261027/](mia-prefill-20261027/)
 - [model-idle-unload/](model-idle-unload/)
-- [mtp-03-baseline.json](mtp-03-baseline.json)
-- [mtp-03-bridge-complete.jsonl](mtp-03-bridge-complete.jsonl)
-- [mtp-03-bridge-complete.stderr](mtp-03-bridge-complete.stderr)
-- [mtp-03-build.log](mtp-03-build.log)
-- [mtp-03-cache-exact-gpu.log](mtp-03-cache-exact-gpu.log)
-- [mtp-03-cache-exact.log](mtp-03-cache-exact.log)
-- [mtp-03-clippy.log](mtp-03-clippy.log)
-- [mtp-03-decision.json](mtp-03-decision.json)
-- [mtp-03-final-clippy-cpu.log](mtp-03-final-clippy-cpu.log)
-- [mtp-03-final-clippy.log](mtp-03-final-clippy.log)
-- [mtp-03-final-fmt.log](mtp-03-final-fmt.log)
-- [mtp-03-final-kani.log](mtp-03-final-kani.log)
-- [mtp-03-final-tests.log](mtp-03-final-tests.log)
-- [mtp-03-kani.log](mtp-03-kani.log)
-- [mtp-03-long-a1.conditions.json](mtp-03-long-a1.conditions.json)
-- [mtp-03-long-a1.jsonl](mtp-03-long-a1.jsonl)
-- [mtp-03-long-a1.stderr](mtp-03-long-a1.stderr)
-- [mtp-03-long-a2.conditions.json](mtp-03-long-a2.conditions.json)
-- [mtp-03-long-a2.jsonl](mtp-03-long-a2.jsonl)
-- [mtp-03-long-a2.stderr](mtp-03-long-a2.stderr)
-- [mtp-03-long-b1.conditions.json](mtp-03-long-b1.conditions.json)
-- [mtp-03-long-b1.jsonl](mtp-03-long-b1.jsonl)
-- [mtp-03-long-b1.stderr](mtp-03-long-b1.stderr)
-- [mtp-03-long-b2.conditions.json](mtp-03-long-b2.conditions.json)
-- [mtp-03-long-b2.jsonl](mtp-03-long-b2.jsonl)
-- [mtp-03-long-b2.stderr](mtp-03-long-b2.stderr)
-- [mtp-03-matrice-a1.conditions.json](mtp-03-matrice-a1.conditions.json)
-- [mtp-03-matrice-a1.jsonl](mtp-03-matrice-a1.jsonl)
-- [mtp-03-matrice-a1.stderr](mtp-03-matrice-a1.stderr)
-- [mtp-03-matrice-a2.conditions.json](mtp-03-matrice-a2.conditions.json)
-- [mtp-03-matrice-a2.jsonl](mtp-03-matrice-a2.jsonl)
-- [mtp-03-matrice-a2.stderr](mtp-03-matrice-a2.stderr)
-- [mtp-03-matrice-b1.conditions.json](mtp-03-matrice-b1.conditions.json)
-- [mtp-03-matrice-b1.jsonl](mtp-03-matrice-b1.jsonl)
-- [mtp-03-matrice-b1.stderr](mtp-03-matrice-b1.stderr)
-- [mtp-03-matrice-b2.conditions.json](mtp-03-matrice-b2.conditions.json)
-- [mtp-03-matrice-b2.jsonl](mtp-03-matrice-b2.jsonl)
-- [mtp-03-matrice-b2.stderr](mtp-03-matrice-b2.stderr)
-- [mtp-03-reference-exact.log](mtp-03-reference-exact.log)
-- [mtp-03-salut-a1.conditions.json](mtp-03-salut-a1.conditions.json)
-- [mtp-03-salut-a1.jsonl](mtp-03-salut-a1.jsonl)
-- [mtp-03-salut-a1.stderr](mtp-03-salut-a1.stderr)
-- [mtp-03-salut-a2.conditions.json](mtp-03-salut-a2.conditions.json)
-- [mtp-03-salut-a2.jsonl](mtp-03-salut-a2.jsonl)
-- [mtp-03-salut-a2.stderr](mtp-03-salut-a2.stderr)
-- [mtp-03-salut-b1.conditions.json](mtp-03-salut-b1.conditions.json)
-- [mtp-03-salut-b1.jsonl](mtp-03-salut-b1.jsonl)
-- [mtp-03-salut-b1.stderr](mtp-03-salut-b1.stderr)
-- [mtp-03-salut-b2.conditions.json](mtp-03-salut-b2.conditions.json)
-- [mtp-03-salut-b2.jsonl](mtp-03-salut-b2.jsonl)
-- [mtp-03-salut-b2.stderr](mtp-03-salut-b2.stderr)
-- [mtp-03-summary.json](mtp-03-summary.json)
-- [mtp-03-target-exact.log](mtp-03-target-exact.log)
-- [mtp-03-upstream-paths.json](mtp-03-upstream-paths.json)
+- [mtp-03/](mtp-03/)
 - [mtp-04/](mtp-04/)
 - [mtp-05/](mtp-05/)
 - [mtp-dense-1.4.0/](mtp-dense-1.4.0/)
@@ -228,8 +160,7 @@ certifie ni leur parité ni leur reproductibilité.
 
 ### P
 
-- [perf-134-matrice-prompt.txt](perf-134-matrice-prompt.txt)
-- [perf-134-salut-prompt.txt](perf-134-salut-prompt.txt)
+- [perf-134/](perf-134/)
 - [post-p08-cold-ready-20261101/](post-p08-cold-ready-20261101/)
 - [post-p08-compose-20261101/](post-p08-compose-20261101/)
 - [post-p08-dense-epilogue-20261031/](post-p08-dense-epilogue-20261031/)
@@ -256,7 +187,7 @@ certifie ni leur parité ni leur reproductibilité.
 - [pr163-converter/](pr163-converter/)
 - [pr163-download-recovery/](pr163-download-recovery/)
 - [pr163-draft-gpu/](pr163-draft-gpu/)
-- [pr163-functional-evidence.tar.gz](pr163-functional-evidence.tar.gz)
+- [pr163-functional/](pr163-functional/)
 - [pr163-io-cancellation/](pr163-io-cancellation/)
 - [pr163-metal-recovery/](pr163-metal-recovery/)
 - [pr163-protocol-reconstruction/](pr163-protocol-reconstruction/)
@@ -302,10 +233,9 @@ certifie ni leur parité ni leur reproductibilité.
 - [qwen27-smallm/](qwen27-smallm/)
 - [qwen27-speed-20261008/](qwen27-speed-20261008/)
 - [qwen36-144-p10-20261105/](qwen36-144-p10-20261105/)
-- [qwen36-35b-m5-profile.json](qwen36-35b-m5-profile.json)
-- [qwen36-engine-2.0.9-bench.json](qwen36-engine-2.0.9-bench.json)
 - [qwen36-memory-20261112/](qwen36-memory-20261112/)
 - [qwen36-native-20261104/](qwen36-native-20261104/)
+- [qwen36-profiles/](qwen36-profiles/)
 
 ### R
 
@@ -340,7 +270,4 @@ certifie ni leur parité ni leur reproductibilité.
 - [v2-models-20261111/](v2-models-20261111/)
 - [v2-speculative-20261111/](v2-speculative-20261111/)
 
-## Entretien
-
-Ajouter les nouvelles entrées de premier niveau à la section alphabétique ;
-laisser les fichiers et dossiers existants à leur emplacement historique.
+Ajouter toute nouvelle campagne à cet index.

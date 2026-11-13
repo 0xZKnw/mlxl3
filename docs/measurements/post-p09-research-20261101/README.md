@@ -10,7 +10,7 @@ Premier essai recommandé : composer les lecteurs dynamiques avec Cold U,
 aujourd'hui mutuellement exclusifs. Ensuite viser le coût d'évaluation/encodage
 MLX avec un lanceur préparé, pas un nouveau cache de factories.
 
-Les chiffres viennent du [rapport P09](../../decode-profile-p09-20261101.md),
+Les chiffres viennent du [rapport P09](../../performance/general/decode-profile-p09-20261101.md),
 publié dans [l'issue65](https://github.com/0xZKnw/mlxl3/issues/65).
 [Extraction, calculs et empreintes locales](evidence.json),
 [sources primaires consultées](upstream.json). Source locale HEAD

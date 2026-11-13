@@ -118,7 +118,7 @@ Sources: <https://github.com/Niko1221/Strata>, revision
 Their GPU expert planning, grouped weight reuse, streamed-cache scheduling
 and host/GPU overlap informed the independently implemented Flash Next
 resident-routing experiment. The comparison of implemented and outstanding
-mechanisms is recorded in `docs/flash-next-ssd-strata-56-2026-10-20.md`.
+mechanisms is recorded in `docs/performance/flash-dflash/flash-next-ssd-strata-56-2026-10-20.md`.
 MLXL3 preserves its EXL3 arithmetic and routing contract; Strata's source
 and performance results are references, not bundled kernels or local timings.
 

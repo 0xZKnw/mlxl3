@@ -68,7 +68,7 @@ un exécutable sans effet. Ce n’est pas une validation de MLX/Metal par les do
   manifeste moteur **13587** ; téléchargements publics sans authentification
   comparés aux SHA-256 du paquet local, tous identiques. Dernière stable
   `v1.4.6`, canal moteur `latest=false`. Empreintes complètes dans le manifeste
-  et les [changelogs Desktop](../../release-v1.4.6.md)/[moteur](../../release-engine-v1.4.6.md).
+  et les [changelogs Desktop](../../releases/desktop/release-v1.4.6.md)/[moteur](../../releases/engine/release-engine-v1.4.6.md).
 
 ## Limites et contrôles numériques interrompus
 

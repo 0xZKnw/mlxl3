@@ -11,6 +11,6 @@ Source du moteur : **957b19469e2a4ed0cb788046cad8e75c100c583d**, build propre re
 
 Commandes : cargo fmt --all --check ; cargo clippy --locked --all-targets --features mlx,chat -- -D warnings ; cargo test --locked --release --features mlx,chat ; pytest sur les douze fichiers affectés etpackaging ; cargo kani ciblé sur les trois vrais contrats de disposition ; cargo build --release --locked --features mlx,chat depuis source propre. Les commandes exactes, environnement, délais et sorties sont dans les archives/manifestes joints.
 
-[Release](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.7) ; [changelog](../../release-engine-v1.4.7.md) ; [validation complète](MLXL3-Engine-v1.4.7-validation.json) ; [logs et harnais](MLXL3-Engine-v1.4.7-verification.tar.gz) ; [preuve de publication](publication.json).
+[Release](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.7) ; [changelog](../../releases/engine/release-engine-v1.4.7.md) ; [validation complète](MLXL3-Engine-v1.4.7-validation.json) ; [logs et harnais](MLXL3-Engine-v1.4.7-verification.tar.gz) ; [preuve de publication](publication.json).
 
 Limites :APIArrayKani échoue par ICE connue, MLX/Metal/concurrence et Swift non prouvés formellement ; longcontexte et autresMac non mesurés. La disposition lane1 reste OFF par défaut ; MLP2/4 automatique. Le paquet a une signature ad-hoc et aucune notarisation Apple.

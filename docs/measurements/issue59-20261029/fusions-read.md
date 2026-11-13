@@ -42,7 +42,7 @@ Le SwiGLU local est **déjà une fonction `mx::compile`** (`mlx_bridge.cpp:569�
 
 Le snapshot 58 conservé appelle **/42 le replay GDN accepté**. La fusion du consommateur Hot/Cold est **/43**, et l’écriture canonique par les producteurs est /28. La référence T05 « #58/28 et /42 » de l’issue 59 semble donc contenir un décalage de numéro ; cela ne doit pas faire relancer une expérience GDN pour ce travail.
 
-Les essais [65](../../flash-next-ssd-grouped-exl3-65-2026-10-21.md) et [66](../../flash-next-ssd-fixed-width-66-2026-10-21.md) partageaient le décodeur entre occurrences d’experts connus CPU, avec plan et restauration, sans qualifier un gain général. La voie Hot masquée garde un chemin distinct. T05 ne change ni le plan de regroupement ni les calculs des experts. [68](../../flash-next-ssd-shared-expert-68-2026-10-22.md) et 73 ne démontrent pas qu’une fusion de lancements T06 serait inutile ; ils interdisent seulement de présenter leur batching ou déplacement inchangé comme nouveau.
+Les essais [65](../../performance/flash-dflash/flash-next-ssd-grouped-exl3-65-2026-10-21.md) et [66](../../performance/flash-dflash/flash-next-ssd-fixed-width-66-2026-10-21.md) partageaient le décodeur entre occurrences d’experts connus CPU, avec plan et restauration, sans qualifier un gain général. La voie Hot masquée garde un chemin distinct. T05 ne change ni le plan de regroupement ni les calculs des experts. [68](../../performance/flash-dflash/flash-next-ssd-shared-expert-68-2026-10-22.md) et 73 ne démontrent pas qu’une fusion de lancements T06 serait inutile ; ils interdisent seulement de présenter leur batching ou déplacement inchangé comme nouveau.
 
 ## Premier candidat proposé : T05 réduit à son consommateur pondéré
 

@@ -1,10 +1,10 @@
 # Essais20–23 : H100, qualité et diagnostic de calibration
 
-Révision finale : conversion53min29s, intégrité/compaction validées,5protocolesqualité et6smokes réussis. ComparatifGGUF mixte, contrôles CUDA/source terminés. [Rapport complet](../../lfm25-v2-results-2026-10-15.md). La publication est suivie dans `hf-v2-publication.json` ; les états initiaux ci-dessous sont conservés comme historique.
+Révision finale : conversion53min29s, intégrité/compaction validées,5protocolesqualité et6smokes réussis. ComparatifGGUF mixte, contrôles CUDA/source terminés. [Rapport complet](../../modeles/lfm/lfm25-v2-results-2026-10-15.md). La publication est suivie dans `hf-v2-publication.json` ; les états initiaux ci-dessous sont conservés comme historique.
 
 État de ce premier enregistrement : conversion24B en cours, aucune qualité v2
 mesurée et aucune publicationHFv2. Le journal racine conserve le protocole
-préenregistré et chaque échec. Le [rapport](../../lfm25-calibration-v2.md)
+préenregistré et chaque échec. Le [rapport](../../modeles/lfm/lfm25-calibration-v2.md)
 distingue le chemin Metal conditionnel et le convertisseur CUDA effectivement
 utilisé surH100.
 

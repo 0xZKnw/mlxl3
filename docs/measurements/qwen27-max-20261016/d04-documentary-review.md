@@ -10,7 +10,7 @@ Lecture dans le worktree `/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_
 |---|---|
 | Native actuel | `native/src/linear.rs:1236–1248`, `codebook_header` ; `native/shaders/_qmv_tile_kernel.metal:92–123` et `_qmv_mapped_tile_kernel.metal:170–204` |
 | Essai historique | Commit `8be9b7bc5c426555894bd299673bb8b80799ec9d`, 6 septembre 2026 ; `benchmarks/benchmark_qwen38_decode.py:37–58`, blob Git `9f85d6bc3ecf71d5984367577919afc96e3f315b` |
-| Conclusion historique | `docs/qwen38-decode-local.md`, étude datée du 5 septembre, même commit ; blob `3a9977e44a98ee84cce011cdab35cb96eb957456`, lignes 40–44 |
+| Conclusion historique | `docs/modeles/qwen/qwen38-decode-local.md`, étude datée du 5 septembre, même commit ; blob `3a9977e44a98ee84cce011cdab35cb96eb957456`, lignes 40–44 |
 | Sushi | [code primaire épinglé](https://github.com/beamivalice/sushi/blob/70dc0e807e4113179389377253fe8270d5a3333b/src/exl3/expert_exl3_kernels.zig#L985-L1009), 16 octobre 2026 ; `codebookHelpers` et `exl3_pairh` |
 | ExLlamaV3 | [code primaire épinglé](https://github.com/turboderp-org/exllamav3/blob/058b8630fd081f3ff46fce6246955b157c3a2e3b/exllamav3/exllamav3_ext/quant/codebook.cuh#L36-L55), 14 octobre 2026 ; `decode_mul1_product_2` |
 
@@ -48,4 +48,4 @@ Ligne de synthèse à remplacer :
 |---|---|---|---|
 | **D04 R / conditionnel** | Décodage de codewords indépendants `uint2/half2` ; E/S et essai packed `8be9b7bc`, `linear.rs::codebook_header` | SWAR déjà présent ; ancien `uint4/half4` retrouvé et rejeté. La seule largeur deux ne justifie pas une répétition ; exiger un motif ISA/registres/profil, préserver arrondi half et ordre FP32. Oracle exhaustif par lane puis QMV stock | Famille déjà essayée, aucun nouvel essai ni gain. Le cas exact half2 courant n'est pas mesuré ; pas de transfert du CUDA `dp4a` |
 
-Commandes documentaires utilisées : `rg` sur journal/code/notes, `sed` sur sources, `git log -- docs/qwen38-decode-local.md`, `git show 8be9b7bc:<chemin>`, `git ls-tree -r --name-only 8be9b7bc`, `git rev-parse 8be9b7bc:<chemin>` et `git grep` historique. Deux recherches initiales ont rencontré des noms/globs absents ; elles ont été remplacées par inventaire des chemins et lecture via Git. Aucun test, build, proveur, benchmark ou GPU lancé, aucun fichier du worktree modifié. La différence half2/half4 et le débit courant restent non vérifiés expérimentalement.
+Commandes documentaires utilisées : `rg` sur journal/code/notes, `sed` sur sources, `git log -- docs/modeles/qwen/qwen38-decode-local.md`, `git show 8be9b7bc:<chemin>`, `git ls-tree -r --name-only 8be9b7bc`, `git rev-parse 8be9b7bc:<chemin>` et `git grep` historique. Deux recherches initiales ont rencontré des noms/globs absents ; elles ont été remplacées par inventaire des chemins et lecture via Git. Aucun test, build, proveur, benchmark ou GPU lancé, aucun fichier du worktree modifié. La différence half2/half4 et le débit courant restent non vérifiés expérimentalement.

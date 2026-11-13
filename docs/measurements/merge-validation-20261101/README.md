@@ -92,7 +92,7 @@ bytes and reads 1,054,834,688 bytes, within the authorized limits. Plan/result
 receipts and logs are included; no reanchoring occurred.
 
 No integration throughput benchmark is claimed. The earlier Cold U measurements
-and their drift limits remain in [the performance report](../../cold-ready-m5-20261101.md).
+and their drift limits remain in [the performance report](../../operations/memory-hardware/cold-ready-m5-20261101.md).
 Merging compatibility/proof changes does not relabel those timings as measurements
 of this combined binary.
 

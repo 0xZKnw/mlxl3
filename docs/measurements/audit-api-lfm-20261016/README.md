@@ -3,7 +3,7 @@
 Cette campagne part de `c9aa43a312c63246eeb4b5a680ada26092c65a1c`, avec les
 correctifs UI/mémoire/packaging locaux de `2eae717f`, sur `codex/audit-api-lfm`.
 Le journal [opti.md](../../../opti.md) conserve les hypothèses, préenregistrements,
-échecs et décisions. La [matrice des40 propositions](../../audit-api-lfm-status.md)
+échecs et décisions. La [matrice des40 propositions](../../performance/general/audit-api-lfm-status.md)
 distingue ce lot des propositions déjà présentes et des pistes R&D non qualifiées.
 
 - [API : comportements corrigés,33 tests et domaines Kani](api.md).

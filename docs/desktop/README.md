@@ -1,0 +1,31 @@
+# Desktop et interface
+
+[Documentation](../README.md)
+
+Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+
+- [app-fluidite-implementation-2026-10-16](app-fluidite-implementation-2026-10-16.md)
+- [app-fluidite-tokens-2026-10-16](app-fluidite-tokens-2026-10-16.md)
+- [desktop-beta6-studio-verification](desktop-beta6-studio-verification.md)
+- [desktop-experience-20261102](desktop-experience-20261102.md)
+- [desktop-notifications-flash-startup-20261102](desktop-notifications-flash-startup-20261102.md)
+- [desktop-project-features-2026-10-18](desktop-project-features-2026-10-18.md)
+- [desktop-text-size-20261103](desktop-text-size-20261103.md)
+- [desktop-theme-startup-20261102](desktop-theme-startup-20261102.md)
+- [desktop-updater-html-agent-verification](desktop-updater-html-agent-verification.md)
+- [desktop-v1.1.3-validation](desktop-v1.1.3-validation.md)
+- [desktop-v1.2.0-validation](desktop-v1.2.0-validation.md)
+- [desktop-v1.2.1-validation](desktop-v1.2.1-validation.md)
+- [desktop-v1.2.2-validation](desktop-v1.2.2-validation.md)
+- [desktop-v1.3.0-validation](desktop-v1.3.0-validation.md)
+- [desktop-v1.4.8-verification](desktop-v1.4.8-verification.md)
+- [desktop-v1.5.0-verification](desktop-v1.5.0-verification.md)
+- [desktop-v2-beta-review-20261113](desktop-v2-beta-review-20261113.md)
+- [desktop-v2-beta3-verification](desktop-v2-beta3-verification.md)
+- [desktop-v2-beta5-verification](desktop-v2-beta5-verification.md)
+- [file-import-validation-2026-10-04](file-import-validation-2026-10-04.md)
+- [mtp-panel-layout-20261103](mtp-panel-layout-20261103.md)
+- [pr-desktop-experience](pr-desktop-experience.md)
+- [pr-desktop-theme-startup](pr-desktop-theme-startup.md)
+- [settings-redesign-20261106](settings-redesign-20261106.md)
+- [table-breaks-2026-11-06](table-breaks-2026-11-06.md)

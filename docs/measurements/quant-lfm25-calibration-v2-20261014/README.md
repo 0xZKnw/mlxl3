@@ -1,6 +1,6 @@
 # Essai19 : préparation conditionnelle et sources Sushi
 
-Le [rapport](../../lfm25-calibration-v2.md) explique la portée.
+Le [rapport](../../modeles/lfm/lfm25-calibration-v2.md) explique la portée.
 `verification.json` identifie les sources modifiées et les artefacts de cet essai.
 Le HEAD de départ estc9aa43a ; il ne contient pas ces modifications locales.
 

@@ -1,6 +1,6 @@
 # PR161 : mesures et correctifs locaux
 
-La composition finale et la nouvelle comparaison avec TurboEXL3/Regolith sont dans [le rapport final](../../pr161-fixes-2026-11-08.md). Dernier diagnostic MAIN64 chaud, 53 slots/couche : R1 7,832 / final **8,311** / R1 7,627 / AR 7,671 tok/s, sorties identiques. Signal +6,11 à +8,98 % contre R1, sans gain stable établi sur AR. 359 tests release passent / 129 ignorés ; 6 invocations GPU sur la composition finale et bridge AR/MTP8 passent. Quatre harnais CPU bornés Kani passent, sans preuve Metal ou concurrence. Aucun push ni application installée modifiée.
+La composition finale et la nouvelle comparaison avec TurboEXL3/Regolith sont dans [le rapport final](../../issues/reviews/pr161-fixes-2026-11-08.md). Dernier diagnostic MAIN64 chaud, 53 slots/couche : R1 7,832 / final **8,311** / R1 7,627 / AR 7,671 tok/s, sorties identiques. Signal +6,11 à +8,98 % contre R1, sans gain stable établi sur AR. 359 tests release passent / 129 ignorés ; 6 invocations GPU sur la composition finale et bridge AR/MTP8 passent. Quatre harnais CPU bornés Kani passent, sans preuve Metal ou concurrence. Aucun push ni application installée modifiée.
 
 [Patch final code + inventaire](fixall-final-delivery.patch), [identités et vérification](fixall-final-verification.json), [plan final](fixall-r3-speed-plan.json), [résultats bruts](fixall-r3-speed-summary.json), [analyse et limites](fixall-r3-speed-analysis.json), [sources TurboEXL3](turbo-upstream-r3/manifest.json), [nouveaux audits Regolith](regolith-r3-sources.json). Les fichiers `fixall-*` conservent aussi les étapes R1/R2, preuves, échecs et logs physiques. Leurs exécutables figés restent dans le répertoire `build/pr161-speed-20261108` du worktree indiqué dans les manifestes, hors de cette archive documentaire.
 
@@ -24,7 +24,7 @@ La reference AR a les options incompatibles avec les cohortes desactivees ; ce n
 
 Les14points, cycles et options sont preserves dans les JSON voisins. La qualification avant mesure comprend354tests bibliotheque passes/127ignores,7invocations physiques reussies apres correction de preparation du test SSD (echec initial conserve dans le build), bridge reel et20smokes8tokens. Le contrat CPU Kani de reutilisation passe1assertion/5couvertures ; aucun resultat Kani ne prouve Metal ou la concurrence.
 
-Audit et correctif local : [analyse Regolith](../../pr161-regolith-audit-2026-11-08.md). Aucun push, merge, paquet ou application installee modifie.
+Audit et correctif local : [analyse Regolith](../../issues/reviews/pr161-regolith-audit-2026-11-08.md). Aucun push, merge, paquet ou application installee modifie.
 
 ## Correctif HC/routeur et diagnostic court
 

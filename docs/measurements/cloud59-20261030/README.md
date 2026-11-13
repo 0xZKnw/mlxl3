@@ -26,7 +26,7 @@ ce travail ne démontre pas l'absence de doublons dans un arbre inaccessible.
 
 `AGENTS.md`, le journal et les antécédents pertinents ont été consultés. Le dossier
 `.agents/skills` manque au checkout ; le skill utilisateur a été retrouvé via le
-lien de `docs/qwen27-m5-round2.md` :
+lien de `docs/modeles/qwen/qwen27-m5-round2.md` :
 [formal-proof-skill](https://github.com/0xZKnw/formal-proof-skill/tree/5f00bb443c9d0d14f705a3098381850166a83e5c),
 SKILL et références Rust/C++/Python lus à cette révision. Il n'a pas été ajouté
 comme dépendance du projet.

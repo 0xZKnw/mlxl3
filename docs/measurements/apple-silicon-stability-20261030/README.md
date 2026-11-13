@@ -1,6 +1,6 @@
 # Local verification evidence
 
-The [parent report](../../apple-silicon-stability-20261030.md) distinguishes
+The [parent report](../../operations/memory-hardware/apple-silicon-stability-20261030.md) distinguishes
 passing tests, dependency failures, unavailable verifiers and physical checks.
 `verification.json` hashes the changed executable sources and saved logs. Later
 documentation changes do not requalify a different executable version.

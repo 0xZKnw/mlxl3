@@ -1,6 +1,6 @@
 # AR20 — TurboEXL3 and native EXL3 kernel research
 
-Source-only research under `AR20-RESEARCH-20261105`/`9e6eb39d`, above PR132/all twelve AR10 flags ON. Read `opti.md`, AR10 matrix/audit/kernel-bank report, the native NT2 audit, `docs/qwen38-decode-local.md`, opt54Q closure and old DEC-ONE/T04 history before proposing repeats. No executable source, model, compiler, proof or benchmark launched. Raw primary source reads were bounded per-file HTTP reads; no repository clone or model download. Only this research note is written in the root worktree.
+Source-only research under `AR20-RESEARCH-20261105`/`9e6eb39d`, above PR132/all twelve AR10 flags ON. Read `opti.md`, AR10 matrix/audit/kernel-bank report, the native NT2 audit, `docs/modeles/qwen/qwen38-decode-local.md`, opt54Q closure and old DEC-ONE/T04 history before proposing repeats. No executable source, model, compiler, proof or benchmark launched. Raw primary source reads were bounded per-file HTTP reads; no repository clone or model download. Only this research note is written in the root worktree.
 
 ## Identity and pins
 

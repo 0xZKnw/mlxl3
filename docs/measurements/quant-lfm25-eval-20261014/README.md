@@ -28,5 +28,5 @@ Son original reste dans le work-dir de conversion. Les modèles, le backend
 GGUF téléchargé et les matrices/dump de logits restent exclusivement dans
 les dossiers locaux `models`/`build`, sans ajout à Git.
 
-Protocoles, résultats et limites : [rapport](../../lfm25-measurements-2026-10-14.md),
+Protocoles, résultats et limites : [rapport](../../modeles/lfm/lfm25-measurements-2026-10-14.md),
 essais14/15/16 de [opti.md](../../../opti.md).
