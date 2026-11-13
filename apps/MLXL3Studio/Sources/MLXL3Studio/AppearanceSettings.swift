@@ -13,7 +13,7 @@ struct AppearanceSettings: View {
                 )
                 .foregroundStyle(StudioTheme.secondary)
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(minimum: 100), spacing: 12), count: 4), spacing: 12
+                    columns: [GridItem(.adaptive(minimum: 132), spacing: 12)], spacing: 12
                 ) {
                     ForEach(AppTheme.allCases, id: \.self) { theme in
                         Button {
@@ -124,27 +124,32 @@ private struct ThemePreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 7) {
-                    RoundedRectangle(cornerRadius: 2).fill(StudioTheme.secondary).frame(width: 20, height: 4)
-                    RoundedRectangle(cornerRadius: 2).fill(StudioTheme.quiet).frame(width: 28, height: 3)
-                    RoundedRectangle(cornerRadius: 2).fill(StudioTheme.quiet).frame(width: 23, height: 3)
+                VStack(alignment: .leading, spacing: 4) {
+                    MonogramMark(size: 15)
+                    Capsule().fill(StudioTheme.quiet).frame(width: 12, height: 2)
+                    Capsule().fill(StudioTheme.quiet).frame(width: 16, height: 2)
                     Spacer()
                 }
-                .padding(10).frame(width: 48).background(StudioTheme.sidebar(for: theme))
-                VStack(alignment: .leading, spacing: 7) {
+                .padding(6).frame(width: 28)
+                .modifier(StudioSidebarSurface())
+                VStack(spacing: 5) {
+                    Spacer()
                     Text("Aa").font(.system(size: 19, design: .serif))
-                    RoundedRectangle(cornerRadius: 2).fill(StudioTheme.quiet).frame(height: 3)
-                    RoundedRectangle(cornerRadius: 2).fill(StudioTheme.quiet).frame(width: 40, height: 3)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(StudioTheme.composer(for: theme))
+                        .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(StudioTheme.edge) }
+                        .frame(height: 11)
                     Spacer(minLength: 0)
-                    RoundedRectangle(cornerRadius: 4).fill(StudioTheme.composer(for: theme)).frame(height: 14)
                 }
-                .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 7).frame(maxWidth: .infinity)
             }
-            .frame(height: 100)
-            .background(StudioTheme.canvas(for: theme))
+            .frame(height: 68)
+            .background { StudioAurora().background(StudioTheme.canvas(for: theme)) }
             .foregroundStyle(StudioTheme.ink)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .environment(\.studioAppTheme, theme)
             .environment(\.colorScheme, theme.colorScheme ?? colorScheme)
+            .accessibilityHidden(true)
             HStack {
                 Text(theme.title).font(.system(size: 13, weight: selected ? .semibold : .regular))
                 Spacer()

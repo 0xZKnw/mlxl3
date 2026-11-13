@@ -653,7 +653,7 @@ struct ComposerView: View {
                     .lineLimit(1...6)
                     .focused($focused)
                     .padding(.vertical, 5)
-                    .frame(minHeight: 24, alignment: .topLeading)
+                    .frame(minHeight: 38, alignment: .topLeading)
                     .contentShape(Rectangle())
                     .background(ComposerPasteMonitor(focused: focused, studio: studio))
                     .onPasteCommand(of: [.image]) { _ in
@@ -675,8 +675,8 @@ struct ComposerView: View {
 
             }
             .padding(.horizontal, 18)
-            .padding(.top, 12)
-            .padding(.bottom, 6)
+            .padding(.top, 15)
+            .padding(.bottom, 3)
 
             if let reason = studio.sendBlockReason {
                 Text(reason).font(.caption).foregroundStyle(StudioTheme.secondary)
@@ -685,15 +685,19 @@ struct ComposerView: View {
             }
             ComposerFooterView()
         }
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .onTapGesture {
             guard !studio.isGenerating else { return }
             focused = true
         }
-        .background(StudioTheme.composer(for: appTheme), in: RoundedRectangle(cornerRadius: 12))
+        .background {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(StudioTheme.composer(for: appTheme))
+                .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(dropTargeted ? StudioTheme.accent : StudioTheme.contrast.opacity(focused ? 0.22 : 0.10), lineWidth: dropTargeted ? 1.5 : 0.7)
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(dropTargeted ? studio.accentColor : StudioTheme.contrast.opacity(focused ? 0.30 : 0.14), lineWidth: dropTargeted ? 2 : 1)
                 .allowsHitTesting(false)
         }
         .dropDestination(for: URL.self) { urls, _ in
@@ -808,13 +812,14 @@ private struct ComposerFooterView: View {
                         Label(L("Exporter la conversation…", "Export conversation…"), systemImage: "square.and.arrow.up")
                     }
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .medium))
-                        .frame(width: 30, height: 30, alignment: .center)
-                        .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
+                    Label(L("Outils", "Tools"), systemImage: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 9)
+                        .frame(height: 28)
+                        .background(StudioTheme.panel, in: Capsule())
                 }
                 .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
-                .frame(width: 30, height: 30)
+                .fixedSize()
                 .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
                 .accessibilityValue(studio.mcpEnabled ? L("Outils activés", "Tools enabled") : L("Outils désactivés", "Tools disabled"))
                 .help(L("Fichiers et outils (⌘⇧O pour joindre un fichier)", "Files and tools (⌘⇧O to attach a file)"))
@@ -841,7 +846,7 @@ private struct ComposerFooterView: View {
                     Button(action: studio.send) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(studio.canAttemptSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
+                            .foregroundStyle(StudioTheme.onAccent)
                             .frame(width: 31, height: 31)
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))

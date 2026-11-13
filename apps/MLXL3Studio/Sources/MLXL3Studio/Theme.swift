@@ -88,7 +88,22 @@ extension View {
     }
 }
 
-/// A single, restrained interaction surface for navigation and toolbars.
+struct StudioSidebarSurface: ViewModifier {
+    @Environment(\.studioAppTheme) private var theme
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                let base = StudioTheme.sidebar(for: theme)
+                LinearGradient(colors: [base.opacity(0.20), base.opacity(0.78)],
+                               startPoint: .top, endPoint: .center)
+            }
+            .overlay(alignment: .trailing) {
+                Rectangle().fill(StudioTheme.edge).frame(width: 1).allowsHitTesting(false)
+            }
+    }
+}
+
 struct StudioControlStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     var emphasized = false
@@ -295,5 +310,7 @@ struct StudioPanelHeader: View {
             StudioBackButton(action: close)
         }
         .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 22)
+        .background(alignment: .top) { StudioAurora().scaleEffect(y: 2, anchor: .top).opacity(0.55) }
+        .clipped()
     }
 }

@@ -41,6 +41,8 @@ import SwiftUI
         }
         let file = root.appendingPathComponent("pins.json")
         let visual = make(preview: true, file: file)
+        checkAuroraPlayback()
+        try await checkAurora(studio: visual, preferences: prefs)
         let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
         let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")], createdAt: Date(timeIntervalSince1970: 200))
         let c = Conversation(title: "Notes", messages: [ChatMessage(role: .assistant, content: "C")], createdAt: Date(timeIntervalSince1970: 100))
@@ -225,5 +227,83 @@ import SwiftUI
             window.close()
         }
         print("Desktop experience checks passed: \(checks) assertions; pin/history migration, width/draft, per-model MTP OFF/ON/reload/startup/failure/Flash integrated head")
+    }
+}
+
+extension DesktopExperienceCheck {
+    /// Probe the actual window, so a canvas accidentally covering the aurora also fails.
+    @MainActor static func checkAurora(studio: StudioModel, preferences: UserDefaults) async throws {
+        _ = NSApplication.shared
+        preferences.set(true, forKey: "studio.sidebarVisible")
+        for (theme, width, height) in [(AppTheme.light, 820, 600), (.dark, 1280, 820)] {
+            let bounds = NSRect(x: 0, y: 0, width: width, height: height)
+            let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            window.appearance = NSAppearance(named: theme == .light ? .aqua : .darkAqua)
+            studio.setTheme(theme)
+            studio.engineState = .idle
+            let view = StudioView().defaultAppStorage(preferences).environmentObject(studio)
+                .studioAppearance(theme).transaction { $0.disablesAnimations = true }
+            let host = NSHostingView(rootView: view)
+            window.contentView = host
+            host.frame = bounds
+
+            func snapshot() async throws -> NSBitmapImageRep {
+                try await Task.sleep(for: .milliseconds(150))
+                host.layoutSubtreeIfNeeded()
+                let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                precondition(bitmap.pixelsWide >= width && bitmap.pixelsHigh >= height)
+                return bitmap
+            }
+            func color(_ image: NSBitmapImageRep, x: Double, y: Double) -> NSColor {
+                image.colorAt(x: Int(x * Double(image.pixelsWide)), y: Int(y * Double(image.pixelsHigh)))!
+                    .usingColorSpace(.sRGB)!
+            }
+            let idle = try await snapshot()
+            let cool = color(idle, x: 0.28, y: 0.012)
+            let warm = color(idle, x: 0.96, y: 0.012)
+            let reading = color(idle, x: 0.83, y: 0.84)
+            precondition(cool.blueComponent > cool.redComponent + 0.04, "Missing cool end of workspace aurora")
+            precondition(warm.redComponent > warm.blueComponent + 0.06, "Missing warm end of workspace aurora")
+            precondition(abs(reading.redComponent - reading.blueComponent) < 0.03, "Tint leaked below the reading surface")
+            precondition(theme == .light ? reading.redComponent > 0.85 : reading.redComponent < 0.2, "Lost theme canvas")
+            studio.engineState = .generating
+            let busy = try await snapshot()
+            let before = color(idle, x: 0.39, y: 0.32), after = color(busy, x: 0.39, y: 0.32)
+            precondition(abs((after.blueComponent - after.redComponent) - (before.blueComponent - before.redComponent)) > 0.03,
+                         "Generation must visibly change the band without animation")
+        }
+        studio.engineState = .idle
+        print("Aurora passed 10 window checks, compact light and wide dark, idle and generating")
+    }
+}
+
+extension DesktopExperienceCheck {
+    static func checkAuroraPlayback() {
+        var playback = AuroraPlayback(at: 0)
+        precondition(playback.phase(at: 4) == 4)
+        playback.setGenerating(true, at: 4)
+        precondition(playback.phase(at: 4) == 4)
+        precondition(abs(playback.phase(at: 8) - playback.phase(at: 7) - 4.4) < 1e-9)
+        func speed(_ time: Double) -> Double {
+            (playback.phase(at: time + 0.0001) - playback.phase(at: time)) / 0.0001
+        }
+        precondition(speed(4.5) < 1 && speed(5.5) > 4.4)
+        for (time, busy) in [(6.0, false), (6.4, true), (6.6, false)] {
+            let position = playback.phase(at: time), rate = speed(time)
+            playback.setGenerating(busy, at: time)
+            precondition(abs(playback.phase(at: time) - position) < 1e-9 && abs(speed(time) - rate) < 0.002)
+            for step in 0..<30 { precondition(speed(time + Double(step) / 100) > 0) }
+        }
+        precondition(abs(speed(12) - 1) < 1e-7)
+        for pulse in 0..<12 {
+            let time = 15 + Double(pulse) * 0.49
+            playback.setGenerating(true, at: time)
+            for step in 0...47 { precondition(speed(time + Double(step) / 100) >= 0.12) }
+            playback.setGenerating(false, at: time + 0.48)
+        }
+        print("Aurora playback passed: undershoot, overshoot, 4.4x cruise, continuous reversals, return to 1x, twelve rapid restarts")
     }
 }

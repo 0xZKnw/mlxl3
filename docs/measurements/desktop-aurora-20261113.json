@@ -1,0 +1,686 @@
+{
+  "source_base": "db8bf70dcabb47ad608698024aa141815b65b99c",
+  "variants": {
+    "A": "Unmodified StudioView",
+    "B": "Aurora, animation timeline",
+    "C": "Aurora, periodic timeline",
+    "D": "Delivered Aurora, cancellable SwiftUI task, 167/83 ms steps"
+  },
+  "shipped_aurora_sha256": "716074181e1b314a532fc6f3c366c596fa95d6bd7b563fa7a08009267663996a",
+  "protocol": {
+    "machine": "Apple M5, 24 GiB",
+    "system": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+    "power": "Battery; nominal thermal state for all samples",
+    "compiler": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0",
+    "sdk": "macOS 26.5, -O -whole-module-optimization, same native SwiftMath objects",
+    "window": "1024×640 pt, Retina 2× on 60 Hz virtual display, NSApplication/AppKit event loop, visible nonactivating NSPanel containing production StudioView; scenePhase explicit",
+    "fixture": "StudioModel.uiPreview, dark theme, same initial conversation, engine state toggled; no weights or inference",
+    "sampling": "3 s settling then 7 s per state, getrusage process CPU time / wall time (100% = one core), proc_pid_rusage physical footprint at sample end. Two runs per variant in each given order. Interrupt wakeups from rusage.",
+    "limits": "WindowServer is shared. Per-process Mach GPU time returned zero for all variants; no attributable GPU, power or tok/s measurement."
+  },
+  "runs": {
+    "native": {
+      "order": "ABBA",
+      "binaries": {
+        "A": "c986047d0d77c2fdba4a2ade4bc7726f98d992254186169894f40e61ded2a0e4",
+        "B": "a797cc05ee6bbf5096d8f5b8dc974f72c77ac39b4302dcae0c5d528279c49076"
+      },
+      "passes": [
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.008,
+              "cpu": 0.223,
+              "footprintMiB": 33.44,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.86,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 173018071.50325623
+            },
+            {
+              "state": "generating",
+              "seconds": 7.268,
+              "cpu": 0.012,
+              "footprintMiB": 33.74,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.41,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 163843001.27726394
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.462,
+              "cpu": 0.011,
+              "footprintMiB": 33.74,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.54,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 168140960.00969872
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.041,
+              "cpu": 0.008,
+              "footprintMiB": 33.8,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.43,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 71543807.00622566
+            }
+          ]
+        },
+        {
+          "version": "B",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.313,
+              "cpu": 7.936,
+              "footprintMiB": 54.58,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 119.79,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 382919601.5911301
+            },
+            {
+              "state": "generating",
+              "seconds": 7.456,
+              "cpu": 11.042,
+              "footprintMiB": 68.86,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 120.72,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 329286719.6620585
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.305,
+              "cpu": 0.165,
+              "footprintMiB": 63.42,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.55,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 172997785.258061
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.342,
+              "cpu": 0.009,
+              "footprintMiB": 63.03,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.68,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 78968663.57471919
+            }
+          ]
+        },
+        {
+          "version": "B",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.439,
+              "cpu": 11.113,
+              "footprintMiB": 56.64,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 119.91,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 253469680.11138043
+            },
+            {
+              "state": "generating",
+              "seconds": 7.009,
+              "cpu": 10.671,
+              "footprintMiB": 68.8,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 120.0,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 271271155.3649779
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.028,
+              "cpu": 0.012,
+              "footprintMiB": 65.49,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.57,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 170701197.13538802
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.008,
+              "cpu": 0.013,
+              "footprintMiB": 63.09,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.86,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": -48708598.560781755,
+              "compositorMetalRawPerSecond": 76228680.20172735
+            }
+          ]
+        },
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.412,
+              "cpu": 0.033,
+              "footprintMiB": 33.38,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.81,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 176924648.43037778
+            },
+            {
+              "state": "generating",
+              "seconds": 7.449,
+              "cpu": 0.007,
+              "footprintMiB": 33.69,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.4,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 165560222.00233775
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.307,
+              "cpu": 0.008,
+              "footprintMiB": 33.64,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.41,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 383042295.75714713
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.239,
+              "cpu": 0.008,
+              "footprintMiB": 33.78,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.41,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 73038284.96023166
+            }
+          ]
+        }
+      ]
+    },
+    "confirmed": {
+      "order": "ACCA",
+      "binaries": {
+        "A": "c986047d0d77c2fdba4a2ade4bc7726f98d992254186169894f40e61ded2a0e4",
+        "C": "f7450e3f9ef654a520e661e7711e1eba4aec38a41efede3eed2d5be23f3991ca"
+      },
+      "passes": [
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.414,
+              "cpu": 0.196,
+              "footprintMiB": 33.56,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.67,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 205032856.85169172
+            },
+            {
+              "state": "generating",
+              "seconds": 7.02,
+              "cpu": 0.021,
+              "footprintMiB": 33.91,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.57,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 179193786.20072857
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.377,
+              "cpu": 0.009,
+              "footprintMiB": 33.89,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.41,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 169968840.64392823
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.413,
+              "cpu": 0.007,
+              "footprintMiB": 34.06,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.4,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 78069672.69360621
+            }
+          ]
+        },
+        {
+          "version": "C",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.382,
+              "cpu": 8.396,
+              "footprintMiB": 56.66,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 119.88,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 211279861.5197439
+            },
+            {
+              "state": "generating",
+              "seconds": 7.027,
+              "cpu": 8.495,
+              "footprintMiB": 67.74,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 120.54,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 203202166.80879533
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.259,
+              "cpu": 0.227,
+              "footprintMiB": 62.36,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.69,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 240945428.49877504
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.419,
+              "cpu": 0.009,
+              "footprintMiB": 61.97,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.67,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 71709692.587553
+            }
+          ]
+        },
+        {
+          "version": "C",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.134,
+              "cpu": 8.056,
+              "footprintMiB": 56.66,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 120.13,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 212533812.40998572
+            },
+            {
+              "state": "generating",
+              "seconds": 7.426,
+              "cpu": 10.702,
+              "footprintMiB": 68.89,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 120.12,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 330924678.5406598
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.258,
+              "cpu": 0.015,
+              "footprintMiB": 65.41,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.69,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 169866143.8491043
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.438,
+              "cpu": 0.005,
+              "footprintMiB": 63.09,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.67,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 84547529.16254486
+            }
+          ]
+        },
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.277,
+              "cpu": 0.1,
+              "footprintMiB": 33.75,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.69,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 194298522.11101502
+            },
+            {
+              "state": "generating",
+              "seconds": 7.128,
+              "cpu": 0.037,
+              "footprintMiB": 34.02,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.42,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 170545832.64899984
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.466,
+              "cpu": 0.012,
+              "footprintMiB": 33.99,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.4,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 172124650.9472334
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.423,
+              "cpu": 0.007,
+              "footprintMiB": 34.08,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.4,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 10529425.570591535
+            }
+          ]
+        }
+      ]
+    },
+    "discrete": {
+      "order": "ADDA",
+      "binaries": {
+        "A": "c986047d0d77c2fdba4a2ade4bc7726f98d992254186169894f40e61ded2a0e4",
+        "D": "b08afe18b3fef4a47388b3abd59fedc9d6207e0b9c730a405f3d3e622b947b11"
+      },
+      "passes": [
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.072,
+              "cpu": 0.018,
+              "footprintMiB": 33.53,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.85,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 95705668.5151773
+            },
+            {
+              "state": "generating",
+              "seconds": 7.443,
+              "cpu": 0.014,
+              "footprintMiB": 33.92,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.54,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 101003994.00021313
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.036,
+              "cpu": 0.011,
+              "footprintMiB": 33.95,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.57,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 98138357.04760464
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.253,
+              "cpu": 0.009,
+              "footprintMiB": 34.03,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.41,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 919553.0114157832
+            }
+          ]
+        },
+        {
+          "version": "D",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.092,
+              "cpu": 1.365,
+              "footprintMiB": 56.67,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 6.91,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 154905354.30193412
+            },
+            {
+              "state": "generating",
+              "seconds": 7.05,
+              "cpu": 2.574,
+              "footprintMiB": 68.97,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 12.91,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 189888254.69933006
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.183,
+              "cpu": 0.013,
+              "footprintMiB": 66.55,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.84,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 98728768.11954135
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.125,
+              "cpu": 0.009,
+              "footprintMiB": 62.17,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.42,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": -78305059.3737816,
+              "compositorMetalRawPerSecond": 0.0
+            }
+          ]
+        },
+        {
+          "version": "D",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.13,
+              "cpu": 1.253,
+              "footprintMiB": 56.66,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 7.01,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 160721826.74527785
+            },
+            {
+              "state": "generating",
+              "seconds": 7.019,
+              "cpu": 2.422,
+              "footprintMiB": 69.05,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 14.67,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 186149139.98181295
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.037,
+              "cpu": 0.015,
+              "footprintMiB": 66.61,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.99,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 96547043.60706675
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.094,
+              "cpu": 0.009,
+              "footprintMiB": 62.24,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.42,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": -77693460.13874277,
+              "compositorMetalRawPerSecond": 0.0
+            }
+          ]
+        },
+        {
+          "version": "A",
+          "samples": [
+            {
+              "state": "idle",
+              "seconds": 7.449,
+              "cpu": 0.015,
+              "footprintMiB": 33.75,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.81,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 97057871.65608199
+            },
+            {
+              "state": "generating",
+              "seconds": 7.445,
+              "cpu": 0.053,
+              "footprintMiB": 34.05,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.54,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 96652419.35457979
+            },
+            {
+              "state": "inactive",
+              "seconds": 7.188,
+              "cpu": 0.01,
+              "footprintMiB": 34.09,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.42,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 98472172.63175187
+            },
+            {
+              "state": "hidden",
+              "seconds": 7.462,
+              "cpu": 0.006,
+              "footprintMiB": 34.16,
+              "gpuCounterDelta": 0.0,
+              "interruptsPerSec": 0.27,
+              "scale": 2.0,
+              "thermal": 0.0,
+              "appMetalRawPerSecond": 0.0,
+              "compositorMetalRawPerSecond": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

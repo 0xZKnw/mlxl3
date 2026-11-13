@@ -2,14 +2,16 @@ import SwiftUI
 
 struct GenerationInspector: View {
     @Environment(\.studioAppTheme) private var appTheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Paramètres", "Settings"))
-                        .font(.system(size: 27, weight: .regular, design: .serif))
+                    Text(L("Génération", "Generation"))
+                        .font(.system(size: 31, weight: .regular, design: .serif))
+                        .tracking(-0.7)
                     Text(studio.selectedModel?.name ?? L("Aucun modèle sélectionné", "No model selected"))
                         .lineLimit(2)
                         .font(.system(size: 13))
@@ -23,92 +25,16 @@ struct GenerationInspector: View {
                         .font(.system(size: 13, weight: .bold))
                         .frame(width: 34, height: 34)
                 }
-                .buttonStyle(RoundGlassButtonStyle())
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel(L("Fermer les paramètres du modèle", "Close model settings"))
             }
-            .padding(.top, 25)
-            .padding(.horizontal, 18)
-            .padding(.bottom, 22)
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 16)
 
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 16) {
-                        SettingCard(title: L("Contexte", "Context"), icon: "chart.bar") {
-                            Text(studio.contextLabel + " tokens")
-                                .font(.system(size: 13, weight: .medium)).monospacedDigit()
-                            if let limit = studio.activeContextLimit, limit > 0 {
-                                ProgressView(value: min(Double(studio.contextUsed ?? 0) / Double(limit), 1))
-                                    .tint(StudioTheme.accent)
-                            }
-                            ContextLimitField(value: $studio.contextLengthDraft, maximum: studio.modelContextLimit)
-                                .disabled(studio.isGenerating || studio.modelContextLimit == nil)
-                            if let cache = studio.draftContextBytes, let model = studio.modelResidentBytes {
-                                VStack(alignment: .leading, spacing: 7) {
-                                    HStack {
-                                        Text(L("Modèle + contexte", "Model + context"))
-                                        Spacer()
-                                        Text(memory(model + cache)).monospacedDigit()
-                                    }
-                                    .font(.system(size: 13, weight: .semibold))
-                                    Text(L("Estimation à contexte plein", "Full-context estimate"))
-                                        .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                        .help(L("Modèle \(memory(model)) + cache \(memory(cache)). Hors buffers de calcul, autres caches et macOS.", "Model \(memory(model)) + cache \(memory(cache)). Excludes compute buffers, other caches and macOS."))
-                                    if model + cache > Double(ProcessInfo.processInfo.physicalMemory) * 0.85 {
-                                        Label(
-                                            L(
-                                                "Peu de marge mémoire pour le calcul et macOS.",
-                                                "Little memory headroom for compute and macOS."),
-                                            systemImage: "exclamationmark.triangle"
-                                        )
-                                        .font(.system(size: 12)).foregroundStyle(.orange)
-                                    }
-                                }
-                                .padding(10)
-                                .background(StudioTheme.contrast.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
-                            } else {
-                                Text(L("Estimation mémoire indisponible", "Memory estimate unavailable"))
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                            }
-                            Menu(L("Préréglages", "Presets")) {
-                                Button(L("Automatique", "Automatic")) { studio.contextLengthDraft = 0 }
-                                ForEach(
-                                    [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144].filter {
-                                        $0 <= (studio.modelContextLimit ?? 0)
-                                    }, id: \.self
-                                ) { length in
-                                    Button(length.formatted()) { studio.contextLengthDraft = length }
-                                }
-                            }
-                            .disabled(studio.isGenerating || studio.modelContextLimit == nil)
-                            if let advised = studio.recommendedContextLength {
-                                Button(
-                                    L(
-                                        "Utiliser le contexte conseillé : \(advised.formatted()) tokens",
-                                        "Use recommended context: \(advised.formatted()) tokens")
-                                ) {
-                                    studio.contextLengthDraft = advised
-                                }
-                                .font(.system(size: 12))
-                                .disabled(studio.isGenerating || studio.isTuningMTP)
-                                .help(L("Estimation avec marge mémoire ; les autres applications peuvent réduire la marge disponible.", "Estimate includes memory headroom; other apps may reduce available memory."))
-                            }
-                            if let maximum = studio.modelContextLimit {
-                                Text(
-                                    L(
-                                        "Maximum du modèle : \(maximum.formatted()) tokens",
-                                        "Model maximum: \(maximum.formatted()) tokens")
-                                )
-                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                            }
-                            Button(action: studio.saveContextAndReload) {
-                                Text(L("Enregistrer et recharger le modèle", "Save and reload model"))
-                                    .font(.system(size: 13, weight: .medium))
-                                    .frame(maxWidth: .infinity).padding(.vertical, 10)
-                            }
-                            .buttonStyle(GlassPillButtonStyle())
-                            .disabled(!studio.canSaveContext)
-                            .help(L("0 utilise le maximum du modèle. Recharger vide le cache et conserve l’historique.", "0 uses the model maximum. Reloading clears the cache and keeps history."))
-                        }
+                        ContextSettings()
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
                             VStack(spacing: 16) {
                                 SliderSetting(
@@ -276,7 +202,7 @@ struct GenerationInspector: View {
                                 .frame(height: 150)
                                 .accessibilityLabel(L("Instruction système", "System instruction"))
                                 .padding(9)
-                                .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
+                                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
@@ -396,11 +322,99 @@ struct GenerationInspector: View {
                 }
             }
         }
-        .background(StudioTheme.sidebar(for: appTheme))
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .background {
+            let shape = RoundedRectangle(cornerRadius: 22)
+            if reduceTransparency {
+                shape.fill(StudioTheme.canvas(for: appTheme))
+            } else {
+                StudioAurora()
+                    .opacity(0.32)
+                    .background(StudioTheme.canvas(for: appTheme).opacity(0.96))
+                    .glassEffect(.regular, in: shape)
+                    .clipShape(shape)
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22).strokeBorder(StudioTheme.edge)
+                .allowsHitTesting(false)
+        }
         .onChange(of: studio.temperature) { studio.settingsDidChange() }
         .onChange(of: studio.topK) { studio.settingsDidChange() }
         .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }
         .onChange(of: studio.systemPrompt) { studio.settingsDidChange() }
+    }
+
+}
+
+private struct ContextSettings: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Contexte utilisé", "Context used"))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(StudioTheme.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(studio.contextLabel)
+                    .font(.system(size: 26, weight: .medium)).tracking(-1)
+                    .monospacedDigit()
+                Text("tokens").font(.caption).foregroundStyle(StudioTheme.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            if let limit = studio.activeContextLimit, limit > 0, let used = studio.contextUsed {
+                ProgressView(value: min(max(Double(used) / Double(limit), 0), 1))
+                    .tint(StudioTheme.ink)
+                    .accessibilityLabel(L("Contexte utilisé", "Context used"))
+                    .accessibilityValue(studio.contextLabel)
+            }
+            Divider().padding(.vertical, 3)
+            ContextLimitField(value: $studio.contextLengthDraft, maximum: studio.modelContextLimit)
+                .disabled(studio.isGenerating || studio.modelContextLimit == nil)
+            if let advised = studio.recommendedContextLength {
+                Button { studio.contextLengthDraft = advised } label: {
+                    HStack(spacing: 6) {
+                        Text(L("Utiliser la limite conseillée", "Use recommended limit"))
+                        Spacer(minLength: 4)
+                        Text(advised.formatted()).monospacedDigit().fixedSize()
+                        Image(systemName: "arrow.up.to.line.compact")
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 9).padding(.vertical, 8)
+                }
+                .buttonStyle(StudioControlStyle(emphasized: true))
+                .disabled(studio.isGenerating || studio.isTuningMTP)
+                .help(L("Estimation avec marge mémoire ; les autres applications peuvent réduire la marge disponible.", "Estimate includes memory headroom; other apps may reduce available memory."))
+            }
+            if let cache = studio.draftContextBytes, let model = studio.modelResidentBytes {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("Modèle + contexte", "Model + context")).font(.subheadline)
+                        Text(L("Estimation à contexte plein", "Full-context estimate"))
+                            .font(.caption).foregroundStyle(StudioTheme.secondary)
+                    }
+                    Spacer()
+                    Text(memory(model + cache)).font(.headline).monospacedDigit()
+                }
+                .help(L("Modèle \(memory(model)) + cache \(memory(cache)). Hors buffers de calcul, autres caches et macOS.", "Model \(memory(model)) + cache \(memory(cache)). Excludes compute buffers, other caches and macOS."))
+                if model + cache > Double(ProcessInfo.processInfo.physicalMemory) * 0.85 {
+                    Label(L("Peu de marge mémoire pour le calcul et macOS.", "Little memory headroom for compute and macOS."),
+                          systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                }
+            } else {
+                Text(L("Estimation mémoire indisponible", "Memory estimate unavailable"))
+                    .font(.caption).foregroundStyle(StudioTheme.secondary)
+            }
+            Button(action: studio.saveContextAndReload) {
+                Label(L("Appliquer et recharger", "Apply and reload"), systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity).padding(.vertical, 5)
+            }
+            .buttonStyle(.glass)
+            .disabled(!studio.canSaveContext)
+            .help(L("0 utilise le maximum du modèle. Recharger vide le cache et conserve l’historique.", "0 uses the model maximum. Reloading clears the cache and keeps history."))
+        }
+        .padding(.horizontal, 4).padding(.bottom, 4)
+        .foregroundStyle(StudioTheme.ink)
     }
 
     private func memory(_ bytes: Double) -> String {
@@ -409,6 +423,7 @@ struct GenerationInspector: View {
 }
 
 struct SettingCard<Content: View>: View {
+    @Environment(\.studioAppTheme) private var theme
     let title: String
     let icon: String
     @ViewBuilder let content: Content
@@ -420,17 +435,24 @@ struct SettingCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
+        VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(StudioTheme.ink)
-            content
+                .padding(.horizontal, 3)
+                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 13) {
+                content
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(StudioTheme.composer(for: theme), in: RoundedRectangle(cornerRadius: 14))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14).strokeBorder(StudioTheme.edge)
+                    .allowsHitTesting(false)
+            }
         }
         .font(.system(size: 13))
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 0.7))
     }
 }
 
@@ -481,14 +503,29 @@ struct ContextLimitField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(L("Limite en tokens", "Token limit")).fontWeight(.medium)
+            HStack(alignment: .firstTextBaseline) {
+                Text(L("Limite en tokens", "Token limit")).fontWeight(.medium)
+                Spacer()
+                Menu(L("Préréglages", "Presets")) {
+                    Button(L("Automatique", "Automatic")) { value = 0 }
+                    ForEach([2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144].filter {
+                        $0 <= (maximum ?? 0)
+                    }, id: \.self) { length in
+                        Button(length.formatted()) { value = length }
+                    }
+                }
+                .fixedSize().controlSize(.small)
+            }
             TextField(L("0 = automatique", "0 = automatic"), text: $text)
-                .textFieldStyle(.plain).monospacedDigit().padding(11)
-                .background(Color.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(StudioTheme.edge))
+                .textFieldStyle(.roundedBorder).monospacedDigit()
+                .controlSize(.large)
                 .accessibilityLabel(L("Limite en tokens", "Token limit"))
                 .accessibilityIdentifier("settings.contextLimit")
                 .onChange(of: text) { value = Int(text) ?? -1 }
+            if let maximum {
+                Text(L("Maximum du modèle", "Model maximum") + " · " + maximum.formatted())
+                    .font(.caption).foregroundStyle(StudioTheme.secondary)
+            }
             if let maximum, value < 0 || value > maximum {
                 Text(
                     L(

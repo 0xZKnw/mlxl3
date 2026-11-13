@@ -165,9 +165,13 @@ extension StudioModel {
             }
             host.cacheDisplay(in: host.bounds, to: bitmap)
             check(bitmap.pixelsWide > 0 && bitmap.pixelsHigh > 0, "Empty settings bitmap")
-            let corner = bitmap.colorAt(x: 10, y: 10)!.usingColorSpace(.sRGB)!
+            let corner = bitmap.colorAt(x: 10, y: bitmap.pixelsHigh / 2)!.usingColorSpace(.sRGB)!
             check(theme == .light ? corner.redComponent > 0.7 : corner.redComponent < 0.3,
                   "Rendered settings did not follow selected theme")
+            let cool = bitmap.colorAt(x: bitmap.pixelsWide / 3, y: 8)!.usingColorSpace(.sRGB)!
+            let warm = bitmap.colorAt(x: bitmap.pixelsWide * 9 / 10, y: 8)!.usingColorSpace(.sRGB)!
+            check(cool.blueComponent > cool.redComponent + 0.04 && warm.redComponent > warm.blueComponent + 0.06,
+                  "Settings must carry the workspace aurora across its header")
             if theme == .midnightBlue {
                 check(corner.blueComponent > corner.redComponent + 0.07,
                       "Midnight blue must render a blue canvas, not the neutral dark palette")
@@ -203,7 +207,7 @@ extension StudioModel {
             host.layoutSubtreeIfNeeded()
             let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            let corner = bitmap.colorAt(x: 10, y: 10)!.usingColorSpace(.sRGB)!
+            let corner = bitmap.colorAt(x: 10, y: bitmap.pixelsHigh / 2)!.usingColorSpace(.sRGB)!
             check(dark ? corner.redComponent < 0.3 : corner.redComponent > 0.7,
                   "System theme did not follow application appearance")
         }

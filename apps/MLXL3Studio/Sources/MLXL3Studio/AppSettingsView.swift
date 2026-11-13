@@ -52,55 +52,62 @@ struct AppSettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                MonogramMark(size: 44)
-                    .padding(.horizontal, 10)
-                VStack(spacing: 5) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    MonogramMark(size: 35)
+                    Text(L("Réglages", "Settings"))
+                        .font(.system(size: 17, weight: .semibold)).tracking(-0.5)
+                }
+                .padding(.horizontal, 18).padding(.top, 37).padding(.bottom, 20)
+
+                VStack(spacing: 3) {
                     ForEach(SettingsPage.allCases) { page in
-                        Button {
-                            studio.appSettingsPage = page
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: page.icon).frame(width: 20)
+                        Button { studio.appSettingsPage = page } label: {
+                            HStack(spacing: 11) {
+                                Image(systemName: page.icon).frame(width: 18)
                                 Text(page.title)
                                 Spacer(minLength: 0)
                             }
                             .font(.system(size: 13, weight: selection == page ? .semibold : .regular))
-                            .padding(.horizontal, 12).frame(height: 44)
-
+                            .padding(.horizontal, 12).frame(height: 36)
                         }
                         .buttonStyle(StudioControlStyle(emphasized: selection == page))
                         .accessibilityIdentifier("settings.\(page.rawValue)")
                         .accessibilityAddTraits(selection == page ? .isSelected : [])
                     }
                 }
+                .padding(.horizontal, 10)
                 Spacer()
+                StudioBackButton(action: { studio.showAppSettings = false })
+                    .padding(.horizontal, 18).padding(.bottom, 18)
             }
-            .padding(20).padding(.top, 16).padding(.bottom, 12)
-            .frame(width: 222)
-            .background(StudioTheme.sidebar(for: studio.theme))
+            .frame(width: studio.sidebarWidth.points, alignment: .leading)
+            .modifier(StudioSidebarSurface())
 
-            Rectangle().fill(StudioTheme.edge).frame(width: 1)
-
-            VStack(spacing: 0) {
-                StudioPanelHeader(
-                    title: selection.title, detail: selection.detail,
-                    close: { studio.showAppSettings = false })
-                Rectangle().fill(StudioTheme.edge).frame(height: 1)
-                ScrollView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 25) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(selection.title)
+                            .font(.system(size: 39, weight: .regular, design: .serif)).tracking(-1.2)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(selection.detail)
+                            .font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
+                    }
                     pageContent
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(28)
                 }
-                .id(selection)
-                .transition(.opacity)
+                .padding(.vertical, 36)
+                .frame(maxWidth: 760, alignment: .leading)
+                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity)
             }
+            .id(selection)
+            .transition(.opacity)
         }
         .font(.system(size: 13))
         .foregroundStyle(StudioTheme.ink)
         .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StudioTheme.canvas(for: studio.theme))
+        .background { StudioAurora(animated: true).background(StudioTheme.canvas(for: studio.theme)) }
         .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .onExitCommand { studio.showAppSettings = false }
@@ -142,14 +149,9 @@ struct AppSettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(maxWidth: 320, alignment: .leading)
                 }
-                Label(
-                    L(
-                        "Les changements sont enregistrés automatiquement.", "Changes are saved automatically."),
-                    systemImage: "checkmark.circle"
-                )
-                .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
-
                 SettingCard(title: L("Notifications", "Notifications"), icon: "bell") {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle(
@@ -361,7 +363,7 @@ private struct HuggingFaceAccountView: View {
             .foregroundStyle(StudioTheme.secondary)
             SecureField(L("Token Hugging Face · hf_…", "Hugging Face token · hf_…"), text: $token)
                 .textFieldStyle(.plain).padding(12)
-                .background(Color.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
+                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(StudioTheme.edge))
                 .accessibilityLabel(L("Token Hugging Face", "Hugging Face token"))
                 .onSubmit { signIn() }
@@ -515,7 +517,7 @@ private struct UpdateSettingsCard: View {
                 Spacer(minLength: 0)
             }
             .padding(13)
-            .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 12))
+            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)

@@ -295,7 +295,9 @@ import SwiftUI
             host.cacheDisplay(in: host.bounds, to: bitmap)
             let corner = bitmap.colorAt(x: 2, y: 2)!.usingColorSpace(.deviceRGB)!
             check(corner.alphaComponent > 0.99, "Panel background is opaque")
-            check(max(corner.redComponent, corner.greenComponent, corner.blueComponent) < 0.15, "Panel uses the dark app background")
+            let canvas = bitmap.colorAt(x: 2, y: bitmap.pixelsHigh / 2)!.usingColorSpace(.deviceRGB)!
+            check(canvas.alphaComponent > 0.99 && max(canvas.redComponent, canvas.greenComponent, canvas.blueComponent) < 0.15,
+                  "Panel uses the opaque dark app background below its aurora header")
         }
         try await checkPanel(WorkspaceManagerView(), size: NSSize(width: 740, height: 590))
         try await checkPanel(MCPManagerView(), size: NSSize(width: 850, height: 620))
