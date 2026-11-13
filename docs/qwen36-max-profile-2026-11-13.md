@@ -1,6 +1,6 @@
 # Qwen3.6 35B : profilage decode, prefill et MTP
 
-Campagne des 12–13 novembre 2026 sur le moteur 2.0.8. Les noms de fichiers désignent les archives locales de mesure. **Profilage uniquement : aucun kernel ni
+Campagne des 12–13 novembre 2026 sur le moteur 2.0.8. [Données des six profils GPU et des trois profils CPU](measurements/qwen36-35b-m5-profile.json). Les noms de fichiers désignent les archives locales de mesure. **Profilage uniquement : aucun kernel ni
 source de production modifié pendant cette campagne.** Les changements locaux
 antérieurs sont conservés. Aucun moteur installé remplacé, aucun push ou build.
 
