@@ -1,0 +1,33 @@
+name: Feature request
+description: Describe a problem that MLXL3 could help solve.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests in English or French are welcome. Search existing issues first; use the bug form for broken behavior and Discord for usage questions.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe a concrete workflow and who it would help.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired behavior
+      description: Explain the result you want. An implementation proposal is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or current workaround
+      description: Mention existing options you tried and why they do not meet the need.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add examples or references. For model support, include the architecture and a public configuration/model link rather than uploading weights.

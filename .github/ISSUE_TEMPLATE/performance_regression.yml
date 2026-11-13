@@ -1,0 +1,66 @@
+name: Performance or memory regression
+description: Compare a reproducible slowdown or memory increase with a baseline.
+title: "[Performance]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports in English or French are welcome. A partial measurement is useful: mark missing measurements explicitly.
+        Keep credentials, private prompts and documents out of this public report.
+  - type: textarea
+    id: regression
+    attributes:
+      label: What became slower or used more memory?
+      description: Describe the affected user journey. Mention crashes, output changes or other correctness problems too.
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Current version and comparison baseline
+      description: Include Desktop builds, engine versions/commits and whether either build has local changes. If the baseline is unavailable, say so.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Hardware and measurement conditions
+      placeholder: |
+        Chip / RAM / OS:
+        Power source / thermal state:
+        Memory pressure or swap:
+        Other inference or heavy jobs running:
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Exact workload and reproduction
+      description: Include the command or app steps. For rendering issues, window size and state can replace model settings. Use a public or synthetic prompt when possible.
+      placeholder: |
+        Model repository / revision / quantization:
+        Prompt or reproducible input:
+        Context / output token budget:
+        Sampling / MTP / DFlash / memory settings:
+        Cache state / warmup / repetitions:
+        Steps or command:
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements and correctness checks
+      description: Separate prefill, decode, TTFT, total time and memory, with units. Distinguish process footprint from GPU allocation. Keep each run and note noise or missing values; do not claim parity from speed alone.
+      placeholder: |
+        Baseline:
+        Current:
+        Output / token-count / numerical checks performed:
+        Variability, failures and unmeasured paths:
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized logs or existing measurement report
+      description: Link related issues or an existing optimization-journal entry if available. You do not need to create a journal entry just to report a slowdown.

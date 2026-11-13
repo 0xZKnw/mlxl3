@@ -435,6 +435,14 @@ For controlled engine comparisons, use
 token/text parity, validates timings, bounds process waits and retains failed
 campaigns. Run GPU benchmarks separately from builds and other inference.
 
+## Contributing and community
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, relevant checks and
+pull request guidance. [Report a bug or suggest a feature](https://github.com/0xZKnw/mlxl3/issues/new/choose),
+or join [Discord](https://discord.gg/9hU46NVNnY) for usage questions. English and
+French contributions are welcome. Our [Code of Conduct](CODE_OF_CONDUCT.md)
+applies to community spaces; use [private reporting](SECURITY.md) for vulnerabilities.
+
 ## Limits and further reading
 
 - Native inference and Desktop require Apple Silicon/macOS. M1–M4 have less

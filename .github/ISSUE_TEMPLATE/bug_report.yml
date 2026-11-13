@@ -1,0 +1,86 @@
+name: Bug report
+description: Report a failure in Desktop, the engine, downloads or tools.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports in English or French are welcome. For a speed or memory regression, use the performance form instead.
+        Report security vulnerabilities [privately](https://github.com/0xZKnw/mlxl3/security/advisories/new).
+        Remove API keys, tokens, private prompts and documents from logs or screenshots. Our [Code of Conduct](https://github.com/0xZKnw/mlxl3/blob/main/CODE_OF_CONDUCT.md) applies here.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Desktop interface
+        - Chat or generation
+        - Agent or MCP tools
+        - Model loading or downloads
+        - Local server or API
+        - Engine / CLI / MLX / Metal
+        - Conversion or quantization
+        - Installation or updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened, and what did you expect?
+      description: Describe the observed behavior and the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the shortest sequence or command that reproduces the problem. Say if it is intermittent.
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: App and engine versions
+      description: Find the app version/build and engine version in Settings. For a source build, include the commit and local changes.
+      placeholder: |
+        Desktop version / build:
+        Engine version / commit:
+        Installed from DMG or built from source:
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: System and hardware
+      description: Include the OS version, chip and RAM. For CPU-only tests on another OS, describe that system instead.
+      placeholder: "Apple M5, 24 GiB RAM, macOS version and build"
+    validations:
+      required: true
+  - type: textarea
+    id: model-settings
+    attributes:
+      label: Model and settings, if relevant
+      description: Skip for UI-only bugs. Include the exact checkpoint and the settings needed to reproduce inference or conversion issues.
+      placeholder: |
+        Model repository / revision:
+        Format and quantization:
+        Context / output token limit:
+        Sampling / MTP / DFlash / memory settings:
+        Tools or image inputs:
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Include the error and relevant surrounding output. Remove credentials and private data.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or a short recording, if useful
+      description: For UI bugs, include the window size and appearance theme. Do not include private conversations.
