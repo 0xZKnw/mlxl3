@@ -932,6 +932,34 @@ impl Exl3SwitchGlu {
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
     }
 
+    pub(crate) fn q36_final_row_bank(&self) -> bool {
+        self.k == 2
+            && self.cb == Codebook::Mcg
+            && self.input == 2048
+            && self.hidden == 512
+            && self.logical_hidden == 512
+            && self.experts == 256
+            && self.top_k == 8
+            && matches!(self.activation, GluActivation::Silu)
+    }
+
+    // Same BM32 TensorOps accumulation as a full prefill. Each chosen expert
+    // gets one real row; the existing plan supplies its padded input tile.
+    pub(crate) fn forward_segmented_last(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+    ) -> Result<Array> {
+        ensure!(
+            x.shape() == [1, self.input]
+                && selected.shape() == [1, self.top_k]
+                && scores.shape() == [1, self.top_k],
+            "invalid final MoE row"
+        );
+        self.forward_segmented(x, &selected.reshape(&[self.top_k])?, scores, 1)
+    }
+
     fn forward_segmented(
         &self,
         x: &Array,

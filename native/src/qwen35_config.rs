@@ -80,6 +80,52 @@ fn replay_admission_requires_all_real_gdn_dimensions() {
     kani::cover!(!result && enabled && moe);
 }
 
+/// Only the last ordinary text layer can discard earlier MoE outputs.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn final_moe_row(
+    index: usize,
+    layers: usize,
+    time: i32,
+    trace: bool,
+    enabled: bool,
+) -> bool {
+    enabled && !trace && layers.checked_sub(1) == Some(index) && (64..=256).contains(&time)
+}
+
+#[cfg(test)]
+#[test]
+fn final_moe_row_checks_chunk_and_consumers() {
+    for (time, active) in [
+        (1, false),
+        (63, false),
+        (64, true),
+        (256, true),
+        (257, false),
+    ] {
+        assert_eq!(final_moe_row(39, 40, time, false, true), active);
+        assert!(!final_moe_row(38, 40, time, false, true));
+        assert!(!final_moe_row(39, 40, time, true, true));
+        assert!(!final_moe_row(39, 40, time, false, false));
+    }
+    assert!(!final_moe_row(usize::MAX, 0, 128, false, true));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn final_moe_row_preserves_all_observed_rows() {
+    let (index, layers, time, trace, enabled) = kani::any();
+    let prune = final_moe_row(index, layers, time, trace, enabled);
+    let last = (index as u128) + 1 == layers as u128;
+    assert_eq!(
+        prune,
+        last && !trace && enabled && time >= 64 && time <= 256
+    );
+    kani::cover!(prune && time == 64);
+    kani::cover!(prune && time == 256);
+    kani::cover!(!prune && trace && last);
+    kani::cover!(!prune && layers == 0);
+}
+
 /// Validate before a token can change any layer state. No wrapping cursor arithmetic.
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn native_step_end(token: u32, vocab: u32, offset: u32, limit: u32) -> Option<u32> {

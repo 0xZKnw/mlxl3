@@ -28450,3 +28450,23 @@ Le premier worktree q36-post209 contient les cinq essais indépendants. Dans ce 
 - Grille 32 exclue de ce candidat : le contrôle isolé sur exécutable b8255b76 ne reproduit pas l’amélioration longue dans les deux ordres (voir journal et données pour les deux agrégations). Tester le plan parallèle seul, en gardant les descripteurs de 64 et la grille existante. Le modèle, les poids et les options MTP restent ceux du moteur publié.
 
 - Plan parallèle qualifié pour l’intégration par le contrôle même binaire sur 1097 tokens : +3,65/+4,02 % tok/s préfill ABBA/BAAB. QKV+Z T4 : +5,20/+4,92 % FR et +4,77/+4,70 % code. Aucun seuil pour MTP1/2 ou AR ajouté. Démarrage vérification du source intégré.
+
+
+### Q36-FINAL-ROW-20261113 — préparation conditionnelle
+
+Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1,85/+1,34 % sur 1097 tokens. Préparer un candidat contenant uniquement la dernière ligne des experts routés, gardes de format et matériel, contrôle par le même exécutable sur le prototype en cours. Décision conditionnée à ce contrôle ; si elle passe, revalider le binaire final contre le témoin (deux ordres sur FR27/long1097), l'oracle figé, composants T73/T256, états, bords de sélection, et les profondeurs MTP via bridge. Aucun changement aux paramètres de Tune. Ne pas qualifier le binaire final avec les chiffres du prototype.
+
+
+- Q36-FINAL-ROW arbitrage : contrôle du prototype même binaire +2,25 % BAAB, −2,10 % ABBA, dont un passage candidat avec decode inchangé tombé à 45,8 tok/s. Nouveau protocole préenregistré sur la version propre avec gardes matérielles : une instance du vrai 35B, texte original du bridge retokenisé, 1097 IDs vérifiés ; remettre l'état à zéro et conserver les caches de kernels chauds, 5 vrais chunks par passe. Comparer tous les logits pour les deux modes avant le chronomètre, deux chauffes, puis 24 prefills / 12 paires, ordre AB puis BA alterné. Examiner médiane par ordre, différence médiane et signe par paire, avant A/B final dans le bridge. Si les gains ne se reproduisent pas, laisser ce chemin expérimental. Ne pas retenir d'actif par défaut si le comparatif bridge final régresse.
+
+- Q36-FINAL-ROW Binaire final 8caeae8471018f1bd9a68844a9e8e8cd23e4f11cbb3dd9c63da1ea69613e6f6f, tests 8d85338c87d13d8662da17506bd4b9af86f6df2d9325bcd3df331101a28a0a86.
+
+- Q36-FINAL-ROW contrôle apparié terminé sur 1097 IDs : 12/12 paires plus rapides, gain de débit médian 1,273 %, 28,07 ms gagnées, 6/6 dans chaque ordre (+1,008 % AB, +1,298 % BA). Les 248320 logits F16 du dernier chunk sont bit-identiques à chaque répétition. Source final-source.patch, physique final-paired.log ; bridge A/B final en cours.
+
+- Q36-FINAL-ROW Contrôles numériques et bridge MTP1/2/3 passés sur le binaire final.
+
+- Q36-FINAL-ROW BAAB prefill long {'A': 489.5429790340546, 'B': 494.7950155205536, 'change_percent': 1.0728448188271678}.
+
+- Q36-FINAL-ROW ABBA prefill long {'A': 497.21857021097577, 'B': 502.7514832416066, 'change_percent': 1.1127728049825647}.
+
+- Q36-UNTRIED-LIVE et Q36-FINAL-ROW — clos. A : non concluant de bout en bout et exclu ; M : rejet de la substitution après observation D1/2/3 (32 vs 56 corrects sur 64 offres, seulement neuf occasions avec clé double) ; P : T1 rejeté pour divergence, variante segmentée validée et activée dans le moteur local qualifié. Binaire 8caeae8471018f1bd9a68844a9e8e8cd23e4f11cbb3dd9c63da1ea69613e6f6f vs 17c3d94f : prefill 1097 FR long ABBA 497,219 → 502,751 tok/s (+1,113 %), BAAB 489,543 → 494,795 (+1,073 %), premiers tokens environ 24 ms plus tôt. Apparié 12/12, +1,273 %, 28,07 ms. Pas de gain de decode retenu. CPU 544 réussis / 10 ignorés, MLX 583 / 260, contrôles physiques et CLI/bridge 1/2/3 passés ; 3 harnais Kani, 8/8 couvertures, 1 assertion interne de formatage inatteignable. Clippy et format réussis ; CI distante non exécutée. MTP1 et Tune conservés. Aucune installation ou publication. Rapport et données dans le checkout personnel /Users/justin/Documents/mix-stq1_0/docs/q36-trois-essais-35b-2026-11-13.md et /Users/justin/Documents/mix-stq1_0/docs/measurements/q36-untried-live/.
