@@ -15,7 +15,7 @@ Desktop prerelease **v2.0.0-beta.21**, internal version **2.0.0 / build 52**. Th
 - Starting a new Chat from the Lab no longer creates two conversations when only Agent tasks exist.
 - The menu bar popover resizes when its content changes, including longer model names. Failed engine states are identified correctly.
 - Disabled controls visibly dim and do not gain active hover feedback. Their enabled state is read from the installed view when button styles are composed.
-- Fixed the missing MLX package path in the macOS CI expert-route check. Mode-test failures now include the failing call and engine/MCP/server state, without extending their timeout.
+- Fixed the missing MLX package path in the macOS CI expert-route check and updated the reviewed migration inventory for its two added references. Mode-test failures now include the failing call and engine/MCP/server state, without extending their timeout.
 
 ## Performance
 
@@ -36,12 +36,13 @@ Requires **Apple Silicon and macOS 26.2 or later**. Select the **Desktop beta ch
 - Physical Apple M5 checks: LFM3 vision primitives against scalar oracles, Q4/F16/BF16 error recovery, and the bundled bridge on LFM3-1.7B 8 bpw and Qwen3.6-35B-A3B 2.49 bpw. Both bridges generated the requested **1/2/8-token** outputs, rejected a zero budget and exited cleanly. These short checks do not establish general model-quality or reference-logit parity.
 - Kani verified the CPU token-total saturation property over symbolic `u64` inputs, **5 obligations passed**. A GQA harness exceeded the local verification budget; an existing remote grouped-route proof timed out. These properties remain unverified. Compiler checking and sampled rendering tests are not a formal proof of SwiftUI behavior.
 - The base commit's hosted Desktop mode timeout was not reproduced locally. Its diagnostic was improved. Hosted results for the published commit must be read separately from local checks; see [GitHub Actions](https://github.com/0xZKnw/mlxl3/actions).
+- The first release-preparation CI run caught the missing companion inventory update and cancelled its Desktop jobs. After the reviewed reference was corrected, the affected local inventory/CI-runner tests passed: **11 passed, 53 Linux-only tests skipped, 2 subtests passed**. The new hosted run is separate from that failed preparation run.
 
 See the [detailed beta review](desktop-v2-beta-review-20261113.md) for commands, the split Desktop run, negative attempts and remaining limits. Physical Gemma/Ling models, full vision inference with image inputs, general numerical parity, GPU power and all context lengths are outside this campaign. The reduced-transparency fallback is implemented; a test-only environment injection was rejected by the SDK's read-only API, and system accessibility preferences were left untouched.
 
 ## Artifact and source
 
-- Build source commit: `2e3d0264f585ad4f3bd9c68d2572b197ba859900`. The release tag additionally includes the verified artifact documentation; executable sources are identical.
+- Build source commit: `2e3d0264f585ad4f3bd9c68d2572b197ba859900`. The release tag additionally includes the verified artifact documentation and reviewed CI inventory update; executable sources are identical.
 - File: `MLXL3-Desktop-v2.0.0-beta.21-b52-Apple-Silicon.dmg`
 - Size: **250,281,078 bytes**
 - SHA-256: `211665b78c780ec8949a705eb8a254b5e0fb141e33932a8d46e19c9e49054324`
