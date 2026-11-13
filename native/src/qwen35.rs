@@ -2669,6 +2669,38 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical M5 and 35B"]
+    fn q36_qualified_verify_logits_states() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        ensure!(
+            model.layers.len() == 40 && model.vocab == 248320,
+            "expected 35B"
+        );
+        model.forward_tokens(&(0..73).map(|i| i * 37 + 1).collect::<Vec<_>>())?;
+        let saved = model.snapshot()?;
+        for width in 1..=4 {
+            let mut run = || -> Result<_> {
+                model.restore(saved.clone())?;
+                let (logits, _) = model.verify_mtp(&[53, 106, 159, 212][..width])?;
+                let logits = logits.to_f16_bits()?;
+                ensure!(
+                    logits.len() == width * 248320
+                        && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid verify logits"
+                );
+                let states = state_bytes(&model)?;
+                assert_eq!(states.len(), 80);
+                Ok((logits, states))
+            };
+            let reference = crate::linear::with_q36_reference(&mut run)?;
+            let candidate = run()?;
+            ensure!(reference == candidate, "verify mismatch at width {width}");
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds"]
     fn checkpoint_grouped_mb3_verify_paired() -> Result<()> {
         let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;

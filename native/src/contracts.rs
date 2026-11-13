@@ -3508,3 +3508,42 @@ fn q36_expert_lane_domain() {
     kani::cover!(selected && k == 3);
     kani::cover!(!selected);
 }
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn q36_qkv_lane(rows: i32, input: i32, k: usize, mcg: bool, widths: &[i32]) -> bool {
+    rows == 4 && input == 2048 && k == 4 && mcg && widths == [8192, 4096]
+}
+
+#[test]
+fn q36_lane_restricts_bundles_and_widths() {
+    for n in -1..=25 {
+        assert_eq!(q36_qkv_lane(n, 2048, 4, true, &[8192, 4096]), n == 4);
+        for widths in [&[][..], &[8192], &[4096, 8192], &[8192, 4096, 512]] {
+            assert!(!q36_qkv_lane(n, 2048, 4, true, widths));
+        }
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn q36_lane_shape_admission() {
+    let widths: [i32; 3] = kani::any();
+    let len: u8 = kani::any();
+    let n: i32 = kani::any();
+    let input: i32 = kani::any();
+    let k: usize = kani::any();
+    let mcg: bool = kani::any();
+    let len = usize::from(len % 4);
+    let result = q36_qkv_lane(n, input, k, mcg, &widths[..len]);
+    assert_eq!(
+        result,
+        (n == 4)
+            && len == 2
+            && input == 2048
+            && k == 4
+            && mcg
+            && widths[0] == 8192
+            && widths[1] == 4096
+    );
+    kani::cover!(result && n == 4);
+    kani::cover!(!result);
+}
