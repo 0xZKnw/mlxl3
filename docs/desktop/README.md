@@ -1,8 +1,8 @@
-# Desktop et interface
+# Desktop and interface
 
 [Documentation](../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [app-fluidite-implementation-2026-10-16](app-fluidite-implementation-2026-10-16.md)
 - [app-fluidite-tokens-2026-10-16](app-fluidite-tokens-2026-10-16.md)

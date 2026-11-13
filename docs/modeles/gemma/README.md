@@ -1,8 +1,8 @@
-# Modèles Gemma
+# Gemma models
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [gemma-decode-investigation](gemma-decode-investigation.md)
 - [gemma-sdpa512-investigation](gemma-sdpa512-investigation.md)

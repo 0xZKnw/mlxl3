@@ -1,3 +1,3 @@
-# Patches PonyExl3
+# PonyExl3 patches
 
-Ces patches adaptent le convertisseur PonyExl3 pour les parcours et diagnostics MLXL3. `ponyexl3-mlxl3-conversion.patch` est notamment appliqué par [quantization.yml](../../.github/workflows/quantization.yml) ; les autres couvrent des variantes de cache, reconstruction, mesure et index. Vérifier la révision de la source cible et le contenu du patch avant application : ils ne sont pas interchangeables.
+These patches adapt the PonyExl3 converter for MLXL3 workflows and diagnostics. [quantization.yml](../../.github/workflows/quantization.yml) applies `ponyexl3-mlxl3-conversion.patch`; the others cover cache, reconstruction, measurement, and index variants. Check the target source revision and patch contents before applying one: they are not interchangeable.

@@ -1,11 +1,11 @@
-# Code de l’application
+# Application code
 
-- `MLXL3StudioApp.swift`, `AppDelegate.swift` et `StudioView.swift` : entrée SwiftUI et fenêtres principales.
-- `StudioModel.swift`, `Domain.swift` et `ConversationStore.swift` : état, types et persistance des conversations.
-- `MLXL3Bridge.swift` et `EngineRuntimeStore.swift` : dialogue avec le moteur et gestion de son runtime.
-- `ModelLibrary.swift`, `ModelManager.swift` et les vues de téléchargement : modèles locaux et téléchargements.
-- `ChatComponents.swift`, `MarkdownResponseView.swift` et `MessageActionsView.swift` : affichage et actions de conversation.
-- `AgentStudio*.swift`, `Workspace*` et `MCP*` : projets, espaces de travail et connexions MCP.
-- `AppSettingsView.swift`, `DesktopPreferences.swift`, `Theme.swift` et `Localization.swift` : préférences et présentation.
+- `MLXL3StudioApp.swift`, `AppDelegate.swift`, and `StudioView.swift`: SwiftUI entry point and main windows.
+- `StudioModel.swift`, `Domain.swift`, and `ConversationStore.swift`: state, types, and conversation persistence.
+- `MLXL3Bridge.swift` and `EngineRuntimeStore.swift`: engine communication and runtime management.
+- `ModelLibrary.swift`, `ModelManager.swift`, and download views: local models and downloads.
+- `ChatComponents.swift`, `MarkdownResponseView.swift`, and `MessageActionsView.swift`: conversation display and actions.
+- `AgentStudio*.swift`, `Workspace*`, and `MCP*`: projects, workspaces, and MCP connections.
+- `AppSettingsView.swift`, `DesktopPreferences.swift`, `Theme.swift`, and `Localization.swift`: preferences and presentation.
 
-Les contrôles spécifiques sont dans [tests/](../../../../tests/README.md), les ressources dans [Resources/](../../Resources/README.md).
+Related checks are in [tests/](../../../../tests/README.md), and resources are in [Resources/](../../Resources/README.md).

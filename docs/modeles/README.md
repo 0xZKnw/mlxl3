@@ -1,5 +1,5 @@
-# Rapports par modèle
+# Reports by model
 
 [Qwen](qwen/README.md) · [LFM](lfm/README.md) · [Ling](ling/README.md) · [Gemma](gemma/README.md)
 
-Ces dossiers contiennent des rapports d’intégration, de quantification ou de performance. Un résultat ne s’étend pas automatiquement à une autre famille, quantification ou configuration matérielle.
+These directories contain integration, quantization, and performance reports. A result does not automatically extend to another model family, quantization, or hardware configuration.

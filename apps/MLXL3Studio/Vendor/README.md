@@ -1,6 +1,6 @@
-# Composants tiers vendus
+# Vendored third-party components
 
-- `SwiftMath/` fournit le rendu mathématique utilisé par la cible Swift du paquet.
-- `PonyExl3/` fournit des éléments de conversion EXL3 utilisés par les scripts de quantification.
+- `SwiftMath/` provides the math rendering used by the Swift package target.
+- `PonyExl3/` provides EXL3 conversion components used by quantization scripts.
 
-Consulter les [notices tierces](../../../THIRD_PARTY_NOTICES.md) et les [patches locaux](../../../scripts/patches/README.md) avant de mettre à jour une copie. Les copies vendues peuvent suivre leurs propres conventions et licences.
+Read the [third-party notices](../../../THIRD_PARTY_NOTICES.md) and [local patches](../../../scripts/patches/README.md) before updating a copy. Vendored projects may follow their own conventions and licenses.

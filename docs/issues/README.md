@@ -1,6 +1,6 @@
-# Issues et revues
+# Issues and reviews
 
-- [163–164](163-164/README.md) : reconstruction, récupération et suivi des parcours natifs.
-- [Autres revues](reviews/README.md) : audits de PR et suivis ciblés.
+- [163–164](163-164/README.md): reconstruction, recovery, and native-path follow-up.
+- [Other reviews](reviews/README.md): PR audits and targeted follow-up.
 
-Les rapports sont datés ou liés à une révision ; lire leur portée avant d’en déduire l’état courant.
+Reports are dated or tied to a revision; check their scope before inferring the current state.

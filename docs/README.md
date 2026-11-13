@@ -1,45 +1,44 @@
-# Documentation MLXL3
+# MLXL3 documentation
 
-Point d’entrée pour parcourir le dépôt et ses archives. Les rapports sont classés
-par sujet ; leur date, leur révision et leur statut priment sur leur emplacement.
+An entry point for navigating the repository and its archives. Reports are
+organized by subject; their date, revision, and status matter more than their location.
 
-## Commencer ici
+## Start here
 
-1. Lire les [consignes du dépôt](../AGENTS.md) et le [README principal](../README.md).
-2. Pour toute optimisation, lire d’abord le [journal `opti.md`](../opti.md),
-   puis les rapports et les preuves associés avant de proposer un nouvel essai.
-3. Choisir une rubrique ci-dessous ou chercher un modèle, une issue, une version
-   ou une date avec `rg -n 'terme' docs/ opti.md`.
-4. Vérifier les conditions, les échecs, les limites et le statut réel de chaque
-   essai : un prototype ou un résultat ancien ne décrit pas forcément le produit.
+1. Read the [repository instructions](../AGENTS.md) and the [main README](../README.md).
+2. Before optimization, read the [optimization journal `opti.md`](../opti.md),
+   then the associated reports and evidence before proposing a new experiment.
+3. Choose a section below or search for a model, issue, version, or date with
+   `rg -n 'term' docs/ opti.md`.
+4. Check each experiment's conditions, failures, limitations, and actual status:
+   a prototype or historical result does not necessarily describe the product.
 
-## Arborescence
+## Directory layout
 
-- [Moteur et configuration](engine/README.md)
-- [Desktop et interface](desktop/README.md)
-- Modèles : [Qwen](modeles/qwen/README.md), [LFM](modeles/lfm/README.md),
+- [Engine and configuration](engine/README.md)
+- [Desktop and interface](desktop/README.md)
+- Models: [Qwen](modeles/qwen/README.md), [LFM](modeles/lfm/README.md),
   [Ling](modeles/ling/README.md), [Gemma](modeles/gemma/README.md)
-- Performance : [audits transversaux et kernels](performance/general/README.md),
-  [Flash, DFlash et SSD](performance/flash-dflash/README.md)
-- Issues et revues : [issues 163–164](issues/163-164/README.md),
-  [autres revues](issues/reviews/README.md)
-- Opérations : [mémoire et matériel](operations/memory-hardware/README.md),
-  [publication](operations/release/README.md)
-- Notes de version : [Desktop](releases/desktop/README.md),
-  [moteur](releases/engine/README.md)
-- [Mesures et campagnes](measurements/README.md) : preuves brutes classées
-  par campagne, avec les fichiers isolés regroupés dans des dossiers dédiés.
-- [Couverture native](native-coverage/README.md) : registre historique et
-  preuves classées par composant ; vérifier sa date avant de l’utiliser.
+- Performance: [cross-cutting audits and kernels](performance/general/README.md),
+  [Flash, DFlash, and SSD](performance/flash-dflash/README.md)
+- Issues and reviews: [issues 163–164](issues/163-164/README.md),
+  [other reviews](issues/reviews/README.md)
+- Operations: [memory and hardware](operations/memory-hardware/README.md),
+  [publishing](operations/release/README.md)
+- Release notes: [Desktop](releases/desktop/README.md),
+  [engine](releases/engine/README.md)
+- [Measurements and campaigns](measurements/README.md): raw evidence organized
+  by campaign, with previously loose files grouped into dedicated directories.
+- [Native coverage](native-coverage/README.md): a historical register and
+  evidence organized by component; check its date before using it.
 
-Chaque dossier de rapports comporte son propre index. Suivre les références
-vers les mesures plutôt que de déduire une validation d’un fichier brut isolé.
-Quelques fichiers à la racine redirigent vers les rapports cités par d’anciennes
-releases. Le lien `audit-runtime-2026-09-04.md` conserve le chemin utilisé par
-des tests.
+Each report directory has its own index. Follow references to measurements
+instead of treating an isolated raw file as validation. A few files at the root
+redirect to reports cited by older releases. The `audit-runtime-2026-09-04.md`
+link preserves a path used by tests.
 
-## Ajouter un document
+## Add a document
 
-Placer le rapport dans le dossier du sujet principal et l’ajouter à son index.
-Conserver les noms des campagnes, les résultats négatifs et les limites ; mettre
-à jour le journal d’optimisation et les liens lorsqu’ils sont concernés.
+Place the report in its primary subject directory and add it to that index.
+Preserve campaign names, negative results, and limitations; update the
+optimization journal and links when relevant.

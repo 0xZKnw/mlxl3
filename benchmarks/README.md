@@ -1,5 +1,5 @@
-# Benchmarks et évaluations
+# Benchmarks and evaluations
 
-Ce dossier contient les outils de mesure du bridge, du decode, de la mémoire et des petits lots, ainsi que des évaluations LFM et Ling. Les sorties historiques suivies sont dans [results/](results/README.md).
+Tools for measuring the bridge, decode, memory, and small batches, plus LFM and Ling evaluations. Tracked historical results are in [results/](results/README.md).
 
-Avant une optimisation, lire le [journal des expériences](../opti.md), préenregistrer le protocole et vérifier la correction avant la vitesse. Un benchmark isolé, un résultat historique ou une évaluation sur un modèle ne démontre pas un gain général. Voir les [consignes du dépôt](../AGENTS.md) et les [rapports de performance](../docs/performance/general/README.md).
+Before optimization, read the [experiment journal](../opti.md), preregister the protocol, and check correctness before speed. An isolated benchmark, historical result, or evaluation on one model does not establish a general gain. See the [repository instructions](../AGENTS.md) and [performance reports](../docs/performance/general/README.md).

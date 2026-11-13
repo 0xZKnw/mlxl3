@@ -1,3 +1,3 @@
-# État et MTP Qwen sur GPU
+# Qwen GPU state and MTP
 
-[kv.rs](kv.rs) gère le stockage d’attention avec préfixe initialisé ; [mtp.rs](mtp.rs) complète le chemin MTP. Ces modules sont raccordés par [qwen.rs](../qwen.rs) et s’utilisent avec les configurations et états du modèle dans [native/src/](../../README.md).
+[kv.rs](kv.rs) manages attention storage with an initialized prefix; [mtp.rs](mtp.rs) supplements the MTP path. These modules are connected through [qwen.rs](../qwen.rs) and used with the model configurations and state in [native/src/](../../README.md).

@@ -1,8 +1,8 @@
-# Notes de version moteur
+# Engine release notes
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [release-engine-v1.2.1](release-engine-v1.2.1.md)
 - [release-engine-v1.3.0](release-engine-v1.3.0.md)

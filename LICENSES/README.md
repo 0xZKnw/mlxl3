@@ -1,3 +1,3 @@
-# Licences et notices tierces
+# Third-party licenses and notices
 
-Licences et notices distribuées avec le projet : Apache-2.0, MLX-VLM, MTPLX et TensorFold. La licence du projet et l’attribution détaillée sont dans [LICENSE](../LICENSE) et [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). Les scripts de packaging référencent certains de ces fichiers par leur nom.
+Licenses and notices distributed with the project: Apache-2.0, MLX-VLM, MTPLX, and TensorFold. The project license and detailed attribution are in [LICENSE](../LICENSE) and [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). Packaging scripts reference some of these files by name.

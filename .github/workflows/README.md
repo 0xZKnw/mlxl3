@@ -1,10 +1,10 @@
-# Workflows GitHub Actions
+# GitHub Actions workflows
 
-- `check.yml` : régressions Python, inventaire natif et contrôles Desktop/protocole.
-- `rust.yml` : tests et lint Rust, contrôles Metal et harnais Kani répartis par lots.
-- `apple-compatibility.yml` : contrats de compatibilité Apple.
-- `profile.yml` : compatibilité des outils de profilage Flash.
-- `quantization.yml` : contrats de conversion et quantification.
-- `discord-release.yml` : notification liée aux releases.
+- `check.yml`: Python regression tests, native inventory, and Desktop/protocol checks.
+- `rust.yml`: Rust tests and lint, Metal checks, and Kani proof harnesses split into shards.
+- `apple-compatibility.yml`: Apple compatibility contracts.
+- `profile.yml`: Flash profiling tool compatibility.
+- `quantization.yml`: conversion and quantization contracts.
+- `discord-release.yml`: release-related notifications.
 
-Consulter chaque fichier pour ses déclencheurs, environnements, versions et jobs exacts. Les contrôles hébergés ne remplacent pas la validation numérique sur GPU physique.
+Check each file for its exact triggers, environments, versions, and jobs. Hosted checks do not replace numerical validation on a physical GPU.

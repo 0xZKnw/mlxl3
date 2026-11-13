@@ -1,3 +1,3 @@
-# Projections et tests linéaires
+# Linear projections and tests
 
-[lfm3_prefill.rs](lfm3_prefill.rs) contient des variantes de prefill LFM3 ; les fichiers `*_tests.rs` vérifient notamment projections préparées, épilogues et références. Le module parent [linear.rs](../linear.rs) gère les chemins linéaires et charge des kernels de [shaders/](../../shaders/README.md). Les options et limites de chaque variante sont dans le code et les rapports de campagne.
+[lfm3_prefill.rs](lfm3_prefill.rs) contains LFM3 prefill variants; the `*_tests.rs` files check prepared projections, epilogues, and references. The parent [linear.rs](../linear.rs) module manages linear paths and loads kernels from [shaders/](../../shaders/README.md). Each variant's options and limits are in the code and campaign reports.

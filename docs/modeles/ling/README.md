@@ -1,7 +1,7 @@
-# Modèles Ling
+# Ling models
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [ling-local-quantization](ling-local-quantization.md)

@@ -1,3 +1,3 @@
-# Contraintes de packaging
+# Packaging constraints
 
-[constraints-macos.txt](constraints-macos.txt) épingle les versions de l’environnement de release macOS ; la source MLX-LM est également définie dans [pyproject.toml](../pyproject.toml). Les scripts d’assemblage et de paquet sont dans [scripts/](../scripts/README.md). Modifier les versions exige de vérifier le build et les artefacts concernés.
+[constraints-macos.txt](constraints-macos.txt) pins the macOS release environment versions; the MLX-LM source is also defined in [pyproject.toml](../pyproject.toml). Build and packaging scripts are in [scripts/](../scripts/README.md). Changes to versions require checking the affected build and artifacts.

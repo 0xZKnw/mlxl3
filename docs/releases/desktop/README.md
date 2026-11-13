@@ -1,8 +1,8 @@
-# Notes de version Desktop
+# Desktop release notes
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [release-v0.3.1](release-v0.3.1.md)
 - [release-v0.4.0](release-v0.4.0.md)

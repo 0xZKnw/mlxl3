@@ -1,3 +1,3 @@
-# Téléchargement et installation
+# Downloads and installation
 
-[install_transaction.rs](install_transaction.rs) gère les étapes durables de publication d’une installation ; son fichier de tests couvre les transitions et échecs. Les autres tests du dossier ciblent les téléchargements DFlash et les redirections. Le module parent [hub.rs](../hub.rs) contient la logique Hub et son API.
+[install_transaction.rs](install_transaction.rs) manages durable installation publication steps; its test file covers transitions and failures. Other tests in this directory target DFlash downloads and redirects. The parent [hub.rs](../hub.rs) module contains Hub logic and its API.

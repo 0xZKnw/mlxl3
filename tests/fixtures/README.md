@@ -1,9 +1,9 @@
-# Données de test
+# Test fixtures
 
-- `image-input/` : images réelles et cas d’erreur utilisés par les contrôles d’import Desktop.
-- `native-converter-host/` : données de référence pour les transformations côté hôte.
-- `native-feedback/` : corpus de produits et recherches accompagné de son manifeste et de ses empreintes.
-- `native-quantizer/` : tuiles et oracles indépendants de quantification et d’empaquetage.
-- Les fichiers à cette racine servent notamment aux contrats de cache, à Kani et à l’affichage des cartes de modèles.
+- `image-input/`: real images and error cases for Desktop import checks.
+- `native-converter-host/`: reference data for host-side transformations.
+- `native-feedback/`: product and search corpus with its manifest and hashes.
+- `native-quantizer/`: tiles and independent quantization and packing oracles.
+- Files at this level support cache contracts, Kani, and model-card display checks.
 
-Ces données sont des références de test : ne pas modifier les contenus ou empreintes sans mettre à jour et requalifier les oracles concernés. Les tests correspondants sont dans [tests/](../README.md).
+These fixtures are test references: do not change their contents or hashes without updating and requalifying the affected oracles. Related tests are in [tests/](../README.md).

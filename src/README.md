@@ -1,3 +1,3 @@
-# Paquets Python
+# Python packages
 
-[mlxl3_quantizer/](mlxl3_quantizer/README.md) contient le paquet Python de conversion et quantification. La configuration et les dépendances du paquet sont dans [pyproject.toml](../pyproject.toml) ; les commandes et expériences associées sont dans [scripts/](../scripts/README.md).
+[mlxl3_quantizer/](mlxl3_quantizer/README.md) contains the Python conversion and quantization package. Package configuration and dependencies are in [pyproject.toml](../pyproject.toml); related commands and experiments are in [scripts/](../scripts/README.md).

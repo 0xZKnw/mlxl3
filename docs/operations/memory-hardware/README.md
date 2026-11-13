@@ -1,8 +1,8 @@
-# Mémoire et matériel
+# Memory and hardware
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [apple-silicon-stability-20261030](apple-silicon-stability-20261030.md)
 - [cold-ready-m5-20261101](cold-ready-m5-20261101.md)

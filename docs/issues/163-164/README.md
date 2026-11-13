@@ -1,8 +1,8 @@
-# Issues 163 et 164
+# Issues 163 and 164
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [issue163-agent-reconstruction](issue163-agent-reconstruction.md)
 - [issue163-buffer-api-reconstruction](issue163-buffer-api-reconstruction.md)

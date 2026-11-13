@@ -1,8 +1,8 @@
-# Revues et autres issues
+# Reviews and other issues
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [issue162-download-integrity](issue162-download-integrity.md)
 - [pr161-fixes-2026-11-08](pr161-fixes-2026-11-08.md)

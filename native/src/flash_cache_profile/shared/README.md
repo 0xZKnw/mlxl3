@@ -1,3 +1,3 @@
-# Politiques de cache partagé
+# Shared cache policies
 
-[arc.rs](arc.rs) implémente la relecture ARC à la demande ; [current.rs](current.rs) traite les traces et la comparaison avec l’état courant. Le module parent [shared.rs](../shared.rs) cadre l’évaluation hors ligne. Lire les protocoles des campagnes avant d’interpréter un score comme une performance réelle.
+[arc.rs](arc.rs) implements demand-only ARC replay; [current.rs](current.rs) handles traces and comparison with the current state. The parent [shared.rs](../shared.rs) module frames the offline evaluation. Read campaign protocols before interpreting a score as real performance.

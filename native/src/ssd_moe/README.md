@@ -1,3 +1,3 @@
-# MoE avec experts sur SSD
+# MoE with SSD-backed experts
 
-[policy.rs](policy.rs) résout les politiques de lecture, préparation et résidence ; [grouped_micro.rs](grouped_micro.rs) et [row_oracle.rs](row_oracle.rs) complètent le module parent [ssd_moe.rs](../ssd_moe.rs). Les tests couvrent entre autres indices, préchargement, expert partagé et scénarios à froid. Le transport de lecture est documenté dans [ssd_reads/](../ssd_reads/README.md).
+[policy.rs](policy.rs) resolves read, preparation, and residency policies; [grouped_micro.rs](grouped_micro.rs) and [row_oracle.rs](row_oracle.rs) supplement the parent [ssd_moe.rs](../ssd_moe.rs) module. Tests cover indices, prefetch, shared experts, and cold scenarios. The read transport is documented in [ssd_reads/](../ssd_reads/README.md).

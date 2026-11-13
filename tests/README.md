@@ -1,9 +1,9 @@
-# Tests et contrôles de parcours
+# Tests and workflow checks
 
-- `test_*.py` : régressions Python sur le moteur, la conversion, les scripts et les rapports ; certains nécessitent des dépendances optionnelles.
-- `*-check.swift` : contrôles Desktop et interface ; `fake-*-engine.py` fournit des moteurs simulés à certains parcours.
-- `physical_*.py` : harnais destinés à des contrôles explicites sur matériel et modèles compatibles ; leur présence ne signifie pas qu’ils sont exécutés par défaut.
-- `*.rs` et `quantize_packing_proof.cpp` : contrats et preuves ciblés côté natif.
-- [fixtures/](fixtures/README.md) : corpus et données de test conservés.
+- `test_*.py`: Python regression tests for the engine, conversion, scripts, and reports; some require optional dependencies.
+- `*-check.swift`: Desktop and interface checks; `fake-*-engine.py` supplies simulated engines for some workflows.
+- `physical_*.py`: harnesses for explicit checks on compatible hardware and models; their presence does not mean they run by default.
+- `*.rs` and `quantize_packing_proof.cpp`: targeted native contracts and proofs.
+- [fixtures/](fixtures/README.md): preserved test corpora and data.
 
-Les commandes réellement utilisées sont dans [check.yml](../.github/workflows/check.yml), [rust.yml](../.github/workflows/rust.yml) et [scripts/check-e2e.sh](../scripts/check-e2e.sh). La suite E2E lance des tests Python puis Desktop ; consulter ses dépendances et les conditions du matériel avant de l’exécuter. Les tests ignorés restent non exécutés.
+Commands used in practice are in [check.yml](../.github/workflows/check.yml), [rust.yml](../.github/workflows/rust.yml), and [scripts/check-e2e.sh](../scripts/check-e2e.sh). The E2E suite runs Python tests followed by Desktop checks; review its dependencies and hardware conditions before running it. Skipped tests remain unexecuted.

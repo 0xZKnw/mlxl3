@@ -1,3 +1,3 @@
-# Sources Swift
+# Swift sources
 
-La cible applicative se trouve dans [MLXL3Studio/](MLXL3Studio/README.md). Sa définition et sa plateforme macOS sont dans [Package.swift](../Package.swift) ; les ressources de l’application sont à côté, dans [Resources/](../Resources/README.md).
+The application target is in [MLXL3Studio/](MLXL3Studio/README.md). Its definition and macOS platform are in [Package.swift](../Package.swift); the application resources are alongside it in [Resources/](../Resources/README.md).

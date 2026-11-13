@@ -1,3 +1,3 @@
 # Applications
 
-[MLXL3Studio](MLXL3Studio/README.md) est l’application Desktop SwiftUI pour macOS. Le moteur utilisé par l’application est dans [native/](../native/README.md) ; les scripts de build et les contrôles Desktop sont dans [scripts/](../scripts/README.md) et [tests/](../tests/README.md).
+[MLXL3Studio](MLXL3Studio/README.md) is the SwiftUI Desktop application for macOS. Its engine is in [native/](../native/README.md); build scripts and Desktop checks are in [scripts/](../scripts/README.md) and [tests/](../tests/README.md).

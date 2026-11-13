@@ -1,8 +1,8 @@
-# Flash, DFlash et SSD
+# Flash, DFlash, and SSD
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [dflash2-exact-optimisations-2026-10-08](dflash2-exact-optimisations-2026-10-08.md)
 - [dflash2-key-view-tps-2026-10-09](dflash2-key-view-tps-2026-10-09.md)

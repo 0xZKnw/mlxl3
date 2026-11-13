@@ -1,8 +1,8 @@
-# Modèles LFM
+# LFM models
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [lfm25-calibration-v2](lfm25-calibration-v2.md)
 - [lfm25-calibration-v3](lfm25-calibration-v3.md)

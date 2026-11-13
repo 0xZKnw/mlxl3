@@ -1,8 +1,8 @@
-# Moteur et configuration
+# Engine and configuration
 
 [Documentation](../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [engine-v1.2.1-validation](engine-v1.2.1-validation.md)
 - [engine-v1.3.1-validation](engine-v1.3.1-validation.md)

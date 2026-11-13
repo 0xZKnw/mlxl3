@@ -1,3 +1,3 @@
-# Structures de support Flash
+# Flash support structures
 
-[slru.rs](slru.rs) implémente la politique SLRU probation/protégé. Le module parent [flash_support.rs](../flash_support.rs) contient les structures et contrats associés au cache d’experts, ainsi que des tests et harnais de vérification. La politique seule ne décrit pas les baux ni les interactions avec le GPU.
+[slru.rs](slru.rs) implements the probation/protected SLRU policy. The parent [flash_support.rs](../flash_support.rs) module contains expert-cache structures and contracts, along with tests and proof harnesses. The policy alone does not describe leases or GPU interactions.

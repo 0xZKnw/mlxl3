@@ -1,14 +1,13 @@
-# Mesures et campagnes
+# Measurements and campaigns
 
-[Documentation](../README.md) · [Journal des optimisations](../../opti.md)
+[Documentation](../README.md) · [Optimization journal](../../opti.md)
 
-Chaque dossier contient les preuves d’une campagne ou d’un groupe de fichiers
-historiques. Chercher l’identifiant, le modèle ou la date dans le journal et les
-rapports avant d’interpréter les résultats ; ils peuvent être négatifs,
-incomplets ou interrompus. Un fichier brut seul ne prouve pas une validation.
+Each directory contains evidence from a campaign or a group of historical
+files. Search the journal and reports by identifier, model, or date before
+interpreting results; they may be negative, incomplete, or interrupted. A raw
+file alone does not establish validation.
 
-## Campagnes par nom
-
+## Campaigns by name
 
 ### A
 
@@ -270,4 +269,4 @@ incomplets ou interrompus. Un fichier brut seul ne prouve pas une validation.
 - [v2-models-20261111/](v2-models-20261111/)
 - [v2-speculative-20261111/](v2-speculative-20261111/)
 
-Ajouter toute nouvelle campagne à cet index.
+Add each new campaign to this index.

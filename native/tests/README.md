@@ -1,5 +1,5 @@
-# Tests natifs
+# Native tests
 
-`contracts.rs` exerce des contrats CPU ; `runtime_gpu.rs` contient des contrôles nécessitant le runtime et le matériel appropriés. Les fichiers C++ couvrent notamment la lecture disque, les files, les capacités Metal et les helpers de mémoire ; certains sont des harnais de preuve. `fixtures/` conserve une fixture Qwen de contre-exemple.
+`contracts.rs` exercises CPU contracts; `runtime_gpu.rs` contains checks requiring the appropriate runtime and hardware. The C++ files cover disk reads, queues, Metal capabilities, and memory helpers; some are proof harnesses. `fixtures/` preserves a Qwen counterexample fixture.
 
-Les cibles Rust sont déclarées dans le [Cargo.toml racine](../../Cargo.toml). Les commandes et options réellement utilisées en CI sont dans [rust.yml](../../.github/workflows/rust.yml) ; les tests physiques ignorés par défaut doivent être sélectionnés explicitement et ne deviennent pas validés par la CI hébergée.
+Rust targets are declared in the [root Cargo.toml](../../Cargo.toml). CI commands and options are in [rust.yml](../../.github/workflows/rust.yml); physical tests ignored by default must be explicitly selected and are not validated by hosted CI.

@@ -1,5 +1,5 @@
-# Kernels Metal
+# Metal kernels
 
-Sources Metal incluses ou compilées par le moteur : opérations EXL3 et matrices (`exl3`, `_qmv*`, `_qmm*`), Flash (`flash_*`), Qwen, LFM3, DFlash, quantification et primitives communes. Les fichiers `.h` partagent des définitions entre kernels.
+Metal sources included or compiled by the engine: EXL3 and matrix operations (`exl3`, `_qmv*`, `_qmm*`), Flash (`flash_*`), Qwen, LFM3, DFlash, quantization, and shared primitives. The `.h` files share definitions between kernels.
 
-Les appelants et la sélection des chemins sont dans [native/src/](../src/README.md), notamment [gpu/](../src/gpu/README.md) et `linear.rs`. Une compilation seule ne valide pas les résultats numériques sur GPU ; consulter les [consignes](../../AGENTS.md) et le [journal](../../opti.md) avant optimisation.
+Callers and path selection are in [native/src/](../src/README.md), particularly [gpu/](../src/gpu/README.md) and `linear.rs`. Compilation alone does not validate GPU numerical results; read the [instructions](../../AGENTS.md) and [journal](../../opti.md) before optimization.

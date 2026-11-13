@@ -1,3 +1,3 @@
-# Compléments du modèle Qwen Flash
+# Qwen Flash model components
 
-[memory.rs](memory.rs) applique les politiques mémoire aux frontières de chargement et de requête ; [profile.rs](profile.rs) fournit le profilage associé. Les fichiers d’oracle et de test vérifient notamment GDN, HC, convolution préparée et prefill MTP. Le modèle principal est dans [qwen4.rs](../qwen4.rs).
+[memory.rs](memory.rs) applies memory policies at load and request boundaries; [profile.rs](profile.rs) provides related profiling. Oracle and test files check GDN, HC, prepared convolution, and MTP prefill. The main model is in [qwen4.rs](../qwen4.rs).

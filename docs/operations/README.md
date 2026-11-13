@@ -1,6 +1,6 @@
-# Opérations et environnement
+# Operations and environment
 
-- [Mémoire et matériel](memory-hardware/README.md) : limites mémoire, démarrage et compatibilité Apple Silicon.
-- [Publication](release/README.md) : opérations associées aux releases.
+- [Memory and hardware](memory-hardware/README.md): memory limits, startup, and Apple Silicon compatibility.
+- [Publishing](release/README.md): release-related operations.
 
-Les notes de version sont dans [releases/](../releases/README.md).
+Release notes are in [releases/](../releases/README.md).

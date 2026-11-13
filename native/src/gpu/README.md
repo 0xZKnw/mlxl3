@@ -1,5 +1,5 @@
-# Implémentation GPU native
+# Native GPU implementation
 
-Modules Metal du moteur : mémoire et vues, projection, attention/QSA, GDN, MoE, routage, MTP, préchargement et opérations de modèle. [gpu.rs](../gpu.rs) déclare les modules, les types et la sélection des kernels ; les sources Metal sont dans [shaders/](../../shaders/README.md).
+The engine's Metal modules cover memory and views, projection, attention/QSA, GDN, MoE, routing, MTP, prefetch, and model operations. [gpu.rs](../gpu.rs) declares the modules, types, and kernel selection; Metal sources are in [shaders/](../../shaders/README.md).
 
-Les sous-dossiers [moe/](moe/README.md) et [qwen/](qwen/README.md) complètent les modules correspondants. Les `*_tests.rs` du dossier incluent des contrôles ciblés ; lire leurs annotations avant d’exécuter les tests GPU physiques.
+The [moe/](moe/README.md) and [qwen/](qwen/README.md) subdirectories supplement their corresponding modules. This directory's `*_tests.rs` files include targeted checks; read their annotations before running physical GPU tests.

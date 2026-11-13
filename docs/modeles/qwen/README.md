@@ -1,8 +1,8 @@
-# Modèles Qwen
+# Qwen models
 
 [Documentation](../../README.md)
 
-Ces rapports sont historiques : vérifier leur date, leur révision et leurs limites avant de conclure.
+These reports are historical: check their dates, revisions, and limitations before drawing conclusions.
 
 - [adaptive-memory-qwen-20261009](adaptive-memory-qwen-20261009.md)
 - [pr-qwen27-lossless-ram](pr-qwen27-lossless-ram.md)

@@ -1,3 +1,3 @@
-# Captures issues de PDF
+# PDF captures
 
-[audit/](audit/README.md) contient une capture de page conservée pour un audit. Les rapports et protocoles du projet se trouvent dans [docs/](../../docs/README.md).
+[audit/](audit/README.md) contains a page capture retained for an audit. Project reports and protocols are in [docs/](../../docs/README.md).

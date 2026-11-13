@@ -1,3 +1,3 @@
-# Ressources Desktop
+# Desktop resources
 
-`Info.plist` décrit l’application ; les images `AppIcon.png`, `AppDockIcon.png` et `LogoDark.png` servent à son identité visuelle. `marked.umd.js` et `marked.LICENSE` accompagnent le rendu Markdown. Les scripts [build-macos-app.sh](../../../scripts/build-macos-app.sh) et [build-desktop-test.sh](../../../scripts/build-desktop-test.sh) sélectionnent les fichiers à embarquer.
+`Info.plist` describes the app; `AppIcon.png`, `AppDockIcon.png`, and `LogoDark.png` provide its visual identity. `marked.umd.js` and `marked.LICENSE` support Markdown rendering. The [build-macos-app.sh](../../../scripts/build-macos-app.sh) and [build-desktop-test.sh](../../../scripts/build-desktop-test.sh) scripts select which files to bundle.

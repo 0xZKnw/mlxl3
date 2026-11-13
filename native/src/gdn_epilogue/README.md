@@ -1,3 +1,3 @@
-# Tests de l’épilogue GDN
+# GDN epilogue tests
 
-[tests.rs](tests.rs) et [capture_tests.rs](capture_tests.rs) complètent [gdn_epilogue.rs](../gdn_epilogue.rs) ; ce dernier charge le shader [flash_gdn_epilogue.metal](../../shaders/flash_gdn_epilogue.metal). Les captures physiques ont des préconditions matérielles et environnementales indiquées dans les tests.
+[tests.rs](tests.rs) and [capture_tests.rs](capture_tests.rs) supplement [gdn_epilogue.rs](../gdn_epilogue.rs), which loads the [flash_gdn_epilogue.metal](../../shaders/flash_gdn_epilogue.metal) shader. Physical captures have hardware and environment prerequisites documented in the tests.

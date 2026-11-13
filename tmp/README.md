@@ -1,3 +1,3 @@
-# Artefacts temporaires conservés
+# Preserved temporary artifacts
 
-Ce dossier contient des éléments de travail conservés dans le dépôt ; leur présence ne signifie pas qu’ils sont des sorties de build courantes. [pdfs/](pdfs/README.md) rassemble une capture d’audit. Vérifier les références avant de supprimer un artefact suivi.
+This directory contains working artifacts retained in the repository; their presence does not mean they are current build outputs. [pdfs/](pdfs/README.md) contains an audit capture. Check references before deleting a tracked artifact.
