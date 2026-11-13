@@ -29,7 +29,7 @@ The Desktop suite was completed in stages, preserving intermediate failures and 
 
 The website passed 69 tests with zero skipped, format/lint/type checks, and Chromium/WebKit rendering checks. Physical M1–M4, macOS 26.2, Gemma/Ling generation, external audio devices and every possible model configuration remain untested in this release campaign. Hosted CI status is recorded separately from these local results.
 
-Compiled application and engine source revision `edee73ce2e4f56ed90fe4e2c973526d9cdfd518f`. Subsequent release documentation and source-inventory bookkeeping preserve the executable source. See [validation details](../release-v2.0.0-validation.md).
+Compiled application and engine source revision `edee73ce2e4f56ed90fe4e2c973526d9cdfd518f`. Subsequent release documentation and source-inventory bookkeeping preserve the executable source. See [validation details](https://github.com/0xZKnw/mlxl3/blob/main/docs/releases/release-v2.0.0-validation.md).
 
 ## Acknowledgements
 
