@@ -24,6 +24,8 @@ pub use contracts::{
     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, native_prompt_reuse,
     reusable_prefix_len, smallm_kernel_key,
 };
+#[cfg(feature = "mlx")]
+pub use contracts::{switch_glu_layout, switch_glu_route_rows};
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar20_kernel_policy;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]

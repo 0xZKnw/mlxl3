@@ -96,6 +96,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=MLXL3_MLX_ROOT");
     println!("cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp");
     println!("cargo:rerun-if-changed=native/ffi/flash_prepare.h");
+    println!("cargo:rerun-if-changed=native/ffi/graph_replay.h");
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos")
         && env::var_os("CARGO_FEATURE_DIRECT_METAL").is_some()
     {

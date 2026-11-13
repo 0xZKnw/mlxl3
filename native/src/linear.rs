@@ -1388,6 +1388,41 @@ pub fn expert_mapped(
         None,
         false,
         false,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepared_expert_raw(
+    x: &Array,
+    bank: &Array,
+    routes: &Array,
+    width: i32,
+    projections: i32,
+    projection_stride: i32,
+    k: usize,
+    cb: Codebook,
+    lane_order: bool,
+) -> Result<Array> {
+    expert_mapped_layout(
+        x,
+        bank,
+        None,
+        None,
+        routes,
+        width,
+        projections,
+        projection_stride,
+        k,
+        cb,
+        true,
+        true,
+        false,
+        false,
+        None,
+        false,
+        false,
+        lane_order,
     )
 }
 
@@ -1553,6 +1588,7 @@ pub(crate) fn expert_slots(
         selected.groups.as_ref(),
         stable_shapes,
         native_prepare,
+        false,
     )
 }
 
@@ -1575,6 +1611,7 @@ fn expert_mapped_layout(
     groups: Option<&GroupedRoutes>,
     stable_shapes: bool,
     native_prepare: bool,
+    lane_order: bool,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -1714,6 +1751,11 @@ fn expert_mapped_layout(
         if groups.is_some() { "tile_sub" } else { "tile_map" },
     ));
     let header = codebook_header(cb)
+        + if lane_order {
+            "\n#define MLXL3_QMV_LANE_ORDER 1\n"
+        } else {
+            ""
+        }
         + &masked_header
         + reference_reduction_header(slot_major)
         + &format!(

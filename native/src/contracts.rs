@@ -1,5 +1,123 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn switch_glu_layout(
+    experts: i32,
+    top_k: i32,
+    input: i32,
+    hidden: i32,
+    k: usize,
+) -> Option<[i32; 3]> {
+    if experts <= 0
+        || top_k <= 0
+        || top_k > experts
+        || input <= 0
+        || hidden <= 0
+        || input % 128 != 0
+        || hidden % 128 != 0
+        || !(1..=8).contains(&k)
+        || k == 7
+    {
+        return None;
+    }
+    Some([
+        experts.checked_mul(hidden)? / 8,
+        experts.checked_mul(input)? / 16,
+        (16 * k) as i32,
+    ])
+}
+
+/// Validate CPU-origin routes before constructing a device array.
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn switch_glu_route_rows(ids: &[u32], experts: i32, top_k: usize) -> Option<i32> {
+    if experts <= 0
+        || top_k == 0
+        || top_k > experts as usize
+        || ids.is_empty()
+        || ids.len() > i32::MAX as usize / 2
+        || !ids.len().is_multiple_of(top_k)
+        || ids.iter().any(|&id| id >= experts as u32)
+    {
+        return None;
+    }
+    i32::try_from(ids.len() / top_k).ok()
+}
+
+#[test]
+fn switch_glu_layout_rejects_invalid_and_overflowing_banks() {
+    for k in 0..=9 {
+        assert_eq!(
+            switch_glu_layout(256, 8, 2048, 512, k),
+            ((1..=8).contains(&k) && k != 7).then_some([16384, 32768, (16 * k) as i32])
+        );
+    }
+    for bad in [i32::MIN, -128, 0, 1, 127, i32::MAX] {
+        assert!(switch_glu_layout(256, 8, bad, 512, 2).is_none());
+        assert!(switch_glu_layout(256, 8, 2048, bad, 3).is_none());
+    }
+    assert!(switch_glu_layout(i32::MAX, 8, 2048, 512, 2).is_none());
+    assert!(switch_glu_layout(2, 3, 128, 128, 2).is_none());
+    assert!(switch_glu_layout(2, 0, 128, 128, 2).is_none());
+}
+
+#[test]
+fn switch_glu_cpu_routes_reject_empty_ragged_and_out_of_bank_ids() {
+    assert_eq!(
+        switch_glu_route_rows(&[0, 255, 0, 1, 2, 3, 4, 5], 256, 8),
+        Some(1)
+    );
+    assert_eq!(switch_glu_route_rows(&[1; 16], 256, 8), Some(2));
+    assert!(switch_glu_route_rows(&[], 256, 1).is_none());
+    assert!(switch_glu_route_rows(&[256], 256, 1).is_none());
+    assert!(switch_glu_route_rows(&[u32::MAX], 256, 1).is_none());
+    assert!(switch_glu_route_rows(&[0; 7], 256, 8).is_none());
+    assert!(switch_glu_route_rows(&[0], 0, 1).is_none());
+    assert!(switch_glu_route_rows(&[0], -1, 1).is_none());
+    assert!(switch_glu_route_rows(&[0], 256, 0).is_none());
+    assert!(switch_glu_route_rows(&[0], 256, usize::MAX).is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn switch_glu_bank_layout_bounds_real_trellis_dimensions() {
+    let (e, t, i, h): (i32, i32, i32, i32) = kani::any();
+    let k: usize = kani::any();
+    let result = switch_glu_layout(e, t, i, h, k);
+    if let Some([gu, down, packed]) = result {
+        assert!(e > 0 && t > 0 && t <= e && i > 0 && h > 0);
+        assert!(i % 128 == 0 && h % 128 == 0 && (1..=8).contains(&k) && k != 7);
+        assert_eq!(i64::from(gu) * 8, i64::from(e) * i64::from(h));
+        assert_eq!(i64::from(down) * 16, i64::from(e) * i64::from(i));
+        assert_eq!(packed as usize, k * 16);
+        assert!(gu > 0 && down > 0);
+    }
+    kani::cover!(result.is_some() && e == 256 && k == 2);
+    kani::cover!(result.is_some() && e == 256 && k == 3);
+    kani::cover!(result.is_none() && e == i32::MAX && i == 2048 && h == 512);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn switch_glu_cpu_routes_bound_every_submitted_expert() {
+    let ids: [u32; 8] = kani::any();
+    let length: usize = kani::any();
+    kani::assume(length <= ids.len());
+    let e: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let rows = switch_glu_route_rows(&ids[..length], e, top_k);
+    if let Some(rows) = rows {
+        assert!(rows > 0 && e > 0 && top_k > 0 && top_k <= e as usize);
+        assert_eq!(rows as usize * top_k, length);
+        for &id in &ids[..length] {
+            assert!(id < e as u32);
+        }
+    }
+    kani::cover!(rows == Some(1) && length == 8 && top_k == 8 && e == 256);
+    kani::cover!(rows.is_none() && length == 0);
+    kani::cover!(rows.is_none() && length == 8 && e == 256 && top_k == 8 && ids[7] == 256);
+}
+
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn flash_nt2_flag(value: Option<&str>) -> Option<bool> {
     match value {
@@ -3361,4 +3479,32 @@ fn hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds() {
             kani::cover!(!injection && row == 319 && k == 10239);
         }
     }
+}
+
+#[cfg(any(feature = "mlx", kani))]
+pub(crate) fn q36_expert_lane_shape(shape: [i32; 5], k: usize, mcg: bool) -> bool {
+    matches!(shape, [1..=4, 2048, 512, 256, 8]) && matches!(k, 2 | 3) && mcg
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn q36_expert_lane_domain() {
+    let shape: [i32; 5] = kani::any();
+    let k: usize = kani::any();
+    let mcg: bool = kani::any();
+    let selected = q36_expert_lane_shape(shape, k, mcg);
+    assert_eq!(
+        selected,
+        shape[0] > 0
+            && shape[0] <= 4
+            && shape[1] == 2048
+            && shape[2] == 512
+            && shape[3] == 256
+            && shape[4] == 8
+            && (2..=3).contains(&k)
+            && mcg
+    );
+    kani::cover!(selected && k == 2);
+    kani::cover!(selected && k == 3);
+    kani::cover!(!selected);
 }

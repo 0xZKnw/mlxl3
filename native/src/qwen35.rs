@@ -1,6 +1,6 @@
 //! Native Qwen3.5 dense/MoE inference, validated against MLXL3 layerwise.
 use crate::{
-    array::{Array, Dtype},
+    array::{Array, Dtype, GraphReplay},
     checkpoint::Checkpoint,
     gated_delta,
     lfm2::{Projection, half_weight},
@@ -351,6 +351,8 @@ pub struct LinearLayer {
     mlp: Mlp,
     hidden: i32,
     eps: f32,
+    replay: Option<GraphReplay>,
+    replay_enabled: bool,
 }
 
 pub struct Attention {
@@ -1163,6 +1165,18 @@ impl Qwen35Moe {
                 crate::array::is_m5_gpu()?,
             ),
         };
+        let replay_enabled = crate::qwen35_config::replay_enabled(
+            mtp_layout.managed_head(layers.len()) == Some(crate::mtp::ManagedHead::Qwen36Moe),
+            option_env!("MLXL3_MLX_VERSION") == Some("0.32.2") && crate::array::is_m5_gpu()?,
+            std::env::var("MLXL3_Q36_AR_REPLAY")
+                .ok()
+                .map(|value| value == "1"),
+        );
+        for layer in &mut layers {
+            if let Layer::Linear(layer) = layer {
+                layer.replay_enabled = replay_enabled;
+            }
+        }
         let mtp_projection_source =
             if mtp_layout.managed_head(layers.len()) == Some(crate::mtp::ManagedHead::Qwen36Moe) {
                 crate::mtp_projection::source(checkpoint).map(Box::new)
@@ -1815,6 +1829,8 @@ impl LinearLayer {
     ) -> Result<Self> {
         let prefix = format!("model.language_model.layers.{index}");
         Ok(Self {
+            replay: None,
+            replay_enabled: false,
             input_norm: sanitized_norm(
                 checkpoint,
                 &format!("{prefix}.input_layernorm.weight"),
@@ -1854,6 +1870,42 @@ impl LinearLayer {
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+        let g = &self.attention;
+        let shape = [
+            *x.shape().get(1).unwrap_or(&0),
+            self.hidden,
+            g.key_heads,
+            g.value_heads,
+            g.key_dim,
+            g.value_dim,
+        ];
+        if x.shape() == [1, 1, self.hidden]
+            && crate::qwen35_config::replay_gdn_shape(
+                shape,
+                matches!(self.mlp, Mlp::Moe(_)),
+                self.replay_enabled,
+            )
+            && let (Some(conv), Some(state)) = (&g.conv_state, &g.recurrent_state)
+        {
+            let conv = conv.try_clone()?;
+            let state = state.try_clone()?;
+            if let Some(plan) = &self.replay {
+                let mut outputs = plan.apply(&[x, &conv, &state])?;
+                let recurrent = outputs.pop().context("missing replay state")?;
+                let conv = outputs.pop().context("missing replay convolution")?;
+                let output = outputs.pop().context("missing replay hidden")?;
+                ensure!(outputs.is_empty(), "unexpected replay outputs");
+                self.attention.set_state(Some(conv), Some(recurrent))?;
+                return Ok(output);
+            }
+            let output = self.run(x, false)?.0;
+            let (next_conv, next_state) = self.attention.states()?;
+            self.replay = Some(GraphReplay::capture(
+                &[x, &conv, &state],
+                &[&output, next_conv, next_state],
+            )?);
+            return Ok(output);
+        }
         Ok(self.run(x, false)?.0)
     }
 
@@ -1942,6 +1994,7 @@ impl LinearLayer {
     }
 
     fn reset(&mut self) {
+        self.replay = None;
         self.attention.reset();
     }
 }
@@ -3483,6 +3536,20 @@ mod tests {
                 );
             }
         }
+        let enabled_layers = model
+            .layers
+            .iter()
+            .filter(|layer| matches!(layer, Layer::Linear(layer) if layer.replay_enabled))
+            .count();
+        assert_eq!(
+            crate::array::replay_calls_for_check(),
+            enabled_layers * 6,
+            "wrong replay path"
+        );
+        eprintln!(
+            "Q36 actual replay applications: {}; enabled layers: {enabled_layers}",
+            crate::array::replay_calls_for_check()
+        );
         Ok(())
     }
 
