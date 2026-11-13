@@ -29,9 +29,12 @@ struct ModelSelectionMenu: View {
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(StudioTheme.quiet)
             }
-            .padding(.horizontal, 8).frame(height: 28).frame(maxWidth: 210)
+            .padding(.horizontal, 12).frame(height: 32).frame(maxWidth: 210)
         }
-        .menuStyle(.button).buttonStyle(StudioControlStyle()).menuIndicator(.hidden)
+        .menuStyle(.button).buttonStyle(WorkspaceControlStyle()).menuIndicator(.hidden)
+        .foregroundStyle(StudioTheme.ink)
+        .glassEffect(.regular, in: Capsule())
+        .accessibilityIdentifier("toolbar.model")
         .fixedSize(horizontal: false, vertical: true)
         .disabled(studio.isGenerating || studio.localServer.active)
         .help(studio.engineState.label)

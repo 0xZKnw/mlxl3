@@ -9,7 +9,7 @@ struct ConversationDisplayControl: View {
             Image(systemName: studio.readingWidth == .wide ? "arrow.left.and.right" : "text.alignleft")
                 .frame(width: 30, height: 30)
         }
-        .buttonStyle(StudioControlStyle(emphasized: presented))
+        .buttonStyle(WorkspaceControlStyle(selected: presented))
         .accessibilityLabel(L("Affichage des réponses", "Response appearance"))
         .help(L("Largeur et taille du texte", "Width and text size"))
         .popover(isPresented: $presented, arrowEdge: .bottom) {

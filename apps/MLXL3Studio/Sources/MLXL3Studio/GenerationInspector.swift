@@ -23,19 +23,19 @@ struct GenerationInspector: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
-                        .frame(width: 34, height: 34)
+                        .frame(width: 28, height: 28)
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+                .buttonStyle(WorkspaceControlStyle())
+                .accessibilityIdentifier("generation.close")
                 .accessibilityLabel(L("Fermer les paramètres du modèle", "Close model settings"))
             }
             .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 16)
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 24) {
                         ContextSettings()
-                        SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
+                        SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium", grouped: false) {
                             VStack(spacing: 16) {
                                 SliderSetting(
                                     label: L("Température", "Temperature"),
@@ -88,13 +88,13 @@ struct GenerationInspector: View {
                         }
 
                         if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {
-                            SettingCard(title: L("Accélération MTP", "MTP acceleration"), icon: "bolt.fill") {
+                            SettingCard(title: L("Accélération MTP", "MTP acceleration"), icon: "bolt.fill", grouped: false) {
                                 MTPSettingsContent().id("mtp-tuning")
                             }
                         }
 
                         if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {
-                            SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill") {
+                            SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill", grouped: false) {
                                 Toggle(
                                     studio.dflash2Available
                                         ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
@@ -183,7 +183,7 @@ struct GenerationInspector: View {
                             studio.showWorkspace = true
                         }
                         if studio.selectedMode != .agent {
-                            SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
+                            SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces", grouped: false) {
                                 TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced))
                                     .frame(minHeight: 80)
                                 Text(
@@ -195,7 +195,7 @@ struct GenerationInspector: View {
                                 Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
                             }
                         }
-                        SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
+                        SettingCard(title: L("Instruction système", "System instruction"), icon: "command", grouped: false) {
                             TextEditor(text: $studio.systemPrompt)
                                 .font(.system(size: 13))
                                 .scrollContentBackground(.hidden)
@@ -220,7 +220,7 @@ struct GenerationInspector: View {
                         }
 
                         if studio.selectedMode == .agent {
-                            SettingCard(title: L("Sandbox native", "Native sandbox"), icon: "lock.shield") {
+                            SettingCard(title: L("Sandbox native", "Native sandbox"), icon: "lock.shield", grouped: false) {
                                 Text(
                                     L(
                                         "Dossier privé par tâche · réseau bloqué · aucun serveur MCP externe.",
@@ -236,7 +236,7 @@ struct GenerationInspector: View {
                                 }
                             }.font(.system(size: 12))
                         } else {
-                            SettingCard(title: "MCP", icon: "shippingbox") {
+                            SettingCard(title: "MCP", icon: "shippingbox", grouped: false) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(
@@ -298,7 +298,7 @@ struct GenerationInspector: View {
                         }
 
                         if let model = studio.selectedModel {
-                            SettingCard(title: L("Modèle actif", "Active model"), icon: "cpu") {
+                            SettingCard(title: L("Modèle actif", "Active model"), icon: "cpu", grouped: false) {
                                 InspectorValue(label: "Architecture", value: model.architectureLabel)
                                 InspectorValue(
                                     label: L("Quantification", "Quantization"),
@@ -330,7 +330,7 @@ struct GenerationInspector: View {
             } else {
                 StudioAurora()
                     .opacity(0.32)
-                    .background(StudioTheme.canvas(for: appTheme).opacity(0.96))
+                    .background(StudioTheme.composer(for: appTheme).opacity(0.90))
                     .glassEffect(.regular, in: shape)
                     .clipShape(shape)
             }
@@ -423,14 +423,15 @@ private struct ContextSettings: View {
 }
 
 struct SettingCard<Content: View>: View {
-    @Environment(\.studioAppTheme) private var theme
     let title: String
     let icon: String
+    let grouped: Bool
     @ViewBuilder let content: Content
 
-    init(title: String, icon: String, @ViewBuilder content: () -> Content) {
+    init(title: String, icon: String, grouped: Bool = true, @ViewBuilder content: () -> Content) {
         self.title = title
         self.icon = icon
+        self.grouped = grouped
         self.content = content()
     }
 
@@ -444,11 +445,11 @@ struct SettingCard<Content: View>: View {
             VStack(alignment: .leading, spacing: 13) {
                 content
             }
-            .padding(16)
+            .padding(grouped ? 16 : 3)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(StudioTheme.composer(for: theme), in: RoundedRectangle(cornerRadius: 14))
+            .background(grouped ? StudioTheme.panel : .clear, in: RoundedRectangle(cornerRadius: 14))
             .overlay {
-                RoundedRectangle(cornerRadius: 14).strokeBorder(StudioTheme.edge)
+                RoundedRectangle(cornerRadius: 14).strokeBorder(grouped ? StudioTheme.edge.opacity(0.6) : .clear)
                     .allowsHitTesting(false)
             }
         }

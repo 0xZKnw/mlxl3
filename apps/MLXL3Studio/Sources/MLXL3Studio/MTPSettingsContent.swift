@@ -31,7 +31,7 @@ struct MTPToolbarControl: View {
             .font(.system(size: 11, weight: .semibold))
             .padding(.horizontal, 8).frame(height: 30)
         }
-        .buttonStyle(StudioControlStyle(emphasized: presented))
+        .buttonStyle(WorkspaceControlStyle(selected: presented))
         .disabled(!studio.mtpAvailable && !studio.isTuningMTP)
         .help(L("Accélération MTP · activation mémorisée par modèle", "MTP acceleration · remembered per model"))
         .accessibilityLabel(L("Réglages MTP", "MTP settings"))

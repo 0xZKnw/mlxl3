@@ -162,22 +162,32 @@ private struct SidebarView: View {
             .padding(.horizontal, 12)
             .padding(.top, 10)
 
+            Button(action: studio.newConversation) {
+                HStack(spacing: 9) {
+                    Image(systemName: "square.and.pencil")
+                    Text(studio.selectedMode == .agent
+                         ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 12).frame(height: 36)
+            }
+            .buttonStyle(StudioToolbarStyle())
+            .accessibilityIdentifier("sidebar.newConversation")
+            .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
+            .padding(.horizontal, 12).padding(.top, 12)
+
             HStack {
                 Text("Conversations")
                 Text("\(visibleConversations.count)").monospacedDigit()
                 Spacer()
-                Button(action: studio.newConversation) {
-                    Image(systemName: "square.and.pencil").frame(width: 28, height: 28)
-                }
-                .buttonStyle(StudioControlStyle())
-                .accessibilityLabel(studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
-                .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(StudioTheme.secondary)
-            .padding(.leading, 21).padding(.trailing, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 3)
+            .foregroundStyle(StudioTheme.quiet)
+            .padding(.horizontal, 21)
+            .padding(.top, 18)
+            .padding(.bottom, 8)
 
             ScrollView {
                 let conversations = visibleConversations
@@ -364,10 +374,8 @@ private struct WorkspaceHeader: View {
             Spacer(minLength: 12)
 
             ModelSelectionMenu()
-                .background(StudioTheme.canvas(for: studio.theme).opacity(0.28), in: Capsule())
-                .glassEffect(.regular, in: Capsule())
 
-            HStack(spacing: 2) {
+            HStack(spacing: 3) {
                 ConversationDisplayControl()
                 MTPToolbarControl()
                 if studio.dflash2Available {
@@ -377,14 +385,14 @@ private struct WorkspaceHeader: View {
                     Button { studio.showInspector.toggle() } label: {
                         Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)
                     }
-                    .buttonStyle(StudioControlStyle(emphasized: studio.showInspector))
+                    .buttonStyle(WorkspaceControlStyle(selected: studio.showInspector))
+                    .accessibilityIdentifier("toolbar.generation")
                     .help(L("Réglages de génération", "Generation settings"))
                     .accessibilityLabel(L("Réglages de génération", "Generation settings"))
                 }
             }
-            .padding(3)
-            .background(StudioTheme.canvas(for: studio.theme).opacity(0.28), in: RoundedRectangle(cornerRadius: 12))
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12))
+            .padding(4)
+            .glassEffect(.regular, in: Capsule())
         }
         .font(.system(size: 13))
         .padding(.leading, sidebarVisible ? 22 : 82)

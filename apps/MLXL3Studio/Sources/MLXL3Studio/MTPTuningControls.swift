@@ -38,7 +38,7 @@ struct MTPTuningToolbarControl: View {
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 10).frame(height: 30)
                 }
-                .buttonStyle(StudioControlStyle(emphasized: true))
+                .buttonStyle(WorkspaceControlStyle(selected: tuning))
                 .disabled(!tuning && !canTune)
                 .help(tuning
                       ? status + L(" · Cliquer pour arrêter", " · Click to stop")

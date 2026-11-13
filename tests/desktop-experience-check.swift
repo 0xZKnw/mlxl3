@@ -42,7 +42,9 @@ import SwiftUI
         let file = root.appendingPathComponent("pins.json")
         let visual = make(preview: true, file: file)
         checkAuroraPlayback()
+        try await checkSettingsSurfaces()
         try await checkAurora(studio: visual, preferences: prefs)
+        try await checkWorkspaceControls(studio: visual, preferences: prefs)
         let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
         let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")], createdAt: Date(timeIntervalSince1970: 200))
         let c = Conversation(title: "Notes", messages: [ChatMessage(role: .assistant, content: "C")], createdAt: Date(timeIntervalSince1970: 100))
@@ -305,5 +307,82 @@ extension DesktopExperienceCheck {
             playback.setGenerating(false, at: time + 0.48)
         }
         print("Aurora playback passed: undershoot, overshoot, 4.4x cruise, continuous reversals, return to 1x, twelve rapid restarts")
+    }
+}
+
+
+extension DesktopExperienceCheck {
+    @MainActor static func checkSettingsSurfaces() async throws {
+        func sample(_ backdrop: Color, theme: AppTheme) async throws -> NSColor {
+            let card = SettingCard(title: "Fixture", icon: "slider.horizontal.3") {
+                Text("Control").frame(height: 60)
+            }
+            .frame(width: 320, height: 160, alignment: .top)
+            .background(backdrop)
+            .studioAppearance(theme)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 160),
+                                  styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            window.appearance = NSAppearance(named: theme == .light ? .aqua : .darkAqua)
+            let host = NSHostingView(rootView: card)
+            window.contentView = host
+            host.frame = NSRect(x: 0, y: 0, width: 320, height: 160)
+            try await Task.sleep(for: .milliseconds(100))
+            host.layoutSubtreeIfNeeded()
+            let image = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+            host.cacheDisplay(in: host.bounds, to: image)
+            return image.colorAt(x: image.pixelsWide * 3 / 4, y: image.pixelsHigh / 2)!
+                .usingColorSpace(.sRGB)!
+        }
+        for theme in [AppTheme.dark, .light] {
+            let red = try await sample(.red, theme: theme)
+            let blue = try await sample(.blue, theme: theme)
+            precondition(red.redComponent > blue.redComponent + 0.3 &&
+                         blue.blueComponent > red.blueComponent + 0.3,
+                         "Settings sections must preserve the underlying surface, without an opaque card")
+        }
+        print("Settings surfaces passed: real light/dark rendering preserves the backdrop")
+    }
+}
+
+
+extension DesktopExperienceCheck {
+    @MainActor static func checkWorkspaceControls(studio: StudioModel, preferences: UserDefaults) async throws {
+        let bounds = NSRect(x: 0, y: 0, width: 1230, height: 780)
+        let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        studio.setLanguage(.fr)
+        studio.showInspector = false
+        studio.newConversation()
+        let host = NSHostingView(rootView: StudioView().environmentObject(studio)
+            .defaultAppStorage(preferences).studioAppearance(.dark))
+        window.contentView = host
+        host.frame = bounds
+        window.setFrameOrigin(NSPoint(x: -6000, y: -6000))
+        window.orderBack(nil)
+        try await Task.sleep(for: .milliseconds(150))
+        func click(_ x: CGFloat, _ y: CGFloat) async throws {
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: bounds.height - y),
+                    modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                window.sendEvent(event)
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        for x in [CGFloat(30), 200] {
+            let count = studio.conversations.count
+            try await click(x, 334)
+            precondition(studio.conversations.count == count + 1,
+                         "New conversation must respond across the full sidebar row")
+        }
+        studio.draft = "Brouillon conservé"
+        try await click(1195, 33)
+        precondition(studio.showInspector && studio.draft == "Brouillon conservé")
+        try await click(1188, 52)
+        precondition(!studio.showInspector && studio.draft == "Brouillon conservé")
+        print("Workspace controls passed: full-width new conversation, inspector close and retained draft")
     }
 }

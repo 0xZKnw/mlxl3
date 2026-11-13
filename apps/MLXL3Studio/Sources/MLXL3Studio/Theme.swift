@@ -130,6 +130,38 @@ struct StudioControlStyle: ButtonStyle {
     }
 }
 
+/// Capsule feedback stays inside the shared toolbar glass.
+struct WorkspaceControlStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var selected = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        Surface(configuration: configuration, selected: selected, enabled: enabled, reduceMotion: reduceMotion)
+    }
+
+    private struct Surface: View {
+        let configuration: ButtonStyle.Configuration
+        let selected: Bool
+        let enabled: Bool
+        let reduceMotion: Bool
+        @State private var hovered = false
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(StudioTheme.ink)
+                .background(StudioTheme.contrast.opacity(
+                    !enabled ? 0 : configuration.isPressed ? 0.14 : hovered ? 0.09 : selected ? 0.055 : 0
+                ), in: Capsule())
+                .contentShape(Capsule())
+                .opacity(enabled ? 1 : 0.32)
+                .onHover { hovered = $0 }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
+        }
+    }
+}
+
 @MainActor
 enum StudioBrand {
     static let logoURL: URL? = {
