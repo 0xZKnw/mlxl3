@@ -12,9 +12,9 @@ SwiftUI desktop app, a Rust inference engine using MLX on Metal, a
 command-line client, and an OpenAI-compatible HTTP API. Supported families
 include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
-[Download Desktop beta 21](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.21)
-· [Engine 2.0.9 beta](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.9-beta.1)
-· [Release notes](docs/releases/desktop/release-v2.0.0-beta.21.md)
+[Download Desktop v2.0.0](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0)
+· [Engine 2.0.10](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.10)
+· [Release notes](docs/releases/desktop/release-v2.0.0.md)
 · [Website](https://mlxl3.0xzknw.tech/)
 · [Discord](https://discord.gg/9hU46NVNnY)
 · [MIT license](LICENSE)
@@ -34,13 +34,13 @@ Homebrew or separate MLX installation is needed to use the app.
 | **Models** | Browse pinned EXL3 variants, resume downloads, import an existing checkpoint or convert supported weights with the bundled converter. |
 | **Workspace and controls** | Choose a theme, text size and reading width. Open the generation inspector or check the loaded model from the menu bar. Switching between Chat and Agent respects a manually unloaded model. |
 
-The next v2 Desktop build adds a fine ASCII aurora with a high reflection and a lower amber glow. As the light passes, the characters in each cell change from dots to crosses in the main window and the menu bar widget. It responds to generation and respects Reduce Motion. The model selector, generation controls and New Conversation button use native macOS glass. The screenshot shows this development build. The downloadable v2 build above is **beta 21**.
+Desktop v2 includes a fine ASCII aurora with a high reflection and a lower amber glow. As the light passes, the characters in each cell change from dots to crosses in the main window and the menu bar widget. It responds to generation and respects Reduce Motion. The model selector, generation controls and New Conversation button use native macOS glass.
 
-![MLXL3 Desktop development build with the ASCII aurora and the new conversation composer](docs/desktop/assets/mlxl3-ascii.png)
+![MLXL3 Desktop v2 with the ASCII aurora and the new conversation composer](docs/desktop/assets/mlxl3-ascii.png)
 
 ## Install and run your first model
 
-1. Download the **v2 beta DMG** above and drag **MLXL3 Desktop** into Applications.
+1. Download the **v2 DMG** above and drag **MLXL3 Desktop** into Applications.
 2. Open **Models → Hugging Face**, or import a complete local EXL3 folder.
 3. Choose the repository revision and quantization, download it, then load it
    from the model selector.
@@ -49,7 +49,7 @@ The next v2 Desktop build adds a fine ASCII aurora with a high reflection and a 
 The builds are ad-hoc signed, not notarized. If macOS blocks first launch,
 approve this specific app in **System Settings → Privacy & Security**.
 
-Desktop **2.0.0-beta.21 / build 52** bundles engine **2.0.9**. App and engine
+Desktop **2.0.0 / build 53** bundles engine **2.0.10**. App and engine
 updates have separate stable/beta channels in Settings. Updating an engine
 validates its manifest, hashes, architecture, protocol and app compatibility;
 a failed startup can fall back to the bundled runtime. Engine releases do not
@@ -245,8 +245,7 @@ The [optimization journal](opti.md) records the experiments and decisions.
 
 ## Desktop workspaces
 
-The capabilities below describe the current source; the latest published beta
-may not yet include every change.
+The stable v2 Desktop includes the following workspaces.
 
 - **Chat:** streaming responses and reasoning, Markdown/code/math rendering,
   saved conversations, editing, regeneration, branches and export.
