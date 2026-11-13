@@ -47,6 +47,20 @@ extension StudioModel {
         check(studio.mcpConfigurationURL.deletingLastPathComponent() == file.deletingLastPathComponent(),
               "UI preview MCP configuration must stay in the disposable workspace")
         studio.draft = "Unsent text"; let conversation = studio.selectedConversationID
+        check(AppTheme.allCases == [.system, .light, .dark], "Only the three supported appearances are selectable")
+        for (names, expected) in [(["paper", "sand", "lavender"], AppTheme.light),
+                                  (["midnightBlue", "graphite", "coffee", "forest", "plum", "ocean"], .dark)] {
+            for name in names {
+                preferences.set(name, forKey: AppTheme.preferenceKey)
+                check(AppTheme.load(from: preferences) == expected, "Lost legacy appearance for " + name)
+            }
+        }
+        check(AppAccent.load(from: preferences) == .violet, "Default aurora accent")
+        for (name, expected) in [("mint", AppAccent.neutral), ("sage", .neutral), ("coral", .rose),
+                                  ("cyan", .violet), ("blue", .violet), ("indigo", .violet)] {
+            preferences.set(name, forKey: AppAccent.preferenceKey)
+            check(AppAccent.load(from: preferences) == expected, "Unexpected legacy accent " + name)
+        }
         for theme in AppTheme.allCases {
             studio.setTheme(theme)
             check(make(preview: true).theme == theme, "Theme not persisted")
@@ -105,13 +119,13 @@ extension StudioModel {
               "Sidebar update button is not wired to updates")
         preferences.set("unknown", forKey: AppAccent.preferenceKey)
         preferences.set(true, forKey: ConversationDensity.preferenceKey)
-        check(make(preview: true).accent == .neutral && make(preview: true).conversationDensity == .comfortable,
+        check(make(preview: true).accent == .violet && make(preview: true).conversationDensity == .comfortable,
               "Malformed appearance preference accepted")
         studio.setLoadModelOnStartup(false)
         studio.setStartupModelPath("/fixture/startup")
         studio.resetAppearance()
         let reset = make(preview: true)
-        check(reset.theme == .dark && reset.accent == .neutral && reset.conversationDensity == .comfortable
+        check(reset.theme == .dark && reset.accent == .violet && reset.conversationDensity == .comfortable
               && reset.readingWidth == .centered && reset.responseTextSize == 15
               && reset.sidebarWidth == .standard && reset.conversationFont == .standard && reset.messageBubbleStyle == .subtle
               && reset.customAccentHex == CustomAccent.defaultHex,
@@ -120,7 +134,7 @@ extension StudioModel {
               && studio.draft == "Unsent text" && studio.selectedConversationID == conversation,
               "Appearance reset changed startup or conversation data")
         check(AppTheme.system.colorScheme == nil && AppTheme.light.colorScheme == .light
-              && AppTheme.dark.colorScheme == .dark && AppTheme.midnightBlue.colorScheme == .dark, "Incorrect scheme mapping")
+              && AppTheme.dark.colorScheme == .dark, "Incorrect scheme mapping")
         for invalid in ["", "sepia", true, 4] as [Any] {
             preferences.set(invalid, forKey: AppTheme.preferenceKey)
             check(AppTheme.load(from: preferences) == .dark, "Invalid theme must fall back")
@@ -149,14 +163,14 @@ extension StudioModel {
         // Render actual settings and rich text, not a parallel palette implementation.
         _ = NSApplication.shared
         studio.appSettingsPage = .appearance
-        let host = NSHostingView(rootView: AppSettingsView().environmentObject(studio))
+        let host = NSHostingView(rootView: AppSettingsView().environmentObject(studio).environment(\.scenePhase, .inactive))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 720),
                               styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
         host.frame = NSRect(x: 0, y: 0, width: 1000, height: 720)
         defer { window.close() }
-        for theme in [AppTheme.light, .dark, .midnightBlue, .light] {
+        for theme in [AppTheme.light, .dark, .light] {
             studio.setTheme(theme)
             try await Task.sleep(for: .milliseconds(150))
             host.layoutSubtreeIfNeeded()
@@ -168,35 +182,31 @@ extension StudioModel {
             let corner = bitmap.colorAt(x: 10, y: bitmap.pixelsHigh / 2)!.usingColorSpace(.sRGB)!
             check(theme == .light ? corner.redComponent > 0.7 : corner.redComponent < 0.3,
                   "Rendered settings did not follow selected theme")
-            let cool = bitmap.colorAt(x: bitmap.pixelsWide / 3, y: 8)!.usingColorSpace(.sRGB)!
-            let warm = bitmap.colorAt(x: bitmap.pixelsWide * 9 / 10, y: 8)!.usingColorSpace(.sRGB)!
+            let cool = bitmap.colorAt(x: bitmap.pixelsWide * 77 / 100, y: bitmap.pixelsHigh * 2 / 100)!.usingColorSpace(.sRGB)!
+            let warm = bitmap.colorAt(x: bitmap.pixelsWide * 78 / 100, y: bitmap.pixelsHigh * 24 / 100)!.usingColorSpace(.sRGB)!
             check(cool.blueComponent > cool.redComponent + 0.04 && warm.redComponent > warm.blueComponent + 0.06,
                   "Settings must carry the workspace aurora across its header")
-            if theme == .midnightBlue {
-                check(corner.blueComponent > corner.redComponent + 0.07,
-                      "Midnight blue must render a blue canvas, not the neutral dark palette")
-            }
             if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
                let data = bitmap.representation(using: .png, properties: [:]) {
                 try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-" + theme.rawValue + ".png"))
             }
         }
-        let blueHost = NSHostingView(rootView: StudioView().environmentObject(studio)
-            .studioAppearance(.midnightBlue).frame(width: 1280, height: 800))
-        let blueWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
+        let darkHost = NSHostingView(rootView: StudioView().environmentObject(studio)
+            .studioAppearance(.dark).frame(width: 1280, height: 800))
+        let darkWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
                                   styleMask: .borderless, backing: .buffered, defer: false)
-        blueWindow.isReleasedWhenClosed = false
-        blueWindow.contentView = blueHost
-        blueHost.frame = NSRect(x: 0, y: 0, width: 1280, height: 800)
-        defer { blueWindow.close() }
+        darkWindow.isReleasedWhenClosed = false
+        darkWindow.contentView = darkHost
+        darkHost.frame = NSRect(x: 0, y: 0, width: 1280, height: 800)
+        defer { darkWindow.close() }
         try await Task.sleep(for: .milliseconds(150))
-        blueHost.layoutSubtreeIfNeeded()
-        let blueBitmap = blueHost.bitmapImageRepForCachingDisplay(in: blueHost.bounds)!
-        blueHost.cacheDisplay(in: blueHost.bounds, to: blueBitmap)
-        check(blueBitmap.pixelsWide >= 1280, "Main blue theme window did not render")
+        darkHost.layoutSubtreeIfNeeded()
+        let darkBitmap = darkHost.bitmapImageRepForCachingDisplay(in: darkHost.bounds)!
+        darkHost.cacheDisplay(in: darkHost.bounds, to: darkBitmap)
+        check(darkBitmap.pixelsWide >= 1280, "Main dark theme window did not render")
         if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
-           let data = blueBitmap.representation(using: .png, properties: [:]) {
-            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("studio-midnightBlue.png"))
+           let data = darkBitmap.representation(using: .png, properties: [:]) {
+            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("studio-dark.png"))
         }
         // System follows application appearance without a forced scheme.
         studio.setTheme(.system)
@@ -336,17 +346,17 @@ extension StudioModel {
         ])
         studio.conversations = [previewConversation]
         studio.selectedConversationID = previewConversation.id
-        studio.setTheme(.midnightBlue)
+        studio.setTheme(.dark)
         studio.setCustomAccent(Color(red: 0.18, green: 0.65, blue: 0.80))
         studio.setConversationFont(.serif)
         studio.setMessageBubbleStyle(.tinted)
         studio.setSidebarWidth(.wide)
         studio.setReadingWidth(.narrow)
         try await Task.sleep(for: .milliseconds(500))
-        blueHost.layoutSubtreeIfNeeded()
-        let customBitmap = blueHost.bitmapImageRepForCachingDisplay(in: blueHost.bounds)!
-        blueHost.cacheDisplay(in: blueHost.bounds, to: customBitmap)
-        check(customBitmap.pixelsWide == blueBitmap.pixelsWide && customBitmap.pixelsHigh == blueBitmap.pixelsHigh,
+        darkHost.layoutSubtreeIfNeeded()
+        let customBitmap = darkHost.bitmapImageRepForCachingDisplay(in: darkHost.bounds)!
+        darkHost.cacheDisplay(in: darkHost.bounds, to: customBitmap)
+        check(customBitmap.pixelsWide == darkBitmap.pixelsWide && customBitmap.pixelsHigh == darkBitmap.pixelsHigh,
               "Custom appearance changed the window dimensions")
         if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
            let data = customBitmap.representation(using: .png, properties: [:]) {

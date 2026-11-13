@@ -46,7 +46,7 @@ extension StudioModel {
             for state in ["off", "on", "pending", "error"] {
                 studio.seedToolbar(state)
                 let host = NSHostingView(rootView: MTPToolbarControl().environmentObject(studio)
-                    .studioAppearance(.midnightBlue).background(StudioTheme.canvas(for: .midnightBlue)))
+                    .studioAppearance(.dark).background(StudioTheme.canvas))
                 let size = host.fittingSize
                 cases += 1
                 if !size.width.isFinite || size.width > 95 || size.height > 30 || size.height <= 0 {
@@ -68,8 +68,8 @@ extension StudioModel {
                 for width in [200, 244, 280, 320] {
                     let view = MTPTuningControls().environmentObject(studio)
                         .frame(width: CGFloat(width), alignment: .leading)
-                        .padding(16).background(StudioTheme.canvas(for: .midnightBlue))
-                        .studioAppearance(.midnightBlue)
+                        .padding(16).background(StudioTheme.canvas)
+                        .studioAppearance(.dark)
                         .foregroundStyle(StudioTheme.ink)
                     let host = NSHostingView(rootView: view)
                     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width + 32, height: 600),
@@ -100,7 +100,7 @@ extension StudioModel {
         if let output = ProcessInfo.processInfo.environment["MLXL3_MTP_LAYOUT_SNAPSHOTS"] {
             studio.seedMTPLayout(results: true)
             let host = NSHostingView(rootView: GenerationInspector().environmentObject(studio)
-                .studioAppearance(.midnightBlue).foregroundStyle(StudioTheme.ink))
+                .studioAppearance(.dark).foregroundStyle(StudioTheme.ink))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 286, height: 800),
                 styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false; window.contentView = host

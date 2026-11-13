@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct GenerationInspector: View {
-    @Environment(\.studioAppTheme) private var appTheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @EnvironmentObject private var studio: StudioModel
 
@@ -326,11 +325,11 @@ struct GenerationInspector: View {
         .background {
             let shape = RoundedRectangle(cornerRadius: 22)
             if reduceTransparency {
-                shape.fill(StudioTheme.canvas(for: appTheme))
+                shape.fill(StudioTheme.canvas)
             } else {
                 StudioAurora()
                     .opacity(0.32)
-                    .background(StudioTheme.composer(for: appTheme).opacity(0.90))
+                    .background(StudioTheme.composer.opacity(0.90))
                     .premiumGlass(radius: 22)
                     .clipShape(shape)
             }

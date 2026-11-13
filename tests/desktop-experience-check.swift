@@ -45,7 +45,7 @@ import SwiftUI
         try await checkSettingsSurfaces()
         try await checkDisabledControls()
         try await checkWidgetSizing(studio: visual)
-        try await checkAurora(studio: visual, preferences: prefs)
+        try await checkAurora()
         try await checkWorkspaceControls(studio: visual, preferences: prefs)
         let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
         let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")], createdAt: Date(timeIntervalSince1970: 200))
@@ -160,6 +160,20 @@ import SwiftUI
             try await wait(label, until: { studio.engineState.isReady && !studio.mtpDownloading })
         }
         studio.selectModel(dense.name); try await ready("initial dense")
+        let sentTo = studio.selectedConversationID
+        for text in ["First send", "Follow-up"] {
+            studio.draft = text
+            let old = studio.lastSubmittedMessageID
+            studio.send()
+            let user = studio.currentConversation?.messages.last(where: { $0.role == .user })
+            try check(studio.lastSubmittedMessageID != old && studio.lastSubmittedMessageID == user?.id
+                      && user?.content == text && studio.selectedConversationID == sentTo && studio.draft.isEmpty,
+                      "Send animation must identify the accepted user message")
+            let sent = studio.lastSubmittedMessageID
+            studio.send()
+            try check(studio.lastSubmittedMessageID == sent, "Rejected send replayed the animation")
+            try await ready("send completion")
+        }
         try check(!studio.mtpEnabled && !studio.mtpRememberedEnabled, "Fresh model did not default OFF")
         studio.setMTPEnabled(true); try await ready("enable dense")
         try check(studio.mtpEnabled && studio.mtpActive == true && studio.mtpRememberedEnabled, "MTP did not activate")
@@ -199,14 +213,14 @@ import SwiftUI
         // Images are evidence, never an oracle copied from the view implementation.
         if let output = ProcessInfo.processInfo.environment["MLXL3_EXPERIENCE_SNAPSHOTS"] {
             _ = NSApplication.shared
-            visual.setTheme(.midnightBlue)
+            visual.setTheme(.dark)
             visual.models = [flash]; visual.selectedModelName = flash.name
             for width in ConversationReadingWidth.allCases {
                 visual.setReadingWidth(width)
                 let answer = ChatMessage(role: .assistant, content: "# Une réponse lisible\n\n" + String(repeating: "Le même texte conserve sa taille ; seule la largeur de lecture change. ", count: 8) + "\n\n```swift\nlet resultat = donnees.filter { $0.score > 10 }.sorted { $0.nom < $1.nom }\n```")
                 visual.conversations[0].messages = [answer]
                 for size in [820, 1280] {
-                    let host = NSHostingView(rootView: StudioView().environmentObject(visual).studioAppearance(.midnightBlue)
+                    let host = NSHostingView(rootView: StudioView().environmentObject(visual).studioAppearance(.dark)
                         .frame(width: CGFloat(size), height: 800))
                     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: size, height: 800), styleMask: .borderless, backing: .buffered, defer: false)
                     window.isReleasedWhenClosed = false; window.contentView = host
@@ -221,7 +235,7 @@ import SwiftUI
             studio.selectModel(dense.name); try await ready("MTP settings render")
             studio.setMTPEnabled(true); try await ready("MTP settings enabled")
             let host = NSHostingView(rootView: MTPSettingsContent().environmentObject(studio).padding(20)
-                .frame(width: 360, height: 540).background(StudioTheme.canvas(for: .midnightBlue)).studioAppearance(.midnightBlue))
+                .frame(width: 360, height: 540).background(StudioTheme.canvas).studioAppearance(.dark))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 540), styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false; window.contentView = host; host.frame = NSRect(x: 0, y: 0, width: 360, height: 540)
             try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
@@ -235,21 +249,20 @@ import SwiftUI
 }
 
 extension DesktopExperienceCheck {
-    /// Probe the actual window, so a canvas accidentally covering the aurora also fails.
-    @MainActor static func checkAurora(studio: StudioModel, preferences: UserDefaults) async throws {
+    // AppKit bitmap caching omits compositor-backed siblings when native Liquid Glass is present.
+    @MainActor static func checkAurora() async throws {
         _ = NSApplication.shared
-        preferences.set(true, forKey: "studio.sidebarVisible")
         for (theme, width, height) in [(AppTheme.light, 820, 600), (.dark, 1280, 820)] {
             let bounds = NSRect(x: 0, y: 0, width: width, height: height)
             let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             defer { window.close() }
             window.appearance = NSAppearance(named: theme == .light ? .aqua : .darkAqua)
-            studio.setTheme(theme)
-            studio.engineState = .idle
-            let view = StudioView().defaultAppStorage(preferences).environmentObject(studio)
-                .studioAppearance(theme).transaction { $0.disablesAnimations = true }
-            let host = NSHostingView(rootView: view)
+            func field(_ busy: Bool) -> some View {
+                StudioAurora(busy: busy, fullHeight: true).background(StudioTheme.canvas)
+                    .studioAppearance(theme).transaction { $0.disablesAnimations = true }
+            }
+            let host = NSHostingView(rootView: field(false))
             window.contentView = host
             host.frame = bounds
 
@@ -266,21 +279,38 @@ extension DesktopExperienceCheck {
                     .usingColorSpace(.sRGB)!
             }
             let idle = try await snapshot()
-            let cool = color(idle, x: 0.28, y: 0.012)
-            let warm = color(idle, x: 0.96, y: 0.012)
-            let reading = color(idle, x: 0.83, y: 0.84)
-            precondition(cool.blueComponent > cool.redComponent + 0.04, "Missing cool end of workspace aurora")
-            precondition(warm.redComponent > warm.blueComponent + 0.06, "Missing warm end of workspace aurora")
-            precondition(abs(reading.redComponent - reading.blueComponent) < 0.03, "Tint leaked below the reading surface")
+            let upper = color(idle, x: 0.342, y: 0.045)
+            precondition(max(upper.redComponent, upper.blueComponent) - upper.greenComponent > 0.027, "Missing high ASCII reflection")
+            let cool = color(idle, x: 0.77, y: 0.32)
+            let warm = color(idle, x: 0.80, y: 0.75)
+            let reading = color(idle, x: 0.40, y: 0.24)
+            precondition(cool.blueComponent > cool.redComponent + 0.05, "Missing violet column")
+            precondition(warm.redComponent > warm.blueComponent + 0.10, "Missing amber foot below the composer")
+            precondition(abs(reading.redComponent - reading.blueComponent) < 0.03, "Lost quiet space for the title")
             precondition(theme == .light ? reading.redComponent > 0.85 : reading.redComponent < 0.2, "Lost theme canvas")
-            studio.engineState = .generating
+
+            // A smooth glow has no repeated stroke edges. Sample an empty patch below the composer.
+            var edges = 0
+            for row in 0..<12 {
+                let y = 0.755 + Double(row) / Double(height)
+                for col in 0..<40 {
+                    let x = 0.77 + Double(col) / Double(width)
+                    let step = 1 / Double(width)
+                    let a = color(idle, x: x - step, y: y).greenComponent
+                    let b = color(idle, x: x, y: y).greenComponent
+                    let c = color(idle, x: x + step, y: y).greenComponent
+                    if abs(b - (a + c) / 2) > 0.010 { edges += 1 }
+                }
+            }
+            precondition(edges > 18, "Missing fine ASCII strokes")
+
+            host.rootView = field(true)
             let busy = try await snapshot()
-            let before = color(idle, x: 0.39, y: 0.32), after = color(busy, x: 0.39, y: 0.32)
-            precondition(abs((after.blueComponent - after.redComponent) - (before.blueComponent - before.redComponent)) > 0.03,
-                         "Generation must visibly change the band without animation")
+            let after = color(busy, x: 0.80, y: 0.75)
+            precondition(abs(after.greenComponent - warm.greenComponent) < 0.01,
+                         "Sending must preserve the still composition and brightness")
         }
-        studio.engineState = .idle
-        print("Aurora passed 10 window checks, compact light and wide dark, idle and generating")
+        print("Aurora passed 14 background checks, compact light and wide dark, idle and generating")
     }
 }
 
@@ -425,6 +455,9 @@ extension DesktopExperienceCheck {
     }
 
     @MainActor static func checkWidgetSizing(studio: StudioModel) async throws {
+        let icon = AppDelegate.menuBarIcon()
+        precondition(icon?.isTemplate == true && icon?.accessibilityDescription == "MLXL3 Desktop")
+        precondition(icon?.tiffRepresentation != nil && StudioBrand.logo?.size != icon?.size)
         var measured = CGSize.zero
         let bounds = NSRect(x: 0, y: 0, width: 340, height: 600)
         let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)

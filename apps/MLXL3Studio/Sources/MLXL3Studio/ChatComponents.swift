@@ -31,6 +31,7 @@ struct MessagesView: View {
             LazyVStack(spacing: density.spacing) {
               ForEach(messages.dropLast()) { message in
                 MessageView(message: message)
+                  .transition(reduceMotion ? .identity : .offset(y: 7).combined(with: .opacity))
                   .id(message.id)
               }
             }
@@ -599,7 +600,6 @@ struct ChatAttachmentView: View {
 
 struct ComposerView: View {
     @Environment(\.conversationReadingWidth) private var readingWidth
-    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
     @State private var dropTargeted = false
@@ -692,7 +692,7 @@ struct ComposerView: View {
         }
         .background {
             RoundedRectangle(cornerRadius: 18)
-                .fill(StudioTheme.composer(for: appTheme))
+                .fill(StudioTheme.composer)
                 .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
         }
         .overlay {

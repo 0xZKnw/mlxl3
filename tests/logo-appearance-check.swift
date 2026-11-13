@@ -55,7 +55,7 @@ import SwiftUI
             window.isReleasedWhenClosed = false
             defer { window.close() }
             let host = NSHostingView(rootView: view.frame(width: 96, height: 96).padding(16)
-                .background(StudioTheme.canvas(for: theme)).studioAppearance(theme))
+                .background(StudioTheme.canvas).studioAppearance(theme))
             window.contentView = host
             host.frame = NSRect(x: 0, y: 0, width: 128, height: 128)
             try await Task.sleep(for: .milliseconds(250))
@@ -84,7 +84,7 @@ import SwiftUI
             }
             return (counts[0], counts[1])
         }
-        for theme in [AppTheme.light, .dark, .midnightBlue] {
+        for theme in [AppTheme.light, .dark] {
             let bitmap = try await render(MonogramMark(size: 96), theme: theme)
             if let folder = ProcessInfo.processInfo.environment["MLXL3_LOGO_SNAPSHOTS"] {
                 let output = URL(fileURLWithPath: folder).appendingPathComponent("logo-\(theme.rawValue).png")
@@ -107,6 +107,6 @@ import SwiftUI
         }
         let old = try await render(Image(nsImage: StudioBrand.logo!).resizable().scaledToFit(), theme: .light)
         check(visibleHalves(old, theme: .light).0 <= 100, "Oracle detects the original untinted light logo")
-        print("Logo appearance checks passed: \(checks), actual artwork, light/dark/blue, transparent corners and negative controls")
+        print("Logo appearance checks passed: \(checks), actual artwork, light/dark, transparent corners and negative controls")
     }
 }

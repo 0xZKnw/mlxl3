@@ -17,7 +17,7 @@ struct ConversationDisplayControl: View {
                 .padding(20).frame(width: 320)
                 .background {
                     StudioAurora().opacity(0.5)
-                        .background(StudioTheme.canvas(for: studio.theme).opacity(0.85))
+                        .background(StudioTheme.canvas.opacity(0.85))
                 }
                 .premiumGlass(radius: 18)
                 .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)

@@ -107,7 +107,7 @@ struct AppSettingsView: View {
         .foregroundStyle(StudioTheme.ink)
         .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { StudioAurora(animated: true).background(StudioTheme.canvas(for: studio.theme)) }
+        .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
         .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .onExitCommand { studio.showAppSettings = false }
@@ -725,7 +725,6 @@ struct UpdateTransferView: View {
 }
 
 struct UpdateStatusButton: View {
-    @Environment(\.studioAppTheme) private var appTheme
     @ObservedObject var updater: UpdateManager
     let action: () -> Void
 
@@ -739,7 +738,7 @@ struct UpdateStatusButton: View {
                     Circle()
                         .fill(StudioTheme.accent)
                         .frame(width: 7, height: 7)
-                        .overlay(Circle().stroke(StudioTheme.sidebar(for: appTheme), lineWidth: 1.5))
+                        .overlay(Circle().stroke(StudioTheme.sidebar, lineWidth: 1.5))
                         .offset(x: 1, y: -1)
                 }
             }

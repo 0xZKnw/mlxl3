@@ -39,7 +39,7 @@ struct AppearanceSettings: View {
                                     .overlay {
                                         if studio.accent == accent {
                                             Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
-                                                .foregroundStyle(accent == .neutral ? StudioTheme.onAccent : [.amber, .cyan, .mint].contains(accent) ? .black : .white)
+                                                .foregroundStyle(StudioTheme.onAccent)
                                         }
                                     }
                                 Text(accent.title).font(.system(size: 12))
@@ -136,7 +136,7 @@ private struct ThemePreview: View {
                     Spacer()
                     Text("Aa").font(.system(size: 19, design: .serif))
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(StudioTheme.composer(for: theme))
+                        .fill(StudioTheme.composer)
                         .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(StudioTheme.edge) }
                         .frame(height: 11)
                     Spacer(minLength: 0)
@@ -144,10 +144,9 @@ private struct ThemePreview: View {
                 .padding(.horizontal, 7).frame(maxWidth: .infinity)
             }
             .frame(height: 68)
-            .background { StudioAurora().background(StudioTheme.canvas(for: theme)) }
+            .background { StudioAurora().background(StudioTheme.canvas) }
             .foregroundStyle(StudioTheme.ink)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .environment(\.studioAppTheme, theme)
             .environment(\.colorScheme, theme.colorScheme ?? colorScheme)
             .accessibilityHidden(true)
             HStack {

@@ -33,7 +33,7 @@ struct ModelSelectionMenu: View {
         }
         .menuStyle(.button).buttonStyle(WorkspaceControlStyle()).menuIndicator(.hidden)
         .foregroundStyle(StudioTheme.ink)
-        .premiumGlass(radius: 100)
+        .premiumGlass(radius: 100, materialOpacity: 0.76)
         .accessibilityIdentifier("toolbar.model")
         .fixedSize(horizontal: false, vertical: true)
         .disabled(studio.isGenerating || studio.localServer.active)
@@ -43,7 +43,6 @@ struct ModelSelectionMenu: View {
 }
 
 struct ModelManagerView: View {
-    @Environment(\.studioAppTheme) private var appTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var studio: StudioModel
     @State private var discover = false
@@ -86,7 +85,7 @@ struct ModelManagerView: View {
                     .font(.system(size: 27, weight: .regular, design: .serif))
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
                         .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                }.padding(20).frame(width: 222).background(StudioTheme.sidebar(for: appTheme))
+                }.padding(20).frame(width: 222).background(StudioTheme.sidebar)
                 Divider().overlay(StudioTheme.edge)
                 Group {
                     if quantize {
@@ -101,7 +100,7 @@ struct ModelManagerView: View {
                 .transition(.opacity)
             }
         }
-        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: appTheme))
+        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
         .onAppear { if studio.quantizer.converting { quantize = true } }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -237,7 +236,6 @@ struct ModelManagerView: View {
 }
 
 private struct HubBrowserView: View {
-    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var library: ModelLibrary
 
@@ -316,7 +314,7 @@ private struct HubBrowserView: View {
             .overlay {
                 if library.loadingDetail {
                     ProgressView().padding(20).background(
-                        StudioTheme.canvas(for: appTheme), in: RoundedRectangle(cornerRadius: 12))
+                        StudioTheme.canvas, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
             .onChange(of: library.query) { library.search() }

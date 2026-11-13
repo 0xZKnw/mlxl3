@@ -45,7 +45,7 @@ struct MCPManagerView: View {
                     }.buttonStyle(GlassPillButtonStyle())
                 }
                 .padding(20).frame(width: 222)
-                .background(StudioTheme.sidebar(for: studio.theme))
+                .background(StudioTheme.sidebar)
                 .disabled(studio.isGenerating)
                 Rectangle().fill(StudioTheme.edge).frame(width: 1)
                 ScrollView {
@@ -194,7 +194,7 @@ struct MCPManagerView: View {
         }
         .font(.system(size: 13)).controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StudioTheme.canvas(for: studio.theme)).foregroundStyle(StudioTheme.ink)
+        .background(StudioTheme.canvas).foregroundStyle(StudioTheme.ink)
         .onExitCommand { studio.showMCPManager = false }
         .task {
             reload()

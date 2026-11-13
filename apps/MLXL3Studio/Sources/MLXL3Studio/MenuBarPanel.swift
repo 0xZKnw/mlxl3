@@ -13,8 +13,7 @@ struct MenuBarPanel: View {
             let total = engine.flatMap { engine in interface.map { engine + $0 } }
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 9) {
-                    MonogramMark(size: 26)
-                    Text("MLXL3").font(.system(size: 16, weight: .semibold)).tracking(-0.5)
+                    MonogramMark(size: 32).accessibilityHidden(false).accessibilityLabel("MLXL3")
                     Spacer()
                     StatusDot(state: studio.engineState)
                     Text(studio.engineState.label)
@@ -100,8 +99,8 @@ struct MenuBarPanel: View {
         .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeChanged?($0) }
         .foregroundStyle(StudioTheme.ink)
         .background {
-            StudioAurora().opacity(0.65)
-                .background(StudioTheme.canvas(for: studio.theme).opacity(0.85))
+            StudioAurora(busy: studio.isGenerating, animated: true, fullHeight: true)
+                .background(StudioTheme.canvas)
         }
         .premiumGlass(radius: 18)
         .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)

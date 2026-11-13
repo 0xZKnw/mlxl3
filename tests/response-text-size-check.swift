@@ -8,8 +8,8 @@ private struct LiveTextSizeFixture: View {
         MarkdownResponseView(source, textScale: CGFloat(studio.responseTextSize / ResponseTextSize.defaultValue)).equatable()
             .frame(width: 340, alignment: .leading)
             .padding(16)
-            .background(StudioTheme.canvas(for: .midnightBlue))
-            .studioAppearance(.midnightBlue)
+            .background(StudioTheme.canvas)
+            .studioAppearance(.dark)
     }
 }
 
@@ -109,7 +109,7 @@ private struct LiveTextSizeFixture: View {
         // Verify the production root injects the setting into existing messages.
         studio.engineState = .idle
         studio.setResponseTextSize(15)
-        let liveHost = NSHostingView(rootView: StudioView().environmentObject(studio).studioAppearance(.midnightBlue))
+        let liveHost = NSHostingView(rootView: StudioView().environmentObject(studio).studioAppearance(.dark))
         let liveWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 800),
             styleMask: .borderless, backing: .buffered, defer: false)
         liveWindow.isReleasedWhenClosed = false; liveWindow.contentView = liveHost
@@ -136,8 +136,8 @@ private struct LiveTextSizeFixture: View {
             for size in [12, 15, 24] {
                 studio.setResponseTextSize(Double(size))
                 let host = NSHostingView(rootView: ConversationDisplaySettings().environmentObject(studio)
-                    .padding(20).frame(width: 300).background(StudioTheme.canvas(for: .midnightBlue))
-                    .studioAppearance(.midnightBlue))
+                    .padding(20).frame(width: 300).background(StudioTheme.canvas)
+                    .studioAppearance(.dark))
                 let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 340),
                     styleMask: .borderless, backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false; window.contentView = host

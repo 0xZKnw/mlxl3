@@ -34,10 +34,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.sendAction(on: [.leftMouseUp])
         }
 
-        let root = MenuBarPanel { [weak self] size in
-            self?.popover.contentSize = size
-        }.environmentObject(studio)
-        popover.contentViewController = NSHostingController(rootView: root)
         popover.contentSize = NSSize(width: 340, height: 390)
         popover.behavior = .transient
         popover.animates = true
@@ -50,6 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             popover.performClose(sender)
             sender.state = .off
         } else {
+            guard let studio else { return }
+            let root = MenuBarPanel { [weak self] size in self?.popover.contentSize = size }
+                .environmentObject(studio)
+                .environment(\.scenePhase, .active)
+            popover.contentViewController = NSHostingController(rootView: root)
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
             sender.state = .on
             popover.contentViewController?.view.window?.makeKey()
@@ -57,22 +58,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        popover.contentViewController = nil
         statusItem?.button?.state = .off
     }
 
-    private static func menuBarIcon() -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { bounds in
-            let text = NSAttributedString(string: "M3", attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .heavy),
-                .foregroundColor: NSColor.white,
-                .kern: -0.6
-            ])
-            let size = text.size()
-            text.draw(at: NSPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2))
-            return true
-        }
-        image.isTemplate = true
-        image.accessibilityDescription = "MLXL3 Desktop"
-        return image
+    static func menuBarIcon() -> NSImage? {
+        guard let icon = StudioBrand.logo?.copy() as? NSImage else { return nil }
+        icon.size = NSSize(width: 22, height: 22)
+        icon.isTemplate = true
+        icon.accessibilityDescription = "MLXL3 Desktop"
+        return icon
     }
 }

@@ -34,7 +34,7 @@ struct WorkspaceManagerView: View {
                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet).padding(.horizontal, 10)
             }
             .padding(20).padding(.top, 16).frame(width: 222)
-            .background(StudioTheme.sidebar(for: studio.theme))
+            .background(StudioTheme.sidebar)
             Rectangle().fill(StudioTheme.edge).frame(width: 1)
             VStack(spacing: 0) {
                 StudioPanelHeader(
@@ -75,7 +75,7 @@ struct WorkspaceManagerView: View {
         }
         .font(.system(size: 13)).controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StudioTheme.canvas(for: studio.theme)).foregroundStyle(StudioTheme.ink)
+        .background(StudioTheme.canvas).foregroundStyle(StudioTheme.ink)
         .onExitCommand { studio.showWorkspace = false }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedTab)
         .sheet(item: $source) { DocumentSourceView(source: $0) }

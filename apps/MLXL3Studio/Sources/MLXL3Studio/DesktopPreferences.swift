@@ -3,33 +3,26 @@ import Foundation
 import SwiftUI
 
 enum AppTheme: String, CaseIterable, Sendable {
-    case system, light, dark, midnightBlue, graphite, forest, plum, paper, ocean, coffee, sand, lavender
+    case system, light, dark
 
     static let preferenceKey = "studio.theme"
     static func load(from preferences: UserDefaults) -> Self {
-        preferences.string(forKey: preferenceKey).flatMap(Self.init(rawValue:)) ?? .dark
+        let value = preferences.string(forKey: preferenceKey) ?? ""
+        if ["paper", "sand", "lavender"].contains(value) { return .light }
+        return Self(rawValue: value) ?? .dark
     }
     var title: String {
         switch self {
         case .system: L("Système", "System")
         case .light: L("Clair", "Light")
         case .dark: L("Sombre", "Dark")
-        case .midnightBlue: L("Bleu nuit", "Midnight blue")
-        case .graphite: L("Ardoise", "Slate")
-        case .forest: L("Forêt", "Forest")
-        case .plum: L("Prune", "Plum")
-        case .paper: L("Papier", "Paper")
-        case .ocean: L("Océan", "Ocean")
-        case .coffee: L("Café", "Coffee")
-        case .sand: L("Sable", "Sand")
-        case .lavender: L("Lavande", "Lavender")
         }
     }
     var colorScheme: ColorScheme? {
         switch self {
         case .system: nil
-        case .light, .paper, .sand, .lavender: .light
-        case .dark, .midnightBlue, .graphite, .forest, .plum, .ocean, .coffee: .dark
+        case .light: .light
+        case .dark: .dark
         }
     }
 }
@@ -46,46 +39,48 @@ enum StartupModelPreference {
 }
 
 enum AppAccent: String, CaseIterable, Sendable {
-    case neutral, blue, sage, amber, rose, violet, cyan, mint, coral, indigo, custom
+    case violet, rose, amber, neutral, custom
     static let preferenceKey = "studio.accent"
     static func load(from preferences: UserDefaults) -> Self {
-        preferences.string(forKey: preferenceKey).flatMap(Self.init(rawValue:)) ?? .neutral
+        switch preferences.string(forKey: preferenceKey) {
+        case "sage", "mint": .neutral
+        case "coral": .rose
+        case let value?: Self(rawValue: value) ?? .violet
+        default: .violet
+        }
     }
+
     var title: String {
         switch self {
         case .neutral: L("Neutre", "Neutral")
-        case .blue: L("Bleu", "Blue")
-        case .sage: L("Sauge", "Sage")
         case .amber: L("Ambre", "Amber")
         case .rose: L("Rose", "Rose")
-        case .violet: L("Violet", "Violet")
-        case .cyan: L("Cyan", "Cyan")
-        case .mint: L("Menthe", "Mint")
-        case .coral: L("Corail", "Coral")
-        case .indigo: L("Indigo", "Indigo")
+        case .violet: L("Iris", "Iris")
         case .custom: L("Personnalisée", "Custom")
         }
     }
+
     var color: Color {
+        func adaptive(_ light: UInt32, _ dark: UInt32) -> Color {
+            func swatch(_ value: UInt32) -> NSColor {
+                NSColor(srgbRed: CGFloat(value >> 16) / 255, green: CGFloat((value >> 8) & 255) / 255,
+                        blue: CGFloat(value & 255) / 255, alpha: 1)
+            }
+            return Color(nsColor: StudioTheme.adaptiveColor(light: swatch(light), dark: swatch(dark)))
+        }
         switch self {
-        case .neutral: StudioTheme.accent
-        case .blue: .blue
-        case .sage: .green
-        case .amber: .orange
-        case .rose: .pink
-        case .violet: .purple
-        case .cyan: .cyan
-        case .mint: .mint
-        case .coral: Color(red: 0.91, green: 0.36, blue: 0.30)
-        case .indigo: .indigo
-        case .custom: .blue
+        case .neutral: return StudioTheme.accent
+        case .violet: return adaptive(0x6642A4, 0xBBA4F3)
+        case .rose: return adaptive(0x97345D, 0xE89BB9)
+        case .amber: return adaptive(0x8E4B18, 0xF0B782)
+        case .custom: return CustomAccent.color(CustomAccent.defaultHex)
         }
     }
 }
 
 enum CustomAccent {
     static let preferenceKey = "studio.customAccent"
-    static let defaultHex = "4F9FEF"
+    static let defaultHex = "BBA4F3"
     static func normalized(_ value: String?) -> String {
         guard let value, value.utf8.count == 6,
               value.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) })

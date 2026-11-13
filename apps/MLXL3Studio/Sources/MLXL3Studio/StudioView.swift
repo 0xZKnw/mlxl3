@@ -3,7 +3,6 @@ import SwiftUI
 /// Window composition. The transcript owns its scroll state; chrome never
 /// observes token-by-token text updates.
 struct StudioView: View {
-    @Environment(\.studioAppTheme) private var appTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var studio: StudioModel
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
@@ -23,8 +22,9 @@ struct StudioView: View {
                 }
             }
             .background {
-                StudioAurora(busy: studio.isGenerating, animated: !studio.showAppSettings && !studio.showWorkspace && !studio.showModelManager && !studio.showMCPManager && studio.studioDocument == nil)
-                    .background(StudioTheme.canvas(for: appTheme))
+                StudioAurora(busy: studio.isGenerating, animated: !studio.showAppSettings && !studio.showWorkspace && !studio.showModelManager && !studio.showMCPManager && studio.studioDocument == nil,
+                             fullHeight: true)
+                    .background(StudioTheme.canvas)
             }
             .overlay(alignment: .trailing) {
                 if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width < 1280 {
@@ -79,7 +79,7 @@ struct StudioView: View {
                 ModelManagerView().environmentObject(studio).transition(.opacity)
             }
         }
-        .background(StudioTheme.sidebar(for: appTheme))
+        .background(StudioTheme.sidebar)
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
@@ -173,7 +173,7 @@ private struct SidebarView: View {
                 .font(.system(size: 12, weight: .medium))
                 .padding(.horizontal, 12).frame(height: 36)
             }
-            .buttonStyle(StudioToolbarStyle())
+            .buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
             .accessibilityIdentifier("sidebar.newConversation")
             .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
             .padding(.horizontal, 12).padding(.top, 12)
@@ -309,6 +309,8 @@ private struct ConversationRow: View {
 }
 
 private struct ChatWorkspaceView: View {
+    @Namespace private var composerMotion
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var studio: StudioModel
     @Binding var sidebarVisible: Bool
 
@@ -336,13 +338,16 @@ private struct ChatWorkspaceView: View {
                 if studio.selectedMode == .agent { AgentWorkspaceBar() }
                 MessagesView(messages: conversation.messages)
                 ComposerView()
+                    .matchedGeometryEffect(id: "composer", in: composerMotion, properties: .position)
                     .padding(.horizontal, 32)
                     .padding(.top, 10)
                     .padding(.bottom, 22)
             } else {
-                WelcomeView()
+                WelcomeView(composerMotion: composerMotion)
+                    .transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: studio.lastSubmittedMessageID)
     }
 }
 
@@ -392,7 +397,7 @@ private struct WorkspaceHeader: View {
                 }
             }
             .padding(4)
-            .premiumGlass(radius: 100)
+            .premiumGlass(radius: 100, materialOpacity: 0.76)
         }
         .font(.system(size: 13))
         .padding(.leading, sidebarVisible ? 22 : 82)
@@ -453,6 +458,7 @@ private struct AgentWorkspaceBar: View {
 }
 
 private struct WelcomeView: View {
+    let composerMotion: Namespace.ID
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
@@ -481,6 +487,7 @@ private struct WelcomeView: View {
                     .padding(.bottom, 8)
             }
             ComposerView()
+                .matchedGeometryEffect(id: "composer", in: composerMotion, properties: .position)
             if agent {
                 if !studio.mcpErrors.isEmpty {
                     Text(studio.mcpErrors.values.sorted().joined(separator: "\n"))

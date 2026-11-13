@@ -26,7 +26,7 @@ struct MTPToolbarControl: View {
                 Text("MTP")
                 Text(badge)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(studio.mtpError != nil ? Color.orange : studio.mtpRememberedEnabled ? StudioTheme.blueAccent : StudioTheme.quiet)
+                    .foregroundStyle(studio.mtpError != nil ? Color.orange : studio.mtpRememberedEnabled ? studio.accentColor : StudioTheme.quiet)
             }
             .font(.system(size: 11, weight: .semibold))
             .padding(.horizontal, 8).frame(height: 30)
@@ -53,7 +53,7 @@ struct MTPToolbarControl: View {
                 }.padding(20)
             }
             .frame(width: 360).frame(maxHeight: 540)
-            .background(StudioTheme.canvas(for: studio.theme))
+            .background(StudioTheme.canvas)
             .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
             .environmentObject(studio)
         }

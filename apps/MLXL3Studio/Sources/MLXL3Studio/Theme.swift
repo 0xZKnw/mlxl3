@@ -23,78 +23,21 @@ enum StudioTheme {
     static let accent = adaptive(light: 0.18, dark: 0.86)
     static let thinking = secondary
 
-    static let blueAccent = Color(red: 0.31, green: 0.66, blue: 1)
-    static func canvas(for theme: AppTheme) -> Color {
-        switch theme {
-        case .midnightBlue: Color(red: 0.10, green: 0.145, blue: 0.205)
-        case .graphite: Color(red: 0.14, green: 0.15, blue: 0.17)
-        case .forest: Color(red: 0.08, green: 0.14, blue: 0.12)
-        case .plum: Color(red: 0.15, green: 0.10, blue: 0.16)
-        case .paper: Color(red: 0.97, green: 0.95, blue: 0.90)
-        case .ocean: Color(red: 0.07, green: 0.15, blue: 0.17)
-        case .coffee: Color(red: 0.17, green: 0.12, blue: 0.10)
-        case .sand: Color(red: 0.97, green: 0.94, blue: 0.90)
-        case .lavender: Color(red: 0.96, green: 0.94, blue: 0.98)
-        default: canvas
-        }
-    }
-    static func sidebar(for theme: AppTheme) -> Color {
-        switch theme {
-        case .midnightBlue: Color(red: 0.065, green: 0.095, blue: 0.14)
-        case .graphite: Color(red: 0.10, green: 0.11, blue: 0.13)
-        case .forest: Color(red: 0.05, green: 0.10, blue: 0.08)
-        case .plum: Color(red: 0.10, green: 0.065, blue: 0.11)
-        case .paper: Color(red: 0.92, green: 0.89, blue: 0.82)
-        case .ocean: Color(red: 0.045, green: 0.10, blue: 0.12)
-        case .coffee: Color(red: 0.12, green: 0.08, blue: 0.065)
-        case .sand: Color(red: 0.92, green: 0.88, blue: 0.82)
-        case .lavender: Color(red: 0.91, green: 0.88, blue: 0.95)
-        default: sidebar
-        }
-    }
-    static func composer(for theme: AppTheme) -> Color {
-        switch theme {
-        case .midnightBlue: Color(red: 0.13, green: 0.19, blue: 0.27)
-        case .graphite: Color(red: 0.19, green: 0.20, blue: 0.23)
-        case .forest: Color(red: 0.12, green: 0.19, blue: 0.16)
-        case .plum: Color(red: 0.21, green: 0.15, blue: 0.22)
-        case .paper: Color(red: 1, green: 0.99, blue: 0.96)
-        case .ocean: Color(red: 0.11, green: 0.20, blue: 0.22)
-        case .coffee: Color(red: 0.23, green: 0.17, blue: 0.14)
-        case .sand: Color(red: 1, green: 0.98, blue: 0.95)
-        case .lavender: Color(red: 0.99, green: 0.98, blue: 1)
-        default: composer
-        }
-    }
-
-}
-
-private struct StudioAppThemeKey: EnvironmentKey {
-    static let defaultValue: AppTheme = .dark
-}
-
-extension EnvironmentValues {
-    var studioAppTheme: AppTheme {
-        get { self[StudioAppThemeKey.self] }
-        set { self[StudioAppThemeKey.self] = newValue }
-    }
 }
 
 extension View {
-    func studioAppearance(_ theme: AppTheme, accent: AppAccent = .neutral, customAccent: Color = .blue) -> some View {
-        environment(\.studioAppTheme, theme)
-            .preferredColorScheme(theme.colorScheme)
-            .tint(accent == .custom ? customAccent : accent == .neutral && theme == .midnightBlue ? StudioTheme.blueAccent : accent.color)
+    func studioAppearance(_ theme: AppTheme, accent: AppAccent = .violet, customAccent: Color = AppAccent.custom.color) -> some View {
+        preferredColorScheme(theme.colorScheme)
+            .tint(accent == .custom ? customAccent : accent.color)
     }
 }
 
 struct StudioSidebarSurface: ViewModifier {
-    @Environment(\.studioAppTheme) private var theme
 
     func body(content: Content) -> some View {
         content
             .background {
-                let base = StudioTheme.sidebar(for: theme)
+                let base = StudioTheme.sidebar
                 LinearGradient(colors: [base.opacity(0.20), base.opacity(0.78)],
                                startPoint: .top, endPoint: .center)
             }
@@ -200,18 +143,18 @@ struct MonogramMark: View {
 }
 
 struct PremiumGlass: ViewModifier {
-    @Environment(\.studioAppTheme) private var theme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let radius: CGFloat
     let tint: Color
+    var materialOpacity = 1.0
 
     func body(content: Content) -> some View {
         content.background {
             let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
             if reduceTransparency {
-                shape.fill(StudioTheme.composer(for: theme))
+                shape.fill(StudioTheme.composer)
             } else {
-                shape.fill(.ultraThinMaterial)
+                shape.fill(.ultraThinMaterial).opacity(materialOpacity)
                     .overlay { shape.fill(tint).allowsHitTesting(false) }
             }
         }
@@ -219,8 +162,8 @@ struct PremiumGlass: ViewModifier {
 }
 
 extension View {
-    func premiumGlass(radius: CGFloat = 18, tint: Color = StudioTheme.contrast.opacity(0.045)) -> some View {
-        modifier(PremiumGlass(radius: radius, tint: tint))
+    func premiumGlass(radius: CGFloat = 18, tint: Color = StudioTheme.contrast.opacity(0.045), materialOpacity: Double = 1) -> some View {
+        modifier(PremiumGlass(radius: radius, tint: tint, materialOpacity: materialOpacity))
     }
 }
 
@@ -283,11 +226,12 @@ struct StatusDot: View {
 
 /// Explicit sizing avoids the system glass button's extra padding and accent fill.
 struct StudioToolbarStyle: ButtonStyle {
+    var materialOpacity = 1.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         StudioControlStyle(emphasized: true, cornerRadius: 9).makeBody(configuration: configuration)
-            .premiumGlass(radius: 9)
+            .premiumGlass(radius: 9, materialOpacity: materialOpacity)
             .opacity(configuration.isPressed ? 0.75 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)

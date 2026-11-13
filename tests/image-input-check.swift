@@ -236,8 +236,8 @@ private struct ImageCheckFailure: Error { let message: String }
       let host = NSHostingView(rootView: VStack {
         MessagesView(messages: [user])
         ComposerView()
-      }.foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: .midnightBlue))
-        .environmentObject(studio).studioAppearance(.midnightBlue))
+      }.foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .environmentObject(studio).studioAppearance(.dark))
       window.contentView = host
       host.frame = CGRect(x: 0, y: 0, width: width, height: 600)
       try await Task.sleep(for: .milliseconds(250))
@@ -280,8 +280,8 @@ private struct ImageCheckFailure: Error { let message: String }
         Text("Téléchargements").font(.system(size: 14, weight: .semibold))
         card
       }.padding(18).frame(width: 330, height: 220, alignment: .topLeading)
-        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: .midnightBlue))
-        .studioAppearance(.midnightBlue))
+        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .studioAppearance(.dark))
       window.contentView = host
       host.frame = CGRect(x: 0, y: 0, width: 330, height: 220)
       try await Task.sleep(for: .milliseconds(100))

@@ -19,7 +19,7 @@ extension HubBrowserView {
         let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: preferences)
         for width in [480, 840] {
             let advice = NSHostingView(rootView: ModelAdviceView(sizeBytes: 13_000_000_000)
-                .frame(width: CGFloat(width)).studioAppearance(.midnightBlue))
+                .frame(width: CGFloat(width)).studioAppearance(.dark))
             let height = advice.fittingSize.height
             precondition(height > 10 && height < 65, "Collapsed memory estimate should leave room for the model card")
         }
@@ -30,10 +30,10 @@ extension HubBrowserView {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 1100), styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             let host = NSHostingView(rootView: HubBrowserView(library: studio.modelLibrary).recommendedForCheck
-                .padding(20).environmentObject(studio).studioAppearance(.midnightBlue)
+                .padding(20).environmentObject(studio).studioAppearance(.dark)
                 .foregroundStyle(StudioTheme.ink)
                 .frame(width: CGFloat(width), height: 1100, alignment: .topLeading)
-                .background(StudioTheme.canvas(for: .midnightBlue)))
+                .background(StudioTheme.canvas))
             window.contentView = host
             host.frame = NSRect(x: 0, y: 0, width: width, height: 1100)
             try await Task.sleep(for: .milliseconds(200))
@@ -64,10 +64,10 @@ extension HubBrowserView {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 600), styleMask: .borderless, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             let host = NSHostingView(rootView: HubBrowserView(library: studio.modelLibrary).detailsForCheck(detail)
-                .padding(20).environmentObject(studio).studioAppearance(.midnightBlue)
+                .padding(20).environmentObject(studio).studioAppearance(.dark)
                 .foregroundStyle(StudioTheme.ink)
                 .frame(width: CGFloat(width), height: 600, alignment: .topLeading)
-                .background(StudioTheme.canvas(for: .midnightBlue)))
+                .background(StudioTheme.canvas))
             window.contentView = host
             host.frame = NSRect(x: 0, y: 0, width: width, height: 600)
             var card: WKWebView?

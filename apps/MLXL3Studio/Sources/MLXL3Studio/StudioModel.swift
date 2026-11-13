@@ -165,7 +165,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpRememberedEnabled = false
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
-    @Published private(set) var accent: AppAccent = .neutral
+    @Published private(set) var accent: AppAccent = .violet
     @Published private(set) var customAccentHex = CustomAccent.defaultHex
     var customAccentColor: Color { CustomAccent.color(customAccentHex) }
     var accentColor: Color { accent == .custom ? customAccentColor : accent.color }
@@ -483,7 +483,7 @@ final class StudioModel: ObservableObject {
 
     func resetAppearance() {
         setTheme(.dark)
-        setAccent(.neutral)
+        setAccent(.violet)
         customAccentHex = CustomAccent.defaultHex
         preferences.set(customAccentHex, forKey: CustomAccent.preferenceKey)
         setConversationDensity(.comfortable)
@@ -1090,6 +1090,8 @@ final class StudioModel: ObservableObject {
         schedulePersistence()
     }
 
+    private(set) var lastSubmittedMessageID: UUID?
+
     func send() {
         if !engineState.isReady && !isGenerating && hasDraftContent { attemptedSendWithoutModel = true }
         guard canSend, let conversation = currentConversation else { return }
@@ -1148,6 +1150,7 @@ final class StudioModel: ObservableObject {
         }
         let user = ChatMessage(id: userID, role: .user, content: text, attachments: attachments)
         user.sources = sources
+        lastSubmittedMessageID = user.id
         conversations[conversationIndex].messages.append(user)
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
         assistant.sources = sources
