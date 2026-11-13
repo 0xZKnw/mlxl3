@@ -460,7 +460,7 @@ campaigns. Run GPU benchmarks separately from builds and other inference.
 | `native/src/`, `native/shaders/` | Rust engine and Metal kernels |
 | `src/mlxl3_quantizer/` | Conversion adapters and calibration helpers |
 | `scripts/`, `benchmarks/`, `tests/` | Build tools, campaigns and regression checks |
-| `docs/`, `opti.md` | Release notes, numerical evidence and experiment history |
+| [`docs/`](docs/README.md), [`opti.md`](opti.md) | Documentation index, numerical evidence and experiment history |
 
 Created by [0xZKnw](https://github.com/0xZKnw). Thanks to
 [ExLlamaV3](https://github.com/turboderp-org/exllamav3),
