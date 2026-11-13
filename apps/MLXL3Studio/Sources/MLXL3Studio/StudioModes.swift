@@ -109,12 +109,21 @@ final class LocalServer: ObservableObject {
     self.ticket = ticket
     process.executableURL = executable
     let apiKey = UUID().uuidString
+    let secret = Pipe()
+    do {
+      try secret.fileHandleForWriting.write(contentsOf: Data(apiKey.utf8))
+      try secret.fileHandleForWriting.close()
+    } catch {
+      busy = false
+      self.error = error.localizedDescription
+      return
+    }
     process.arguments = [
-      "serve", model, "--host", host, "--port", String(port), "--api-key", apiKey,
+      "serve", model, "--host", host, "--port", String(port), "--api-key-stdin",
       "--context-length", String(context),
     ]
     process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
-    process.standardInput = FileHandle.nullDevice
+    process.standardInput = secret
     process.standardOutput = output
     process.standardError = output
     self.process = process

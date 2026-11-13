@@ -107,6 +107,9 @@ pub(crate) enum Command {
         port: u16,
         #[arg(long, default_value = "")]
         api_key: String,
+        /// Read a private bearer key from standard input, up to 512 bytes.
+        #[arg(long, conflicts_with = "api_key")]
+        api_key_stdin: bool,
         #[arg(long, default_value_t = 0)]
         context_length: i32,
     },

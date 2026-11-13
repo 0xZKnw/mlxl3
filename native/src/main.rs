@@ -1377,6 +1377,55 @@ fn main() -> std::process::ExitCode {
     }
 }
 
+fn valid_private_key(bytes: &[u8]) -> bool {
+    !bytes.is_empty() && bytes.len() <= 512 && bytes.iter().all(u8::is_ascii_graphic)
+}
+
+fn read_server_key(reader: impl Read) -> Result<String> {
+    let mut bytes = Vec::new();
+    reader.take(514).read_to_end(&mut bytes)?;
+    // Reading one extra byte distinguishes an oversized secret from a valid 512-byte key.
+    let key = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+    if !valid_private_key(key) {
+        bail!("invalid private server key on standard input");
+    }
+    Ok(String::from_utf8(key.to_vec())?)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn private_server_key_rejects_empty_and_control_bytes() {
+    let bytes: [u8; 3] = kani::any();
+    let len: usize = kani::any();
+    kani::assume(len <= 3);
+    let key = &bytes[..len];
+    let valid = valid_private_key(key);
+    assert_eq!(
+        valid,
+        len > 0 && (0..len).all(|i| (33..127).contains(&bytes[i]))
+    );
+    kani::cover!(len == 0);
+    kani::cover!(valid && len == 3);
+    kani::cover!(!valid && len == 3);
+}
+
+#[cfg(test)]
+#[test]
+fn private_server_key_validates_size_and_never_echoes_the_secret() {
+    assert_eq!(read_server_key(&b"abc-123\n"[..]).unwrap(), "abc-123");
+    assert_eq!(read_server_key(&[b'a'; 512][..]).unwrap().len(), 512);
+    let mut line = vec![b'a'; 512];
+    line.push(b'\n');
+    assert_eq!(read_server_key(line.as_slice()).unwrap().len(), 512);
+    for bad in [&b""[..], b"\n", b"sensitive\0", b"two\nlines", &[b'x'; 513]] {
+        assert_eq!(
+            read_server_key(bad).unwrap_err().to_string(),
+            "invalid private server key on standard input"
+        );
+    }
+}
+
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         #[cfg(all(
@@ -1711,8 +1760,14 @@ fn run(cli: Cli) -> Result<()> {
             host,
             port,
             api_key,
+            api_key_stdin,
             context_length,
         } => {
+            let api_key = if api_key_stdin {
+                read_server_key(io::stdin().lock())?
+            } else {
+                api_key
+            };
             #[cfg(all(
                 feature = "chat",
                 any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))

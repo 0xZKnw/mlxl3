@@ -38,7 +38,9 @@ if command == "serve":
         time.sleep(60)
         sys.exit(0)
     port = int(sys.argv[sys.argv.index("--port") + 1])
-    api_key = sys.argv[sys.argv.index("--api-key") + 1]
+    assert "--api-key" not in sys.argv and "--api-key-stdin" in sys.argv
+    api_key = sys.stdin.read(513)
+    assert len(api_key) == 36 and api_key not in sys.argv
     host = sys.argv[sys.argv.index("--host") + 1]
     context = int(sys.argv[sys.argv.index("--context-length") + 1])
 
