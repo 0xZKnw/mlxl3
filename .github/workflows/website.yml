@@ -1,0 +1,74 @@
+name: Website checks
+
+on:
+  push:
+    branches: [main]
+    paths: ["website/**", ".github/workflows/website.yml"]
+  pull_request:
+    paths: ["website/**", ".github/workflows/website.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      MLXL3_SCREENSHOTS: test-results
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.20.0"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - uses: actions/setup-python@v5
+        id: installer_python
+        with:
+          python-version: "3.13.9"
+      - name: Install pinned shell checkers
+        run: |
+          mkdir -p "$RUNNER_TEMP/mlxl3-tools"
+          curl -fsSL --max-time 90 https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz -o "$RUNNER_TEMP/shellcheck.tar.xz"
+          echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP/mlxl3-tools" --strip-components=1 shellcheck-v0.11.0/shellcheck
+          curl -fsSL --max-time 90 https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64 -o "$RUNNER_TEMP/mlxl3-tools/shfmt"
+          echo "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf  $RUNNER_TEMP/mlxl3-tools/shfmt" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/mlxl3-tools/shfmt"
+          echo "$RUNNER_TEMP/mlxl3-tools" >> "$GITHUB_PATH"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run format:check
+      - run: npm run format:shell:check
+      - run: npm run lint
+      - run: npm run lint:shell
+      - run: npm run check
+      - run: npm test
+        env:
+          MLXL3_TEST_PYTHON: ${{ steps.installer_python.outputs.python-path }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: website-screenshots
+          path: website/test-results
+          if-no-files-found: ignore
+  installer-macos:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.20.0"
+      - uses: actions/setup-python@v5
+        id: installer_python
+        with:
+          python-version: "3.13.9"
+      - name: Verify Bash 3.2 and the native macOS JSON parser with disposable files
+        run: MLXL3_TEST_NATIVE_PLUTIL=1 node --test website/installer.test.mjs
+        env:
+          MLXL3_TEST_PYTHON: ${{ steps.installer_python.outputs.python-path }}

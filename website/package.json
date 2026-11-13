@@ -1,0 +1,21 @@
+{
+  "name": "mlxl3-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write index.html styles.css main.js aurora.js test.mjs installer.test.mjs eslint.config.js package.json tsconfig.json",
+    "format:check": "prettier --check index.html styles.css main.js aurora.js test.mjs installer.test.mjs eslint.config.js package.json tsconfig.json",
+    "format:shell:check": "shfmt -d -i 2 -bn install.sh",
+    "lint": "eslint --max-warnings 0 main.js aurora.js test.mjs installer.test.mjs eslint.config.js",
+    "lint:shell": "shellcheck --severity=style install.sh",
+    "check": "node --check aurora.js && node --check main.js && node --check test.mjs && node --check installer.test.mjs && bash -n install.sh && tsc",
+    "test": "node --test test.mjs installer.test.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "eslint": "10.12.0",
+    "playwright": "1.63.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,229 @@
+@font-face {
+  font-family: Geist;
+  src: url("assets/geist-regular.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("assets/geist-mono.woff2") format("woff2");
+  font-display: swap;
+}
+:root {
+  color-scheme: dark;
+  font:
+    normal 100% Geist,
+    system-ui,
+    sans-serif;
+  color: #efedec;
+  background: #111;
+}
+* {
+  box-sizing: border-box;
+}
+body,
+h1,
+p {
+  margin: 0;
+}
+main {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100svh;
+  height: 100dvh;
+  overflow: clip;
+  padding: clamp(12px, 3vmin, 35px) clamp(16px, 3vw, 50px);
+  background-color: #111;
+}
+main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: url("assets/aurora.webp") 120% 66% / 70% 78% no-repeat;
+  opacity: 0.52;
+}
+main.ready::before {
+  opacity: 0;
+}
+#aurora,
+.aurora-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 2%,
+    black 98%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  color: white;
+}
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #fbd5e9;
+  outline-offset: 4px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+section {
+  position: relative;
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 755px);
+  text-align: center;
+  transform: translateY(-1svh);
+}
+.mark {
+  width: clamp(76px, 9vw, 110px);
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 20px;
+}
+.subtitle {
+  color: #d3cfd1;
+  font-size: clamp(0.875rem, 1.3vw, 1.125rem);
+}
+.command {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: clamp(16px, 2.7svh, 28px) auto 0;
+  padding: 8px 10px 8px 18px;
+  text-align: left;
+  border: 1px solid #ffffff29;
+  border-radius: 13px;
+  background: linear-gradient(115deg, #242127ed, #19171bed);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 #ffffff09,
+    0 8px 34px #0002;
+}
+code {
+  flex: 1;
+  min-width: 0;
+  font:
+    clamp(0.71rem, 1vw, 0.79rem)/1.65 "Geist Mono",
+    monospace;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+button {
+  cursor: pointer;
+  flex: 0 0 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff19;
+  border-radius: 9px;
+  background: #ffffff09;
+  color: #ede9eb;
+}
+button[hidden] {
+  display: none;
+}
+button:hover {
+  background: #ffffff18;
+}
+button svg {
+  width: 19px;
+  height: 19px;
+}
+button[data-copied] {
+  color: #d9f4dd;
+}
+.meta,
+footer,
+#status {
+  font-size: 0.73rem;
+  color: #aaa4ac;
+}
+.meta {
+  margin-top: 12px;
+}
+.meta span {
+  margin: 0 6px;
+}
+#status {
+  position: absolute;
+  top: 100%;
+  width: 100%;
+  margin-top: 5px;
+  color: #f0dbea;
+}
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+footer a {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+}
+footer {
+  gap: 4px;
+}
+@media (max-width: 520px) {
+  section {
+    max-width: 390px;
+  }
+  .command {
+    gap: 8px;
+    padding-left: 12px;
+  }
+  .mark {
+    width: 60px;
+  }
+}
+@media (max-height: 480px) {
+  main {
+    padding-block: 6px;
+  }
+  h1 {
+    font-size: clamp(2rem, 12svh, 3.2rem);
+  }
+  .mark {
+    width: 45px;
+    margin-bottom: 5px;
+  }
+  .command {
+    margin-top: 10px;
+  }
+  .meta {
+    margin-top: 6px;
+  }
+}
+
+.verb {
+  color: #f7edef;
+}
+.address {
+  color: #d4c6d9;
+}
+.pipe {
+  color: #c183a9;
+}
