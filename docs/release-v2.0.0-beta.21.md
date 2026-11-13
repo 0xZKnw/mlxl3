@@ -41,7 +41,14 @@ See the [detailed beta review](desktop-v2-beta-review-20261113.md) for commands,
 
 ## Artifact and source
 
-Verified artifact metadata is added after packaging. The bundled runtime is [engine-v2.0.9-beta.1](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.9-beta.1); no separate engine release is part of this update.
+- Build source commit: `2e3d0264f585ad4f3bd9c68d2572b197ba859900`. The release tag additionally includes the verified artifact documentation; executable sources are identical.
+- File: `MLXL3-Desktop-v2.0.0-beta.21-b52-Apple-Silicon.dmg`
+- Size: **250,281,078 bytes**
+- SHA-256: `211665b78c780ec8949a705eb8a254b5e0fb141e33932a8d46e19c9e49054324`
+- Bundled runtime: [engine-v2.0.9-beta.1](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.9-beta.1). All four runtime components match its published manifest. No separate engine release is part of this update.
+- The bundled converter retains its existing build; all **107 recorded converter source hashes** match this release's source tree.
+
+The actual DMG passed image verification and mounted-bundle checks: app identity, build 52, arm64 signature, runtime hashes, icons and math fonts. Its executable text matches the final release build. The bundled converter inspected a disposable 16,384-parameter fixture. The production updater accepted an upgrade from **2.0.0 / build 51 to build 52**, rejected an identical build, checked the runtime and detached the image. No installed user app was replaced during validation.
 
 ## Acknowledgements
 

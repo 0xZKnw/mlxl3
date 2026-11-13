@@ -80,3 +80,5 @@ Les 106 tests Python ignorés et les 241 tests MLX ignorés restent non exécut�
 ## Livraison
 
 Publication autorisée par l'utilisateur : **Desktop v2.0.0-beta.21 / build 52**, sur `main`, avec le moteur 2.0.9 inchangé. Le canal reste bêta. L'application installée n'est pas remplacée pendant la qualification. Source, DMG, taille, checksum et vérification du paquet figurent dans les [notes de version](release-v2.0.0-beta.21.md).
+
+Paquet construit depuis `2e3d0264f585ad4f3bd9c68d2572b197ba859900`, arbre suivi propre. DMG monté, signature, identité/build, composants moteur, icônes, polices, texte exécutable et probe du convertisseur vérifiés. Préflight de l'updater réel : passage 51 → 52 accepté, build 52 → 52 refusé, image démontée sur les chemins contrôlés. Logs locaux : `build/release-beta21/package.log`, `mounted.log`, `updater.log`. La [release bêta](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.21) fournit le paquet ; les résultats distants de publication sont à distinguer des contrôles locaux ci-dessus.
