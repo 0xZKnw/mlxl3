@@ -30,6 +30,22 @@ enum MLXL3BridgeError: Error { case executableNotFound, invalidResponse, command
         catch is CancellationError { }
         do { _ = try await CLICommand().output(["-c", "raise RuntimeError('fixture error')"]); preconditionFailure("Failure was ignored") }
         catch MLXL3BridgeError.commandFailed(let error) { precondition(error.contains("fixture error")) }
+        for (text, expected) in [("final", "final"), ("progress\nfinal", "final"), ("progress\nfinal\n", "final")] {
+            var lines: [String] = []
+            let result = try await CLICommand().output(["-c", "import sys; sys.stdout.write(sys.argv[1])", text]) {
+                lines.append(String(decoding: $0, as: UTF8.self))
+            }
+            precondition(String(decoding: result, as: UTF8.self) == expected,
+                         "Final event must survive EOF without a newline")
+            // CLI completion must follow the last progress callback.
+            precondition(lines == text.split(separator: "\n").map(String.init), "Lost or reordered a progress event")
+        }
+        do {
+            _ = try await CLICommand().output(["-c", "import sys; sys.stderr.write('X'*10_000_000+'end'); sys.exit(1)"])
+            preconditionFailure("Failure with a large diagnostic was ignored")
+        } catch MLXL3BridgeError.commandFailed(let message) {
+            precondition(message.utf8.count == 8000 && message.hasSuffix("end"))
+        }
         print("CLI transport passed: large output, NDJSON, cancellation, error reporting")
     }
 }

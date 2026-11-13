@@ -69,7 +69,8 @@ final class CLICommand: @unchecked Sendable {
                                     let line = Data(pending[..<newline])
                                     pending.removeSubrange(...newline)
                                     result = line
-                                    Task { @MainActor in onLine(line) }
+                                    // Backpressure keeps a fast worker from queueing unbounded progress events.
+                                    DispatchQueue.main.sync { onLine(line) }
                                 }
                             } else {
                                 result.append(chunk)
@@ -85,8 +86,18 @@ final class CLICommand: @unchecked Sendable {
                         lock.unlock()
                         if stopped { throw CancellationError() }
                         if process.terminationStatus != 0 {
-                            let data = (try? Data(contentsOf: errors)) ?? Data()
-                            throw MLXL3BridgeError.commandFailed(String(decoding: (data.isEmpty ? result : data).suffix(8000), as: UTF8.self))
+                            let reader = try FileHandle(forReadingFrom: errors)
+                            defer { try? reader.close() }
+                            let length = try reader.seekToEnd()
+                            try reader.seek(toOffset: length - min(length, 8000))
+                            let data = try reader.readToEnd() ?? Data()
+                            let fallback = pending.isEmpty ? result : pending
+                            throw MLXL3BridgeError.commandFailed(String(decoding: (data.isEmpty ? fallback : data).suffix(8000), as: UTF8.self))
+                        }
+                        if let onLine, !pending.isEmpty {
+                            let tail = pending
+                            DispatchQueue.main.sync { onLine(tail) }
+                            result = tail
                         }
                         continuation.resume(returning: result)
                     } catch {
