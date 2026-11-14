@@ -680,6 +680,7 @@ struct CodeTextChunk: Identifiable, Equatable {
     let source: String
     var lexicalPrefix = ""
     var lexicalSuffix = ""
+    var tokens: [SyntaxHighlighter.Token]?
 }
 
 enum CodeTextChunker {
@@ -690,12 +691,22 @@ enum CodeTextChunker {
 
     final class Cache {
         private var previousSource = ""
+        private var previousLanguage: String?
         private var previousChunks: [CodeTextChunk] = []
 
-        func highlightedChunks(_ source: String) -> [CodeTextChunk] {
+        func highlightedChunks(_ source: String, language: String? = nil) -> [CodeTextChunk] {
+            if language != previousLanguage {
+                previousSource = ""
+                previousChunks = []
+                previousLanguage = language
+            }
             if source.utf8.count == previousSource.utf8.count,
                source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty { return previousChunks }
             defer { previousSource = source }
+            if SyntaxHighlighter.isMarkup(language) {
+                previousChunks = CodeTextChunker.highlightedChunks(source, language: language)
+                return previousChunks
+            }
             // ponytail: appended escapes use the original full scan; use an incremental lexer if they dominate.
             guard previousChunks.count > 2, previousSource.utf8.last != 92,
                   source.utf8.starts(with: previousSource.utf8),
@@ -727,8 +738,29 @@ enum CodeTextChunker {
         }
     }
 
-    static func highlightedChunks(_ source: String, lexicalPrefix: String = "") -> [CodeTextChunk] {
+    static func highlightedChunks(_ source: String, lexicalPrefix: String = "", language: String? = nil) -> [CodeTextChunk] {
         var output = chunks(source)
+        if SyntaxHighlighter.isMarkup(language) {
+            let tokens = SyntaxHighlighter.tokens(source, language: language ?? "html", diff: false)
+            var offset = 0
+            var first = 0
+            for index in output.indices {
+                let end = offset + output[index].source.utf16.count
+                while first < tokens.count && NSMaxRange(tokens[first].range) <= offset { first += 1 }
+                var runs: [SyntaxHighlighter.Token] = []
+                var probe = first
+                while probe < tokens.count && tokens[probe].range.location < end {
+                    let clipped = NSIntersectionRange(tokens[probe].range, NSRange(location: offset, length: end - offset))
+                    if clipped.length > 0 {
+                        runs.append(.init(range: NSRange(location: clipped.location - offset, length: clipped.length), color: tokens[probe].color))
+                    }
+                    probe += 1
+                }
+                output[index].tokens = runs
+                offset = end
+            }
+            return output
+        }
         let lexicalSource = lexicalPrefix + source
         let text = lexicalSource as NSString
         let matches = lexemes.matches(in: lexicalSource, range: NSRange(location: 0, length: text.length))
@@ -833,29 +865,26 @@ enum MarkdownRegressionCheck {
 
 @MainActor
 enum SyntaxHighlighter {
-    private static let base = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.10, green: 0.13, blue: 0.17, alpha: 1),
-        dark: NSColor(srgbRed: 0.82, green: 0.85, blue: 0.89, alpha: 1))
+    private static let base = NSColor(StudioTheme.ink)
     private static let comment = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.32, green: 0.36, blue: 0.39, alpha: 1),
-        dark: NSColor(srgbRed: 0.43, green: 0.49, blue: 0.54, alpha: 1))
+        light: NSColor(srgbRed: 0.39, green: 0.36, blue: 0.43, alpha: 1),
+        dark: NSColor(srgbRed: 0.56, green: 0.53, blue: 0.61, alpha: 1))
     private static let string = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.15, green: 0.39, blue: 0.20, alpha: 1),
-        dark: NSColor(srgbRed: 0.62, green: 0.83, blue: 0.65, alpha: 1))
+        light: NSColor(srgbRed: 0.49, green: 0.32, blue: 0.11, alpha: 1),
+        dark: NSColor(srgbRed: 0.89, green: 0.73, blue: 0.51, alpha: 1))
     private static let keyword = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.08, green: 0.30, blue: 0.65, alpha: 1),
-        dark: NSColor(srgbRed: 0.48, green: 0.73, blue: 0.98, alpha: 1))
+        light: NSColor(srgbRed: 0.40, green: 0.26, blue: 0.64, alpha: 1),
+        dark: NSColor(srgbRed: 0.73, green: 0.64, blue: 0.95, alpha: 1))
     private static let type = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.43, green: 0.22, blue: 0.62, alpha: 1),
-        dark: NSColor(srgbRed: 0.74, green: 0.67, blue: 0.94, alpha: 1))
+        light: NSColor(srgbRed: 0.61, green: 0.24, blue: 0.39, alpha: 1),
+        dark: NSColor(srgbRed: 0.90, green: 0.61, blue: 0.71, alpha: 1))
     private static let number = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.55, green: 0.29, blue: 0.05, alpha: 1),
-        dark: NSColor(srgbRed: 0.94, green: 0.72, blue: 0.43, alpha: 1))
+        light: NSColor(srgbRed: 0.61, green: 0.30, blue: 0.07, alpha: 1),
+        dark: NSColor(srgbRed: 0.95, green: 0.66, blue: 0.47, alpha: 1))
     private static let function = StudioTheme.adaptiveColor(
-        light: NSColor(srgbRed: 0.05, green: 0.36, blue: 0.40, alpha: 1),
-        dark: NSColor(srgbRed: 0.48, green: 0.84, blue: 0.86, alpha: 1))
+        light: NSColor(srgbRed: 0.24, green: 0.37, blue: 0.62, alpha: 1),
+        dark: NSColor(srgbRed: 0.64, green: 0.75, blue: 0.96, alpha: 1))
     private static var lexerCache: [String: NSRegularExpression] = [:]
-    private static var markupRegexCache: [(NSRegularExpression, NSColor)]?
 
     struct Token: Sendable, Equatable {
         let range: NSRange
@@ -888,12 +917,8 @@ enum SyntaxHighlighter {
                 paint(NSRange(location: offset, length: count), color)
                 offset += count + 1
             }
-        } else if ["html", "xml", "svg", "vue", "svelte"].contains(language) {
-            for (pattern, color) in markupPatterns {
-                guard !Task.isCancelled,
-                      let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else { continue }
-                for match in regex.matches(in: source, range: full) { paint(match.range, color) }
-            }
+        } else if isMarkup(language) {
+            paintMarkup(source, paint: paint)
         } else if let regex = makeLexer(for: language) {
             for match in regex.matches(in: source, range: full) {
                 if Task.isCancelled { return [] }
@@ -912,18 +937,11 @@ enum SyntaxHighlighter {
         return runs
     }
 
-    nonisolated private static var markupPatterns: [(String, Int)] {
-        [
-            (#"<!--[\s\S]*?-->"#, 1),
-            (#"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"#, 2),
-            (#"</?\s*[A-Za-z][A-Za-z0-9:_-]*"#, 3),
-            (#"\b[A-Za-z_:][A-Za-z0-9:._-]*(?=\s*=)"#, 6),
-            (#"<!DOCTYPE[^>]*>|</?|/?>"#, 4),
-            (#"&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9A-Fa-f]+);"#, 5),
-        ]
+    nonisolated static func isMarkup(_ raw: String?) -> Bool {
+        ["html", "xml", "svg", "vue", "svelte"].contains(normalized(raw))
     }
 
-    static func highlight(_ text: String, language rawLanguage: String?, prefix: String = "", suffix: String = "") -> AttributedString {
+    static func highlight(_ text: String, language rawLanguage: String?, prefix: String = "", suffix: String = "", tokens supplied: [Token]? = nil) -> AttributedString {
         let source = prefix + text + suffix
         let result = NSMutableAttributedString(
             string: source,
@@ -932,8 +950,10 @@ enum SyntaxHighlighter {
         guard !source.isEmpty else { return AttributedString(result) }
 
         let language = normalized(rawLanguage)
-        if ["html", "xml", "svg", "vue", "svelte"].contains(language) {
-            highlightMarkup(result, source: source)
+        if supplied != nil || isMarkup(language) {
+            for token in supplied ?? tokens(source, language: language, diff: false) {
+                result.addAttribute(.foregroundColor, value: color(token.color), range: token.range)
+            }
             return AttributedString(result.attributedSubstring(from: NSRange(location: prefix.utf16.count, length: text.utf16.count)))
         }
 
@@ -954,40 +974,6 @@ enum SyntaxHighlighter {
         return AttributedString(result.attributedSubstring(from: NSRange(location: prefix.utf16.count, length: text.utf16.count)))
     }
 
-    private static func highlightMarkup(_ result: NSMutableAttributedString, source: String) {
-        if markupRegexCache == nil {
-            markupRegexCache = [
-                (#"<!--[\s\S]*?-->"#, comment),
-                (#"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"#, string),
-                (#"</?\s*[A-Za-z][A-Za-z0-9:_-]*"#, keyword),
-                (#"\b[A-Za-z_:][A-Za-z0-9:._-]*(?=\s*=)"#, function),
-                (#"<!DOCTYPE[^>]*>|</?|/?>"#, type),
-                (#"&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9A-Fa-f]+);"#, number),
-            ].compactMap { pattern, color in
-                guard let regex = try? NSRegularExpression(
-                    pattern: pattern,
-                    options: [.anchorsMatchLines]
-                ) else { return nil }
-                return (regex, color)
-            }
-        }
-        for (regex, color) in markupRegexCache ?? [] {
-            apply(regex, color: color, to: result, source: source)
-        }
-    }
-
-    private static func apply(
-        _ regex: NSRegularExpression,
-        color: NSColor,
-        to result: NSMutableAttributedString,
-        source: String
-    ) {
-        let range = NSRange(source.startIndex..<source.endIndex, in: source)
-        for match in regex.matches(in: source, range: range) {
-            result.addAttribute(.foregroundColor, value: color, range: match.range)
-        }
-    }
-
     private static func lexer(for language: String) -> NSRegularExpression? {
         let key = lexerKey(for: language)
         if let cached = lexerCache[key] { return cached }
@@ -997,6 +983,11 @@ enum SyntaxHighlighter {
     }
 
     nonisolated private static func makeLexer(for language: String) -> NSRegularExpression? {
+        if language == "css" {
+            return try? NSRegularExpression(
+                pattern: #"(/\*[\s\S]*?(?:\*/|\z))|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(--[\w-]+|[-A-Za-z_][\w-]*(?=\s*:)|!important\b|@[\w-]+)|((?!#[0-9A-Fa-f]{3,8}\b)[.#][\w-]+|::?[A-Za-z][\w-]*|(?:^|(?<=[},]))\s*[A-Za-z][\w-]*)|(#[0-9A-Fa-f]{3,8}\b|[-+]?(?:\d*\.\d+|\d+)(?:[eE][+-]?\d+)?(?:%|[A-Za-z]+)?)|([A-Za-z_][\w-]*(?=\s*\())"#,
+                options: [.anchorsMatchLines])
+        }
         let definition = definition(for: language)
         let pattern = "(\(definition.comments))|(\(definition.strings))|\\b(\(alternation(definition.keywords)))\\b|\\b(\(alternation(definition.types)))\\b|(\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|(?:\\d(?:_?\\d)*)?(?:\\.\\d(?:_?\\d)*)|\\d(?:_?\\d)*(?:[eE][+-]?\\d+)?)[fFdDuUlL]*\\b)|(\\b[A-Za-z_$][A-Za-z0-9_$]*(?=\\s*\\())"
         guard let regex = try? NSRegularExpression(
@@ -1008,7 +999,7 @@ enum SyntaxHighlighter {
 
     nonisolated private static func lexerKey(for language: String) -> String {
         switch language {
-        case "python", "swift", "javascript", "typescript", "bash", "json", "sql", "yaml", "toml", "markdown":
+        case "python", "swift", "javascript", "typescript", "css", "bash", "json", "sql", "yaml", "toml", "markdown":
             language
         default:
             "generic"
@@ -1023,7 +1014,9 @@ enum SyntaxHighlighter {
     nonisolated private static func normalized(_ rawLanguage: String?) -> String {
         let language = rawLanguage?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return switch language {
-        case "js", "jsx": "javascript"
+        case "htm", "xhtml": "html"
+        case "scss", "sass", "less": "css"
+        case "js", "jsx", "mjs", "cjs": "javascript"
         case "ts", "tsx": "typescript"
         case "py": "python"
         case "rs": "rust"
@@ -1196,14 +1189,14 @@ struct CodeBlockView: View, Equatable {
     }
 
     @ViewBuilder private var streamingCode: some View {
-        let chunks = chunkCache.highlightedChunks(source)
+        let chunks = chunkCache.highlightedChunks(source, language: language)
         if chunks.count > 8 {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(chunks) { chunk in
                         CodeTextChunkView(
                             source: chunk.source, language: language,
-                            prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                            prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix, tokens: chunk.tokens,
                             streaming: chunk.id == chunks.last?.id, textScale: textScale
                         ).equatable()
                     }
@@ -1223,7 +1216,7 @@ struct CodeBlockView: View, Equatable {
                 ForEach(chunks) { chunk in
                     CodeTextChunkView(
                         source: chunk.source, language: language,
-                        prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                        prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix, tokens: chunk.tokens,
                         streaming: chunk.id == chunks.last?.id, textScale: textScale
                     ).equatable()
                 }
@@ -1247,15 +1240,16 @@ private struct CodeTextChunkView: View, Equatable {
     let language: String?
     let prefix: String
     let suffix: String
+    let tokens: [SyntaxHighlighter.Token]?
     let streaming: Bool
     let textScale: CGFloat
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.tokens == rhs.tokens && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
-        SmoothTokenText(content: Text(SyntaxHighlighter.highlight(source, language: language, prefix: prefix, suffix: suffix)), source: source, streaming: streaming)
+        SmoothTokenText(content: Text(SyntaxHighlighter.highlight(source, language: language, prefix: prefix, suffix: suffix, tokens: tokens)), source: source, streaming: streaming)
             .font(.system(size: 12 * textScale, weight: .regular, design: .monospaced))
             .opacity(streaming ? 0.94 : 1)
             .fixedSize(horizontal: false, vertical: true)
@@ -1773,5 +1767,74 @@ enum GeneratedHTML {
             if case let .code(language, text) = block.kind, HTMLPreview.canRun(language: language, source: text, completed: true) { return text }
             return nil
         }.prefix(8))
+    }
+}
+
+extension SyntaxHighlighter {
+    nonisolated private static let markupLexer = try! NSRegularExpression(
+        pattern: #"<!--[\s\S]*?(?:-->|\z)|<![^>]*(?:>|\z)|</?\s*[A-Za-z][A-Za-z0-9:_-]*(?:[^"'<>]|"[^"]*"|'[^']*')*(?:>|\z)|&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9a-f]+);"#,
+        options: [.caseInsensitive])
+    nonisolated private static let tagLexer = try! NSRegularExpression(pattern: #"^</?\s*([A-Za-z][A-Za-z0-9:_-]*)"#)
+    nonisolated private static let attributeLexer = try! NSRegularExpression(
+        pattern: #"([A-Za-z_:][A-Za-z0-9:._-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#)
+    nonisolated private static let entityLexer = try! NSRegularExpression(
+        pattern: #"&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9A-Fa-f]+);"#)
+
+    nonisolated private static func paintMarkup(_ source: String, paint: (NSRange, Int) -> Void) {
+        let text = source as NSString
+        var cursor = 0
+        while cursor < text.length {
+            if Task.isCancelled { return }
+            guard let match = markupLexer.firstMatch(in: source, range: NSRange(location: cursor, length: text.length - cursor)) else { break }
+            cursor = NSMaxRange(match.range)
+            let tag = text.substring(with: match.range)
+            if tag.hasPrefix("<!--") {
+                paint(match.range, 1)
+                continue
+            }
+            if tag.hasPrefix("&") {
+                paint(match.range, 5)
+                continue
+            }
+            paint(match.range, 4)
+            guard let name = tagLexer.firstMatch(in: tag, range: NSRange(location: 0, length: tag.utf16.count)) else { continue }
+            let tagText = tag as NSString
+            let tagName = tagText.substring(with: name.range(at: 1)).lowercased()
+            paint(NSRange(location: match.range.location + name.range(at: 1).location, length: name.range(at: 1).length), 3)
+            var attributes: [String: String] = [:]
+            for attribute in attributeLexer.matches(in: tag, range: NSRange(location: NSMaxRange(name.range), length: tagText.length - NSMaxRange(name.range))) {
+                let key = tagText.substring(with: attribute.range(at: 1)).lowercased()
+                guard let group = (2...4).first(where: { attribute.range(at: $0).location != NSNotFound }) else { continue }
+                let value = attribute.range(at: group)
+                let raw = tagText.substring(with: value)
+                attributes[key] = raw
+                paint(NSRange(location: match.range.location + attribute.range(at: 1).location, length: attribute.range(at: 1).length), 6)
+                let quoted = group != 4
+                paint(NSRange(location: match.range.location + value.location - (quoted ? 1 : 0), length: value.length + (quoted ? 2 : 0)), 2)
+                if key == "style" || key.hasPrefix("on") {
+                    for token in tokens(raw, language: key == "style" ? "css" : "javascript", diff: false) {
+                        paint(NSRange(location: match.range.location + value.location + token.range.location, length: token.range.length), token.color)
+                    }
+                }
+                for entity in entityLexer.matches(in: raw, range: NSRange(location: 0, length: value.length)) {
+                    paint(NSRange(location: match.range.location + value.location + entity.range.location, length: entity.range.length), 5)
+                }
+            }
+            guard !tag.hasPrefix("</"), !tag.hasSuffix("/>"), ["script", "style"].contains(tagName),
+                  let closing = try? NSRegularExpression(pattern: "</\\s*" + tagName + "\\s*>", options: [.caseInsensitive]) else { continue }
+            let end = closing.firstMatch(in: source, range: NSRange(location: cursor, length: text.length - cursor))?.range.location ?? text.length
+            let body = text.substring(with: NSRange(location: cursor, length: end - cursor))
+            let type = attributes["type", default: ""].lowercased()
+            let language: String
+            if tagName == "style" { language = "css" }
+            else if type.contains("json") || type == "importmap" { language = "json" }
+            else if attributes["lang"]?.lowercased() == "ts" || type.contains("typescript") { language = "typescript" }
+            else if type.isEmpty || type == "module" || type.contains("javascript") { language = "javascript" }
+            else { cursor = end; continue }
+            for token in tokens(body, language: language, diff: false) {
+                paint(NSRange(location: cursor + token.range.location, length: token.range.length), token.color)
+            }
+            cursor = end
+        }
     }
 }

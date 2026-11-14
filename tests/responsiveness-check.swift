@@ -238,6 +238,127 @@ import SwiftUI
         await coordinator.waitForStyling()
         check(editor.string == "// new 😀" && (editor.textStorage?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor) == SyntaxHighlighter.color(1),
               "old lexical job cannot overwrite a new document")
+        checks += await EmbeddedSyntaxCheck.run()
         print("Responsiveness: \(checks) checks passed")
+    }
+}
+
+enum EmbeddedSyntaxCheck {
+    @MainActor static func run() async -> Int {
+        var count = 0
+        func check(_ value: Bool, _ message: String) {
+            precondition(value, message)
+            count += 1
+        }
+        func color(_ word: String, in source: String, runs: [SyntaxHighlighter.Token]) -> Int {
+            let at = (source as NSString).range(of: word).location
+            precondition(at != NSNotFound, "Missing syntax fixture word")
+            return runs.first { NSLocationInRange(at, $0.range) }?.color ?? -1
+        }
+        let source = """
+        <!DOCTYPE html>
+        <!-- <script>const hidden = "ignore";</script> -->
+        <style>
+        .card { --glow: #ff00aa; color: var(--glow); margin: 12px; }
+        /* color: hidden; */
+        </style>
+        <ScRiPt type="module">
+        const message = "bonjour 😀";
+        document.querySelector(".card").textContent = message;
+        // const ignored = 123;
+        </sCrIpT>
+        <script type="application/ld+json">{"enabled":true,"count":17}</script>
+        <button style="background: #abc; width:20px" onclick="let clickCount = 4; alert(clickCount)">Go &amp;</button>
+        """
+        let expected: [(String, Int)] = [
+            ("DOCTYPE", 4), ("const hidden", 1), (".card {", 4), ("--glow", 3),
+            ("#ff00aa", 5), ("color: var", 3), ("var(", 6), ("12px", 5),
+            ("color: hidden", 1), ("const message", 3), ("bonjour", 2),
+            ("querySelector", 6), ("const ignored", 1), ("true", 3), ("17}", 5),
+            ("background:", 3), ("20px", 5), ("let clickCount", 3), ("alert(", 6),
+            ("&amp;", 5)
+        ]
+        for language in ["html", "htm", "xhtml", "svg", "vue", "svelte"] {
+            let runs = SyntaxHighlighter.tokens(source, language: language, diff: false)
+            check(runs.reduce(0) { $0 + $1.range.length } == source.utf16.count, "Embedded lexer lost UTF-16 coverage")
+            for (word, role) in expected {
+                check(color(word, in: source, runs: runs) == role, "Wrong \(language) syntax for \(word)")
+            }
+            let attributed = NSAttributedString(SyntaxHighlighter.highlight(source, language: language))
+            for (word, role) in expected {
+                let at = (source as NSString).range(of: word).location
+                check((attributed.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor) == SyntaxHighlighter.color(role),
+                      "Rendered color differs for \(word)")
+            }
+        }
+        for language in ["css", "scss", "less"] {
+            let css = ".note { padding: 1.5rem; color: #abcdef; opacity: calc(1 / 2); }"
+            let runs = SyntaxHighlighter.tokens(css, language: language, diff: false)
+            for (word, role) in [(".note", 4), ("padding", 3), ("1.5rem", 5), ("#abcdef", 5), ("calc", 6)] {
+                check(color(word, in: css, runs: runs) == role, "Standalone CSS color failed for \(language): \(word), got \(color(word, in: css, runs: runs))")
+            }
+        }
+        for (text, word, role) in [
+            ("<style>.a { color: red;", "color", 3),
+            ("<script>const x = 7;", "const", 3),
+            ("<script type='text/plain'>const x = 7;</script>", "const", 0),
+            ("<!-- <style>.a{color:red}</style> -->", "color", 1),
+            ("<script lang='ts'>interface Example { value: number }</script>", "interface", 3)
+        ] {
+            check(color(word, in: text, runs: SyntaxHighlighter.tokens(text, language: "html", diff: false)) == role,
+                  "Incomplete or protected markup changed context")
+        }
+        let long = "<style>\n" + String(repeating: ".card { width:12px; color:#abc; }\n", count: 180)
+            + "</style><script>\n" + String(repeating: "// 😀 padding\n", count: 180) + "const finalValue = 23;\n</script>"
+        let cache = CodeTextChunker.Cache()
+        let chunks = cache.highlightedChunks(long, language: "html")
+        check(chunks.count > 3 && chunks.map(\.source).joined() == long, "Chat layout chunks lost source")
+        check(chunks.allSatisfy { ($0.tokens ?? []).reduce(0) { $0 + $1.range.length } == $0.source.utf16.count },
+              "Chat chunk did not keep complete embedded colors")
+        var offset = 0
+        let target = (long as NSString).range(of: "const finalValue").location
+        for chunk in chunks {
+            if NSLocationInRange(target, NSRange(location: offset, length: chunk.source.utf16.count)) {
+                check(color("const finalValue", in: chunk.source, runs: chunk.tokens ?? []) == 3,
+                      "Script context was lost across a chat layout boundary")
+            }
+            offset += chunk.source.utf16.count
+        }
+        let sameAsText = cache.highlightedChunks(long, language: "text")
+        check(sameAsText.allSatisfy { $0.tokens == nil }, "Language change kept stale markup tokens")
+        var previous: EditorLexicalCache.Cache?
+        for variant in [long, long.replacingOccurrences(of: "</style>", with: ""),
+                        long.replacingOccurrences(of: "<style>", with: "<STYLE media=\"screen\">"),
+                        source, "<script>\n" + long, "😀\n" + source] {
+            let result = EditorLexicalCache.update(variant, language: "html", diff: false, previous: previous)
+            check(result.tokens == SyntaxHighlighter.tokens(variant, language: "html", diff: false),
+                  "Editor edit or changed delimiter retained stale embedded colors")
+            previous = result.cache
+        }
+        for (name, background) in [(NSAppearance.Name.aqua, 0.97), (.darkAqua, 0.071)] {
+            NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
+                func linear(_ value: Double) -> Double {
+                    value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+                }
+                let canvas = linear(background)
+                for role in 1...6 {
+                    let color = SyntaxHighlighter.color(role).usingColorSpace(.sRGB)!
+                    let ink = 0.2126 * linear(color.redComponent) + 0.7152 * linear(color.greenComponent) + 0.0722 * linear(color.blueComponent)
+                    check((max(canvas, ink) + 0.05) / (min(canvas, ink) + 0.05) >= 4.5,
+                          "Code palette contrast fell below 4.5 in \(name)")
+                }
+            }
+        }
+        let editor = NSTextView()
+        editor.string = source
+        let coordinator = StudioCodeEditor.Coordinator(StudioCodeEditor(text: .constant(source), language: "html", editable: true, documentID: "embedded"))
+        coordinator.resetLines(editor)
+        coordinator.style(editor)
+        await coordinator.waitForStyling()
+        let at = (source as NSString).range(of: "const message").location
+        check(editor.string == source && (editor.textStorage?.attribute(.foregroundColor, at: at, effectiveRange: nil) as? NSColor) == SyntaxHighlighter.color(3),
+              "The production editor did not receive embedded colors")
+        print("Embedded syntax: \(count) checks passed; HTML/CSS/JS/TS/JSON, attributes, comments, Unicode, chat chunks and editor edits")
+        return count
     }
 }

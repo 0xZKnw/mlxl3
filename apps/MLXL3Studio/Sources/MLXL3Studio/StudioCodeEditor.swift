@@ -351,6 +351,10 @@ enum EditorLexicalCache {
     var state = incoming
     let units = Array(text.utf16)
     let markup = ["html", "xml", "svg", "vue", "svelte"].contains(language)
+    // Keep embedded languages in one chunk so their opening tag stays in scope.
+    if markup && text.range(of: "<\\s*(script|style)\\b", options: [.regularExpression, .caseInsensitive]) != nil {
+      state.uncertain = true
+    }
     let hashComments = ["python", "bash", "yaml", "toml", "markdown"].contains(language)
     let restrictedComments = ["yaml", "toml", "markdown"].contains(language)
     let sql = language == "sql"
@@ -434,7 +438,9 @@ enum EditorLexicalCache {
   nonisolated private static func normalized(_ raw: String) -> String {
     let language = raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     return switch language {
-    case "js", "jsx": "javascript"
+    case "htm", "xhtml": "html"
+    case "scss", "sass", "less": "css"
+    case "js", "jsx", "mjs", "cjs": "javascript"
     case "ts", "tsx": "typescript"
     case "py": "python"
     case "rs": "rust"
