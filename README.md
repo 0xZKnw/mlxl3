@@ -12,9 +12,9 @@ SwiftUI desktop app, a Rust inference engine using MLX on Metal, a
 command-line client, and an OpenAI-compatible HTTP API. Supported families
 include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
 
-[Download Desktop v2.0.0](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0)
+[Download Desktop v2.0.1](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1)
 · [Engine 2.0.10](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.10)
-· [Release notes](docs/releases/desktop/release-v2.0.0.md)
+· [Release notes](docs/releases/desktop/release-v2.0.1.md)
 · [Website](https://mlxl3.0xzknw.tech/)
 · [Discord](https://discord.gg/9hU46NVNnY)
 · [MIT license](LICENSE)
@@ -49,7 +49,7 @@ Desktop v2 includes a fine ASCII aurora with a high reflection and a lower amber
 The builds are ad-hoc signed, not notarized. If macOS blocks first launch,
 approve this specific app in **System Settings → Privacy & Security**.
 
-Desktop **2.0.0 / build 53** bundles engine **2.0.10**. App and engine
+Desktop **2.0.1 / build 54** bundles engine **2.0.10**. App and engine
 updates have separate stable/beta channels in Settings. Updating an engine
 validates its manifest, hashes, architecture, protocol and app compatibility;
 a failed startup can fall back to the bundled runtime. Engine releases do not
