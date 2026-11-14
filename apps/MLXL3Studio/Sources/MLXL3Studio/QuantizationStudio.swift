@@ -255,9 +255,7 @@ struct QuantizationStudioView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("Quantization Studio").font(.system(size: 29, design: .serif))
-        Text(L("Safetensors → EXL3, sur ce Mac.", "Safetensors → EXL3, on this Mac."))
-          .foregroundStyle(StudioTheme.quiet)
+        StudioPanelHeader(title: "Quantization Studio", detail: L("Safetensors → EXL3, sur ce Mac.", "Safetensors → EXL3, on this Mac."))
         HStack {
           TextField(
             L("Dossier local ou lien Hugging Face", "Local folder or Hugging Face URL"),
@@ -381,7 +379,7 @@ struct QuantizationStudioView: View {
             "Interactive models are unloaded before conversion. Source weights remain unchanged and output must be a new folder. LFM2, LFM2-MoE and native Ling have adapters; other architectures may run in the engine without being convertible here."
           )
         ).font(.caption).foregroundStyle(StudioTheme.quiet)
-      }.padding(26)
+      }.padding(.horizontal, 28).padding(.vertical, 36)
     }
   }
 

@@ -30,32 +30,36 @@ struct AgentStudioView: View {
   private var mutating: Bool { model.busy || studio.isGenerating || studio.agentStudioBusy }
 
   var body: some View {
-    VStack(spacing: 0) {
-      header
-      Rectangle().fill(StudioTheme.edge).frame(height: 1)
-      if let error = model.error {
-        HStack(spacing: 12) {
-          Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
-          Text(error).font(.system(size: 11)).textSelection(.enabled).frame(
-            maxWidth: .infinity, alignment: .leading)
-          Button {
-            model.error = nil
-          } label: {
-            Image(systemName: "xmark").padding(8)
-          }
-          .buttonStyle(StudioControlStyle()).accessibilityLabel(
-            L("Masquer l’erreur", "Dismiss error"))
-        }.padding(.horizontal, 20).padding(.vertical, 10).background(Color.orange.opacity(0.05))
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      HSplitView {
-        sidebar.frame(minWidth: 180, idealWidth: 224, maxWidth: 280)
-        document.frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
-      }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    HSplitView {
+      sidebar.frame(minWidth: 180, idealWidth: studio.sidebarWidth.points, maxWidth: studio.sidebarWidth.points)
+      VStack(spacing: 0) {
+        header
+        if let error = model.error {
+          HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+            Text(error).font(.system(size: 11)).textSelection(.enabled).frame(
+              maxWidth: .infinity, alignment: .leading)
+            Button {
+              model.error = nil
+            } label: {
+              Image(systemName: "xmark").padding(8)
+            }
+            .buttonStyle(StudioControlStyle()).accessibilityLabel(
+              L("Masquer l’erreur", "Dismiss error"))
+          }.padding(.horizontal, 20).padding(.vertical, 10).background(Color.orange.opacity(0.05))
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        document
+          .clipShape(RoundedRectangle(cornerRadius: 14))
+          .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(StudioTheme.edge).allowsHitTesting(false) }
+          .padding(.horizontal, 28).padding(.bottom, 24)
+      }.frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
     }
-    .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+    .foregroundStyle(StudioTheme.ink)
+    .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    .tint(StudioTheme.accent)
+    .tint(studio.accentColor)
     .task {
       await model.open(workspace: workspace, file: file)
     }
@@ -115,22 +119,9 @@ struct AgentStudioView: View {
   }
 
   private var header: some View {
-    HStack(spacing: 16) {
-      Button {
-        navigate { close() }
-      } label: {
-        Image(systemName: "arrow.left").frame(width: 32, height: 32)
-      }
-      .buttonStyle(StudioControlStyle()).help(L("Retour au chat", "Back to chat"))
-      .accessibilityLabel(L("Retour au chat", "Back to chat"))
-      MonogramMark(size: 25)
-      VStack(alignment: .leading, spacing: 3) {
-        Text("Agent Studio").font(
-          .system(size: 21, design: .serif))
-        Text(model.title)
-          .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).lineLimit(1)
-      }
-      Spacer(minLength: 12)
+    VStack(alignment: .leading, spacing: 18) {
+      StudioPanelHeader(title: "Agent Studio", detail: model.title)
+      HStack(spacing: 10) {
       if model.busy || studio.agentStudioBusy { ProgressView().controlSize(.small) }
       Button {
         permissions.toggle()
@@ -158,6 +149,7 @@ struct AgentStudioView: View {
         }.buttonStyle(StudioControlStyle(emphasized: true)).disabled(
           mutating || model.versions.isEmpty)
       }
+      Spacer(minLength: 0)
       Menu {
         Button(
           L("Ouvrir un projet dans une nouvelle tâche…", "Open project in a new task…"),
@@ -183,13 +175,15 @@ struct AgentStudioView: View {
       }
       .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(
         L("Actions du projet", "Project actions"))
+      }
     }
-    .padding(.horizontal, 20).frame(height: 74).fixedSize(horizontal: false, vertical: true)
-    .background(StudioTheme.canvas)
+    .padding(.horizontal, 28).padding(.top, 36).padding(.bottom, 25)
+    .fixedSize(horizontal: false, vertical: true)
   }
 
   private var sidebar: some View {
     VStack(alignment: .leading, spacing: 0) {
+      StudioSidebarHeader(title: "Agent Studio")
       HStack {
         Text(L("EXPLORATEUR", "EXPLORER")).font(.system(size: 9, weight: .medium)).tracking(1.4)
         Spacer()
@@ -218,7 +212,7 @@ struct AgentStudioView: View {
                   }
                 }.padding(.horizontal, 10).frame(height: 31)
                   .background(
-                    node.id == model.selected ? Color.white.opacity(0.075) : .clear,
+                    node.id == model.selected ? StudioTheme.contrast.opacity(0.075) : .clear,
                     in: RoundedRectangle(cornerRadius: 6))
               }.buttonStyle(StudioControlStyle()).accessibilityIdentifier("studio.file.\(node.id)")
             }
@@ -250,7 +244,9 @@ struct AgentStudioView: View {
         }
       }.font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
         horizontal: false, vertical: true)
-    }.frame(maxHeight: .infinity, alignment: .top).background(StudioTheme.sidebar)
+      StudioBackButton(action: { navigate { close() } })
+        .padding(.horizontal, 18).padding(.bottom, 18)
+    }.frame(maxHeight: .infinity, alignment: .top).modifier(StudioSidebarSurface())
   }
 
   private var document: some View {
@@ -289,7 +285,6 @@ struct AgentStudioView: View {
       Rectangle().fill(StudioTheme.edge).frame(height: 1)
       if model.tab != .history { documentBar }
       ZStack {
-        StudioTheme.canvas
         if model.tab == .history {
           history
         } else if model.selected.isEmpty {
@@ -355,7 +350,7 @@ struct AgentStudioView: View {
       }.font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(.horizontal, 20).frame(
         height: 28
       ).fixedSize(horizontal: false, vertical: true)
-        .background(StudioTheme.sidebar)
+        .background(StudioTheme.panel)
     }
   }
 

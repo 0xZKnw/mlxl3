@@ -50,20 +50,11 @@ struct ModelManagerView: View {
     @State private var removal: LocalModel?
 
     var body: some View {
-        VStack(spacing: 0) {
-            StudioPanelHeader(
-                title: L("Modèles", "Models"),
-                detail: L(
-                    "Bibliothèque, téléchargements et quantification.",
-                    "Library, downloads and quantization."),
-                close: { studio.showModelManager = false })
-            Divider().overlay(StudioTheme.edge)
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 8) {
-                    DownloadNotificationButton(library: studio.modelLibrary)
-                        .padding(.bottom, 8)
-                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize)
-                    {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                StudioSidebarHeader(title: L("Modèles", "Models"))
+                VStack(spacing: 3) {
+                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize) {
                         discover = false
                         quantize = false
                     }
@@ -75,32 +66,38 @@ struct ModelManagerView: View {
                         quantize = true
                         discover = false
                     }
-                    Spacer()
-                    Text(L("Stockage local", "Local storage")).font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(StudioTheme.quiet)
-                    Text(
-                        ByteCountFormatter.string(
-                            fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file)
-                    )
-                    .font(.system(size: 27, weight: .regular, design: .serif))
+                }.padding(.horizontal, 10)
+                DownloadNotificationButton(library: studio.modelLibrary)
+                    .padding(.horizontal, 18).padding(.top, 18)
+                Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("Stockage local", "Local storage")).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                    Text(ByteCountFormatter.string(fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file))
+                        .font(.system(size: 27, weight: .regular, design: .serif))
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
                         .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                }.padding(20).frame(width: 222).background(StudioTheme.sidebar)
-                Divider().overlay(StudioTheme.edge)
-                Group {
-                    if quantize {
-                        QuantizationStudioView(quantizer: studio.quantizer)
-                    } else if discover {
-                        HubBrowserView(library: studio.modelLibrary)
-                    } else {
-                        installed
-                    }
-                }
-                .id(quantize ? "quantize" : discover ? "discover" : "library")
-                .transition(.opacity)
+                }.padding(.horizontal, 22).padding(.bottom, 24)
+                StudioBackButton(action: { studio.showModelManager = false })
+                    .padding(.horizontal, 18).padding(.bottom, 18)
             }
+            .frame(width: studio.sidebarWidth.points, alignment: .leading)
+            .modifier(StudioSidebarSurface())
+            Group {
+                if quantize {
+                    QuantizationStudioView(quantizer: studio.quantizer)
+                } else if discover {
+                    HubBrowserView(library: studio.modelLibrary)
+                } else {
+                    installed
+                }
+            }
+            .frame(maxWidth: 880)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id(quantize ? "quantize" : discover ? "discover" : "library")
+            .transition(.opacity)
         }
-        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .foregroundStyle(StudioTheme.ink)
+        .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
         .onAppear { if studio.quantizer.converting { quantize = true } }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -134,8 +131,13 @@ struct ModelManagerView: View {
 
     private func navigation(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon).font(.system(size: 12, weight: .medium))
-                .frame(maxWidth: .infinity, alignment: .leading).padding(11)
+            HStack(spacing: 11) {
+                Image(systemName: icon).frame(width: 18)
+                Text(title)
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 13, weight: active ? .semibold : .regular))
+            .padding(.horizontal, 12).frame(height: 36)
 
         }.buttonStyle(StudioControlStyle(emphasized: active))
             .accessibilityAddTraits(active ? .isSelected : [])
@@ -145,8 +147,7 @@ struct ModelManagerView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(L("Modèles installés", "Installed models")).font(
-                        .system(size: 29, weight: .regular, design: .serif))
+                    StudioPanelHeader(title: L("Ma bibliothèque", "My library"), detail: L("Modèles EXL3 sur ce Mac.", "EXL3 models on this Mac."))
                 }
                 Spacer()
                 Button(action: studio.importModelFolder) {
@@ -231,7 +232,7 @@ struct ModelManagerView: View {
                 Text(text).font(.caption).foregroundStyle(StudioTheme.secondary)
             case .failed(let text): Text(text).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
             }
-        }.padding(26).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }.padding(.horizontal, 28).padding(.vertical, 36).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -244,8 +245,7 @@ private struct HubBrowserView: View {
             if let detail = library.detail {
                 details(detail)
             } else {
-                Text(L("Modèles Hugging Face", "Hugging Face models")).font(
-                    .system(size: 29, weight: .regular, design: .serif))
+                StudioPanelHeader(title: "Hugging Face", detail: L("Modèles EXL3 et téléchargements.", "EXL3 models and downloads."))
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass").foregroundStyle(StudioTheme.quiet)
                     TextField(L("Rechercher sur Hugging Face…", "Search Hugging Face…"), text: $library.query)
@@ -310,7 +310,7 @@ private struct HubBrowserView: View {
                 }
             }
             if let error = library.error { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
-        }.padding(26).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }.padding(.horizontal, 28).padding(.vertical, 36).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .overlay {
                 if library.loadingDetail {
                     ProgressView().padding(20).background(

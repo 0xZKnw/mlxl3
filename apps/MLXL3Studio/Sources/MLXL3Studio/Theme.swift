@@ -253,24 +253,28 @@ struct StudioBackButton: View {
     }
 }
 
+struct StudioSidebarHeader: View {
+    let title: String
+    var body: some View {
+        HStack(spacing: 8) {
+            MonogramMark(size: 35)
+            Text(title).font(.system(size: 17, weight: .semibold)).tracking(-0.5)
+        }
+        .padding(.horizontal, 18).padding(.top, 37).padding(.bottom, 20)
+    }
+}
+
 struct StudioPanelHeader: View {
     let title: String
     let detail: String
-    let close: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(title).font(.system(size: 32, weight: .regular, design: .serif))
-                    .contentTransition(.opacity)
-                Text(detail).font(.system(size: 13)).foregroundStyle(StudioTheme.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            StudioBackButton(action: close)
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(.system(size: 39, weight: .regular, design: .serif)).tracking(-1.2)
+                .accessibilityAddTraits(.isHeader)
+            Text(detail).font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 22)
-        .background(alignment: .top) { StudioAurora().scaleEffect(y: 2, anchor: .top).opacity(0.55) }
-        .clipped()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

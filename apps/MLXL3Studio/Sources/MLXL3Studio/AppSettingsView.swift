@@ -53,12 +53,7 @@ struct AppSettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
-                    MonogramMark(size: 35)
-                    Text(L("Réglages", "Settings"))
-                        .font(.system(size: 17, weight: .semibold)).tracking(-0.5)
-                }
-                .padding(.horizontal, 18).padding(.top, 37).padding(.bottom, 20)
+                StudioSidebarHeader(title: L("Réglages", "Settings"))
 
                 VStack(spacing: 3) {
                     ForEach(SettingsPage.allCases) { page in

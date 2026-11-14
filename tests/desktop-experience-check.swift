@@ -43,6 +43,7 @@ import SwiftUI
         let visual = make(preview: true, file: file)
         checkAuroraPlayback()
         try await checkSettingsSurfaces()
+        try await checkManagerSurfaces(studio: visual)
         try await checkDisabledControls()
         try await checkWidgetSizing(studio: visual)
         try await checkAurora()
@@ -320,11 +321,11 @@ extension DesktopExperienceCheck {
         precondition(playback.phase(at: 4) == 4)
         playback.setGenerating(true, at: 4)
         precondition(playback.phase(at: 4) == 4)
-        precondition(abs(playback.phase(at: 8) - playback.phase(at: 7) - 4.4) < 1e-9)
+        precondition(abs(playback.phase(at: 8) - playback.phase(at: 7) - 2.0) < 1e-9)
         func speed(_ time: Double) -> Double {
             (playback.phase(at: time + 0.0001) - playback.phase(at: time)) / 0.0001
         }
-        precondition(speed(4.5) < 1 && speed(5.5) > 4.4)
+        precondition(speed(4.5) < 1 && speed(5.5) > 2.0)
         for (time, busy) in [(6.0, false), (6.4, true), (6.6, false)] {
             let position = playback.phase(at: time), rate = speed(time)
             playback.setGenerating(busy, at: time)
@@ -338,7 +339,7 @@ extension DesktopExperienceCheck {
             for step in 0...47 { precondition(speed(time + Double(step) / 100) >= 0.12) }
             playback.setGenerating(false, at: time + 0.48)
         }
-        print("Aurora playback passed: undershoot, overshoot, 4.4x cruise, continuous reversals, return to 1x, twelve rapid restarts")
+        print("Aurora playback passed: undershoot, overshoot, 2x cruise, continuous reversals, return to 1x, twelve rapid restarts")
     }
 }
 
@@ -481,5 +482,70 @@ extension DesktopExperienceCheck {
         precondition(abs(measured.height - host.fittingSize.height) < 1,
                      "The menu widget must resize its popover as the model changes")
         print("Widget sizing passed: intrinsic height updates for unloaded and long loading model")
+    }
+}
+
+
+extension DesktopExperienceCheck {
+    @MainActor static func checkManagerSurfaces(studio: StudioModel) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-surfaces-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = "io.mlxl3.surfaces." + UUID().uuidString
+        let prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite) }
+        studio.showModelManager = true
+        studio.showMCPManager = false
+        studio.showWorkspace = false
+        for theme in [AppTheme.dark, .light] {
+            studio.setTheme(theme)
+            var agentClosed = false
+            for (label, view) in [
+                ("models", AnyView(ModelManagerView())),
+                ("mcp", AnyView(MCPManagerView())),
+                ("projects", AnyView(WorkspaceManagerView())),
+                ("agent", AnyView(AgentStudioView(workspace: root.appendingPathComponent("files"), onClose: { agentClosed = true })))
+            ] {
+                let bounds = NSRect(x: 0, y: 0, width: 820, height: 680)
+                let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                let host = NSHostingView(rootView: view.environmentObject(studio)
+                    .defaultAppStorage(prefs).studioAppearance(theme)
+                    .environment(\.scenePhase, .inactive))
+                window.contentView = host
+                host.frame = bounds
+                window.setFrameOrigin(NSPoint(x: -6000, y: -6000))
+                window.orderBack(nil)
+                studio.showModelManager = label == "models"
+                studio.showMCPManager = label == "mcp"
+                studio.showWorkspace = label == "projects"
+                try await Task.sleep(for: .milliseconds(200))
+                host.layoutSubtreeIfNeeded()
+                let bitmap = host.bitmapImageRepForCachingDisplay(in: bounds)!
+                host.cacheDisplay(in: bounds, to: bitmap)
+                var chroma = 0.0
+                for y in stride(from: 132, to: 180, by: 3) {
+                    let color = bitmap.colorAt(x: 8, y: y)!.usingColorSpace(.sRGB)!
+                    chroma += max(color.redComponent, color.blueComponent) - color.greenComponent
+                }
+                precondition(chroma > 0.07, "\(label) must carry the aurora through its sidebar in \(theme)")
+                precondition(host.frame.width == 820, "Management page escaped its compact window")
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: 58, y: 36),
+                        modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                    window.sendEvent(event)
+                }
+                try await Task.sleep(for: .milliseconds(80))
+                precondition(label != "models" || !studio.showModelManager, "Models Back failed")
+                precondition(label != "mcp" || !studio.showMCPManager, "MCP Back failed")
+                precondition(label != "projects" || !studio.showWorkspace, "Projects Back failed")
+                precondition(label != "agent" || agentClosed, "Agent Studio Back failed")
+                window.close()
+            }
+        }
+        studio.setTheme(.dark)
+        studio.showModelManager = false
+        print("Management surfaces passed: four production pages, light/dark, compact width, translucent sidebar pixels and actual Back clicks")
     }
 }

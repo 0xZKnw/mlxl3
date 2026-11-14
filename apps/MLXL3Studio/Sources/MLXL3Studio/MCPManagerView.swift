@@ -16,40 +16,37 @@ struct MCPManagerView: View {
     @State private var checkTask: Task<Void, Never>?
 
     var body: some View {
-        VStack(spacing: 0) {
-            StudioPanelHeader(
-                title: L("Serveurs MCP", "MCP servers"),
-                detail: L(
-                    "Serveurs MCP et autorisations par projet.",
-                    "MCP servers and project permissions."),
-                close: { studio.showMCPManager = false })
-            Divider().overlay(StudioTheme.edge)
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(L("Serveurs", "Servers")).font(.system(size: 14, weight: .semibold))
-                    List(names, id: \.self, selection: $selected) { server in
-                        Label(server, systemImage: "server.rack").tag(server).padding(.vertical, 6)
-                    }
-                    .listStyle(.sidebar).scrollContentBackground(.hidden)
-                    if names.isEmpty {
-                        Text(L("Ajoutez un serveur pour connecter ses outils.", "Add a server to connect its tools."))
-                            .foregroundStyle(StudioTheme.secondary)
-                    }
-                    Button {
-                        selected = ""
-                        name = ""
-                        configuration = "{\n  \"url\": \"\",\n  \"enabled\": true\n}"
-                    } label: {
-                        Label(L("Nouveau serveur", "New server"), systemImage: "plus")
-                            .frame(maxWidth: .infinity).padding(11)
-                    }.buttonStyle(GlassPillButtonStyle())
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                StudioSidebarHeader(title: "MCP")
+                List(names, id: \.self, selection: $selected) { server in
+                    Label(server, systemImage: "server.rack").tag(server).padding(.vertical, 6)
                 }
-                .padding(20).frame(width: 222)
-                .background(StudioTheme.sidebar)
-                .disabled(studio.isGenerating)
-                Rectangle().fill(StudioTheme.edge).frame(width: 1)
+                .listStyle(.sidebar).scrollContentBackground(.hidden).disabled(studio.isGenerating)
+                if names.isEmpty {
+                    Text(L("Ajoutez un serveur pour connecter ses outils.", "Add a server to connect its tools."))
+                        .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                        .padding(.horizontal, 22).padding(.bottom, 18)
+                }
+                Button {
+                    selected = ""
+                    name = ""
+                    configuration = "{\n  \"url\": \"\",\n  \"enabled\": true\n}"
+                } label: {
+                    Label(L("Nouveau serveur", "New server"), systemImage: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 12).frame(height: 36)
+                }.buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
+                    .disabled(studio.isGenerating)
+                    .padding(.horizontal, 18).padding(.bottom, 18)
+                StudioBackButton(action: { studio.showMCPManager = false })
+                    .padding(.horizontal, 18).padding(.bottom, 18)
+            }
+            .frame(width: studio.sidebarWidth.points, alignment: .leading)
+            .modifier(StudioSidebarSurface())
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 25) {
+                        StudioPanelHeader(title: L("Serveurs MCP", "MCP servers"), detail: L("Outils connectés et autorisations par projet.", "Connected tools and project permissions."))
                         SettingCard(
                             title: selected.isEmpty ? L("Nouveau serveur", "New server") : selected, icon: "server.rack"
                         ) {
@@ -188,13 +185,14 @@ struct MCPManagerView: View {
                             .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
                         }
                     }
-                    .padding(28).disabled(studio.isGenerating)
+                    .padding(.vertical, 36).frame(maxWidth: 760, alignment: .leading)
+                    .padding(.horizontal, 28).frame(maxWidth: .infinity)
+                    .disabled(studio.isGenerating)
                 }
-            }
         }
         .font(.system(size: 13)).controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StudioTheme.canvas).foregroundStyle(StudioTheme.ink)
+        .background { StudioAurora(animated: true).background(StudioTheme.canvas) }.foregroundStyle(StudioTheme.ink)
         .onExitCommand { studio.showMCPManager = false }
         .task {
             reload()

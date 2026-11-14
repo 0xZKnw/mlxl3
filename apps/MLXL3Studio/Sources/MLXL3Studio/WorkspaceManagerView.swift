@@ -15,43 +15,34 @@ struct WorkspaceManagerView: View {
         let titles = [L("Projets", "Projects"), L("Documents", "Documents"), L("Profils", "Profiles")]
         let icons = ["folder", "doc.text.magnifyingglass", "slider.horizontal.3"]
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                MonogramMark(size: 44).padding(.horizontal, 10).padding(.bottom, 8)
-                ForEach(0..<3) { index in
-                    Button {
-                        selectedTab = index
-                    } label: {
-                        Label(titles[index], systemImage: icons[index])
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12).frame(height: 44)
+            VStack(alignment: .leading, spacing: 0) {
+                StudioSidebarHeader(title: L("Projets", "Projects"))
+                VStack(spacing: 3) {
+                    ForEach(0..<3) { index in
+                        Button { selectedTab = index } label: {
+                            HStack(spacing: 11) {
+                                Image(systemName: icons[index]).frame(width: 18)
+                                Text(titles[index])
+                                Spacer(minLength: 0)
+                            }
+                            .font(.system(size: 13, weight: selectedTab == index ? .semibold : .regular))
+                            .padding(.horizontal, 12).frame(height: 36)
+                        }
+                        .buttonStyle(StudioControlStyle(emphasized: selectedTab == index))
+                        .accessibilityAddTraits(selectedTab == index ? .isSelected : [])
                     }
-                    .buttonStyle(StudioControlStyle(emphasized: selectedTab == index))
-                    .accessibilityAddTraits(selectedTab == index ? .isSelected : [])
-                }
+                }.padding(.horizontal, 10)
                 Spacer()
-                Text(L("Projets et profils", "Projects and profiles"))
-                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet).padding(.horizontal, 10)
+                StudioBackButton(action: { studio.showWorkspace = false })
+                    .padding(.horizontal, 18).padding(.bottom, 18)
             }
-            .padding(20).padding(.top, 16).frame(width: 222)
-            .background(StudioTheme.sidebar)
-            Rectangle().fill(StudioTheme.edge).frame(width: 1)
-            VStack(spacing: 0) {
-                StudioPanelHeader(
-                    title: titles[selectedTab],
-                    detail: selectedTab == 1
-                        ? L(
-                            "Documents du projet.",
-                            "Project documents.")
-                        : selectedTab == 2
-                            ? L(
-                                "Réglages de génération enregistrés.", "Saved generation settings."
-                            )
-                            : L(
-                                "Instructions et documents par projet.",
-                                "Instructions and documents by project."),
-                    close: { studio.showWorkspace = false })
-                Divider().overlay(StudioTheme.edge)
+            .frame(width: studio.sidebarWidth.points, alignment: .leading)
+            .modifier(StudioSidebarSurface())
+            VStack(alignment: .leading, spacing: 25) {
+                StudioPanelHeader(title: titles[selectedTab], detail: selectedTab == 1
+                    ? L("Documents du projet.", "Project documents.")
+                    : selectedTab == 2 ? L("Réglages de génération enregistrés.", "Saved generation settings.")
+                    : L("Instructions et documents par projet.", "Instructions and documents by project."))
                 Group {
                     switch selectedTab {
                     case 1: library
@@ -72,17 +63,21 @@ struct WorkspaceManagerView: View {
                     .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary).padding(16)
                 }
             }
+            .padding(.vertical, 36).frame(maxWidth: 760, alignment: .leading)
+            .padding(.horizontal, 28).frame(maxWidth: .infinity)
         }
         .font(.system(size: 13)).controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StudioTheme.canvas).foregroundStyle(StudioTheme.ink)
+        .background { StudioAurora(animated: true).background(StudioTheme.canvas) }.foregroundStyle(StudioTheme.ink)
         .onExitCommand { studio.showWorkspace = false }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedTab)
         .sheet(item: $source) { DocumentSourceView(source: $0) }
     }
 
     private var project: some View {
-        Form {
+        ScrollView {
+          VStack(alignment: .leading, spacing: 20) {
+            SettingCard(title: L("Projet actif", "Active project"), icon: "folder") {
             Picker(
                 L("Projet actif", "Active project"),
                 selection: Binding(get: { studio.selectedProjectID }, set: { studio.chooseProject($0) })
@@ -97,10 +92,14 @@ struct WorkspaceManagerView: View {
                     projectName = ""
                 }.disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            }
             if let project = studio.currentProject {
+              SettingCard(title: L("Instructions et profil", "Instructions and profile"), icon: "text.alignleft") {
                 TextField(L("Nom", "Name"), text: projectBinding(\.name))
                 Text(L("Instructions propres à ce projet", "Instructions for this project"))
-                TextEditor(text: projectBinding(\.instructions)).frame(minHeight: 110)
+                TextEditor(text: projectBinding(\.instructions)).scrollContentBackground(.hidden)
+                    .padding(8).frame(minHeight: 120)
+                    .background(StudioTheme.composer, in: RoundedRectangle(cornerRadius: 8))
                 Picker(L("Profil à l’ouverture", "Profile on opening"), selection: projectBinding(\.profileID)) {
                     Text(L("Réglages actuels", "Current settings")).tag(UUID?.none)
                     ForEach(studio.profiles) { Text($0.name).tag(Optional($0.id)) }
@@ -114,8 +113,10 @@ struct WorkspaceManagerView: View {
                 Button(L("Retirer ce projet", "Remove this project"), role: .destructive) {
                     studio.deleteProject(project.id)
                 }
+              }
             }
-        }.formStyle(.grouped).scrollContentBackground(.hidden)
+          }.textFieldStyle(.roundedBorder)
+        }
     }
 
     private func projectBinding<Value>(_ key: WritableKeyPath<WorkspaceProject, Value>) -> Binding<Value> {
@@ -166,8 +167,8 @@ struct WorkspaceManagerView: View {
                         Image(systemName: "trash")
                     }.help(L("Supprimer le profil", "Delete profile"))
                 }
-            }
-        }.padding(28)
+            }.scrollContentBackground(.hidden).listStyle(.plain)
+        }.textFieldStyle(.roundedBorder)
     }
 
     private var library: some View {
@@ -198,7 +199,7 @@ struct WorkspaceManagerView: View {
                                 Image(systemName: "trash")
                             }.help(L("Retirer de la bibliothèque", "Remove from library"))
                         }
-                    }
+                    }.scrollContentBackground(.hidden).listStyle(.plain)
                 } else {
                     let results = DocumentSearch.search(
                         query, documents: studio.documents.filter { $0.projectID == projectID }, limit: 8)
@@ -211,7 +212,7 @@ struct WorkspaceManagerView: View {
                                 Text(result.text).lineLimit(4)
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }.buttonStyle(.plain)
-                    }
+                    }.scrollContentBackground(.hidden).listStyle(.plain)
                     if results.isEmpty { Text(L("Aucun passage correspondant.", "No matching passage.")) }
                 }
             } else {
@@ -226,7 +227,7 @@ struct WorkspaceManagerView: View {
                     Button(L("Voir les projets", "View projects")) { selectedTab = 0 }
                 }
             }
-        }.padding(28)
+        }.textFieldStyle(.roundedBorder)
     }
 }
 

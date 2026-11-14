@@ -246,7 +246,7 @@ struct AuroraPlayback {
   init(at time: Double = ProcessInfo.processInfo.systemUptime) { start = time }
 
   mutating func setGenerating(_ busy: Bool, at time: Double) {
-    let next = busy ? 4.4 : 1
+    let next = busy ? 2.0 : 1
     guard next != target else { return }
     let progress = min(1, max(0, (time - start) / duration))
     origin = phase(at: time)
