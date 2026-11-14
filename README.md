@@ -5,81 +5,139 @@
   </picture>
 </p>
 
-# MLXL3 v2: EXL3 inference on Apple Silicon
+<h1 align="center">MLXL3</h1>
 
-MLXL3 runs EXL3 language and vision models locally on macOS. It includes a
-SwiftUI desktop app, a Rust inference engine using MLX on Metal, a
-command-line client, and an OpenAI-compatible HTTP API. Supported families
-include Qwen, LFM2, LFM3, LFM3-VL, Gemma 4 and Ling.
+<p align="center">Local inference on Apple Silicon.</p>
 
-[Download Desktop v2.0.1](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1)
-· [Engine 2.0.10](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.10)
-· [Release notes](docs/releases/desktop/release-v2.0.1.md)
-· [Website](https://mlxl3.0xzknw.tech/)
-· [Discord](https://discord.gg/9hU46NVNnY)
-· [MIT license](LICENSE)
+<p align="center">
+  <a href="https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1">Download Desktop v2.0.1</a> ·
+  <a href="https://mlxl3.0xzknw.tech/">Website</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://discord.gg/9hU46NVNnY">Discord</a>
+</p>
 
-**Requirements:** Apple Silicon, macOS **26.2+**, and enough unified memory
-for the selected model. The DMG bundles the engine, MLX libraries, Metal assets
-and conversion environment. Model weights are downloaded separately. No Python,
-Homebrew or separate MLX installation is needed to use the app.
+MLXL3 runs EXL3 language and vision models on your Mac. A native SwiftUI app
+brings together **Chat, Agent, Server and Lab**, backed by a Rust engine using
+MLX and custom Metal kernels. The same engine powers the command-line client
+and OpenAI-compatible HTTP API.
 
-## What’s in v2
+**Desktop 2.0.1 · Engine 2.0.10 · Apple Silicon · macOS 26.2+ · MIT**
 
-| In Desktop | What you can do |
+![MLXL3 Desktop v2 with its ASCII aurora, conversation history and composer](docs/desktop/assets/mlxl3-ascii.png)
+
+## What’s new in v2
+
+The stable v2 brings together all **21 betas**, from the new interface to
+project workspaces, vision, conversion and independent engine updates.
+
+| Area | Included in v2 |
 | --- | --- |
-| **Chat** | Stream responses with code, math and reasoning. Attach documents, add images with LFM3-VL, branch a conversation or call an MCP tool. |
-| **Agent** | Work on an isolated copy of a project. Inspect diffs, restore checkpoints and review changes before applying them to the original files. |
-| **Server and Lab** | Serve a loaded model through an OpenAI-compatible local endpoint. Inspect generation samples and compare supported MTP or DFlash2 configurations on your own Mac. |
-| **Models** | Browse pinned EXL3 variants, resume downloads, import an existing checkpoint or convert supported weights with the bundled converter. |
-| **Workspace and controls** | Choose a theme, text size and reading width. Open the generation inspector or check the loaded model from the menu bar. Switching between Chat and Agent respects a manually unloaded model. |
+| **A new Desktop** | Animated violet, rose and amber ASCII aurora, native glass controls, a redesigned menu bar widget and smooth conversation transitions. |
+| **Chat** | Streaming responses and reasoning, Markdown, code, math, HTML previews, attachments, vision, conversation branches, search and export. |
+| **Agent Studio** | Isolated project copies, file editing, diffs, Git checkpoints, restore, ZIP export and reviewed changes applied to the original project. |
+| **Models** | Recommended EXL3 checkpoints, model cards, resumable downloads, local imports and Quantization Studio. |
+| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, recorded generation metrics, charts and JSON export. |
+| **Personalization** | System, Light and Dark appearances, Iris and custom accents, reading controls, project profiles, startup models and idle unloading. |
 
-Desktop v2 includes a fine ASCII aurora with a high reflection and a lower amber glow. As the light passes, the characters in each cell change from dots to crosses in the main window and the menu bar widget. It responds to generation and respects Reduce Motion. The model selector, generation controls and New Conversation button use native macOS glass.
+The ASCII characters transform within fixed cells as light flows across the
+main window and widget. Motion responds to generation and follows Reduce
+Motion. Settings, Models, MCP, Projects and Agent Studio share the same visual
+language.
 
-![MLXL3 Desktop v2 with the ASCII aurora and the new conversation composer](docs/desktop/assets/mlxl3-ascii.png)
+**New in 2.0.1:** the management screens follow the v2 design, generation
+animation settles at twice the resting speed, and the Iris/amber/rose code
+palette highlights embedded CSS, JavaScript, TypeScript and JSON inside HTML.
+Chat and Agent Studio use the same syntax rules.
+
+Read the [v2.0.0 release notes](docs/releases/desktop/release-v2.0.0.md) and
+[v2.0.1 patch notes](docs/releases/desktop/release-v2.0.1.md) for the complete
+changes, verification and known limits.
 
 ## Install and run your first model
 
-1. Download the **v2 DMG** above and drag **MLXL3 Desktop** into Applications.
-2. Open **Models → Hugging Face**, or import a complete local EXL3 folder.
-3. Choose the repository revision and quantization, download it, then load it
-   from the model selector.
-4. Write a message. Use **+** to attach files or configure tools.
+Install the latest **stable Desktop and its bundled CLI**:
 
-The builds are ad-hoc signed, not notarized. If macOS blocks first launch,
+```sh
+curl -fsSL https://mlxl3.0xzknw.tech/install.sh | bash
+```
+
+Or download the [Desktop DMG](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1)
+and drag **MLXL3 Desktop** into Applications. The distribution includes the
+engine, MLX libraries, Metal assets and conversion environment. No separate
+Python, Homebrew or MLX installation is required. Download model weights
+separately and allow enough unified memory for the chosen checkpoint.
+
+1. Open **Models → Hugging Face**, or import a complete local EXL3 folder.
+2. Choose a model and quantization, download it, then load it from the model selector.
+3. Start a conversation. Use **+** for attachments and tools, or switch to Agent, Server or Lab.
+
+The app is **ad-hoc signed, not notarized**. If macOS blocks first launch,
 approve this specific app in **System Settings → Privacy & Security**.
+Agent project features also require Git from Apple's Command Line Tools.
 
-Desktop **2.0.1 / build 54** bundles engine **2.0.10**. App and engine
-updates have separate stable/beta channels in Settings. Updating an engine
-validates its manifest, hashes, architecture, protocol and app compatibility;
-a failed startup can fall back to the bundled runtime. Engine releases do not
-replace the Desktop download channel.
+Desktop **2.0.1 / build 54** bundles [engine 2.0.10](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.10).
+Desktop and engine have separate Stable/Beta update channels in Settings.
+Engine updates validate their identity, compatibility, hashes and architecture.
+A managed engine that fails before startup can fall back to the bundled runtime.
 
-Managed models live in
-`~/Library/Application Support/io.mlxl3.desktop/Models`. Imported folders can
-stay on another disk. An EXL3 checkpoint needs its configuration, tokenizer,
-quantization descriptor and every weight shard; copying only a `.safetensors`
-file is insufficient.
+## Desktop workspaces
+
+### Chat
+
+- Stream answers and separate reasoning with Markdown, tables, syntax-colored code and rendered math.
+- Edit, regenerate or branch messages. Pin and search saved conversations, then export them.
+- Attach text documents and PDFs with extracted text, source excerpts and page references. Scanned PDFs require prior text extraction.
+- Send PNG, JPEG or WebP images with **LFM3-VL** using the picker, drag and drop or Command-V. Saved history retains image bytes after the original is removed.
+- Open completed HTML in the inline **Code / Preview** view. Supported module CDNs, import maps and project CSS/JavaScript work in an isolated WebKit preview.
+- Add MCP tools, structured JSON replies, project instructions, document retrieval, dictation or reply speech when needed.
+
+Image input is limited to **eight images / 8 MiB per conversation**, with at
+most 64 million source pixels per image. Text-only models cannot continue an
+image conversation. Documents and images can be attached together.
+
+### Agent
+
+Each task works in an isolated project copy. **Agent Studio** combines a file
+browser, code editor, diffs, Git history, checkpoints and ZIP export. Review a
+revision before applying it to the original folder. Conflicting external edits
+and changes made after review are refused.
+
+File reading, writing and command execution have separate permissions. Native
+macOS sandboxing confines the built-in tools to the task workspace. Commands
+default to a five-second limit, adjustable from 1–30 seconds. External MCP
+servers have their own permissions and trust boundary.
+
+### Server and Lab
+
+**Server** keeps one model resident behind an OpenAI-compatible API. Choose the
+context and port, copy the endpoint and key, and inspect logs. Loopback access
+is the default. Optional LAN access uses a generated bearer key over HTTP.
+Desktop passes the key to the engine through a private pipe.
+
+**Lab** displays recorded generations with decode and prefill rates, latency,
+token counts, memory and runtime details. Compare samples or export JSON.
+These are observations from actual sessions, not controlled benchmarks.
 
 ## Models and compatibility
 
-EXL3 support depends on the model architecture and tensor layout, as well as
-the container format. These are the implemented runtime families:
+EXL3 is a quantization format. A checkpoint also needs a supported architecture,
+tensor layout, configuration, tokenizer and every weight shard. A single
+`.safetensors` file is insufficient.
 
-| Family | Configuration type | Input / execution |
-|---|---|---|
-| LFM2 / LFM2.5, dense and MoE | `lfm2`, `lfm2_moe` | Text; convolution, recurrent state and routed experts |
-| LFM3-1.7B | `lfm3` | Text; gated attention, sliding window and seven-tap convolutions |
-| LFM3-VL-2B | `lfm3_vl` | Text and images; vision encoder, projector and LFM3 decoder |
-| Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text; hybrid Gated DeltaNet/attention, dense and MoE |
-| Qwen 3.8 Flash Next | `qwen4_exp` | MLX inference, SSD expert streaming and bounded cache |
-| Gemma 4 | `gemma4` | Text and native tool-call parsing; image/audio inputs excluded |
-| Ling / Bailing | `bailing_hybrid` | Text, routed experts and Ling-native tool-call parsing |
+| Runtime family | Configuration type | Supported input / execution |
+| --- | --- | --- |
+| LFM2 / LFM2.5, dense and MoE | `lfm2`, `lfm2_moe` | Text, convolution, recurrent state and routed experts |
+| LFM3-1.7B | `lfm3` | Text, gated attention, sliding window and seven-tap convolutions |
+| LFM3-VL-2B | `lfm3_vl` | Text and images, vision encoder and projector |
+| Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text, hybrid attention and dense/MoE models |
+| Qwen 3.8 Flash Next | `qwen4_exp` | Text, SSD expert streaming and a bounded cache |
+| Gemma 4 | `gemma4` | Text and native tool-call parsing |
+| Ling / Bailing | `bailing_hybrid` | Text, routed experts and native tool-call parsing |
 
-The Desktop catalogue recommends these pinned exports:
+The Desktop catalogue includes these pinned exports:
 
-| Model | Projection bpw | Repository |
-|---|---:|---|
+| Checkpoint | Projection bpw | Repository |
+| --- | ---: | --- |
 | LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw) |
 | LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3-8bpw) |
 | LFM3-VL-2B | 8 | [0xzknw/LFM3-VL-2B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw) |
@@ -88,211 +146,42 @@ The Desktop catalogue recommends these pinned exports:
 | Qwen3.8-27B | 2.00 | [turboderp/Qwen3.8-27B-exl3](https://huggingface.co/turboderp/Qwen3.8-27B-exl3) |
 | Qwen3.8 Flash Next | 2.05, SSD | [turboderp/Qwen3.8-Flash-Next-exl3](https://huggingface.co/turboderp/Qwen3.8-Flash-Next-exl3) |
 
-The LFM3 text and vision cards open **8 bpw** by default and offer **4**, **4.49**
-and **8 bpw** as separate repositories. Heretic NX is available at 8 bpw. Projection bpw excludes embeddings, output
-heads, scales and metadata; it is not the whole-file bitrate. Model licenses
-apply separately from MLXL3's license. For LFM3-VL, use the calibrated 8 bpw
-checkpoint: the 4 bpw vision export is uncalibrated and 4.49 bpw has not met
-the native feature-parity threshold.
-
-### LFM3-VL image input
-
-Use the calibrated [LFM3-VL-2B EXL3 8 bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw) checkpoint. Load the vision model, then attach PNG, JPEG
-or WebP images through **+**, or drag them onto the composer. Images appear in
-the draft and sent message; click one for the larger preview. Documents and
-images can be sent together.
-
-Desktop limits are **eight images / 8 MiB per conversation**, with at most
-64 million source pixels per image. The engine separately bounds decoded and
-resized image inputs. Image bytes are embedded in local history, so moving or
-deleting the original file does not break later turns. A text-only model cannot
-silently continue an image conversation. Remote image URLs, video and audio
-model input are unsupported.
-
-## Benchmarks: measured results and scope
-
-Measurements are tied to a checkpoint, source revision, prompt, generation
-budget, hardware and execution mode. Decode rate, prefill rate and time to first
-token are different metrics. Process footprint, active GPU allocation and model
-file size are also different quantities.
-
-On an **Apple M5 / 24 GiB**, macOS 27.2, the MLX 0.32.2 engine from commit
-`a3cffdcaa7ba` produced the following results. Each model used the same text
-prompt, a 4,096-token context, greedy decoding, 128 output tokens, one warmup
-and three measured runs. MTP, DFlash, tools and prompt reuse were off.
-
-| Model | Prefill median | Decode median (range) | TTFT median | Total median | Peak footprint |
-|---|---:|---:|---:|---:|---:|
-| LFM3 1.7B original · 8 bpw | 886.35 tok/s | 49.47 (46.94–51.20) tok/s | 0.069 s | 2.64 s | 2.58 GiB |
-| LFM3 1.7B Heretic NX · 8 bpw | 868.87 tok/s | 46.80 (46.31–48.65) tok/s | 0.071 s | 2.78 s | 2.58 GiB |
-| LFM3-VL 2B · 8 bpw, text | 885.66 tok/s | 46.62 (46.07–48.32) tok/s | 0.069 s | 2.79 s | 2.76 GiB |
-| Qwen3.8 27B · 2 bpw | 73.74 tok/s | 8.33 (8.13–9.13) tok/s | 1.411 s | 16.67 s | 11.19 GiB |
-| Qwen3.6 35B-A3B · 2.49 bpw | 223.11 tok/s | 42.75 (41.08–44.15) tok/s | 0.278 s | 3.25 s | 13.02 GiB |
-| Qwen3.8 Flash Next · 2.05 bpw | 9.97 tok/s | 10.05 (9.87–10.24) tok/s | 10.433 s | 23.17 s | 9.67 GiB |
-
-The VL row measures **text-only** input. Tokenizers rendered the same prompt
-as 61–104 tokens depending on the model, so prefill rates and TTFT are not
-identical-work comparisons. TTFT and total exclude model loading; footprint is
-the largest process lifetime peak among measured runs, not model file size or
-total system memory. SSD and OS caches were not controlled. These are small
-local samples, not universal speed claims. The [measurement record](docs/measurements/v2-models-20261111/)
-contains each run, exact weights and revisions, the prompt, quality checks and
-reproduction commands.
-
-### MTP and DFlash2 observations
-
-On the same Apple M5 / 24 GiB and engine 2.0.5, Qwen3.6 35B-A3B EXL3
-2.49 bpw produced these rates with a 4,096-token context, greedy decoding and
-128 output tokens:
-
-| Prompt | Mode | Decode median (range) | TTFT median | Total median |
-|---|---|---:|---:|---:|
-| Snapshot, 62 prompt tokens | Ordinary | 50.60 (50.27–50.61) tok/s | 0.243 s | 2.752 s |
-| Snapshot, 62 prompt tokens | MTP1 | 75.12 (74.45–75.75) tok/s | 0.243 s | 1.935 s |
-| Snapshot, 62 prompt tokens | DFlash2 Auto | 70.56 (70.22–70.69) tok/s | 0.251 s | 2.051 s |
-| French, 27 prompt tokens | MTP1 | 70.71 (70.60–71.04) tok/s | 0.128 s | 1.925 s |
-| French, 27 prompt tokens | DFlash2 Auto | 61.11 (60.74–61.21) tok/s | 0.138 s | 2.216 s |
-
-MTP and DFlash2 used the same prompts in alternating passes and matched output
-hashes. The ordinary run also matched the snapshot output but ran separately;
-swap in use rose from about 2.48 to 6.97 GiB between its preflight and the
-speculative passes. Do not treat this as a controlled speedup comparison.
-The [measurement record](docs/measurements/v2-speculative-20261111/) includes
-each sample, draft identity, acceptance counts and reproduction commands.
-
-The same engine and Mac were also measured with Qwen3.8 27B EXL3 2 bpw:
-
-| Prompt | Mode | Decode median (range) | TTFT median | Total median |
-|---|---|---:|---:|---:|
-| Snapshot, 104 prompt tokens | Ordinary | 8.88 (8.61–9.04) tok/s | 1.310 s | 15.612 s |
-| Snapshot, 104 prompt tokens | MTP1 | 12.73 (12.57–13.23) tok/s | 1.329 s | 11.312 s |
-| Snapshot, 104 prompt tokens | DFlash2 Auto | 6.55 (6.36–6.60) tok/s | 1.378 s | 20.766 s |
-| French, 69 prompt tokens | MTP1 | 12.76 (12.49–12.97) tok/s | 1.103 s | 11.052 s |
-| French, 69 prompt tokens | DFlash2 Auto | 6.00 (5.85–6.23) tok/s | 1.099 s | 22.253 s |
-
-Both speculative modes produced matching outputs, and the ordinary snapshot
-output matched too. The ordinary run was not interleaved, swap use changed
-substantially, and individual speculative samples varied by up to about 6.5%.
-These results show that DFlash2 can be slower for a given workload; they do not
-establish a universal ranking. See the [27B record](docs/measurements/v2-speculative-20261111/qwen27/)
-for all samples and conditions.
-
-The following are **historical campaigns**, measured on an Apple M5 with 24 GiB;
-they do not benchmark the v2 executable above. The modes use different draft
-weights and can increase memory use. Rates measure decode after the first token;
-they do not include model loading or represent the complete response time.
-
-For Qwen3.6 35B-A3B EXL3 2.49 bpw, engine 1.4.3 used greedy decoding, a
-4,096-token context, 128 output tokens, a warmup per prompt and two repetitions
-in each of four alternating passes. MTP1 and DFlash2 Auto were measured using
-the same target and prompts:
-
-| Prompt | MTP1 decode | DFlash2 Auto decode | Total MTP1 / DFlash2 |
-|---|---:|---:|---:|
-| French, 27 prompt tokens | 70.52 tok/s | 61.28 tok/s | 1.93 / 2.21 s |
-| Technical document, 2,825 prompt tokens | 56.64 tok/s | 42.55 tok/s | 8.01 / 9.27 s |
-
-Outputs matched for these samples, but the long-prompt MTP control drifted by
-5.32%, above the campaign's 3% limit. The ordering is therefore an observation,
-not a confirmed general ranking. The full [protocol and results](docs/performance/flash-dflash/dflash2-stable-validation.md)
-include TTFT, memory, acceptance and the unexecuted confirmation.
-
-For Qwen3.8 Flash Next EXL3 2.05 bpw, a separate 1 November campaign used two
-short prompts, 128 output tokens and an explicitly configured 3 GiB expert
-cache. Its measured executable had additional experimental Hot/Wide/Unique
-options enabled, so these are not default-setting v2 numbers:
-
-| Prompt | Ordinary decode | MTP1 decode | DFlash2 decode |
-|---|---:|---:|---:|
-| MAIN, 87 prompt tokens | 11.47 tok/s | 12.09 tok/s | 12.65 tok/s |
-| HOLD, 82 prompt tokens | 11.37 tok/s | 11.26 tok/s | 12.15 tok/s |
-
-Each process warmed each prompt once; ordinary decoding had two measured
-processes and MTP/DFlash2 had three. Values are aggregate decode rates, with
-small samples and different draft residency between modes. See the
-[campaign record](docs/measurements/post-p09-dynamic-cold-20261101/README.md)
-for all settings, prefill tradeoffs and source identities.
-
-The historical Qwen3.8 27B 2 bpw MTP1 campaign recorded 11.08 tok/s in French
-and 10.94 tok/s for code on its own workload; its
-[measurement record](docs/modeles/qwen/qwen27-max-optimisations-20261016.md) describes the
-conditions. It is not paired with the v2 baseline above. The listed LFM models
-do not currently expose these MTP/DFlash2 paths in MLXL3; no speculative rates
-are implied for them. Use the built-in tuner on compatible targets to compare
-modes for your model, Mac and workload.
-
-One fully recorded **Apple M5 / 24 GiB** campaign for LFM2.5-24B-A2B EXL3
-4 bpw used two 266-token templated prompts, 128 generated tokens, one warmup
-per prompt and five measured repetitions, without MTP, DFlash or prompt reuse:
-
-| Workload | Decode, median | Prefill, median | First token, median | Total response, median |
-|---|---:|---:|---:|---:|
-| French | 58.38 tok/s | 42.84 tok/s | 6.21 s | 8.39 s |
-| Code | 58.34 tok/s | 42.95 tok/s | 6.19 s | 8.35 s |
-
-These are **historical October 14 measurements**, not a fresh measurement of
-every v2 build. The [complete report](docs/modeles/lfm/lfm25-measurements-2026-10-14.md)
-records source identity, file hashes, numerical quality checks and the
-56.64–59.65 tok/s decode range. It does not claim an A/B speedup.
-
-Other recorded campaigns include
-[Qwen27B MTP and activation-layout experiments](docs/modeles/qwen/qwen27-max-optimisations-20261016.md),
-[Flash Next SSD streaming](docs/performance/flash-dflash/flash-next-ssd-implementation.md) and
-[the merged native/MTP composition](docs/issues/reviews/pr161-fixes-2026-11-08.md).
-Their workloads and settings differ; the reports preserve rejected experiments,
-control drift and opt-in status. They are not an interchangeable leaderboard.
-The [optimization journal](opti.md) records the experiments and decisions.
-
-## Desktop workspaces
-
-The stable v2 Desktop includes the following workspaces.
-
-- **Chat:** streaming responses and reasoning, Markdown/code/math rendering,
-  saved conversations, editing, regeneration, branches and export.
-- **Agent:** work on an isolated project copy, inspect files and diffs, retain
-  Git checkpoints, restore versions and export ZIP. Applying changes to the
-  original project requires review; conflicting external edits are refused.
-- **Server:** start the local HTTP API with a resident model.
-- **Lab:** inspect locally recorded generation samples and their settings.
-
-Model details render Hugging Face cards with Markdown, HTML and repository
-images. Card scripts are disabled, and external links open in the browser.
-
-Projects keep instructions and documents together. Saved profiles restore
-sampling settings. Text/PDF retrieval includes source excerpts and page
-references. Scanned PDFs need prior text extraction; attaching a PDF does not
-turn it into native vision input. File attachments are limited to eight per
-message, 20 MiB per source file, 256 KiB extracted text per file and 512 KiB
-text per message. The model's context limit still applies.
-
-On-device dictation and reply speech use macOS services. Agent/project and
-versioned artifact features require working Git. Appearance settings include
-System, Light and Dark appearances, Iris, Rose, Amber, Neutral or custom accents, conversation fonts and bubble
-styles, message spacing, reading width, text size and sidebar width. Choices
-apply immediately and persist locally; the appearance reset restores defaults.
+LFM3 text and vision recommendations select **8 bpw** by default. For vision,
+use the calibrated 8-bpw export. The 4-bpw vision export is uncalibrated, and
+4.49 bpw has not met the native feature-parity threshold. Projection bpw
+excludes embeddings, output heads, scales and metadata. Model licenses apply
+separately from MLXL3's license.
 
 ### MTP and DFlash
 
-For eligible Qwen targets, enable **MTP** or **DFlash2** in Generation settings.
-Matching heads/drafts are downloaded and verified separately from target
-weights. The modes are mutually exclusive and use target verification before
-accepting proposed tokens. Tune records a configuration for the current model,
-head, runtime, context and Mac; a speculative path is not automatically faster.
+Compatible Qwen targets expose **MTP** or experimental **DFlash2** in Generation
+settings. Matching heads and drafts are downloaded separately with integrity
+checks. The modes are mutually exclusive and verify proposals against the
+target before accepting tokens. MTP is remembered per model. Flash Next uses
+its integrated head.
 
-With engine 2.0.8+, Qwen3.6-35B-A3B MTP automatically prepares a compact
-draft vocabulary projection on first use and reuses an integrity-checked cache.
-MTP1 remains the default depth. The target keeps its full vocabulary and
-verifies every proposal; no manual Python conversion is needed. Explicit draft
-projections take precedence. See the [engine release notes](docs/releases/engine/release-engine-v2.0.8-beta.1.md)
-for measurements, startup costs and validation limits.
+The tuner records a configuration for the current target, head, runtime,
+context and Mac. A speculative path can increase memory use or run slower.
+Hardware gates also apply. See the [Apple Silicon support matrix](docs/operations/memory-hardware/apple-silicon-stability-20261030.md)
+and [engine release notes](docs/releases/engine/README.md).
 
-Hardware and OS gates matter: M5 cooperative-input TensorOps require macOS
-26.3+, and the packed Q4 DFlash path requires macOS 26.4+. See the
-[Apple Silicon support and validation matrix](docs/operations/memory-hardware/apple-silicon-stability-20261030.md).
+### Safetensors-to-EXL3 conversion
+
+**Models → Quantization Studio** inspects a local source or pinned Hugging Face
+revision. Simple mode offers **3/4/6 bpw**. Expert mode adds calibration, head
+precision, excluded modules and optional held-out quality checks. Conversion
+unloads the interactive model and writes to a separate output directory.
+
+The bundled adapters cover **LFM2, LFM2-MoE and Ling/Bailing**. Inference
+support does not imply conversion support for LFM3, Qwen or Gemma. Follow the
+[LFM conversion guide](docs/modeles/lfm/lfm26-local-quantization.md),
+[LFM2.5 MoE guide](docs/modeles/lfm/lfm25-moe-quantization.md) or
+[Ling conversion guide](docs/modeles/ling/ling-local-quantization.md).
 
 ## Native command-line inference
 
-Use the extracted engine's `mlxl3`, or the copy bundled with the app:
+The installer adds `mlxl3` to your shell. For a DMG installation, use the bundled
+executable directly:
 
 ```sh
 export MLXL3_BIN="/Applications/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
@@ -301,8 +190,7 @@ export MLXL3_BIN="/Applications/MLXL3 Desktop.app/Contents/Resources/runtime/mlx
 "$MLXL3_BIN" run lfm3 --prompt 'Explain how a ring buffer works.' --max-tokens 128
 ```
 
-The CLI also accepts a complete checkpoint directory directly. LFM3-VL accepts
-repeated `--image` arguments with a prompt:
+A complete checkpoint directory can also be passed directly. For vision:
 
 ```sh
 "$MLXL3_BIN" run /absolute/path/to/LFM3-VL-2B-EXL3-8bpw \
@@ -310,185 +198,149 @@ repeated `--image` arguments with a prompt:
   --prompt 'Describe this image.' --max-tokens 128
 ```
 
-Qwen3.6 35B AR decode automatically replays the original GDN operation graph
-on qualified M5/MLX 0.32.2 configurations. Weights, quantization and numerical
-operations are unchanged. Set `MLXL3_Q36_AR_REPLAY=0` before loading to use the
-ordinary path. Engine 2.0.9 also prepares small routed K2/K3 expert inputs in the
-order consumed by the Metal kernel. This applies to AR and fixed or tuned MTP
-depths 1–3. [Engine 2.0.9 release notes](docs/releases/engine/release-engine-v2.0.9-beta.1.md).
-
-Browse and resume Hugging Face downloads without a separate HF CLI:
-
-```sh
-"$MLXL3_BIN" hub search 'LFM3 EXL3'
-"$MLXL3_BIN" hub details 0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw
-"$MLXL3_BIN" hub download 0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw --revision 25511dcbc1f7c099509361cf1e2e9de034c56e22
-"$MLXL3_BIN" hub pending all
-"$MLXL3_BIN" hub resume DOWNLOAD_ID
-```
-
-Downloads resolve an immutable commit, validate sizes and SHA-256, and publish
-only a complete selected variant. Private/gated repositories need a saved
-Hugging Face token and any required license acceptance.
+Use `mlxl3 hub` to browse, download or resume EXL3 models, and `mlxl3 mcp` to
+manage tool servers. Downloads resolve immutable revisions, validate file
+sizes and hashes, and publish only complete variants. Private or gated
+repositories require a saved token and any necessary license acceptance.
 
 ## OpenAI-compatible local API
 
+Start a server with a registered model:
+
 ```sh
 "$MLXL3_BIN" serve lfm3 --host 127.0.0.1 --port 8000 --api-key local-secret
+```
+
+Then send a request from another terminal:
+
+```sh
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H 'Authorization: Bearer local-secret' \
   -H 'Content-Type: application/json' \
   -d '{"model":"lfm3","messages":[{"role":"user","content":"Explain a mutex."}],"stream":true}'
 ```
 
-The API exposes `/v1/models`, `/v1/chat/completions`, `/v1/capabilities`,
-`/health` and `/ready`. Chat Completions support JSON and SSE streaming;
-LFM3-VL accepts image content parts with local base64 data URLs. JSON object
-and schema response modes validate the generated output; they are **not
-grammar-constrained decoding**. Query `/v1/capabilities` for the actual engine.
-OpenAI-style `tools` calls, custom stop sequences and audio are not supported.
-A non-loopback host requires an API key. One model stays resident per server.
+Endpoints include `/v1/models`, `/v1/chat/completions`, `/v1/capabilities`,
+`/health` and `/ready`. Chat Completions supports JSON and SSE streaming.
+LFM3-VL accepts local base64 image data URLs. JSON object and schema response
+modes validate generated output without grammar-constrained decoding.
 
-## Tools, storage and network boundaries
+Query `/v1/capabilities` for the active engine's scope. OpenAI-style `tools`
+calls, custom stop sequences and audio input are unsupported. A non-loopback
+host requires an API key. The CLI also accepts `--api-key-stdin` for private
+key delivery.
 
-Chat inference runs on the Mac. Hub actions contact Hugging Face; update checks
-and downloads contact GitHub. Optional MCP servers may receive prompts/tool
-arguments and make their own network requests. MCP is off by default; enabling
-it is a saved choice. Local stdio MCP servers run with the user's permissions.
+## Local data and network access
 
-The shared MCP configuration is `~/.config/mlxl3/mcp.json`. Manage servers in
-the Desktop or with `mlxl3 mcp list`, `mlxl3 mcp add` and `mlxl3 mcp check`.
-Agent file/command tools operate within their task copy under macOS sandboxing;
-external MCP servers retain their own trust boundary.
+Inference and conversation storage run locally. Managed models live in
+`~/Library/Application Support/io.mlxl3.desktop/Models`. Imported checkpoints
+can stay on another disk. History embeds image attachments. Keep backups
+before downgrading to an older history format.
 
-History and image attachments are stored locally. Keep backups before a
-version downgrade: old applications do not preserve every newer history field.
-The app can export conversations without changing the model files.
+Hub actions contact Hugging Face. Update checks and downloads contact GitHub.
+Optional MCP servers can receive tool arguments and make their own network
+requests. MCP is off by default, and local stdio servers run with the user's
+permissions. The shared configuration is `~/.config/mlxl3/mcp.json`.
+Dictation and reply speech use macOS services and their permissions.
 
-## Runtime architecture
+## Runtime and performance
 
-```mermaid
-flowchart TD
-    A[SwiftUI Desktop] -->|JSON-lines bridge| F[Rust and MLX engine]
-    C[CLI] --> F
-    E[OpenAI-compatible HTTP API] -->|Bridge subprocess| F
-    F --> G[EXL3 projections and model state]
-    F --> H[Metal kernels via MLX]
-    F --> J[Flash Next expert cache and SSD reads]
-```
+Rust owns checkpoint validation, tokenization, templates, generation, streaming
+and model state. EXL3 projections are evaluated from their quantized
+representation without first exporting a dense BF16 model. **The shipped v2
+backend is MLX**, including Flash Next. Independent native Metal and hybrid
+backends remain in the source tree and are excluded from the v2 packages.
 
-Rust owns checkpoint validation, tokenization/templates, generation, streaming,
-state, downloads and tool protocols. Quantized projections are evaluated from
-their EXL3 representation; inference does not first export a dense BF16 model.
-All supported models use MLX in v2, including Flash Next. The independent native
-Metal engine and hybrid dispatcher remain in the source tree but are not shipped
-in this release. Desktop rejects incompatible native engine updates and falls
-back to its bundled MLX engine.
+Performance depends on the checkpoint, quantization, context, prompt, output
+budget, acceleration mode, Mac and memory pressure. Decode, prefill, time to
+first token, total latency and memory measure different parts of the workload.
 
-MLXL3 is an independent Apple Silicon runtime. ExLlamaV3 provides the EXL3
-format and numerical reference; adapted components retain their upstream
-notices. See [third-party provenance](THIRD_PARTY_NOTICES.md).
+Recorded campaigns include:
 
-## Safetensors-to-EXL3 conversion
+- [Six-model Apple M5 / 24 GiB baseline](docs/measurements/v2-models-20261111/), with exact weights, source revisions, timings and quality checks.
+- [Qwen MTP and DFlash2 observations](docs/measurements/v2-speculative-20261111/), including memory-pressure changes and comparison limits.
+- [Flash Next SSD streaming](docs/performance/flash-dflash/flash-next-ssd-implementation.md) and [LFM2.5 measurements](docs/modeles/lfm/lfm25-measurements-2026-10-14.md).
 
-**Models → Quantization Studio** inspects a local source or Hugging Face model,
-then offers supported conversion settings and a separate output directory.
-Simple mode exposes 3/4/6 bpw; Expert adds calibration, head precision, excluded
-modules and optional held-out quality checks. Conversion unloads the chat model,
-uses the bundled conversion environment and runs only while requested.
-
-The supplied adapters cover **LFM2, LFM2-MoE and native Ling/Bailing**.
-Inference support does not imply conversion support: LFM3, Qwen and Gemma
-imports are not automatically convertible by these adapters. A Safetensors
-extension alone is insufficient. See the
-[LFM conversion guide](docs/modeles/lfm/lfm26-local-quantization.md),
-[LFM2.5 MoE measurements](docs/modeles/lfm/lfm25-moe-quantization.md) and
-[Ling conversion guide](docs/modeles/ling/ling-local-quantization.md).
+These reports retain their original protocols and revisions. They are not fresh
+benchmarks of Desktop 2.0.1 or guarantees for every Mac. The
+[optimization journal](opti.md) preserves experiments, rejected approaches and
+integration status. Physical release validation used Apple M5. M1–M4 and
+macOS 26.2 did not receive the same hardware validation campaign.
 
 ## Build and verify
 
-Development requires Rust **1.89+**, Swift **6.2+**, a compatible macOS SDK
-and Xcode Command Line Tools. The inference helper links MLX **0.32.2**;
-Python **3.12** supplies build/conversion dependencies, not the chat runtime.
+Development requires **Rust 1.89+**, **Swift 6.2+**, **Python 3.12**, Apple
+Silicon and compatible Xcode Command Line Tools. The release environment pins
+**MLX 0.32.2**. Python supplies build and conversion dependencies, while chat
+inference uses the Rust engine.
 
 ```sh
+git clone https://github.com/0xZKnw/mlxl3.git
+cd mlxl3
 python3.12 -m venv .venv
-.venv/bin/pip install -e '.[dev,bundle]' -c packaging/constraints-macos.txt
+.venv/bin/python -m pip install -e '.[dev,bundle]' -c packaging/constraints-macos.txt
 export MLXL3_BUILD_PYTHON="$PWD/.venv/bin/python"
 export MLXL3_MLX_ROOT="$PWD/.venv/lib/python3.12/site-packages/mlx"
 export MLXL3_ENGINE_BACKEND=mlx
-scripts/build-engine.sh
 scripts/build-macos-dmg.sh
 ```
 
-For portable CPU/chat checks, without an inference backend:
+The packaging script builds the engine, app and converter, then writes the DMG
+to `dist/`. Set `MLXL3_MACOS_SDK` to select an installed compatible SDK.
 
-```sh
-cargo test --locked --no-default-features --features chat
-cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings
-```
-
-Additional checks:
+Portable CPU/chat checks:
 
 ```sh
 cargo fmt --check
+cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings
+cargo test --locked --no-default-features --features chat
+```
+
+Additional checks with the development dependencies installed:
+
+```sh
 cargo kani --lib --no-default-features
 PYTHONPATH=src:apps/MLXL3Studio/Vendor/PonyExl3 .venv/bin/python -m pytest -q
 MLXL3_TEST_PYTHON="$PWD/.venv/bin/python" scripts/check-desktop.sh
 ```
 
-An installed SDK can be selected with `MLXL3_MACOS_SDK`. Kani checks bounded
-properties of actual Rust helpers with explicit domains and unwinding bounds;
-it does not prove MLX, Metal, I/O races or the complete application. Physical
-GPU tests and checkpoint/logit comparisons are recorded separately. CI runs
-Rust, Python, Desktop/protocol, packaging and proof checks on PRs and main.
+Kani verifies bounded properties of Rust helpers, not MLX, Metal, concurrency
+or the complete application. CPU tests do not qualify physical GPU behavior.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for MLX checks, regression tests and PR
+guidance, and the [release validation](docs/releases/release-v2.0.0-validation.md)
+for checks actually run on the shipped v2 release.
 
-For controlled engine comparisons, use
-[`benchmarks/compare_native.py`](benchmarks/compare_native.py), which checks
-token/text parity, validates timings, bounds process waits and retains failed
-campaigns. Run GPU benchmarks separately from builds and other inference.
+## Documentation and community
 
-## Contributing and community
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, relevant checks and
-pull request guidance. [Report a bug or suggest a feature](https://github.com/0xZKnw/mlxl3/issues/new/choose),
-or join [Discord](https://discord.gg/9hU46NVNnY) for usage questions. English and
-French contributions are welcome. Our [Code of Conduct](CODE_OF_CONDUCT.md)
-applies to community spaces; use [private reporting](SECURITY.md) for vulnerabilities.
-
-## Limits and further reading
-
-- Native inference and Desktop require Apple Silicon/macOS. M1–M4 have less
-  physical performance coverage than M5; M5 timings are not predictions for them.
-- Gemma multimodal input, remote image fetching, video/audio model input and
-  complete TeX/browser compatibility are outside the current scope.
-- SSD-streamed models depend on cache size, storage and memory pressure.
-  Model file size is not an estimate of peak process memory.
-- Greedy target verification does not establish an acceleration gain on every
-  prompt. Experimental settings retain their individual qualification limits.
-
-[LFM3 text/vision integration](docs/modeles/lfm/lfm3-integration-2026-11-05.md)
-· [LFM3 kernel and numerical checks](docs/modeles/lfm/lfm3-kernels-2026-11-06.md)
-· [Flash SSD design](docs/performance/flash-dflash/flash-next-ssd-implementation.md)
-· [Optimization history](opti.md)
-· [All releases](https://github.com/0xZKnw/mlxl3/releases)
+- [Documentation index](docs/README.md) — engine, Desktop, model support, operations and measurements.
+- [Desktop releases](docs/releases/desktop/README.md) and [engine releases](docs/releases/engine/README.md) — features, artifacts and validation limits.
+- [Contributing](CONTRIBUTING.md) — setup, checks and focused changes. English and French contributions are welcome.
+- [Issues](https://github.com/0xZKnw/mlxl3/issues/new/choose) and [Discord](https://discord.gg/9hU46NVNnY) — bug reports and usage questions.
+- [Security](SECURITY.md) and [Code of Conduct](CODE_OF_CONDUCT.md) — private vulnerability reporting and community guidelines.
 
 ## Repository and credits
 
 | Path | Contents |
-|---|---|
-| `apps/MLXL3Studio/` | SwiftUI application and native UI checks |
+| --- | --- |
+| `apps/MLXL3Studio/` | SwiftUI application, resources and native UI checks |
 | `native/src/`, `native/shaders/` | Rust engine and Metal kernels |
 | `src/mlxl3_quantizer/` | Conversion adapters and calibration helpers |
-| `scripts/`, `benchmarks/`, `tests/` | Build tools, campaigns and regression checks |
-| [`docs/`](docs/README.md), [`opti.md`](opti.md) | Documentation index, numerical evidence and experiment history |
+| `scripts/`, `benchmarks/`, `tests/` | Build tools, measurement campaigns and regression checks |
+| `website/` | Landing page, interactive ASCII aurora and Desktop installer |
+| [`docs/`](docs/README.md), [`opti.md`](opti.md) | Documentation, numerical evidence and experiment history |
 
 Created by [0xZKnw](https://github.com/0xZKnw). Thanks to
-[ExLlamaV3](https://github.com/turboderp-org/exllamav3),
-[Apple MLX](https://github.com/ml-explore/mlx),
-[PonyExl3](https://github.com/beamivalice/PonyExl3),
-[MTPLX](https://github.com/youssofal/mtplx),
-[SwiftMath](https://github.com/mgriebling/SwiftMath) and model authors for the
-components and references recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-MLXL3 uses the [MIT license](LICENSE); upstream components and model weights
-retain their respective licenses.
+[Lucas Bauduin / HENK0O](https://github.com/HENK0O) for appearance, startup,
+pinned conversations, reading controls and per-model MTP contributions.
+
+Thanks to [Apple MLX](https://github.com/ml-explore/mlx) for the array runtime,
+[ExLlamaV3](https://github.com/turboderp-org/exllamav3) for the EXL3 format,
+[PonyExl3](https://github.com/beamivalice/PonyExl3) for conversion,
+[MTPLX](https://github.com/youssofal/mtplx) and
+[TensorFold](https://github.com/ashhart/TensorFold) for speculative decoding
+references, and [SwiftMath](https://github.com/mgriebling/SwiftMath) for equation
+rendering.
+
+MLXL3 uses the [MIT license](LICENSE). Upstream components and model weights
+retain their respective licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+for provenance and notices.
