@@ -314,6 +314,7 @@ for checks actually run on the shipped v2 release.
 
 - [Documentation index](docs/README.md) — engine, Desktop, model support, operations and measurements.
 - [Desktop releases](docs/releases/desktop/README.md) and [engine releases](docs/releases/engine/README.md) — features, artifacts and validation limits.
+- [GitHub configuration](.github/CONFIGURATION.md) — workflows, issue forms and pull request templates.
 - [Contributing](CONTRIBUTING.md) — setup, checks and focused changes. English and French contributions are welcome.
 - [Issues](https://github.com/0xZKnw/mlxl3/issues/new/choose) and [Discord](https://discord.gg/9hU46NVNnY) — bug reports and usage questions.
 - [Security](SECURITY.md) and [Code of Conduct](CODE_OF_CONDUCT.md) — private vulnerability reporting and community guidelines.
