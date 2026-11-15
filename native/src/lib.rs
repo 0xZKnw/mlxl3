@@ -22,8 +22,8 @@ pub mod tensor_layout;
 pub mod transaction;
 pub use contracts::{
     GenerationStopReason, QwenPipeline, exl3_lane_order_enabled, exl3_lane_order_key,
-    native_prompt_reuse, q36_head_lane_setting, qwen_pipeline, qwen_pipeline_key,
-    reusable_prefix_len, smallm_kernel_key,
+    mtp_post_norm_setting, native_prompt_reuse, q36_head_lane_setting, qwen_pipeline,
+    qwen_pipeline_key, reusable_prefix_len, smallm_kernel_key,
 };
 #[cfg(feature = "mlx")]
 pub use contracts::{switch_glu_layout, switch_glu_route_rows};

@@ -425,6 +425,173 @@ pub fn greedy_accept(proposals: &[u32], target_tokens: &[u32]) -> Option<GreedyA
     })
 }
 
+/// Widest MTP proposal chain a cycle can verify.
+pub const MAX_MTP_WIDTH: usize = 3;
+
+/// Completed MTP cycles, indexed `[proposal width][accepted prefix]`.
+///
+/// Width 0 is an ordinary target step: the last token of a budget, or an
+/// adaptive D0 step. This is host bookkeeping only. It never reaches the model,
+/// so recording a cycle cannot change a token.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+#[serde(transparent)]
+pub struct AcceptHistogram {
+    counts: [[usize; MAX_MTP_WIDTH + 1]; MAX_MTP_WIDTH + 1],
+}
+
+impl AcceptHistogram {
+    /// Counts one cycle. An impossible cycle (`accepted > width` or
+    /// `width > MAX_MTP_WIDTH`) returns false and leaves every count unchanged.
+    pub fn record(&mut self, width: usize, accepted: usize) -> bool {
+        if width > MAX_MTP_WIDTH || accepted > width {
+            return false;
+        }
+        let cell = &mut self.counts[width][accepted];
+        *cell = cell.saturating_add(1);
+        true
+    }
+
+    pub fn merge(&mut self, other: &Self) {
+        for (row, other) in self.counts.iter_mut().zip(&other.counts) {
+            for (cell, &value) in row.iter_mut().zip(other) {
+                *cell = cell.saturating_add(value);
+            }
+        }
+    }
+
+    pub fn counts(&self) -> &[[usize; MAX_MTP_WIDTH + 1]; MAX_MTP_WIDTH + 1] {
+        &self.counts
+    }
+
+    fn weighted(&self, weight: impl Fn(usize, usize) -> usize) -> usize {
+        let mut total = 0usize;
+        for (width, row) in self.counts.iter().enumerate() {
+            for (accepted, &count) in row.iter().enumerate() {
+                total = total.saturating_add(count.saturating_mul(weight(width, accepted)));
+            }
+        }
+        total
+    }
+
+    /// Every recorded cycle, width-0 target steps included.
+    pub fn cycles(&self) -> usize {
+        self.weighted(|_, _| 1)
+    }
+
+    /// Cycles that verified at least one proposal.
+    pub fn speculative_cycles(&self) -> usize {
+        self.weighted(|width, _| usize::from(width > 0))
+    }
+
+    pub fn proposed(&self) -> usize {
+        self.weighted(|width, _| width)
+    }
+
+    pub fn accepted(&self) -> usize {
+        self.weighted(|_, accepted| accepted)
+    }
+
+    /// `(accepted, tested)` at 0-based draft `position`: cycles that proposed
+    /// it after every earlier proposal was accepted, and those that accepted it.
+    /// Greedy acceptance keeps a prefix, so the ratio is the conditional rate.
+    pub fn position(&self, position: usize) -> (usize, usize) {
+        (
+            self.weighted(|width, accepted| usize::from(width > position && accepted > position)),
+            self.weighted(|width, accepted| usize::from(width > position && accepted >= position)),
+        )
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn accept_histogram_record_is_exact_and_rejects_impossible_cycles() {
+    // `record` is the only writer, so a reachable histogram has no cell with
+    // more accepted proposals than its width. Counts are bounded so that the
+    // exact totals below cannot saturate; saturation has its own harness.
+    let mut counts = [[0usize; MAX_MTP_WIDTH + 1]; MAX_MTP_WIDTH + 1];
+    for (width, row) in counts.iter_mut().enumerate() {
+        for (accepted, cell) in row.iter_mut().enumerate() {
+            if accepted <= width {
+                *cell = usize::from(kani::any::<u16>());
+            }
+        }
+    }
+    let mut histogram = AcceptHistogram { counts };
+    let before = histogram;
+    let width: usize = kani::any();
+    let accepted: usize = kani::any();
+    let position: usize = kani::any();
+    kani::assume(position <= MAX_MTP_WIDTH + 1);
+    let recorded = histogram.record(width, accepted);
+    assert_eq!(recorded, width <= MAX_MTP_WIDTH && accepted <= width);
+    // Cell by cell: array equality lowers to a 128-byte memcmp loop.
+    for row in 0..=MAX_MTP_WIDTH {
+        for column in 0..=MAX_MTP_WIDTH {
+            let target = recorded && row == width && column == accepted;
+            assert_eq!(
+                histogram.counts[row][column],
+                before.counts[row][column] + usize::from(target)
+            );
+        }
+    }
+    if recorded {
+        assert_eq!(histogram.cycles(), before.cycles() + 1);
+        assert_eq!(
+            histogram.speculative_cycles(),
+            before.speculative_cycles() + usize::from(width > 0)
+        );
+        assert_eq!(histogram.proposed(), before.proposed() + width);
+        assert_eq!(histogram.accepted(), before.accepted() + accepted);
+        let (hit, tested) = histogram.position(position);
+        let (old_hit, old_tested) = before.position(position);
+        assert_eq!(
+            tested,
+            old_tested + usize::from(width > position && accepted >= position)
+        );
+        assert_eq!(
+            hit,
+            old_hit + usize::from(width > position && accepted > position)
+        );
+    }
+    for position in 0..=MAX_MTP_WIDTH {
+        let (hit, tested) = histogram.position(position);
+        assert!(hit <= tested);
+        if position < MAX_MTP_WIDTH {
+            // Accepting position p is the only way to test position p + 1.
+            assert!(histogram.position(position + 1).1 <= hit);
+        }
+    }
+    assert_eq!(histogram.position(0).1, histogram.speculative_cycles());
+    assert_eq!(histogram.position(MAX_MTP_WIDTH), (0, 0));
+    kani::cover!(recorded && width == 0);
+    kani::cover!(recorded && width == MAX_MTP_WIDTH && accepted == MAX_MTP_WIDTH);
+    kani::cover!(recorded && width == 2 && accepted == 1 && position == 1);
+    kani::cover!(!recorded && accepted > width && width <= MAX_MTP_WIDTH);
+    kani::cover!(!recorded && width > MAX_MTP_WIDTH);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn accept_histogram_counts_saturate_without_wrapping() {
+    let width: usize = kani::any();
+    let accepted: usize = kani::any();
+    kani::assume(width <= MAX_MTP_WIDTH && accepted <= width);
+    let mut histogram = AcceptHistogram::default();
+    histogram.counts[width][accepted] = usize::MAX;
+    assert!(histogram.record(width, accepted));
+    assert_eq!(histogram.counts[width][accepted], usize::MAX);
+    assert_eq!(histogram.cycles(), usize::MAX);
+    let mut merged = histogram;
+    merged.merge(&histogram);
+    assert_eq!(merged.counts[width][accepted], usize::MAX);
+    assert_eq!(merged.cycles(), usize::MAX);
+    assert!(merged.proposed() == 0 || merged.proposed() == usize::MAX);
+    kani::cover!(width == MAX_MTP_WIDTH && accepted == 0);
+    kani::cover!(width == 0);
+}
+
 #[cfg(kani)]
 #[kani::proof]
 fn dflash_modes_preserve_context_and_output_budgets() {
@@ -451,6 +618,88 @@ fn dflash_modes_preserve_context_and_output_budgets() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accept_histogram_matches_cycle_list_oracle() {
+        // Independent oracle: count straight from the cycle list, never from cells.
+        let mut state = 0x9e37_79b9_u32;
+        for length in [0usize, 1, 2, 7, 64, 257] {
+            let mut histogram = AcceptHistogram::default();
+            let mut cycles = Vec::new();
+            for _ in 0..length {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                let width = (state >> 8) as usize % (MAX_MTP_WIDTH + 1);
+                let accepted = (state >> 16) as usize % (width + 1);
+                assert!(histogram.record(width, accepted));
+                cycles.push((width, accepted));
+            }
+            assert_eq!(histogram.cycles(), cycles.len());
+            assert_eq!(
+                histogram.speculative_cycles(),
+                cycles.iter().filter(|c| c.0 > 0).count()
+            );
+            assert_eq!(
+                histogram.proposed(),
+                cycles.iter().map(|c| c.0).sum::<usize>()
+            );
+            assert_eq!(
+                histogram.accepted(),
+                cycles.iter().map(|c| c.1).sum::<usize>()
+            );
+            for position in 0..=MAX_MTP_WIDTH + 1 {
+                let tested = cycles
+                    .iter()
+                    .filter(|&&(w, a)| w > position && (0..position).all(|p| p < a))
+                    .count();
+                let hit = cycles
+                    .iter()
+                    .filter(|&&(w, a)| w > position && (0..=position).all(|p| p < a))
+                    .count();
+                assert_eq!(histogram.position(position), (hit, tested));
+            }
+            let mut halves = AcceptHistogram::default();
+            let mut second = AcceptHistogram::default();
+            for (index, &(width, accepted)) in cycles.iter().enumerate() {
+                let half = if index % 2 == 0 {
+                    &mut halves
+                } else {
+                    &mut second
+                };
+                assert!(half.record(width, accepted));
+            }
+            halves.merge(&second);
+            assert_eq!(halves, histogram);
+        }
+    }
+
+    #[test]
+    fn accept_histogram_rejects_impossible_cycles_unchanged() {
+        let mut histogram = AcceptHistogram::default();
+        assert!(histogram.record(2, 1));
+        let before = histogram;
+        for (width, accepted) in [(0, 1), (1, 2), (3, 4), (4, 0), (4, 4), (usize::MAX, 0)] {
+            assert!(!histogram.record(width, accepted), "{width}/{accepted}");
+            assert_eq!(histogram, before);
+        }
+        // REL MTP2 short: 54 width-2 cycles with 72 accepted plus one final
+        // width-0 target step give 54 + 72 + 1 = 127 decode tokens.
+        let mut rel = AcceptHistogram::default();
+        for accepted in std::iter::repeat_n(2, 18).chain(std::iter::repeat_n(1, 36)) {
+            assert!(rel.record(2, accepted));
+        }
+        assert!(rel.record(0, 0));
+        assert_eq!(
+            (rel.speculative_cycles(), rel.proposed(), rel.accepted()),
+            (54, 108, 72)
+        );
+        assert_eq!(rel.cycles() + rel.accepted(), 127);
+        assert_eq!(rel.position(0), (54, 54));
+        assert_eq!(rel.position(1), (18, 54));
+        assert_eq!(
+            serde_json::to_value(rel).unwrap(),
+            serde_json::json!([[1, 0, 0, 0], [0, 0, 0, 0], [0, 36, 18, 0], [0, 0, 0, 0]])
+        );
+    }
 
     #[test]
     fn dflash_copy_remembers_only_commits_and_stops_after_total_refusal() {

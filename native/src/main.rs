@@ -2294,14 +2294,16 @@ impl ChatMtpHead {
 }
 #[cfg(all(feature = "mlx", feature = "chat"))]
 enum ChatMtpSession {
-    Qwen(mlxl3_native::mtp::Session),
+    Qwen(Box<mlxl3_native::mtp::Session>),
     Flash(mlxl3_native::qwen4::FlashMtpSession),
 }
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl ChatMtpSession {
     fn new(head: &ChatMtpHead, depth: usize) -> Result<Self> {
         match head {
-            ChatMtpHead::Qwen(_) => Ok(Self::Qwen(mlxl3_native::mtp::Session::new(depth)?)),
+            ChatMtpHead::Qwen(_) => Ok(Self::Qwen(Box::new(mlxl3_native::mtp::Session::new(
+                depth,
+            )?))),
             ChatMtpHead::Flash(_) => {
                 anyhow::ensure!(depth == 1, "Flash MTP supports depth 1");
                 Ok(Self::Flash(Default::default()))
@@ -2347,6 +2349,13 @@ impl ChatMtpSession {
                 s.depth_blocks,
             ),
             Self::Flash(s) => (s.proposed, s.accepted, s.blocks, 0, [0, s.blocks, 0, 0]),
+        }
+    }
+    /// Head and prompt-lookup cycles by width and accepted prefix (Qwen only).
+    fn accept_histograms(&self) -> Option<[mlxl3_native::speculative::AcceptHistogram; 2]> {
+        match self {
+            Self::Qwen(s) => Some([s.accept_histogram, s.lookup_accept_histogram]),
+            Self::Flash(_) => None,
         }
     }
 }
@@ -2899,6 +2908,11 @@ struct NativeStats {
     mtp_blocks: Option<usize>,
     mtp_lookup_blocks: Option<usize>,
     mtp_depth_blocks: Option<[usize; 4]>,
+    /// `[width][accepted]` head cycles; width 0 is a plain target step.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mtp_accept_histogram: Option<mlxl3_native::speculative::AcceptHistogram>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mtp_lookup_accept_histogram: Option<mlxl3_native::speculative::AcceptHistogram>,
 }
 
 #[cfg(all(
@@ -2950,6 +2964,17 @@ impl NativeStats {
             let sum = self.mtp_depth_blocks.get_or_insert([0; 4]);
             for (total, count) in sum.iter_mut().zip(counts) {
                 *total += count;
+            }
+        }
+        for (sum, round) in [
+            (&mut self.mtp_accept_histogram, &round.mtp_accept_histogram),
+            (
+                &mut self.mtp_lookup_accept_histogram,
+                &round.mtp_lookup_accept_histogram,
+            ),
+        ] {
+            if let Some(round) = round {
+                sum.get_or_insert_with(Default::default).merge(round);
             }
         }
         for (sum, value) in [
@@ -3589,6 +3614,16 @@ fn bridge_generate_round(
         mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.stats().3),
         #[cfg(feature = "mlx")]
         mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
+        #[cfg(feature = "mlx")]
+        mtp_accept_histogram: mtp_session
+            .as_ref()
+            .and_then(|s| s.accept_histograms())
+            .map(|h| h[0]),
+        #[cfg(feature = "mlx")]
+        mtp_lookup_accept_histogram: mtp_session
+            .as_ref()
+            .and_then(|s| s.accept_histograms())
+            .map(|h| h[1]),
         #[cfg(not(feature = "mlx"))]
         memory: model.memory_stats().ok(),
         #[cfg(not(feature = "mlx"))]
@@ -4870,6 +4905,41 @@ mod tests {
         assert!(!dflash_context_copy_enabled(Some(
             mlxl3_native::dflash::Family::Qwen38Dense
         )));
+    }
+
+    #[test]
+    fn bridge_stats_merge_mtp_accept_histograms_and_omit_them_without_mtp() {
+        use mlxl3_native::speculative::AcceptHistogram;
+        let histogram = |cycles: &[(usize, usize)]| {
+            let mut h = AcceptHistogram::default();
+            for &(width, accepted) in cycles {
+                assert!(h.record(width, accepted));
+            }
+            h
+        };
+        let mut total = NativeStats::default();
+        let plain = serde_json::to_value(&total).unwrap();
+        assert!(plain.get("mtp_accept_histogram").is_none());
+        assert!(plain.get("mtp_lookup_accept_histogram").is_none());
+        total.accumulate(&NativeStats {
+            mtp_accept_histogram: Some(histogram(&[(2, 2), (2, 0), (0, 0)])),
+            mtp_lookup_accept_histogram: Some(histogram(&[(3, 1)])),
+            ..Default::default()
+        });
+        total.accumulate(&NativeStats::default());
+        total.accumulate(&NativeStats {
+            mtp_accept_histogram: Some(histogram(&[(2, 2), (1, 1)])),
+            ..Default::default()
+        });
+        let json = serde_json::to_value(&total).unwrap();
+        assert_eq!(
+            json["mtp_accept_histogram"],
+            serde_json::json!([[1, 0, 0, 0], [0, 1, 0, 0], [1, 0, 2, 0], [0, 0, 0, 0]])
+        );
+        assert_eq!(
+            json["mtp_lookup_accept_histogram"],
+            serde_json::json!([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 1, 0, 0]])
+        );
     }
 
     #[test]

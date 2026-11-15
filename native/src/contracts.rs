@@ -3699,6 +3699,16 @@ pub fn q36_head_lane_setting(value: Option<&str>) -> Option<bool> {
     }
 }
 
+/// Strict `MLXL3_MTP_POST_NORM` switch (Q36-MTP-POSTNORM-T1B). Unset or `0` keeps the
+/// pre-norm MTP seed and recursion; `1` normalizes both. Anything else is rejected.
+pub fn mtp_post_norm_setting(value: Option<&str>) -> Option<bool> {
+    match value {
+        None | Some("0") => Some(false),
+        Some("1") => Some(true),
+        Some(_) => None,
+    }
+}
+
 /// The 35B lm_head (K6 MCG, 2048 -> 248320) measured on M5 in Q36-HEAD3-P22/HEAD4-P23.
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn q36_head_lane_shape(input: i32, output: i32, k: usize, mcg: bool, m5: bool) -> bool {
@@ -3788,6 +3798,54 @@ fn q36_head_lane_setting_is_strict() {
     kani::cover!(!present && setting == Some(true));
     kani::cover!(present && setting == Some(true));
     kani::cover!(present && setting == Some(false));
+    kani::cover!(present && length == 0 && setting.is_none());
+    kani::cover!(present && length > 1 && setting.is_none());
+    kani::cover!(present && decoded.is_err() && setting.is_none());
+}
+
+#[test]
+fn mtp_post_norm_setting_is_exact() {
+    for (value, expected) in [
+        (None, Some(false)),
+        (Some("0"), Some(false)),
+        (Some("1"), Some(true)),
+        (Some(""), None),
+        (Some("2"), None),
+        (Some("00"), None),
+        (Some("01"), None),
+        (Some("10"), None),
+        (Some("true"), None),
+        (Some("post"), None),
+        (Some("1 "), None),
+        (Some(" 1"), None),
+        (Some("１"), None),
+        (Some("1\0"), None),
+    ] {
+        assert_eq!(mtp_post_norm_setting(value), expected, "{value:?}");
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn mtp_post_norm_setting_is_strict() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    let decoded = std::str::from_utf8(&bytes[..length]);
+    let value = decoded.unwrap_or("");
+    let setting = mtp_post_norm_setting(present.then_some(value));
+    let expected = if !present || (length == 1 && bytes[0] == b'0') {
+        Some(false)
+    } else if length == 1 && bytes[0] == b'1' {
+        Some(true)
+    } else {
+        None
+    };
+    assert_eq!(setting, expected);
+    kani::cover!(!present && setting == Some(false));
+    kani::cover!(present && setting == Some(false));
+    kani::cover!(present && setting == Some(true));
     kani::cover!(present && length == 0 && setting.is_none());
     kani::cover!(present && length > 1 && setting.is_none());
     kani::cover!(present && decoded.is_err() && setting.is_none());

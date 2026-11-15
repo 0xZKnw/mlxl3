@@ -1679,6 +1679,10 @@ impl Qwen35Moe {
         self.embeddings
             .take(&Array::from_i32(&ids, &[1, i32::try_from(ids.len())?])?, 0)
     }
+    /// The trunk's final norm applied to an MTP seed (`MLXL3_MTP_POST_NORM=1`).
+    pub(crate) fn mtp_final_norm(&self, hidden: &Array) -> Result<Array> {
+        hidden.rms_norm(&self.norm, self.eps)
+    }
     pub fn mtp_logits(&self, normalized: &Array) -> Result<Array> {
         self.head.forward(normalized)
     }
@@ -1780,6 +1784,8 @@ impl Qwen35Moe {
                 &normalized.iter().collect::<Vec<_>>(),
                 1,
             )?)?;
+            #[cfg(test)]
+            crate::mtp::cycle_trace::mark("verify_graph");
             logits.eval()?;
             self.offset += time;
             Ok((logits, raw))

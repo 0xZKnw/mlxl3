@@ -383,6 +383,41 @@ mod native {
         mlp: Mlp,
         draft_head: Option<AffineLinear>,
         draft_ids: Option<Array>,
+        wiring: Wiring,
+    }
+
+    /// Which MTP inputs are normalized (Q36-MTP-POSTNORM-T1/T1B). Production
+    /// selects `pre` (both false) or `post` (both true) with `MLXL3_MTP_POST_NORM`;
+    /// the single-sided variants exist only for the T1 diagnostic.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(crate) struct Wiring {
+        /// Apply the trunk's final norm to the target hidden before `pre_fc_norm_hidden`.
+        seed: bool,
+        /// Feed the head's own `rms_norm(residual, norm)` back to the next level.
+        chain: bool,
+    }
+
+    impl Wiring {
+        const PRE: Self = Self {
+            seed: false,
+            chain: false,
+        };
+        const POST: Self = Self {
+            seed: true,
+            chain: true,
+        };
+
+        fn from_env() -> Result<Self> {
+            const MESSAGE: &str = "MLXL3_MTP_POST_NORM must be 0 or 1";
+            let value = match std::env::var("MLXL3_MTP_POST_NORM") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error).context(MESSAGE),
+            };
+            let post =
+                crate::contracts::mtp_post_norm_setting(value.as_deref()).context(MESSAGE)?;
+            Ok(if post { Self::POST } else { Self::PRE })
+        }
     }
 
     pub struct Cache {
@@ -438,6 +473,7 @@ mod native {
                 !cancelled.load(std::sync::atomic::Ordering::Relaxed),
                 "generation cancelled"
             );
+            let wiring = Wiring::from_env()?;
             let (checkpoint, layout) = inspect(path)?;
             ensure!(
                 target.mtp_layout() == &layout,
@@ -606,6 +642,7 @@ mod native {
                 mlp,
                 draft_head,
                 draft_ids,
+                wiring,
             };
             ensure!(
                 !cancelled.load(std::sync::atomic::Ordering::Relaxed),
@@ -616,6 +653,34 @@ mod native {
 
         pub fn reset(&mut self) -> Result<()> {
             self.attention.set_state(None, None)
+        }
+
+        #[cfg(test)]
+        pub(crate) fn compact_vocabulary(&self) -> bool {
+            self.draft_ids.is_some()
+        }
+
+        /// `pre`, `post`, or a T1 test-only single-sided wiring.
+        #[cfg(test)]
+        pub(crate) fn wiring_name(&self) -> &'static str {
+            match (self.wiring.seed, self.wiring.chain) {
+                (false, false) => "pre",
+                (true, false) => "seed",
+                (false, true) => "chain",
+                (true, true) => "post",
+            }
+        }
+
+        #[cfg(test)]
+        pub(crate) fn set_test_wiring(&mut self, seed: bool, chain: bool) {
+            self.wiring = Wiring { seed, chain };
+        }
+
+        /// Drop the compact projection so drafts use the target's full lm_head.
+        #[cfg(test)]
+        pub(crate) fn use_target_draft_head(&mut self) {
+            self.draft_head = None;
+            self.draft_ids = None;
         }
 
         pub fn snapshot(&self) -> Result<Cache> {
@@ -643,7 +708,11 @@ mod native {
                 time > 0 && hidden.shape() == [1, time, h],
                 "invalid MTP hidden input"
             );
-            self.mixed_embedding(hidden, &target.mtp_embeddings(next)?)
+            let embedding = target.mtp_embeddings(next)?;
+            if self.wiring.seed {
+                return self.mixed_embedding(&target.mtp_final_norm(hidden)?, &embedding);
+            }
+            self.mixed_embedding(hidden, &embedding)
         }
 
         fn mixed_embedding(&self, hidden: &Array, embedding: &Array) -> Result<Array> {
@@ -695,8 +764,8 @@ mod native {
             self.residual(&mixed)
         }
 
-        /// Recurrent drafting feeds the pre-output-norm residual back, as in
-        /// MTPLX's Qwen MTP chain. The output norm belongs only before lm_head.
+        /// The attention/MLP residual. `draft_chain` feeds it back as is (pre-norm,
+        /// as in MTPLX's Qwen MTP chain) or after the output norm with `post` wiring.
         fn residual(&mut self, mixed: &Array) -> Result<Array> {
             let time = mixed.shape()[1];
             let h = self.layout.hidden_size;
@@ -770,27 +839,50 @@ mod native {
             let mut hidden = hidden.try_clone()?;
             let mut proposed = Vec::with_capacity(width);
             let mut exact = None;
+            #[cfg(test)]
+            let mut captured = Vec::new();
+            if self.wiring.seed {
+                hidden = target.mtp_final_norm(&hidden)?;
+            }
             for index in 0..width {
                 let mixed = self.mixed_embedding(&hidden, &target.mtp_embedding_ids(&token)?)?;
-                hidden = self.residual(&mixed)?;
+                let residual = self.residual(&mixed)?;
                 if index == 0 {
                     exact = Some(self.snapshot()?);
                 }
-                token = self
-                    .draft_logits(
-                        target,
-                        &hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?,
-                    )?
-                    .log_probs()?
-                    .argmax()?
-                    .reshape(&[1, 1])?;
+                let normalized = residual.rms_norm(&self.norm, self.layout.rms_norm_eps)?;
+                let log_probs = self.draft_logits(target, &normalized)?.log_probs()?;
+                // Post-norm recursion reuses the lm_head input; pre-norm keeps the residual.
+                hidden = if self.wiring.chain {
+                    normalized
+                } else {
+                    residual
+                };
+                #[cfg(test)]
+                if super::cycle_trace::confidence() {
+                    captured.push(log_probs.try_clone()?);
+                }
+                token = log_probs.argmax()?.reshape(&[1, 1])?;
                 if let Some(ids) = &self.draft_ids {
                     token = ids.take(&token, 0)?;
                 }
                 proposed.push(token.try_clone()?);
             }
+            #[cfg(test)]
+            super::cycle_trace::mark("draft_graph");
             // One lazy device chain / one transfer, rather than D host argmaxes.
             let proposed = Array::concatenate(&proposed.iter().collect::<Vec<_>>(), 1)?.to_u32()?;
+            #[cfg(test)]
+            super::cycle_trace::mark("draft_ready");
+            #[cfg(test)]
+            if !captured.is_empty() {
+                // Diagnostic readback after the production transfer; never timed.
+                let ids = self.draft_ids.as_ref().map(Array::to_u32).transpose()?;
+                for (&proposal, log_probs) in proposed.iter().zip(&captured) {
+                    super::cycle_trace::level(proposal, &log_probs.to_f32()?, ids.as_deref());
+                }
+                super::cycle_trace::mark("confidence_ready");
+            }
             Ok((proposed, exact.context("missing MTP first cache")?))
         }
 
@@ -828,6 +920,10 @@ mod native {
         pub blocks: usize,
         pub lookup_blocks: usize,
         pub depth_blocks: [usize; 4],
+        /// Head-drafted cycles and width-0 target steps, by width and accepted prefix.
+        pub accept_histogram: crate::speculative::AcceptHistogram,
+        /// Prompt-lookup cycles, by width and accepted prefix.
+        pub lookup_accept_histogram: crate::speculative::AcceptHistogram,
     }
 
     impl Default for Session {
@@ -842,6 +938,8 @@ mod native {
                 blocks: 0,
                 lookup_blocks: 0,
                 depth_blocks: [0; 4],
+                accept_histogram: Default::default(),
+                lookup_accept_histogram: Default::default(),
             }
         }
     }
@@ -915,6 +1013,8 @@ mod native {
                 self.depth = policy.next(self.depth);
             }
             let started = std::time::Instant::now();
+            #[cfg(test)]
+            super::cycle_trace::mark("cycle_start");
             let remaining = context_limit
                 .checked_sub(usize::try_from(target.offset())?)
                 .context("MTP context exhausted")?;
@@ -941,7 +1041,13 @@ mod native {
                 if self.adaptive.is_some() {
                     head.eval_cache()?;
                 }
+                ensure!(
+                    self.accept_histogram.record(0, 0),
+                    "invalid MTP target step"
+                );
                 self.observe_block(started, 1);
+                #[cfg(test)]
+                super::cycle_trace::mark("target_step_end");
                 return Ok(next);
             }
             let lookup =
@@ -959,13 +1065,30 @@ mod native {
                 .chain(proposals.iter().copied())
                 .collect::<Vec<_>>();
             let (logits, raw) = target.verify_mtp(&verification)?;
+            #[cfg(test)]
+            super::cycle_trace::mark("verify_ready");
             let tokens = logits.chat_greedy_ids()?;
+            #[cfg(test)]
+            super::cycle_trace::mark("greedy_ready");
             let accepted = crate::speculative::greedy_accept(&proposals, &tokens)
                 .context("invalid MTP verification output")?;
+            // Validate before any commit (an impossible cycle fails closed);
+            // publish with the other counters once the cycle is complete.
+            let mut histogram = if is_lookup {
+                self.lookup_accept_histogram
+            } else {
+                self.accept_histogram
+            };
+            ensure!(
+                histogram.record(width, accepted.accepted_draft_tokens),
+                "invalid MTP cycle"
+            );
             let retained = 1 + accepted.accepted_draft_tokens;
             target.commit_dflash_verification(retained, width + 1)?;
             target.set_mtp_hidden(raw.slice(1, retained as i32 - 1, retained as i32)?)?;
             head.restore(exact_first_cache)?;
+            #[cfg(test)]
+            super::cycle_trace::mark("commit_graph");
             if accepted.accepted_draft_tokens > 0 {
                 // Keep single-row arithmetic (batched RoPE can round differently)
                 // but evaluate only the final K/V graph. No output attention/MoE
@@ -981,9 +1104,13 @@ mod native {
                     )?;
                 }
             }
+            #[cfg(test)]
+            super::cycle_trace::mark("repair_graph");
             if accepted.accepted_draft_tokens > 0 || is_lookup {
                 head.eval_cache()?;
             }
+            #[cfg(test)]
+            super::cycle_trace::mark("repair_ready");
             if is_lookup && accepted.accepted_draft_tokens == 0 {
                 self.history.clear();
             } else {
@@ -992,11 +1119,18 @@ mod native {
             self.pending
                 .extend(proposals[..accepted.accepted_draft_tokens].iter().copied());
             self.pending.push_back(accepted.target_token);
+            if is_lookup {
+                self.lookup_accept_histogram = histogram;
+            } else {
+                self.accept_histogram = histogram;
+            }
             self.proposed += width;
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
             self.lookup_blocks += usize::from(is_lookup);
             self.observe_block(started, retained);
+            #[cfg(test)]
+            super::cycle_trace::mark("cycle_end");
             self.pending.pop_front().context("missing MTP target token")
         }
     }
@@ -1155,6 +1289,408 @@ mod native {
 
 #[cfg(feature = "mlx")]
 pub use native::{Cache, Head, Session};
+
+/// Test-only MTP cycle instrumentation: draft confidence per level (T0a) and
+/// host phase marks on the `CLOCK_UPTIME_RAW` base used by the P4 command
+/// buffer timing dylib (T0b). Nothing is recorded unless a test installs a
+/// recorder on its own thread, and production builds contain none of it.
+#[cfg(all(test, feature = "mlx"))]
+pub(crate) mod cycle_trace {
+    use std::cell::RefCell;
+
+    #[derive(Clone, Debug, serde::Serialize)]
+    pub(crate) struct Mark {
+        pub name: &'static str,
+        pub uptime_ns: u64,
+    }
+
+    /// One drafted level: the device proposal, and the host's reading of the
+    /// same compact-vocabulary log-probabilities.
+    #[derive(Clone, Debug, serde::Serialize)]
+    pub(crate) struct Level {
+        pub proposal: u32,
+        pub host_proposal: u32,
+        pub top1_log_prob: f32,
+        pub top2_log_prob: f32,
+        pub top1_ties: usize,
+        pub finite: bool,
+    }
+
+    #[derive(Debug, Default, serde::Serialize)]
+    pub(crate) struct Recording {
+        pub confidence: bool,
+        pub capacity: usize,
+        pub overflowed: bool,
+        pub marks: Vec<Mark>,
+        pub levels: Vec<Level>,
+    }
+
+    thread_local! {
+        static RECORDER: RefCell<Option<Recording>> = const { RefCell::new(None) };
+    }
+
+    pub(crate) fn uptime_ns() -> u64 {
+        unsafe extern "C" {
+            fn clock_gettime_nsec_np(clock: u32) -> u64;
+        }
+        const CLOCK_UPTIME_RAW: u32 = 8;
+        unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
+    }
+
+    /// Install a bounded recorder; at most `capacity` marks and levels each.
+    pub(crate) fn start(confidence: bool, capacity: usize) {
+        RECORDER.set(Some(Recording {
+            confidence,
+            capacity,
+            ..Default::default()
+        }));
+    }
+
+    pub(crate) fn finish() -> Option<Recording> {
+        RECORDER.take()
+    }
+
+    pub(crate) fn mark(name: &'static str) {
+        RECORDER.with_borrow_mut(|recording| {
+            if let Some(r) = recording {
+                if r.marks.len() < r.capacity {
+                    r.marks.push(Mark {
+                        name,
+                        uptime_ns: uptime_ns(),
+                    });
+                } else {
+                    r.overflowed = true;
+                }
+            }
+        });
+    }
+
+    pub(crate) fn confidence() -> bool {
+        RECORDER.with_borrow(|r| r.as_ref().is_some_and(|r| r.confidence))
+    }
+
+    /// Host top-1/top-2 of one level's log-probabilities. The host proposal is
+    /// the first maximum, mapped through the compact vocabulary when present.
+    pub(crate) fn level(proposal: u32, log_probs: &[f32], ids: Option<&[u32]>) {
+        let mut best = 0usize;
+        let mut top1 = f32::NEG_INFINITY;
+        let mut top2 = f32::NEG_INFINITY;
+        let mut ties = 0usize;
+        let mut finite = !log_probs.is_empty();
+        for (index, &value) in log_probs.iter().enumerate() {
+            finite &= value.is_finite();
+            if value > top1 {
+                top2 = top1;
+                top1 = value;
+                best = index;
+                ties = 1;
+            } else {
+                if value == top1 {
+                    ties += 1;
+                }
+                if value > top2 {
+                    top2 = value;
+                }
+            }
+        }
+        let host_proposal = match ids {
+            Some(ids) => ids.get(best).copied().unwrap_or(u32::MAX),
+            None => u32::try_from(best).unwrap_or(u32::MAX),
+        };
+        RECORDER.with_borrow_mut(|recording| {
+            if let Some(r) = recording {
+                if r.levels.len() < r.capacity {
+                    r.levels.push(Level {
+                        proposal,
+                        host_proposal,
+                        top1_log_prob: top1,
+                        top2_log_prob: top2,
+                        top1_ties: ties,
+                        finite,
+                    });
+                } else {
+                    r.overflowed = true;
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn host_level_reading_keeps_first_maximum_ties_and_bounds() {
+        start(true, 2);
+        level(7, &[-3.0, -0.5, -1.0, -0.5], None);
+        level(9, &[-2.0, -0.25, f32::NAN], Some(&[40, 41, 42]));
+        level(1, &[0.0], None);
+        let r = finish().unwrap();
+        assert!(r.overflowed && r.levels.len() == 2 && finish().is_none());
+        let (a, b) = (&r.levels[0], &r.levels[1]);
+        assert_eq!((a.host_proposal, a.top1_ties, a.finite), (1, 2, true));
+        assert_eq!((a.top1_log_prob, a.top2_log_prob), (-0.5, -0.5));
+        assert_eq!((b.host_proposal, b.top1_ties, b.finite), (41, 1, false));
+        assert_eq!((b.top1_log_prob, b.top2_log_prob), (-0.25, -2.0));
+        mark("ignored without recorder");
+        assert!(!confidence() && finish().is_none());
+    }
+}
+
+/// Q36-MTP-ACCEPT-POS-T0A / Q36-MTP-CYCLE-TIMELINE-T0B: real `Head`/`Session`
+/// cycles on the 35B, with per-cycle width/acceptance, host phase marks and
+/// (optionally) draft confidence. Every MTP sample must equal the AR reference
+/// token for token, and the production histogram must match the counters.
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+mod cycle_diagnostics {
+    use super::{Head, Session, cycle_trace};
+    use crate::{qwen35::Qwen35Moe, tokenizer::ChatTokenizer};
+    use anyhow::{Context, Result, ensure};
+    use std::path::Path;
+
+    fn env_or(name: &str, default: &str) -> String {
+        std::env::var(name).unwrap_or_else(|_| default.into())
+    }
+
+    fn prefill(model: &mut Qwen35Moe, head: &mut Head, input: &[u32]) -> Result<u32> {
+        model.reset();
+        head.reset()?;
+        let (logits, raw) = model.forward_mtp(input)?;
+        head.extend_cache(
+            model,
+            &raw.slice(1, 0, input.len() as i32 - 1)?,
+            &input[1..],
+        )?;
+        logits
+            .chat_greedy_ids()?
+            .last()
+            .copied()
+            .context("missing first token")
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU, MLXL3_MTP_TEST_MODEL/HEAD, MLXL3_MTP_DIAG_PROMPTS and MLXL3_MTP_DIAG_OUTPUT; diagnostic, run alone"]
+    fn mtp_cycle_diagnostics() -> Result<()> {
+        let model_path = std::env::var("MLXL3_MTP_TEST_MODEL")?;
+        let prompts_dir = std::env::var("MLXL3_MTP_DIAG_PROMPTS")?;
+        let output = std::env::var("MLXL3_MTP_DIAG_OUTPUT")?;
+        let tokens: usize = env_or("MLXL3_MTP_DIAG_TOKENS", "128").parse()?;
+        let warmup: usize = env_or("MLXL3_MTP_DIAG_WARMUP", "128").parse()?;
+        let confidence = match env_or("MLXL3_MTP_DIAG_CONFIDENCE", "0").as_str() {
+            "0" => false,
+            "1" => true,
+            other => anyhow::bail!("MLXL3_MTP_DIAG_CONFIDENCE must be 0 or 1, not {other:?}"),
+        };
+        // T1 test-only wirings; the production `post` comes from MLXL3_MTP_POST_NORM.
+        let forced = match std::env::var("MLXL3_MTP_DIAG_HIDDEN") {
+            Err(std::env::VarError::NotPresent) => None,
+            Ok(value) => Some(match value.as_str() {
+                "pre" => (false, false),
+                "seed" => (true, false),
+                "chain" => (false, true),
+                "post" => (true, true),
+                other => anyhow::bail!(
+                    "MLXL3_MTP_DIAG_HIDDEN must be pre, seed, chain or post, not {other:?}"
+                ),
+            }),
+            Err(error) => return Err(error.into()),
+        };
+        let env_post_norm = std::env::var("MLXL3_MTP_POST_NORM").ok();
+        ensure!(
+            forced.is_none() || env_post_norm.is_none(),
+            "MLXL3_MTP_DIAG_HIDDEN and MLXL3_MTP_POST_NORM are exclusive"
+        );
+        let compact = match env_or("MLXL3_MTP_DIAG_COMPACT", "1").as_str() {
+            "1" => true,
+            "0" => false,
+            other => anyhow::bail!("MLXL3_MTP_DIAG_COMPACT must be 0 or 1, not {other:?}"),
+        };
+        let depths = env_or("MLXL3_MTP_DIAG_DEPTHS", "1,2,3")
+            .split(',')
+            .map(str::parse)
+            .collect::<Result<Vec<usize>, _>>()?;
+        ensure!(
+            (2..=1024).contains(&tokens) && warmup <= 1024,
+            "unsupported token budget"
+        );
+        ensure!(
+            !depths.is_empty() && depths.iter().all(|d| (1..=3).contains(d)),
+            "depths must be 1..=3"
+        );
+        let mut prompt_files = std::fs::read_dir(&prompts_dir)?
+            .map(|entry| Ok(entry?.path()))
+            .collect::<Result<Vec<_>>>()?;
+        prompt_files.retain(|path| path.extension().is_some_and(|e| e == "txt"));
+        prompt_files.sort();
+        ensure!(!prompt_files.is_empty(), "no prompt files in {prompts_dir}");
+
+        let mut model = Qwen35Moe::load(Path::new(&model_path))?;
+        let mut head = Head::load(Path::new(&std::env::var("MLXL3_MTP_TEST_HEAD")?), &model)?;
+        if let Some((seed, chain)) = forced {
+            head.set_test_wiring(seed, chain);
+        }
+        if !compact {
+            // Requalification: draft with the target's full lm_head (248 320 IDs).
+            head.use_target_draft_head();
+        }
+        let hidden_variant = head.wiring_name();
+        let tokenizer = ChatTokenizer::load(Path::new(&model_path))?;
+        let mut report = serde_json::json!({
+            "tokens": tokens, "warmup": warmup, "confidence": confidence,
+            "hidden_variant": hidden_variant,
+            "env_post_norm": env_post_norm,
+            "env_pipeline": std::env::var("MLXL3_QWEN_PIPELINE").ok(),
+            "env_head_lane": std::env::var("MLXL3_Q36_HEAD_LANE").ok(),
+            "compact_head": head.compact_vocabulary(), "cases": [],
+        });
+        for prompt_file in &prompt_files {
+            let name = prompt_file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .context("prompt name")?
+                .to_string();
+            let prompt = std::fs::read_to_string(prompt_file)?;
+            let rendered = tokenizer.render_values(
+                &serde_json::json!([{"role":"user","content":prompt}]),
+                Some(&[]),
+            )?;
+            let input = tokenizer.encode(&rendered)?;
+            ensure!(
+                input.len() > 1 && input.len() + tokens.max(warmup) + 8 <= 4096,
+                "unsupported prompt {name}"
+            );
+            // Independent AR reference: one target step per token.
+            let mut reference = Vec::with_capacity(tokens);
+            let mut next = prefill(&mut model, &mut head, &input)?;
+            while reference.len() < tokens {
+                reference.push(next);
+                if reference.len() < tokens {
+                    next = model
+                        .forward(next)?
+                        .chat_greedy_ids()?
+                        .last()
+                        .copied()
+                        .context("missing AR token")?;
+                }
+            }
+            for &depth in &depths {
+                let mut run = |budget: usize, record: bool| -> Result<serde_json::Value> {
+                    let mut next = prefill(&mut model, &mut head, &input)?;
+                    let mut session = Session::new(depth)?;
+                    let mut generated = Vec::with_capacity(budget);
+                    let mut cycles = Vec::new();
+                    if record {
+                        cycle_trace::start(confidence, 64 * budget + 64);
+                    }
+                    let started = std::time::Instant::now();
+                    while generated.len() < budget {
+                        generated.push(next);
+                        if generated.len() == budget {
+                            break;
+                        }
+                        let before = (session.proposed, session.accepted, session.depth_blocks);
+                        next = session.advance(
+                            &mut model,
+                            &mut head,
+                            next,
+                            4096,
+                            budget - generated.len(),
+                            |_| false,
+                        )?;
+                        if session.depth_blocks != before.2 {
+                            cycles.push([session.proposed - before.0, session.accepted - before.1]);
+                        }
+                    }
+                    crate::array::synchronize()?;
+                    let seconds = started.elapsed().as_secs_f64();
+                    let recording = if record { cycle_trace::finish() } else { None };
+                    let histogram = session.accept_histogram;
+                    ensure!(
+                        generated[..] == reference[..budget.min(tokens)] || budget > tokens,
+                        "{name} depth {depth}: MTP tokens differ from AR"
+                    );
+                    ensure!(session.lookup_blocks == 0, "lookup must stay off");
+                    ensure!(
+                        session.lookup_accept_histogram == Default::default(),
+                        "lookup histogram must stay empty"
+                    );
+                    ensure!(
+                        histogram.proposed() == session.proposed
+                            && histogram.accepted() == session.accepted
+                            && histogram.speculative_cycles() == session.blocks
+                            && histogram.cycles() == session.depth_blocks.iter().sum::<usize>()
+                            && histogram.cycles() == cycles.len()
+                            && histogram.cycles() + histogram.accepted() == budget - 1,
+                        "{name} depth {depth}: histogram disagrees with counters"
+                    );
+                    for &[width, accepted] in &cycles {
+                        ensure!(accepted <= width && width <= depth, "invalid cycle");
+                    }
+                    let mut case = serde_json::json!({
+                        "prompt": name, "input_tokens": input.len(), "depth": depth,
+                        "budget": budget, "seconds_not_a_benchmark": seconds,
+                        "tokens": generated, "cycles": cycles,
+                        "histogram": histogram, "proposed": session.proposed,
+                        "accepted": session.accepted, "blocks": session.blocks,
+                        "depth_blocks": session.depth_blocks,
+                    });
+                    if let Some(recording) = recording {
+                        ensure!(!recording.overflowed, "trace overflowed");
+                        let starts = recording
+                            .marks
+                            .iter()
+                            .filter(|m| m.name == "cycle_start")
+                            .count();
+                        ensure!(starts == cycles.len(), "one cycle_start per cycle");
+                        ensure!(
+                            recording
+                                .marks
+                                .windows(2)
+                                .all(|w| w[0].uptime_ns <= w[1].uptime_ns),
+                            "marks are not monotonic"
+                        );
+                        if confidence {
+                            ensure!(
+                                recording.levels.len() == session.proposed,
+                                "one confidence level per proposal"
+                            );
+                            ensure!(
+                                recording.levels.iter().all(|l| l.finite
+                                    && l.top1_log_prob.is_finite()
+                                    && l.top1_log_prob <= 0.0
+                                    && l.top2_log_prob <= l.top1_log_prob),
+                                "invalid confidence values"
+                            );
+                            let mismatched = recording
+                                .levels
+                                .iter()
+                                .filter(|l| l.proposal != l.host_proposal)
+                                .count();
+                            case["host_argmax_mismatches"] = mismatched.into();
+                            ensure!(
+                                mismatched == 0,
+                                "{name} depth {depth}: {mismatched} host argmax mismatches"
+                            );
+                        }
+                        case["trace"] = serde_json::to_value(&recording)?;
+                    }
+                    model.reset();
+                    head.reset()?;
+                    crate::array::release_idle_cache()?;
+                    Ok(case)
+                };
+                if warmup > 0 {
+                    run(warmup, false)?;
+                }
+                let case = run(tokens, true)?;
+                eprintln!(
+                    "{name} depth {depth}: {} cycles, histogram {}",
+                    case["cycles"].as_array().map_or(0, Vec::len),
+                    case["histogram"]
+                );
+                report["cases"].as_array_mut().unwrap().push(case);
+            }
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod draft_projection_tests {

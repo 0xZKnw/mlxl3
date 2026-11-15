@@ -20,7 +20,19 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
                 .map(|value| value.to_str().unwrap_or("")),
         ),
         q36_head_lane()?,
+        mtp_post_norm()?,
     )
+}
+
+/// Post-norm MTP wiring changes every proposal, so its calibrations stay separate.
+fn mtp_post_norm() -> Result<bool> {
+    const MESSAGE: &str = "MLXL3_MTP_POST_NORM must be 0 or 1";
+    let value = match std::env::var("MLXL3_MTP_POST_NORM") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(error) => return Err(error).context(MESSAGE),
+    };
+    mlxl3_native::mtp_post_norm_setting(value.as_deref()).context(MESSAGE)
 }
 
 /// Calibrations under the Q36 head lane rollback switch stay separate from the default.
@@ -44,6 +56,7 @@ fn allocator_cache_mib() -> Result<Option<usize>> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn runtime_key_with_options(
     path: &std::path::Path,
     context: usize,
@@ -52,6 +65,7 @@ fn runtime_key_with_options(
     allocator_mib: Option<usize>,
     lane_order: bool,
     head_lane: bool,
+    post_norm: bool,
 ) -> Result<String> {
     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
@@ -70,7 +84,7 @@ fn runtime_key_with_options(
         .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?,
     );
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
@@ -80,6 +94,7 @@ fn runtime_key_with_options(
         u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
+        u8::from(post_norm),
         u8::from(head_lane),
         mlxl3_native::exl3_lane_order_key(lane_order),
         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
@@ -115,34 +130,38 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
     let directory = tempfile::tempdir()?;
     std::fs::write(directory.path().join("config.json"), "{}")?;
     let mut keys = std::collections::HashSet::new();
-    for head_lane in [false, true] {
-        for lane_order in [false, true] {
-            for (dense, mb3, suffix) in [
-                (false, false, "0"),
-                (true, false, "1"),
-                (false, true, "2"),
-                (true, true, "3"),
-            ] {
-                let key = runtime_key_with_options(
-                    directory.path(),
-                    4096,
-                    dense,
-                    mb3,
-                    allocator_cache_mib()?,
-                    lane_order,
-                    head_lane,
-                )?;
-                anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
-                anyhow::ensure!(key.contains(&format!(
-                    ":q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
-                    u8::from(head_lane),
-                    u8::from(lane_order),
-                )));
-                anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+    for post_norm in [false, true] {
+        for head_lane in [false, true] {
+            for lane_order in [false, true] {
+                for (dense, mb3, suffix) in [
+                    (false, false, "0"),
+                    (true, false, "1"),
+                    (false, true, "2"),
+                    (true, true, "3"),
+                ] {
+                    let key = runtime_key_with_options(
+                        directory.path(),
+                        4096,
+                        dense,
+                        mb3,
+                        allocator_cache_mib()?,
+                        lane_order,
+                        head_lane,
+                        post_norm,
+                    )?;
+                    anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
+                    anyhow::ensure!(key.contains(&format!(
+                        ":mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
+                        u8::from(post_norm),
+                        u8::from(head_lane),
+                        u8::from(lane_order),
+                    )));
+                    anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+                }
             }
         }
     }
-    anyhow::ensure!(keys.len() == 16);
+    anyhow::ensure!(keys.len() == 32);
     let production = runtime_key(directory.path(), 4096)?;
     anyhow::ensure!(keys.contains(&production), "production key not recognized");
     Ok(())
@@ -154,8 +173,16 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
     std::fs::write(directory.path().join("config.json"), "{}")?;
     let mut keys = std::collections::HashSet::new();
     for limit in [None, Some(0), Some(256), Some(4096)] {
-        let key =
-            runtime_key_with_options(directory.path(), 4096, false, false, limit, false, true)?;
+        let key = runtime_key_with_options(
+            directory.path(),
+            4096,
+            false,
+            false,
+            limit,
+            false,
+            true,
+            false,
+        )?;
         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
     }
     for invalid in [4097, usize::MAX] {
@@ -167,7 +194,8 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
                 false,
                 Some(invalid),
                 false,
-                true
+                true,
+                false
             )
             .is_err()
         );
