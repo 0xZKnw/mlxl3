@@ -1,0 +1,5 @@
+713c713,714
+<                 return self.mixed_embedding(&target.mtp_final_norm(hidden)?, &embedding);
+---
+>                 // MUTATION M1 (T1B): head norm instead of the trunk final norm.
+>                 return self.mixed_embedding(&hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?, &embedding);

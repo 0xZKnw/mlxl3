@@ -1,0 +1,767 @@
+{
+  "label": "A",
+  "index": 0,
+  "mtp_depth": 3,
+  "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+  "dflash_mode": 0,
+  "status": "complete",
+  "conditions": {
+    "recorded_at_unix": 1794771665.364636,
+    "power": {
+      "returncode": 0,
+      "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "returncode": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "returncode": 0,
+      "stdout": "vm.swapusage: total = 3072.00M  used = 2052.94M  free = 1019.06M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "prompts": {
+    "short": {
+      "runs": [
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 283,
+            "decode_seconds": 3.204059875,
+            "decode_tokens": 255,
+            "decode_tps": 79.58652770182705,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_profile": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 3.333007792,
+            "end_to_end_ttft_seconds": 0.128939751,
+            "evaluated_prompt_tokens": 27,
+            "generated_tokens": 256,
+            "memory": {
+              "mlx_active_bytes": 12717546048,
+              "mlx_cache_bytes": 218738223,
+              "mlx_peak_bytes": 12809018153,
+              "process_compressed_lifetime_logical_bytes": 983859200,
+              "process_compressed_logical_bytes": 924762112,
+              "process_compressed_peak_logical_bytes": 925581312,
+              "process_decompressions": 566806,
+              "process_footprint_bytes": 13328764504,
+              "process_id": 78135,
+              "process_ledger_swapins_logical_bytes": 0,
+              "process_lifetime_peak_bytes": 13328764504,
+              "process_start_abstime": 10294465614254
+            },
+            "model_size_gb": 13.064371907,
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                16,
+                15,
+                15,
+                41
+              ]
+            ],
+            "mtp_accepted_tokens": 168,
+            "mtp_blocks": 87,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              0,
+              87
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 261,
+            "prefill_seconds": 0.128487417,
+            "prefill_tps": 210.13730862065663,
+            "prepare_seconds": 0.000124417,
+            "prompt_tokens": 27,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 0.128936709
+          },
+          "token_hash": "dc778c9e36180f1d",
+          "text_sha256": "55b6be28f5eb4e1ad5a37a73b29ca7a7b31eb3932986784b2164bac04d6a5bc6",
+          "history_sha256": "55b6be28f5eb4e1ad5a37a73b29ca7a7b31eb3932986784b2164bac04d6a5bc6"
+        },
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 283,
+            "decode_seconds": 3.38480775,
+            "decode_tokens": 255,
+            "decode_tps": 75.3366273165736,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_profile": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 3.514496167,
+            "end_to_end_ttft_seconds": 0.12967937499999999,
+            "evaluated_prompt_tokens": 27,
+            "generated_tokens": 256,
+            "memory": {
+              "mlx_active_bytes": 12717546048,
+              "mlx_cache_bytes": 218738223,
+              "mlx_peak_bytes": 12809019045,
+              "process_compressed_lifetime_logical_bytes": 988872704,
+              "process_compressed_logical_bytes": 929644544,
+              "process_compressed_peak_logical_bytes": 929644544,
+              "process_decompressions": 566814,
+              "process_footprint_bytes": 13328764504,
+              "process_id": 78135,
+              "process_ledger_swapins_logical_bytes": 0,
+              "process_lifetime_peak_bytes": 13328862808,
+              "process_start_abstime": 10294465614254
+            },
+            "model_size_gb": 13.064371907,
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                16,
+                15,
+                15,
+                41
+              ]
+            ],
+            "mtp_accepted_tokens": 168,
+            "mtp_blocks": 87,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              0,
+              87
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 261,
+            "prefill_seconds": 0.129283917,
+            "prefill_tps": 208.84268226495644,
+            "prepare_seconds": 8.2583e-05,
+            "prompt_tokens": 27,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 0.129675833
+          },
+          "token_hash": "dc778c9e36180f1d",
+          "text_sha256": "55b6be28f5eb4e1ad5a37a73b29ca7a7b31eb3932986784b2164bac04d6a5bc6",
+          "history_sha256": "55b6be28f5eb4e1ad5a37a73b29ca7a7b31eb3932986784b2164bac04d6a5bc6"
+        }
+      ],
+      "warmup": {
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 155,
+          "decode_seconds": 1.5705433749999997,
+          "decode_tokens": 127,
+          "decode_tps": 80.86373291027382,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 1.288316,
+          "elapsed_seconds": 3.763305125,
+          "end_to_end_ttft_seconds": 2.19277275,
+          "evaluated_prompt_tokens": 27,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 12714388152,
+            "mlx_cache_bytes": 176020919,
+            "mlx_peak_bytes": 12804847785,
+            "process_compressed_lifetime_logical_bytes": 980271104,
+            "process_compressed_logical_bytes": 922533888,
+            "process_compressed_peak_logical_bytes": 925581312,
+            "process_decompressions": 566723,
+            "process_footprint_bytes": 13283216984,
+            "process_id": 78135,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 13283216984,
+            "process_start_abstime": 10294465614254
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accept_histogram": [
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              7,
+              7,
+              21
+            ]
+          ],
+          "mtp_accepted_tokens": 84,
+          "mtp_blocks": 42,
+          "mtp_depth_blocks": [
+            0,
+            0,
+            0,
+            43
+          ],
+          "mtp_lookup_accept_histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 126,
+          "prefill_seconds": 0.902245,
+          "prefill_tps": 29.925352869785925,
+          "prepare_seconds": 0.000943125,
+          "prompt_tokens": 27,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 2.192752042
+        },
+        "token_hash": "9f65c6031cdefabd",
+        "text_sha256": "57981f012d466ee3272a661dd071229a0daea49da3af69ff6f6ecf6cb2acf7d0",
+        "history_sha256": "57981f012d466ee3272a661dd071229a0daea49da3af69ff6f6ecf6cb2acf7d0"
+      },
+      "medians": {
+        "decode_tps": 77.46157750920032,
+        "decode_seconds": 3.2944338125,
+        "prefill_tps": 209.48999544280653,
+        "prefill_seconds": 0.12888566699999998,
+        "ttft_seconds": 0.129306271,
+        "elapsed_seconds": 3.4237519795
+      }
+    },
+    "document": {
+      "runs": [
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 299,
+            "decode_seconds": 3.406136708,
+            "decode_tokens": 255,
+            "decode_tps": 74.86487532960172,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_profile": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 3.61471075,
+            "end_to_end_ttft_seconds": 0.208566417,
+            "evaluated_prompt_tokens": 43,
+            "generated_tokens": 256,
+            "memory": {
+              "mlx_active_bytes": 12717632184,
+              "mlx_cache_bytes": 328546615,
+              "mlx_peak_bytes": 12828037517,
+              "process_compressed_lifetime_logical_bytes": 988872704,
+              "process_compressed_logical_bytes": 920666112,
+              "process_compressed_peak_logical_bytes": 929644544,
+              "process_decompressions": 567362,
+              "process_footprint_bytes": 13439962712,
+              "process_id": 78135,
+              "process_ledger_swapins_logical_bytes": 0,
+              "process_lifetime_peak_bytes": 13439962712,
+              "process_start_abstime": 10294465614254
+            },
+            "model_size_gb": 13.064371907,
+            "mtp_accept_histogram": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                14,
+                14,
+                16,
+                41
+              ]
+            ],
+            "mtp_accepted_tokens": 169,
+            "mtp_blocks": 85,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              0,
+              86
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 255,
+            "prefill_seconds": 0.208140375,
+            "prefill_tps": 206.59134490364977,
+            "prepare_seconds": 0.000104125,
+            "prompt_tokens": 43,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 0.208562751
+          },
+          "token_hash": "7246099d1a57575d",
+          "text_sha256": "73ed38edb0d5f2b079dcb1e5c21e6bb1b9bbda25aad33d321ed9f938fe22bc74",
+          "history_sha256": "73ed38edb0d5f2b079dcb1e5c21e6bb1b9bbda25aad33d321ed9f938fe22bc74"
+        },
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 299,
+            "decode_seconds": 3.398166958,
+            "decode_tokens": 255,
+            "decode_tps": 75.04045656134592,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_profile": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 3.607919375,
+            "end_to_end_ttft_seconds": 0.20974258399999998,
+            "evaluated_prompt_tokens": 43,
+            "generated_tokens": 256,
+            "memory": {
+              "mlx_active_bytes": 12717632184,
+              "mlx_cache_bytes": 328546615,
+              "mlx_peak_bytes": 12828037517,
+              "process_compressed_lifetime_logical_bytes": 988872704,
+              "process_compressed_logical_bytes": 920567808,
+              "process_compressed_peak_logical_bytes": 929644544,
+              "process_decompressions": 567368,
+              "process_footprint_bytes": 13440093784,
+              "process_id": 78135,
+              "process_ledger_swapins_logical_bytes": 0,
+              "process_lifetime_peak_bytes": 13440093784,
+              "process_start_abstime": 10294465614254
+            },
+            "model_size_gb": 13.064371907,
+            "mtp_accept_histogram": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                14,
+                14,
+                16,
+                41
+              ]
+            ],
+            "mtp_accepted_tokens": 169,
+            "mtp_blocks": 85,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              0,
+              86
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 255,
+            "prefill_seconds": 0.209319084,
+            "prefill_tps": 205.42799623564187,
+            "prepare_seconds": 9.4125e-05,
+            "prompt_tokens": 43,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 0.20973920899999998
+          },
+          "token_hash": "7246099d1a57575d",
+          "text_sha256": "73ed38edb0d5f2b079dcb1e5c21e6bb1b9bbda25aad33d321ed9f938fe22bc74",
+          "history_sha256": "73ed38edb0d5f2b079dcb1e5c21e6bb1b9bbda25aad33d321ed9f938fe22bc74"
+        }
+      ],
+      "warmup": {
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 171,
+          "decode_seconds": 1.4654865,
+          "decode_tokens": 127,
+          "decode_tps": 86.66064136380649,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.677250834,
+          "end_to_end_ttft_seconds": 0.211759083,
+          "evaluated_prompt_tokens": 43,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 12714867264,
+            "mlx_cache_bytes": 321169327,
+            "mlx_peak_bytes": 12828643725,
+            "process_compressed_lifetime_logical_bytes": 988872704,
+            "process_compressed_logical_bytes": 925597696,
+            "process_compressed_peak_logical_bytes": 929644544,
+            "process_decompressions": 567061,
+            "process_footprint_bytes": 13429673560,
+            "process_id": 78135,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 13429673560,
+            "process_start_abstime": 10294465614254
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accept_histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              3,
+              3,
+              4,
+              26
+            ]
+          ],
+          "mtp_accepted_tokens": 90,
+          "mtp_blocks": 37,
+          "mtp_depth_blocks": [
+            0,
+            0,
+            0,
+            37
+          ],
+          "mtp_lookup_accept_histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 109,
+          "prefill_seconds": 0.210822208,
+          "prefill_tps": 203.96333198445583,
+          "prepare_seconds": 0.000634166,
+          "prompt_tokens": 43,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.211754625
+        },
+        "token_hash": "a5060dae111f1266",
+        "text_sha256": "89bb9c79cf1fb19197b297a67975cdd9b686eef02c786a80e84959bd11726c6a",
+        "history_sha256": "89bb9c79cf1fb19197b297a67975cdd9b686eef02c786a80e84959bd11726c6a"
+      },
+      "medians": {
+        "decode_tps": 74.95266594547383,
+        "decode_seconds": 3.402151833,
+        "prefill_tps": 206.00967056964583,
+        "prefill_seconds": 0.2087297295,
+        "ttft_seconds": 0.20915098,
+        "elapsed_seconds": 3.6113150625
+      }
+    }
+  },
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": {
+      "draft_bytes_per_token": 2048,
+      "fixed_bytes": 64393216,
+      "layers": [
+        {
+          "bytes_per_token": 20480,
+          "max_tokens": null,
+          "step": 1
+        }
+      ]
+    },
+    "dflash_configure_supported": true,
+    "dflash_family": "qwen36_moe",
+    "dflash_supported": true,
+    "dflash_tune_supported": true,
+    "dflash_tuning_key": "f90cb83f932cfa8c:2.0.11:cbf0bebca17c-dirty:release:0.32.2:Apple M5:4096:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=0:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=0",
+    "flash": null,
+    "images_supported": false,
+    "load_seconds": 3.226735209,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory": {
+      "mlx_active_bytes": 12078481856,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 12279264444,
+      "process_compressed_lifetime_logical_bytes": 770523136,
+      "process_compressed_logical_bytes": 729284608,
+      "process_compressed_peak_logical_bytes": 768966656,
+      "process_decompressions": 776,
+      "process_footprint_bytes": 12457725000,
+      "process_id": 78135,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 12958666064,
+      "process_start_abstime": 10294465614254
+    },
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "model_context_limit": 262144,
+    "modules": 30971,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "f90cb83f932cfa8c:2.0.11:cbf0bebca17c-dirty:release:0.32.2:Apple M5:4096:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=0:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1",
+    "resident_gb": 13.064371907,
+    "runtime_commit": "cbf0bebca17c-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/build/t3b/candidate",
+    "runtime_profile": "release",
+    "runtime_version": "2.0.11",
+    "type": "ready",
+    "workspace_features": true
+  },
+  "ready_seconds": 3.5506479589967057,
+  "shutdown_seconds": 0.12145587499253452,
+  "exit_code": 0
+}

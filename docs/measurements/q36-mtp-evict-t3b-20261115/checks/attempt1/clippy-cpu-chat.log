@@ -1,0 +1,69 @@
+   Compiling mlxl3-native v2.0.11 (/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0)
+error: constant `EVICT_LOG_EDGES` is never used
+    --> native/src/contracts.rs:3723:11
+     |
+3723 | pub const EVICT_LOG_EDGES: [f32; 4] = [-0.693_147_2, -0.223_143_55, -0.051_293_294, -0.010_050_336];
+     |           ^^^^^^^^^^^^^^^
+     |
+     = note: `-D dead-code` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: constant `EVICT_SURVIVAL` is never used
+    --> native/src/contracts.rs:3727:11
+     |
+3727 | pub const EVICT_SURVIVAL: [[u64; 5]; 3] = [
+     |           ^^^^^^^^^^^^^^
+
+error: constant `EVICT_DRAFT_US` is never used
+    --> native/src/contracts.rs:3735:11
+     |
+3735 | pub const EVICT_DRAFT_US: [u64; 4] = [0, 1_310, 2_450, 3_600];
+     |           ^^^^^^^^^^^^^^
+
+error: constant `EVICT_VERIFY_US` is never used
+    --> native/src/contracts.rs:3736:11
+     |
+3736 | pub const EVICT_VERIFY_US: [u64; 4] = [17_000, 21_300, 29_000, 33_300];
+     |           ^^^^^^^^^^^^^^^
+
+error: constant `EVICT_TAIL_US` is never used
+    --> native/src/contracts.rs:3737:11
+     |
+3737 | pub const EVICT_TAIL_US: u64 = 750;
+     |           ^^^^^^^^^^^^^
+
+error: function `evict_band` is never used
+    --> native/src/contracts.rs:3740:8
+     |
+3740 | pub fn evict_band(log_prob: f32) -> Option<usize> {
+     |        ^^^^^^^^^^
+
+error: function `evict_width` is never used
+    --> native/src/contracts.rs:3754:8
+     |
+3754 | pub fn evict_width(bands: &[usize], width: usize) -> Option<usize> {
+     |        ^^^^^^^^^^^
+
+error: approximate value of `f{32, 64}::consts::LN_2` found
+    --> native/src/contracts.rs:3723:41
+     |
+3723 | pub const EVICT_LOG_EDGES: [f32; 4] = [-0.693_147_2, -0.223_143_55, -0.051_293_294, -0.010_050_336];
+     |                                         ^^^^^^^^^^^
+     |
+     = help: consider using the constant directly
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#approx_constant
+     = note: `#[deny(clippy::approx_constant)]` on by default
+
+error: could not compile `mlxl3-native` (lib) due to 8 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: casting to the same type is unnecessary (`f64` -> `f64`)
+    --> native/src/contracts.rs:3919:24
+     |
+3919 |             evict_band((probability as f64).ln() as f32),
+     |                        ^^^^^^^^^^^^^^^^^^^^ help: try: `probability`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unnecessary_cast
+     = note: `-D clippy::unnecessary-cast` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::unnecessary_cast)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

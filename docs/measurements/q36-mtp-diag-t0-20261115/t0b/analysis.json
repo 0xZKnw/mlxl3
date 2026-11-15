@@ -1,0 +1,1151 @@
+{
+  "runs": {
+    "run1": {
+      "records": 162384,
+      "cases": [
+        {
+          "prompt": "a-short-fr",
+          "depth": 1,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 69,
+          "speculative_cycles": 69,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              11,
+              58,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 69,
+          "accepted": 58,
+          "wall_ms": 1577.4632500251755,
+          "gpu_busy_ms": 1500.479957961943,
+          "gpu_idle_ms": 76.98329206323251,
+          "gpu_active_fraction": 0.9511980440355717,
+          "wall_ms_per_cycle": 22.86178623224892,
+          "idle_ms_per_speculative_cycle": 1.1156998849743842,
+          "command_buffers": 10678,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 28.776959457900375,
+              "idle_ms_per_cycle": 0.4170573834478315
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 13.071666529867798,
+              "idle_ms_per_cycle": 0.18944444246185216
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 14.765041531063616,
+              "idle_ms_per_cycle": 0.2139861091458495
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 20.369624544400722,
+              "idle_ms_per_cycle": 0.295211949918851
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0016564019091859243,
+            "draft_graph>draft_ready": 0.3337421424120017,
+            "draft_ready>verify_graph": 0.08331524103582985,
+            "repair_graph>repair_ready": 0.2935555480096651,
+            "verify_graph>verify_ready": 0.18944444246185216,
+            "verify_ready>greedy_ready": 0.2139861091458495
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.00392754589193973,
+            "cycle_start>draft_graph": 0.020420231073554874,
+            "draft_graph>draft_ready": 1.2844130304048136,
+            "draft_ready>verify_graph": 14.398312798458273,
+            "greedy_ready>commit_graph": 0.03885330743682773,
+            "inter_cycle": 0.0006758390277948068,
+            "repair_graph>repair_ready": 0.35610502886086487,
+            "repair_ready>cycle_end": 0.0001370318004510541,
+            "verify_graph>verify_ready": 6.522409405316347,
+            "verify_ready>greedy_ready": 0.23653201397805326
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 276,
+            "draft_ready>verify_graph": 8986,
+            "repair_graph>repair_ready": 174,
+            "verify_graph>verify_ready": 1173,
+            "verify_ready>greedy_ready": 69
+          },
+          "seconds_with_dylib": 1.5774932499999998,
+          "seconds_without_dylib": 1.57630425
+        },
+        {
+          "prompt": "a-short-fr",
+          "depth": 2,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 55,
+          "speculative_cycles": 54,
+          "histogram": [
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              11,
+              14,
+              29,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 108,
+          "accepted": 72,
+          "wall_ms": 1716.0726669826545,
+          "gpu_busy_ms": 1653.2787492033094,
+          "gpu_idle_ms": 62.793917779345065,
+          "gpu_active_fraction": 0.9634083573571772,
+          "wall_ms_per_cycle": 31.201321217866447,
+          "idle_ms_per_speculative_cycle": 1.1628503292471308,
+          "command_buffers": 10751,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 23.23045872617513,
+              "idle_ms_per_cycle": 0.43019368011435427
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 10.220333293545991,
+              "idle_ms_per_cycle": 0.1892654313619628
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 12.127000256441534,
+              "idle_ms_per_cycle": 0.22457407882299135
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 16.78987604100257,
+              "idle_ms_per_cycle": 0.3109236303889365
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.4262494621798396,
+              "idle_ms_per_cycle": 0.4262494621798396
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0025038715210501795,
+            "cycle_start>target_step_end": 0.007893508558885919,
+            "draft_graph>draft_ready": 0.3322083179631995,
+            "draft_ready>verify_graph": 0.09798536215115476,
+            "repair_graph>repair_ready": 0.3084197588678863,
+            "verify_graph>verify_ready": 0.1892654313619628,
+            "verify_ready>greedy_ready": 0.22457407882299135
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.0054697782077171185,
+            "cycle_start>draft_graph": 0.03304094058909902,
+            "cycle_start>target_step_end": 0.3133487588018869,
+            "draft_graph>draft_ready": 2.454701388530709,
+            "draft_ready>verify_graph": 20.556993780364454,
+            "greedy_ready>commit_graph": 0.04755248557086344,
+            "inter_cycle": 0.000688244148881899,
+            "repair_graph>repair_ready": 0.3504853704254384,
+            "repair_ready>cycle_end": 0.0001204251829120848,
+            "verify_graph>verify_ready": 7.791523163043031,
+            "verify_ready>greedy_ready": 0.22519912777675521
+          },
+          "command_buffers_by_commit_phase": {
+            "cycle_start>target_step_end": 110,
+            "draft_graph>draft_ready": 378,
+            "draft_ready>verify_graph": 8922,
+            "repair_graph>repair_ready": 158,
+            "verify_graph>verify_ready": 1129,
+            "verify_ready>greedy_ready": 54
+          },
+          "seconds_with_dylib": 1.71610125,
+          "seconds_without_dylib": 1.7665210839999999
+        },
+        {
+          "prompt": "a-short-fr",
+          "depth": 3,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 46,
+          "speculative_cycles": 46,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              12,
+              9,
+              17
+            ]
+          ],
+          "proposed": 138,
+          "accepted": 81,
+          "wall_ms": 1745.8055829629302,
+          "gpu_busy_ms": 1673.1061207246967,
+          "gpu_idle_ms": 72.69946223823354,
+          "gpu_active_fraction": 0.9583576413389341,
+          "wall_ms_per_cycle": 37.95229528180283,
+          "idle_ms_per_speculative_cycle": 1.5804230921355116,
+          "command_buffers": 10141,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 34.12792005110532,
+              "idle_ms_per_cycle": 0.7419113054588113
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 9.69312631059438,
+              "idle_ms_per_cycle": 0.21072013718683436
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 12.16533308615908,
+              "idle_ms_per_cycle": 0.2644637627425887
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 16.713082790374756,
+              "idle_ms_per_cycle": 0.3633278867472773
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0025878695811590424,
+            "draft_graph>draft_ready": 0.3970806213581692,
+            "draft_ready>verify_graph": 0.34483068410064216,
+            "repair_graph>repair_ready": 0.36074001716611825,
+            "verify_graph>verify_ready": 0.21072013718683436,
+            "verify_ready>greedy_ready": 0.2644637627425887
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.008495366352650783,
+            "cycle_start>draft_graph": 0.0575515669365616,
+            "draft_graph>draft_ready": 3.666288953314981,
+            "draft_ready>verify_graph": 24.812059805971447,
+            "greedy_ready>commit_graph": 0.06864137021298318,
+            "inter_cycle": 0.0010843264728622592,
+            "repair_graph>repair_ready": 0.42522463026335056,
+            "repair_ready>cycle_end": 0.00023908796720206738,
+            "verify_graph>verify_ready": 8.657342393669989,
+            "verify_ready>greedy_ready": 0.2553677806408023
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 460,
+            "draft_ready>verify_graph": 8448,
+            "repair_graph>repair_ready": 157,
+            "verify_graph>verify_ready": 1030,
+            "verify_ready>greedy_ready": 46
+          },
+          "seconds_with_dylib": 1.7458339170000001,
+          "seconds_without_dylib": 1.706600625
+        },
+        {
+          "prompt": "b-code",
+          "depth": 1,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 70,
+          "speculative_cycles": 70,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              57,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 70,
+          "accepted": 57,
+          "wall_ms": 1651.3331669848412,
+          "gpu_busy_ms": 1572.31821102323,
+          "gpu_idle_ms": 79.01495596161112,
+          "gpu_active_fraction": 0.952150809090885,
+          "wall_ms_per_cycle": 23.59047381406916,
+          "idle_ms_per_speculative_cycle": 1.1287850851658732,
+          "command_buffers": 10870,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 29.541957250330597,
+              "idle_ms_per_cycle": 0.42202796071900855
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 13.308748253621161,
+              "idle_ms_per_cycle": 0.19012497505173087
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 15.099250187631696,
+              "idle_ms_per_cycle": 0.21570357410902424
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 21.065000270027667,
+              "idle_ms_per_cycle": 0.30092857528610956
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.001926200431106346,
+            "draft_graph>draft_ready": 0.3309589278485094,
+            "draft_ready>verify_graph": 0.09106903287049915,
+            "repair_graph>repair_ready": 0.2990023748550032,
+            "verify_graph>verify_ready": 0.19012497505173087,
+            "verify_ready>greedy_ready": 0.21570357410902424
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.004282803274691105,
+            "cycle_start>draft_graph": 0.023084469804806367,
+            "draft_graph>draft_ready": 1.3209209137130529,
+            "draft_ready>verify_graph": 14.895275599389736,
+            "greedy_ready>commit_graph": 0.03965647192671895,
+            "inter_cycle": 0.0007167458534240723,
+            "repair_graph>repair_ready": 0.3547481693593519,
+            "repair_ready>cycle_end": 0.00011425498606903213,
+            "verify_graph>verify_ready": 6.723432088204261,
+            "verify_ready>greedy_ready": 0.22824229755704956
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 280,
+            "draft_ready>verify_graph": 9160,
+            "repair_graph>repair_ready": 171,
+            "verify_graph>verify_ready": 1189,
+            "verify_ready>greedy_ready": 70
+          },
+          "seconds_with_dylib": 1.65136125,
+          "seconds_without_dylib": 1.615345167
+        },
+        {
+          "prompt": "b-code",
+          "depth": 2,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 54,
+          "speculative_cycles": 54,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              9,
+              16,
+              28,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 107,
+          "accepted": 73,
+          "wall_ms": 1752.7260839706287,
+          "gpu_busy_ms": 1689.0611249837093,
+          "gpu_idle_ms": 63.66495898691937,
+          "gpu_active_fraction": 0.9636766066476898,
+          "wall_ms_per_cycle": 32.45789044390053,
+          "idle_ms_per_speculative_cycle": 1.1789807219799884,
+          "command_buffers": 10609,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 23.534457490313798,
+              "idle_ms_per_cycle": 0.4358232868576629
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 10.335625614970922,
+              "idle_ms_per_cycle": 0.19140047435131338
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 12.099416635464877,
+              "idle_ms_per_cycle": 0.22406327102712734
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 17.695459246169776,
+              "idle_ms_per_cycle": 0.32769368974388474
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.002783963551606845,
+            "draft_graph>draft_ready": 0.33425539839771334,
+            "draft_ready>verify_graph": 0.10156788845994959,
+            "repair_graph>repair_ready": 0.32490972619227787,
+            "verify_graph>verify_ready": 0.19140047435131338,
+            "verify_ready>greedy_ready": 0.22406327102712734
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.005794867993918834,
+            "cycle_start>draft_graph": 0.03385031272450255,
+            "draft_graph>draft_ready": 2.4448734841792397,
+            "draft_ready>verify_graph": 21.251378074305617,
+            "greedy_ready>commit_graph": 0.047955185571616446,
+            "inter_cycle": 0.000702942661182196,
+            "repair_graph>repair_ready": 0.3837060228559292,
+            "repair_ready>cycle_end": 0.00014502007548731786,
+            "verify_graph>verify_ready": 8.06066201443577,
+            "verify_ready>greedy_ready": 0.22882251909727025
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 375,
+            "draft_ready>verify_graph": 8892,
+            "repair_graph>repair_ready": 163,
+            "verify_graph>verify_ready": 1125,
+            "verify_ready>greedy_ready": 54
+          },
+          "seconds_with_dylib": 1.752752959,
+          "seconds_without_dylib": 1.7098424589999999
+        },
+        {
+          "prompt": "b-code",
+          "depth": 3,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 47,
+          "speculative_cycles": 47,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              10,
+              9,
+              11,
+              16
+            ]
+          ],
+          "proposed": 139,
+          "accepted": 80,
+          "wall_ms": 1779.2119169607759,
+          "gpu_busy_ms": 1721.567622560542,
+          "gpu_idle_ms": 57.644294400233775,
+          "gpu_active_fraction": 0.9676012206018152,
+          "wall_ms_per_cycle": 37.855572701293106,
+          "idle_ms_per_speculative_cycle": 1.2264743489411443,
+          "command_buffers": 10660,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 21.52595983352512,
+              "idle_ms_per_cycle": 0.45799914539415154
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 9.81187546858564,
+              "idle_ms_per_cycle": 0.20876330784224767
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 10.93950029462576,
+              "idle_ms_per_cycle": 0.23275532541756935
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 15.366958803497255,
+              "idle_ms_per_cycle": 0.3269565702871756
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0028439792507189386,
+            "draft_graph>draft_ready": 0.3493554949601914,
+            "draft_ready>verify_graph": 0.10864365043396011,
+            "repair_graph>repair_ready": 0.3241125910364567,
+            "verify_graph>verify_ready": 0.20876330784224767,
+            "verify_ready>greedy_ready": 0.23275532541756935
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.006465491482076493,
+            "cycle_start>draft_graph": 0.04487766071836999,
+            "draft_graph>draft_ready": 3.6314113630338554,
+            "draft_ready>verify_graph": 24.673282702582235,
+            "greedy_ready>commit_graph": 0.054020314487291776,
+            "inter_cycle": 0.0007012995217550308,
+            "repair_graph>repair_ready": 0.3810363606193123,
+            "repair_ready>cycle_end": 0.00022955367619052847,
+            "verify_graph>verify_ready": 8.797931763531759,
+            "verify_ready>greedy_ready": 0.26561619164025846
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 464,
+            "draft_ready>verify_graph": 8917,
+            "repair_graph>repair_ready": 154,
+            "verify_graph>verify_ready": 1078,
+            "verify_ready>greedy_ready": 47
+          },
+          "seconds_with_dylib": 1.779242625,
+          "seconds_without_dylib": 1.7371160410000002
+        }
+      ]
+    },
+    "run2": {
+      "records": 163138,
+      "cases": [
+        {
+          "prompt": "a-short-fr",
+          "depth": 1,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 69,
+          "speculative_cycles": 69,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              11,
+              58,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 69,
+          "accepted": 58,
+          "wall_ms": 1593.5529579874128,
+          "gpu_busy_ms": 1516.4226649794728,
+          "gpu_idle_ms": 77.13029300794005,
+          "gpu_active_fraction": 0.9515985379580029,
+          "wall_ms_per_cycle": 23.094970405614678,
+          "idle_ms_per_speculative_cycle": 1.1178303334484065,
+          "command_buffers": 10724,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 29.052958940155804,
+              "idle_ms_per_cycle": 0.421057375944287
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 13.068459928035736,
+              "idle_ms_per_cycle": 0.1893979699715324
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 14.449125155806541,
+              "idle_ms_per_cycle": 0.209407610953718
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 20.559748983941972,
+              "idle_ms_per_cycle": 0.2979673765788692
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0016829715974197009,
+            "draft_graph>draft_ready": 0.33094383526485466,
+            "draft_ready>verify_graph": 0.09011354067943235,
+            "repair_graph>repair_ready": 0.2962844049814495,
+            "verify_graph>verify_ready": 0.1893979699715324,
+            "verify_ready>greedy_ready": 0.209407610953718
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.003864825871921536,
+            "cycle_start>draft_graph": 0.01971859424172536,
+            "draft_graph>draft_ready": 1.3067795560978677,
+            "draft_ready>verify_graph": 14.519173854395099,
+            "greedy_ready>commit_graph": 0.0387668715911391,
+            "inter_cycle": 0.0006522185277139795,
+            "repair_graph>repair_ready": 0.34282365105236356,
+            "repair_ready>cycle_end": 0.000118300743886958,
+            "verify_graph>verify_ready": 6.630419141889644,
+            "verify_ready>greedy_ready": 0.23265339120331666
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 276,
+            "draft_ready>verify_graph": 9030,
+            "repair_graph>repair_ready": 174,
+            "verify_graph>verify_ready": 1175,
+            "verify_ready>greedy_ready": 69
+          },
+          "seconds_with_dylib": 1.5935865420000002,
+          "seconds_without_dylib": 1.57630425
+        },
+        {
+          "prompt": "a-short-fr",
+          "depth": 2,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 55,
+          "speculative_cycles": 54,
+          "histogram": [
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              11,
+              14,
+              29,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 108,
+          "accepted": 72,
+          "wall_ms": 1779.8754170071334,
+          "gpu_busy_ms": 1696.6847529402003,
+          "gpu_idle_ms": 83.1906640669331,
+          "gpu_active_fraction": 0.9532604005471246,
+          "wall_ms_per_cycle": 32.36137121831152,
+          "idle_ms_per_speculative_cycle": 1.5405678530913536,
+          "command_buffers": 10647,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 41.037582501303405,
+              "idle_ms_per_cycle": 0.7599552315056186
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 10.971581505145878,
+              "idle_ms_per_cycle": 0.2031774352804792
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 13.2527916575782,
+              "idle_ms_per_cycle": 0.24542206773292963
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 17.510833393316716,
+              "idle_ms_per_cycle": 0.32427469246882806
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.41787500958889723,
+              "idle_ms_per_cycle": 0.41787500958889723
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0027392040162036815,
+            "cycle_start>target_step_end": 0.007738426103498097,
+            "draft_graph>draft_ready": 0.34037654835696296,
+            "draft_ready>verify_graph": 0.41957868314865565,
+            "repair_graph>repair_ready": 0.3215354884526244,
+            "verify_graph>verify_ready": 0.2031774352804792,
+            "verify_ready>greedy_ready": 0.24542206773292963
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.007263819161043675,
+            "cycle_start>draft_graph": 0.0385895535280859,
+            "cycle_start>target_step_end": 0.3233510931884801,
+            "draft_graph>draft_ready": 2.4678224969344833,
+            "draft_ready>verify_graph": 21.33691906002005,
+            "greedy_ready>commit_graph": 0.05873466660786006,
+            "inter_cycle": 0.0009227660484611988,
+            "repair_graph>repair_ready": 0.36985874370050925,
+            "repair_ready>cycle_end": 0.00021921436267870444,
+            "verify_graph>verify_ready": 8.100942127553195,
+            "verify_ready>greedy_ready": 0.256032329397621
+          },
+          "command_buffers_by_commit_phase": {
+            "cycle_start>target_step_end": 113,
+            "draft_graph>draft_ready": 378,
+            "draft_ready>verify_graph": 8836,
+            "repair_graph>repair_ready": 158,
+            "verify_graph>verify_ready": 1108,
+            "verify_ready>greedy_ready": 54
+          },
+          "seconds_with_dylib": 1.779904459,
+          "seconds_without_dylib": 1.7665210839999999
+        },
+        {
+          "prompt": "a-short-fr",
+          "depth": 3,
+          "budget": 128,
+          "input_tokens": 27,
+          "cycles": 46,
+          "speculative_cycles": 46,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              12,
+              9,
+              17
+            ]
+          ],
+          "proposed": 138,
+          "accepted": 81,
+          "wall_ms": 1766.0838339943439,
+          "gpu_busy_ms": 1686.1776241566986,
+          "gpu_idle_ms": 79.90620983764529,
+          "gpu_active_fraction": 0.9547551433858483,
+          "wall_ms_per_cycle": 38.393126825963996,
+          "idle_ms_per_speculative_cycle": 1.7370915182096802,
+          "command_buffers": 10354,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 40.78104189829901,
+              "idle_ms_per_cycle": 0.8865443890934567
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 9.553167794365436,
+              "idle_ms_per_cycle": 0.2076775607470747
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 11.205208138562739,
+              "idle_ms_per_cycle": 0.243591481273103
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 18.36679200641811,
+              "idle_ms_per_cycle": 0.39927808709604584
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.005257261522195261,
+            "draft_graph>draft_ready": 0.5057436558316745,
+            "draft_ready>verify_graph": 0.3808007332617822,
+            "repair_graph>repair_ready": 0.3940208255738506,
+            "verify_graph>verify_ready": 0.2076775607470747,
+            "verify_ready>greedy_ready": 0.243591481273103
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.008333397209239394,
+            "cycle_start>draft_graph": 0.05164218980454556,
+            "draft_graph>draft_ready": 3.7498117422016906,
+            "draft_ready>verify_graph": 25.078655628021806,
+            "greedy_ready>commit_graph": 0.058204621461260576,
+            "inter_cycle": 0.0008803921367001275,
+            "repair_graph>repair_ready": 0.429416718163892,
+            "repair_ready>cycle_end": 0.00020469483190580556,
+            "verify_graph>verify_ready": 8.761387719499433,
+            "verify_ready>greedy_ready": 0.2545897226335238
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 460,
+            "draft_ready>verify_graph": 8646,
+            "repair_graph>repair_ready": 157,
+            "verify_graph>verify_ready": 1045,
+            "verify_ready>greedy_ready": 46
+          },
+          "seconds_with_dylib": 1.766113,
+          "seconds_without_dylib": 1.706600625
+        },
+        {
+          "prompt": "b-code",
+          "depth": 1,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 70,
+          "speculative_cycles": 70,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              57,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 70,
+          "accepted": 57,
+          "wall_ms": 1701.3359169941396,
+          "gpu_busy_ms": 1606.8220448796637,
+          "gpu_idle_ms": 94.51387211447582,
+          "gpu_active_fraction": 0.9444472598442173,
+          "wall_ms_per_cycle": 24.304798814201995,
+          "idle_ms_per_speculative_cycle": 1.3501981730639403,
+          "command_buffers": 10756,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 43.36699907435104,
+              "idle_ms_per_cycle": 0.6195285582050148
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 13.993290544021875,
+              "idle_ms_per_cycle": 0.19990415062888392
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 16.098458028864115,
+              "idle_ms_per_cycle": 0.22997797184091592
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 21.055124467238784,
+              "idle_ms_per_cycle": 0.3007874923891255
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0015815578600657837,
+            "draft_graph>draft_ready": 0.34594880915912135,
+            "draft_ready>verify_graph": 0.27357974904589355,
+            "repair_graph>repair_ready": 0.2992059345290597,
+            "verify_graph>verify_ready": 0.19990415062888392,
+            "verify_ready>greedy_ready": 0.22997797184091592
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.004289922071620822,
+            "cycle_start>draft_graph": 0.023049966798030903,
+            "draft_graph>draft_ready": 1.3752940909138747,
+            "draft_ready>verify_graph": 15.47732916993222,
+            "greedy_ready>commit_graph": 0.04858095614638712,
+            "inter_cycle": 0.0007851307080792529,
+            "repair_graph>repair_ready": 0.3565821056586823,
+            "repair_ready>cycle_end": 0.00015592751359300955,
+            "verify_graph>verify_ready": 6.780035698985947,
+            "verify_ready>greedy_ready": 0.2386958454735577
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 280,
+            "draft_ready>verify_graph": 9079,
+            "repair_graph>repair_ready": 171,
+            "verify_graph>verify_ready": 1156,
+            "verify_ready>greedy_ready": 70
+          },
+          "seconds_with_dylib": 1.7013675419999998,
+          "seconds_without_dylib": 1.615345167
+        },
+        {
+          "prompt": "b-code",
+          "depth": 2,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 54,
+          "speculative_cycles": 54,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              9,
+              16,
+              28,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "proposed": 107,
+          "accepted": 73,
+          "wall_ms": 1761.4613749901764,
+          "gpu_busy_ms": 1697.2050871700048,
+          "gpu_idle_ms": 64.25628782017156,
+          "gpu_active_fraction": 0.9635210350152981,
+          "wall_ms_per_cycle": 32.619655092410675,
+          "idle_ms_per_speculative_cycle": 1.189931255929103,
+          "command_buffers": 10598,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 24.33995413593948,
+              "idle_ms_per_cycle": 0.4507398914062866
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 10.53733384469524,
+              "idle_ms_per_cycle": 0.19513581193880075
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 12.154500000178814,
+              "idle_ms_per_cycle": 0.2250833333366447
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 17.22449983935803,
+              "idle_ms_per_cycle": 0.31897221924737096
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.002639666760202359,
+            "draft_graph>draft_ready": 0.33483872108195945,
+            "draft_ready>verify_graph": 0.11590117032432722,
+            "repair_graph>repair_ready": 0.3163325524871686,
+            "verify_graph>verify_ready": 0.19513581193880075,
+            "verify_ready>greedy_ready": 0.2250833333366447
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.0054444223038714245,
+            "cycle_start>draft_graph": 0.0321535529413571,
+            "draft_graph>draft_ready": 2.4643209676637694,
+            "draft_ready>verify_graph": 21.37070223775313,
+            "greedy_ready>commit_graph": 0.047711461472014584,
+            "inter_cycle": 0.0006944066155012007,
+            "repair_graph>repair_ready": 0.3692307789741015,
+            "repair_ready>cycle_end": 0.00011570712861915429,
+            "verify_graph>verify_ready": 8.083566334486628,
+            "verify_ready>greedy_ready": 0.24571522307168278
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 375,
+            "draft_ready>verify_graph": 8881,
+            "repair_graph>repair_ready": 163,
+            "verify_graph>verify_ready": 1125,
+            "verify_ready>greedy_ready": 54
+          },
+          "seconds_with_dylib": 1.76149175,
+          "seconds_without_dylib": 1.7098424589999999
+        },
+        {
+          "prompt": "b-code",
+          "depth": 3,
+          "budget": 128,
+          "input_tokens": 43,
+          "cycles": 47,
+          "speculative_cycles": 47,
+          "histogram": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              10,
+              9,
+              11,
+              16
+            ]
+          ],
+          "proposed": 139,
+          "accepted": 80,
+          "wall_ms": 1783.8857079623267,
+          "gpu_busy_ms": 1726.7879188293591,
+          "gpu_idle_ms": 57.09778913296759,
+          "gpu_active_fraction": 0.967992462253544,
+          "wall_ms_per_cycle": 37.95501506302823,
+          "idle_ms_per_speculative_cycle": 1.2148465772971828,
+          "command_buffers": 10718,
+          "groups": {
+            "S1 draft to_u32 (wait + verify graph build)": {
+              "idle_ms_total": 21.225207077804953,
+              "idle_ms_per_cycle": 0.45160015059159475
+            },
+            "S2 verify logits.eval": {
+              "idle_ms_total": 9.548748668748885,
+              "idle_ms_per_cycle": 0.20316486529252947
+            },
+            "S3 chat_greedy_ids (+ commit, repair graph)": {
+              "idle_ms_total": 11.020125122740865,
+              "idle_ms_per_cycle": 0.2344707472923588
+            },
+            "S4 eval_cache (+ inter-cycle, next draft graph)": {
+              "idle_ms_total": 15.303708263672888,
+              "idle_ms_per_cycle": 0.32561081412069975
+            },
+            "target step (width 0)": {
+              "idle_ms_total": 0.0,
+              "idle_ms_per_cycle": null
+            }
+          },
+          "phase_idle_ms_per_speculative_cycle": {
+            "cycle_start>draft_graph": 0.0040124187820610845,
+            "draft_graph>draft_ready": 0.33864894005014223,
+            "draft_ready>verify_graph": 0.1129512105414525,
+            "repair_graph>repair_ready": 0.32159839533863865,
+            "verify_graph>verify_ready": 0.20316486529252947,
+            "verify_ready>greedy_ready": 0.2344707472923588
+          },
+          "phase_host_ms_per_speculative_cycle": {
+            "commit_graph>repair_graph": 0.006148191614750218,
+            "cycle_start>draft_graph": 0.043804024128203695,
+            "draft_graph>draft_ready": 3.598904253251137,
+            "draft_ready>verify_graph": 24.67864719368121,
+            "greedy_ready>commit_graph": 0.05090249419965325,
+            "inter_cycle": 0.0006826111472191963,
+            "repair_graph>repair_ready": 0.4094883383430065,
+            "repair_ready>cycle_end": 0.00014278834606421754,
+            "verify_graph>verify_ready": 8.915266851854927,
+            "verify_ready>greedy_ready": 0.2510283164620558
+          },
+          "command_buffers_by_commit_phase": {
+            "draft_graph>draft_ready": 464,
+            "draft_ready>verify_graph": 8978,
+            "repair_graph>repair_ready": 154,
+            "verify_graph>verify_ready": 1075,
+            "verify_ready>greedy_ready": 47
+          },
+          "seconds_with_dylib": 1.783910959,
+          "seconds_without_dylib": 1.7371160410000002
+        }
+      ]
+    }
+  },
+  "nodylib": "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-mtp-diag-t0-20261115/t0b/nodylib",
+  "status": "passed",
+  "errors": []
+}

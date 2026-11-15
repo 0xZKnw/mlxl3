@@ -1,0 +1,48 @@
+9211f88404fbf94b14b520739b305cb2b128d0962c4be23b49a4266b1a27c4e3  /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/build/t3b/candidate
+25b38f9a7f4885a8ab64fcbb8f906c01da2b3ac5e9ad69f6b4abbe0fe092824a  /Users/justin/Documents/mix-stq1_0/docs/measurements/q36-mtp-diag-t0-20261115/prompts/b-code.txt
+bcdf901261a6a377a2202d6c35bf167490eb606261989774535c21d223570bc5  /Users/justin/Documents/mix-stq1_0/docs/measurements/q36-mtp-diag-t0-20261115/prompts/c-prose-fr.txt
+2a21650d82542ae010969602995af0aac69230cf6a787d7bc9b83cbb3cec7d25  benchmarks/compare_native.py
+b-code-d1-BAAB exit=0
+b-code-d1-ABBA exit=0
+b-code-d3-BAAB exit=0
+b-code-d3-ABBA exit=0
+c-prose-fr-d1-BAAB exit=0
+c-prose-fr-d1-ABBA exit=0
+c-prose-fr-d3-BAAB exit=0
+c-prose-fr-d3-ABBA exit=0
+b-code-d1-BAAB         short    A  77.31 B  81.56 ( +5.49 %) pf -0.69 ttft +0.75 passes [('B', 75.48), ('A', 73.59), ('A', 81.04), ('B', 87.63)]
+                                sig {'B': [('dc778c9e36180f1d', 161, 201, 94)], 'A': [('dc778c9e36180f1d', 116, 139, 139)]}
+b-code-d1-BAAB         document A  76.58 B  77.44 ( +1.12 %) pf -1.91 ttft +2.04 passes [('B', 73.17), ('A', 72.9), ('A', 80.26), ('B', 81.71)]
+                                sig {'B': [('9a652679900ee51a', 155, 209, 100)], 'A': [('9a652679900ee51a', 114, 140, 140)]}
+b-code-d1-ABBA         short    A  77.96 B  84.53 ( +8.42 %) pf +2.13 ttft -2.17 passes [('A', 81.46), ('B', 86.89), ('B', 82.16), ('A', 74.45)]
+                                sig {'A': [('dc778c9e36180f1d', 116, 139, 139)], 'B': [('dc778c9e36180f1d', 161, 201, 94)]}
+b-code-d1-ABBA         document A  76.25 B  78.83 ( +3.39 %) pf +1.37 ttft -1.49 passes [('A', 78.89), ('B', 80.01), ('B', 77.66), ('A', 73.6)]
+                                sig {'A': [('9a652679900ee51a', 114, 140, 140)], 'B': [('9a652679900ee51a', 155, 209, 100)]}
+b-code-d3-BAAB         short    A  80.26 B  77.03 ( -4.02 %) pf -7.44 ttft +8.28 passes [('B', 77.32), ('A', 80.45), ('A', 80.06), ('B', 76.74)]
+                                sig {'B': [('dc778c9e36180f1d', 161, 201, 94)], 'A': [('dc778c9e36180f1d', 168, 261, 87)]}
+b-code-d3-BAAB         document A  72.45 B  76.58 ( +5.70 %) pf -2.45 ttft +2.58 passes [('B', 79.09), ('A', 72.54), ('A', 72.35), ('B', 74.07)]
+                                sig {'B': [('9a652679900ee51a', 155, 209, 100)], 'A': [('9a652679900ee51a', 161, 282, 94)]}
+b-code-d3-ABBA         short    A  78.64 B  76.92 ( -2.19 %) pf -7.05 ttft +7.62 passes [('A', 79.03), ('B', 74.53), ('B', 79.31), ('A', 78.26)]
+                                sig {'A': [('dc778c9e36180f1d', 168, 261, 87)], 'B': [('dc778c9e36180f1d', 161, 201, 94)]}
+b-code-d3-ABBA         document A  69.56 B  72.09 ( +3.64 %) pf -2.65 ttft +2.61 passes [('A', 69.85), ('B', 68.77), ('B', 75.41), ('A', 69.26)]
+                                sig {'A': [('9a652679900ee51a', 161, 282, 94)], 'B': [('9a652679900ee51a', 155, 209, 100)]}
+c-prose-fr-d1-BAAB     short    A  78.23 B  85.36 ( +9.11 %) pf +3.34 ttft -3.33 passes [('B', 85.1), ('A', 78.48), ('A', 77.97), ('B', 85.61)]
+                                sig {'B': [('dc778c9e36180f1d', 161, 201, 94)], 'A': [('dc778c9e36180f1d', 116, 139, 139)]}
+c-prose-fr-d1-BAAB     document A  77.37 B  84.07 ( +8.67 %) pf -2.31 ttft +2.69 passes [('B', 81.0), ('A', 77.07), ('A', 77.67), ('B', 87.15)]
+                                sig {'B': [('7246099d1a57575d', 163, 188, 91)], 'A': [('7246099d1a57575d', 115, 139, 139)]}
+c-prose-fr-d1-ABBA     short    A  75.52 B  80.79 ( +6.98 %) pf +0.63 ttft -0.76 passes [('A', 80.25), ('B', 83.0), ('B', 78.58), ('A', 70.79)]
+                                sig {'A': [('dc778c9e36180f1d', 116, 139, 139)], 'B': [('dc778c9e36180f1d', 161, 201, 94)]}
+c-prose-fr-d1-ABBA     document A  75.57 B  80.40 ( +6.39 %) pf -6.41 ttft +6.87 passes [('A', 73.82), ('B', 80.41), ('B', 80.38), ('A', 77.32)]
+                                sig {'A': [('7246099d1a57575d', 115, 139, 139)], 'B': [('7246099d1a57575d', 163, 188, 91)]}
+c-prose-fr-d3-BAAB     short    A  80.26 B  84.86 ( +5.73 %) pf -0.10 ttft +0.12 passes [('B', 86.32), ('A', 81.5), ('A', 79.01), ('B', 83.4)]
+                                sig {'B': [('dc778c9e36180f1d', 161, 201, 94)], 'A': [('dc778c9e36180f1d', 168, 261, 87)]}
+c-prose-fr-d3-BAAB     document A  77.95 B  86.39 (+10.83 %) pf +2.07 ttft -2.10 passes [('B', 88.18), ('A', 81.44), ('A', 74.45), ('B', 84.61)]
+                                sig {'B': [('7246099d1a57575d', 163, 188, 91)], 'A': [('7246099d1a57575d', 169, 255, 85)]}
+c-prose-fr-d3-ABBA     short    A  77.19 B  82.42 ( +6.78 %) pf -0.04 ttft +0.06 passes [('A', 77.46), ('B', 78.76), ('B', 86.09), ('A', 76.91)]
+                                sig {'A': [('dc778c9e36180f1d', 168, 261, 87)], 'B': [('dc778c9e36180f1d', 161, 201, 94)]}
+c-prose-fr-d3-ABBA     document A  74.30 B  87.24 (+17.42 %) pf +7.60 ttft -6.87 passes [('A', 74.95), ('B', 85.19), ('B', 89.3), ('A', 73.65)]
+                                sig {'A': [('7246099d1a57575d', 169, 255, 85)], 'B': [('7246099d1a57575d', 163, 188, 91)]}
+decision {"d1": {"changes": {"b-code BAAB short": 5.49, "b-code BAAB document": 1.12, "b-code ABBA short": 8.42, "b-code ABBA document": 3.39, "c-prose-fr BAAB short": 9.11, "c-prose-fr BAAB document": 8.67, "c-prose-fr ABBA short": 6.98, "c-prose-fr ABBA document": 6.39}, "min_change": 1.118442233014738, "all_ge_gain": false, "prefill_ok": false, "ttft_ok": false}, "d3": {"changes": {"b-code BAAB short": -4.02, "b-code BAAB document": 5.7, "b-code ABBA short": -2.19, "b-code ABBA document": 3.64, "c-prose-fr BAAB short": 5.73, "c-prose-fr BAAB document": 10.83, "c-prose-fr ABBA short": 6.78, "c-prose-fr ABBA document": 17.42}, "min_change": -4.0179736494687095, "all_ge_gain": false, "prefill_ok": false, "ttft_ok": false}, "validated_option": false}
+all T3b speed checks passed
+t3b_speed_status passed
+speed_status=0

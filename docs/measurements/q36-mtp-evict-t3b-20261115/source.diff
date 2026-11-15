@@ -1,0 +1,843 @@
+diff --git a/benchmarks/compare_native.py b/benchmarks/compare_native.py
+index 26a3c6ff..af60e554 100644
+--- a/benchmarks/compare_native.py
++++ b/benchmarks/compare_native.py
+@@ -163,6 +163,7 @@ def main():
+     parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
+     parser.add_argument("--mtp-head", type=Path)
+     parser.add_argument("--candidate-mtp-head", type=Path)
++    parser.add_argument("--candidate-mtp-depth", type=int, choices=range(1, 4))
+     parser.add_argument("--dflash-mode", type=int, choices=range(4), default=0)
+     parser.add_argument("--dflash-draft", type=Path)
+     parser.add_argument(
+@@ -193,6 +194,8 @@ def main():
+         parser.error("--mtp-head is required when --mtp-depth > 0")
+     if args.candidate_mtp_head is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
+         parser.error("--candidate-mtp-head requires MTP in both arms")
++    if args.candidate_mtp_depth is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
++        parser.error("--candidate-mtp-depth requires MTP in both arms")
+     if args.dflash_mode > 0 and args.dflash_draft is None:
+         parser.error("--dflash-draft is required when --dflash-mode > 0")
+     if args.mtp_depth > 0 and args.dflash_mode > 0 and not args.compare_mtp_dflash:
+@@ -217,6 +220,7 @@ def main():
+             "warmup_per_prompt": 1,
+             "warmup_tokens": warmup_tokens,
+             "mtp_depth": args.mtp_depth,
++            "candidate_mtp_depth": args.candidate_mtp_depth or args.mtp_depth,
+             "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
+             "candidate_mtp_head": str((args.candidate_mtp_head or args.mtp_head).resolve())
+             if args.mtp_head
+@@ -254,6 +258,8 @@ def main():
+     try:
+         for pass_index, label in enumerate(args.order):
+             mtp_depth = args.mtp_depth if not args.compare_mtp_dflash or label == "A" else 0
++            if label == "B" and args.candidate_mtp_depth:
++                mtp_depth = args.candidate_mtp_depth
+             mtp_head = (
+                 args.candidate_mtp_head
+                 if label == "B" and args.candidate_mtp_head
+diff --git a/native/src/contracts.rs b/native/src/contracts.rs
+index eaf5ff24..268fdd4f 100644
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -3709,6 +3709,77 @@ pub fn mtp_post_norm_setting(value: Option<&str>) -> Option<bool> {
+     }
+ }
+ 
++/// Strict `MLXL3_MTP_EVICT` switch (Q36-MTP-EVICT-T3B). Unset or `0` verifies every
++/// drafted level; `1` truncates the verify width by draft confidence. Anything else is rejected.
++pub fn mtp_evict_setting(value: Option<&str>) -> Option<bool> {
++    match value {
++        None | Some("0") => Some(false),
++        Some("1") => Some(true),
++        Some(_) => None,
++    }
++}
++
++/// `ln` of the T3a calibration band edges 0.5, 0.8, 0.95 and 0.99, as f32.
++pub const EVICT_LOG_EDGES: [f32; 4] = [
++    -std::f32::consts::LN_2,
++    -0.223_143_55,
++    -0.051_293_294,
++    -0.010_050_336,
++];
++
++/// Calibrated survival per drafted level and band, per mille (T3a post-norm traces,
++/// Laplace-smoothed over four prompts). Specific to the 35B compact head on M5.
++pub const EVICT_SURVIVAL: [[u64; 5]; 3] = [
++    [368, 645, 905, 968, 998],
++    [256, 631, 924, 958, 995],
++    [172, 685, 864, 923, 986],
++];
++
++/// Cycle cost model in microseconds (T0b markers): draft by drafted width, verify by
++/// verified rows (1-row cost not measured; 17 ms assumed), greedy plus commit tail.
++pub const EVICT_DRAFT_US: [u64; 4] = [0, 1_310, 2_450, 3_600];
++pub const EVICT_VERIFY_US: [u64; 4] = [17_000, 21_300, 29_000, 33_300];
++pub const EVICT_TAIL_US: u64 = 750;
++
++/// Calibration band of a draft level's top-1 log-probability; `None` if not finite.
++pub fn evict_band(log_prob: f32) -> Option<usize> {
++    if !log_prob.is_finite() {
++        return None;
++    }
++    Some(
++        EVICT_LOG_EDGES
++            .iter()
++            .filter(|&&edge| log_prob >= edge)
++            .count(),
++    )
++}
++
++/// Verified prefix length maximizing (1 + E[accepted]) / cost for one drafted cycle.
++/// Exact integer arithmetic; ties keep the shorter prefix. `None` for invalid input.
++pub fn evict_width(bands: &[usize], width: usize) -> Option<usize> {
++    if width > 3 || bands.len() != width || bands.iter().any(|&band| band > 4) {
++        return None;
++    }
++    const SCALE: u64 = 1_000_000_000;
++    let mut survive = SCALE;
++    let mut expected = 0u64;
++    let mut best = (
++        0usize,
++        SCALE,
++        EVICT_DRAFT_US[width] + EVICT_VERIFY_US[0] + EVICT_TAIL_US,
++    );
++    for k in 1..=width {
++        survive = survive / 1_000 * EVICT_SURVIVAL[k - 1][bands[k - 1]];
++        expected += survive;
++        let numerator = SCALE + expected;
++        let cost = EVICT_DRAFT_US[width] + EVICT_VERIFY_US[k] + EVICT_TAIL_US;
++        if u128::from(numerator) * u128::from(best.2) > u128::from(best.1) * u128::from(cost) {
++            best = (k, numerator, cost);
++        }
++    }
++    Some(best.0)
++}
++
+ /// The 35B lm_head (K6 MCG, 2048 -> 248320) measured on M5 in Q36-HEAD3-P22/HEAD4-P23.
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn q36_head_lane_shape(input: i32, output: i32, k: usize, mcg: bool, m5: bool) -> bool {
+@@ -3825,6 +3896,165 @@ fn mtp_post_norm_setting_is_exact() {
+     }
+ }
+ 
++#[test]
++fn mtp_evict_setting_is_exact() {
++    for (value, expected) in [
++        (None, Some(false)),
++        (Some("0"), Some(false)),
++        (Some("1"), Some(true)),
++        (Some(""), None),
++        (Some("2"), None),
++        (Some("01"), None),
++        (Some(" 1"), None),
++        (Some("true"), None),
++    ] {
++        assert_eq!(mtp_evict_setting(value), expected, "{value:?}");
++    }
++}
++
++#[test]
++fn evict_band_matches_calibration_edges() {
++    assert_eq!(evict_band(0.0), Some(4));
++    assert_eq!(evict_band(f32::NEG_INFINITY), None);
++    assert_eq!(evict_band(f32::NAN), None);
++    assert_eq!(evict_band(f32::INFINITY), None);
++    assert_eq!(evict_band(-100.0), Some(0));
++    for (probability, band) in [(0.3f64, 0), (0.6, 1), (0.9, 2), (0.97, 3), (0.995, 4)] {
++        assert_eq!(
++            evict_band(f64::ln(probability) as f32),
++            Some(band),
++            "{probability}"
++        );
++    }
++    for (index, edge) in EVICT_LOG_EDGES.into_iter().enumerate() {
++        // An edge belongs to the band above it; the next float below does not.
++        assert_eq!(evict_band(edge), Some(index + 1));
++        assert_eq!(evict_band(f32::from_bits(edge.to_bits() + 1)), Some(index));
++        let probability = [0.5f64, 0.8, 0.95, 0.99][index];
++        assert!((f64::from(edge) - probability.ln()).abs() < 1e-7);
++    }
++}
++
++#[test]
++fn evict_width_matches_a_float_enumeration() {
++    // Independent oracle: floating-point expected tokens per microsecond over every prefix.
++    let oracle = |bands: &[usize]| {
++        let width = bands.len();
++        let cost = |k: usize| (EVICT_DRAFT_US[width] + EVICT_VERIFY_US[k] + EVICT_TAIL_US) as f64;
++        let mut values = vec![1.0 / cost(0)];
++        let (mut survive, mut expected) = (1.0f64, 0.0f64);
++        for (k, &band) in bands.iter().enumerate() {
++            survive *= EVICT_SURVIVAL[k][band] as f64 / 1000.0;
++            expected += survive;
++            values.push((1.0 + expected) / cost(k + 1));
++        }
++        let best = values.iter().cloned().fold(f64::MIN, f64::max);
++        // No near-tie in this table: the float argmax must be unique.
++        assert!(
++            values
++                .iter()
++                .filter(|&&v| (v - best).abs() < best * 1e-12)
++                .count()
++                == 1
++        );
++        values.iter().position(|&v| v == best).unwrap()
++    };
++    let mut chosen = [0usize; 4];
++    for width in 0..=3usize {
++        for code in 0..5usize.pow(width as u32) {
++            let bands: Vec<usize> = (0..width)
++                .map(|i| code / 5usize.pow(i as u32) % 5)
++                .collect();
++            let k = evict_width(&bands, width).unwrap();
++            assert_eq!(k, oracle(&bands), "{bands:?}");
++            if width == 3 {
++                chosen[k] += 1;
++            }
++        }
++    }
++    // With this calibration the first level always pays for itself (level-1 survival is at
++    // least 36.8 %), so k = 0 only occurs for an empty draft; k = 1, 2 and 3 are all reachable.
++    assert_eq!(chosen, [0, 41, 14, 70]);
++    assert_eq!(evict_width(&[4, 4, 4], 3), Some(3));
++    assert_eq!(evict_width(&[0, 0, 0], 3), Some(1));
++    assert_eq!(evict_width(&[], 0), Some(0));
++    assert_eq!(evict_width(&[4, 4], 3), None);
++    assert_eq!(evict_width(&[5], 1), None);
++    assert_eq!(evict_width(&[4, 4, 4, 4], 4), None);
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(10)]
++fn mtp_evict_setting_is_strict() {
++    let bytes: [u8; 4] = kani::any();
++    let length = usize::from(kani::any::<u8>() % 5);
++    let present: bool = kani::any();
++    let decoded = std::str::from_utf8(&bytes[..length]);
++    let value = decoded.unwrap_or("");
++    let setting = mtp_evict_setting(present.then_some(value));
++    let expected = if !present || (length == 1 && bytes[0] == b'0') {
++        Some(false)
++    } else if length == 1 && bytes[0] == b'1' {
++        Some(true)
++    } else {
++        None
++    };
++    assert_eq!(setting, expected);
++    kani::cover!(!present && setting == Some(false));
++    kani::cover!(present && setting == Some(true));
++    kani::cover!(present && length > 1 && setting.is_none());
++    kani::cover!(present && decoded.is_err() && setting.is_none());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(6)]
++fn evict_band_is_total_and_monotone() {
++    let (a, b): (f32, f32) = kani::any();
++    let (band_a, band_b) = (evict_band(a), evict_band(b));
++    assert_eq!(band_a.is_some(), a.is_finite());
++    if let Some(band) = band_a {
++        assert!(band <= 4);
++        assert_eq!(band == 4, a >= EVICT_LOG_EDGES[3]);
++        assert_eq!(band == 0, a < EVICT_LOG_EDGES[0]);
++    }
++    if let (Some(x), Some(y)) = (band_a, band_b)
++        && a <= b
++    {
++        assert!(x <= y);
++    }
++    kani::cover!(band_a == Some(0));
++    kani::cover!(band_a == Some(2));
++    kani::cover!(band_a == Some(4));
++    kani::cover!(band_a.is_none());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(6)]
++fn evict_width_is_bounded_and_rejects_invalid_input() {
++    let bands: [usize; 4] = kani::any();
++    let length = usize::from(kani::any::<u8>() % 5);
++    let width: usize = kani::any();
++    kani::assume(width <= 5);
++    let result = evict_width(&bands[..length], width);
++    let valid = width <= 3 && length == width && bands[..length].iter().all(|&b| b <= 4);
++    assert_eq!(result.is_some(), valid);
++    if let Some(k) = result {
++        assert!(k <= width);
++        assert_eq!(k == 0, width == 0);
++        if width == 3 && bands[..3].iter().all(|&b| b == 4) {
++            assert_eq!(k, 3);
++        }
++    }
++    kani::cover!(result == Some(0) && width == 0);
++    kani::cover!(result == Some(1) && width == 3);
++    kani::cover!(result == Some(2) && width == 3);
++    kani::cover!(result == Some(3));
++    kani::cover!(result.is_none() && width <= 3);
++}
++
+ #[cfg(kani)]
+ #[kani::proof]
+ #[kani::unwind(10)]
+diff --git a/native/src/lib.rs b/native/src/lib.rs
+index 315474a8..b70333ea 100644
+--- a/native/src/lib.rs
++++ b/native/src/lib.rs
+@@ -21,9 +21,10 @@ pub mod quantize;
+ pub mod tensor_layout;
+ pub mod transaction;
+ pub use contracts::{
+-    GenerationStopReason, QwenPipeline, exl3_lane_order_enabled, exl3_lane_order_key,
+-    mtp_post_norm_setting, native_prompt_reuse, q36_head_lane_setting, qwen_pipeline,
+-    qwen_pipeline_key, reusable_prefix_len, smallm_kernel_key,
++    GenerationStopReason, QwenPipeline, evict_band, evict_width, exl3_lane_order_enabled,
++    exl3_lane_order_key, mtp_evict_setting, mtp_post_norm_setting, native_prompt_reuse,
++    q36_head_lane_setting, qwen_pipeline, qwen_pipeline_key, reusable_prefix_len,
++    smallm_kernel_key,
+ };
+ #[cfg(feature = "mlx")]
+ pub use contracts::{switch_glu_layout, switch_glu_route_rows};
+diff --git a/native/src/mtp.rs b/native/src/mtp.rs
+index b34b8e40..d3f9c2df 100644
+--- a/native/src/mtp.rs
++++ b/native/src/mtp.rs
+@@ -364,7 +364,7 @@ mod native {
+     use super::*;
+     use crate::{
+         affine::AffineLinear,
+-        array::Array,
++        array::{Array, Dtype},
+         lfm2::half_weight,
+         qwen35::{Attention, Qwen35Moe},
+         router,
+@@ -384,6 +384,8 @@ mod native {
+         draft_head: Option<AffineLinear>,
+         draft_ids: Option<Array>,
+         wiring: Wiring,
++        /// Q36-MTP-EVICT-T3B: truncate the verify width by draft confidence.
++        evict: bool,
+     }
+ 
+     /// Which MTP inputs are normalized (Q36-MTP-POSTNORM-T1/T1B). Production
+@@ -420,6 +422,17 @@ mod native {
+         }
+     }
+ 
++    /// Strict `MLXL3_MTP_EVICT` (Q36-MTP-EVICT-T3B), read once with the head.
++    fn evict_from_env() -> Result<bool> {
++        const MESSAGE: &str = "MLXL3_MTP_EVICT must be 0 or 1";
++        let value = match std::env::var("MLXL3_MTP_EVICT") {
++            Ok(value) => Some(value),
++            Err(std::env::VarError::NotPresent) => None,
++            Err(error) => return Err(error).context(MESSAGE),
++        };
++        crate::contracts::mtp_evict_setting(value.as_deref()).context(MESSAGE)
++    }
++
+     pub struct Cache {
+         keys: Array,
+         values: Array,
+@@ -474,6 +487,7 @@ mod native {
+                 "generation cancelled"
+             );
+             let wiring = Wiring::from_env()?;
++            let evict = evict_from_env()?;
+             let (checkpoint, layout) = inspect(path)?;
+             ensure!(
+                 target.mtp_layout() == &layout,
+@@ -643,6 +657,7 @@ mod native {
+                 draft_head,
+                 draft_ids,
+                 wiring,
++                evict,
+             };
+             ensure!(
+                 !cancelled.load(std::sync::atomic::Ordering::Relaxed),
+@@ -655,6 +670,11 @@ mod native {
+             self.attention.set_state(None, None)
+         }
+ 
++        #[cfg(test)]
++        pub(crate) fn evict(&self) -> bool {
++            self.evict
++        }
++
+         #[cfg(test)]
+         pub(crate) fn compact_vocabulary(&self) -> bool {
+             self.draft_ids.is_some()
+@@ -833,11 +853,13 @@ mod native {
+             hidden: &Array,
+             anchor: u32,
+             width: usize,
+-        ) -> Result<(Vec<u32>, Cache)> {
++        ) -> Result<(Vec<u32>, Cache, Option<Vec<f32>>)> {
+             ensure!((1..=3).contains(&width), "invalid MTP chain width");
+             let mut token = Array::from_u32(&[anchor], &[1, 1])?;
+             let mut hidden = hidden.try_clone()?;
+             let mut proposed = Vec::with_capacity(width);
++            // EVICT: each level's top-1 log-probability, as f32 bits riding the ID transfer.
++            let mut tops = Vec::new();
+             let mut exact = None;
+             #[cfg(test)]
+             let mut captured = Vec::new();
+@@ -863,6 +885,17 @@ mod native {
+                     captured.push(log_probs.try_clone()?);
+                 }
+                 token = log_probs.argmax()?.reshape(&[1, 1])?;
++                if self.evict {
++                    let vocab = *log_probs.shape().last().context("empty MTP log-probs")?;
++                    tops.push(
++                        log_probs
++                            .reshape(&[vocab])?
++                            .take(&token.reshape(&[1])?, 0)?
++                            .astype(Dtype::Float32)?
++                            .view(Dtype::UInt32)?
++                            .reshape(&[1, 1])?,
++                    );
++                }
+                 if let Some(ids) = &self.draft_ids {
+                     token = ids.take(&token, 0)?;
+                 }
+@@ -871,7 +904,21 @@ mod native {
+             #[cfg(test)]
+             super::cycle_trace::mark("draft_graph");
+             // One lazy device chain / one transfer, rather than D host argmaxes.
+-            let proposed = Array::concatenate(&proposed.iter().collect::<Vec<_>>(), 1)?.to_u32()?;
++            let mut proposed =
++                Array::concatenate(&proposed.iter().chain(&tops).collect::<Vec<_>>(), 1)?
++                    .to_u32()?;
++            let tops = if self.evict {
++                ensure!(proposed.len() == 2 * width, "invalid MTP EVICT transfer");
++                Some(
++                    proposed
++                        .split_off(width)
++                        .into_iter()
++                        .map(f32::from_bits)
++                        .collect(),
++                )
++            } else {
++                None
++            };
+             #[cfg(test)]
+             super::cycle_trace::mark("draft_ready");
+             #[cfg(test)]
+@@ -883,7 +930,7 @@ mod native {
+                 }
+                 super::cycle_trace::mark("confidence_ready");
+             }
+-            Ok((proposed, exact.context("missing MTP first cache")?))
++            Ok((proposed, exact.context("missing MTP first cache")?, tops))
+         }
+ 
+         pub fn forward(
+@@ -1053,13 +1100,26 @@ mod native {
+             let lookup =
+                 crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
+             let is_lookup = lookup.is_some();
+-            let (proposals, exact_first_cache) = if let Some(proposals) = lookup {
++            let (mut proposals, exact_first_cache, tops) = if let Some(proposals) = lookup {
+                 let proposals = proposals.to_vec();
+                 head.append_cache(target, &hidden, &[anchor])?;
+-                (proposals, head.snapshot()?)
++                (proposals, head.snapshot()?, None)
+             } else {
+                 head.draft_chain(target, &hidden, anchor, width)?
+             };
++            if let Some(tops) = tops {
++                // Exact greedy verify accepts any prefix; EVICT only chooses its length.
++                let bands = tops
++                    .iter()
++                    .map(|&top| crate::contracts::evict_band(top))
++                    .collect::<Option<Vec<_>>>()
++                    .context("non-finite MTP draft confidence")?;
++                let kept = crate::contracts::evict_width(&bands, proposals.len())
++                    .context("invalid MTP EVICT width")?;
++                #[cfg(test)]
++                super::cycle_trace::evict(proposals.len(), &tops, kept);
++                proposals.truncate(kept);
++            }
+             let width = proposals.len();
+             let verification = std::iter::once(anchor)
+                 .chain(proposals.iter().copied())
+@@ -1316,6 +1376,15 @@ pub(crate) mod cycle_trace {
+         pub finite: bool,
+     }
+ 
++    /// One EVICT decision: drafted levels, the device top-1 log-probability bits
++    /// that rode the ID transfer, and the verified prefix length.
++    #[derive(Clone, Debug, serde::Serialize)]
++    pub(crate) struct Eviction {
++        pub drafted: usize,
++        pub top_bits: Vec<u32>,
++        pub kept: usize,
++    }
++
+     #[derive(Debug, Default, serde::Serialize)]
+     pub(crate) struct Recording {
+         pub confidence: bool,
+@@ -1323,6 +1392,8 @@ pub(crate) mod cycle_trace {
+         pub overflowed: bool,
+         pub marks: Vec<Mark>,
+         pub levels: Vec<Level>,
++        #[serde(skip_serializing_if = "Vec::is_empty")]
++        pub evictions: Vec<Eviction>,
+     }
+ 
+     thread_local! {
+@@ -1365,6 +1436,22 @@ pub(crate) mod cycle_trace {
+         });
+     }
+ 
++    pub(crate) fn evict(drafted: usize, tops: &[f32], kept: usize) {
++        RECORDER.with_borrow_mut(|recording| {
++            if let Some(r) = recording {
++                if r.evictions.len() < r.capacity {
++                    r.evictions.push(Eviction {
++                        drafted,
++                        top_bits: tops.iter().map(|top| top.to_bits()).collect(),
++                        kept,
++                    });
++                } else {
++                    r.overflowed = true;
++                }
++            }
++        });
++    }
++
+     pub(crate) fn confidence() -> bool {
+         RECORDER.with_borrow(|r| r.as_ref().is_some_and(|r| r.confidence))
+     }
+@@ -1429,7 +1516,19 @@ pub(crate) mod cycle_trace {
+         assert_eq!((b.host_proposal, b.top1_ties, b.finite), (41, 1, false));
+         assert_eq!((b.top1_log_prob, b.top2_log_prob), (-0.25, -2.0));
+         mark("ignored without recorder");
++        evict(3, &[-0.5, -1.0, -2.0], 1);
+         assert!(!confidence() && finish().is_none());
++        start(false, 1);
++        evict(2, &[-0.25, f32::NEG_INFINITY], 1);
++        evict(1, &[0.0], 1);
++        let r = finish().unwrap();
++        assert!(r.overflowed && r.evictions.len() == 1 && r.levels.is_empty());
++        let e = &r.evictions[0];
++        assert_eq!((e.drafted, e.kept), (2, 1));
++        assert_eq!(
++            e.top_bits,
++            [(-0.25f32).to_bits(), f32::NEG_INFINITY.to_bits()]
++        );
+     }
+ }
+ 
+@@ -1530,11 +1629,13 @@ mod cycle_diagnostics {
+             head.use_target_draft_head();
+         }
+         let hidden_variant = head.wiring_name();
++        let evict = head.evict();
+         let tokenizer = ChatTokenizer::load(Path::new(&model_path))?;
+         let mut report = serde_json::json!({
+             "tokens": tokens, "warmup": warmup, "confidence": confidence,
+             "hidden_variant": hidden_variant,
+-            "env_post_norm": env_post_norm,
++            "env_post_norm": env_post_norm, "evict": evict,
++            "env_evict": std::env::var("MLXL3_MTP_EVICT").ok(),
+             "env_pipeline": std::env::var("MLXL3_QWEN_PIPELINE").ok(),
+             "env_head_lane": std::env::var("MLXL3_Q36_HEAD_LANE").ok(),
+             "compact_head": head.compact_vocabulary(), "cases": [],
+@@ -1645,11 +1746,57 @@ mod cycle_diagnostics {
+                                 .all(|w| w[0].uptime_ns <= w[1].uptime_ns),
+                             "marks are not monotonic"
+                         );
++                        // EVICT drafts `drafted` levels and verifies the first `kept`.
++                        let drafted = if evict {
++                            let e = &recording.evictions;
++                            ensure!(
++                                e.len() == session.blocks
++                                    && e.iter().map(|e| e.kept).sum::<usize>() == session.proposed
++                                    && e.iter().zip(cycles.iter().filter(|c| c[0] > 0)).all(
++                                        |(e, c)| e.kept == c[0]
++                                            && e.kept <= e.drafted
++                                            && e.drafted <= depth
++                                            && e.top_bits.len() == e.drafted
++                                    ),
++                                "{name} depth {depth}: EVICT records disagree with cycles"
++                            );
++                            for e in e {
++                                let bands = e
++                                    .top_bits
++                                    .iter()
++                                    .map(|&bits| crate::contracts::evict_band(f32::from_bits(bits)))
++                                    .collect::<Option<Vec<_>>>()
++                                    .context("non-finite EVICT top")?;
++                                ensure!(
++                                    crate::contracts::evict_width(&bands, e.drafted)
++                                        == Some(e.kept),
++                                    "{name} depth {depth}: recorded EVICT width is not the policy's"
++                                );
++                            }
++                            e.iter().map(|e| e.drafted).sum()
++                        } else {
++                            ensure!(recording.evictions.is_empty(), "EVICT recorded while off");
++                            session.proposed
++                        };
+                         if confidence {
+                             ensure!(
+-                                recording.levels.len() == session.proposed,
+-                                "one confidence level per proposal"
++                                recording.levels.len() == drafted,
++                                "one confidence level per drafted level"
+                             );
++                            if evict {
++                                let device = recording.evictions.iter().flat_map(|e| &e.top_bits);
++                                let differing = recording
++                                    .levels
++                                    .iter()
++                                    .zip(device)
++                                    .filter(|(l, bits)| l.top1_log_prob.to_bits() != **bits)
++                                    .count();
++                                case["evict_top_bit_mismatches"] = differing.into();
++                                ensure!(
++                                    differing == 0,
++                                    "{name} depth {depth}: {differing} device/host top-1 bit mismatches"
++                                );
++                            }
+                             ensure!(
+                                 recording.levels.iter().all(|l| l.finite
+                                     && l.top1_log_prob.is_finite()
+diff --git a/native/src/mtp_tune.rs b/native/src/mtp_tune.rs
+index 2a8e9c73..1732fc72 100644
+--- a/native/src/mtp_tune.rs
++++ b/native/src/mtp_tune.rs
+@@ -21,6 +21,7 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
+         ),
+         q36_head_lane()?,
+         mtp_post_norm()?,
++        mtp_evict()?,
+     )
+ }
+ 
+@@ -35,6 +36,17 @@ fn mtp_post_norm() -> Result<bool> {
+     mlxl3_native::mtp_post_norm_setting(value.as_deref()).context(MESSAGE)
+ }
+ 
++/// EVICT changes every verify width, so its calibrations stay separate (Q36-MTP-EVICT-T3B).
++fn mtp_evict() -> Result<bool> {
++    const MESSAGE: &str = "MLXL3_MTP_EVICT must be 0 or 1";
++    let value = match std::env::var("MLXL3_MTP_EVICT") {
++        Ok(value) => Some(value),
++        Err(std::env::VarError::NotPresent) => None,
++        Err(error) => return Err(error).context(MESSAGE),
++    };
++    mlxl3_native::mtp_evict_setting(value.as_deref()).context(MESSAGE)
++}
++
+ /// Calibrations under the Q36 head lane rollback switch stay separate from the default.
+ fn q36_head_lane() -> Result<bool> {
+     const MESSAGE: &str = "MLXL3_Q36_HEAD_LANE must be 0 or 1";
+@@ -66,6 +78,7 @@ fn runtime_key_with_options(
+     lane_order: bool,
+     head_lane: bool,
+     post_norm: bool,
++    evict: bool,
+ ) -> Result<String> {
+     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
+         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
+@@ -84,7 +97,7 @@ fn runtime_key_with_options(
+         .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?,
+     );
+     Ok(format!(
+-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
++        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:mtppostnorm-v1={}:mtpevict-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
+         artifact_key(path)?,
+         env!("CARGO_PKG_VERSION"),
+         env!("MLXL3_BUILD_REVISION"),
+@@ -95,6 +108,7 @@ fn runtime_key_with_options(
+         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
+         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
+         u8::from(post_norm),
++        u8::from(evict),
+         u8::from(head_lane),
+         mlxl3_native::exl3_lane_order_key(lane_order),
+         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
+@@ -130,7 +144,7 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+     let directory = tempfile::tempdir()?;
+     std::fs::write(directory.path().join("config.json"), "{}")?;
+     let mut keys = std::collections::HashSet::new();
+-    for post_norm in [false, true] {
++    for (post_norm, evict) in [(false, false), (true, false), (false, true), (true, true)] {
+         for head_lane in [false, true] {
+             for lane_order in [false, true] {
+                 for (dense, mb3, suffix) in [
+@@ -148,11 +162,13 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+                         lane_order,
+                         head_lane,
+                         post_norm,
++                        evict,
+                     )?;
+                     anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
+                     anyhow::ensure!(key.contains(&format!(
+-                        ":mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
++                        ":mtppostnorm-v1={}:mtpevict-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
+                         u8::from(post_norm),
++                        u8::from(evict),
+                         u8::from(head_lane),
+                         u8::from(lane_order),
+                     )));
+@@ -161,7 +177,7 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+             }
+         }
+     }
+-    anyhow::ensure!(keys.len() == 32);
++    anyhow::ensure!(keys.len() == 64);
+     let production = runtime_key(directory.path(), 4096)?;
+     anyhow::ensure!(keys.contains(&production), "production key not recognized");
+     Ok(())
+@@ -182,6 +198,7 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
+             false,
+             true,
+             false,
++            false,
+         )?;
+         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
+     }
+@@ -195,7 +212,8 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
+                 Some(invalid),
+                 false,
+                 true,
+-                false
++                false,
++                false,
+             )
+             .is_err()
+         );
+diff --git a/scripts/kani_obligations.json b/scripts/kani_obligations.json
+index 862378f8..a517b678 100644
+--- a/scripts/kani_obligations.json
++++ b/scripts/kani_obligations.json
+@@ -8,6 +8,9 @@
+     "contracts::q36_lane_shape_admission",
+     "contracts::q36_head_lane_setting_is_strict",
+     "contracts::mtp_post_norm_setting_is_strict",
++    "contracts::mtp_evict_setting_is_strict",
++    "contracts::evict_band_is_total_and_monotone",
++    "contracts::evict_width_is_bounded_and_rejects_invalid_input",
+     "contracts::q36_head_lane_layout_admission_and_grid",
+     "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
+     "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",
+diff --git a/tests/test_compare_native.py b/tests/test_compare_native.py
+index bee29d25..ed4a1102 100644
+--- a/tests/test_compare_native.py
++++ b/tests/test_compare_native.py
+@@ -197,6 +197,95 @@ def test_distinct_heads_reach_every_warmup_and_measured_request(tmp_path):
+         assert entry["mtp_head"] == str(tmp_path / expected)
+ 
+ 
++@pytest.mark.parametrize(("baseline", "candidate"), [(1, 2), (1, 3), (3, 1), (2, 2)])
++def test_candidate_depth_reaches_only_the_candidate_arm(tmp_path, baseline, candidate):
++    run, _, report = run_campaign(
++        tmp_path,
++        order="ABBAAB",
++        extra_args=[
++            "--mtp-depth",
++            str(baseline),
++            "--mtp-head",
++            str(tmp_path / "head"),
++            "--candidate-mtp-depth",
++            str(candidate),
++            "--warmup-tokens",
++            "2",
++        ],
++        expected_mtp=baseline,
++        candidate_mtp=candidate,
++    )
++    assert run.returncode == 0, run.stderr
++    assert report["status"] == "complete" and report["parity"] is True
++    assert report["protocol"]["mtp_depth"] == baseline
++    assert report["protocol"]["candidate_mtp_depth"] == candidate
++    assert [entry["mtp_depth"] for entry in report["passes"]] == [
++        candidate if label == "B" else baseline for label in "ABBAAB"
++    ]
++    for entry in report["passes"]:
++        for prompt in entry["prompts"].values():
++            assert prompt["warmup"]["stats"]["generated_tokens"] == 2
++            assert [r["stats"]["generated_tokens"] for r in prompt["runs"]] == [4, 4]
++
++
++def test_candidate_depth_is_recorded_as_the_shared_depth_by_default(tmp_path):
++    run, _, report = run_campaign(
++        tmp_path,
++        extra_args=["--mtp-depth", "2", "--mtp-head", str(tmp_path / "head")],
++        expected_mtp=2,
++    )
++    assert run.returncode == 0, run.stderr
++    assert report["protocol"]["candidate_mtp_depth"] == 2
++    assert {entry["mtp_depth"] for entry in report["passes"]} == {2}
++
++
++@pytest.mark.parametrize(
++    "arguments",
++    [
++        ["--candidate-mtp-depth", "2"],
++        ["--mtp-depth", "0", "--candidate-mtp-depth", "2"],
++        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "0"],
++        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "4"],
++        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "x"],
++        [
++            "--mtp-depth",
++            "1",
++            "--mtp-head",
++            "head",
++            "--dflash-mode",
++            "1",
++            "--dflash-draft",
++            "draft",
++            "--compare-mtp-dflash",
++            "--candidate-mtp-depth",
++            "2",
++        ],
++    ],
++)
++def test_invalid_candidate_depth_never_launches_an_engine(tmp_path, arguments):
++    run = subprocess.run(
++        [
++            sys.executable,
++            str(ROOT / "benchmarks/compare_native.py"),
++            str(tmp_path),
++            "--baseline",
++            str(tmp_path / "missing-A"),
++            "--candidate",
++            str(tmp_path / "missing-B"),
++            "--output",
++            str(tmp_path / "results"),
++            *arguments,
++        ],
++        capture_output=True,
++        text=True,
++        check=False,
++        cwd=tmp_path,
++        timeout=10,
++    )
++    assert run.returncode == 2, run.stderr
++    assert not (tmp_path / "results").exists()
++
++
+ def test_candidate_head_without_mtp_never_launches_an_engine(tmp_path):
+     run = subprocess.run(
+         [
+diff --git a/tests/test_kani_ci.py b/tests/test_kani_ci.py
+index d8566b41..00cb372b 100644
+--- a/tests/test_kani_ci.py
++++ b/tests/test_kani_ci.py
+@@ -129,6 +129,9 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
+         "contracts::q36_lane_shape_admission",
+         "contracts::q36_head_lane_setting_is_strict",
+         "contracts::mtp_post_norm_setting_is_strict",
++        "contracts::mtp_evict_setting_is_strict",
++        "contracts::evict_band_is_total_and_monotone",
++        "contracts::evict_width_is_bounded_and_rejects_invalid_input",
+         "contracts::q36_head_lane_layout_admission_and_grid",
+         "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
+         "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",

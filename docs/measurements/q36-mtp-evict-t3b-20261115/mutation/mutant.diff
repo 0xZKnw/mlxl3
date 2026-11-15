@@ -1,0 +1,12 @@
+diff --git a/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-mtp-evict-t3b-20261115/mutation/mtp.rs.orig b/native/src/mtp.rs
+index d3f9c2df..dfa9d84c 100644
+--- a/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-mtp-evict-t3b-20261115/mutation/mtp.rs.orig
++++ b/native/src/mtp.rs
+@@ -1115,6 +1115,7 @@ mod native {
+                     .collect::<Option<Vec<_>>>()
+                     .context("non-finite MTP draft confidence")?;
+                 let kept = crate::contracts::evict_width(&bands, proposals.len())
++                    .map(|_| proposals.len())
+                     .context("invalid MTP EVICT width")?;
+                 #[cfg(test)]
+                 super::cycle_trace::evict(proposals.len(), &tops, kept);

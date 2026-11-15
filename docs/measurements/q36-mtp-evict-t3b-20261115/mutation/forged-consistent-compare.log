@@ -1,0 +1,22 @@
+mutation/forged-consistent.json: 12 cases, mode evict
+a-short-fr MTP1 {"cycles": 139, "ref_cycles": 139, "accepted": 116, "ref_accepted": 116, "proposed": 139, "ref_proposed": 139, "drafted": 139, "kept_histogram": [0, 139, 0, 0], "near_edge_levels": 0}
+a-short-fr MTP2 {"cycles": 110, "ref_cycles": 104, "accepted": 145, "ref_accepted": 151, "proposed": 220, "ref_proposed": 207, "drafted": 220, "kept_histogram": [0, 0, 110, 0], "near_edge_levels": 0}
+a-short-fr MTP3 {"cycles": 94, "ref_cycles": 87, "accepted": 161, "ref_accepted": 168, "proposed": 282, "ref_proposed": 261, "drafted": 282, "kept_histogram": [0, 0, 0, 94], "near_edge_levels": 0}
+b-code MTP1 {"cycles": 141, "ref_cycles": 141, "accepted": 114, "ref_accepted": 114, "proposed": 140, "ref_proposed": 140, "drafted": 140, "kept_histogram": [0, 140, 0, 0], "near_edge_levels": 0}
+b-code MTP2 {"cycles": 112, "ref_cycles": 107, "accepted": 143, "ref_accepted": 148, "proposed": 222, "ref_proposed": 212, "drafted": 222, "kept_histogram": [0, 0, 111, 0], "near_edge_levels": 0}
+b-code MTP3 {"cycles": 100, "ref_cycles": 94, "accepted": 155, "ref_accepted": 161, "proposed": 300, "ref_proposed": 282, "drafted": 300, "kept_histogram": [0, 0, 0, 100], "near_edge_levels": 0}
+c-prose-fr MTP1 {"cycles": 140, "ref_cycles": 140, "accepted": 115, "ref_accepted": 115, "proposed": 139, "ref_proposed": 139, "drafted": 139, "kept_histogram": [0, 139, 0, 0], "near_edge_levels": 0}
+c-prose-fr MTP2 {"cycles": 104, "ref_cycles": 102, "accepted": 151, "ref_accepted": 153, "proposed": 207, "ref_proposed": 203, "drafted": 207, "kept_histogram": [0, 1, 103, 0], "near_edge_levels": 0}
+c-prose-fr MTP3 {"cycles": 92, "ref_cycles": 86, "accepted": 163, "ref_accepted": 169, "proposed": 273, "ref_proposed": 255, "drafted": 273, "kept_histogram": [0, 0, 0, 91], "near_edge_levels": 0}
+d-doc-summary MTP1 {"cycles": 138, "ref_cycles": 138, "accepted": 117, "ref_accepted": 117, "proposed": 137, "ref_proposed": 137, "drafted": 137, "kept_histogram": [0, 137, 0, 0], "near_edge_levels": 0}
+d-doc-summary MTP2 {"cycles": 109, "ref_cycles": 99, "accepted": 146, "ref_accepted": 156, "proposed": 218, "ref_proposed": 196, "drafted": 218, "kept_histogram": [0, 0, 109, 0], "near_edge_levels": 0}
+d-doc-summary MTP3 {"cycles": 93, "ref_cycles": 85, "accepted": 162, "ref_accepted": 170, "proposed": 276, "ref_proposed": 252, "drafted": 276, "kept_histogram": [0, 0, 0, 92], "near_edge_levels": 0}
+('a-short-fr', 2): 0 device/host bit mismatches, 44 k mismatches (0 near edges)
+('a-short-fr', 3): 0 device/host bit mismatches, 47 k mismatches (0 near edges)
+('b-code', 2): 0 device/host bit mismatches, 47 k mismatches (0 near edges)
+('b-code', 3): 0 device/host bit mismatches, 53 k mismatches (0 near edges)
+('c-prose-fr', 2): 0 device/host bit mismatches, 39 k mismatches (0 near edges)
+('c-prose-fr', 3): 0 device/host bit mismatches, 48 k mismatches (0 near edges)
+('d-doc-summary', 2): 0 device/host bit mismatches, 49 k mismatches (0 near edges)
+('d-doc-summary', 3): 0 device/host bit mismatches, 47 k mismatches (0 near edges)
+no MTP2/MTP3 case truncates: EVICT not exercised

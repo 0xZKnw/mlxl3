@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v2.0.11 (/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0)
+error: approximate value of `f{32, 64}::consts::LN_2` found
+    --> native/src/contracts.rs:3723:41
+     |
+3723 | pub const EVICT_LOG_EDGES: [f32; 4] = [-0.693_147_2, -0.223_143_55, -0.051_293_294, -0.010_050_336];
+     |                                         ^^^^^^^^^^^
+     |
+     = help: consider using the constant directly
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#approx_constant
+     = note: `#[deny(clippy::approx_constant)]` on by default
+
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: casting to the same type is unnecessary (`f64` -> `f64`)
+    --> native/src/contracts.rs:3919:24
+     |
+3919 |             evict_band((probability as f64).ln() as f32),
+     |                        ^^^^^^^^^^^^^^^^^^^^ help: try: `probability`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unnecessary_cast
+     = note: `-D clippy::unnecessary-cast` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::unnecessary_cast)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors
