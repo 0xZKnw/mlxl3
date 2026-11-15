@@ -25,7 +25,7 @@ struct StudioAurora: View {
     .accessibilityHidden(true)
   }
 
-  fileprivate static func prints(size: CGSize, fullHeight: Bool, image: CGImage = artwork.still) -> some View {
+  static func prints(size: CGSize, fullHeight: Bool, image: CGImage = artwork.still) -> some View {
     let height = fullHeight ? size.height * 0.79 : min(size.height * 0.48, size.width * 0.42)
     return ZStack(alignment: .topLeading) {
       ForEach(curtains.indices, id: \.self) { index in
@@ -51,7 +51,7 @@ struct StudioAurora: View {
     ]
 
   // The still print and the animated alphabet use the same Menlo typeface.
-  fileprivate static let artwork: (still: CGImage, light: CGImage, alphabet: CGImage) = {
+  static let artwork: (still: CGImage, light: CGImage, alphabet: CGImage) = {
     let width = 740
     let height = 620
     let colors = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -136,6 +136,32 @@ struct StudioAurora: View {
   }()
 }
 
+/// Stops drawing while the window cannot be seen (minimized, hidden, fully covered).
+/// The scene clamps each frame step, so the field resumes where it stopped.
+final class AuroraView: SKView {
+  private var occlusion: NSObjectProtocol?
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if let occlusion { NotificationCenter.default.removeObserver(occlusion) }
+    occlusion = nil
+    guard let window else { return }
+    occlusion = NotificationCenter.default.addObserver(
+      forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.syncVisibility() }
+    }
+    syncVisibility()
+  }
+
+  func syncVisibility() {
+    let visible = window?.occlusionState.contains(.visible) ?? false
+    if isPaused == visible { isPaused = !visible }
+  }
+
+  isolated deinit { if let occlusion { NotificationCenter.default.removeObserver(occlusion) } }
+}
+
 /// The light travels across fixed type cells. Its intensity selects the glyph in each cell.
 private struct AuroraSurface: NSViewRepresentable {
   var size: CGSize
@@ -143,7 +169,7 @@ private struct AuroraSurface: NSViewRepresentable {
   var busy: Bool
 
   func makeNSView(context: Context) -> SKView {
-    let view = SKView()
+    let view = AuroraView()
     view.allowsTransparency = true
     view.preferredFramesPerSecond = 60
     let scene = AuroraScene(size: size)
@@ -179,7 +205,7 @@ private struct AuroraSurface: NSViewRepresentable {
   }
 }
 
-private final class AuroraScene: SKScene {
+final class AuroraScene: SKScene {
   var printSize = CGSize.zero
   var printScale = CGFloat.zero
   var fullHeight = false
@@ -188,11 +214,21 @@ private final class AuroraScene: SKScene {
   var playback = AuroraPlayback(at: 0)
   let sheet = SKSpriteNode()
   let cells = SKUniform(name: "cells", vectorFloat2: .zero)
-  private let phase = SKUniform(name: "phase", float: 0)
+  let phase = SKUniform(name: "phase", float: 0)
 
   override func sceneDidLoad() {
     super.sceneDidLoad()
-    sheet.shader = SKShader(source: """
+    sheet.shader = makeShader(source: Self.shaderSource)
+    addChild(sheet)
+  }
+
+  func makeShader(source: String) -> SKShader {
+    SKShader(source: source, uniforms: [phase, cells, SKUniform(name: "alphabet", texture: SKTexture(cgImage: StudioAurora.artwork.alphabet))])
+  }
+
+  // Transparent pixels (lamp alpha exactly 0) leave before the light math; they produce
+  // (0,0,0,0) on both paths, and the rest of the program is unchanged.
+  static let shaderSource = """
       vec2 lightUV(vec2 p, float t) {
         vec2 drift = vec2(0.014*(sin(4.0*p.y+0.44*t)-sin(4.0*p.y)),
                           0.028*(sin(5.0*p.x-0.49*t)-sin(5.0*p.x)));
@@ -202,31 +238,33 @@ private final class AuroraScene: SKScene {
       void main() {
         vec2 p = vec2(v_tex_coord.x,1.0-v_tex_coord.y);
         float t = phase;
-        vec2 cell = floor(p*cells);
-        vec2 center = (cell+0.5)/cells;
-        vec2 local = fract(p*cells);
-        float arc = p.y + 0.065*sin(5.0*p.x + 0.24*t) + 0.035*sin(10.0*p.x - 0.31*t);
-        float ribbon = 0.5 + 0.5*cos(10.5*arc - 0.82*t + 1.3*p.x);
-        float glint = 0.5 + 0.5*sin(18.0*arc + 3.3*p.x - 0.58*t);
-        float veil = 0.5 + 0.5*cos(4.7*p.x - 2.6*p.y + 0.37*t);
-        float light = 0.77 + 0.26*ribbon + 0.12*glint*glint + 0.05*veil;
-        vec3 emission = vec3(light + 0.08*ribbon*glint, light, light + 0.085*(1.0-ribbon)*veil);
         vec4 lamp = texture2D(u_texture,lightUV(p,t));
-        float intensity = texture2D(u_texture,lightUV(center,t)).a;
-        float wave = 0.5+0.5*cos(10.5*(center.y+0.065*sin(5.0*center.x+0.24*t))-0.82*t+1.3*center.x);
-        float level = 6.0*clamp(intensity*(0.65+0.60*wave),0.0,1.0);
-        float index = floor(level);
-        vec2 tile = vec2(local.x/7.0,1.0-local.y);
-        float first = texture2D(alphabet,tile+vec2(index/7.0,0.0)).a;
-        float next = texture2D(alphabet,tile+vec2(min(6.0,index+1.0)/7.0,0.0)).a;
-        float mark = mix(first,next,smoothstep(0.32,0.68,fract(level)));
-        float alpha = lamp.a;
-        vec3 color = min(lamp.rgb*emission,vec3(alpha));
-        gl_FragColor = vec4(mix(color,vec3(alpha),0.45*mark*smoothstep(0.25,1.65,level)),alpha);
+        if (lamp.a <= 0.0) {
+          gl_FragColor = vec4(0.0);
+        } else {
+          vec2 cell = floor(p*cells);
+          vec2 center = (cell+0.5)/cells;
+          vec2 local = fract(p*cells);
+          float arc = p.y + 0.065*sin(5.0*p.x + 0.24*t) + 0.035*sin(10.0*p.x - 0.31*t);
+          float ribbon = 0.5 + 0.5*cos(10.5*arc - 0.82*t + 1.3*p.x);
+          float glint = 0.5 + 0.5*sin(18.0*arc + 3.3*p.x - 0.58*t);
+          float veil = 0.5 + 0.5*cos(4.7*p.x - 2.6*p.y + 0.37*t);
+          float light = 0.77 + 0.26*ribbon + 0.12*glint*glint + 0.05*veil;
+          vec3 emission = vec3(light + 0.08*ribbon*glint, light, light + 0.085*(1.0-ribbon)*veil);
+          float intensity = texture2D(u_texture,lightUV(center,t)).a;
+          float wave = 0.5+0.5*cos(10.5*(center.y+0.065*sin(5.0*center.x+0.24*t))-0.82*t+1.3*center.x);
+          float level = 6.0*clamp(intensity*(0.65+0.60*wave),0.0,1.0);
+          float index = floor(level);
+          vec2 tile = vec2(local.x/7.0,1.0-local.y);
+          float first = texture2D(alphabet,tile+vec2(index/7.0,0.0)).a;
+          float next = texture2D(alphabet,tile+vec2(min(6.0,index+1.0)/7.0,0.0)).a;
+          float mark = mix(first,next,smoothstep(0.32,0.68,fract(level)));
+          float alpha = lamp.a;
+          vec3 color = min(lamp.rgb*emission,vec3(alpha));
+          gl_FragColor = vec4(mix(color,vec3(alpha),0.45*mark*smoothstep(0.25,1.65,level)),alpha);
+        }
       }
-      """, uniforms: [phase, cells, SKUniform(name: "alphabet", texture: SKTexture(cgImage: StudioAurora.artwork.alphabet))])
-    addChild(sheet)
-  }
+      """
 
   override func update(_ currentTime: TimeInterval) {
     if let lastFrame { elapsed += min(0.05, max(0, currentTime - lastFrame)) }

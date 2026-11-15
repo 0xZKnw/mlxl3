@@ -305,6 +305,12 @@ swiftc "${swiftc_args[@]}" -O \
 
 check_response_ui
 
+# The animated background must keep the v2.0.2 look pixel for pixel: render the
+# real AuroraScene off screen with the frozen shader and with the shipped one.
+swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/StudioAurora.swift \
+    tests/aurora-shader-check.swift -o "${test_dir}/aurora-shader-check"
+"${test_dir}/aurora-shader-check" tests/fixtures/aurora-shader-v2.0.2.fsh
+
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).
 swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift \
