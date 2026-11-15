@@ -110,15 +110,21 @@ pub(crate) fn layer_slots() -> Result<[usize; 48]> {
             .clamp(10, 512)
     } else {
         #[cfg(target_os = "macos")]
-        let available = flash_support::available_memory_bytes()?;
+        let (available, physical) = (
+            flash_support::available_memory_bytes()?,
+            flash_support::physical_memory_bytes()?,
+        );
         #[cfg(not(target_os = "macos"))]
-        let available = 14 << 30;
-        let slots = flash_support::automatic_cache_slots(available)
-            .context("not enough system memory for Flash's minimum SSD cache and memory reserve")?;
+        let (available, physical) = (14 << 30, 24 << 30);
+        // The shortfall itself is the outermost message: the bridge reports `to_string()`.
+        let slots = flash_support::automatic_cache_plan(available, physical)
+            .map_err(|shortfall| anyhow::anyhow!("{shortfall}"))?;
         eprintln!(
-            "Flash Next: auto cache {:.2} GiB ({slots} slots/layer), estimated available {:.2} GiB",
+            "Flash Next: auto cache {:.2} GiB ({slots} slots/layer), estimated available {:.2} GiB, reserve {:.2} GiB of {:.0} GiB",
             slots as f64 * 48. * flash_support::EXPERT_BYTES as f64 / (1u64 << 30) as f64,
-            available as f64 / (1u64 << 30) as f64
+            available as f64 / (1u64 << 30) as f64,
+            flash_support::automatic_reserve_bytes(physical) as f64 / (1u64 << 30) as f64,
+            physical as f64 / (1u64 << 30) as f64
         );
         slots
     };
