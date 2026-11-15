@@ -163,6 +163,7 @@ def main():
     parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
     parser.add_argument("--mtp-head", type=Path)
     parser.add_argument("--candidate-mtp-head", type=Path)
+    parser.add_argument("--candidate-mtp-depth", type=int, choices=range(1, 4))
     parser.add_argument("--dflash-mode", type=int, choices=range(4), default=0)
     parser.add_argument("--dflash-draft", type=Path)
     parser.add_argument(
@@ -193,6 +194,8 @@ def main():
         parser.error("--mtp-head is required when --mtp-depth > 0")
     if args.candidate_mtp_head is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
         parser.error("--candidate-mtp-head requires MTP in both arms")
+    if args.candidate_mtp_depth is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
+        parser.error("--candidate-mtp-depth requires MTP in both arms")
     if args.dflash_mode > 0 and args.dflash_draft is None:
         parser.error("--dflash-draft is required when --dflash-mode > 0")
     if args.mtp_depth > 0 and args.dflash_mode > 0 and not args.compare_mtp_dflash:
@@ -217,6 +220,7 @@ def main():
             "warmup_per_prompt": 1,
             "warmup_tokens": warmup_tokens,
             "mtp_depth": args.mtp_depth,
+            "candidate_mtp_depth": args.candidate_mtp_depth or args.mtp_depth,
             "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
             "candidate_mtp_head": str((args.candidate_mtp_head or args.mtp_head).resolve())
             if args.mtp_head
@@ -254,6 +258,8 @@ def main():
     try:
         for pass_index, label in enumerate(args.order):
             mtp_depth = args.mtp_depth if not args.compare_mtp_dflash or label == "A" else 0
+            if label == "B" and args.candidate_mtp_depth:
+                mtp_depth = args.candidate_mtp_depth
             mtp_head = (
                 args.candidate_mtp_head
                 if label == "B" and args.candidate_mtp_head

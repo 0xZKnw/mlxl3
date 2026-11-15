@@ -197,6 +197,95 @@ def test_distinct_heads_reach_every_warmup_and_measured_request(tmp_path):
         assert entry["mtp_head"] == str(tmp_path / expected)
 
 
+@pytest.mark.parametrize(("baseline", "candidate"), [(1, 2), (1, 3), (3, 1), (2, 2)])
+def test_candidate_depth_reaches_only_the_candidate_arm(tmp_path, baseline, candidate):
+    run, _, report = run_campaign(
+        tmp_path,
+        order="ABBAAB",
+        extra_args=[
+            "--mtp-depth",
+            str(baseline),
+            "--mtp-head",
+            str(tmp_path / "head"),
+            "--candidate-mtp-depth",
+            str(candidate),
+            "--warmup-tokens",
+            "2",
+        ],
+        expected_mtp=baseline,
+        candidate_mtp=candidate,
+    )
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["protocol"]["mtp_depth"] == baseline
+    assert report["protocol"]["candidate_mtp_depth"] == candidate
+    assert [entry["mtp_depth"] for entry in report["passes"]] == [
+        candidate if label == "B" else baseline for label in "ABBAAB"
+    ]
+    for entry in report["passes"]:
+        for prompt in entry["prompts"].values():
+            assert prompt["warmup"]["stats"]["generated_tokens"] == 2
+            assert [r["stats"]["generated_tokens"] for r in prompt["runs"]] == [4, 4]
+
+
+def test_candidate_depth_is_recorded_as_the_shared_depth_by_default(tmp_path):
+    run, _, report = run_campaign(
+        tmp_path,
+        extra_args=["--mtp-depth", "2", "--mtp-head", str(tmp_path / "head")],
+        expected_mtp=2,
+    )
+    assert run.returncode == 0, run.stderr
+    assert report["protocol"]["candidate_mtp_depth"] == 2
+    assert {entry["mtp_depth"] for entry in report["passes"]} == {2}
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--candidate-mtp-depth", "2"],
+        ["--mtp-depth", "0", "--candidate-mtp-depth", "2"],
+        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "0"],
+        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "4"],
+        ["--mtp-depth", "1", "--mtp-head", "head", "--candidate-mtp-depth", "x"],
+        [
+            "--mtp-depth",
+            "1",
+            "--mtp-head",
+            "head",
+            "--dflash-mode",
+            "1",
+            "--dflash-draft",
+            "draft",
+            "--compare-mtp-dflash",
+            "--candidate-mtp-depth",
+            "2",
+        ],
+    ],
+)
+def test_invalid_candidate_depth_never_launches_an_engine(tmp_path, arguments):
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "benchmarks/compare_native.py"),
+            str(tmp_path),
+            "--baseline",
+            str(tmp_path / "missing-A"),
+            "--candidate",
+            str(tmp_path / "missing-B"),
+            "--output",
+            str(tmp_path / "results"),
+            *arguments,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+        timeout=10,
+    )
+    assert run.returncode == 2, run.stderr
+    assert not (tmp_path / "results").exists()
+
+
 def test_candidate_head_without_mtp_never_launches_an_engine(tmp_path):
     run = subprocess.run(
         [
