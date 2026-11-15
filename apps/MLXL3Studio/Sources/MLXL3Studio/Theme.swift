@@ -32,6 +32,24 @@ extension View {
     }
 }
 
+/// Mask for scrolling content: text fades out near the chrome instead of
+/// stopping on a hard edge under the toolbar or above the composer.
+struct StudioEdgeFade: View {
+    var top: CGFloat = 0
+    var bottom: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                .frame(height: max(0, top))
+            Color.black
+            LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: max(0, bottom))
+        }
+        .allowsHitTesting(false)
+    }
+}
+
 struct StudioSidebarSurface: ViewModifier {
 
     func body(content: Content) -> some View {
@@ -174,11 +192,17 @@ struct RoundGlassButtonStyle: ButtonStyle {
 
     @ViewBuilder func makeBody(configuration: Configuration) -> some View {
         if bright {
+            // Primary round action (send/stop): a solid disc with a soft lift.
             configuration.label
-                .foregroundStyle(StudioTheme.onAccent.opacity(0.9))
-                .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
-                            in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(StudioTheme.onAccent.opacity(0.92))
+                .background {
+                    Circle().fill(StudioTheme.ink.opacity(configuration.isPressed ? 0.72 : 1))
+                        .shadow(color: .black.opacity(isEnabled ? 0.18 : 0), radius: 4, y: 2)
+                }
+                .contentShape(Circle())
+                .scaleEffect(configuration.isPressed ? 0.94 : 1)
                 .opacity(isEnabled ? 1 : 0.3)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
         } else {
             StudioControlStyle().makeBody(configuration: configuration)
         }

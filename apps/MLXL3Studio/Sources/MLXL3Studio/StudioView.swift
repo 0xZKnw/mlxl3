@@ -7,6 +7,10 @@ struct StudioView: View {
     @EnvironmentObject private var studio: StudioModel
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
+    private var coveredByPage: Bool {
+        studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
+    }
+
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
@@ -41,6 +45,9 @@ struct StudioView: View {
                 }
             }
         }
+        // Full-screen pages fade through instead of double-exposing the chat behind them.
+        .opacity(coveredByPage ? 0 : 1)
+        .scaleEffect(coveredByPage && !reduceMotion ? 0.985 : 1)
         .environment(\.conversationDensity, studio.conversationDensity)
         .environment(\.conversationFont, studio.conversationFont)
         .environment(\.messageBubbleStyle, studio.messageBubbleStyle)
@@ -131,20 +138,19 @@ private struct SidebarView: View {
                         .font(.system(size: 13, weight: studio.selectedMode == mode ? .semibold : .regular))
                         .padding(.horizontal, 12).frame(height: 32)
                     }
-                    .buttonStyle(StudioControlStyle(emphasized: studio.selectedMode == mode))
+                    .buttonStyle(StudioControlStyle(emphasized: studio.selectedMode == mode, cornerRadius: 8))
                     .accessibilityLabel(mode.title)
                     .accessibilityAddTraits(studio.selectedMode == mode ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 10).disabled(studio.isGenerating)
 
-            Picker(L("Projet", "Project"), selection: Binding(get: { studio.selectedProjectID }, set: { studio.chooseProject($0) })) {
-                Text(L("Sans projet", "No project")).tag(UUID?.none)
-                ForEach(studio.projects) { Text($0.name).tag(Optional($0.id)) }
-            }.labelsHidden().padding(.horizontal, 19).padding(.top, 16).disabled(studio.isGenerating)
+            SidebarProjectMenu()
+                .padding(.horizontal, 10).padding(.top, 14)
+                .disabled(studio.isGenerating)
 
-            HStack(spacing: 9) {
-                Image(systemName: "magnifyingglass").font(.system(size: 12))
+            HStack(spacing: 11) {
+                Image(systemName: "magnifyingglass").font(.system(size: 12)).frame(width: 18)
                 TextField(L("Rechercher", "Search"), text: $search)
                     .textFieldStyle(.plain)
                     .accessibilityLabel(L("Rechercher dans les titres des conversations", "Search conversation titles"))
@@ -158,13 +164,17 @@ private struct SidebarView: View {
             .foregroundStyle(StudioTheme.secondary)
             .padding(.horizontal, 12)
             .frame(height: 32)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
+            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
 
             Button(action: studio.newConversation) {
-                HStack(spacing: 9) {
-                    Image(systemName: "square.and.pencil")
+                HStack(spacing: 11) {
+                    Image(systemName: "square.and.pencil").frame(width: 18)
                     Text(studio.selectedMode == .agent
                          ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
                         .lineLimit(1)
@@ -176,16 +186,19 @@ private struct SidebarView: View {
             .buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
             .accessibilityIdentifier("sidebar.newConversation")
             .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
-            .padding(.horizontal, 12).padding(.top, 12)
+            .padding(.horizontal, 10).padding(.top, 12)
 
-            HStack {
+            HStack(spacing: 7) {
                 Text("Conversations")
                 Text("\(visibleConversations.count)").monospacedDigit()
+                    .font(.system(size: 10, weight: .semibold))
+                    .padding(.horizontal, 6).frame(height: 16)
+                    .background(StudioTheme.contrast.opacity(0.07), in: Capsule())
                 Spacer()
             }
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(StudioTheme.quiet)
-            .padding(.horizontal, 21)
+            .padding(.horizontal, 22)
             .padding(.top, 18)
             .padding(.bottom, 8)
 
@@ -196,14 +209,10 @@ private struct SidebarView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(conversations) { conversation in
                         if conversation.id == pinnedID {
-                            Text(L("ÉPINGLÉES", "PINNED"))
-                                .font(.system(size: 9, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 10).padding(.vertical, 8)
+                            sectionLabel(L("ÉPINGLÉES", "PINNED"))
                         }
                         if conversation.id == recentID {
-                            Text(L("RÉCENTES", "RECENT"))
-                                .font(.system(size: 9, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 10).padding(.vertical, 8)
+                            sectionLabel(L("RÉCENTES", "RECENT"))
                         }
                         SidebarConversationItem(conversation: conversation)
                     }
@@ -215,13 +224,14 @@ private struct SidebarView: View {
                             .padding(12)
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10)
             }
             .scrollIndicators(.hidden)
+            .mask(StudioEdgeFade(top: 10, bottom: 18))
 
             VStack(spacing: 2) {
                 Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
-                    .padding(.horizontal, 10).padding(.bottom, 12)
+                    .padding(.horizontal, 12).padding(.bottom, 10)
                 utilityButton(L("Projets et profils", "Projects and profiles"), icon: "folder", action: { studio.showWorkspace = true })
                 utilityButton("MCP", icon: "shippingbox", action: { studio.showMCPManager = true })
                 utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
@@ -231,45 +241,129 @@ private struct SidebarView: View {
                         .padding(.trailing, 8)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.bottom, 17)
         }
     }
 
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 9, weight: .semibold)).tracking(0.8)
+            .foregroundStyle(StudioTheme.quiet)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 12).padding(.top, 10).padding(.bottom, 5)
+    }
+
+    // Same icon column and inset as the mode list above, whatever the symbol width.
     private func utilityButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 12))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 11)
-                .frame(height: 35)
+            HStack(spacing: 11) {
+                Image(systemName: icon).frame(width: 18)
+                Text(title).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 12))
+            .padding(.horizontal, 12)
+            .frame(height: 32)
         }
-        .buttonStyle(StudioControlStyle())
+        .buttonStyle(StudioControlStyle(cornerRadius: 8))
+        .accessibilityLabel(title)
     }
 }
 
+/// The project choice shares the navigation rows' inset and surface instead of
+/// the system pop-up chrome.
+private struct SidebarProjectMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    private var projectName: String {
+        studio.projects.first { $0.id == studio.selectedProjectID }?.name ?? L("Sans projet", "No project")
+    }
+
+    var body: some View {
+        Menu {
+            Button { studio.chooseProject(nil) } label: {
+                if studio.selectedProjectID == nil {
+                    Label(L("Sans projet", "No project"), systemImage: "checkmark")
+                } else { Text(L("Sans projet", "No project")) }
+            }
+            if !studio.projects.isEmpty { Divider() }
+            ForEach(studio.projects) { project in
+                Button { studio.chooseProject(project.id) } label: {
+                    if studio.selectedProjectID == project.id {
+                        Label(project.name, systemImage: "checkmark")
+                    } else { Text(project.name) }
+                }
+            }
+        } label: {
+            HStack(spacing: 11) {
+                Image(systemName: studio.selectedProjectID == nil ? "folder" : "folder.fill").frame(width: 18)
+                Text(projectName).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(StudioTheme.quiet)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .frame(maxWidth: .infinity)
+            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+            }
+        }
+        .menuStyle(.button).buttonStyle(StudioControlStyle(cornerRadius: 8)).menuIndicator(.hidden)
+        .accessibilityLabel(L("Projet", "Project"))
+        .accessibilityValue(projectName)
+        .help(L("Projet de la conversation", "Conversation project"))
+    }
+}
+
+/// One surface per row: the selection and hover fill also cover the pin, and
+/// an unpinned row only reserves room for the pin while it is hovered.
 private struct SidebarConversationItem: View {
     @EnvironmentObject private var studio: StudioModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let conversation: Conversation
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            Button { studio.selectConversation(conversation.id) } label: {
-                ConversationRow(conversation: conversation, selected: conversation.id == studio.selectedConversationID)
-            }
-            .buttonStyle(.plain)
+        let selected = conversation.id == studio.selectedConversationID
+        let showsPin = conversation.isPinned || hovered
+        Button { studio.selectConversation(conversation.id) } label: {
+            ConversationRow(conversation: conversation, selected: selected)
+                .padding(.trailing, showsPin ? 26 : 0)
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .trailing) {
             Button { studio.setConversationPinned(conversation.id, !conversation.isPinned) } label: {
                 Image(systemName: conversation.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 11)).frame(width: 26, height: 32)
-                    .foregroundStyle(conversation.isPinned ? StudioTheme.ink : StudioTheme.quiet)
+                    .font(.system(size: 10.5)).frame(width: 26, height: 32)
+                    .foregroundStyle(conversation.isPinned ? StudioTheme.secondary : StudioTheme.quiet)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .opacity(conversation.isPinned || hovered ? 1 : 0.45)
+            .opacity(showsPin ? 1 : 0)
+            .allowsHitTesting(showsPin)
+            .padding(.trailing, 2)
             .help(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"))
             .accessibilityLabel((conversation.isPinned ? L("Désépingler ", "Unpin ") : L("Épingler ", "Pin ")) + conversation.title)
         }
+        .background(StudioTheme.contrast.opacity(selected ? 0.075 : (hovered ? 0.035 : 0)),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .leading) {
+            if selected {
+                Capsule().fill(studio.accentColor)
+                    .frame(width: 3, height: 14)
+                    .offset(x: 1)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .onHover { hovered = $0 }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
         .contextMenu {
             Button(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"),
                    systemImage: conversation.isPinned ? "pin.slash" : "pin") {
@@ -283,13 +377,9 @@ private struct SidebarConversationItem: View {
 private struct ConversationRow: View {
     let conversation: Conversation
     let selected: Bool
-    @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 9) {
-            RoundedRectangle(cornerRadius: 1)
-                .fill(selected ? StudioTheme.ink : .clear)
-                .frame(width: 2, height: 13)
+        HStack(spacing: 0) {
             Text(conversation.messages.isEmpty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
                  ? L("Nouvelle conversation", "New conversation") : conversation.title)
                 .font(.system(size: 13, weight: selected ? .medium : .regular))
@@ -297,12 +387,9 @@ private struct ConversationRow: View {
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 36)
-        .background(StudioTheme.contrast.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
-                    in: RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 12)
+        .frame(height: 34)
         .contentShape(Rectangle())
-        .onHover { hovered = $0 }
         .help(conversation.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -461,6 +548,13 @@ private struct WelcomeView: View {
     let composerMotion: Namespace.ID
     @EnvironmentObject private var studio: StudioModel
 
+    /// Stable while a conversation stays open; a new conversation draws again.
+    private var greeting: String {
+        let seed = studio.selectedConversationID.map { UInt64(truncatingIfNeeded: $0.hashValue) } ?? 0
+        let phrase = WelcomeGreeting.pick(hour: Calendar.current.component(.hour, from: .now), seed: seed)
+        return L(phrase.french, phrase.english)
+    }
+
     var body: some View {
         let agent = studio.selectedMode == .agent
         ViewThatFits(in: .vertical) {
@@ -474,13 +568,14 @@ private struct WelcomeView: View {
         VStack(spacing: 0) {
             MonogramMark(size: 76)
                 .frame(height: 49)
-            Text(agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
+            Text(agent ? L("Nouvelle tâche", "New task") : greeting)
                 .font(.system(size: 44, weight: .regular, design: .serif))
                 .tracking(-1.5)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(StudioTheme.ink)
                 .padding(.top, 15)
                 .padding(.bottom, 32)
+                .accessibilityAddTraits(.isHeader)
 
             if agent {
                 AgentWorkspaceBar()
@@ -518,5 +613,57 @@ private struct WelcomeView: View {
         .padding(.vertical, 16)
         .frame(maxWidth: 660)
         .padding(.horizontal, 28)
+    }
+
+}
+
+/// Welcome titles: mostly tied to the time of day, sometimes one that fits any hour.
+enum WelcomeGreeting {
+    struct Phrase: Equatable {
+        let french: String
+        let english: String
+    }
+
+    static let morning = [
+        Phrase(french: "Bonjour", english: "Good morning"),
+        Phrase(french: "Bien réveillé ?", english: "Awake yet?"),
+        Phrase(french: "Un café, une idée ?", english: "Coffee and an idea?"),
+        Phrase(french: "On commence par quoi ?", english: "Where do we start?"),
+    ]
+    static let afternoon = [
+        Phrase(french: "Bon après-midi", english: "Good afternoon"),
+        Phrase(french: "On s’y remet ?", english: "Back at it?"),
+        Phrase(french: "Qu’est-ce qu’on construit ?", english: "What are we building?"),
+    ]
+    static let evening = [
+        Phrase(french: "Bonsoir", english: "Good evening"),
+        Phrase(french: "Encore une idée ?", english: "One more idea?"),
+        Phrase(french: "Une dernière pour ce soir ?", english: "One last one tonight?"),
+    ]
+    static let night = [
+        Phrase(french: "Encore debout ?", english: "Still up?"),
+        Phrase(french: "Les idées viennent la nuit", english: "Ideas come at night"),
+        Phrase(french: "Nuit blanche ?", english: "Pulling an all-nighter?"),
+    ]
+    static let anytime = [
+        Phrase(french: "De quoi parle-t-on ?", english: "What’s on your mind?"),
+        Phrase(french: "Par où commencer ?", english: "Where to begin?"),
+        Phrase(french: "Je vous écoute", english: "I’m listening"),
+    ]
+
+    static func pool(hour: Int) -> [Phrase] {
+        switch hour {
+        case 5..<12: morning
+        case 12..<18: afternoon
+        case 18..<23: evening
+        default: night
+        }
+    }
+
+    /// One draw in four uses the any-hour pool; out-of-range hours fall back to night.
+    static func pick(hour: Int, seed: UInt64) -> Phrase {
+        let timed = pool(hour: hour)
+        if seed % 4 == 3 { return anytime[Int((seed / 4) % UInt64(anytime.count))] }
+        return timed[Int((seed / 4) % UInt64(timed.count))]
     }
 }

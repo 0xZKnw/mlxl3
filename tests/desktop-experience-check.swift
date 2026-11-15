@@ -19,6 +19,33 @@ import SwiftUI
             throw NSError(domain: "DesktopExperienceCheck", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "Deadline: " + label])
         }
+        // Welcome greetings: hour boundaries, reachability of every phrase, one-line length.
+        let expectedPools: [(ClosedRange<Int>, [WelcomeGreeting.Phrase])] = [
+            (0...4, WelcomeGreeting.night), (5...11, WelcomeGreeting.morning),
+            (12...17, WelcomeGreeting.afternoon), (18...22, WelcomeGreeting.evening), (23...23, WelcomeGreeting.night),
+        ]
+        for (hours, pool) in expectedPools {
+            for hour in hours {
+                try check(WelcomeGreeting.pool(hour: hour) == pool, "Greeting pool mismatch at hour \(hour)")
+                var drawn: [WelcomeGreeting.Phrase] = []
+                for seed in UInt64(0)..<64 {
+                    let phrase = WelcomeGreeting.pick(hour: hour, seed: seed)
+                    try check((pool + WelcomeGreeting.anytime).contains(phrase), "Greeting outside its pools at hour \(hour)")
+                    try check(WelcomeGreeting.anytime.contains(phrase) == (seed % 4 == 3), "Any-hour greeting drawn at the wrong rate")
+                    if !drawn.contains(phrase) { drawn.append(phrase) }
+                }
+                try check(drawn.count == pool.count + WelcomeGreeting.anytime.count, "Some greetings are unreachable at hour \(hour)")
+            }
+        }
+        for hour in [-1, 24, Int.min, Int.max] {
+            try check(WelcomeGreeting.pool(hour: hour) == WelcomeGreeting.night, "Out-of-range hour must fall back to night")
+        }
+        try check(WelcomeGreeting.pick(hour: 9, seed: .max).french.isEmpty == false, "Maximum seed must still pick a greeting")
+        for phrase in WelcomeGreeting.morning + WelcomeGreeting.afternoon + WelcomeGreeting.evening + WelcomeGreeting.night + WelcomeGreeting.anytime {
+            try check(!phrase.french.isEmpty && !phrase.english.isEmpty, "Greeting text must not be empty")
+            try check(phrase.french.count <= 30 && phrase.english.count <= 30, "Greeting must fit one title line: \(phrase.french)")
+        }
+
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-experience-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let suite = "io.mlxl3.experience." + UUID().uuidString

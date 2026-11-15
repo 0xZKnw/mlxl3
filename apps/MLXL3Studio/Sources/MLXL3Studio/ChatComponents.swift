@@ -52,6 +52,7 @@ struct MessagesView: View {
         .frame(maxWidth: .infinity)
       }
       .scrollIndicators(.never)
+      .mask(StudioEdgeFade(top: 26, bottom: 16))
       .defaultScrollAnchor(.bottom, for: .initialOffset)
       .onScrollPhaseChange { _, phase in
         scroll.phaseChanged(phase)
@@ -131,8 +132,11 @@ private struct MessageView: View {
                     .textSelection(.enabled)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
-                    .background(bubbleStyle == .tinted ? studio.accentColor.opacity(0.18) : StudioTheme.contrast.opacity(bubbleStyle == .subtle ? 0.055 : 0), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay { RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : 0) }
+                    .background(bubbleStyle == .tinted ? studio.accentColor.opacity(0.18) : StudioTheme.contrast.opacity(bubbleStyle == .subtle ? 0.055 : 0), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : bubbleStyle == .subtle ? 0.5 : 0)
+                    }
                 }
                 HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
             }
@@ -685,21 +689,28 @@ struct ComposerView: View {
             }
             ComposerFooterView()
         }
-        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onTapGesture {
             guard !studio.composerBusy else { return }
             focused = true
         }
         .background {
-            RoundedRectangle(cornerRadius: 18)
+            // Two shadows: a tight contact shadow and a wide ambient lift.
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(StudioTheme.composer)
-                .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
+                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                .shadow(color: .black.opacity(focused ? 0.16 : 0.11), radius: focused ? 22 : 16, y: focused ? 10 : 7)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(dropTargeted ? studio.accentColor : StudioTheme.contrast.opacity(focused ? 0.30 : 0.14), lineWidth: dropTargeted ? 2 : 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(
+                    dropTargeted ? AnyShapeStyle(studio.accentColor)
+                        : focused ? AnyShapeStyle(studio.accentColor.opacity(0.45))
+                        : AnyShapeStyle(StudioTheme.contrast.opacity(0.12)),
+                    lineWidth: dropTargeted ? 2 : 1)
                 .allowsHitTesting(false)
         }
+        .animation(.easeOut(duration: 0.18), value: focused)
         .dropDestination(for: URL.self) { urls, _ in
             guard studio.canImportFiles, !urls.isEmpty else { return false }
             Task { await studio.importChatFiles(urls) }

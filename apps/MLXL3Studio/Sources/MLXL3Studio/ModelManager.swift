@@ -90,6 +90,12 @@ struct ModelManagerView: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 StudioSidebarHeader(title: L("Modèles", "Models"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .bottomTrailing) {
+                        // Lives in the header row instead of floating under the navigation.
+                        DownloadNotificationButton(library: studio.modelLibrary)
+                            .padding(.trailing, 12).padding(.bottom, 22)
+                    }
                 VStack(spacing: 3) {
                     navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize) {
                         discover = false
@@ -104,8 +110,6 @@ struct ModelManagerView: View {
                         discover = false
                     }
                 }.padding(.horizontal, 10)
-                DownloadNotificationButton(library: studio.modelLibrary)
-                    .padding(.horizontal, 18).padding(.top, 18)
                 Spacer()
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("Stockage local", "Local storage")).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
@@ -199,6 +203,7 @@ struct ModelManagerView: View {
                     Image(systemName: "arrow.clockwise").frame(width: 30, height: 30)
                 }
                 .buttonStyle(RoundGlassButtonStyle()).help(L("Actualiser", "Refresh"))
+                .accessibilityLabel(L("Actualiser", "Refresh"))
             }
             ScrollView {
                 LazyVStack(spacing: 10) {
@@ -233,14 +238,19 @@ struct ModelManagerView: View {
                                         .system(size: 12)
                                     ).foregroundStyle(StudioTheme.secondary)
                                 } else {
-                                    Button(L("Charger", "Load")) { studio.selectModel(model.name) }.buttonStyle(
-                                        .bordered
-                                    ).controlSize(.regular)
+                                    Button { studio.selectModel(model.name) } label: {
+                                        Text(L("Charger", "Load")).font(.system(size: 12, weight: .medium))
+                                            .padding(.horizontal, 12).frame(height: 26)
+                                    }
+                                    .buttonStyle(GlassPillButtonStyle())
                                         .disabled(studio.isGenerating || studio.modelInstallState.isWorking)
                                 }
                                 Spacer()
-                                Button(L("Relocaliser", "Locate folder")) { studio.relocateModel(model) }
-                                    .controlSize(.regular).disabled(
+                                Button { studio.relocateModel(model) } label: {
+                                    Text(L("Relocaliser", "Locate folder")).font(.system(size: 12))
+                                        .padding(.horizontal, 10).frame(height: 26)
+                                }
+                                    .buttonStyle(StudioControlStyle()).disabled(
                                         studio.isGenerating || studio.modelInstallState.isWorking)
                                 Button {
                                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: model.path)])
@@ -248,18 +258,20 @@ struct ModelManagerView: View {
                                     Image(systemName: "folder").frame(width: 28, height: 25)
                                 }
                                 .buttonStyle(RoundGlassButtonStyle()).help(L("Afficher dans Finder", "Show in Finder"))
+                                .accessibilityLabel(L("Afficher dans Finder", "Show in Finder"))
                                 Button {
                                     removal = model
                                 } label: {
                                     Image(systemName: "trash").frame(width: 28, height: 25)
                                 }
                                 .buttonStyle(RoundGlassButtonStyle()).help(L("Supprimer le modèle", "Remove model"))
+                                .accessibilityLabel(L("Supprimer le modèle", "Remove model"))
                                 .disabled(
                                     studio.isGenerating || studio.modelInstallState.isWorking
                                         || studio.modelLibrary.downloading != nil)
                             }
-                        }.padding(16).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
-                            .overlay { RoundedRectangle(cornerRadius: 10).stroke(StudioTheme.edge, lineWidth: 0.5) }
+                        }.padding(16).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5) }
                     }
                 }
             }
