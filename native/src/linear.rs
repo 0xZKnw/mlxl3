@@ -6,6 +6,26 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
+#[cfg(test)]
+thread_local! {
+    static USE_Q36_REFERENCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+#[cfg(test)]
+pub(crate) fn q36_reference() -> bool {
+    USE_Q36_REFERENCE.with(std::cell::Cell::get)
+}
+#[cfg(test)]
+pub(crate) fn with_q36_reference<T>(run: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            USE_Q36_REFERENCE.with(|v| v.set(self.0));
+        }
+    }
+    let _restore = Restore(USE_Q36_REFERENCE.with(|v| v.replace(true)));
+    run()
+}
+
 fn grouped_mb3_enabled() -> bool {
     #[cfg(test)]
     if let Some(enabled) = GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get) {
@@ -1240,12 +1260,36 @@ impl Exl3Group {
         Ok(outputs)
     }
 
-    fn forward_qmv_batch(&self, x: &Array, matrix_rows: i32) -> Result<Vec<Array>> {
-        ensure!(
-            (2..24).contains(&matrix_rows),
-            "grouped batch QMV requires 2 to 23 rows"
+    // The four-row 35B verifier reads half4 values in SIMD lane order.
+    fn small_batch_input(&self, x: &Array, matrix_rows: i32, groups: i32) -> Result<(Array, bool)> {
+        let qualified = crate::contracts::q36_qkv_lane(
+            matrix_rows,
+            self.rows,
+            self.k,
+            self.cb == Codebook::Mcg,
+            self.widths.as_slice(),
         );
-        let groups = i32::try_from(self.widths.len())?;
+        #[cfg(test)]
+        let qualified = qualified && !q36_reference();
+        if qualified && array::is_m5_gpu()? {
+            let out = array::metal_kernel(
+                "mlxl3_rs_q36_group_input_lane",
+                &["x", "scales"],
+                &["out"],
+                "",
+                include_str!("../shaders/q36_group_input_lane.metal"),
+                &[
+                    &x.astype(Dtype::Float16)?.reshape(&[matrix_rows, 2048])?,
+                    &self.suh.astype(Dtype::Float16)?,
+                ],
+                &[vec![matrix_rows * groups * 2048]],
+                &[Dtype::Float16],
+                [512, matrix_rows, 2],
+                [32, 1, 1],
+            )?
+            .remove(0);
+            return Ok((out, true));
+        }
         let xhat = x
             .astype(Dtype::Float16)?
             .reshape(&[matrix_rows, 1, self.rows])?
@@ -1258,13 +1302,22 @@ impl Exl3Group {
             .reshape(&[matrix_rows * groups, self.rows / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[-1])?;
-        let (xhat, lane_order) = lane_order_input(
+        lane_order_input(
             xhat,
             self.lane_indices.as_ref(),
             matrix_rows,
             groups,
             self.rows,
-        )?;
+        )
+    }
+
+    fn forward_qmv_batch(&self, x: &Array, matrix_rows: i32) -> Result<Vec<Array>> {
+        ensure!(
+            (2..24).contains(&matrix_rows),
+            "grouped batch QMV requires 2 to 23 rows"
+        );
+        let groups = i32::try_from(self.widths.len())?;
+        let (xhat, lane_order) = self.small_batch_input(x, matrix_rows, groups)?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
         let mut nt = if tiles >= 1024 {
@@ -2663,6 +2716,69 @@ mod tests {
         .unwrap();
         let result = with_lane_order_test(true, || lane_order_input(x, Some(&ids), 1, 1, 16));
         assert_eq!(result.unwrap().0.shape(), [16]);
+    }
+
+    #[test]
+    #[ignore = "requires physical M5 and 35B"]
+    fn q36_qkv_lane_components() -> Result<()> {
+        let ck = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+        let bundle = Exl3Group::new(
+            ["in_proj_qkv", "in_proj_z"]
+                .into_iter()
+                .map(|name| {
+                    Exl3Linear::from_checkpoint(
+                        &ck,
+                        &format!("model.language_model.layers.0.linear_attn.{name}"),
+                    )
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )?;
+        for rows in 1..=5 {
+            let x = Array::from_f16_bits(
+                &(0..rows * 2048)
+                    .map(|i| f16::from_f32(((i * 37 % 251) as f32 - 124.) / 128.).to_bits())
+                    .collect::<Vec<_>>(),
+                &[rows, 2048],
+            )?;
+            let (reference, old_layout) =
+                with_q36_reference(|| bundle.small_batch_input(&x, rows, 2))?;
+            let (result, layout) = bundle.small_batch_input(&x, rows, 2)?;
+            assert!(!old_layout);
+            assert_eq!(layout, rows == 4);
+            let original = reference.to_f16_bits()?;
+            let result = result.to_f16_bits()?;
+            assert_eq!(original.len(), (rows * 4096) as usize);
+            assert_eq!(original.len(), result.len());
+            assert!(original.iter().all(|&v| f16::from_bits(v).is_finite()));
+            if layout {
+                assert_ne!(original, result);
+            }
+            for (i, v) in result.into_iter().enumerate() {
+                assert_eq!(
+                    v,
+                    original[if layout {
+                        crate::contracts::exl3_lane_source_index(i as u32) as usize
+                    } else {
+                        i
+                    }]
+                );
+            }
+            let run = || -> Result<Vec<Vec<u16>>> {
+                bundle.forward(&x)?.iter().map(Array::to_f16_bits).collect()
+            };
+            let base = with_q36_reference(run)?;
+            assert_eq!(
+                base.iter().map(Vec::len).collect::<Vec<_>>(),
+                vec![rows as usize * 8192, rows as usize * 4096]
+            );
+            assert!(
+                base.iter()
+                    .flatten()
+                    .all(|&v| f16::from_bits(v).is_finite())
+            );
+            ensure!(base == run()?, "QKV+Z mismatch at width {rows}");
+        }
+        Ok(())
     }
 
     #[test]

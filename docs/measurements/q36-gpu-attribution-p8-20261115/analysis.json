@@ -1,0 +1,184 @@
+[
+ {
+  "run": "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/run1",
+  "cb_records": 13196,
+  "cb_assigned": 6372,
+  "blocks": {
+   "attn_mixer": {
+    "ms_per_token_mean": 1.5448255071532913,
+    "ms_per_token_min": 1.4944167924113572,
+    "ms_per_token_max": 1.7523333663120866,
+    "cbs_per_token": 10.0,
+    "floor_ms": 0.8936883032679739,
+    "excess_ms": 0.6511372038853174,
+    "effective_gbps": 88.51116826259914
+   },
+   "embed": {
+    "ms_per_token_mean": 0.001885415258584544,
+    "ms_per_token_min": 0.001708336640149355,
+    "ms_per_token_max": 0.002125045284628868,
+    "cbs_per_token": 2.0,
+    "floor_ms": 0.0,
+    "excess_ms": 0.001885415258584544,
+    "effective_gbps": 0.0
+   },
+   "gdn_in": {
+    "ms_per_token_mean": 3.8216172142711002,
+    "ms_per_token_min": 3.5048749414272606,
+    "ms_per_token_max": 4.434833361301571,
+    "cbs_per_token": 120.0,
+    "floor_ms": 2.5248065254901957,
+    "excess_ms": 1.2968106887809046,
+    "effective_gbps": 101.0816564666533
+   },
+   "gdn_out": {
+    "ms_per_token_mean": 1.648815130465664,
+    "ms_per_token_min": 1.519083569291979,
+    "ms_per_token_max": 1.8172915442846715,
+    "cbs_per_token": 30.0,
+    "floor_ms": 0.8251539241830066,
+    "excess_ms": 0.8236612062826574,
+    "effective_gbps": 76.56925756397229
+   },
+   "gdn_recurrence": {
+    "ms_per_token_mean": 0.7922604127088562,
+    "ms_per_token_min": 0.7347916252911091,
+    "ms_per_token_max": 1.0001668124459684,
+    "cbs_per_token": 30.0,
+    "floor_ms": 0.8224125490196079,
+    "excess_ms": -0.030152136310751754,
+    "effective_gbps": 158.82292991236497
+   },
+   "head": {
+    "ms_per_token_mean": 2.974625000206288,
+    "ms_per_token_min": 2.8576666954904795,
+    "ms_per_token_max": 3.264083352405578,
+    "cbs_per_token": 2.0,
+    "floor_ms": 2.4960220862745097,
+    "excess_ms": 0.47860291393177823,
+    "effective_gbps": 128.38303287759504
+   },
+   "moe_experts": {
+    "ms_per_token_mean": 3.8110000132292043,
+    "ms_per_token_min": 3.559792006853968,
+    "ms_per_token_max": 4.504249605815858,
+    "cbs_per_token": 80.0,
+    "floor_ms": 2.0265615895424833,
+    "excess_ms": 1.784438423686721,
+    "effective_gbps": 81.36025245963489
+   },
+   "moe_router": {
+    "ms_per_token_mean": 0.7770625306875445,
+    "ms_per_token_min": 0.6634999299421906,
+    "ms_per_token_max": 0.9239999344572425,
+    "cbs_per_token": 40.0,
+    "floor_ms": 0.27413751633986927,
+    "excess_ms": 0.5029250143476752,
+    "effective_gbps": 53.976402597727656
+   },
+   "moe_shared": {
+    "ms_per_token_mean": 1.6299765593430493,
+    "ms_per_token_min": 1.5130001702345908,
+    "ms_per_token_max": 1.8589166575111449,
+    "cbs_per_token": 40.0,
+    "floor_ms": 0.41531833725490197,
+    "excess_ms": 1.2146582220881474,
+    "effective_gbps": 38.984429092410295
+   }
+  },
+  "total_ms_per_token_mean": 17.002067783323582,
+  "total_ms_per_token_min": 16.102749796118587,
+  "total_floor_ms": 10.27810083137255
+ },
+ {
+  "run": "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/run2",
+  "cb_records": 13201,
+  "cb_assigned": 6372,
+  "blocks": {
+   "attn_mixer": {
+    "ms_per_token_mean": 1.5721431882411707,
+    "ms_per_token_min": 1.4776249299757183,
+    "ms_per_token_max": 1.7437916831113398,
+    "cbs_per_token": 10.0,
+    "floor_ms": 0.8936883032679739,
+    "excess_ms": 0.6784548849731968,
+    "effective_gbps": 86.97319138784744
+   },
+   "embed": {
+    "ms_per_token_mean": 0.001953125320142135,
+    "ms_per_token_min": 0.0017916318029165268,
+    "ms_per_token_max": 0.0021666637621819973,
+    "cbs_per_token": 2.0,
+    "floor_ms": 0.0,
+    "excess_ms": 0.001953125320142135,
+    "effective_gbps": 0.0
+   },
+   "gdn_in": {
+    "ms_per_token_mean": 3.8711796660209075,
+    "ms_per_token_min": 3.5164582659490407,
+    "ms_per_token_max": 4.456083406694233,
+    "cbs_per_token": 120.0,
+    "floor_ms": 2.5248065254901957,
+    "excess_ms": 1.3463731405307118,
+    "effective_gbps": 99.7875148473963
+   },
+   "gdn_out": {
+    "ms_per_token_mean": 1.647109405894298,
+    "ms_per_token_min": 1.5329999150708318,
+    "ms_per_token_max": 2.05383327556774,
+    "cbs_per_token": 30.0,
+    "floor_ms": 0.8251539241830066,
+    "excess_ms": 0.8219554817112915,
+    "effective_gbps": 76.64855166767343
+   },
+   "gdn_recurrence": {
+    "ms_per_token_mean": 0.8330077544087544,
+    "ms_per_token_min": 0.7427913369610906,
+    "ms_per_token_max": 1.0592498583719134,
+    "cbs_per_token": 30.0,
+    "floor_ms": 0.8224125490196079,
+    "excess_ms": 0.01059520538914649,
+    "effective_gbps": 151.05395998301358
+   },
+   "head": {
+    "ms_per_token_mean": 2.968197917653015,
+    "ms_per_token_min": 2.884250017814338,
+    "ms_per_token_max": 3.17874999018386,
+    "cbs_per_token": 2.0,
+    "floor_ms": 2.4960220862745097,
+    "excess_ms": 0.47217583137850516,
+    "effective_gbps": 128.66102254460358
+   },
+   "moe_experts": {
+    "ms_per_token_mean": 3.826161457254784,
+    "ms_per_token_min": 3.571833309251815,
+    "ms_per_token_max": 4.557333479169756,
+    "cbs_per_token": 80.0,
+    "floor_ms": 2.0265615895424833,
+    "excess_ms": 1.7995998677123008,
+    "effective_gbps": 81.03785652121078
+   },
+   "moe_router": {
+    "ms_per_token_mean": 0.7611771143274382,
+    "ms_per_token_min": 0.6647914997301996,
+    "ms_per_token_max": 1.1872086324729025,
+    "cbs_per_token": 40.0,
+    "floor_ms": 0.27413751633986927,
+    "excess_ms": 0.4870395979875689,
+    "effective_gbps": 55.10286529970109
+   },
+   "moe_shared": {
+    "ms_per_token_mean": 1.6451249830424786,
+    "ms_per_token_min": 1.5158334281295538,
+    "ms_per_token_max": 1.851000008173287,
+    "cbs_per_token": 40.0,
+    "floor_ms": 0.41531833725490197,
+    "excess_ms": 1.2298066457875767,
+    "effective_gbps": 38.62545779499553
+   }
+  },
+  "total_ms_per_token_mean": 17.12605461216299,
+  "total_ms_per_token_min": 16.037374327424914,
+  "total_floor_ms": 10.27810083137255
+ }
+]

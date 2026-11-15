@@ -1,0 +1,23 @@
+recheck parity k=2 exact=3 stride_applied=1 test_ok=1
+recheck parity k=8 exact=3 stride_applied=1 test_ok=1
+recheck parity k=16 exact=3 stride_applied=1 test_ok=1
+recheck parity k=64 exact=3 stride_applied=1 test_ok=1
+{"status": "complete", "error": null, "tps": [58.109979771321214, 59.69531183808563, 56.11084571564723]}
+run p0 k=4 exit=0
+{"status": "complete", "error": null, "tps": [56.058718924958754, 55.57070623038411, 57.10688214534013]}
+run p1 k=8 exit=0
+{"status": "complete", "error": null, "tps": [55.95148389558242, 57.05784265171222, 56.94352916937887]}
+run p2 k=16 exit=0
+{"status": "complete", "error": null, "tps": [53.23463641801522, 54.27260650254167, 56.15804880350495]}
+run p3 k=64 exit=0
+{"status": "complete", "error": null, "tps": [60.35597551351041, 60.46555501695981, 60.46354351833789]}
+run p4 k=2 exit=0
+{"status": "complete", "error": null, "tps": [56.49395511900013, 56.42412548992079, 56.412568209374584]}
+run p5 k=64 exit=0
+{"status": "complete", "error": null, "tps": [59.42120122969584, 59.18320193057879, 59.35394285681299]}
+run p6 k=16 exit=0
+{"status": "complete", "error": null, "tps": [60.31968364626625, 60.1621262716577, 60.35457362489364]}
+run p7 k=8 exit=0
+{"status": "complete", "error": null, "tps": [60.44646017259487, 60.54154172628456, 60.53000574427848]}
+run p8 k=4 exit=0
+p7_status=0

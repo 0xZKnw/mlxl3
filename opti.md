@@ -28529,3 +28529,381 @@ PIDs and battery identifiers. No engine, checkpoint or quantization changed.
 - Périmètre ajouté avant publication : coloration HTML avec CSS/JS incorporés et palette du code. Le rendu initial utilisait seulement les règles de balisage dans style/script, et pouvait recolorer les commentaires. Le lexer commun protège les commentaires, délègue les blocs et attributs aux règles CSS/JS/TS/JSON et transmet les couleurs à travers les morceaux de mise en page du chat. Le cache éditeur garde les blocs incorporés dans une même unité lexicale pour préserver le contexte. La limite existante de coloration de l’éditeur reste 256 KiB. Cas source de la version précédente reproduit sur le vrai ancien lexer (assertion CSS non coloré). 289 contrôles incorporés et contraste ≥4,5:1 en clair/sombre, 2529 contrôles de réactivité au total ; streaming : 141 cas de texte, 1194 fragments de code, 4845 de Markdown réussis. Après une image affichée en cache, l’utilisateur confirme la première nouvelle palette ; conserver celle-ci. Aucun benchmark ou gain de performance revendiqué.
 - Version finale retenue : génération 2× et première palette du code confirmée par l’utilisateur. 20 captures des gestionnaires et quatre de l’éditeur HTML, clair/sombre et 820/1280 pt. Retour cliqué sur les quatre pages dans les deux apparences. 55 assertions d’expérience, 14 de fond, 44 de parcours Agent ; suite préférences et rendu natif terminée, y compris 30 contrôles de longue réponse. Syntaxe/réactivité 2529 contrôles, dont 289 incorporés/contraste, streaming 141/1194/4845 cas réussis. Pas de preuve formelle SwiftUI. Paquet final source bb6a3e4b, propre, Desktop 2.0.1/build54, moteur et converter identiques au paquet 2.0.0 par empreintes. DMG vérifié et préflight v2.0.0→2.0.1 réussi avec refus d’un build identique. Correctifs validés localement ; publication autorisée en cours. Aucun benchmark actif.
 - Livraison terminée : Desktop v2.0.1/build54 publié en stable et latest, code sur main. DMG public retéléchargé et vérifié par SHA-256. Le sélecteur de production choisit la 2.0.1 sur Stable et Beta, moteur 2.0.10. Annonce Discord via workflow 43533627726 réussie. Reçu docs/releases/desktop/release-v2.0.1-receipt.json. CI complète encore en cours au reçu. Aucun essai ni benchmark propre restant.
+
+### Q36-POST209-QUALIFIED — en cours
+Le premier worktree q36-post209 contient les cinq essais indépendants. Dans ce checkout de la 2.0.9, ne conserver QKV+Z que pour quatre lignes/M5/MCG et les largeurs exactes, suite aux résultats du contrôle dans un même exécutable : MTP3 concorde sur FR/code dans les deux ordres, MTP1 code change de signe. Choisir le plan préfill après son contrôle isolé. Comparer cette source finale au paquet dans le bridge, y compris les modes non touchés, et vérifier ses logits/états. MTP1 reste la profondeur initiale et Tune conserve son choix.
+
+- Grille 32 exclue de ce candidat : le contrôle isolé sur exécutable b8255b76 ne reproduit pas l’amélioration longue dans les deux ordres (voir journal et données pour les deux agrégations). Tester le plan parallèle seul, en gardant les descripteurs de 64 et la grille existante. Le modèle, les poids et les options MTP restent ceux du moteur publié.
+
+- Plan parallèle qualifié pour l’intégration par le contrôle même binaire sur 1097 tokens : +3,65/+4,02 % tok/s préfill ABBA/BAAB. QKV+Z T4 : +5,20/+4,92 % FR et +4,77/+4,70 % code. Aucun seuil pour MTP1/2 ou AR ajouté. Démarrage vérification du source intégré.
+
+
+### Q36-FINAL-ROW-20261113 — préparation conditionnelle
+
+Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1,85/+1,34 % sur 1097 tokens. Préparer un candidat contenant uniquement la dernière ligne des experts routés, gardes de format et matériel, contrôle par le même exécutable sur le prototype en cours. Décision conditionnée à ce contrôle ; si elle passe, revalider le binaire final contre le témoin (deux ordres sur FR27/long1097), l'oracle figé, composants T73/T256, états, bords de sélection, et les profondeurs MTP via bridge. Aucun changement aux paramètres de Tune. Ne pas qualifier le binaire final avec les chiffres du prototype.
+
+
+- Q36-FINAL-ROW arbitrage : contrôle du prototype même binaire +2,25 % BAAB, −2,10 % ABBA, dont un passage candidat avec decode inchangé tombé à 45,8 tok/s. Nouveau protocole préenregistré sur la version propre avec gardes matérielles : une instance du vrai 35B, texte original du bridge retokenisé, 1097 IDs vérifiés ; remettre l'état à zéro et conserver les caches de kernels chauds, 5 vrais chunks par passe. Comparer tous les logits pour les deux modes avant le chronomètre, deux chauffes, puis 24 prefills / 12 paires, ordre AB puis BA alterné. Examiner médiane par ordre, différence médiane et signe par paire, avant A/B final dans le bridge. Si les gains ne se reproduisent pas, laisser ce chemin expérimental. Ne pas retenir d'actif par défaut si le comparatif bridge final régresse.
+
+- Q36-FINAL-ROW Binaire final 8caeae8471018f1bd9a68844a9e8e8cd23e4f11cbb3dd9c63da1ea69613e6f6f, tests 8d85338c87d13d8662da17506bd4b9af86f6df2d9325bcd3df331101a28a0a86.
+
+- Q36-FINAL-ROW contrôle apparié terminé sur 1097 IDs : 12/12 paires plus rapides, gain de débit médian 1,273 %, 28,07 ms gagnées, 6/6 dans chaque ordre (+1,008 % AB, +1,298 % BA). Les 248320 logits F16 du dernier chunk sont bit-identiques à chaque répétition. Source final-source.patch, physique final-paired.log ; bridge A/B final en cours.
+
+- Q36-FINAL-ROW Contrôles numériques et bridge MTP1/2/3 passés sur le binaire final.
+
+- Q36-FINAL-ROW BAAB prefill long {'A': 489.5429790340546, 'B': 494.7950155205536, 'change_percent': 1.0728448188271678}.
+
+- Q36-FINAL-ROW ABBA prefill long {'A': 497.21857021097577, 'B': 502.7514832416066, 'change_percent': 1.1127728049825647}.
+
+- Q36-UNTRIED-LIVE et Q36-FINAL-ROW — clos. A : non concluant de bout en bout et exclu ; M : rejet de la substitution après observation D1/2/3 (32 vs 56 corrects sur 64 offres, seulement neuf occasions avec clé double) ; P : T1 rejeté pour divergence, variante segmentée validée et activée dans le moteur local qualifié. Binaire 8caeae8471018f1bd9a68844a9e8e8cd23e4f11cbb3dd9c63da1ea69613e6f6f vs 17c3d94f : prefill 1097 FR long ABBA 497,219 → 502,751 tok/s (+1,113 %), BAAB 489,543 → 494,795 (+1,073 %), premiers tokens environ 24 ms plus tôt. Apparié 12/12, +1,273 %, 28,07 ms. Pas de gain de decode retenu. CPU 544 réussis / 10 ignorés, MLX 583 / 260, contrôles physiques et CLI/bridge 1/2/3 passés ; 3 harnais Kani, 8/8 couvertures, 1 assertion interne de formatage inatteignable. Clippy et format réussis ; CI distante non exécutée. MTP1 et Tune conservés. Aucune installation ou publication. Rapport et données dans le checkout personnel /Users/justin/Documents/mix-stq1_0/docs/q36-trois-essais-35b-2026-11-13.md et /Users/justin/Documents/mix-stq1_0/docs/measurements/q36-untried-live/.
+
+### RESEARCH-2026-11-14-Q36-DECODE-GLUE — CLOS — recherche statique, aucun essai lancé, gains non mesurés
+
+- Demande : revoir les kernels EXL3 du Qwen3.6-35B-A3B et chercher où gagner en decode. Lecture seule de la source qualifiée `6c62ad5f` (export `git archive` hors checkout), de MLX 0.32.2 (`references/mlx`, `device.cpp`/`transforms.cpp`) et des rapports kernels-revue-2026-11-14, exl3-m5-35b-2026-11-13, qwen36-max-profile, qwen36-decode-perf-2026-11-12 et Q36-VERIFY-K2. Aucun build, GPU, benchmark ni modification de source.
+- Budget analytique (estimation, pas une mesure) : poids parcourus par token AR ≈ 291 + 480 + 130 + 60 Mio (kernel-map) + tête K6 363,75 Mio ≈ 1,33 Gio. À 110–117 Go/s, débit effectif observé sur la tête K6 et les experts en FP16 dans R8, cela fait ≈ 12 ms ; à 153 Go/s nominal, ≈ 9 ms. Le bridge AR mesure ≈ 19–21 ms/token (47–55 tok/s). L'écart de ≈ 7–9 ms n'est pas expliqué par le flux de poids. La couverture partielle de la Shader Timeline (362/628 ms) ne permet pas de l'attribuer.
+- Constat source : à T1, chaque projection EXL3 dense ou groupée (`forward` et `Exl3Group::forward`) émet en série `mul suh` → `hadamard_transform` → QMV → `sum(0)` si splits>1 → `astype F16` → `hadamard_transform` → `mul svh`, soit 6–7 primitives MLX pour une seule GEMV utile. L'estimation statique donne environ 50 dispatchs par couche et environ 2 000 par token, dont environ 8 GEMV réelles par couche. Ce compte est **non mesuré**. MLX insère une `memoryBarrier` globale dès qu'une entrée dépend de l'époque précédente, donc ces chaînes sont strictement sérielles. L'ordre BFS de MLX (largeur 20) fait déjà recouvrir les branches indépendantes ; réordonner le replay n'est pas une piste.
+- Antécédents vérifiés : PERF-04 (mx.compile des épilogues, −4,49 %, Rust de septembre), PERF-09 (MoE compilé, −0,65 %), PERF-68 (épilogue MoE Metal M8, −1,7 %), D36_EPILOGUE (micro −7/−12 %, campagne arrêtée avant l'oracle modèle), PERF-86/87/88 (tête M6/M8, rejetés ou non concluants), DEC-ONE (Flash 6144→2560, AR +5,8 % mais MTP −2,7 %, abandonné), dense_epilogue (27B 6144→2560 uniquement), UPQ36-02/03A/03B (préparations compilées). **Aucun essai retrouvé d'un épilogue Metal exact en un dispatch pour les projections T1 du 35B** (sorties 4096→2048, shared down, grouped QKV+Z, attention Q/K/V et shared GU). `dense_finish_block`, qui fait réduction split + cast + H128 canonique radix16/8 + svh, existe déjà dans `dense_projection.metal`, mais seulement sur le chemin Metal direct.
+- Pistes proposées, à préenregistrer séparément avant tout prototype : P1 capture `.gputrace` d'un pas AR (hook `MLXL3_METAL_CAPTURE_PATH`, budget 2) pour compter les dispatchs, barrières et command buffers et comparer GPU actif et temps mural. P2 épilogue T1 fusionné pour les projections ci-dessus, avec oracle bit à bit (dont l'ordre de `sum(0)` pour splits 4) et compteur d'admission. P3 reprendre D36 MoE finish T1 (interruption antérieure nommée). P4 protocole A/B dans un même processus, en alternant le flag par requête, sur secteur, avec temps GPU par command buffer pour résoudre des effets de 1–3 %. Estimation : environ 300–450 dispatchs sériels en moins par token si P2+P3 aboutissent ; l'effet en ms dépend du coût par étape mesuré en P1. **Aucun gain annoncé.**
+- Rejeté de la liste : lecteurs K2/K4/K6, LUT, FP16 prédécodé, MX/TensorOps T1, budgets command buffer (OPT-2026-09-10-02) et réordonnancement des tuiles, tous déjà testés.
+
+### Q36-DECODE-GLUE-P1-20261114 — CLOS — comptage statique validé ; temps GPU par dispatch bloqué
+
+- Origine : piste P1 de RESEARCH-2026-11-14-Q36-DECODE-GLUE, demandée explicitement par l'utilisateur. C'est un diagnostic : aucun changement de code, aucun gain annoncé. Antécédent : M2 (13 novembre) n'a capturé qu'un composant GDN (13 dispatchs) ; aucun pas AR complet du 35B n'a été compté. La Shader Timeline xctrace ne fournit pas de compte de dispatchs (m0-gpu-semantics).
+- Artefacts : binaire témoin `/Users/justin/.codex/worktrees/q36-final-row/mix-stq1_0/build/trials/mlxl3`, SHA-256 `8caeae8471018f1bd9a68844a9e8e8cd23e4f11cbb3dd9c63da1ea69613e6f6f`, source `6c62ad5f`. Modèle `models/Qwen3.6-35B-A3B-EXL3-2.49bpw` (EXL3 2,49 bpw MCG, experts K3/K2, dense K4, tête K6), sans tête MTP. M5 24 Gio, macOS 27.2, MLX 0.32.2, sur secteur (batterie 44 %), 73 % de mémoire libre, aucun job moteur, build ou proveur concurrent ; applications utilisateur actives (Brave, Claude, Deezer).
+- Protocole : `bridge --context-length 4096` lancé avec `MTL_CAPTURE_ENABLED=1`, `MLXL3_METAL_CAPTURE_PATH=build/q36-decode-glue-p1/ar-step.gputrace` et `MLXL3_METAL_CAPTURE_REQUEST=capture-ar`. Prompt code43 (mtp-dense-1.4.0/code-prompt.txt), greedy T0/top_k0/pénalité 1, cache prompt OFF, MTP/DFlash OFF. Une chauffe de 16 tokens (`warm`), puis `capture-ar` avec `max_tokens=3` : sélection initiale + 2 pas AR. Contrôler que les deux requêtes rendent leurs tokens, avec texte et hash non vides et finis. Délais bornés (chargement 120 s, requête 120 s), bridge arrêté et joint avant toute analyse. gpudebug ensuite seul (modèle libéré), d'abord en inventaire statique (command buffers, encodeurs, dispatchs par pipeline), puis si praticable `profile run --exec overlapping --gpu-state default` pour l'union des intervalles par rapport à l'enveloppe des command buffers.
+- Sorties attendues : dispatchs par pas AR et par famille (QMV EXL3, Hadamard, copy/astype, binary, reduce, custom), nombre de command buffers, et si disponibles barrières et somme/union de durées de replay. Limites à garder : une durée de replay n'est pas le temps mural du bridge, le comptage ne prouve aucun gain de fusion, et la capture est intrusive. En cas d'échec (trace trop grosse, pression mémoire, replay impossible), conserver les logs et marquer bloqué. Données : `docs/measurements/q36-decode-glue-p1-20261114/`, trace brute sous `build/q36-decode-glue-p1/`.
+
+- Résultat capture (22h35–22h43, 14 novembre) : bridge prêt en 5,84 s ; `warm` a rendu 16 tokens (5,658 s, chauffe à froid, pas une mesure) ; `capture-ar` a rendu 3 tokens, texte « Here's a », 11,277 s **intrusifs** (capture active, aucune valeur de performance). Bridge arrêté avec exit 0 et joint avant l'analyse. Trace de 12 Go `build/q36-decode-glue-p1/ar-step.gputrace`. Le hash de tokens n'a pas été relevé (`stats.token_hash` absent sous ce nom) : texte et nombre de tokens seulement.
+- Inventaire statique (`gpudebug go /commands/cbN/ce0` + `list --all`, 166 CB) : 309 command buffers dont 166 avec un encodeur et 143 vides. Deux forwards complets cb0–cb153 et cb154–cb307, chacun avec **83 CB non vides et 2 441 dispatchs**, soit environ 61 par couche (GDN : 35 mixer + 25 MoE ; attention : environ 38 + 25 ; plus l'embedding et environ 25 pour la tête et la sélection). Les MLX commits suivent un motif 39/41/19/22 dispatchs par CB ; aucune barrière comptée (non exposée par cette navigation). Remarque de lecture : la réponse à `go` est tronquée à 20 enfants ; seules les réponses `list --all` (totalCount = len) sont comptées.
+- Familles par forward : élémentaires binary/unary/compilés 723, copy/astype 391, hadamard_128 362, reduce 160, gather 41, rms_norm 131, softmax/logsumexp/argmax 42 ; QMV EXL3 (tile/grouped/expert) 241, autres kernels EXL3 custom (routeur, routed_small, moe_glu_down, GDN prepare/gates) 180, gemv/dot FP16 MLX 140, et 30 dispatchs sans nom (3 par couche attention, SDPA probable, non vérifié). Les QMV EXL3 ne représentent que **≈10 % des dispatchs** ; colle (élémentaires, copy, Hadamard, reduce, gather) ≈ 1 677/2 441 = 69 %. Le décompte statique de la recherche (~2 000) sous-estimait.
+- Chaîne T1 observée telle que prévue : `rms → g2_Multiply(suh) → H128 → QMV → [col_reduce f32 si splits] → copy f32→f16 → H128 → vv_Multiply(svh)`, pour l'in-proj GDN (grouped 49152), la sortie 4096→2048 (splits 2 + reduce), le shared GU (grouped ×4 + reduce) et le shared down. Estimation **non mesurée** de P2 (épilogue exact fusionné) : environ 8–10 dispatchs en moins par couche, soit 320–400 par forward (13–16 %) ; prologue rms+suh+H fusionné, environ 160 de plus. Aucun gain en ms déduit.
+- Constat annexe : 2 copies par couche attention dont la grille suit la position (`gg2_copy` 11008→11264 = 43→44 × 256) ; la source `qwen35.rs:485-489` construit K/V par `concatenate(previous, k)`. Coût proportionnel au contexte, faible à 44 tokens. La réserve de capacité KV Qwen est **déjà rejetée** (docs/recherche-prefill-decode-2026-10-17.md:212) : simple observation, pas de relance sans justification nouvelle (par exemple une mesure en contexte long).
+- Temps GPU **bloqué** : `profile run --gpu-state default --exec overlapping` a renvoyé `Profile data collected` en 102 s (success), mais `/performance/commands`, `/timeline/shaders`, `/timeline/encoders` et `/timeline/counters` sont vides, même résultat que M2 (qwen36-max-profile m2-findings). Une seconde invocation exploratoire (racine, `/performance`, `info` CB/encodeur/dispatch après profil) est restée muette 7 min à 0 % CPU ; arrêtée volontairement (`TaskStop`), aucun processus gpudebug survivant, `replay-explore.*` vides. Pas d'autre tentative : la limitation de l'outil est reproduite sur deux traces. Mesure connue mais distincte : xctrace AR qwen36-decode-perf (prefill inclus, intrusif) donnait une union GPU de 2,63 s sur une fenêtre de 4,34 s.
+- Limites : le replay ne mesure de toute façon pas le temps mural du bridge ; une seule capture, après seulement 16 tokens de chauffe ; activation effective du GraphReplay AR non vérifiée (les deux forwards ont les mêmes noms de pipelines dans le même ordre, mais cela ne la prouve pas) ; le comptage ne prouve aucun gain de fusion.
+- Décision : comptage **validé** comme diagnostic ; temps par dispatch **bloqué**. P2 reste la piste principale, à préenregistrer séparément avec oracle bit à bit et compteur d'admission. Pour en chiffrer l'enjeu, privilégier une mesure en processus (GPUStartTime/GPUEndTime par CB, piste P4) plutôt que gpudebug. Aucun code modifié, aucune app touchée.
+- Preuves : `docs/measurements/q36-decode-glue-p1-20261114/` (capture.json, events.jsonl, bridge.stderr, static-commands.*, static-dispatch.*, dispatch-list.json, pipeline-counts.txt (ligne = 2 forwards), summary.json, replay-overlap.*, replay-explore.* vides). Contrôleur conservé sous `p1_capture.py.txt`.
+
+### Q36-T1-FINISH-P2-20261114 — NON CONCLUANT (exact, parité validée ; ≈+1,4 % decode en OFF/ON, non confirmé contre le témoin) — code local, flag OFF : épilogue T1 exact en un dispatch (35B, AR)
+
+- Origine : piste P2 de RESEARCH-2026-11-14-Q36-DECODE-GLUE, demandée par l'utilisateur après la mesure P1. Selon P1, un forward AR compte 2 441 dispatchs, dont 241 QMV EXL3. Chaque projection T1 se termine par `[col_reduce f32 si splits>1] → copy f32→f16 → H128 → mul svh`, soit 3 ou 4 dispatchs sérialisés. Antécédents distincts : `dense_epilogue` (27B Flash 6144→2560, accumulation de référence S2, OFF), D36 (finish MoE routé, non repris ici), PERF-04/68 (mx.compile, épilogue MoE M8). Aucun épilogue exact pour les projections T1 non-référence du 35B.
+- Hypothèse : remplacer cette chaîne par un seul custom kernel exact. Attendu : environ 402 dispatchs en moins par forward (2 441 → ≈2 039), répartis ainsi : sortie 4096→2048 S2 ×40 (−3) ; shared down 512→2048 S1 ×40 (−2) ; tête S1 ×1 (−2) ; in-proj GDN groupé S1 ×30 (−2) ; QKV attention groupé S1 ×10 (−2) ; shared GU groupé S4 ×40 (−3). Aucune valeur numérique ne doit changer. Le gain de vitesse est inconnu (le coût par dispatch n'a pas été mesuré en P1).
+- Changement prévu (worktree `/Users/justin/.codex/worktrees/q36-t1-epilogue/mix-stq1_0`, branche locale `codex/q36-t1-epilogue`, base `6c62ad5f`) : nouveau shader dérivé de `flash_dense_epilogue.metal`, paramétré par WIDTH et SPLITS∈{1,2,4}. Ordre MLX 0.32.2 vérifié dans la source : `col_reduce_small` avec `lsize.y=min(8,S)` donne `((p0+0)+(p1+0))+…` pour S≥2 ; S=1 fait un simple `half(p)` sans +0 ; puis `hadamard_n<half,128,16,4>`, `half(x*scale)` et `half(y*svh)`. Admission dans `Exl3Linear::forward` (T1, k≠7, accumulation non-référence, sans bias) et `Exl3Group::forward` (T1, biais absents) si partials f32 [S,W], svh f16 [W] et W%128=0, sinon chaîne stock. Flag `MLXL3_Q36_T1_FINISH` (0/1, défaut OFF pendant la qualification, autre valeur = erreur), compteur d'admission de test.
+- Correction avant vitesse : (1) oracle GPU stock MLX contre le kernel, octets identiques, pour W/S = 1024/4, 2048/1, 2048/2, 9216/1, 12288/1, 248320/1, avec fixtures aléatoires finies, ±0, et inf/NaN (classe et signe), formes non éligibles en fallback, et compteur ; mutation temporaire de l'ordre de réduction qui doit échouer. (2) Modèle réel flag ON : `checkpoint_optimization_matches_saved_logits_and_states` (12 instantanés × 248 320 logits + 80 états bit à bit, référence `qwen36-four-trials-20261112/build/four/02-reference`), compteur d'admission >0 sur le parcours réel, et CLI `forward --tokens 1,53,106,159` bit à bit contre `q36-post209-qualified/build/qualified/final-cli.log`. Bridge AR/MTP1 128 tokens : signatures identiques à la baseline. (3) Kani sur la vraie fonction d'admission/géométrie (bornes de grille et d'adresses, S, W) ; clippy strict CPU et MLX/chat ; suites ciblées.
+- Vitesse (seulement après (1)–(2)) : `benchmarks/compare_native.py`, baseline figée = témoin `8caeae84` (6c62ad5f), candidat = nouveau binaire avec `MLXL3_Q36_T1_FINISH=1`, AR, prompts court et code, 128 de chauffe + 128 générés, 2 répétitions, BAAB puis ABBA, sur secteur, modèle seul, sans build ni proveur concurrent. Diagnostic OFF/ON du même binaire si utile. Gain retenu seulement s'il est de même signe dans les deux ordres et que le prefill témoin ne dérive pas de façon comparable.
+- Données : `docs/measurements/q36-t1-finish-p2-20261114/` ; build sous le worktree (`build/`). Aucun push, aucune app ni publication touchée.
+- Q36-T1-FINISH-P2 implémentation locale (worktree `q36-t1-epilogue`, base 6c62ad5f, non commitée) : `native/src/t1_finish.rs` (admission S∈{1,2,4}, W%128=0, W≤2^20, f32/f16, flag `MLXL3_Q36_T1_FINISH`) et `native/shaders/t1_finish.metal`, branchés dans `Exl3Linear::forward` T1 (non-référence, sans bias) et `Exl3Group::forward` T1. Défaut OFF. fmt et clippy strict MLX/chat OK, 3 tests unitaires CPU passés.
+- Contrôles GPU physiques, chacun lancé seul en release : oracle synthétique, octets identiques au stock MLX sur les 6 formes, **42 cas finis + 36 non finis** (oracle DC indépendant compris) (`oracle-synthetic.log`). Deux échecs initiaux venaient des fixtures et non du kernel : le H128 stock lui-même débordait en inf sur des blocs ≈65 504 et sur l'annulation S1 non annulable. Fixtures corrigées, logs `*-failed.log` conservés. Mutation « ordre de réduction inversé » détectée (S4 W1024, 1 ULP à l'indice 512, `mutation-reverse-order.log`), shader restauré (cmp identique). Refus : 8 formes non admises en fallback, puis reprise (`t1_finish_refuses_unqualified_layouts.log`). Entrée de production avec les vrais poids 35B (GDN in/out couche 0, shared GU/down, QKV/o_proj couche 3, tête) : forward OFF/ON **bit à bit sur 276 992 valeurs**, admissions sur les 6 formes (`t1_finish_real_q36_projections_match_stock.log`). Restent : Kani, clippy CPU, oracle modèle complet flag ON, CLI, bridge, puis vitesse.
+- Q36-T1-FINISH-P2 contrôles statiques : Kani `t1_finish_layout_bounds_launch_and_addresses` (vraie `t1_finish::layout`, rangs 0–3, i32 symboliques, indices shader) **0/183 échecs, 5/5 couvertures** (`kani.log`) avec `unwind(13)`. Le premier essai à `unwind(4)` échouait sur l'assertion d'unwinding de `memcmp`, liée à la comparaison de slice (`kani-unwind4-failed.log`). Clippy strict CPU d'abord en échec, module `t1_finish` non gaté donc code mort (`clippy-cpu-ungated-failed.log`). Corrigé par `#[cfg(any(feature = "mlx", test, kani))]` comme `dense_epilogue`. Ensuite clippy CPU et MLX/chat OK, fmt OK, 3 tests CPU passés.
+- Q36-T1-FINISH-P2 parité modèle (binaire release candidat `build/p2/mlxl3` SHA-256 `31233889d93e842aff7cb0faaec9b5598aa06b58688b6d2b8aac1385893b9224`, worktree non commité sur 6c62ad5f) :
+  - `checkpoint_optimization_matches_saved_logits_and_states` avec `MLXL3_Q36_T1_FINISH=1` : **12/12 instantanés, 80 états + 248 320 logits finis bit à bit**, replay `enabled_layers*6` OK (`model-reference-on.log`, binaire de test `5e968c2c…`).
+  - Nouveau test `t1_finish_admitted_on_real_model_decode` (vrai `Qwen35Moe::load`, flag par l'environnement) : le pas 1 admet **161** projections (40 + 40 + 40 + 30 + 10 + 1, soit exactement la prévision, donc ≈402 dispatchs en moins). Les pas 2 et 3 en admettent 41 : les 30 couches GDN rejouent le graphe enregistré au pas 1, kernel compris, sans rappeler `forward` (`real-model-admissions.log`, test `2d671ab5…`). Le premier essai supposait à tort des admissions sur les 6 formes à chaque pas et a échoué au pas 2 (`real-model-admissions-replay-assumption-failed.log`). Le kernel rejoué n'est pas compté directement ; sa parité est couverte par l'oracle checkpoint (pas 1–3 sur 3 longueurs).
+  - CLI `forward --tokens 1,53,106,159` : flag 1 et flag 0, **4 × 248 320 logits bit à bit** contre `final-cli.log` ; `MLXL3_Q36_T1_FINISH=2` refusé, exit 2 (`cli-forward-*.log`).
+  - Bridge `scripts/check-mtp-bridge.py`, prompt code, budgets 1,2,3,17,64,128, AR et MTP1, annulation et invalides : `validated` sur le candidat (flag 1) et sur le témoin `8caeae84`, avec des token_hash identiques entre les deux binaires à chaque budget (`bridge-mtp1-*.log`, `bridge-signatures-compare.log`).
+  - Conclusion : correction validée, mesure de vitesse autorisée.
+- Q36-T1-FINISH-P2 vitesse A/B (`benchmarks/compare_native.py`, A = témoin `8caeae84`, B = candidat `31233889` + `--candidate-env MLXL3_Q36_T1_FINISH=1`, AR, prompts short et code via `--prompt-file`, 128 de chauffe + 128 générés, 2 répétitions, settle 2 s, sur secteur avant et après, modèle seul, sans build ni proveur concurrent ; parité de texte `true` dans les deux campagnes, 128 tokens à chaque run) :
+  - BAAB (`speed-BAAB/`) : decode short 52,71 → 52,30 tok/s (**−0,79 %**), code 52,16 → 50,85 (**−2,51 %**, premier run B à 47,64) ; prefill short −2,02 %, code −3,03 % ; TTFT +2,3 % / +3,1 %.
+  - ABBA (`speed-ABBA/`) : decode short 52,29 → 52,58 (**+0,55 %**), code 51,18 → 52,36 (**+2,30 %**) ; prefill short −0,78 %, code −3,09 % ; TTFT +0,8 % / +3,2 %.
+  - Lecture : le decode change de signe selon l'ordre et reste sous ±2,5 %, donc **aucun gain decode établi** malgré ≈402 dispatchs en moins par forward (−16 %). Le prefill/TTFT du candidat est plus lent dans les deux ordres (−0,8 à −3,1 %). P2 ne devrait pas toucher le prefill multi-ligne : à attribuer (binaire ou flag) par le diagnostic OFF/ON ci-dessous avant toute conclusion.
+- Q36-T1-FINISH-P2-DIAG-OFFON — préenregistré : même binaire candidat `31233889`, A = `--baseline-env MLXL3_Q36_T1_FINISH=0`, B = `--candidate-env MLXL3_Q36_T1_FINISH=1`, protocole identique (short + code, 128 + 128, 2 répétitions, BAAB puis ABBA, settle 2 s). But : séparer l'effet du flag de celui du binaire sur le prefill/TTFT (−0,8 à −3,1 %) et sur le decode. Attendu si P2 est neutre en prefill : prefill sans écart de même signe dans les deux ordres. Données `speed-offon-{BAAB,ABBA}/`.
+- Q36-T1-FINISH-P2-DIAG-OFFON résultats (même binaire `31233889`, A flag 0, B flag 1, parité `true`, 128 tokens partout, sur secteur avant et après ; `speed-offon-{BAAB,ABBA}/`) :
+  - BAAB : decode short 53,10 → 53,94 (**+1,58 %**), code 53,16 → 53,86 (**+1,33 %**) ; prefill −1,16 % / −0,42 %.
+  - ABBA : decode short 52,78 → 53,43 (**+1,24 %**), code 52,18 → 52,94 (**+1,44 %**) ; prefill +1,45 % / −1,64 %.
+  - Lecture : le decode est de même signe sur les 4 comparaisons, environ +1,2 à +1,6 %, mais les runs individuels se recouvrent (A 51,89–53,46, B 52,15–54,30). Le prefill change de signe : le flag n'a pas d'effet de prefill établi. Le −0,8 à −3,1 % de prefill de l'A/B principal vient donc du binaire ou de la dérive entre campagnes (le niveau A a bougé de ≈+0,8 tok/s entre les deux séries), pas de P2.
+- **Décision Q36-T1-FINISH-P2 : non concluant.** La correction est validée : bit à bit synthétique, sur les projections réelles, sur le checkpoint (12 × 248 320 logits + états), en CLI et sur le bridge AR/MTP1 ; Kani borne la géométrie. La vitesse ne l'est pas : contre le témoin, aucun gain (signes opposés, ±2,5 %) ; en OFF/ON, un petit gain probable de ≈+1,4 %, sous la dispersion run à run, loin de l'estimation a priori de +3 à +10 %. Aucun défaut changé.
+  - Intégration : code local uniquement (worktree `q36-t1-epilogue`, non commité, base 6c62ad5f), `MLXL3_Q36_T1_FINISH` défaut OFF ; aucune app, aucun push, aucune publication.
+  - Pour l'établir, il faudrait plus de répétitions (≥ 6 par bras) ou un benchmark plus long : une répétition de validation, pas un nouvel essai.
+- **Révision datée 2026-11-14 de RESEARCH-2026-11-14-Q36-DECODE-GLUE :** retirer 402 dispatchs par forward (−16 %, 2 441 → ≈2 039, admissions comptées 161/161 au pas 1) n'apporte au mieux que ≈+1,4 % en AR. Le decode AR du 35B n'est donc pas limité par le nombre de dispatchs de glue sur ce parcours (CB chaînés, petits kernels probablement recouverts). L'extrapolation « programme glue complet +15 à +25 % » est invalidée telle quelle. Les pistes glue suivantes doivent d'abord mesurer le temps GPU par CB (bloqué en P1) avant tout prototype.
+- Q36-T1-FINISH-P2 suite CPU complète `cargo test --locked --no-default-features --features chat -- --test-threads=1` : 547 passés, 0 échec, 10 ignorés (`suite-cpu.log`). Suite MLX/chat complète non exécutée (seuls les tests P2 ciblés, le checkpoint, la CLI et le bridge l'ont été). Aucun essai en cours.
+- Ordre de grandeur (calcul, non mesuré directement) : à ≈52,5 tok/s, un pas dure ≈19 ms ; +1,4 % ≈ 0,27 ms pour 402 dispatchs, soit ≈0,7 µs par dispatch retiré. C'est cohérent avec des dispatchs chaînés dans un même CB. L'hypothèse a priori de 2 à 5 µs par dispatch, qui fondait l'estimation de +3 à +10 %, était trop optimiste.
+
+### Q36-CB-GPU-TIME-P4-20261114 — VALIDÉ (diagnostic) : GPU actif ≈89 %, une bulle CPU ≈1,5 ms par token — temps GPU par command buffer en processus (35B, AR)
+
+- Origine : demande de l'utilisateur après Q36-T1-FINISH-P2 (non concluant, environ +1,4 % pour −16 % de dispatchs). C'est un diagnostic : aucun changement du moteur, aucun gain annoncé. Antécédents : P1 a compté 154 CB par pas AR (83 non vides), mais `gpudebug profile` renvoie des tables de performance vides (bloqué, comme M2). La Shader Timeline xctrace (R8, qwen36-decode-perf) est intrusive et attribue par nom de shader, pas par CB, avec une union GPU de 2,63 s sur une fenêtre de 4,34 s, prefill compris. Aucune mesure par CB alignée sur les tokens n'existe pour le 35B.
+- Méthode (nouvelle) : une dylib Objective-C de diagnostic, hors moteur, injectée par `DYLD_INSERT_LIBRARIES` sur le binaire local non durci. Elle remplace `commit` sur les classes concrètes de `MTLCommandBuffer` du device par défaut et ajoute un `addCompletedHandler` qui écrit un enregistrement par CB (`write` atomique en O_APPEND) :
+  - séquence ;
+  - heure de commit `CACurrentMediaTime` ;
+  - `kernelStartTime` / `kernelEndTime` ;
+  - `GPUStartTime` / `GPUEndTime` ;
+  - heure du handler ;
+  - statut.
+
+  Côté harnais, l'heure `CLOCK_UPTIME_RAW` (même base mach) est notée à chaque delta du bridge. Les fichiers sont dans `docs/measurements/q36-cb-gpu-time-20261114/`, la source `cb_timing.m` y est conservée et le build va sous le worktree `q36-t1-epilogue/build/cbtime/`.
+- Validation de l'outil avant toute lecture :
+  1. Oracle synthétique : un programme Metal autonome soumet N CB d'un kernel de charge connue, séparés de pauses CPU connues. On attend N enregistrements, des intervalles ordonnés et finis (GPUStart ≤ GPUEnd ≤ handler) et des trous ≈ pauses (tolérance notée).
+  2. Sur le bridge : le nombre de commits par pas AR doit être 154, comme en P1. Les token_hash et le texte doivent être identiques avec et sans dylib. Le débit decode avec dylib est comparé à celui sans dylib (perturbation chiffrée, non masquée).
+- Mesure : binaire candidat `31233889` (source 6c62ad5f + P2, flag OFF par défaut), bridge AR, prompt code, ctx 4096, chauffe 128 puis 3 × 128 tokens par processus. Ordre OFF, ON, ON, OFF (`MLXL3_Q36_T1_FINISH`), plus un processus OFF sans dylib pour la perturbation. Sur secteur, modèle seul, sans build ni proveur concurrent.
+  - Métriques par token decode : temps mural entre deltas ; union GPU des CB ; fraction GPU active ; nombre de CB ; trous GPU, classés en « commit arrivé après la fin du CB précédent » (bulle côté CPU/soumission) ou « commit déjà là » (latence d'ordonnancement) ; temps par position de CB dans le pas, rattaché au contenu des CB de `dispatch-list.json` P1.
+  - Pour OFF/ON : différence d'union GPU par token (ce que P2 retire vraiment côté GPU) contre différence de temps mural.
+- Décision attendue :
+  - si la fraction GPU active est proche de 100 %, le decode est limité par le GPU et il faut cibler les CB les plus coûteux (QMV/MoE/GDN) ;
+  - si les trous dominent, il faut cibler la soumission/synchronisation CPU (eval, replay, readback) plutôt que la fusion de kernels.
+- Limites prévues : la granularité est le CB (83 non vides par pas), pas le dispatch. Le handler et l'injection peuvent perturber le temps, ce qui est chiffré par le contrôle sans dylib.
+- Outil (dylib `cb_timing.m` SHA-256 `22c83ffa…`, oracle `cb_oracle.m`, analyse `cb_records.py`/`analyze.py`/`steps.py`, tout sous `docs/measurements/q36-cb-gpu-time-20261114/`) :
+  - Une seule classe concrète est accrochée, `AGXG17GFamilyCommandBuffer`, sans aucune écriture courte.
+  - Oracle 40 CB/pause 3 ms et 200 CB/pause 0,5 ms : **validé** (`oracle-n40-p3000.json`, `oracle-n200-p500.json`). Tous les CB sont enregistrés une fois, en ordre, au statut Completed. GPUStart/End sont égaux à ±1 ns à ceux lus par le programme. L'ordre commit ≤ GPUStart ≤ GPUEnd ≤ handler est respecté et chaque trou est ≥ la pause.
+  - Deux échecs initiaux du script de contrôle, pas de l'outil, sont conservés : Python 3.9 sans `zip(strict)`, puis égalité exacte contre un `%.9f` imprimé.
+  - La durée du kernel spin n'est pas linéaire en itérations (fréquence GPU variable). L'oracle ne valide que la capture et l'alignement temporel, pas une durée de charge.
+- Campagne (binaire `31233889`, bridge AR, prompt code, ctx 4096, chauffe 128 puis 3 × 128 par processus, settle 2 s, secteur avant et après, GPU seul) : p0 OFF+dylib, p1 ON+dylib, p2 ON+dylib, p3 OFF+dylib, p4 OFF sans dylib.
+  - **Parité : 15/15 requêtes `token_hash` 04d09d6803d2329b**, le même que le bridge-128 de P2.
+  - Perturbation : sans dylib, 50,89–51,28 tok/s ; OFF avec dylib, 50,36–52,43. Aucun effet détectable au-delà de la dérive (p4 passé en dernier).
+  - Écart au préenregistrement : en processus, on compte **148–152 commits par pas** (mode 150, dont ≈43 de durée nulle), contre 154 dans la capture gputrace P1 (71 vides). Cause non vérifiée : le mode capture découpe autrement.
+- Résultats par token decode (`analysis.json`, `steps.json`) :
+  - Mur ≈ 18,75–19,86 ms, union GPU 16,80–17,84 ms : **GPU actif 87,7–89,9 %**.
+  - Inactivité ≈ 2 ms/token, dont ≈1,6–2,0 ms parce que le CB suivant n'était pas encore commité (côté CPU) et ≈0,26–0,35 ms de latence de lancement.
+  - Anatomie : **exactement une grande bulle par pas** (126–127 pour 127 tokens). Ses quartiles sont 1 449–1 844 µs, médiane ≈1,48–1,63 ms, soit ≈1,53 ms/token ≈ **8 % du temps mural**. Le delta arrive ≈90 µs après la fin GPU du pas ; le premier commit du pas suivant arrive ≈1,36–1,73 ms (quartiles) après ce delta.
+  - À l'intérieur du pas, le CPU commite en moyenne ≈1,6 ms en avance sur le GPU (médiane commit→GPUStart) : le pas lui-même est limité par le GPU.
+  - Fin de pas : les positions 144–148 (dernières couches, tête 248 320, argmax probables, attribution non mesurée) pèsent ≈2,3–3,0 ms GPU par pas. Les autres CB coûtent ≈0,2–0,3 ms chacun.
+- P2 vu côté GPU : somme GPU par pas, médiane OFF 17,1 (p0) et 17,6 (p3) ms, ON 17,1 (p1) et 16,8 (p2). La dérive entre processus (≈0,5 ms) domine. L'écart p0→p2 de ≈−0,3 ms est cohérent avec le ≈+1,4 % de Q36-T1-FINISH-P2-DIAG-OFFON, sans l'établir davantage.
+- **Décision / lecture** : le decode AR du 35B est limité par le GPU à l'intérieur de chaque pas (≈17 ms), plus une bulle sérielle de ≈1,5 ms par token entre la livraison du token et la première soumission du pas suivant.
+  - Le pas suivant ne peut démarrer qu'après la relecture du token : `forward(token: u32)` → `Array::from_i32` → `embeddings.take`, puis graphe de la couche 0 jusqu'au premier `async_eval` de `pipeline_layer`.
+  - Plafond théorique en masquant toute la bulle : ≈−1,5 ms/token, soit ≈+8 % tok/s (non mesuré). C'est plus que tout le programme glue restant, au vu de P2.
+  - Pistes à préenregistrer séparément : (a) profil CPU échantillonné de cette fenêtre de ≈1,4 ms (bridge/détokenisation, construction couche 0, encodage MLX), pour savoir ce qui la remplit ; (b) chaînage GPU du token (« GPU token-ID chaining », listé comme suite non implémentée dans I167) : construire et soumettre le pas t+1 depuis l'argmax paresseux avant de relire le token t, avec un pas jeté en fin/EOS. Ce n'est pas PERF-07 (septembre, autre modèle et moteur, un seul graphe jusqu'à l'argmax, rejeté pour dérive) ; le mécanisme et la mesure diffèrent.
+- Intégration : diagnostic seulement, aucun code moteur modifié (le binaire est celui de P2, flag OFF par défaut), aucune app, aucun push. Aucun essai en cours.
+
+### RESEARCH-2026-11-14-Q36-AR-BUBBLE-SOURCE — analyse statique du code : origine de la bulle AR et marge GPU (aucun essai)
+
+- Demande de l'utilisateur après Q36-CB-GPU-TIME-P4 : trouver dans le code d'où vient la bulle ≈1,5 ms par token, comment la corriger et où gagner sur les ≈17 ms GPU. Pas de profilage CPU.
+- **Origine de la bulle** (source 6c62ad5f), boucle `bridge_generate_round`, `native/src/main.rs:3277-3436`, MLX :
+  1. `select_token` appelle `chat_greedy_ids` (`log_probs → argmax → to_u32`), donc une relecture synchrone.
+  2. `decoder.step`, splitter et `bridge_emit_delta` (JSON sur stdout).
+  3. `model.forward(next)`, soit `Qwen35Moe::run`, puis `run_tokens(evaluate=true)` (`qwen35.rs:1388-1401`). Cette étape construit tout le graphe paresseux des 40 couches et de la tête (≈2 441 nœuds), puis appelle `logits.eval()`.
+
+  La soumission progressive `pipeline_layer` (`contracts.rs:732`, `async_eval` après les couches 0, 3, 7…, `qwen35.rs:1436`) est **désactivée en AR** : `pipeline = MLXL3_QWEN_PIPELINE == "1"` (`qwen35.rs:1173`). Seule `mtp_pipeline` est activée par défaut sur cette géométrie M5/H2048/40c/256e/top8 (`contracts.rs:686`).
+
+  Aucun CB n'est donc commité avant que le CPU ait construit tout le pas, ce qui donne les ≈1,36–1,73 ms delta → premier commit mesurés en P4. Ensuite le CPU garde ≈1,6 ms d'avance pendant que le GPU exécute.
+- **Antécédent direct** : v1.4.2, 7 octobre (`docs/engine-v1.4.2-pipeline.md`, commit b389fcce). La même soumission progressive a donné **+7,1 à +8,0 % decode MTP2** sur ce 35B (ABBA et BAAB, sorties exactes). L'AR (D0) a été laissé tel quel. Le seul essai « toutes boucles », prototype `c3071d06`, avait un contrôle D0 qui dérivait (−13,20 % / +19,51 %) : **non concluant**, jamais repris. L'AR avec `MLXL3_QWEN_PIPELINE=1` n'a donc jamais été mesuré proprement. C'est une raison nouvelle et explicite : la bulle est désormais mesurée par CB.
+- **Correctif candidat** : activer `pipeline_layer` pour la boucle AR Qwen sur cette géométrie, par l'option existante, sans changer aucune opération. Plafond ≈ −1,3 à −1,4 ms/token (la bulle moins la construction de la couche 0 et la relecture ≈90 µs), soit ≈+7 % tok/s. Estimation, non mesuré. Suite possible : chaîner le token sur GPU pour masquer aussi la relecture et l'émission du delta (≈90 µs).
+- **Marge GPU** (en-têtes safetensors du checkpoint, octets lus par token AR) :
+
+  | Famille | Octets par token |
+  |---|---|
+  | in_proj GDN | 368,4 Mio |
+  | Tête K6 | 364,2 Mio |
+  | Experts routés (8/256 de 9 462 Mio) | ≈295,7 Mio |
+  | out_proj GDN | 120,4 Mio |
+  | QKV attention | 90,3 Mio |
+  | Shared expert | 60,6 Mio |
+  | o_proj | 40,1 Mio |
+  | Routeur F16 | 40,0 Mio |
+  | **Total poids** | **≈1 380 Mio ≈ 1,45 Go** |
+
+  - L'état récurrent GDN (≈2 Mio par couche × 30, lu et écrit) est une estimation non vérifiée dans le code.
+  - À 153 Go/s nominal M5, le plancher de lecture des poids est ≈9,5 ms. Le GPU met ≈17,1 ms (P4).
+  - Les traces historiques (r5, AR installé) donnent ≈2,8 ms pour la tête, soit ≈136 Go/s, déjà proche du pic. Les sorties 4096→2048 prennent ≈1,3 ms pour 168 Mo, ≈129 Go/s.
+  - Les grosses QMV sont donc près du débit mémoire. L'essentiel de l'écart (≈7 ms) est hors lecture de poids : glue (≈1 700 petits dispatchs ≈0,7 µs, cf. P2), récurrence GDN, attention, routage MoE et lancements. À attribuer, l'attribution par famille sur le binaire actuel n'étant pas mesurée.
+
+### Q36-AR-PIPELINE-P5-20261114 — VALIDÉ (option existante, défaut inchangé) : soumission progressive en AR (35B), `MLXL3_QWEN_PIPELINE=1`
+
+- Hypothèse : avec `pipeline_layer` actif en AR, le premier CB du pas t+1 part après la construction de la couche 0 et non après tout le graphe. La bulle par token (≈1,5 ms en P4) tombe sous 0,3 ms, le decode AR gagne ≈5 à 8 %, et les sorties restent identiques (mêmes opérations, seul le moment de soumission change).
+- Binaire : `31233889` (source 6c62ad5f + P2, flag P2 OFF), sans recompilation. A = défaut, B = `MLXL3_QWEN_PIPELINE=1` (attention : le flag couvre aussi le prefill et les autres boucles Qwen, donc TTFT et prefill sont relevés séparément).
+- Correction avant vitesse :
+  - CLI `forward --tokens 1,53,106,159` avec B, 4 × 248 320 logits bit à bit contre `final-cli.log` ;
+  - `checkpoint_optimization_matches_saved_logits_and_states` avec B (12 instantanés bit à bit ; le test peut forcer `pipeline=false` à certains endroits, à vérifier dans le log et dans le code avant de l'invoquer comme preuve) ;
+  - bridge `check-mtp-bridge.py` budgets 1,2,3,17,64,128 avec B : `validated`, token_hash identiques au témoin.
+- Mesures :
+  1. Diagnostic CB (outil P4) : A puis B puis B puis A, 3 × 128 tokens par processus, prompt code. On attend la bulle par pas, la fraction GPU active et le commit→GPUStart.
+  2. A/B `compare_native.py` (`--candidate-env MLXL3_QWEN_PIPELINE=1`, même binaire des deux côtés), short et code, 128 + 128, 2 répétitions, BAAB puis ABBA, settle 2 s. Secteur, modèle seul, sans build concurrent.
+
+  Gain retenu seulement s'il est de même signe dans les deux ordres et cohérent avec la réduction de bulle mesurée.
+- Données : `docs/measurements/q36-ar-pipeline-p5-20261114/`.
+- Q36-AR-PIPELINE-P5 correction (binaire `31233889`, `MLXL3_QWEN_PIPELINE=1`) :
+  - CLI : 4 × 248 320 logits finis bit à bit contre `final-cli.log` (`cli-forward-compare.log`).
+  - Checkpoint : 12/12 instantanés bit à bit, 180 applications replay pour 30 couches (`model-reference-pipeline1.log`). Le test charge par `Qwen35Moe::load` et ne force pas `pipeline=false`, donc le flag est bien actif.
+  - Bridge budgets 1–128 AR/MTP1 + annulation : `validated`, avec des token_hash identiques au témoin `8caeae84` (`bridge-signatures-compare.log`).
+  - Correction validée.
+- Q36-AR-PIPELINE-P5 diagnostic CB (outil P4, A/B/B/A, 3 × 128 par processus, prompt code, parité 12/12 `04d09d6803d2329b`, `analysis.json`) :
+
+  | | GPU actif | Inactivité CPU-late | Union GPU | Mur | tok/s |
+  |---|---|---|---|---|---|
+  | A (défaut) | 88,2–89,6 % | 1,66–1,94 ms/token | 16,76–17,47 ms | 18,72–19,80 ms | 50,5–53,4 |
+  | B (pipeline) | 92,5–97,2 % | **0,23–0,45 ms/token** (un run à 0,92) | **17,55–18,57 ms** | 18,29–20,07 ms | 49,8–54,7 |
+
+  - La bulle par pas disparaît : `steps.py` ne trouve plus de trou > 300 µs à chaque pas.
+  - En revanche, le travail GPU par token augmente d'environ +0,5 ms en B. Cause non vérifiée : plus de frontières d'évaluation (10 `async_eval` par pas), encodage concurrent.
+  - Gain net observé ≈ +4 à +5 % en médiane, avec un run B lent (49,8). Ce diagnostic instrumenté n'est pas le A/B, qui est en cours (`speed-BAAB/`, `speed-ABBA/`).
+  - Piste suivante si le A/B confirme : soumettre seulement après la couche 0, voire 1 ou 2 points, puisque le CPU garde ensuite son avance. Le but est de masquer la bulle sans le surcoût GPU de 10 frontières. C'est un nouvel essai à préenregistrer.
+- Q36-AR-PIPELINE-P5 A/B `compare_native.py` (binaire `31233889` des deux côtés, A = défaut, B = `--candidate-env MLXL3_QWEN_PIPELINE=1`, 128 + 128 tokens, 2 répétitions par passe, settle 2 s, secteur avant et après (`speed-power.txt`), modèle seul, aucun build concurrent). Les deux runs sont `complete` avec `parity: true` (`speed-BAAB/results.json`, `speed-ABBA/results.json`) :
+
+  | Ordre | Prompt | Decode A → B (tok/s) | Prefill | TTFT | Durée |
+  |---|---|---|---|---|---|
+  | BAAB | short | 53,15 → 55,97 (**+5,30 %**) | +1,67 % | −1,63 % | −4,88 % |
+  | BAAB | code | 50,97 → 55,82 (**+9,52 %**) | +1,60 % | −1,41 % | −8,35 % |
+  | ABBA | short | 52,33 → 54,02 (**+3,22 %**) | +2,42 % | −2,51 % | −2,97 % |
+  | ABBA | code | 51,23 → 53,95 (**+5,32 %**) | +0,89 % | −0,79 % | −4,50 % |
+
+  - Dispersion par run :
+    - BAAB, première passe A code : 49,05 et 48,00, plus bas que la seconde passe A (54,16 et 52,65). Le +9,52 % est donc probablement surestimé.
+    - ABBA, passe B 1 : premier run à 50,97 (short) et 49,61 (code), puis 58,00 et 54,44.
+  - Lecture prudente : gain decode AR ≈ +3 à +5 %, borne haute non établie. Même signe dans les 4 comparaisons et les 2 ordres, et cohérent avec la disparition de la bulle (≈1,5 → ≈0,3 ms/token) moins le surcoût GPU (+0,5 ms/token) mesurés au diagnostic CB. Prefill et TTFT non dégradés.
+- Décision : **validé** comme réglage d'exécution AR pour ce 35B (M5, alimentation secteur).
+  - Intégration : option existante seulement. Aucun changement de code, défaut AR inchangé (`pipeline = MLXL3_QWEN_PIPELINE=="1"`, qwen35.rs:1173), app non modifiée, rien poussé.
+  - Rendre ce défaut automatique pour cette géométrie (à la manière de `mtp_pipeline_default`) est un changement de code à qualifier séparément : Kani sur la garde, tests, A/B du binaire réel. Accord de l'utilisateur requis.
+  - La variante « soumission après la couche 0 seulement » reste à préenregistrer.
+
+### Q36-PIPELINE-DEFAULT-P6-20261114 — VALIDÉ (AR ≈+8 %, DFlash2 mode 3 +2,5 à +6 %, MTP2 neutre ; commit 290066c0) : soumission progressive par défaut dans toutes les boucles Qwen
+
+- Demande explicite de l'utilisateur (14 novembre) : activer par défaut la soumission progressive pour l'AR, le MTP, DFlash, DSpark, « vraiment pour tout ». Raison nouvelle par rapport aux essais antérieurs :
+  - Q36-AR-PIPELINE-P5 a validé l'AR 35B (+3 à +5 %, sorties exactes) ;
+  - DFLASH2-2026-10-07-PIPELINE était non concluant à cause de la dérive, pas d'une régression ;
+  - Q27-2026-10-16-05 (dense 64 couches) a mesuré +2,08 % / +0,64 %, sous le seuil de 3 % mais positif, et le défaut était resté OFF.
+- Changement : `pipeline` et `mtp_pipeline` valent vrai par défaut sur toutes les géométries et tout matériel. `MLXL3_QWEN_PIPELINE=0` désactive, `1` active, toute autre valeur garde le défaut (sémantique existante). `mtp_pipeline_default` est retiré, avec son harnais Kani et son obligation dans `scripts/kani_obligations.json`. Il est remplacé par `qwen_pipeline_enabled(Option<&str>)`, avec un harnais Kani. La clé Tune passe de `mtp-m5-v1` à `all` par défaut, ce qui invalide les anciens Tune. Calendrier de soumission inchangé (couches 0, 3, 7, …, 35).
+- Les boucles concernées dans `qwen35.rs` : AR/prefill `run_hidden_tokens`, capture DFlash, vérification layer-major avec et sans capture (utilisée par DFlash et par le pilote DSpark hors branche), prefill MTP, vérification MTP.
+- Source : worktree `/Users/justin/.codex/worktrees/q36-pipeline-default/mix-stq1_0`, branche `codex/q36-pipeline-default`, base 6c62ad5f.
+- Baseline : binaire `build/p6/baseline` compilé sur 6c62ad5f pur (ancien défaut : AR OFF, MTP ON sur M5), empreinte à relever. Candidat : même source avec le changement.
+- Correction avant vitesse :
+  - Kani sur le nouveau garde et sur `pipeline_layer`, suite `cargo kani --lib --no-default-features` si praticable ;
+  - clippy strict CPU et mlx,chat, suite CPU ;
+  - GPU, un test à la fois : `layer_pipeline_matches_unscheduled_logits_and_states` sans variable (défaut = ON), `dflash_capture_verification_and_commits_match_serial_states`, `checkpoint_optimization_matches_saved_logits_and_states` ;
+  - CLI `forward --tokens 1,53,106,159` bit à bit contre `final-cli.log` ;
+  - bridge `check-mtp-bridge.py` (AR/MTP1, budgets 1–128, annulation), avec des token_hash identiques au témoin ;
+  - `check_dflash2.py` candidat contre baseline, avec des token_hash identiques.
+- Vitesse (`compare_native.py`, baseline contre candidat, 128 + 128 tokens, 2 répétitions, settle 2 s, secteur, modèle seul, prompts short et code) :
+  - AR : BAAB puis ABBA ;
+  - MTP2 (tête MTP 4 bits) : ABBA. C'est un contrôle, l'ancien défaut avait déjà le pipeline sur M5, donc on attend un résultat neutre ;
+  - DFlash2 (draft `models/Qwen3.6-35B-A3B-DFlash2`, mode fixe à préciser avant lancement) : ABBA puis BAAB.
+
+  Gain retenu seulement s'il est de même signe dans les deux ordres. Un écart de contrôle supérieur à 3 % rend la comparaison non concluante.
+- Non mesurable ici, marqué « non mesuré » : DSpark (pas de draft 35B sur cette base), dense 27B et autres géométries (modèles absents), matériel autre que M5.
+- Données : `docs/measurements/q36-pipeline-default-p6-20261114/`. État : **en cours**, avant code.
+- P6 code (worktree, non commité) :
+  - `contracts.rs` : `QwenPipeline`, `qwen_pipeline`/`qwen_pipeline_bytes`, `qwen_pipeline_key`, `pipeline_layer(index, layers, enabled, stride)` ; `mtp_pipeline_default` est retiré.
+  - `qwen35.rs` : un seul réglage pour `pipeline`, `mtp_pipeline` et `pipeline_stride`. Le test `layer_pipeline_matches_unscheduled_logits_and_states` attend ON par défaut.
+  - `mtp_tune.rs` : clé `off` / `all` / `all-s{k}`.
+  - `lib.rs` : réexports. `kani_obligations.json` : obligation remplacée.
+  - Le pas `MLXL3_QWEN_PIPELINE_STRIDE` de P7 est inclus dans ce même code ; absent, il vaut 4, donc le calendrier P5 est conservé.
+- Binaires :
+
+  | Rôle | Fichier | SHA-256 |
+  |---|---|---|
+  | Baseline (6c62ad5f pur) | `build/p6/baseline` | `06611b6d…` |
+  | Candidat | `build/p6/candidate` | `78fb6dbe…` |
+  | Tests | `build/p6/physical` | `71b79a4e…` |
+- P6 correction (défaut, aucune variable) :
+  - clippy strict CPU et mlx,chat : OK ;
+  - tests CPU ciblés : 8/8 ;
+  - Kani `qwen_pipeline_policy_parses_only_bounded_canonical_strides` : 0/289 échec, 1 inatteignable (formatage de panique de la bibliothèque standard), 4/4 couvertures ;
+  - GPU `layer_pipeline_matches_unscheduled_logits_and_states` (stride=4, prefill 23/24/257 × 17 pas, logits, hidden et 80 états exacts) : OK ;
+  - `dflash_capture_verification_and_commits_match_serial_states` : OK ;
+  - checkpoint 12/12 bit à bit, 180 applications replay ;
+  - CLI : 4 × 248 320 logits bit à bit contre `final-cli.log` ;
+  - bridge AR/MTP1 budgets 1–128 : `validated`, token_hash identiques au témoin `8caeae84` ;
+  - `check_dflash2.py --skip-tune` baseline contre candidat : 33 complétions (id, token_hash, nombre) identiques, `parity: true` des deux côtés. Pipeline OFF côté baseline, ON côté candidat.
+  - Premier lancement de `parity.sh` échoué avant exécution (variable zsh `status` en lecture seule, `parity-zsh-status-failed.log`), corrigé et relancé. Le statut du script reposait sur `tee` sans pipefail : chaque assertion imprimée est vérifiée dans le log.
+  - Kani `pipeline_layer_has_no_final_or_outside_submission` (index, layers et stride symboliques, stride ≤ 64 comme garanti par le parseur) : **interrompu à la demande de l'utilisateur** après ≈17 min, sans résultat final. La propriété reste **non vérifiée** par Kani, log `kani-pipeline_layer_has_no_final_or_outside_submission.log`. Compensation partielle par tests (pas une preuve) : `pipeline_layer_stays_inside_model` (couches 0..12, index 0..13, bords usize) et `pipeline_layer_strides_on_forty_layers` (k = 0, 1, 2, 4, 8, 16, 64).
+  - Suite CPU complète `cargo test --locked --no-default-features --features chat -- --test-threads=1` : 546 réussis, 0 échec, 10 ignorés (`suite-cpu.log`). La suite complète mlx,chat n'a pas été exécutée.
+- P6 vitesse (`speed.sh`, baseline `06611b6d` contre candidat `78fb6dbe`) : **interrompue à la demande de l'utilisateur** (15 novembre), pendant la première campagne AR BAAB.
+  - Données partielles (`speed-ar-BAAB/results.json`, statut `running`, parité non conclue) :
+    - B, première passe : short 55,08 / 55,20 tok/s, code 56,18 / 54,76 ;
+    - A : un seul run short, 52,25 tok/s.
+  - Ce n'est pas un A/B complet, aucun gain n'est établi. Ces valeurs vont dans le même sens que P5 (même calendrier, pipeline ON en AR), qui reste la seule mesure AR concluante.
+  - Les campagnes AR ABBA, MTP2 ABBA et DFlash2 ABBA/BAAB n'ont pas été lancées : vitesse MTP2 et DFlash2 du nouveau défaut **non mesurée**.
+  - Tous les processus de mesure ont été arrêtés et rejoints ; aucun GPU actif.
+- État P6 : **code local validé en correction, vitesse non qualifiée au-delà de P5 (AR)**. Worktree non commité, aucun push, app inchangée.
+- Reprise P6 vitesse (15 novembre, demande de l'utilisateur) : relance complète de `speed.sh` à l'identique (mêmes binaires `06611b6d` / `78fb6dbe`, même protocole). Les données interrompues sont conservées dans `interrupted-20261115/` et ne sont pas fusionnées. Condition : protocole prévu sur secteur ; au moment de la reprise la machine était sur batterie (100 %, low power mode 0), relevé dans `speed-power.txt` avant chaque campagne. Ordre de la reprise : P7 d'abord (levier 1), puis cette campagne, puis P8, sans GPU en parallèle.
+- **P6 vitesse, résultats de la reprise** (`speed.log` `speed_status=0`, chaque `results.json` `status: complete`, `parity: true` ; machine sur batterie pendant toute la campagne, `speed-power.txt` ; 128 + 128 tokens, 2 répétitions, settle 2 s ; « document » = prompt code). Decode médian en tok/s, baseline A `06611b6d` → candidat B `78fb6dbe` ; la dérive est l'écart d'un binaire entre ses deux passes :
+
+  | Mode | Ordre | short | code | Dérive max | Lecture |
+  |---|---|---|---|---|---|
+  | AR | BAAB | 52,83 → 57,20 (+8,27 %) | 52,53 → 56,96 (+8,43 %) | +6,54 % (A code) | non concluant seul (dérive > 3 %), même signe à chaque passe |
+  | AR | ABBA | 54,12 → 58,46 (+8,02 %) | 53,94 → 58,08 (+7,66 %) | 1,07 % | propre |
+  | MTP2 (contrôle) | ABBA | 69,96 → 70,88 (+1,33 %) | 71,53 → 71,61 (+0,12 %) | +3,05 % (A short) | neutre, comme attendu (ancien défaut déjà ON sur M5) |
+  | DFlash2 mode 3 | ABBA | 48,12 → 51,20 (+6,38 %) | 48,65 → 50,88 (+4,59 %) | 1,43 % | propre |
+  | DFlash2 mode 3 | BAAB | 48,22 → 49,43 (+2,52 %) | 48,06 → 50,30 (+4,66 %) | +3,18 % (B short) | code propre ; short à la limite |
+
+  - Lecture :
+    - **AR** : gain de même signe dans les deux ordres, environ +8 % sur l'ordre propre. C'est plus que les +3 à +5 % de P5 : conditions différentes (batterie, autre jour), même calendrier ; on retient « au moins P5 », sans additionner.
+    - **DFlash2 mode 3** : gain de même signe dans les deux ordres, environ +4,6 % sur le prompt code (stable dans les deux ordres) ; sur short, +2,5 à +6,4 %.
+    - **MTP2** : aucun changement mesurable, conforme.
+  - Limites :
+    - campagne sur batterie au lieu du secteur prévu ;
+    - DFlash2 n'est mesuré qu'en mode 3 (autres modes non mesurés) ;
+    - DSpark, dense 27B et autres matériels : non mesurés ;
+    - le decode DFlash2 mode 3 (≈48–51 tok/s) reste sous l'AR (≈54–58) sur ces prompts. C'est un constat de cette mesure, non analysé ici.
+  - **État P6 : validé (code local)** pour AR et DFlash2 mode 3 sur M5/35B, neutre pour MTP2. Worktree non commité, aucun push, app inchangée.
+  - Intégration (15 novembre, demande de l'utilisateur) : commit `290066c0` sur la branche locale `codex/q36-pipeline-default` (base 6c62ad5f), code uniquement (`contracts.rs`, `lib.rs`, `mtp_tune.rs`, `qwen35.rs`, `kani_obligations.json`). Les binaires mesurés (`78fb6dbe`, `1d3816b4`) viennent de cet état exact du source. Non poussé, non fusionné dans main, app installée inchangée.
+
+### Q36-PIPELINE-STRIDE-P7-20261114 — REJETÉ (union GPU inchangée, bulle revient dès k=16) : levier 1, moins de points de soumission
+
+- Hypothèse : le surcoût GPU de ≈+0,5 ms/token mesuré en P5 vient des 10 frontières d'évaluation par pas. Moins de points (couche 0 seule, ou espacement plus grand) garderait la bulle masquée tant que le CPU reste en avance. Le gain irait au-delà des +3 à +5 % de P5.
+- Risque : si l'encodage du reste du graphe dépasse le temps GPU des premières couches (≈0,43 ms par couche), la bulle réapparaît en partie.
+- Changement de prototype : `MLXL3_QWEN_PIPELINE_STRIDE=k`, entier strict dans 1..=64, absent = 4 (calendrier actuel), invalide = erreur au chargement. Points de soumission : `index == 0 || index % k == k-1`, toujours avant la dernière couche.
+  - Matrice : k=4 (référence P6), k=8 (0, 7, 15, 23, 31), k=16 (0, 15, 31), k=64 (couche 0 seule), et k=2 (0, 1, 3, 5, …) comme contre-test « plus de points ».
+  - Kani sur `pipeline_layer` généralisé (borne, aucun point après l'avant-dernière couche, équivalence à l'ancien calendrier pour k=4).
+- Protocole :
+  1. Parité : `layer_pipeline_matches_unscheduled_logits_and_states` pour chaque k (ON avec k contre OFF).
+  2. Diagnostic CB (outil P4, prompt code, 3 × 128 par processus), dans l'ordre k = 4, 8, 16, 64, 2, puis 64, 16, 8, 4. Relever la bulle par token (inactivité CPU-late), l'union GPU par token et tok/s.
+  3. A/B `compare_native.py` du meilleur k contre k=4 seulement si le diagnostic montre une union GPU plus basse sans retour de la bulle : short et code, BAAB puis ABBA.
+- Intégration : si le gain est établi dans les deux ordres, le défaut passe à ce k (code et Kani). Sinon le prototype est retiré ou laissé en option, selon le résultat.
+- Données : `docs/measurements/q36-pipeline-stride-p7-20261114/`. État : **en cours**, avant code.
+- État au 15 novembre : **bloqué/interrompu avant mesure**. Le code du pas (`MLXL3_QWEN_PIPELINE_STRIDE`) est dans le candidat P6, avec ses tests CPU ; le harnais Kani n'a pas abouti (voir P6). Les scripts `p7.sh` et `cb_bridge.py` sont prêts, non lancés : aucune parité par k ni diagnostic CB exécuté.
+- Reprise (15 novembre, demande de l'utilisateur) : lancement de `p7.sh` tel que préenregistré (parité k=2, 8, 16, 64, contrôle k=0 invalide, puis CB k = 4, 8, 16, 64, 2, 64, 16, 8, 4) avec le binaire candidat P6 `78fb6dbe`. Alimentation relevée dans `power.txt`.
+- P7 premier lancement (`p7.log`) : parité **exacte pour k=2, 8, 16, 64** (exit 0, 3/3 « pipeline exact » chacun, logits/hidden/80 états contre OFF) ; k=0 refusé au chargement (exit 2, message attendu). Le script a pourtant conclu `p7_status=parity-failed` : le contrôle « stride appliqué » utilisait `\|` en BRE, qui ne correspond jamais sous zsh, alors que chaque log contient bien `pipeline stride=k`. Bug du script, pas du code ; le diagnostic CB ne s'est pas lancé. Correctif : `p7-cb.sh` revérifie les logs de parité existants avec `grep -E "pipeline stride=$k( |$)"` plus le résultat du test, puis lance l'étape CB inchangée. Ordre modifié : `p7-cb.sh` passe après P6 vitesse et P8 (la file était déjà engagée).
+- **P7 résultats** (`p7-cb.log` `p7_status=0` ; revérification : k=2, 8, 16, 64 → 3/3 exacts, stride appliqué, test ok ; diagnostic CB, binaire `78fb6dbe`, prompt code, 3 × 128 tokens par processus, batterie, `power.txt`, `analysis.json`) :
+  - Parité : un seul token_hash `04d09d6803d2329b` (558 caractères) sur les 9 processus et toutes les requêtes.
+  - Dérive : la première moitié de la série (p0–p3) est plus lente et plus bruitée (56–60 tok/s pour k=4 seul) ; la seconde moitié (p4–p8) est stable à ±0,3 %. Comparaison retenue sur la seconde moitié, avec les paires de l'aller (p0–p3) en contrôle de signe.
+
+  | k | Processus | tok/s (moyenne 3 runs) | Union GPU ms/token | Bulle CPU-late ms/token | CB/token |
+  |---|---|---|---|---|---|
+  | 2 | p4 | 60,43 | 16,06 | 0,22 | 113,4 |
+  | 4 | p8 (p0) | 60,51 (57,97) | 16,04 (16,68) | 0,22 (0,27) | 115,4 |
+  | 8 | p7 (p1) | 60,28 (56,25) | 16,03 (17,09) | 0,24 (0,28) | 127,9 |
+  | 16 | p6 (p2) | 59,32 (56,65) | 16,01 (16,74) | 0,48 (0,53) | 136,8 |
+  | 64 | p5 (p3) | 56,44 (54,56) | 16,02 (16,51) | 1,33 (1,44) | 149,2 |
+
+  - Lecture :
+    - **Hypothèse rejetée** : moins de points de soumission ne baisse pas l'union GPU (≈16,0 ms/token pour tous les k sur la seconde moitié). Le surcoût GPU de P5 ne vient donc pas des frontières d'évaluation.
+    - La bulle CPU-late revient dès k=16 (×2) et franchement à k=64 (×6, −6,7 % de tok/s), comme le risque préenregistré le prévoyait.
+    - k=2 et k=8 sont équivalents à k=4 dans le bruit (−0,1 % et −0,4 %).
+  - Décision : pas d'A/B `compare_native` (condition de l'étape 3 non remplie). **P7 rejeté** comme levier ; défaut k=4 conservé. `MLXL3_QWEN_PIPELINE_STRIDE` reste une option de diagnostic dans le code local (non commité).
+  - Limites : diagnostic CB sur batterie, dylib injectée (pas une mesure de production), prompt code uniquement ; Kani `pipeline_layer` généralisé toujours **non vérifié** (voir P6).
+
+### Q36-GPU-ATTRIBUTION-P8-20261115 — VALIDÉ (diagnostic, oracle exact) : levier 3, attribution du temps GPU decode par bloc
+
+- But : chiffrer où vont les ≈17,1 ms GPU par token AR, dont ≈7 ms hors lecture de poids (RESEARCH-…-AR-BUBBLE-SOURCE). Raison nouvelle : la répartition par famille n'a jamais été mesurée sur le binaire actuel.
+- Outil : un test ignoré, test-only, `qwen35::tests::q36_decode_block_timeline` (aucun code de production modifié). Il rejoue un pas AR à partir des fonctions réelles en le découpant en blocs, avec une évaluation synchrone et des horodatages hôte `CLOCK_UPTIME_RAW` après chaque bloc :
+  - `embed` ;
+  - GDN : `gdn_in` (norme + projections qkv/z/b/a), `gdn_recurrence` (`prepare_qkv` fusionné + `step_with_gates`), `gdn_out` (norme + swiglu + out_proj) ;
+  - attention : `attn_mixer` (norme + `Attention::forward` complet) ;
+  - MoE : `moe_router` (post-norme + gate + softmax + top-k), `moe_experts` (8 experts routés), `moe_shared` (expert partagé + gate + résidus) ;
+  - `head` (norme finale + tête K6).
+
+  Les CB enregistrés par la dylib P4 (`build/cbtime/libcb_timing.dylib`, `22c83ffa…`) sont attribués au bloc dont l'intervalle hôte contient leur commit. Le temps d'un bloc est l'union GPU de ses CB.
+- Oracle avant tout chiffre : à chaque pas, les logits (248 320) et les 80 états du chemin découpé doivent être identiques bit à bit au `model.forward` réel (snapshot/restore, replay GDN actif côté référence). Sinon, aucun chiffre n'est retenu.
+- Protocole : prompt de 23 tokens, 2 pas de chauffe exclus, puis 16 pas mesurés. Deux processus (relance indépendante), un seul modèle GPU, aucun build ni prouveur en parallèle.
+- Résultats attendus : ms/token par bloc, puis l'écart au plancher de bande passante par famille, à partir des octets de poids par token déjà relevés (gdn_in 368,4 MiB, head 364,2, experts routés ≈295,7, gdn_out 120,4, QKV 90,3, partagé 60,6, o_proj 40,1, routeur 40,0 ; 153 GB/s). Comparer la somme à l'union GPU réelle par token (P4/P5) et expliquer l'écart.
+- Limites connues d'avance :
+  - l'évaluation synchrone supprime le recouvrement entre blocs et ajoute des frontières de CB ; c'est une attribution, pas un temps de production ;
+  - le replay GDN n'est pas utilisé dans le chemin découpé (mêmes kernels, coût CPU différent, non mesuré ici).
+- Données : `docs/measurements/q36-gpu-attribution-p8-20261115/`. État : **en cours**, avant code.
+- État au 15 novembre : **bloqué/interrompu avant mesure**. Le test `q36_decode_block_timeline` est écrit et compile (clippy mlx,chat et CPU OK ; binaire `build/p8/physical`, `1d3816b4…`), avec le script `analyze_timeline.py`. Rien n'a été exécuté sur GPU : oracle bit à bit et attribution **non mesurés**.
+- Reprise (15 novembre, demande de l'utilisateur) : exécution prévue après P6, deux processus indépendants (`run1`, `run2`) de `build/p8/physical` avec la dylib CB, puis `analyze_timeline.py`.
+- P8 premier lancement (archivé dans `first-launch-no-dylib/`) :
+  - **oracle exact sur les deux processus** : `timeline exact: 18 steps, 3996 rows` ; logits, états et offset identiques au `model.forward` à chaque pas, test ok ;
+  - **aucun CB enregistré** : pas de `cb.bin`, pas de ligne `cb_timing: hooked`. Cause : `/usr/bin/timeout`, protégé par SIP, retire `DYLD_INSERT_LIBRARIES` ;
+  - l'analyse a échoué (`FileNotFoundError`), `p8_status=1`. Aucun chiffre d'attribution.
+- Correctif : `p8.sh` lance le test sans `/usr/bin/timeout`, avec une borne de 900 s gérée en zsh. Il exige aussi la ligne `cb_timing: hooked` et un `cb.bin` non vide. Relance prévue après `p7-cb.sh`. Même binaire, même protocole.
+- **P8 résultats** (`p8.log` `p8_status=0`, `analysis.json`, `analysis.log`, `run1/` et `run2/` ; batterie, `power.txt`) :
+  - Contrôles : dylib chargée dans les deux processus (`cb_timing: hooked AGXG17GFamilyCommandBuffer`, 13 196 / 13 201 commits, 0 écriture courte) ; oracle exact `timeline exact: 18 steps, 3996 rows`, test ok. 6 372 CB attribués aux blocs (≈354 par pas) ; le reste correspond au `forward` de référence, au prefill et aux transitions, hors blocs.
+  - Temps GPU par token, moyenne sur 16 pas (run1 / run2) ; le plancher est le nombre d'octets de poids/état ÷ 153 GB/s :
+
+  | Bloc | ms/token | Plancher ms | Excès ms | GB/s effectifs | CB/token |
+  |---|---|---|---|---|---|
+  | `moe_experts` (8 routés) | 3,811 / 3,826 | 2,027 | 1,78 / 1,80 | 81 | 80 |
+  | `gdn_in` (norme + qkv/z/b/a) | 3,822 / 3,871 | 2,525 | 1,30 / 1,35 | 100–101 | 120 |
+  | `moe_shared` (+ gate + résidus) | 1,630 / 1,645 | 0,415 | 1,22 / 1,23 | 39 | 40 |
+  | `gdn_out` (norme + swiglu + out) | 1,649 / 1,647 | 0,825 | 0,82 | 77 | 30 |
+  | `attn_mixer` (10 couches) | 1,545 / 1,572 | 0,894 | 0,65 / 0,68 | 87–89 | 10 |
+  | `moe_router` | 0,777 / 0,761 | 0,274 | 0,50 / 0,49 | 54–55 | 40 |
+  | `head` | 2,975 / 2,968 | 2,496 | 0,48 / 0,47 | 128–129 | 2 |
+  | `gdn_recurrence` | 0,792 / 0,833 | 0,822 | ≈0 | 151–159 | 30 |
+  | `embed` | 0,002 | 0 | — | — | 2 |
+  | **Total** | **17,00 / 17,13** | **10,28** | **≈6,7** | | |
+
+  - Lecture :
+    - Le découpage synchrone coûte environ 1 ms : 17,0 ms ici contre ≈16,0 ms d'union GPU en production (P7, k=4, seconde moitié). Sur ≈6,7 ms d'excès au-dessus du plancher, au moins ≈5,7 ms sont donc réels.
+    - La récurrence GDN est au plancher de bande passante : rien à gagner hors réduction de précision de l'état (hors périmètre).
+    - Les gisements se classent ainsi : experts routés (≈1,8 ms, 81 GB/s), in-proj GDN (≈1,3 ms), expert partagé (≈1,2 ms à 39 GB/s, coût fixe ≈30 µs par couche pour ≈1,5 MiB), out-proj GDN (≈0,8 ms), attention (≈0,65 ms), routeur (≈0,5 ms), tête (≈0,5 ms).
+    - Les blocs à faible volume (partagé, routeur) sont dominés par un coût fixe par couche, et le découpage gonfle surtout ceux-là. Leur excès est donc un majorant.
+  - Pistes déjà documentées qui touchent ces blocs, à relire avant tout nouvel essai : fusion d'épilogue T1 (Q36-T1-…-P2, non concluant), fusion shared/route Turbo/TensorFold (ligne ≈328), chaîne T1 `rms → H128 → QMV → reduce → copy → H128` (ligne ≈10016). Aucun nouvel essai lancé ici.
+  - Limites : attribution en évaluation synchrone, pas un temps de production ; replay GDN non utilisé dans le chemin découpé ; planchers estimés (la récurrence dépasse légèrement 153 GB/s, l'estimation de bande passante est donc approximative) ; batterie ; un seul prompt de 23 tokens et contexte court.
+  - **État P8 : validé comme diagnostic** (oracle exact, deux processus concordants à ±1 %). Test ignoré, test-only, non commité.

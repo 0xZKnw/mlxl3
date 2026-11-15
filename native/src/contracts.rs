@@ -682,55 +682,161 @@ fn dense_mlp_batch_stays_within_supported_domain() {
     kani::cover!(!selected && rows == 2 && !enabled && m5 && grouped && down && hidden == 5120);
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
-pub(crate) fn mtp_pipeline_default(
-    hidden: i32,
-    layers: usize,
-    experts: i32,
-    top_k: usize,
-    m5: bool,
-) -> bool {
-    m5 && hidden == 2048 && layers == 40 && experts == 256 && top_k == 8
+/// Qwen progressive layer submission (`async_eval` while the CPU builds the rest of the graph).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct QwenPipeline {
+    pub enabled: bool,
+    pub stride: usize,
+}
+
+/// Submission after layers 0, 3, 7, 11, … (Q36-AR-PIPELINE-P5, engine v1.4.2).
+pub const QWEN_PIPELINE_DEFAULT_STRIDE: usize = 4;
+const QWEN_PIPELINE_MAX_STRIDE: usize = 64;
+
+/// `MLXL3_QWEN_PIPELINE`: `0` disables; absent or any other value enables (every Qwen loop,
+/// every geometry). `MLXL3_QWEN_PIPELINE_STRIDE`: absent is 4, otherwise a canonical decimal
+/// in 1..=64; `None` rejects the stride.
+pub fn qwen_pipeline(enabled: Option<&str>, stride: Option<&str>) -> Option<QwenPipeline> {
+    qwen_pipeline_bytes(enabled.map(str::as_bytes), stride.map(str::as_bytes))
+}
+
+fn qwen_pipeline_bytes(enabled: Option<&[u8]>, stride: Option<&[u8]>) -> Option<QwenPipeline> {
+    let stride = match stride {
+        None => QWEN_PIPELINE_DEFAULT_STRIDE,
+        Some(digits) => {
+            if digits.is_empty()
+                || digits.len() > 2
+                || digits[0] == b'0'
+                || !digits.iter().all(u8::is_ascii_digit)
+            {
+                return None;
+            }
+            let value = digits
+                .iter()
+                .fold(0, |value, &digit| value * 10 + usize::from(digit - b'0'));
+            if value > QWEN_PIPELINE_MAX_STRIDE {
+                return None;
+            }
+            value
+        }
+    };
+    Some(QwenPipeline {
+        enabled: enabled != Some(b"0"),
+        stride,
+    })
+}
+
+/// Persisted-calibration key: distinct whenever the submission schedule can differ.
+pub fn qwen_pipeline_key(policy: QwenPipeline) -> String {
+    match (policy.enabled, policy.stride) {
+        (false, _) => "off".to_owned(),
+        (true, QWEN_PIPELINE_DEFAULT_STRIDE) => "all".to_owned(),
+        (true, stride) => format!("all-s{stride}"),
+    }
 }
 
 #[test]
-fn mtp_pipeline_default_requires_measured_geometry() {
-    assert!(mtp_pipeline_default(2048, 40, 256, 8, true));
-    for (hidden, layers, experts, top_k, m5) in [
-        (2048, 40, 256, 8, false),
-        (5120, 64, 0, 0, true),
-        (2048, 39, 256, 8, true),
-        (2048, 40, 0, 0, true),
-        (2048, 40, 128, 8, true),
-        (2048, 40, 256, 4, true),
-        (i32::MAX, usize::MAX, i32::MAX, usize::MAX, true),
+fn qwen_pipeline_defaults_on_everywhere() {
+    let default = QwenPipeline {
+        enabled: true,
+        stride: 4,
+    };
+    for value in [
+        None,
+        Some("1"),
+        Some(""),
+        Some("true"),
+        Some("00"),
+        Some(" 0"),
     ] {
-        assert!(!mtp_pipeline_default(hidden, layers, experts, top_k, m5));
+        assert_eq!(qwen_pipeline(value, None), Some(default));
+    }
+    assert_eq!(
+        qwen_pipeline(Some("0"), None),
+        Some(QwenPipeline {
+            enabled: false,
+            stride: 4
+        })
+    );
+    assert_eq!(qwen_pipeline_key(default), "all");
+    assert_eq!(
+        qwen_pipeline_key(qwen_pipeline(Some("0"), Some("8")).unwrap()),
+        "off"
+    );
+}
+
+#[test]
+fn qwen_pipeline_stride_is_strict() {
+    for (value, stride) in [
+        ("1", 1),
+        ("2", 2),
+        ("4", 4),
+        ("8", 8),
+        ("16", 16),
+        ("64", 64),
+    ] {
+        let policy = qwen_pipeline(None, Some(value)).unwrap();
+        assert_eq!(policy.stride, stride);
+        let key = qwen_pipeline_key(policy);
+        assert_eq!(key == "all", stride == 4, "{key}");
+    }
+    for value in [
+        "", "0", "04", "65", "99", "100", "-1", "+4", " 4", "4 ", "x", "1e1",
+    ] {
+        assert!(qwen_pipeline(None, Some(value)).is_none(), "{value:?}");
     }
 }
 
 #[cfg(kani)]
 #[kani::proof]
-fn mtp_pipeline_default_is_limited_to_measured_target() {
-    let hidden: i32 = kani::any();
-    let layers: usize = kani::any();
-    let experts: i32 = kani::any();
-    let top_k: usize = kani::any();
-    let m5: bool = kani::any();
-    let enabled = mtp_pipeline_default(hidden, layers, experts, top_k, m5);
-    assert_eq!(
-        enabled,
-        m5 && hidden == 2048 && layers == 40 && experts == 256 && top_k == 8
-    );
-    kani::cover!(enabled);
-    kani::cover!(!enabled && !m5);
-    kani::cover!(!enabled && experts == 0);
-    kani::cover!(!enabled && layers == 0);
+#[kani::unwind(4)]
+fn qwen_pipeline_policy_parses_only_bounded_canonical_strides() {
+    let enabled_bytes: [u8; 2] = kani::any();
+    let enabled_len: usize = kani::any();
+    let stride_bytes: [u8; 3] = kani::any();
+    let stride_len: usize = kani::any();
+    let enabled_present: bool = kani::any();
+    let stride_present: bool = kani::any();
+    if enabled_len > enabled_bytes.len() || stride_len > stride_bytes.len() {
+        return;
+    }
+    let enabled = enabled_present.then_some(&enabled_bytes[..enabled_len]);
+    let stride = stride_present.then_some(&stride_bytes[..stride_len]);
+    let policy = qwen_pipeline_bytes(enabled, stride);
+    if let Some(policy) = policy {
+        assert!((1..=QWEN_PIPELINE_MAX_STRIDE).contains(&policy.stride));
+        assert_eq!(
+            policy.enabled,
+            !(enabled_present && enabled_len == 1 && enabled_bytes[0] == b'0')
+        );
+        if !stride_present {
+            assert_eq!(policy.stride, QWEN_PIPELINE_DEFAULT_STRIDE);
+        } else {
+            let digits = &stride_bytes[..stride_len];
+            assert!(stride_len >= 1 && stride_len <= 2 && digits[0] != b'0');
+            assert!(digits.iter().all(u8::is_ascii_digit));
+            let expected = if stride_len == 1 {
+                usize::from(digits[0] - b'0')
+            } else {
+                usize::from(digits[0] - b'0') * 10 + usize::from(digits[1] - b'0')
+            };
+            assert_eq!(policy.stride, expected);
+        }
+    } else {
+        assert!(stride_present);
+    }
+    kani::cover!(policy.is_some_and(|p| !p.enabled));
+    kani::cover!(policy.is_some_and(|p| p.stride == 64));
+    kani::cover!(policy.is_none() && stride_len == 2);
+    kani::cover!(policy.is_some_and(|p| p.enabled && p.stride == 4 && stride_present));
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
-pub(crate) fn pipeline_layer(index: usize, layers: usize, enabled: bool) -> bool {
-    enabled && index < layers.saturating_sub(1) && (index == 0 || index % 4 == 3)
+pub(crate) fn pipeline_layer(index: usize, layers: usize, enabled: bool, stride: usize) -> bool {
+    enabled
+        && stride > 0
+        && index < layers.saturating_sub(1)
+        && (index == 0 || index % stride == stride - 1)
 }
 
 #[test]
@@ -741,14 +847,30 @@ fn pipeline_layer_stays_inside_model() {
             .filter(|&index| index + 1 < layers)
             .collect::<Vec<_>>();
         let actual = (0..=13)
-            .filter(|&index| pipeline_layer(index, layers, true))
+            .filter(|&index| pipeline_layer(index, layers, true, 4))
             .collect::<Vec<_>>();
         assert_eq!(actual, expected);
-        assert!((0..=13).all(|index| !pipeline_layer(index, layers, false)));
+        assert!((0..=13).all(|index| !pipeline_layer(index, layers, false, 4)));
     }
-    assert!(!pipeline_layer(usize::MAX, usize::MAX, true));
-    assert!(!pipeline_layer(usize::MAX - 1, usize::MAX, true));
-    assert!(pipeline_layer(usize::MAX - 4, usize::MAX, true));
+    assert!(!pipeline_layer(usize::MAX, usize::MAX, true, 4));
+    assert!(!pipeline_layer(usize::MAX - 1, usize::MAX, true, 4));
+    assert!(pipeline_layer(usize::MAX - 4, usize::MAX, true, 4));
+}
+
+#[test]
+fn pipeline_layer_strides_on_forty_layers() {
+    let points = |stride| {
+        (0..40)
+            .filter(|&index| pipeline_layer(index, 40, true, stride))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(points(4), [0, 3, 7, 11, 15, 19, 23, 27, 31, 35]);
+    assert_eq!(points(8), [0, 7, 15, 23, 31]);
+    assert_eq!(points(16), [0, 15, 31]);
+    assert_eq!(points(64), [0]);
+    assert_eq!(points(1), (0..39).collect::<Vec<_>>());
+    assert_eq!(points(2).len(), 20);
+    assert!(points(0).is_empty());
 }
 
 #[cfg(kani)]
@@ -757,19 +879,28 @@ fn pipeline_layer_has_no_final_or_outside_submission() {
     let index: usize = kani::any();
     let layers: usize = kani::any();
     let enabled: bool = kani::any();
-    let submit = pipeline_layer(index, layers, enabled);
+    let stride: usize = kani::any();
+    kani::assume(stride <= QWEN_PIPELINE_MAX_STRIDE);
+    let submit = pipeline_layer(index, layers, enabled, stride);
     if submit {
-        assert!(enabled && layers > 1 && index < layers - 1);
-        assert!(index == 0 || (index + 1) % 4 == 0);
+        assert!(enabled && stride > 0 && layers > 1 && index < layers - 1);
+        assert!(index == 0 || (index + 1) % stride == 0);
+        if stride >= layers {
+            assert_eq!(index, 0);
+        }
     }
-    assert_eq!(
-        submit,
-        enabled && layers > 1 && index < layers - 1 && (index == 0 || index % 4 == 3)
-    );
+    if stride == 4 {
+        assert_eq!(
+            submit,
+            enabled && layers > 1 && index < layers - 1 && (index == 0 || index % 4 == 3)
+        );
+    }
     kani::cover!(submit && index == 0);
-    kani::cover!(submit && index > 0);
+    kani::cover!(submit && index > 0 && stride == 8);
+    kani::cover!(submit && stride == 1 && index == layers - 2);
     kani::cover!(!submit && layers > 0 && index == layers - 1);
     kani::cover!(!submit && !enabled);
+    kani::cover!(!submit && stride == 0 && enabled);
 }
 
 #[cfg(any(feature = "mlx", kani))]
@@ -3507,4 +3638,43 @@ fn q36_expert_lane_domain() {
     kani::cover!(selected && k == 2);
     kani::cover!(selected && k == 3);
     kani::cover!(!selected);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn q36_qkv_lane(rows: i32, input: i32, k: usize, mcg: bool, widths: &[i32]) -> bool {
+    rows == 4 && input == 2048 && k == 4 && mcg && widths == [8192, 4096]
+}
+
+#[test]
+fn q36_lane_restricts_bundles_and_widths() {
+    for n in -1..=25 {
+        assert_eq!(q36_qkv_lane(n, 2048, 4, true, &[8192, 4096]), n == 4);
+        for widths in [&[][..], &[8192], &[4096, 8192], &[8192, 4096, 512]] {
+            assert!(!q36_qkv_lane(n, 2048, 4, true, widths));
+        }
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+fn q36_lane_shape_admission() {
+    let widths: [i32; 3] = kani::any();
+    let len: u8 = kani::any();
+    let n: i32 = kani::any();
+    let input: i32 = kani::any();
+    let k: usize = kani::any();
+    let mcg: bool = kani::any();
+    let len = usize::from(len % 4);
+    let result = q36_qkv_lane(n, input, k, mcg, &widths[..len]);
+    assert_eq!(
+        result,
+        (n == 4)
+            && len == 2
+            && input == 2048
+            && k == 4
+            && mcg
+            && widths[0] == 8192
+            && widths[1] == 4096
+    );
+    kani::cover!(result && n == 4);
+    kani::cover!(!result);
 }

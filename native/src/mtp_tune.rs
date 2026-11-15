@@ -49,11 +49,13 @@ fn runtime_key_with_options(
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
         .unwrap_or_else(|| std::env::consts::ARCH.to_owned());
-    let pipeline = match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
-        Ok("0") => "off",
-        Ok("1") => "all",
-        _ => "mtp-m5-v1",
-    };
+    let pipeline = mlxl3_native::qwen_pipeline_key(
+        mlxl3_native::qwen_pipeline(
+            std::env::var("MLXL3_QWEN_PIPELINE").ok().as_deref(),
+            std::env::var("MLXL3_QWEN_PIPELINE_STRIDE").ok().as_deref(),
+        )
+        .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?,
+    );
     Ok(format!(
         "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:lanelayout-v1={}:smallm-v2={}",
         artifact_key(path)?,

@@ -3,7 +3,9 @@
   "required_harnesses": [
     "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
     "qwen35_config::replay_admission_requires_all_real_gdn_dimensions",
+    "qwen35_config::final_moe_row_preserves_all_observed_rows",
     "contracts::q36_expert_lane_domain",
+    "contracts::q36_lane_shape_admission",
     "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
     "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",
     "qwen35_config::replay_defaults_only_on_the_qualified_model_and_runtime",
@@ -116,7 +118,7 @@
     "contracts::lfm_prefill_end_preserves_context_and_all_block_positions",
     "contracts::memory_saver_releases_every_unused_buffer",
     "contracts::mtp_add_norm_launch_bounds",
-    "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+    "contracts::qwen_pipeline_policy_parses_only_bounded_canonical_strides",
     "contracts::pipeline_layer_has_no_final_or_outside_submission",
     "contracts::prepare128_validates_block_and_scale_indices",
     "flash_support::flash_record_projection_bindings_fit_the_pinned_read",

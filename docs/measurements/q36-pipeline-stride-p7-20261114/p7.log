@@ -1,0 +1,10 @@
+parity k=2 exit=0 3 exact pipeline stride=2
+stride k=2 not applied
+parity k=8 exit=0 3 exact pipeline stride=8
+stride k=8 not applied
+parity k=16 exit=0 3 exact pipeline stride=16
+stride k=16 not applied
+parity k=64 exit=0 3 exact pipeline stride=64
+stride k=64 not applied
+invalid stride 0 exit=2 1
+p7_status=parity-failed

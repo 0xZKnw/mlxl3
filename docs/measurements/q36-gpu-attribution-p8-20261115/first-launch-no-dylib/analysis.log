@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/analyze_timeline.py", line 87, in <module>
+    results = [analyze(Path(p)) for p in sys.argv[1:]]
+               ^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/analyze_timeline.py", line 36, in analyze
+    records = cb_records.read(run / "cb.bin")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/cb_records.py", line 12, in read
+    data = Path(path).read_bytes()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/justin/Documents/mix-stq1_0/docs/measurements/q36-gpu-attribution-p8-20261115/run1/cb.bin'

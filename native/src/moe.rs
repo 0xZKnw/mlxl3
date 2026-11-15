@@ -63,7 +63,13 @@ struct RoutePlan {
     max_blocks: i32,
 }
 
-fn route_plan(selected: &Array, rows: i32, top_k: i32, experts: i32) -> Result<RoutePlan> {
+fn route_plan(
+    selected: &Array,
+    rows: i32,
+    top_k: i32,
+    experts: i32,
+    parallel: bool,
+) -> Result<RoutePlan> {
     let slots = rows.checked_mul(top_k).context("MoE slot overflow")?;
     ensure!(
         selected.shape() == [slots]
@@ -78,6 +84,38 @@ fn route_plan(selected: &Array, rows: i32, top_k: i32, experts: i32) -> Result<R
         .and_then(|n| n.checked_add(experts + 1))
         .context("MoE block table overflow")?;
     let order = selected.argsort()?;
+    let planner = if parallel && experts == 256 && top_k == 8 && (64..=256).contains(&rows) {
+        include_str!("../shaders/q36_parallel_route_plan.metal")
+    } else {
+        r#"
+            if (tid == 0u) {
+                uint next_block = 0u;
+                for (uint expert = 0u; expert < EXPERTS; ++expert) {
+                    uint lo = 0u, hi = SLOTS;
+                    while (lo < hi) {
+                        uint mid = (lo + hi) >> 1u;
+                        if (selected[order[mid]] < expert) lo = mid + 1u;
+                        else hi = mid;
+                    }
+                    uint begin = lo;
+                    hi = SLOTS;
+                    while (lo < hi) {
+                        uint mid = (lo + hi) >> 1u;
+                        if (selected[order[mid]] <= expert) lo = mid + 1u;
+                        else hi = mid;
+                    }
+                    uint count = lo - begin;
+                    for (uint offset = 0u; offset < count; offset += 64u) {
+                        block_table[next_block] = expert;
+                        block_table[MAX_BLOCKS + next_block] = begin + offset;
+                        block_table[2u * MAX_BLOCKS + next_block] = min(64u, count - offset);
+                        ++next_block;
+                    }
+                }
+                block_count[0] = next_block;
+            }
+"#
+    };
     let source = format!(
         r#"
             constexpr uint SLOTS = {slots}u;
@@ -98,32 +136,7 @@ fn route_plan(selected: &Array, rows: i32, top_k: i32, experts: i32) -> Result<R
                 token_rows[i] = 0u;
             }}
 
-            if (tid == 0u) {{
-                uint next_block = 0u;
-                for (uint expert = 0u; expert < EXPERTS; ++expert) {{
-                    uint lo = 0u, hi = SLOTS;
-                    while (lo < hi) {{
-                        uint mid = (lo + hi) >> 1u;
-                        if (selected[order[mid]] < expert) lo = mid + 1u;
-                        else hi = mid;
-                    }}
-                    uint begin = lo;
-                    hi = SLOTS;
-                    while (lo < hi) {{
-                        uint mid = (lo + hi) >> 1u;
-                        if (selected[order[mid]] <= expert) lo = mid + 1u;
-                        else hi = mid;
-                    }}
-                    uint count = lo - begin;
-                    for (uint offset = 0u; offset < count; offset += 64u) {{
-                        block_table[next_block] = expert;
-                        block_table[MAX_BLOCKS + next_block] = begin + offset;
-                        block_table[2u * MAX_BLOCKS + next_block] = min(64u, count - offset);
-                        ++next_block;
-                    }}
-                }}
-                block_count[0] = next_block;
-            }}
+            {planner}
         "#
     );
     let mut outputs = array::metal_kernel(
@@ -919,6 +932,34 @@ impl Exl3SwitchGlu {
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
     }
 
+    pub(crate) fn q36_final_row_bank(&self) -> bool {
+        self.k == 2
+            && self.cb == Codebook::Mcg
+            && self.input == 2048
+            && self.hidden == 512
+            && self.logical_hidden == 512
+            && self.experts == 256
+            && self.top_k == 8
+            && matches!(self.activation, GluActivation::Silu)
+    }
+
+    // Same BM32 TensorOps accumulation as a full prefill. Each chosen expert
+    // gets one real row; the existing plan supplies its padded input tile.
+    pub(crate) fn forward_segmented_last(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+    ) -> Result<Array> {
+        ensure!(
+            x.shape() == [1, self.input]
+                && selected.shape() == [1, self.top_k]
+                && scores.shape() == [1, self.top_k],
+            "invalid final MoE row"
+        );
+        self.forward_segmented(x, &selected.reshape(&[self.top_k])?, scores, 1)
+    }
+
     fn forward_segmented(
         &self,
         x: &Array,
@@ -926,7 +967,16 @@ impl Exl3SwitchGlu {
         scores: &Array,
         rows: i32,
     ) -> Result<Array> {
-        let plan = route_plan(selected, rows, self.top_k, self.experts)?;
+        let parallel = self.input == 2048
+            && self.hidden == 512
+            && self.logical_hidden == 512
+            && self.cb == Codebook::Mcg
+            && matches!(self.k, 2 | 3)
+            && matches!(self.activation, GluActivation::Silu)
+            && array::is_m5_gpu()?;
+        #[cfg(test)]
+        let parallel = parallel && !crate::linear::q36_reference();
+        let plan = route_plan(selected, rows, self.top_k, self.experts, parallel)?;
         let prepared = routed_inputs(x, &self.gu_suh, &plan, self.input)?;
         let gate = expert_segmented_qmm(
             &prepared
@@ -1224,6 +1274,96 @@ mod tests {
         }
         Ok(())
     }
+    #[test]
+    #[ignore = "requires physical M5 and 35B"]
+    fn q36_parallel_segmented_components() -> Result<()> {
+        let ck = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+            "MLXL3_QWEN_TEST_MODEL",
+        )?))?;
+        for layer in [0, 17] {
+            let bank = Exl3SwitchGlu::from_checkpoint(
+                &ck,
+                &format!("model.language_model.layers.{layer}.mlp.experts"),
+                256,
+                8,
+            )?;
+            for rows in [64, 65, 73, 256] {
+                let spread = rows == 73 || rows == 256;
+                let ids = (0..rows * 8)
+                    .map(|i| {
+                        if spread {
+                            (i * 37 % 256) as u32
+                        } else {
+                            (i % 8 * 31) as u32
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let selected = Array::from_u32(&ids, &[rows * 8])?;
+                let plan = route_plan(&selected, rows, 8, 256, true)?;
+
+                let table = plan.table.to_u32()?;
+                let count = plan.count.to_u32()?;
+                let mut start = 0;
+                let mut expected = Vec::new();
+                let size = 64;
+                for expert in 0..256 {
+                    let n = ids.iter().filter(|&&v| v == expert).count() as u32;
+                    for offset in (0..n).step_by(size) {
+                        expected.push((expert, start + offset, (n - offset).min(size as u32)));
+                    }
+                    start += n;
+                }
+                assert_eq!(count, [expected.len() as u32]);
+                assert_eq!(start, (rows * 8) as u32);
+                for (i, (e, offset, n)) in expected.into_iter().enumerate() {
+                    let stride = plan.max_blocks as usize;
+                    assert_eq!(
+                        (table[i], table[stride + i], table[2 * stride + i]),
+                        (e, offset, n)
+                    );
+                }
+                for (input, output, bank_offset, weights) in [
+                    (2048, 512, 0, &bank.gu_trellis),
+                    (2048, 512, 8192, &bank.gu_trellis),
+                    (512, 2048, 0, &bank.down_trellis),
+                ] {
+                    let x = Array::from_f16_bits(
+                        &(0..plan.padded * input)
+                            .map(|i| {
+                                f16::from_f32(((i * 13 % 127) as f32 - 64.0) / 128.0).to_bits()
+                            })
+                            .collect::<Vec<_>>(),
+                        &[plan.padded, input],
+                    )?;
+                    let run = |parallel| -> Result<Vec<u16>> {
+                        let plan = route_plan(&selected, rows, 8, 256, parallel)?;
+                        expert_segmented_qmm(
+                            &x,
+                            weights,
+                            &plan,
+                            input,
+                            output,
+                            256,
+                            bank_offset,
+                            bank.k,
+                            bank.cb,
+                        )?
+                        .to_f16_bits()
+                    };
+                    let base = run(false)?;
+                    let candidate = run(true)?;
+                    ensure!(
+                        base.len() == (rows * 8 * output) as usize
+                            && base.iter().all(|&x| f16::from_bits(x).is_finite())
+                            && base == candidate,
+                        "segmented mismatch at {rows} layer {layer} offset {bank_offset}"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     #[ignore = "Qwen 35B checkpoint on a physical Apple GPU"]
     fn q36_expert_lane_matches_canonical_intermediates() -> Result<()> {
