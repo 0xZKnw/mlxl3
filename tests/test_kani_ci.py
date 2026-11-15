@@ -70,8 +70,14 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "ssd_prefetch::verification::prediction_order_preserves_all_values_within_two_rows",
         *(f"speculative::verification::dflash_copy_len_{n}" for n in range(21)),
     }
+    # Proofs retired after the frozen baseline, each replaced by named obligations in `added`.
+    retired = {
+        # Replaced by the qwen_pipeline_* and pipeline_layer_* proofs when progressive
+        # layer submission became the default in every mode.
+        "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+    }
     required = set(ci.required_names())
-    assert set(baseline) - required == replaced
+    assert set(baseline) - required == replaced | retired
     frozen = set(
         json.loads((ROOT / "tests/fixtures/kani-obligations-d5a776e5.json").read_text())[
             "required_harnesses"
@@ -158,6 +164,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "expert_ar_policy::expert_ar_prefixes_are_bounded_disjoint_and_never_overflow",
         "expert_ar_policy::expert_ar_selection_requires_exact_actual_record_extents",
         "ssd_reads::split_record_tests::native_isolated_record_ranges_partition_exactly_one_valid_destination",
+        "contracts::qwen_pipeline_policy_parses_only_bounded_canonical_strides",
+        "contracts::pipeline_layer_default_stride_keeps_the_measured_schedule",
         "ssd_reads::split_record_tests::native_split_record_claims_never_overlap_or_repeat",
         "ssd_reads::record_reuse_tests::native_record_reuse_requires_completed_producers_and_private_foreground_slots",
         "flash_support::deferred_moe_cannot_escape_the_existing_cross_layer_guard",
@@ -240,7 +248,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::stale_prefetch_completion_preserves_new_reservation",
     }
     assert len(frozen) == 322
-    assert frozen <= required
+    assert frozen - retired <= required
+    assert not retired & required
     assert required - frozen == added
     assert {
         f"flash_support::verification::slot_capacity_{size}_matches_std"
