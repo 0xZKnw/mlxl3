@@ -1,44 +1,81 @@
 import AppKit
 import SwiftUI
 
+/// Unload button state beside the model selector: hidden with nothing to
+/// release, disabled while work owns the engine, otherwise enabled.
+enum ModelUnloadControl: Equatable {
+    case hidden, disabled, enabled
+
+    init(canEject: Bool, busy: Bool) {
+        self = !canEject ? .hidden : busy ? .disabled : .enabled
+    }
+}
+
 struct ModelSelectionMenu: View {
     @EnvironmentObject private var studio: StudioModel
 
-    var body: some View {
-        Menu {
-            ForEach(studio.models) { model in
-                Button { studio.selectModel(model.name) } label: {
-                    if model.name == studio.selectedModelName {
-                        Label(model.name, systemImage: "checkmark")
-                    } else { Text(model.name) }
-                }
-            }
-            if !studio.models.isEmpty { Divider() }
-            Button(action: studio.openModelManager) {
-                Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
-            }
-            Button(action: studio.ejectModel) {
-                Label(L("Décharger le modèle", "Unload model"), systemImage: "eject")
-            }.disabled(!studio.canEject)
-        } label: {
-            HStack(spacing: 7) {
-                StatusDot(state: studio.engineState)
-                Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1).truncationMode(.middle)
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(StudioTheme.quiet)
-            }
-            .padding(.horizontal, 12).frame(height: 32).frame(maxWidth: 210)
+    private var unloadHelp: String {
+        if studio.modelUnloadControl != .enabled {
+            return L("Arrêtez la tâche en cours pour décharger le modèle", "Stop the current task to unload the model")
         }
-        .menuStyle(.button).buttonStyle(WorkspaceControlStyle()).menuIndicator(.hidden)
+        if case .loading = studio.engineState {
+            return L("Annuler le chargement et libérer la mémoire", "Cancel loading and free memory")
+        }
+        return L("Décharger le modèle et libérer la mémoire", "Unload the model and free memory")
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Menu {
+                ForEach(studio.models) { model in
+                    Button { studio.selectModel(model.name) } label: {
+                        if model.name == studio.selectedModelName {
+                            Label(model.name, systemImage: "checkmark")
+                        } else { Text(model.name) }
+                    }
+                }
+                if !studio.models.isEmpty { Divider() }
+                Button(action: studio.openModelManager) {
+                    Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
+                }
+                Button(action: studio.ejectModel) {
+                    Label(L("Décharger le modèle", "Unload model"), systemImage: "eject")
+                }.disabled(!studio.canEject)
+            } label: {
+                HStack(spacing: 7) {
+                    StatusDot(state: studio.engineState)
+                    Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1).truncationMode(.middle)
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(StudioTheme.quiet)
+                }
+                .padding(.horizontal, 10).frame(height: 30).frame(maxWidth: 210)
+            }
+            .menuStyle(.button).buttonStyle(WorkspaceControlStyle()).menuIndicator(.hidden)
+            .accessibilityIdentifier("toolbar.model")
+            .fixedSize(horizontal: false, vertical: true)
+            .disabled(studio.isGenerating || studio.localServer.active)
+            .help(studio.engineState.label)
+            .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
+
+            if studio.modelUnloadControl != .hidden {
+                Button(action: studio.unloadModelFromToolbar) {
+                    Image(systemName: "eject")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(WorkspaceControlStyle())
+                .disabled(studio.modelUnloadControl != .enabled)
+                .accessibilityIdentifier("toolbar.unload")
+                .help(unloadHelp)
+                .accessibilityLabel(L("Décharger le modèle", "Unload model"))
+                .accessibilityHint(unloadHelp)
+            }
+        }
         .foregroundStyle(StudioTheme.ink)
+        .padding(4)
         .premiumGlass(radius: 100, materialOpacity: 0.76)
-        .accessibilityIdentifier("toolbar.model")
-        .fixedSize(horizontal: false, vertical: true)
-        .disabled(studio.isGenerating || studio.localServer.active)
-        .help(studio.engineState.label)
-        .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
     }
 }
 

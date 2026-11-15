@@ -166,6 +166,15 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
 "${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
+# Toolbar unload beside the model selector: state table, hosted capsule and the
+# real bridge lifecycle (loading, generating, tuning, unload and reload).
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/model-unload-control-check.swift > "${test_dir}/ModelUnloadControlCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/ModelUnloadControlCombined.swift" -o "${test_dir}/unload-control-check"
+run_fixture_check "${test_dir}/unload-control-check" "$PWD/tests/fake-desktop-engine.py"
+
 check_preferences
 
 # Keep global speculative preferences independent of current-model sampling.
