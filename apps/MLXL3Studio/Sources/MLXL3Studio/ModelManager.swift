@@ -36,7 +36,7 @@ struct ModelSelectionMenu: View {
         .premiumGlass(radius: 100, materialOpacity: 0.76)
         .accessibilityIdentifier("toolbar.model")
         .fixedSize(horizontal: false, vertical: true)
-        .disabled(studio.isGenerating || studio.localServer.active)
+        .disabled(studio.composerBusy || studio.localServer.active)
         .help(studio.engineState.label)
         .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
     }

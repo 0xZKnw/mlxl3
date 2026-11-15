@@ -60,5 +60,67 @@ import Foundation
         precondition(MTPTuning.load(key: key, preferences: preferences, storageKey: "studio.dflashSelections")?.depth == 2)
         precondition(decoded.map(\.dflashLabel) == ["Baseline", "Auto", "2 tokens", "7 tokens"])
         print("MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding")
+        checkAutoTuneLedger(valid: valid)
+    }
+
+    /// Finite exhaustive check (MTP-AUTOTUNE-20261115): every history of up to five outcomes over
+    /// two keys, then every key/stored-record/eligibility combination. The oracle folds the whole
+    /// history instead of reusing the ledger's incremental state.
+    static func checkAutoTuneLedger(valid: [MTPTuningRow]) {
+        let keys = [MTPConfigurationKey(modelPath: "/nonexistent/model-a", headPath: "/nonexistent/head", runtime: "rt:mtppostnorm-v1=1:mtpevict-v1=1"),
+                    MTPConfigurationKey(modelPath: "/nonexistent/model-a", headPath: "/nonexistent/head", runtime: "rt:mtppostnorm-v1=0:mtpevict-v1=1")]
+        precondition(keys[0] != keys[1], "Runtime option change must change the configuration key")
+        let outcomes: [MTPAutoTuneLedger.Outcome] = [.succeeded, .failed, .interrupted]
+        let operations = keys.indices.flatMap { key in outcomes.map { (key, $0) } }
+        let tunedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        func stored(_ key: MTPConfigurationKey) -> [(MTPSelection?, Bool)] {
+            [(nil, false),
+             (MTPSelection(key: key, depth: 2, rows: valid, tunedAt: tunedAt), true),
+             (MTPSelection(key: key, depth: 0, rows: valid, tunedAt: tunedAt), true),   // baseline won
+             (MTPSelection(key: key, depth: 3, rows: valid, tunedAt: tunedAt), true),   // later manual choice
+             (MTPSelection(key: key, depth: 1, rows: [], tunedAt: nil), false),          // manual depth only
+             (MTPSelection(key: key, depth: 2, rows: valid, tunedAt: nil), false),       // rows without a Tune date
+             (MTPSelection(key: key, depth: 2, rows: Array(valid.prefix(3)), tunedAt: tunedAt), false),
+             (MTPSelection(key: key, depth: 4, rows: valid, tunedAt: tunedAt), false)]
+        }
+        var histories: [[(Int, MTPAutoTuneLedger.Outcome)]] = [[]]
+        var frontier = histories
+        for _ in 0..<5 {
+            frontier = frontier.flatMap { history in operations.map { history + [$0] } }
+            histories += frontier
+        }
+        var decisions = 0, tunes = 0, reuses = 0, skips = 0, cappedSkips = 0
+        for history in histories {
+            var ledger = MTPAutoTuneLedger()
+            for (key, outcome) in history { ledger.record(outcome, for: keys[key]) }
+            for queried in [nil] + keys.indices.map(Optional.some) {
+                let otherKey = keys[(queried ?? 0) == 0 ? 1 : 0]
+                let candidates = queried.map { stored(keys[$0]) } ?? [(nil, false)]
+                for (saved, tuned) in candidates + [(MTPSelection(key: otherKey, depth: 2, rows: valid, tunedAt: tunedAt), false)] {
+                    for eligible in [false, true] {
+                        let expected: MTPAutoTuneLedger.Decision
+                        if let queried {
+                            let lastSuccess = history.lastIndex { $0.0 == queried && $0.1 == .succeeded }
+                            let mine = history[(lastSuccess.map { $0 + 1 } ?? 0)...].filter { $0.0 == queried }
+                            let failed = mine.contains { $0.1 == .failed }
+                            let interrupted = mine.filter { $0.1 == .interrupted }.count
+                            if tuned { expected = .reuse }
+                            else if !eligible || failed || interrupted >= MTPAutoTuneLedger.interruptionLimit { expected = .skip }
+                            else { expected = .tune }
+                            if tuned == false && eligible && !failed && interrupted >= MTPAutoTuneLedger.interruptionLimit { cappedSkips += 1 }
+                        } else {
+                            expected = .skip
+                        }
+                        let actual = ledger.decide(key: queried.map { keys[$0] }, saved: saved, eligible: eligible)
+                        precondition(actual == expected, "Ledger \(history) key \(String(describing: queried)) saved \(String(describing: saved?.depth)) eligible \(eligible): \(actual) != \(expected)")
+                        decisions += 1
+                        switch actual { case .tune: tunes += 1; case .reuse: reuses += 1; case .skip: skips += 1 }
+                    }
+                }
+            }
+        }
+        precondition(histories.count == 9331 && tunes > 0 && reuses > 0 && skips > 0 && cappedSkips > 0,
+                     "Ledger exploration must reach every decision and the interruption cap")
+        print("MTP auto-tune ledger checks passed: \(histories.count) histories, \(decisions) decisions (tune \(tunes), reuse \(reuses), skip \(skips), capped \(cappedSkips))")
     }
 }

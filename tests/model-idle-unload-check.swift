@@ -51,6 +51,8 @@ extension StudioModel {
         }
         let suite = "io.mlxl3.idle-check." + UUID().uuidString
         let preferences = UserDefaults(suiteName: suite)!
+        // Manual Tune scenarios; the automatic Tune is covered by tests/mtp-autotune-check.swift.
+        preferences.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
         defer { preferences.removePersistentDomain(forName: suite) }
 
         check(ModelIdleUnloadDelay.load(from: preferences) == .fifteenMinutes, "Default must be 15 minutes")

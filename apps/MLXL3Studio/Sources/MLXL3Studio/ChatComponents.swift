@@ -613,7 +613,7 @@ struct ComposerView: View {
                             ChatAttachmentView(attachment: attachment) {
                                 studio.removeChatAttachment(attachment.id)
                             }
-                            .disabled(studio.isGenerating || studio.isImportingFiles)
+                            .disabled(studio.composerBusy || studio.isImportingFiles)
                         }
                     }
                 }
@@ -660,7 +660,7 @@ struct ComposerView: View {
                         guard focused, let image = ComposerPasteboard.image(from: .general) else { return }
                         ComposerPasteboard.importImage(image, into: studio)
                     }
-                    .disabled(studio.isGenerating)
+                    .disabled(studio.composerBusy)
                     .onSubmit { studio.send() }
                     .onKeyPress(.return, phases: .down) { press in
                         if press.modifiers.contains(.control) {
@@ -687,7 +687,7 @@ struct ComposerView: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: 18))
         .onTapGesture {
-            guard !studio.isGenerating else { return }
+            guard !studio.composerBusy else { return }
             focused = true
         }
         .background {
@@ -709,10 +709,10 @@ struct ComposerView: View {
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
         .onChange(of: studio.draft) {
-            if !studio.isGenerating && !studio.draft.isEmpty { focused = true }
+            if !studio.composerBusy && !studio.draft.isEmpty { focused = true }
         }
-        .onChange(of: studio.isGenerating) {
-            if !studio.isGenerating {
+        .onChange(of: studio.composerBusy) {
+            if !studio.composerBusy {
                 focused = true
             }
         }
@@ -832,7 +832,7 @@ private struct ComposerFooterView: View {
                 }
                 Spacer()
                 ComposerVoiceControl(studio: studio, voice: studio.voice)
-                if studio.isGenerating || studio.preparingDocuments {
+                if studio.composerBusy || studio.preparingDocuments {
                     Button(action: studio.stopGeneration) {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 10, weight: .bold))

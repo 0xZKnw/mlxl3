@@ -39,6 +39,8 @@ extension StudioModel {
     defer { try? FileManager.default.removeItem(at: root) }
     let suite = "io.mlxl3.sampling-check." + UUID().uuidString
     let preferences = UserDefaults(suiteName: suite)!
+    // Manual Tune scenarios; the automatic Tune is covered by tests/mtp-autotune-check.swift.
+    preferences.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
     defer { preferences.removePersistentDomain(forName: suite) }
     setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
     setenv("MLXL3_HOME", root.path, 1)

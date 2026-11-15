@@ -140,6 +140,15 @@ final class StudioModel: ObservableObject {
     private var tuneRequestID: String?
     private var tuneConfiguration: MTPConfigurationKey?
     private var tuneCancellationRequested = false
+    /// The running Tune was started by the app (MTP-AUTOTUNE-20261115); chat can preempt it.
+    @Published private(set) var mtpAutoTuneActive = false
+    private var mtpAutoTuneInterrupting = false
+    private var mtpAutoTuneLedger = MTPAutoTuneLedger()
+    private var mtpAutoTuneTask: Task<Void, Never>?
+    private var mtpAutoTuneDelay: Duration = .seconds(3)
+    private var mtpAutoTuneIdleDelay: Duration = .seconds(20)
+    private var pendingSendAfterAutoTune: (conversation: UUID?, draft: String)?
+    static let mtpAutoTunePreferenceKey = "studio.mtpAutoTune"
     @Published private(set) var runtimeIdentity: String?
     @Published private(set) var runtimeQwenProfile: String?
     @Published var systemPrompt = ""
@@ -630,17 +639,17 @@ final class StudioModel: ObservableObject {
     var canSend: Bool {
         !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
             && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
-            && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
+            && engineState.isReady && (!isTuningMTP || mtpAutoTuneActive) && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (conversationImages.isEmpty || canImportImages) && imageInputWithinLimits
             && hasDraftContent
     }
 
     var sendBlockReason: String? {
         if preparingDocuments { return L("Recherche dans les documents…", "Searching documents…") }
-        if isGenerating { return cancellationReason ?? L("Génération en cours", "Generating") }
+        if composerBusy { return cancellationReason ?? L("Génération en cours", "Generating") }
         guard !canSend else { return nil }
         if isImportingFiles || libraryImporting { return L("Import de fichiers en cours", "Importing files") }
-        if isTuningMTP { return L("Réglage du moteur en cours", "Tuning engine") }
+        if isTuningMTP && !mtpAutoTuneActive { return L("Réglage du moteur en cours", "Tuning engine") }
         if mcpUpdating { return L("Connexion aux outils en cours", "Connecting tools") }
         if dflashDownloading || mtpDownloading || modelInstallState.isWorking || updateManager.isInstalling {
             return L("Installation en cours", "Installation in progress")
@@ -788,6 +797,9 @@ final class StudioModel: ObservableObject {
         if case .generating = engineState { return true }
         return false
     }
+
+    /// The composer stays usable during an automatic Tune; sending preempts it.
+    var composerBusy: Bool { isGenerating && !mtpAutoTuneActive }
 
     var canEject: Bool {
         switch engineState {
@@ -990,7 +1002,7 @@ final class StudioModel: ObservableObject {
     }
 
     func selectModel(_ name: String) {
-        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
+        guard !quantizer.converting, !isGenerating || mtpAutoTuneActive, !localServer.active, modeTransition == nil else { return }
         if name == selectedModelName, bridge.isRunning {
             switch engineState {
             case .loading, .ready, .generating: return
@@ -1026,6 +1038,9 @@ final class StudioModel: ObservableObject {
         mtpAutoDownloadSupported = nil
         mtpConfigureSupported = false
         memorySaverSupported = false
+        // Unloading interrupts an automatic Tune without counting as a failure.
+        pendingSendAfterAutoTune = nil
+        mtpAutoTuneTask?.cancel(); mtpAutoTuneTask = nil
         finishMTPTuning(error: nil)
         mtpMaxDepth = 1; mtpTuneSupported = false; mtpTuningKey = nil
         mtpTuneRows = []; mtpTunedAt = nil; mtpDepth = 1
@@ -1095,6 +1110,12 @@ final class StudioModel: ObservableObject {
     func send() {
         if !engineState.isReady && !isGenerating && hasDraftContent { attemptedSendWithoutModel = true }
         guard canSend, let conversation = currentConversation else { return }
+        // Chat wins over automatic tuning: stop it, then send once the engine acknowledges.
+        if mtpAutoTuneActive {
+            pendingSendAfterAutoTune = (selectedConversationID, draft)
+            preemptMTPAutoTune()
+            return
+        }
         let projectDocuments = documents.filter { $0.projectID == conversation.projectID }
         guard !projectDocuments.isEmpty else { sendPrepared(sources: []); return }
         let ticket = UUID()
@@ -1240,7 +1261,8 @@ final class StudioModel: ObservableObject {
     func stopGeneration() {
         cancelDocumentPreparation()
         cancelPendingRegeneration()
-        if isTuningMTP { cancelMTPTuning(); return }
+        // The composer's stop never targets a background automatic Tune.
+        if isTuningMTP { if !mtpAutoTuneActive { cancelMTPTuning() }; return }
         guard isGenerating else { return }
         requestGenerationStop(L("Génération arrêtée", "Generation stopped"))
     }
@@ -1579,6 +1601,7 @@ final class StudioModel: ObservableObject {
             guard operation == mtpOperationID else { return }
             mtpDownloading = false
             mtpDownloadTask = nil
+            scheduleMTPAutoTune()
         }
     }
 
@@ -1636,14 +1659,80 @@ final class StudioModel: ObservableObject {
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
     }
 
-    func tuneMTP() {
+    func tuneMTP() { startMTPTuning(automatic: false) }
+
+    private func startMTPTuning(automatic: Bool) {
         guard canTuneMTP, let key = currentMTPConfiguration else { return }
+        mtpAutoTuneTask?.cancel(); mtpAutoTuneTask = nil
         let request = UUID().uuidString
         tuneIsDFlash = false; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
-        isTuningMTP = true; mtpTuneProgress = 0; mtpError = nil
-        mtpTuneStatus = L("Préparation du test…", "Preparing test…")
+        mtpAutoTuneActive = automatic; mtpAutoTuneInterrupting = false
+        isTuningMTP = true; mtpTuneProgress = 0
+        if !automatic { mtpError = nil }
+        mtpTuneStatus = automatic ? L("Réglage automatique…", "Automatic tuning…") : L("Préparation du test…", "Preparing test…")
         do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath, memorySaver: memorySaverEnabled && memorySaverSupported) }
-        catch { finishMTPTuning(error: error.localizedDescription) }
+        catch { finishMTPTuning(error: error.localizedDescription, outcome: .failed) }
+    }
+
+    var mtpAutoTuneEnabled: Bool { preferences.object(forKey: Self.mtpAutoTunePreferenceKey) as? Bool ?? true }
+
+    /// Every condition a manual Tune needs, plus an idle chat: automatic tuning never queues behind a request.
+    private var mtpAutoTuneEligible: Bool {
+        mtpAutoTuneEnabled && !isPreview && mtpEnabled && mtpAvailable && canTuneMTP
+            && !dflash2Enabled && !mtpConfigurationPending && activeRequestID == nil
+            && !preparingDocuments && regenerationTask == nil && !localServer.active
+            && modeTransition == nil && !agentStudioBusy && !quantizer.converting
+    }
+
+    var mtpAutoTuneDecision: MTPAutoTuneLedger.Decision {
+        let key = currentMTPConfiguration
+        let saved = key.flatMap { MTPTuning.load(key: $0, preferences: preferences) }
+        return mtpAutoTuneLedger.decide(key: key, saved: saved, eligible: mtpAutoTuneEligible)
+    }
+
+    /// Debounced: the latest trigger wins and the decision is re-evaluated when it fires.
+    private func scheduleMTPAutoTune(after delay: Duration? = nil) {
+        mtpAutoTuneTask?.cancel(); mtpAutoTuneTask = nil
+        guard mtpAutoTuneEnabled, !isPreview, !mtpAutoTuneActive else { return }
+        let load = modelLoadID
+        let wait = delay ?? mtpAutoTuneDelay
+        mtpAutoTuneTask = Task { [weak self] in
+            do { try await Task.sleep(for: wait) } catch { return }
+            guard let self, !Task.isCancelled, self.modelLoadID == load else { return }
+            self.mtpAutoTuneTask = nil
+            if self.mtpAutoTuneDecision == .tune { self.startMTPTuning(automatic: true) }
+        }
+    }
+
+    /// Ask the engine to stop an automatic Tune; `finishMTPTuning` resumes a pending send.
+    private func preemptMTPAutoTune() {
+        guard mtpAutoTuneActive, !tuneCancellationRequested else { return }
+        mtpAutoTuneInterrupting = true
+        tuneCancellationRequested = true
+        mtpTuneStatus = L("Réglage automatique suspendu…", "Pausing automatic tuning…")
+        let request = tuneRequestID
+        let load = modelLoadID
+        guard bridge.cancelGeneration() else { finishMTPTuning(error: nil, outcome: .interrupted); return }
+        tuneCancellationFallback?.cancel()
+        tuneCancellationFallback = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self, self.isTuningMTP, self.tuneCancellationRequested,
+                  self.tuneRequestID == request, self.modelLoadID == load else { return }
+            // Same recovery as a manual cancel: an unresponsive engine is replaced.
+            self.pendingSendAfterAutoTune = nil
+            await self.bridge.stopAndWait()
+            guard self.tuneRequestID == request, self.modelLoadID == load else { return }
+            self.finishMTPTuning(error: nil, outcome: .interrupted)
+            self.ejectModel()
+        }
+    }
+
+    /// For paths that replace the bridge process: the Tune dies with it.
+    private func interruptMTPAutoTune() {
+        guard mtpAutoTuneActive else { return }
+        pendingSendAfterAutoTune = nil
+        _ = bridge.cancelGeneration()
+        finishMTPTuning(error: nil, outcome: .interrupted)
     }
 
     func cancelMTPTuning() {
@@ -1668,11 +1757,29 @@ final class StudioModel: ObservableObject {
         }
     }
 
-    private func finishMTPTuning(error: String?) {
+    /// `outcome` defaults to interrupted without an error and failed with one.
+    private func finishMTPTuning(error: String?, outcome: MTPAutoTuneLedger.Outcome? = nil) {
+        let automatic = mtpAutoTuneActive
+        let key = tuneConfiguration
+        let resolved = outcome ?? (error == nil ? .interrupted : .failed)
         tuneCancellationFallback?.cancel(); tuneCancellationFallback = nil
         isTuningMTP = false; tuneRequestID = nil; tuneConfiguration = nil
-        if let error { if tuneIsDFlash { dflashDownloadError = error } else { mtpError = error } }
+        mtpAutoTuneActive = false; mtpAutoTuneInterrupting = false
+        if automatic, let key { mtpAutoTuneLedger.record(resolved, for: key) }
+        // Fail closed: the current depth stays; an automatic interruption is not an error.
+        if let error, !(automatic && resolved == .interrupted) {
+            if tuneIsDFlash { dflashDownloadError = error }
+            else { mtpError = automatic ? L("Réglage automatique impossible. Réglage conservé. ", "Automatic tuning failed. Setting preserved. ") + error : error }
+        }
         tuneIsDFlash = false
+        if let pending = pendingSendAfterAutoTune {
+            pendingSendAfterAutoTune = nil
+            Task { [weak self] in
+                guard let self, self.selectedConversationID == pending.conversation,
+                      self.draft == pending.draft, self.engineState.isReady else { return }
+                self.send()
+            }
+        }
     }
 
     private func handleMTPTuning(_ event: BridgeEvent) {
@@ -1683,15 +1790,16 @@ final class StudioModel: ObservableObject {
                 mtpTuneProgress = min(1, max(0, Double(completed) / Double(total)))
             }
             let mode = event.depth.map { tuneIsDFlash ? ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, $0))] : $0 == 0 ? "Baseline" : "MTP\($0)" } ?? "Tune"
-            mtpTuneStatus = event.phase == "warmup"
+            mtpTuneStatus = (mtpAutoTuneActive ? L("Auto · ", "Auto · ") : "") + (event.phase == "warmup"
                 ? L("Échauffement · ", "Warmup · ") + mode
                 : event.phase == "loading_head" ? L("Chargement de la tête MTP…", "Loading MTP head…")
-                : L("Mesure · ", "Measuring · ") + mode
+                : L("Mesure · ", "Measuring · ") + mode)
         case "mtp_tune_complete", "dflash_tune_complete":
             guard !tuneCancellationRequested, let key = tuneConfiguration,
                   key == (tuneIsDFlash ? currentDFlashConfiguration : currentMTPConfiguration), event.tuningKey == key.runtime,
                   let rows = event.rows, let best = MTPTuning.winner(rows), best == event.bestDepth else {
-                finishMTPTuning(error: L("Test incomplet ou annulé. Réglage conservé.", "Incomplete or cancelled test. Setting preserved.")); return
+                finishMTPTuning(error: L("Test incomplet ou annulé. Réglage conservé.", "Incomplete or cancelled test. Setting preserved."),
+                    outcome: mtpAutoTuneInterrupting ? .interrupted : .failed); return
             }
             if tuneIsDFlash {
                 dflashMode = max(1, best); dflash2Enabled = best > 0
@@ -1708,9 +1816,11 @@ final class StudioModel: ObservableObject {
             }
             mtpTuneProgress = 1
             // Tuning uses greedy internally; retain the user's ordinary sampling settings.
-            schedulePersistence(); finishMTPTuning(error: nil)
+            schedulePersistence(); finishMTPTuning(error: nil, outcome: .succeeded)
         case "cancelled":
-            finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
+            // A chat preemption is retried later; an explicit stop is not retried this run.
+            finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."),
+                outcome: mtpAutoTuneInterrupting ? .interrupted : .failed)
         case "error":
             finishMTPTuning(error: event.message ?? L("Le test MTP a échoué. Réglage conservé.", "MTP test failed. Setting preserved."))
         default: break
@@ -1864,7 +1974,9 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
+        guard !quantizer.converting, !isGenerating || mtpAutoTuneActive, !localServer.active, modeTransition == nil else { return }
+        // The bridge restarts below; an automatic Tune is interrupted, not failed.
+        interruptMTPAutoTune()
         modelLoadTask?.cancel()
         let operation = UUID()
         modelLoadID = operation
@@ -1979,7 +2091,10 @@ final class StudioModel: ObservableObject {
         if event.requestID == mtpOperationID.uuidString && ["mtp_status", "error"].contains(event.type) {
             mtpConfigurationPending = false
             mtpDownloadTask?.cancel(); mtpDownloadTask = nil; mtpDownloading = false
-            if event.type == "mtp_status" { mtpActive = event.mtpActive }
+            if event.type == "mtp_status" {
+                mtpActive = event.mtpActive
+                if mtpActive == true { scheduleMTPAutoTune() }
+            }
             else { mtpEnabled = false; mtpActive = false; mtpError = event.message }
             return
         }
@@ -2038,6 +2153,7 @@ final class StudioModel: ObservableObject {
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
             else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
             else if !mtpAvailable { mtpEnabled = false }
+            scheduleMTPAutoTune()
         case "mcp_status":
             // Ignore delayed replies for a different workspace/handshake. Older engines
             // may still enable manual Send, but cannot auto-send a regeneration ticket.
@@ -2156,6 +2272,8 @@ final class StudioModel: ObservableObject {
                 modules: readyInfo.modules,
                 residentGB: readyInfo.residentGB
             )
+            // Retry an interrupted automatic Tune only after the chat has been idle for a while.
+            scheduleMTPAutoTune(after: mtpAutoTuneIdleDelay)
         } else {
             engineState = .idle
         }

@@ -33,7 +33,7 @@ struct MTPTuningRow: Codable, Sendable, Identifiable {
     }
 }
 
-struct MTPConfigurationKey: Codable, Equatable, Sendable {
+struct MTPConfigurationKey: Codable, Hashable, Sendable {
     let modelPath: String
     let headPath: String
     let headRevision: String
@@ -95,6 +95,45 @@ enum MTPTuning {
         records.append(selection)
         if let data = try? JSONEncoder().encode(Array(records.suffix(64))) {
             preferences.set(data, forKey: storageKey)
+        }
+    }
+}
+
+/// Automatic Tune bookkeeping for one app run (MTP-AUTOTUNE-20261115).
+/// Results persist through `MTPTuning`; failures and interruptions stay in memory,
+/// so a later app run, engine build or head revision gets a fresh attempt.
+struct MTPAutoTuneLedger: Sendable {
+    enum Decision: Equatable, Sendable { case skip, reuse, tune }
+    enum Outcome: Equatable, Sendable { case succeeded, failed, interrupted }
+    /// Chat, model switches and unloads may preempt a run; stop retrying after this many.
+    static let interruptionLimit = 3
+    private(set) var failed: Set<MTPConfigurationKey> = []
+    private(set) var interruptions: [MTPConfigurationKey: Int] = [:]
+
+    /// A stored Tune for exactly this key: measured rows that still elect a winner.
+    /// A later manual depth choice keeps the record tuned and is respected.
+    static func isTuned(_ selection: MTPSelection?, for key: MTPConfigurationKey) -> Bool {
+        guard let selection, selection.key == key, selection.tunedAt != nil,
+              (0...3).contains(selection.depth) else { return false }
+        return MTPTuning.winner(selection.rows) != nil
+    }
+
+    func decide(key: MTPConfigurationKey?, saved: MTPSelection?, eligible: Bool) -> Decision {
+        guard let key else { return .skip }
+        if Self.isTuned(saved, for: key) { return .reuse }
+        guard eligible, !failed.contains(key),
+              interruptions[key, default: 0] < Self.interruptionLimit else { return .skip }
+        return .tune
+    }
+
+    mutating func record(_ outcome: Outcome, for key: MTPConfigurationKey) {
+        switch outcome {
+        case .succeeded:
+            failed.remove(key); interruptions[key] = nil
+        case .failed:
+            failed.insert(key)
+        case .interrupted:
+            interruptions[key] = min(Self.interruptionLimit, interruptions[key, default: 0] + 1)
         }
     }
 }
