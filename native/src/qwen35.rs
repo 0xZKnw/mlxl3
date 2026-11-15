@@ -1032,6 +1032,7 @@ pub struct Qwen35Moe {
     mtp_projection_source: Option<Box<Checkpoint>>,
     pipeline: bool,
     mtp_pipeline: bool,
+    pipeline_stride: usize,
 }
 
 impl Qwen35Moe {
@@ -1170,19 +1171,19 @@ impl Qwen35Moe {
                 other => anyhow::bail!("unsupported Qwen layer type {other}"),
             });
         }
-        let pipeline_override = std::env::var("MLXL3_QWEN_PIPELINE").ok();
-        let pipeline = pipeline_override.as_deref() == Some("1");
-        let mtp_pipeline = match pipeline_override.as_deref() {
-            Some("0") => false,
-            Some("1") => true,
-            _ => crate::contracts::mtp_pipeline_default(
-                hidden,
-                layers.len(),
-                config.num_experts,
-                config.num_experts_per_tok,
-                crate::array::is_m5_gpu()?,
-            ),
-        };
+        let policy = crate::contracts::qwen_pipeline(
+            std::env::var("MLXL3_QWEN_PIPELINE").ok().as_deref(),
+            match std::env::var("MLXL3_QWEN_PIPELINE_STRIDE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(std::env::VarError::NotUnicode(_)) => Some(String::new()),
+            }
+            .as_deref(),
+        )
+        .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?;
+        let pipeline = policy.enabled;
+        let mtp_pipeline = policy.enabled;
+        let pipeline_stride = policy.stride;
         let replay_enabled = crate::qwen35_config::replay_enabled(
             mtp_layout.managed_head(layers.len()) == Some(crate::mtp::ManagedHead::Qwen36Moe),
             option_env!("MLXL3_MLX_VERSION") == Some("0.32.2") && crate::array::is_m5_gpu()?,
@@ -1221,6 +1222,7 @@ impl Qwen35Moe {
             mtp_projection_source,
             pipeline,
             mtp_pipeline,
+            pipeline_stride,
         })
     }
 
@@ -1433,7 +1435,12 @@ impl Qwen35Moe {
                 }
                 _ => layer.forward(&hidden)?,
             };
-            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
                 Array::async_eval_all(&[&hidden])?;
             }
             if trace {
@@ -1470,7 +1477,12 @@ impl Qwen35Moe {
         let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
-            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
                 Array::async_eval_all(&[&hidden])?;
             }
             if capture_layers.contains(&index) {
@@ -1510,7 +1522,12 @@ impl Qwen35Moe {
         let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification(&mut hidden)?;
-            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
                 Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
             }
         }
@@ -1544,7 +1561,12 @@ impl Qwen35Moe {
         let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification_dflash(&mut hidden)?;
-            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
                 Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
             }
             if capture_layers.contains(&index) {
@@ -1700,7 +1722,12 @@ impl Qwen35Moe {
             let layer_count = self.layers.len();
             for (index, layer) in self.layers.iter_mut().enumerate() {
                 raw = layer.forward(&raw)?;
-                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                if crate::contracts::pipeline_layer(
+                    index,
+                    layer_count,
+                    self.mtp_pipeline,
+                    self.pipeline_stride,
+                ) {
                     Array::async_eval_all(&[&raw])?;
                 }
             }
@@ -1735,7 +1762,12 @@ impl Qwen35Moe {
             let layer_count = self.layers.len();
             for (index, layer) in self.layers.iter_mut().enumerate() {
                 layer.forward_verification_dflash(&mut values)?;
-                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                if crate::contracts::pipeline_layer(
+                    index,
+                    layer_count,
+                    self.mtp_pipeline,
+                    self.pipeline_stride,
+                ) {
                     Array::async_eval_all(&values.iter().collect::<Vec<_>>())?;
                 }
             }
@@ -3865,6 +3897,163 @@ mod tests {
         Ok(())
     }
 
+    /// Q36-GPU-ATTRIBUTION-P8: one AR step split into synchronously evaluated blocks, each
+    /// stamped with CLOCK_UPTIME_RAW so CB timing records can be attributed; the split path
+    /// must reproduce `forward` bit for bit (logits and every state) at every step.
+    #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL and MLXL3_Q36_TIMELINE_PATH; diagnostic, run alone"]
+    fn q36_decode_block_timeline() -> Result<()> {
+        unsafe extern "C" {
+            fn clock_gettime_nsec_np(clock: u32) -> u64;
+        }
+        const CLOCK_UPTIME_RAW: u32 = 8;
+        let now = || unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) };
+        let output_path = std::env::var("MLXL3_Q36_TIMELINE_PATH")?;
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        model.pipeline = false;
+        let prompt = (0..23)
+            .map(|index| (index * 37 + 1) as u32)
+            .collect::<Vec<_>>();
+        let mut token = model.forward_tokens(&prompt)?.argmax()?.to_u32()?[0];
+        let (warmup, measured) = (2usize, 16usize);
+        let mut rows = Vec::new();
+        let stamp = |rows: &mut Vec<serde_json::Value>,
+                     step: usize,
+                     layer: i64,
+                     block: &str,
+                     start: u64,
+                     outputs: &[&Array]|
+         -> Result<()> {
+            for value in outputs {
+                value.eval()?;
+            }
+            rows.push(serde_json::json!({
+                "step": step, "layer": layer, "block": block, "t0_ns": start, "t1_ns": now()
+            }));
+            Ok(())
+        };
+        for step in 0..warmup + measured {
+            let before = model.snapshot()?;
+            let expected = model.forward(token)?.to_f16_bits()?;
+            let expected_state = state_bytes(&model)?;
+            let expected_offset = model.offset;
+            model.restore(before)?;
+
+            let start = now();
+            let id = Array::from_i32(&[token as i32], &[1, 1])?;
+            let mut hidden = model.embeddings.take(&id, 0)?;
+            stamp(&mut rows, step, -1, "embed", start, &[&hidden])?;
+            for (index, layer) in model.layers.iter_mut().enumerate() {
+                let index = index as i64;
+                let (x, mlp, residual) = match layer {
+                    Layer::Linear(l) => {
+                        let start = now();
+                        let g = &mut l.attention;
+                        g.verification_conv_input = None;
+                        g.verification_recurrent_tape = None;
+                        let normalized = hidden.rms_norm(&l.input_norm, l.eps)?;
+                        let inputs = g.inputs.forward(&normalized)?;
+                        let qkv = inputs[0].try_clone()?;
+                        let z = inputs[1].reshape(&[1, 1, g.value_heads, g.value_dim])?;
+                        let b = g.b.forward(&normalized)?;
+                        let a = g.a.forward(&normalized)?;
+                        stamp(&mut rows, step, index, "gdn_in", start, &[&qkv, &z, &b, &a])?;
+                        let start = now();
+                        let (q, k, v, _) = g.prepare_recurrence_inputs(&qkv, 1, false, true)?;
+                        let state = g.recurrent_state.as_ref().context("missing state")?;
+                        let (out, state) = gated_delta::step_with_gates(
+                            &q, &k, &v, &a, &b, &g.a_log, &g.dt_bias, state,
+                        )?;
+                        let conv = g.conv_state.as_ref().context("missing conv state")?;
+                        stamp(
+                            &mut rows,
+                            step,
+                            index,
+                            "gdn_recurrence",
+                            start,
+                            &[&out, &state, conv],
+                        )?;
+                        g.recurrent_state = Some(state);
+                        let start = now();
+                        let values = g.value_heads * g.value_dim;
+                        let gated = z.precise_swiglu(&out.rms_norm(&g.norm, g.eps)?)?;
+                        let attention = g.output.forward(&gated.reshape(&[1, 1, values])?)?;
+                        stamp(&mut rows, step, index, "gdn_out", start, &[&attention])?;
+                        let start = now();
+                        let (residual, post) =
+                            post_attention_norm(&hidden, &attention, &l.post_norm, l.eps)?;
+                        (start, &l.mlp, (residual, post, l.hidden))
+                    }
+                    Layer::Attention(l) => {
+                        let start = now();
+                        let attention = l
+                            .attention
+                            .forward(&hidden.rms_norm(&l.input_norm, l.eps)?)?;
+                        stamp(&mut rows, step, index, "attn_mixer", start, &[&attention])?;
+                        let start = now();
+                        let (residual, post) =
+                            post_attention_norm(&hidden, &attention, &l.post_norm, l.eps)?;
+                        (start, &l.mlp, (residual, post, l.hidden))
+                    }
+                };
+                let (residual, post, width) = residual;
+                let Mlp::Moe(moe) = mlp else {
+                    anyhow::bail!("timeline expects the MoE Qwen target");
+                };
+                let post = post.reshape(&[1, width])?;
+                let (selected, scores) = moe.routes(&post)?;
+                stamp(
+                    &mut rows,
+                    step,
+                    index,
+                    "moe_router",
+                    x,
+                    &[&selected, &scores, &residual],
+                )?;
+                let start = now();
+                let routed = moe.experts.forward(&post, &selected, &scores)?;
+                stamp(&mut rows, step, index, "moe_experts", start, &[&routed])?;
+                let start = now();
+                let mlp = routed.add(&moe.shared(&post)?)?;
+                hidden = residual.add(&mlp.reshape(&[1, 1, width])?)?;
+                stamp(&mut rows, step, index, "moe_shared", start, &[&hidden])?;
+            }
+            let start = now();
+            model.last_hidden = Some(hidden.slice(1, 0, 1)?);
+            let normalized = hidden.slice(1, 0, 1)?.rms_norm(&model.norm, model.eps)?;
+            let logits = model.head.forward(&normalized)?;
+            stamp(&mut rows, step, 40, "head", start, &[&logits])?;
+            model.offset += 1;
+            let actual = logits.to_f16_bits()?;
+            ensure!(
+                actual.len() == model.vocab as usize
+                    && actual
+                        .iter()
+                        .all(|&value| f16::from_bits(value).is_finite()),
+                "invalid split logits at step {step}"
+            );
+            ensure!(actual == expected, "split logits differ at step {step}");
+            ensure!(
+                state_bytes(&model)? == expected_state && model.offset == expected_offset,
+                "split states differ at step {step}"
+            );
+            token = logits.argmax()?.to_u32()?[0];
+        }
+        let report = serde_json::json!({
+            "test": "q36_decode_block_timeline", "warmup_steps": warmup, "measured_steps": measured,
+            "prompt_tokens": prompt.len(), "parity": "logits and 80 states bit-identical to forward at every step",
+            "layers": model.layers.len(), "rows": rows,
+        });
+        std::fs::write(&output_path, serde_json::to_vec_pretty(&report)?)?;
+        println!(
+            "timeline exact: {} steps, {} rows -> {output_path}",
+            warmup + measured,
+            report["rows"].as_array().map_or(0, Vec::len)
+        );
+        Ok(())
+    }
+
     #[test]
     #[ignore = "requires local Qwen checkpoint and physical Apple GPU; run alone"]
     fn layer_pipeline_matches_unscheduled_logits_and_states() -> Result<()> {
@@ -3873,17 +4062,9 @@ mod tests {
         let mut model = Qwen35Moe::load(Path::new(&path))?;
         match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
             Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
-            Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
-            _ => {
-                assert!(!model.pipeline);
-                assert_eq!(
-                    model.mtp_pipeline,
-                    crate::array::is_m5_gpu()?
-                        && model.mtp_layout.hidden_size == 2048
-                        && model.layers.len() == 40
-                );
-            }
+            _ => assert!(model.pipeline && model.mtp_pipeline),
         }
+        println!("pipeline stride={}", model.pipeline_stride);
         for length in [23, 24, 257] {
             let tokens = (0..length)
                 .map(|index| (index * 37 + 1) as u32)
