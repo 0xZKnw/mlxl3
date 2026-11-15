@@ -796,6 +796,21 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    /// The unload button attached to the model selector. A reply, MTP/DFlash
+    /// tuning, document preparation, the local server or a mode switch owns the
+    /// engine; the user stops that work first instead of losing it silently.
+    var modelUnloadControl: ModelUnloadControl {
+        ModelUnloadControl(
+            canEject: canEject,
+            busy: isGenerating || preparingDocuments || localServer.active || modeTransition != nil)
+    }
+
+    /// Same release path as the menu and the idle timer, behind the button's state.
+    func unloadModelFromToolbar() {
+        guard modelUnloadControl == .enabled else { return }
+        ejectModel()
+    }
+
     var loadedModel: LocalModel? {
         guard canEject, let name = readyInfo?.model else { return nil }
         return models.first { $0.name == name }
