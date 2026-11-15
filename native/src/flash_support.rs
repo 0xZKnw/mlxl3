@@ -657,11 +657,92 @@ pub(crate) fn disk_destination_fits(start: usize, length: usize, capacity: usize
     length > 0 && start.checked_add(length).is_some_and(|end| end <= capacity)
 }
 
-/// Reserve resident weights, MTP, scratch buffers and room for other applications.
-pub fn automatic_cache_slots(available_bytes: u64) -> Option<usize> {
-    let budget = available_bytes.checked_sub(8 << 30)?.min(6 << 30);
-    let slots = budget / (48 * EXPERT_BYTES);
-    (slots >= 10).then_some(slots as usize)
+const GIB: u64 = 1 << 30;
+/// Flash Next memory outside the expert banks: resident weights, MTP head, scratch and
+/// the 512 MiB MLX buffer cache. Measured lifetime peak 4.68 GiB (MTP on, context 4096,
+/// opti.md 12-G); 5 GiB keeps a margin over that measurement.
+pub const AUTO_ENGINE_RESERVE_BYTES: u64 = 5 * GIB;
+/// Automatic expert cache never exceeds this, even with abundant memory.
+pub const AUTO_CACHE_CAP_BYTES: u64 = 6 * GIB;
+/// Fewer slots per layer than this cannot hold one complete ten-expert cohort.
+pub const AUTO_MIN_SLOTS: u64 = 10;
+const AUTO_SLOT_ROW_BYTES: u64 = 48 * EXPERT_BYTES;
+
+/// Room left for other applications, scaled to the machine: 1/8 of physical memory,
+/// between 1 and 3 GiB (3 GiB from 24 GiB upward, as validated on the M5 / 24 GiB).
+pub fn automatic_system_headroom_bytes(physical_bytes: u64) -> u64 {
+    (physical_bytes / 8).clamp(GIB, 3 * GIB)
+}
+
+/// Total memory kept out of the automatic expert cache (6..=8 GiB).
+pub fn automatic_reserve_bytes(physical_bytes: u64) -> u64 {
+    AUTO_ENGINE_RESERVE_BYTES + automatic_system_headroom_bytes(physical_bytes)
+}
+
+/// Why the automatic Flash cache cannot be sized, with every amount in bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CacheShortfall {
+    pub available: u64,
+    pub physical: u64,
+    pub reserve: u64,
+    pub required: u64,
+}
+impl std::fmt::Display for CacheShortfall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let gib = |bytes: u64| bytes as f64 / GIB as f64;
+        write!(
+            f,
+            "not enough memory to load Flash Next: it needs {:.2} GiB of free or file-cache memory, \
+             macOS reports {:.2} GiB available ({:.2} GiB reserved for resident weights, MTP, buffers \
+             and other applications on this {:.0} GiB Mac, plus {:.2} GiB minimum SSD expert cache). \
+             Quit other applications and retry, or set MLXL3_SSD_CACHE_GIB (0.6 to 12) to size the \
+             expert cache manually",
+            gib(self.required),
+            gib(self.available),
+            gib(self.reserve),
+            gib(self.physical),
+            gib(self.required - self.reserve),
+        )
+    }
+}
+impl std::error::Error for CacheShortfall {}
+
+/// Slots per layer for the automatic expert cache, from the memory available at load.
+pub fn automatic_cache_plan(
+    available_bytes: u64,
+    physical_bytes: u64,
+) -> Result<usize, CacheShortfall> {
+    let reserve = automatic_reserve_bytes(physical_bytes);
+    let slots = available_bytes
+        .checked_sub(reserve)
+        .map(|budget| budget.min(AUTO_CACHE_CAP_BYTES) / AUTO_SLOT_ROW_BYTES)
+        .filter(|&slots| slots >= AUTO_MIN_SLOTS);
+    slots.map(|slots| slots as usize).ok_or(CacheShortfall {
+        available: available_bytes,
+        physical: physical_bytes,
+        reserve,
+        required: reserve + AUTO_MIN_SLOTS * AUTO_SLOT_ROW_BYTES,
+    })
+}
+
+#[cfg(target_os = "macos")]
+pub fn physical_memory_bytes() -> Result<u64> {
+    let mut value = 0u64;
+    let mut size = std::mem::size_of::<u64>();
+    let status = unsafe {
+        libc::sysctlbyname(
+            c"hw.memsize".as_ptr(),
+            (&mut value as *mut u64).cast(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    anyhow::ensure!(
+        status == 0 && size == std::mem::size_of::<u64>() && value > 0,
+        "cannot query physical memory size ({status}, {size} bytes)"
+    );
+    Ok(value)
 }
 
 #[cfg(target_os = "macos")]
@@ -2211,28 +2292,94 @@ mod tests {
         assert!(!disk_destination_fits(usize::MAX, 1, usize::MAX));
     }
     #[test]
-    fn automatic_cache_reserves_headroom_and_stays_bounded() {
-        let minimum = (8 << 30) + 10 * 48 * EXPERT_BYTES;
-        for bytes in [0, 1, (8 << 30) - 1, 8 << 30, minimum - 1] {
-            assert_eq!(automatic_cache_slots(bytes), None);
+    fn automatic_cache_keeps_the_validated_24_gib_policy() {
+        // Machines of 24 GiB and more keep the 8 GiB reserve qualified in opti.md 12-G.
+        for physical in [24 << 30, 32 << 30, 64 << 30, u64::MAX] {
+            let plan = |available| automatic_cache_plan(available, physical).ok();
+            let minimum = 9_188_980_352; // 8 GiB + 10 x 48 x 1_248_012 B
+            for bytes in [0, 1, (8 << 30) - 1, 8 << 30, minimum - 1] {
+                assert_eq!(plan(bytes), None);
+            }
+            assert_eq!(plan(minimum), Some(10));
+            assert_eq!(plan(12 << 30), Some(71));
+            assert_eq!(plan(14 << 30), Some(107));
+            assert_eq!(plan(u64::MAX), Some(107));
+            for slots in 10..=107 {
+                let threshold = (8 << 30) + slots * 59_904_576;
+                assert_eq!(plan(threshold), Some(slots as usize));
+                assert_eq!(plan(threshold + 1), Some(slots as usize));
+                assert_eq!(
+                    plan(threshold - 1),
+                    (slots > 10).then_some(slots as usize - 1)
+                );
+            }
         }
-        assert_eq!(automatic_cache_slots(minimum), Some(10));
-        assert_eq!(automatic_cache_slots(12 << 30), Some(71));
-        assert_eq!(automatic_cache_slots(14 << 30), Some(107));
-        assert_eq!(automatic_cache_slots(u64::MAX), Some(107));
-        for slots in 10..=107 {
-            let threshold = (8 << 30) + slots * 48 * EXPERT_BYTES;
-            assert_eq!(automatic_cache_slots(threshold), Some(slots as usize));
-            assert_eq!(automatic_cache_slots(threshold + 1), Some(slots as usize));
+    }
+
+    #[test]
+    fn automatic_cache_scales_headroom_on_smaller_macs() {
+        // (physical, reserve, minimum available) computed by hand, not from the helper.
+        for (physical, reserve, minimum) in [
+            (0, 6_442_450_944, 7_041_496_704),
+            (8 << 30, 6_442_450_944, 7_041_496_704),
+            (16 << 30, 7_516_192_768, 8_115_238_528),
+            (18 << 30, 7_784_628_224, 8_383_673_984),
+            (24 << 30, 8_589_934_592, 9_188_980_352),
+        ] {
+            assert_eq!(automatic_reserve_bytes(physical), reserve);
+            assert_eq!(automatic_cache_plan(minimum, physical), Ok(10));
+            let shortfall = automatic_cache_plan(minimum - 1, physical).unwrap_err();
             assert_eq!(
-                automatic_cache_slots(threshold - 1),
-                if slots == 10 {
-                    None
-                } else {
-                    Some(slots as usize - 1)
+                shortfall,
+                CacheShortfall {
+                    available: minimum - 1,
+                    physical,
+                    reserve,
+                    required: minimum,
                 }
             );
         }
+        // The reported case: 8 GiB free+file pages on a 16 GiB Mac was refused before.
+        assert_eq!(automatic_cache_plan(8 << 30, 16 << 30), Ok(17));
+        assert!(automatic_cache_plan(8 << 30, 24 << 30).is_err());
+        // The user's own M5 snapshot during this diagnosis: 554 536 pages of 16 KiB.
+        assert!(automatic_cache_plan(554_536 * 16_384, 24 << 30).is_err());
+        assert_eq!(automatic_cache_plan(554_536 * 16_384, 16 << 30), Ok(26));
+        // The cache cap is unchanged on every machine size.
+        assert_eq!(automatic_cache_plan(u64::MAX, 8 << 30), Ok(107));
+    }
+
+    #[test]
+    fn automatic_cache_shortfall_states_needed_and_available_amounts() {
+        let shortfall = automatic_cache_plan(6 << 30, 16 << 30).unwrap_err();
+        let message = anyhow::anyhow!("{shortfall}").to_string();
+        for part in [
+            "not enough memory to load Flash Next",
+            "needs 7.56 GiB of free or file-cache memory",
+            "reports 6.00 GiB available",
+            "7.00 GiB reserved",
+            "16 GiB Mac",
+            "0.56 GiB minimum SSD expert cache",
+            "MLXL3_SSD_CACHE_GIB (0.6 to 12)",
+        ] {
+            assert!(message.contains(part), "{part:?} missing from {message:?}");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn physical_memory_matches_sysctl_command() {
+        let output = std::process::Command::new("/usr/sbin/sysctl")
+            .args(["-n", "hw.memsize"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let expected: u64 = String::from_utf8(output.stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert_eq!(physical_memory_bytes().unwrap(), expected);
     }
 
     #[cfg(target_os = "macos")]
@@ -3142,31 +3289,62 @@ mod verification {
     #[kani::proof]
     fn automatic_cache_cannot_spend_reserved_memory() {
         let available: u64 = kani::any();
-        let result = automatic_cache_slots(available);
-        let minimum = (8u128 << 30) + 10 * 48 * u128::from(EXPERT_BYTES);
-        assert_eq!(result.is_some(), u128::from(available) >= minimum);
-        if let Some(slots) = result {
-            assert!((10..=107).contains(&slots));
-            let allocated = slots as u128 * 48 * u128::from(EXPERT_BYTES);
-            assert!(allocated <= 6u128 << 30);
-            assert!(allocated + (8u128 << 30) <= u128::from(available));
-            kani::cover!(slots == 10);
-            kani::cover!(slots == 71);
-            kani::cover!(slots == 107);
+        let physical: u64 = kani::any();
+        let result = automatic_cache_plan(available, physical);
+        // Independent u128 specification of the reserve: 5 GiB + clamp(physical / 8, 1, 3 GiB).
+        let headroom = (u128::from(physical) / 8).clamp(1 << 30, 3 << 30);
+        let reserve = (5u128 << 30) + headroom;
+        let minimum = reserve + 10 * 48 * u128::from(EXPERT_BYTES);
+        assert!(((6u128 << 30)..=(8u128 << 30)).contains(&reserve));
+        assert_eq!(u128::from(automatic_reserve_bytes(physical)), reserve);
+        if physical >= 24 << 30 {
+            assert_eq!(reserve, 8u128 << 30);
         }
-        kani::cover!(available == u64::MAX);
-        kani::cover!(result.is_none());
+        assert_eq!(result.is_ok(), u128::from(available) >= minimum);
+        match result {
+            Ok(slots) => {
+                assert!((10..=107).contains(&slots));
+                let allocated = slots as u128 * 48 * u128::from(EXPERT_BYTES);
+                assert!(allocated <= 6u128 << 30);
+                assert!(allocated + reserve <= u128::from(available));
+                kani::cover!(slots == 10);
+                kani::cover!(slots == 107);
+                kani::cover!(slots == 10 && physical < 16 << 30);
+                kani::cover!(slots == 17 && physical == 16 << 30);
+            }
+            Err(shortfall) => {
+                assert_eq!(shortfall.available, available);
+                assert_eq!(shortfall.physical, physical);
+                assert_eq!(u128::from(shortfall.reserve), reserve);
+                assert_eq!(u128::from(shortfall.required), minimum);
+                assert!(shortfall.available < shortfall.required);
+                kani::cover!(available == shortfall.required - 1);
+            }
+        }
+        kani::cover!(available == u64::MAX && physical == u64::MAX);
     }
 
     #[kani::proof]
     fn automatic_cache_is_monotone() {
         let a: u64 = kani::any();
         let b: u64 = kani::any();
+        let physical: u64 = kani::any();
+        let small: u64 = kani::any();
+        let large: u64 = kani::any();
+        let available: u64 = kani::any();
+        let slots = |available, physical| automatic_cache_plan(available, physical).ok();
+        // More available memory never yields a smaller cache.
         if a <= b {
-            assert!(automatic_cache_slots(a) <= automatic_cache_slots(b));
+            assert!(slots(a, physical) <= slots(b, physical));
         }
+        // A smaller Mac never reserves more, so it never yields a smaller cache.
+        if small <= large {
+            assert!(automatic_reserve_bytes(small) <= automatic_reserve_bytes(large));
+            assert!(slots(available, small) >= slots(available, large));
+        }
+        kani::cover!(a < b && slots(a, physical) == Some(10) && slots(b, physical) == Some(107));
         kani::cover!(
-            a < b && automatic_cache_slots(a) == Some(10) && automatic_cache_slots(b) == Some(107)
+            small < large && slots(available, small).is_some() && slots(available, large).is_none()
         );
     }
 
@@ -3199,6 +3377,12 @@ mod verification {
     #[kani::proof]
     fn available_memory_real_os_path() {
         assert!(available_memory_bytes().unwrap() > 0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[kani::proof]
+    fn physical_memory_real_os_path() {
+        assert!(physical_memory_bytes().unwrap() > 0);
     }
     #[kani::proof]
     fn pair_commit_preserves_exact_valid_prefix_without_overflow() {
