@@ -1,0 +1,31 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/build/target-p24/release/deps/mlxl3_native-1bda9baa3f4c1f0b)
+
+running 1 test
+test linear::tests::q36_head_lane_real_head_matches_serial_and_rejects_mutated_index ... q36 head lane seed=0 M=1 uses=0 exact
+q36 head lane seed=0 M=2 uses=0 exact
+q36 head lane seed=0 M=3 uses=1 exact
+q36 head lane seed=0 M=4 uses=1 exact
+q36 head lane seed=0 M=5 uses=0 exact
+q36 head lane seed=0 M=6 uses=0 exact
+q36 head lane seed=1 M=1 uses=0 exact
+q36 head lane seed=1 M=2 uses=0 exact
+q36 head lane seed=1 M=3 uses=1 exact
+q36 head lane seed=1 M=4 uses=1 exact
+q36 head lane seed=1 M=5 uses=0 exact
+q36 head lane seed=1 M=6 uses=0 exact
+q36 head lane seed=2 M=1 uses=0 exact
+q36 head lane seed=2 M=2 uses=0 exact
+q36 head lane seed=2 M=3 uses=1 exact
+q36 head lane seed=2 M=4 uses=1 exact
+q36 head lane seed=2 M=5 uses=0 exact
+q36 head lane seed=2 M=6 uses=0 exact
+q36 head lane mutated gather detected at M=3
+q36 head lane mutated gather detected at M=4
+q36 head lane component: 18/18 exact, 2/2 mutants detected, restored
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 716 filtered out; finished in 1.17s
+

@@ -1,0 +1,952 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index e7f3e7c3..f63b4d31 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -511,6 +511,9 @@ jobs:
+           lane_cpu_output="$(cargo test --locked --release --lib --features mlx,chat linear::tests::lane_order_override_restores_and_stays_thread_local -- --exact)"
+           printf '%s\n' "$lane_cpu_output"
+           [[ "$lane_cpu_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
++          head_lane_output="$(cargo test --locked --release --lib --features mlx,chat linear::tests::q36_head_lane_override_restores_and_counts_only_its_scope -- --exact)"
++          printf '%s\n' "$head_lane_output"
++          [[ "$head_lane_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
+           lane_key_output="$(cargo test --locked --release --bin mlxl3-rs --features mlx,chat mtp_tune::runtime_key_distinguishes_smallm_options -- --exact)"
+           printf '%s\n' "$lane_key_output"
+           [[ "$lane_key_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
+diff --git a/docs/native-coverage/mlx-sites.json b/docs/native-coverage/mlx-sites.json
+index 7f9bf124..54f7fc3e 100644
+--- a/docs/native-coverage/mlx-sites.json
++++ b/docs/native-coverage/mlx-sites.json
+@@ -13,7 +13,7 @@
+   ".github/workflows/rust.yml": {
+     "MLXL3_MLX_ROOT": 10,
+     "array::tests": 2,
+-    "mlx": 27,
++    "mlx": 28,
+     "mlx_enabled": 1
+   },
+   "Cargo.toml": {
+@@ -1525,7 +1525,7 @@
+     "shader ../shaders/flash_reference_reduction.h": 1
+   },
+   "native/src/contracts.rs": {
+-    "mlx": 35
++    "mlx": 37
+   },
+   "native/src/convert_matmul.rs": {
+     ".take": 1
+@@ -2496,17 +2496,17 @@
+     ".add": 6,
+     ".astype": 41,
+     ".dtype": 19,
+-    ".eval": 14,
++    ".eval": 16,
+     ".flash_prepare128": 1,
+     ".hadamard_transform": 12,
+     ".mul": 12,
+     ".reshape": 66,
+-    ".shape": 54,
++    ".shape": 55,
+     ".slice": 17,
+     ".sum": 5,
+-    ".take": 4,
+-    ".to_bytes": 15,
+-    ".to_f16_bits": 19,
++    ".take": 6,
++    ".to_bytes": 16,
++    ".to_f16_bits": 20,
+     ".to_f32": 6,
+     ".to_u32": 3,
+     ".transpose": 2,
+@@ -2514,18 +2514,18 @@
+     ".view": 7,
+     "Array::concatenate": 12,
+     "Array::from_bytes": 3,
+-    "Array::from_f16_bits": 21,
++    "Array::from_f16_bits": 22,
+     "Array::from_f32": 5,
+     "Array::from_file": 1,
+     "Array::from_files": 1,
+-    "Array::from_i32": 3,
++    "Array::from_i32": 5,
+     "Array::from_u16": 4,
+     "Array::from_u32": 10,
+     "Array::host_readbacks_for_test": 8,
+     "Array::to_f16_bits": 1,
+     "Array::zeros_dtype": 3,
+     "array::Array": 1,
+-    "array::is_m5_gpu": 9,
++    "array::is_m5_gpu": 11,
+     "array::metal_kernel": 10,
+     "array::supports_exl3_tensor_ops": 3,
+     "config MLXL3_DENSE_DECODE_NT4": 1,
+@@ -2542,7 +2542,8 @@
+     "config MLXL3_MTP_TEST_COMPACT_HEAD": 1,
+     "config MLXL3_MTP_TEST_FULL_HEAD": 1,
+     "config MLXL3_MTP_TEST_MODEL": 1,
+-    "config MLXL3_QWEN_TEST_MODEL": 2,
++    "config MLXL3_Q36_HEAD_LANE": 1,
++    "config MLXL3_QWEN_TEST_MODEL": 3,
+     "mlxl3_decode_codeword": 1,
+     "shader ../shaders/_qmm_tensor_kernel.metal": 1,
+     "shader ../shaders/_qmv_inner_kernel.metal": 1,
+@@ -2559,7 +2560,7 @@
+     "shader mlxl3_rs_inner_{}_{}_{}": 1,
+     "shader mlxl3_rs_q36_group_input_lane": 1,
+     "shader mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}": 1,
+-    "shader mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}": 1,
++    "shader mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}{}": 1,
+     "shader mlxl3_rs_tile_{}_{}_{}_{}_{}_{}_{}": 1
+   },
+   "native/src/linear/dense_epilogue_tests.rs": {
+@@ -2839,6 +2840,7 @@
+     "config MLXL3_MLX_VERSION": 1,
+     "config MLXL3_MTP_ADAPTIVE": 1,
+     "config MLXL3_MTP_LOOKUP": 2,
++    "config MLXL3_Q36_HEAD_LANE": 1,
+     "config MLXL3_QWEN_PIPELINE": 1,
+     "config MLXL3_QWEN_PIPELINE_STRIDE": 1
+   },
+@@ -2973,6 +2975,15 @@
+   "native/src/qwen35_config.rs": {
+     "mlx": 3
+   },
++  "native/src/qwen35_head_lane.rs": {
++    ".chat_greedy_ids": 3,
++    ".shape": 2,
++    ".to_f16_bits": 4,
++    "array::is_m5_gpu": 1,
++    "config MLXL3_HEAD_LANE_REPORT": 1,
++    "config MLXL3_QWEN_TEST_MODEL": 1,
++    "config MLXL3_VERIFY_FIXTURES": 1
++  },
+   "native/src/qwen4.rs": {
+     ".add": 5,
+     ".argsort": 1,
+diff --git a/native/src/contracts.rs b/native/src/contracts.rs
+index c6496c02..5b8a5782 100644
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -3688,3 +3688,163 @@ fn q36_lane_shape_admission() {
+     kani::cover!(result && n == 4);
+     kani::cover!(!result);
+ }
++
++/// Strict rollback switch for the qualified 35B lm_head lane layout (Q36-HEAD-LANE-P24).
++/// Unset or `1` keeps the measured default, `0` restores the stock layout.
++pub fn q36_head_lane_setting(value: Option<&str>) -> Option<bool> {
++    match value {
++        None | Some("1") => Some(true),
++        Some("0") => Some(false),
++        Some(_) => None,
++    }
++}
++
++/// The 35B lm_head (K6 MCG, 2048 -> 248320) measured on M5 in Q36-HEAD3-P22/HEAD4-P23.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn q36_head_lane_shape(input: i32, output: i32, k: usize, mcg: bool, m5: bool) -> bool {
++    m5 && mcg && input == 2048 && output == 248_320 && k == 6
++}
++
++/// One unpadded pass over a lane-ordered input: H2 at three rows, F3 at four.
++/// Returns `(mb, groups, nt)`; other rows, splits or SIMD widths keep the stock layout.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn q36_head_lane_layout(
++    rows: i32,
++    prepared: bool,
++    splits: i32,
++    simdgroups: i32,
++) -> Option<(i32, i32, i32)> {
++    (prepared && splits == 1 && simdgroups == 8 && matches!(rows, 3 | 4)).then_some((rows, 1, 1))
++}
++
++#[test]
++fn q36_head_lane_setting_shape_and_layout_are_exact() {
++    for (value, expected) in [
++        (None, Some(true)),
++        (Some("1"), Some(true)),
++        (Some("0"), Some(false)),
++        (Some(""), None),
++        (Some("2"), None),
++        (Some("01"), None),
++        (Some("10"), None),
++        (Some("true"), None),
++        (Some("1 "), None),
++        (Some(" 0"), None),
++        (Some("１"), None),
++        (Some("1\0"), None),
++    ] {
++        assert_eq!(q36_head_lane_setting(value), expected, "{value:?}");
++    }
++    assert!(q36_head_lane_shape(2048, 248_320, 6, true, true));
++    for (input, output, k, mcg, m5) in [
++        (2048, 248_320, 6, true, false),
++        (2048, 248_320, 6, false, true),
++        (2048, 248_320, 5, true, true),
++        (2048, 248_320, 4, true, true),
++        (2048, 248_320, 7, true, true),
++        (2048, 248_192, 6, true, true),
++        (2048, 151_936, 6, true, true),
++        (5120, 248_320, 6, true, true),
++        (2560, 248_320, 6, true, true),
++        (4096, 248_320, 6, true, true),
++        (2048, 2048, 6, true, true),
++    ] {
++        assert!(!q36_head_lane_shape(input, output, k, mcg, m5));
++    }
++    for rows in -1..=25 {
++        let measured = matches!(rows, 3 | 4).then_some((rows, 1, 1));
++        assert_eq!(q36_head_lane_layout(rows, true, 1, 8), measured);
++        assert_eq!(q36_head_lane_layout(rows, false, 1, 8), None);
++        for splits in [0, 2, 4] {
++            assert_eq!(q36_head_lane_layout(rows, true, splits, 8), None);
++        }
++        for simdgroups in [2, 4, 16] {
++            assert_eq!(q36_head_lane_layout(rows, true, 1, simdgroups), None);
++        }
++    }
++    for rows in [i32::MIN, i32::MAX] {
++        assert_eq!(q36_head_lane_layout(rows, true, 1, 8), None);
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(10)]
++fn q36_head_lane_setting_is_strict() {
++    let bytes: [u8; 4] = kani::any();
++    let length = usize::from(kani::any::<u8>() % 5);
++    let present: bool = kani::any();
++    let decoded = std::str::from_utf8(&bytes[..length]);
++    let value = decoded.unwrap_or("");
++    let setting = q36_head_lane_setting(present.then_some(value));
++    let expected = if !present || (length == 1 && bytes[0] == b'1') {
++        Some(true)
++    } else if length == 1 && bytes[0] == b'0' {
++        Some(false)
++    } else {
++        None
++    };
++    assert_eq!(setting, expected);
++    kani::cover!(!present && setting == Some(true));
++    kani::cover!(present && setting == Some(true));
++    kani::cover!(present && setting == Some(false));
++    kani::cover!(present && length == 0 && setting.is_none());
++    kani::cover!(present && length > 1 && setting.is_none());
++    kani::cover!(present && decoded.is_err() && setting.is_none());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn q36_head_lane_layout_admission_and_grid() {
++    let (input, output): (i32, i32) = kani::any();
++    let k: usize = kani::any();
++    let (mcg, m5, prepared): (bool, bool, bool) = kani::any();
++    let shape = q36_head_lane_shape(input, output, k, mcg, m5);
++    assert_eq!(
++        shape,
++        m5 && mcg && input == 2048 && output == 248_320 && k == 6
++    );
++    let (rows, splits, simdgroups): (i32, i32, i32) = kani::any();
++    let layout = q36_head_lane_layout(rows, prepared, splits, simdgroups);
++    if let Some((mb, groups, nt)) = layout {
++        assert!(prepared && splits == 1 && simdgroups == 8);
++        assert!(rows == 3 || rows == 4);
++        // One pass, no padded row, the accumulator bound of the measured F3 kernel.
++        assert_eq!((mb, groups, nt), (rows, 1, 1));
++        assert!(mb * nt <= 4);
++        let (group, row): (i32, i32) = kani::any();
++        if (0..groups).contains(&group) && (0..mb).contains(&row) {
++            assert!(group * mb + row < rows);
++        }
++        // Every output tile of the head is dispatched exactly once.
++        let tiles = 248_320 / 16;
++        assert_eq!(tiles % nt, 0);
++        let threads = simdgroups * 32;
++        let grid = (tiles / nt).checked_mul(threads);
++        assert!(grid.is_some());
++        let thread: i32 = kani::any();
++        let column: i32 = kani::any();
++        if let Some(grid) = grid
++            && (0..grid).contains(&thread)
++            && (0..nt).contains(&column)
++        {
++            assert!((thread / threads) * nt + column < tiles);
++            kani::cover!(thread == grid - 1);
++        }
++        // The lane gather never leaves the 2048-wide input row.
++        let index: u32 = kani::any();
++        if index < 2048 {
++            assert!(exl3_lane_source_index(index) < 2048);
++        }
++    } else {
++        assert!(!prepared || splits != 1 || simdgroups != 8 || !(rows == 3 || rows == 4));
++    }
++    kani::cover!(shape);
++    kani::cover!(!shape && m5 && mcg && input == 2048 && output == 248_320 && k == 5);
++    kani::cover!(layout == Some((3, 1, 1)));
++    kani::cover!(layout == Some((4, 1, 1)));
++    kani::cover!(prepared && splits == 1 && simdgroups == 8 && rows == 2 && layout.is_none());
++    kani::cover!(prepared && splits == 1 && simdgroups == 8 && rows == 5 && layout.is_none());
++    kani::cover!(prepared && splits == 2 && simdgroups == 8 && rows == 3 && layout.is_none());
++    kani::cover!(!prepared && splits == 1 && simdgroups == 8 && rows == 4 && layout.is_none());
++}
+diff --git a/native/src/lib.rs b/native/src/lib.rs
+index 756a7025..f69ad91d 100644
+--- a/native/src/lib.rs
++++ b/native/src/lib.rs
+@@ -22,7 +22,8 @@ pub mod tensor_layout;
+ pub mod transaction;
+ pub use contracts::{
+     GenerationStopReason, QwenPipeline, exl3_lane_order_enabled, exl3_lane_order_key,
+-    native_prompt_reuse, qwen_pipeline, qwen_pipeline_key, reusable_prefix_len, smallm_kernel_key,
++    native_prompt_reuse, q36_head_lane_setting, qwen_pipeline, qwen_pipeline_key,
++    reusable_prefix_len, smallm_kernel_key,
+ };
+ #[cfg(feature = "mlx")]
+ pub use contracts::{switch_glu_layout, switch_glu_route_rows};
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index b9b5626b..42d8714d 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -160,6 +160,61 @@ fn lane_order_input(
+     }
+ }
+ 
++/// Strict `MLXL3_Q36_HEAD_LANE` rollback switch, read only for the qualified head shape.
++fn q36_head_lane_enabled() -> Result<bool> {
++    const MESSAGE: &str = "MLXL3_Q36_HEAD_LANE must be 0 or 1";
++    let value = match std::env::var("MLXL3_Q36_HEAD_LANE") {
++        Ok(value) => Some(value),
++        Err(std::env::VarError::NotPresent) => None,
++        Err(error) => return Err(error).context(MESSAGE),
++    };
++    crate::contracts::q36_head_lane_setting(value.as_deref()).context(MESSAGE)
++}
++
++#[cfg(test)]
++thread_local! {
++    static Q36_HEAD_LANE_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
++    static Q36_HEAD_LANE_USES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
++}
++
++/// Run with the prepared head lane path on (or stock on the same weights) and count its uses.
++#[cfg(test)]
++pub(crate) fn with_q36_head_lane_test<T>(enabled: bool, run: impl FnOnce() -> T) -> (T, usize) {
++    struct Restore(Option<bool>, usize);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            Q36_HEAD_LANE_TEST.with(|flag| flag.set(self.0));
++            Q36_HEAD_LANE_USES.with(|uses| uses.set(self.1));
++        }
++    }
++    let _restore = Restore(
++        Q36_HEAD_LANE_TEST.with(|flag| flag.replace(Some(enabled))),
++        Q36_HEAD_LANE_USES.with(|uses| uses.replace(0)),
++    );
++    let result = run();
++    (result, Q36_HEAD_LANE_USES.with(std::cell::Cell::get))
++}
++
++/// Lane gather of the 35B head input, built once at load (Q36-HEAD-LANE-P24).
++fn q36_head_lane_indices(input: i32, output: i32, k: usize, cb: Codebook) -> Result<Option<Array>> {
++    if !crate::contracts::q36_head_lane_shape(
++        input,
++        output,
++        k,
++        cb == Codebook::Mcg,
++        array::is_m5_gpu()?,
++    ) || !q36_head_lane_enabled()?
++    {
++        return Ok(None);
++    }
++    let values = (0..input as u32)
++        .map(|index| i32::try_from(crate::contracts::exl3_lane_source_index(index)))
++        .collect::<std::result::Result<Vec<_>, _>>()?;
++    let indices = Array::from_i32(&values, &[input])?;
++    indices.eval()?;
++    Ok(Some(indices))
++}
++
+ fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
+     Ok(match dtype {
+         "F16" => Dtype::Float16,
+@@ -255,6 +310,7 @@ pub struct Exl3Linear {
+     dense_epilogue: bool,
+     dec_one: bool,
+     lane_indices: Option<Array>,
++    head_lane_indices: Option<Array>,
+     lfm3_prefill: [bool; 2],
+ }
+ 
+@@ -264,6 +320,7 @@ impl Exl3Linear {
+             .into_iter()
+             .chain(&self.bias)
+             .chain(&self.lane_indices)
++            .chain(&self.head_lane_indices)
+     }
+ 
+     pub fn from_checkpoint(checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
+@@ -364,6 +421,7 @@ impl Exl3Linear {
+             linear.reference_accumulation = true;
+             // Flash keeps its reference layout; lane order was qualified on other models.
+             linear.lane_indices = None;
++            linear.head_lane_indices = None;
+             linear.flash_batch = crate::flash_support::multi_token_verifier()?;
+             linear.reference_mb34 = reference_mb34
+                 && if reference_mb34_roles == crate::contracts::FlashReferenceMb34Roles::Qkv {
+@@ -447,6 +505,7 @@ impl Exl3Linear {
+             dense_epilogue: false,
+             dec_one: false,
+             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
++            head_lane_indices: q36_head_lane_indices(rows, cols, k, cb)?,
+             lfm3_prefill: [false; 2],
+         })
+     }
+@@ -731,6 +790,22 @@ impl Exl3Linear {
+         }
+     }
+ 
++    /// Q36-HEAD-LANE-P24: H2 (three rows) and F3 (four rows) read the head input in lane order.
++    fn q36_head_lane_layout(&self, matrix_rows: i32, splits: i32) -> Option<(i32, i32, i32)> {
++        #[cfg(test)]
++        let active = Q36_HEAD_LANE_TEST
++            .with(std::cell::Cell::get)
++            .unwrap_or(true)
++            && !q36_reference();
++        #[cfg(not(test))]
++        let active = true;
++        let prepared = active
++            && self.head_lane_indices.is_some()
++            && !self.reference_accumulation
++            && !self.mtp_hidden_batch;
++        crate::contracts::q36_head_lane_layout(matrix_rows, prepared, splits, self.simdgroups)
++    }
++
+     fn forward_qmv_batch(&self, x: &Array, matrix_rows: i32) -> Result<Array> {
+         ensure!(
+             self.k != 7 && (2..24).contains(&matrix_rows),
+@@ -753,6 +828,11 @@ impl Exl3Linear {
+         } else {
+             self.splits(input_tiles, output_tiles)
+         };
++        let head_lane = self.q36_head_lane_layout(matrix_rows, splits);
++        let (xhat, lane_order) = match (head_lane, &self.head_lane_indices) {
++            (Some(_), Some(indices)) => (xhat.take(indices, 1)?, true),
++            _ => (xhat, lane_order),
++        };
+         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
+         let mut nt = if use_nt4 {
+             4
+@@ -781,6 +861,9 @@ impl Exl3Linear {
+                     && crate::contracts::flash_reference_mb34_shape(self.rows, self.cols),
+             )
+             .context("unsupported Flash reference batch")?
++        } else if let Some((mb, groups, head_nt)) = head_lane {
++            nt = head_nt;
++            (mb, groups)
+         } else {
+             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
+                 .context("invalid batch QMV rows")?
+@@ -792,6 +875,10 @@ impl Exl3Linear {
+             nt = 1;
+         }
+         #[cfg(test)]
++        if head_lane.is_some() {
++            Q36_HEAD_LANE_USES.with(|uses| uses.set(uses.get() + 1));
++        }
++        #[cfg(test)]
+         if self.reference_accumulation && !self.mtp_hidden_batch && matches!(mb, 3 | 4) {
+             REFERENCE_MB34_REQUESTS_TEST.with(|counts| {
+                 let mut next = counts.get();
+@@ -822,7 +909,7 @@ impl Exl3Linear {
+         }
+         let partials = array::metal_kernel(
+             &format!(
+-                "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}",
++                "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}{}",
+                 self.rows,
+                 self.cols,
+                 self.k,
+@@ -831,7 +918,9 @@ impl Exl3Linear {
+                 nt,
+                 mb,
+                 self.simdgroups,
+-                splits
++                splits,
++                // MLX caches libraries by name; the lane header must not reuse a stock one.
++                if head_lane.is_some() { "_q36lane" } else { "" }
+             ),
+             &["xhat", "trellis", "svh"],
+             &["yhat"],
+@@ -3103,6 +3192,142 @@ mod tests {
+         );
+         Ok(())
+     }
++
++    #[test]
++    fn q36_head_lane_override_restores_and_counts_only_its_scope() {
++        assert_eq!(Q36_HEAD_LANE_TEST.with(std::cell::Cell::get), None);
++        let ((), outer) = with_q36_head_lane_test(true, || {
++            Q36_HEAD_LANE_USES.with(|uses| uses.set(uses.get() + 1));
++            let ((), inner) = with_q36_head_lane_test(false, || {
++                assert_eq!(Q36_HEAD_LANE_TEST.with(std::cell::Cell::get), Some(false));
++                Q36_HEAD_LANE_USES.with(|uses| uses.set(uses.get() + 2));
++            });
++            assert_eq!(inner, 2);
++            assert_eq!(Q36_HEAD_LANE_TEST.with(std::cell::Cell::get), Some(true));
++        });
++        assert_eq!(outer, 1);
++        assert_eq!(Q36_HEAD_LANE_TEST.with(std::cell::Cell::get), None);
++        let panicked = std::panic::catch_unwind(|| {
++            with_q36_head_lane_test(true, || panic!("temporary test failure"))
++        });
++        assert!(panicked.is_err());
++        assert_eq!(Q36_HEAD_LANE_TEST.with(std::cell::Cell::get), None);
++        assert_eq!(Q36_HEAD_LANE_USES.with(std::cell::Cell::get), 0);
++    }
++
++    /// Q36-HEAD-LANE-P24 component oracle: the real 35B lm_head with the production
++    /// lane path (M=3 H2, M=4 F3) and with stock, both against serial M=1, bit for bit.
++    #[test]
++    #[ignore = "requires physical M5 and the local 35B (MLXL3_QWEN_TEST_MODEL); run alone"]
++    fn q36_head_lane_real_head_matches_serial_and_rejects_mutated_index() -> Result<()> {
++        const OUTPUT: usize = 248_320;
++        ensure!(array::is_m5_gpu()?, "requires M5");
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
++        let mut head = Exl3Linear::from_checkpoint(&checkpoint, "lm_head")?;
++        ensure!(
++            head.rows == 2048
++                && head.cols == OUTPUT as i32
++                && head.k == 6
++                && head.cb == Codebook::Mcg
++                && head.simdgroups == 8
++                && head.splits(head.rows / 16, head.cols / 16) == 1
++                && !head.reference_accumulation
++                && !head.mtp_hidden_batch
++                && head.lane_indices.is_none(),
++            "unexpected 35B head"
++        );
++        let prepared = head
++            .head_lane_indices
++            .as_ref()
++            .context("head lane indices were not prepared (MLXL3_Q36_HEAD_LANE set to 0?)")?
++            .to_bytes()?;
++        let expected = (0..2048u32)
++            .flat_map(|i| (crate::contracts::exl3_lane_source_index(i) as i32).to_le_bytes())
++            .collect::<Vec<_>>();
++        ensure!(prepared == expected, "prepared head lane gather is wrong");
++        let input = |rows: i32, seed: usize| {
++            let values = (0..(rows * 2048) as usize)
++                .map(|i| {
++                    f16::from_f32((((i * 37 + seed * 101) % 251) as f32 - 125.0) / 128.0).to_bits()
++                })
++                .collect::<Vec<_>>();
++            Array::from_f16_bits(&values, &[rows, 2048])
++        };
++        let checked = |value: Array, rows: i32| -> Result<Vec<u16>> {
++            let bits = value.to_f16_bits()?;
++            ensure!(
++                value.shape() == [rows, OUTPUT as i32]
++                    && bits.len() == rows as usize * OUTPUT
++                    && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                "invalid head output at M={rows}"
++            );
++            Ok(bits)
++        };
++        let mut exact = 0;
++        for seed in 0..3 {
++            for rows in 1..=6 {
++                let x = input(rows, 1700 + seed)?;
++                x.eval()?;
++                let (serial, serial_uses) =
++                    with_q36_head_lane_test(true, || serial_rows(&head, &x));
++                let serial = checked(serial?, rows)?;
++                let (stock, stock_uses) = with_q36_head_lane_test(false, || head.forward(&x));
++                let stock = checked(stock?, rows)?;
++                let (lane, lane_uses) = with_q36_head_lane_test(true, || head.forward(&x));
++                let lane = checked(lane?, rows)?;
++                let selected = usize::from(matches!(rows, 3 | 4));
++                ensure!(
++                    serial_uses == 0 && stock_uses == 0 && lane_uses == selected,
++                    "head lane activation at M={rows}: serial {serial_uses}, stock {stock_uses}, lane {lane_uses}"
++                );
++                ensure!(
++                    stock == serial,
++                    "stock head differs from serial at M={rows}"
++                );
++                ensure!(
++                    lane == serial,
++                    "lane head differs from serial at M={rows} (seed {seed})"
++                );
++                exact += 1;
++                eprintln!("q36 head lane seed={seed} M={rows} uses={lane_uses} exact");
++            }
++        }
++        // A wrong gather must be visible to the oracle on both selected widths.
++        let correct = head
++            .head_lane_indices
++            .take()
++            .context("missing head lane indices")?;
++        let mut ids = (0..2048u32)
++            .map(|i| crate::contracts::exl3_lane_source_index(i) as i32)
++            .collect::<Vec<_>>();
++        ids.swap(0, 2);
++        head.head_lane_indices = Some(Array::from_i32(&ids, &[2048])?);
++        for rows in [3, 4] {
++            let x = input(rows, 1900)?;
++            let serial = checked(serial_rows(&head, &x)?, rows)?;
++            let (mutant, uses) = with_q36_head_lane_test(true, || head.forward(&x));
++            let mutant = checked(mutant?, rows)?;
++            ensure!(
++                uses == 1 && mutant != serial,
++                "mutated head lane gather not detected at M={rows}"
++            );
++            eprintln!("q36 head lane mutated gather detected at M={rows}");
++        }
++        head.head_lane_indices = Some(correct);
++        for rows in [3, 4] {
++            let x = input(rows, 1900)?;
++            let serial = checked(serial_rows(&head, &x)?, rows)?;
++            let (lane, uses) = with_q36_head_lane_test(true, || head.forward(&x));
++            ensure!(
++                uses == 1 && checked(lane?, rows)? == serial,
++                "restored head lane differs at M={rows}"
++            );
++        }
++        ensure!(exact == 18, "incomplete head lane matrix");
++        eprintln!("q36 head lane component: {exact}/18 exact, 2/2 mutants detected, restored");
++        Ok(())
++    }
+ }
+ 
+ #[path = "linear/lfm3_prefill.rs"]
+diff --git a/native/src/mtp_tune.rs b/native/src/mtp_tune.rs
+index 63cca374..1f3c9783 100644
+--- a/native/src/mtp_tune.rs
++++ b/native/src/mtp_tune.rs
+@@ -19,9 +19,21 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
+                 .as_deref()
+                 .map(|value| value.to_str().unwrap_or("")),
+         ),
++        q36_head_lane()?,
+     )
+ }
+ 
++/// Calibrations under the Q36 head lane rollback switch stay separate from the default.
++fn q36_head_lane() -> Result<bool> {
++    const MESSAGE: &str = "MLXL3_Q36_HEAD_LANE must be 0 or 1";
++    let value = match std::env::var("MLXL3_Q36_HEAD_LANE") {
++        Ok(value) => Some(value),
++        Err(std::env::VarError::NotPresent) => None,
++        Err(error) => return Err(error).context(MESSAGE),
++    };
++    mlxl3_native::q36_head_lane_setting(value.as_deref()).context(MESSAGE)
++}
++
+ fn allocator_cache_mib() -> Result<Option<usize>> {
+     match std::env::var("MLXL3_ALLOCATOR_CACHE_MIB") {
+         Ok(value) => Ok(Some(
+@@ -39,6 +51,7 @@ fn runtime_key_with_options(
+     grouped_mb3: bool,
+     allocator_mib: Option<usize>,
+     lane_order: bool,
++    head_lane: bool,
+ ) -> Result<String> {
+     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
+         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
+@@ -57,7 +70,7 @@ fn runtime_key_with_options(
+         .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?,
+     );
+     Ok(format!(
+-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:lanelayout-v1={}:smallm-v2={}",
++        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
+         artifact_key(path)?,
+         env!("CARGO_PKG_VERSION"),
+         env!("MLXL3_BUILD_REVISION"),
+@@ -67,6 +80,7 @@ fn runtime_key_with_options(
+         u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
+         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
+         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
++        u8::from(head_lane),
+         mlxl3_native::exl3_lane_order_key(lane_order),
+         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
+     ))
+@@ -101,30 +115,34 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+     let directory = tempfile::tempdir()?;
+     std::fs::write(directory.path().join("config.json"), "{}")?;
+     let mut keys = std::collections::HashSet::new();
+-    for lane_order in [false, true] {
+-        for (dense, mb3, suffix) in [
+-            (false, false, "0"),
+-            (true, false, "1"),
+-            (false, true, "2"),
+-            (true, true, "3"),
+-        ] {
+-            let key = runtime_key_with_options(
+-                directory.path(),
+-                4096,
+-                dense,
+-                mb3,
+-                allocator_cache_mib()?,
+-                lane_order,
+-            )?;
+-            anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
+-            anyhow::ensure!(key.contains(&format!(
+-                ":lanelayout-v1={}:smallm-v2=",
+-                u8::from(lane_order),
+-            )));
+-            anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
++    for head_lane in [false, true] {
++        for lane_order in [false, true] {
++            for (dense, mb3, suffix) in [
++                (false, false, "0"),
++                (true, false, "1"),
++                (false, true, "2"),
++                (true, true, "3"),
++            ] {
++                let key = runtime_key_with_options(
++                    directory.path(),
++                    4096,
++                    dense,
++                    mb3,
++                    allocator_cache_mib()?,
++                    lane_order,
++                    head_lane,
++                )?;
++                anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
++                anyhow::ensure!(key.contains(&format!(
++                    ":q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
++                    u8::from(head_lane),
++                    u8::from(lane_order),
++                )));
++                anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
++            }
+         }
+     }
+-    anyhow::ensure!(keys.len() == 8);
++    anyhow::ensure!(keys.len() == 16);
+     let production = runtime_key(directory.path(), 4096)?;
+     anyhow::ensure!(keys.contains(&production), "production key not recognized");
+     Ok(())
+@@ -136,13 +154,22 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
+     std::fs::write(directory.path().join("config.json"), "{}")?;
+     let mut keys = std::collections::HashSet::new();
+     for limit in [None, Some(0), Some(256), Some(4096)] {
+-        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit, false)?;
++        let key =
++            runtime_key_with_options(directory.path(), 4096, false, false, limit, false, true)?;
+         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
+     }
+     for invalid in [4097, usize::MAX] {
+         anyhow::ensure!(
+-            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid), false)
+-                .is_err()
++            runtime_key_with_options(
++                directory.path(),
++                4096,
++                false,
++                false,
++                Some(invalid),
++                false,
++                true
++            )
++            .is_err()
+         );
+     }
+     Ok(())
+diff --git a/native/src/qwen35.rs b/native/src/qwen35.rs
+index b692a2a7..cdea0134 100644
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -5281,3 +5281,7 @@ mod memory_feature_tests {
+         Ok(())
+     }
+ }
++
++#[cfg(all(test, feature = "chat"))]
++#[path = "qwen35_head_lane.rs"]
++mod head_lane;
+diff --git a/native/src/qwen35_head_lane.rs b/native/src/qwen35_head_lane.rs
+new file mode 100644
+index 00000000..659b7af8
+--- /dev/null
++++ b/native/src/qwen35_head_lane.rs
+@@ -0,0 +1,151 @@
++//! Q36-HEAD-LANE-P24: production `verify_mtp` with the lm_head lane layout (H2 at
++//! three rows, F3 at four) against the serial decode loop, flag on and off, all M.
++use super::tests::state_bytes;
++use super::*;
++use crate::linear::with_q36_head_lane_test;
++use crate::tokenizer::{ChatTokenizer, Message};
++use std::{fs, path::PathBuf};
++
++const MAX_ROWS: usize = 4;
++const VOCAB: usize = 248_320;
++const HIDDEN: usize = 2048;
++const DECODE_WARMUP: usize = 64;
++
++#[test]
++#[ignore = "physical Apple M5 GPU, local 35B, MLXL3_VERIFY_FIXTURES and MLXL3_HEAD_LANE_REPORT; run alone"]
++fn q36_head_lane_verify_matches_serial_for_every_width() -> Result<()> {
++    let output = PathBuf::from(std::env::var("MLXL3_HEAD_LANE_REPORT")?);
++    ensure!(!output.exists(), "preserve previous report");
++    let mut report = serde_json::json!({"status":"running","parity":false,
++        "scope":"Production verify_mtp, M=1..4, head lane flag 0 and 1, against the serial forward loop (logits, MTP hidden, 80 states)",
++        "decode_warmup_tokens":DECODE_WARMUP,"checks":[]});
++    let save = |value: &serde_json::Value| -> Result<()> {
++        let temporary = output.with_extension("json.tmp");
++        fs::write(&temporary, serde_json::to_vec_pretty(value)?)?;
++        fs::rename(temporary, &output)?;
++        Ok(())
++    };
++    save(&report)?;
++    let result: Result<()> = (|| {
++        let path = PathBuf::from(std::env::var("MLXL3_QWEN_TEST_MODEL")?);
++        let fixtures = PathBuf::from(std::env::var("MLXL3_VERIFY_FIXTURES")?);
++        ensure!(crate::array::is_m5_gpu()?, "requires M5");
++        let tokenizer = ChatTokenizer::load(&path)?;
++        let mut model = Qwen35Moe::load(&path)?;
++        ensure!(
++            model.layers.len() == 40
++                && model.vocab as usize == VOCAB
++                && model.mtp_layout.hidden_size == HIDDEN as i32
++                && model.mtp_pipeline,
++            "requires qualified 35B with the production MTP pipeline"
++        );
++        let cases = [
++            (
++                "fr",
++                "Explique en français, en trois points concis, pourquoi le ciel est bleu.".into(),
++                27,
++            ),
++            (
++                "code",
++                fs::read_to_string(fixtures.join("code-prompt.txt"))?,
++                43,
++            ),
++            (
++                "long",
++                fs::read_to_string(fixtures.join("long-prompt.txt"))?,
++                1097,
++            ),
++        ];
++        for (name, prompt, expected_length) in cases {
++            let rendered = tokenizer.render(&[Message {
++                role: "user".into(),
++                content: prompt,
++            }])?;
++            let tokens = tokenizer.encode(&rendered)?;
++            ensure!(tokens.len() == expected_length, "workload changed: {name}");
++            model.reset();
++            let mut anchor = model.forward_mtp(&tokens)?.0.chat_greedy_ids()?[0];
++            for _ in 0..DECODE_WARMUP {
++                anchor = model.forward(anchor)?.chat_greedy_ids()?[0];
++            }
++            let before = model.snapshot()?;
++            let mut forced = Vec::new();
++            let mut serial_logits = Vec::new();
++            let mut serial_hidden = Vec::new();
++            let mut serial_states = Vec::new();
++            for _ in 0..MAX_ROWS {
++                forced.push(anchor);
++                let (logits, uses) = with_q36_head_lane_test(true, || model.forward(anchor));
++                let logits = logits?;
++                ensure!(uses == 0, "serial decode used the head lane path");
++                let bits = logits.to_f16_bits()?;
++                ensure!(
++                    bits.len() == VOCAB && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                    "invalid serial logits"
++                );
++                serial_logits.extend(bits);
++                let hidden = model.mtp_hidden()?.to_f16_bits()?;
++                ensure!(
++                    hidden.len() == HIDDEN && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
++                    "invalid serial hidden"
++                );
++                serial_hidden.extend(hidden);
++                let states = state_bytes(&model)?;
++                ensure!(
++                    states.len() == 80 && states.iter().all(|state| !state.is_empty()),
++                    "invalid serial states"
++                );
++                serial_states.push(states);
++                anchor = logits.chat_greedy_ids()?[0];
++            }
++            for rows in 1..=MAX_ROWS {
++                let verified = &forced[..rows];
++                for on in [false, true] {
++                    model.restore(before.clone())?;
++                    let (observed, uses) =
++                        with_q36_head_lane_test(on, || model.verify_mtp(verified));
++                    let (logits, raw) = observed?;
++                    let logits_ok = logits.shape() == [1, rows as i32, VOCAB as i32]
++                        && logits.to_f16_bits()? == serial_logits[..rows * VOCAB];
++                    let hidden_ok = raw.shape() == [1, rows as i32, HIDDEN as i32]
++                        && raw.to_f16_bits()? == serial_hidden[..rows * HIDDEN];
++                    model.commit_dflash_verification(rows, rows)?;
++                    let states_ok = state_bytes(&model)? == serial_states[rows - 1];
++                    let expected = on && matches!(rows, 3 | 4);
++                    report["checks"]
++                        .as_array_mut()
++                        .unwrap()
++                        .push(serde_json::json!({
++                        "prompt":name,"rows":rows,"flag":u8::from(on),"head_lane_uses":uses,
++                        "logits":logits_ok,"hidden":hidden_ok,"states":states_ok}));
++                    save(&report)?;
++                    ensure!(
++                        logits_ok && hidden_ok && states_ok,
++                        "verify differs from serial: {name} M={rows} flag={on}"
++                    );
++                    ensure!(
++                        (uses > 0) == expected,
++                        "unexpected head lane activation {name} M={rows} flag={on}: {uses}"
++                    );
++                    eprintln!("q36 head lane verify {name} M={rows} flag={on} uses={uses} exact");
++                }
++            }
++        }
++        ensure!(
++            report["checks"].as_array().unwrap().len() == 3 * MAX_ROWS * 2,
++            "incomplete parity matrix"
++        );
++        report["parity"] = serde_json::json!(true);
++        Ok(())
++    })();
++    match &result {
++        Ok(()) => report["status"] = serde_json::json!("complete"),
++        Err(error) => {
++            report["status"] = serde_json::json!("failed");
++            report["parity"] = serde_json::json!(false);
++            report["error"] = serde_json::json!(format!("{error:#}"));
++        }
++    }
++    save(&report)?;
++    result
++}
+diff --git a/scripts/kani_obligations.json b/scripts/kani_obligations.json
+index 45ee20cb..6432c3ed 100644
+--- a/scripts/kani_obligations.json
++++ b/scripts/kani_obligations.json
+@@ -6,6 +6,8 @@
+     "qwen35_config::final_moe_row_preserves_all_observed_rows",
+     "contracts::q36_expert_lane_domain",
+     "contracts::q36_lane_shape_admission",
++    "contracts::q36_head_lane_setting_is_strict",
++    "contracts::q36_head_lane_layout_admission_and_grid",
+     "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
+     "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",
+     "qwen35_config::replay_defaults_only_on_the_qualified_model_and_runtime",
+diff --git a/tests/test_kani_ci.py b/tests/test_kani_ci.py
+index 4d3539be..b4ba2541 100644
+--- a/tests/test_kani_ci.py
++++ b/tests/test_kani_ci.py
+@@ -127,6 +127,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
+         "qwen35_config::final_moe_row_preserves_all_observed_rows",
+         "contracts::q36_expert_lane_domain",
+         "contracts::q36_lane_shape_admission",
++        "contracts::q36_head_lane_setting_is_strict",
++        "contracts::q36_head_lane_layout_admission_and_grid",
+         "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
+         "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",
+         "qwen35_config::replay_defaults_only_on_the_qualified_model_and_runtime",

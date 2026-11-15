@@ -1,0 +1,22 @@
+    Checking core-foundation-sys v0.8.7
+   Compiling foreign-types-macros v0.2.4
+    Checking malloc_buf v0.0.6
+    Checking foreign-types-shared v0.3.1
+    Checking objc v0.2.7
+   Compiling mlxl3-native v2.0.10 (/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0)
+    Checking core-foundation v0.10.1
+    Checking block v0.1.6
+    Checking foreign-types v0.5.0
+    Checking core-graphics-types v0.2.0
+    Checking metal v0.33.0
+error: function `q36_head_lane_setting` is never used
+    --> native/src/contracts.rs:3694:8
+     |
+3694 | pub fn q36_head_lane_setting(value: Option<&str>) -> Option<bool> {
+     |        ^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `-D dead-code` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

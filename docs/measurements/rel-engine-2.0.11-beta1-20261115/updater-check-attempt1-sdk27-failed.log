@@ -1,0 +1,129 @@
+warning: 'mlxl3studio': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/README.md
+Building for debugging...
+[Planning deferred tasks]
+[23 / 38]
+[24 / 39] SwiftMath
+[35 / 159]
+[42 / 159]
+[48 / 159]
+[49 / 159]
+[55 / 159]
+[58 / 159]
+[66 / 159]
+[68 / 159]
+[71 / 159]
+[72 / 159]
+[84 / 159]
+[85 / 159]
+[90 / 159]
+[91 / 159]
+[98 / 159]
+[100 / 159]
+[106 / 159]
+[107 / 159]
+[109 / 159]
+[110 / 159]
+[112 / 159]
+[122 / 159]
+[126 / 159]
+[131 / 159]
+[132 / 159]
+[133 / 159]
+[144 / 159] SwiftMath
+[145 / 159] SwiftMath
+[153 / 160] SwiftMath
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: [1;33mwarning: [1;39m'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m112 |[0;0m         /// So we first load a CGFont from the file and then convert it to a CTFont.
+[0;36m113 |[0;0m         var errorRef: Unmanaged<CFError>? = nil
+[0;36m114 |[0;0m         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    [0;36m|[0;0m               `- [1;33mwarning: [1;39m'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m115 |[0;0m             throw FontError.registerFailed
+[0;36m116 |[0;0m         }
+
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: [1;33mwarning: [1;39m'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m194 |[0;0m         var errorRef: Unmanaged<CFError>? = nil
+[0;36m195 |[0;0m         cgFonts.values.forEach { cgFont in
+[0;36m196 |[0;0m             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    [0;36m|[0;0m             `- [1;33mwarning: [1;39m'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m197 |[0;0m         }
+[0;36m198 |[0;0m         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[154 / 212]
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[167 / 318]
+[177 / 318]
+[180 / 318]
+[187 / 318]
+[192 / 318]
+[198 / 318]
+[203 / 318]
+[204 / 318]
+[222 / 318]
+[224 / 318]
+[229 / 318]
+[234 / 318]
+[239 / 318]
+[241 / 318]
+[248 / 318]
+[250 / 318]
+[257 / 318]
+[258 / 318]
+[261 / 318]
+[263 / 318]
+[275 / 318]
+[278 / 318]
+[283 / 318]
+[288 / 318]
+[291 / 318]
+[292 / 318]
+[293 / 318]
+[294 / 318]
+[299 / 318]
+[302 / 318]
+error: SwiftCompile normal arm64 /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift failed with a nonzero exit code. Command line:     cd /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps
+    builtin-SwiftPerFileCompile ConversationDisplayControl.swift
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift:5:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m3 |[0;0m struct ConversationDisplayControl: View {
+ [0;36m4 |[0;0m     @EnvironmentObject private var studio: StudioModel
+ [0;36m5 |[0;0m     @State private var presented = false
+   [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m6 |[0;0m 
+ [0;36m7 |[0;0m     var body: some View {
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift:5:24: [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m3 |[0;0m struct ConversationDisplayControl: View {
+ [0;36m4 |[0;0m     @EnvironmentObject private var studio: StudioModel
+ [0;36m5 |[0;0m     @State private var presented = false
+   [0;36m|[0;0m                        `- [1;31merror: [1;39mexternal macro implementation type 'SwiftUIMacros.StateMacro' could not be found for macro 'State()'; plugin for module 'SwiftUIMacros' not found[0;0m
+ [0;36m6 |[0;0m 
+ [0;36m7 |[0;0m     var body: some View {
+
+SwiftUI.State:1:145: [1;39mnote: [1;39m'State()' declared here[0;0m
+[0;36m1 |[0;0m @attached(accessor, names: named(init), named(get), named(set)) @attached(peer, names: prefixed(`_`), prefixed(__), prefixed(`$`)) public macro State() = #externalMacro(module: "SwiftUIMacros", type: "StateMacro")
+  [0;36m|[0;0m                                                                                                                                                 `- [1;39mnote: [1;39m'State()' declared here[0;0m
+
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift:15:31: [1;31merror: [1;39mcannot find '$presented' in scope[0;0m
+[0;36m13 |[0;0m         .accessibilityLabel(L("Affichage des réponses", "Response appearance"))
+[0;36m14 |[0;0m         .help(L("Largeur et taille du texte", "Width and text size"))
+[0;36m15 |[0;0m         .popover(isPresented: [4;39m$presented[0;0m, arrowEdge: .bottom) {
+   [0;36m|[0;0m                               `- [1;31merror: [1;39mcannot find '$presented' in scope[0;0m
+[0;36m16 |[0;0m             ConversationDisplaySettings()
+[0;36m17 |[0;0m                 .padding(20).frame(width: 320)
+
+/Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift:8:28: [1;31merror: [1;39mcannot use mutating member on immutable value: 'self' is immutable[0;0m
+ [0;36m6 |[0;0m 
+ [0;36m7 |[0;0m     var body: some View {
+ [0;36m8 |[0;0m         Button { [4;39mpresented[0;0m.toggle() } label: {
+   [0;36m|[0;0m                            `- [1;31merror: [1;39mcannot use mutating member on immutable value: 'self' is immutable[0;0m
+ [0;36m9 |[0;0m             Image(systemName: studio.readingWidth == .wide ? "arrow.left.and.right" : "text.alignleft")
+[0;36m10 |[0;0m                 .frame(width: 30, height: 30)
+Failed frontend command:
+/Library/Developer/CommandLineTools/usr/bin/swift-frontend -frontend -c /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AgentProjectStore.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AgentStudio.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AgentStudioModel.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppDelegate.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppearanceSettings.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatAttachment.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatTimelineCheck.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/CompletionNotifications.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationDisplayControl.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/DesktopExperience.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/DesktopPreferences.swift -primary-file /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/DownloadProgressCard.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfiguration.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPManager.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPManagerView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3StudioApp.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MTPSettingsContent.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MessageActionsView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MessageCopyButton.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelCardView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelIdleUnload.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelLibrary.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/QuantizationStudio.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioAurora.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioCodeEditor.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModes.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UIPreview.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/VoiceController.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/WorkspaceFeatures.swift /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/WorkspaceManagerView.swift -supplementary-output-file-map /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/supplementaryOutputs-5 -target arm64-apple-macos26.0 -disable-cross-import-overlay-search -swift-module-cross-import Darwin /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk/usr/include/Darwin.swiftcrossimport/xlocale.swiftoverlay -swift-module-cross-import SpriteKit /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk/System/Library/Frameworks/SpriteKit.framework/Modules/SpriteKit.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import UserNotifications /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk/System/Library/Frameworks/UserNotifications.framework/Modules/UserNotifications.swiftcrossimport/AppIntents.swiftoverlay -swift-module-cross-import WebKit /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk/System/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Modules/WebKit.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import WebKit /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk/System/Library/Frameworks/WebKit.framework/Modules/WebKit.swiftcrossimport/SwiftUI.swiftoverlay -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libObservationMacros.dylib\#\#ObservationMacros -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#\#SwiftMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX27.2.sdk -I /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Products/Debug -Isystem /Library/Developer/CommandLineTools/Developer/usr/lib -F /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Products/Debug/PackageFrameworks -F /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Products/Debug -F /Library/Developer/CommandLineTools/Library/Developer/Frameworks -F /Library/Developer/CommandLineTools/Developer/Library/Frameworks -module-cache-path /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -color-diagnostics -Xcc -fcolor-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -swift-version 6 -Onone -D SWIFT_PACKAGE -D DEBUG -D Xcode -serialize-debugging-options -enable-experimental-feature DebugDescriptionMacro -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps -enable-anonymous-context-mangled-names -file-compilation-dir /Users/justin/.codex/worktrees/q36-head-lane-p24/mix-stq1_0/apps -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/SDKStatCaches.noindex/macosx27.2-26B118-1aa54e4a50e311dbd51de5aafe7eca3d5818d34bafcb1249783cb8b2c4efe0a2.sdkstatcache -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -Xcc -I/private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Products/Debug/include -Xcc -I/private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources-normal/arm64 -Xcc -I/private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources/arm64 -Xcc -I/private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name MLXL3Studio -package-name mlxl3studio -const-gather-protocols-file /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio_const_extract_protocols.json -disable-clang-spi -clang-target arm64-apple-macos27.2 -target-sdk-version 27.2 -target-sdk-name macosx27.2 -in-process-plugin-server-path /Library/Developer/CommandLineTools/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -parse-as-library -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ContextMemoryProfile.o -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationDisplayControl.o -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationStore.o -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DesktopExperience.o -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DesktopPreferences.o -o /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Domain.o -debug-module-path /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.swiftmodule -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ContextMemoryProfile.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationDisplayControl.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/ConversationStore.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DesktopExperience.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/DesktopPreferences.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/Domain.o -index-store-path /private/tmp/claude-501/-Users-justin--claude-spares-spare-Pqz2cz/a7b58a63-1981-431b-af7f-59575a979a8a/scratchpad/updater-rel/swiftbuild/out -index-system-modules
+[313 / 318] MLXL3Studio-product
+error: Build failed
