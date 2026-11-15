@@ -364,7 +364,7 @@ mod native {
     use super::*;
     use crate::{
         affine::AffineLinear,
-        array::Array,
+        array::{Array, Dtype},
         lfm2::half_weight,
         qwen35::{Attention, Qwen35Moe},
         router,
@@ -384,10 +384,12 @@ mod native {
         draft_head: Option<AffineLinear>,
         draft_ids: Option<Array>,
         wiring: Wiring,
+        /// Q36-MTP-EVICT-T3B: truncate the verify width by draft confidence.
+        evict: bool,
     }
 
     /// Which MTP inputs are normalized (Q36-MTP-POSTNORM-T1/T1B). Production
-    /// selects `pre` (both false) or `post` (both true) with `MLXL3_MTP_POST_NORM`;
+    /// selects `post` (both true, the default) or `pre` (both false, `MLXL3_MTP_POST_NORM=0`);
     /// the single-sided variants exist only for the T1 diagnostic.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub(crate) struct Wiring {
@@ -418,6 +420,17 @@ mod native {
                 crate::contracts::mtp_post_norm_setting(value.as_deref()).context(MESSAGE)?;
             Ok(if post { Self::POST } else { Self::PRE })
         }
+    }
+
+    /// Strict `MLXL3_MTP_EVICT` (Q36-MTP-EVICT-T3B), read once with the head.
+    fn evict_from_env() -> Result<bool> {
+        const MESSAGE: &str = "MLXL3_MTP_EVICT must be 0 or 1";
+        let value = match std::env::var("MLXL3_MTP_EVICT") {
+            Ok(value) => Some(value),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(error) => return Err(error).context(MESSAGE),
+        };
+        crate::contracts::mtp_evict_setting(value.as_deref()).context(MESSAGE)
     }
 
     pub struct Cache {
@@ -474,6 +487,7 @@ mod native {
                 "generation cancelled"
             );
             let wiring = Wiring::from_env()?;
+            let evict = evict_from_env()?;
             let (checkpoint, layout) = inspect(path)?;
             ensure!(
                 target.mtp_layout() == &layout,
@@ -643,6 +657,7 @@ mod native {
                 draft_head,
                 draft_ids,
                 wiring,
+                evict,
             };
             ensure!(
                 !cancelled.load(std::sync::atomic::Ordering::Relaxed),
@@ -653,6 +668,11 @@ mod native {
 
         pub fn reset(&mut self) -> Result<()> {
             self.attention.set_state(None, None)
+        }
+
+        #[cfg(test)]
+        pub(crate) fn evict(&self) -> bool {
+            self.evict
         }
 
         #[cfg(test)]
@@ -833,11 +853,13 @@ mod native {
             hidden: &Array,
             anchor: u32,
             width: usize,
-        ) -> Result<(Vec<u32>, Cache)> {
+        ) -> Result<(Vec<u32>, Cache, Option<Vec<f32>>)> {
             ensure!((1..=3).contains(&width), "invalid MTP chain width");
             let mut token = Array::from_u32(&[anchor], &[1, 1])?;
             let mut hidden = hidden.try_clone()?;
             let mut proposed = Vec::with_capacity(width);
+            // EVICT: each level's top-1 log-probability, as f32 bits riding the ID transfer.
+            let mut tops = Vec::new();
             let mut exact = None;
             #[cfg(test)]
             let mut captured = Vec::new();
@@ -863,6 +885,17 @@ mod native {
                     captured.push(log_probs.try_clone()?);
                 }
                 token = log_probs.argmax()?.reshape(&[1, 1])?;
+                if self.evict {
+                    let vocab = *log_probs.shape().last().context("empty MTP log-probs")?;
+                    tops.push(
+                        log_probs
+                            .reshape(&[vocab])?
+                            .take(&token.reshape(&[1])?, 0)?
+                            .astype(Dtype::Float32)?
+                            .view(Dtype::UInt32)?
+                            .reshape(&[1, 1])?,
+                    );
+                }
                 if let Some(ids) = &self.draft_ids {
                     token = ids.take(&token, 0)?;
                 }
@@ -871,7 +904,21 @@ mod native {
             #[cfg(test)]
             super::cycle_trace::mark("draft_graph");
             // One lazy device chain / one transfer, rather than D host argmaxes.
-            let proposed = Array::concatenate(&proposed.iter().collect::<Vec<_>>(), 1)?.to_u32()?;
+            let mut proposed =
+                Array::concatenate(&proposed.iter().chain(&tops).collect::<Vec<_>>(), 1)?
+                    .to_u32()?;
+            let tops = if self.evict {
+                ensure!(proposed.len() == 2 * width, "invalid MTP EVICT transfer");
+                Some(
+                    proposed
+                        .split_off(width)
+                        .into_iter()
+                        .map(f32::from_bits)
+                        .collect(),
+                )
+            } else {
+                None
+            };
             #[cfg(test)]
             super::cycle_trace::mark("draft_ready");
             #[cfg(test)]
@@ -883,7 +930,7 @@ mod native {
                 }
                 super::cycle_trace::mark("confidence_ready");
             }
-            Ok((proposed, exact.context("missing MTP first cache")?))
+            Ok((proposed, exact.context("missing MTP first cache")?, tops))
         }
 
         pub fn forward(
@@ -1053,13 +1100,26 @@ mod native {
             let lookup =
                 crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
             let is_lookup = lookup.is_some();
-            let (proposals, exact_first_cache) = if let Some(proposals) = lookup {
+            let (mut proposals, exact_first_cache, tops) = if let Some(proposals) = lookup {
                 let proposals = proposals.to_vec();
                 head.append_cache(target, &hidden, &[anchor])?;
-                (proposals, head.snapshot()?)
+                (proposals, head.snapshot()?, None)
             } else {
                 head.draft_chain(target, &hidden, anchor, width)?
             };
+            if let Some(tops) = tops {
+                // Exact greedy verify accepts any prefix; EVICT only chooses its length.
+                let bands = tops
+                    .iter()
+                    .map(|&top| crate::contracts::evict_band(top))
+                    .collect::<Option<Vec<_>>>()
+                    .context("non-finite MTP draft confidence")?;
+                let kept = crate::contracts::evict_width(&bands, proposals.len())
+                    .context("invalid MTP EVICT width")?;
+                #[cfg(test)]
+                super::cycle_trace::evict(proposals.len(), &tops, kept);
+                proposals.truncate(kept);
+            }
             let width = proposals.len();
             let verification = std::iter::once(anchor)
                 .chain(proposals.iter().copied())
@@ -1316,6 +1376,15 @@ pub(crate) mod cycle_trace {
         pub finite: bool,
     }
 
+    /// One EVICT decision: drafted levels, the device top-1 log-probability bits
+    /// that rode the ID transfer, and the verified prefix length.
+    #[derive(Clone, Debug, serde::Serialize)]
+    pub(crate) struct Eviction {
+        pub drafted: usize,
+        pub top_bits: Vec<u32>,
+        pub kept: usize,
+    }
+
     #[derive(Debug, Default, serde::Serialize)]
     pub(crate) struct Recording {
         pub confidence: bool,
@@ -1323,6 +1392,8 @@ pub(crate) mod cycle_trace {
         pub overflowed: bool,
         pub marks: Vec<Mark>,
         pub levels: Vec<Level>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        pub evictions: Vec<Eviction>,
     }
 
     thread_local! {
@@ -1357,6 +1428,22 @@ pub(crate) mod cycle_trace {
                     r.marks.push(Mark {
                         name,
                         uptime_ns: uptime_ns(),
+                    });
+                } else {
+                    r.overflowed = true;
+                }
+            }
+        });
+    }
+
+    pub(crate) fn evict(drafted: usize, tops: &[f32], kept: usize) {
+        RECORDER.with_borrow_mut(|recording| {
+            if let Some(r) = recording {
+                if r.evictions.len() < r.capacity {
+                    r.evictions.push(Eviction {
+                        drafted,
+                        top_bits: tops.iter().map(|top| top.to_bits()).collect(),
+                        kept,
                     });
                 } else {
                     r.overflowed = true;
@@ -1429,7 +1516,19 @@ pub(crate) mod cycle_trace {
         assert_eq!((b.host_proposal, b.top1_ties, b.finite), (41, 1, false));
         assert_eq!((b.top1_log_prob, b.top2_log_prob), (-0.25, -2.0));
         mark("ignored without recorder");
+        evict(3, &[-0.5, -1.0, -2.0], 1);
         assert!(!confidence() && finish().is_none());
+        start(false, 1);
+        evict(2, &[-0.25, f32::NEG_INFINITY], 1);
+        evict(1, &[0.0], 1);
+        let r = finish().unwrap();
+        assert!(r.overflowed && r.evictions.len() == 1 && r.levels.is_empty());
+        let e = &r.evictions[0];
+        assert_eq!((e.drafted, e.kept), (2, 1));
+        assert_eq!(
+            e.top_bits,
+            [(-0.25f32).to_bits(), f32::NEG_INFINITY.to_bits()]
+        );
     }
 }
 
@@ -1530,11 +1629,13 @@ mod cycle_diagnostics {
             head.use_target_draft_head();
         }
         let hidden_variant = head.wiring_name();
+        let evict = head.evict();
         let tokenizer = ChatTokenizer::load(Path::new(&model_path))?;
         let mut report = serde_json::json!({
             "tokens": tokens, "warmup": warmup, "confidence": confidence,
             "hidden_variant": hidden_variant,
-            "env_post_norm": env_post_norm,
+            "env_post_norm": env_post_norm, "evict": evict,
+            "env_evict": std::env::var("MLXL3_MTP_EVICT").ok(),
             "env_pipeline": std::env::var("MLXL3_QWEN_PIPELINE").ok(),
             "env_head_lane": std::env::var("MLXL3_Q36_HEAD_LANE").ok(),
             "compact_head": head.compact_vocabulary(), "cases": [],
@@ -1645,11 +1746,57 @@ mod cycle_diagnostics {
                                 .all(|w| w[0].uptime_ns <= w[1].uptime_ns),
                             "marks are not monotonic"
                         );
+                        // EVICT drafts `drafted` levels and verifies the first `kept`.
+                        let drafted = if evict {
+                            let e = &recording.evictions;
+                            ensure!(
+                                e.len() == session.blocks
+                                    && e.iter().map(|e| e.kept).sum::<usize>() == session.proposed
+                                    && e.iter().zip(cycles.iter().filter(|c| c[0] > 0)).all(
+                                        |(e, c)| e.kept == c[0]
+                                            && e.kept <= e.drafted
+                                            && e.drafted <= depth
+                                            && e.top_bits.len() == e.drafted
+                                    ),
+                                "{name} depth {depth}: EVICT records disagree with cycles"
+                            );
+                            for e in e {
+                                let bands = e
+                                    .top_bits
+                                    .iter()
+                                    .map(|&bits| crate::contracts::evict_band(f32::from_bits(bits)))
+                                    .collect::<Option<Vec<_>>>()
+                                    .context("non-finite EVICT top")?;
+                                ensure!(
+                                    crate::contracts::evict_width(&bands, e.drafted)
+                                        == Some(e.kept),
+                                    "{name} depth {depth}: recorded EVICT width is not the policy's"
+                                );
+                            }
+                            e.iter().map(|e| e.drafted).sum()
+                        } else {
+                            ensure!(recording.evictions.is_empty(), "EVICT recorded while off");
+                            session.proposed
+                        };
                         if confidence {
                             ensure!(
-                                recording.levels.len() == session.proposed,
-                                "one confidence level per proposal"
+                                recording.levels.len() == drafted,
+                                "one confidence level per drafted level"
                             );
+                            if evict {
+                                let device = recording.evictions.iter().flat_map(|e| &e.top_bits);
+                                let differing = recording
+                                    .levels
+                                    .iter()
+                                    .zip(device)
+                                    .filter(|(l, bits)| l.top1_log_prob.to_bits() != **bits)
+                                    .count();
+                                case["evict_top_bit_mismatches"] = differing.into();
+                                ensure!(
+                                    differing == 0,
+                                    "{name} depth {depth}: {differing} device/host top-1 bit mismatches"
+                                );
+                            }
                             ensure!(
                                 recording.levels.iter().all(|l| l.finite
                                     && l.top1_log_prob.is_finite()

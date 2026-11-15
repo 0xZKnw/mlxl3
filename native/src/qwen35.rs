@@ -1679,7 +1679,7 @@ impl Qwen35Moe {
         self.embeddings
             .take(&Array::from_i32(&ids, &[1, i32::try_from(ids.len())?])?, 0)
     }
-    /// The trunk's final norm applied to an MTP seed (`MLXL3_MTP_POST_NORM=1`).
+    /// The trunk's final norm applied to an MTP seed (post-norm wiring, the default).
     pub(crate) fn mtp_final_norm(&self, hidden: &Array) -> Result<Array> {
         hidden.rms_norm(&self.norm, self.eps)
     }

@@ -3699,14 +3699,87 @@ pub fn q36_head_lane_setting(value: Option<&str>) -> Option<bool> {
     }
 }
 
-/// Strict `MLXL3_MTP_POST_NORM` switch (Q36-MTP-POSTNORM-T1B). Unset or `0` keeps the
-/// pre-norm MTP seed and recursion; `1` normalizes both. Anything else is rejected.
+/// Strict `MLXL3_MTP_POST_NORM` switch (Q36-MTP-POSTNORM-T1B, default since
+/// Q36-MTP-DEFAULT-T3C). Unset or `1` normalizes the MTP seed and recursion; `0` restores
+/// the pre-norm wiring. Anything else is rejected.
 pub fn mtp_post_norm_setting(value: Option<&str>) -> Option<bool> {
     match value {
-        None | Some("0") => Some(false),
-        Some("1") => Some(true),
+        Some("0") => Some(false),
+        None | Some("1") => Some(true),
         Some(_) => None,
     }
+}
+
+/// Strict `MLXL3_MTP_EVICT` switch (Q36-MTP-EVICT-T3B, default since Q36-MTP-DEFAULT-T3C).
+/// Unset or `1` truncates the verify width by draft confidence; `0` verifies every drafted
+/// level. Anything else is rejected.
+pub fn mtp_evict_setting(value: Option<&str>) -> Option<bool> {
+    match value {
+        Some("0") => Some(false),
+        None | Some("1") => Some(true),
+        Some(_) => None,
+    }
+}
+
+/// `ln` of the T3a calibration band edges 0.5, 0.8, 0.95 and 0.99, as f32.
+pub const EVICT_LOG_EDGES: [f32; 4] = [
+    -std::f32::consts::LN_2,
+    -0.223_143_55,
+    -0.051_293_294,
+    -0.010_050_336,
+];
+
+/// Calibrated survival per drafted level and band, per mille (T3a post-norm traces,
+/// Laplace-smoothed over four prompts). Specific to the 35B compact head on M5.
+pub const EVICT_SURVIVAL: [[u64; 5]; 3] = [
+    [368, 645, 905, 968, 998],
+    [256, 631, 924, 958, 995],
+    [172, 685, 864, 923, 986],
+];
+
+/// Cycle cost model in microseconds (T0b markers): draft by drafted width, verify by
+/// verified rows (1-row cost not measured; 17 ms assumed), greedy plus commit tail.
+pub const EVICT_DRAFT_US: [u64; 4] = [0, 1_310, 2_450, 3_600];
+pub const EVICT_VERIFY_US: [u64; 4] = [17_000, 21_300, 29_000, 33_300];
+pub const EVICT_TAIL_US: u64 = 750;
+
+/// Calibration band of a draft level's top-1 log-probability; `None` if not finite.
+pub fn evict_band(log_prob: f32) -> Option<usize> {
+    if !log_prob.is_finite() {
+        return None;
+    }
+    Some(
+        EVICT_LOG_EDGES
+            .iter()
+            .filter(|&&edge| log_prob >= edge)
+            .count(),
+    )
+}
+
+/// Verified prefix length maximizing (1 + E[accepted]) / cost for one drafted cycle.
+/// Exact integer arithmetic; ties keep the shorter prefix. `None` for invalid input.
+pub fn evict_width(bands: &[usize], width: usize) -> Option<usize> {
+    if width > 3 || bands.len() != width || bands.iter().any(|&band| band > 4) {
+        return None;
+    }
+    const SCALE: u64 = 1_000_000_000;
+    let mut survive = SCALE;
+    let mut expected = 0u64;
+    let mut best = (
+        0usize,
+        SCALE,
+        EVICT_DRAFT_US[width] + EVICT_VERIFY_US[0] + EVICT_TAIL_US,
+    );
+    for k in 1..=width {
+        survive = survive / 1_000 * EVICT_SURVIVAL[k - 1][bands[k - 1]];
+        expected += survive;
+        let numerator = SCALE + expected;
+        let cost = EVICT_DRAFT_US[width] + EVICT_VERIFY_US[k] + EVICT_TAIL_US;
+        if u128::from(numerator) * u128::from(best.2) > u128::from(best.1) * u128::from(cost) {
+            best = (k, numerator, cost);
+        }
+    }
+    Some(best.0)
 }
 
 /// The 35B lm_head (K6 MCG, 2048 -> 248320) measured on M5 in Q36-HEAD3-P22/HEAD4-P23.
@@ -3806,7 +3879,7 @@ fn q36_head_lane_setting_is_strict() {
 #[test]
 fn mtp_post_norm_setting_is_exact() {
     for (value, expected) in [
-        (None, Some(false)),
+        (None, Some(true)),
         (Some("0"), Some(false)),
         (Some("1"), Some(true)),
         (Some(""), None),
@@ -3825,6 +3898,166 @@ fn mtp_post_norm_setting_is_exact() {
     }
 }
 
+#[test]
+fn mtp_evict_setting_is_exact() {
+    for (value, expected) in [
+        (None, Some(true)),
+        (Some("0"), Some(false)),
+        (Some("1"), Some(true)),
+        (Some(""), None),
+        (Some("2"), None),
+        (Some("01"), None),
+        (Some(" 1"), None),
+        (Some("true"), None),
+    ] {
+        assert_eq!(mtp_evict_setting(value), expected, "{value:?}");
+    }
+}
+
+#[test]
+fn evict_band_matches_calibration_edges() {
+    assert_eq!(evict_band(0.0), Some(4));
+    assert_eq!(evict_band(f32::NEG_INFINITY), None);
+    assert_eq!(evict_band(f32::NAN), None);
+    assert_eq!(evict_band(f32::INFINITY), None);
+    assert_eq!(evict_band(-100.0), Some(0));
+    for (probability, band) in [(0.3f64, 0), (0.6, 1), (0.9, 2), (0.97, 3), (0.995, 4)] {
+        assert_eq!(
+            evict_band(f64::ln(probability) as f32),
+            Some(band),
+            "{probability}"
+        );
+    }
+    for (index, edge) in EVICT_LOG_EDGES.into_iter().enumerate() {
+        // An edge belongs to the band above it; the next float below does not.
+        assert_eq!(evict_band(edge), Some(index + 1));
+        assert_eq!(evict_band(f32::from_bits(edge.to_bits() + 1)), Some(index));
+        let probability = [0.5f64, 0.8, 0.95, 0.99][index];
+        assert!((f64::from(edge) - probability.ln()).abs() < 1e-7);
+    }
+}
+
+#[test]
+fn evict_width_matches_a_float_enumeration() {
+    // Independent oracle: floating-point expected tokens per microsecond over every prefix.
+    let oracle = |bands: &[usize]| {
+        let width = bands.len();
+        let cost = |k: usize| (EVICT_DRAFT_US[width] + EVICT_VERIFY_US[k] + EVICT_TAIL_US) as f64;
+        let mut values = vec![1.0 / cost(0)];
+        let (mut survive, mut expected) = (1.0f64, 0.0f64);
+        for (k, &band) in bands.iter().enumerate() {
+            survive *= EVICT_SURVIVAL[k][band] as f64 / 1000.0;
+            expected += survive;
+            values.push((1.0 + expected) / cost(k + 1));
+        }
+        let best = values.iter().cloned().fold(f64::MIN, f64::max);
+        // No near-tie in this table: the float argmax must be unique.
+        assert!(
+            values
+                .iter()
+                .filter(|&&v| (v - best).abs() < best * 1e-12)
+                .count()
+                == 1
+        );
+        values.iter().position(|&v| v == best).unwrap()
+    };
+    let mut chosen = [0usize; 4];
+    for width in 0..=3usize {
+        for code in 0..5usize.pow(width as u32) {
+            let bands: Vec<usize> = (0..width)
+                .map(|i| code / 5usize.pow(i as u32) % 5)
+                .collect();
+            let k = evict_width(&bands, width).unwrap();
+            assert_eq!(k, oracle(&bands), "{bands:?}");
+            if width == 3 {
+                chosen[k] += 1;
+            }
+        }
+    }
+    // With this calibration the first level always pays for itself (level-1 survival is at
+    // least 36.8 %), so k = 0 only occurs for an empty draft; k = 1, 2 and 3 are all reachable.
+    assert_eq!(chosen, [0, 41, 14, 70]);
+    assert_eq!(evict_width(&[4, 4, 4], 3), Some(3));
+    assert_eq!(evict_width(&[0, 0, 0], 3), Some(1));
+    assert_eq!(evict_width(&[], 0), Some(0));
+    assert_eq!(evict_width(&[4, 4], 3), None);
+    assert_eq!(evict_width(&[5], 1), None);
+    assert_eq!(evict_width(&[4, 4, 4, 4], 4), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn mtp_evict_setting_is_strict() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    let decoded = std::str::from_utf8(&bytes[..length]);
+    let value = decoded.unwrap_or("");
+    let setting = mtp_evict_setting(present.then_some(value));
+    let expected = if !present || (length == 1 && bytes[0] == b'1') {
+        Some(true)
+    } else if length == 1 && bytes[0] == b'0' {
+        Some(false)
+    } else {
+        None
+    };
+    assert_eq!(setting, expected);
+    kani::cover!(!present && setting == Some(true));
+    kani::cover!(present && setting == Some(false));
+    kani::cover!(present && setting == Some(true));
+    kani::cover!(present && length > 1 && setting.is_none());
+    kani::cover!(present && decoded.is_err() && setting.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn evict_band_is_total_and_monotone() {
+    let (a, b): (f32, f32) = kani::any();
+    let (band_a, band_b) = (evict_band(a), evict_band(b));
+    assert_eq!(band_a.is_some(), a.is_finite());
+    if let Some(band) = band_a {
+        assert!(band <= 4);
+        assert_eq!(band == 4, a >= EVICT_LOG_EDGES[3]);
+        assert_eq!(band == 0, a < EVICT_LOG_EDGES[0]);
+    }
+    if let (Some(x), Some(y)) = (band_a, band_b)
+        && a <= b
+    {
+        assert!(x <= y);
+    }
+    kani::cover!(band_a == Some(0));
+    kani::cover!(band_a == Some(2));
+    kani::cover!(band_a == Some(4));
+    kani::cover!(band_a.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn evict_width_is_bounded_and_rejects_invalid_input() {
+    let bands: [usize; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let width: usize = kani::any();
+    kani::assume(width <= 5);
+    let result = evict_width(&bands[..length], width);
+    let valid = width <= 3 && length == width && bands[..length].iter().all(|&b| b <= 4);
+    assert_eq!(result.is_some(), valid);
+    if let Some(k) = result {
+        assert!(k <= width);
+        assert_eq!(k == 0, width == 0);
+        if width == 3 && bands[..3].iter().all(|&b| b == 4) {
+            assert_eq!(k, 3);
+        }
+    }
+    kani::cover!(result == Some(0) && width == 0);
+    kani::cover!(result == Some(1) && width == 3);
+    kani::cover!(result == Some(2) && width == 3);
+    kani::cover!(result == Some(3));
+    kani::cover!(result.is_none() && width <= 3);
+}
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(10)]
@@ -3835,15 +4068,15 @@ fn mtp_post_norm_setting_is_strict() {
     let decoded = std::str::from_utf8(&bytes[..length]);
     let value = decoded.unwrap_or("");
     let setting = mtp_post_norm_setting(present.then_some(value));
-    let expected = if !present || (length == 1 && bytes[0] == b'0') {
-        Some(false)
-    } else if length == 1 && bytes[0] == b'1' {
+    let expected = if !present || (length == 1 && bytes[0] == b'1') {
         Some(true)
+    } else if length == 1 && bytes[0] == b'0' {
+        Some(false)
     } else {
         None
     };
     assert_eq!(setting, expected);
-    kani::cover!(!present && setting == Some(false));
+    kani::cover!(!present && setting == Some(true));
     kani::cover!(present && setting == Some(false));
     kani::cover!(present && setting == Some(true));
     kani::cover!(present && length == 0 && setting.is_none());

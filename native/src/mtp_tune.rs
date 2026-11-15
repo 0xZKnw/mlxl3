@@ -21,6 +21,7 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         ),
         q36_head_lane()?,
         mtp_post_norm()?,
+        mtp_evict()?,
     )
 }
 
@@ -33,6 +34,17 @@ fn mtp_post_norm() -> Result<bool> {
         Err(error) => return Err(error).context(MESSAGE),
     };
     mlxl3_native::mtp_post_norm_setting(value.as_deref()).context(MESSAGE)
+}
+
+/// EVICT changes every verify width, so its calibrations stay separate (Q36-MTP-EVICT-T3B).
+fn mtp_evict() -> Result<bool> {
+    const MESSAGE: &str = "MLXL3_MTP_EVICT must be 0 or 1";
+    let value = match std::env::var("MLXL3_MTP_EVICT") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(error) => return Err(error).context(MESSAGE),
+    };
+    mlxl3_native::mtp_evict_setting(value.as_deref()).context(MESSAGE)
 }
 
 /// Calibrations under the Q36 head lane rollback switch stay separate from the default.
@@ -66,6 +78,7 @@ fn runtime_key_with_options(
     lane_order: bool,
     head_lane: bool,
     post_norm: bool,
+    evict: bool,
 ) -> Result<String> {
     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
@@ -84,7 +97,7 @@ fn runtime_key_with_options(
         .context("MLXL3_QWEN_PIPELINE_STRIDE must be a decimal integer in 1..=64")?,
     );
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:mtppostnorm-v1={}:mtpevict-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
@@ -95,6 +108,7 @@ fn runtime_key_with_options(
         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
         u8::from(post_norm),
+        u8::from(evict),
         u8::from(head_lane),
         mlxl3_native::exl3_lane_order_key(lane_order),
         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
@@ -130,7 +144,7 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
     let directory = tempfile::tempdir()?;
     std::fs::write(directory.path().join("config.json"), "{}")?;
     let mut keys = std::collections::HashSet::new();
-    for post_norm in [false, true] {
+    for (post_norm, evict) in [(false, false), (true, false), (false, true), (true, true)] {
         for head_lane in [false, true] {
             for lane_order in [false, true] {
                 for (dense, mb3, suffix) in [
@@ -148,11 +162,13 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
                         lane_order,
                         head_lane,
                         post_norm,
+                        evict,
                     )?;
                     anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
                     anyhow::ensure!(key.contains(&format!(
-                        ":mtppostnorm-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
+                        ":mtppostnorm-v1={}:mtpevict-v1={}:q36headlane-v1={}:lanelayout-v1={}:smallm-v2=",
                         u8::from(post_norm),
+                        u8::from(evict),
                         u8::from(head_lane),
                         u8::from(lane_order),
                     )));
@@ -161,7 +177,7 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
             }
         }
     }
-    anyhow::ensure!(keys.len() == 32);
+    anyhow::ensure!(keys.len() == 64);
     let production = runtime_key(directory.path(), 4096)?;
     anyhow::ensure!(keys.contains(&production), "production key not recognized");
     Ok(())
@@ -182,6 +198,7 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
             false,
             true,
             false,
+            false,
         )?;
         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
     }
@@ -195,7 +212,8 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
                 Some(invalid),
                 false,
                 true,
-                false
+                false,
+                false,
             )
             .is_err()
         );
