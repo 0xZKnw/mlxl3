@@ -23,6 +23,8 @@ import SwiftUI
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let suite = "io.mlxl3.experience." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
+        // Manual Tune scenarios; the automatic Tune is covered by tests/mtp-autotune-check.swift.
+        prefs.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
         var instances: [StudioModel] = []
         setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
         setenv("MLXL3_HOME", root.path, 1)
@@ -493,6 +495,8 @@ extension DesktopExperienceCheck {
         defer { try? FileManager.default.removeItem(at: root) }
         let suite = "io.mlxl3.surfaces." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
+        // Manual Tune scenarios; the automatic Tune is covered by tests/mtp-autotune-check.swift.
+        prefs.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
         defer { prefs.removePersistentDomain(forName: suite) }
         studio.showModelManager = true
         studio.showMCPManager = false

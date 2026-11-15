@@ -175,6 +175,14 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/ModelUnloadControlCombined.swift" -o "${test_dir}/unload-control-check"
 run_fixture_check "${test_dir}/unload-control-check" "$PWD/tests/fake-desktop-engine.py"
 
+# Automatic MTP Tune through the real bridge/CLI/fixture engine (MTP-AUTOTUNE-20261115).
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/mtp-autotune-check.swift > "${test_dir}/MTPAutoTuneCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/MTPAutoTuneCombined.swift" -o "${test_dir}/mtp-autotune-check"
+run_fixture_check "${test_dir}/mtp-autotune-check" "$PWD/tests/fake-desktop-engine.py"
+
 check_preferences
 
 # Keep global speculative preferences independent of current-model sampling.

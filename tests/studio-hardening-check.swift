@@ -20,6 +20,8 @@ extension UpdateManager {
         defer { try? FileManager.default.removeItem(at: root) }
         let suite = "io.mlxl3.check." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
+        // Manual Tune scenarios; the automatic Tune is covered by tests/mtp-autotune-check.swift.
+        prefs.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
         defer { prefs.removePersistentDomain(forName: suite) }
         let flashModel = root.appendingPathComponent("flash-model")
         try FileManager.default.createDirectory(at: flashModel, withIntermediateDirectories: true)

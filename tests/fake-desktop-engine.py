@@ -180,7 +180,8 @@ def emit(kind, **values):
 mtp_capable = model in ('renamed', 'flash', 'flash-config', 'flash-native') or model.startswith(('mtp-', 'auto-'))
 flash_dflash = model.startswith(('flash-dflash-', 'flash-download-'))
 dflash_capable = flash_dflash or model == 'renamed' or model.startswith('dflash-')
-tuning_key = 'fixture-runtime:' + model
+# A runtime option (for example mtpevict-v1) changes the engine key without changing the model.
+tuning_key = 'fixture-runtime:' + model + os.environ.get('MLXL3_FIXTURE_TUNING_SUFFIX', '')
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
 if model.startswith('auto-') or model in ('flash-config', 'flash-native'):
     capabilities['mtp_configure_supported'] = True

@@ -44,6 +44,8 @@ extension StudioModel {
         setenv("MLXL3_HOME", root.path, 1)
         let suite = "io.mlxl3.unload-check." + UUID().uuidString
         let preferences = UserDefaults(suiteName: suite)!
+        // Manual Tune scenarios; the automatic Tune and the toolbar are covered by tests/mtp-autotune-check.swift.
+        preferences.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
         var instances: [StudioModel] = []
         defer {
             for studio in instances { studio.ejectModel() }

@@ -37,7 +37,7 @@ struct MTPToolbarControl: View {
         .accessibilityLabel(L("Réglages MTP", "MTP settings"))
         .accessibilityValue(accessibleStatus)
         .onChange(of: studio.isTuningMTP) { _, active in
-            if active { presented = false }
+            if active && !studio.mtpAutoTuneActive { presented = false }
         }
         .popover(isPresented: $presented, arrowEdge: .bottom) {
             ScrollView {
