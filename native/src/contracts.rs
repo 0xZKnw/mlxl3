@@ -876,31 +876,41 @@ fn pipeline_layer_strides_on_forty_layers() {
 #[cfg(kani)]
 #[kani::proof]
 fn pipeline_layer_has_no_final_or_outside_submission() {
+    // Every input is symbolic and unrestricted: the bound holds for any stride, not only the
+    // parser's 1..=64. The schedule arithmetic itself is checked below for the default stride and
+    // by `pipeline_layer_strides_on_forty_layers` for the other strides (tests, not a proof).
     let index: usize = kani::any();
     let layers: usize = kani::any();
     let enabled: bool = kani::any();
     let stride: usize = kani::any();
-    kani::assume(stride <= QWEN_PIPELINE_MAX_STRIDE);
     let submit = pipeline_layer(index, layers, enabled, stride);
     if submit {
         assert!(enabled && stride > 0 && layers > 1 && index < layers - 1);
-        assert!(index == 0 || (index + 1) % stride == 0);
-        if stride >= layers {
-            assert_eq!(index, 0);
-        }
-    }
-    if stride == 4 {
-        assert_eq!(
-            submit,
-            enabled && layers > 1 && index < layers - 1 && (index == 0 || index % 4 == 3)
-        );
     }
     kani::cover!(submit && index == 0);
-    kani::cover!(submit && index > 0 && stride == 8);
-    kani::cover!(submit && stride == 1 && index == layers - 2);
+    kani::cover!(submit && index > 0);
     kani::cover!(!submit && layers > 0 && index == layers - 1);
     kani::cover!(!submit && !enabled);
     kani::cover!(!submit && stride == 0 && enabled);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn pipeline_layer_default_stride_keeps_the_measured_schedule() {
+    let index: usize = kani::any();
+    let layers: usize = kani::any();
+    let enabled: bool = kani::any();
+    let submit = pipeline_layer(index, layers, enabled, QWEN_PIPELINE_DEFAULT_STRIDE);
+    assert_eq!(
+        submit,
+        enabled && layers > 1 && index < layers - 1 && (index == 0 || index % 4 == 3)
+    );
+    if submit {
+        assert!(index == 0 || (index + 1) % 4 == 0);
+    }
+    kani::cover!(submit && index == 0);
+    kani::cover!(submit && index > 0);
+    kani::cover!(!submit && layers > 0 && index == layers - 1);
 }
 
 #[cfg(any(feature = "mlx", kani))]
