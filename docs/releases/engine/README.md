@@ -35,3 +35,4 @@ These reports are historical: check their dates, revisions, and limitations befo
 - [release-engine-v2.0.11-beta.1](release-engine-v2.0.11-beta.1.md)
 - [release-engine-v2.0.11-beta.2-validation](release-engine-v2.0.11-beta.2-validation.md)
 - [release-engine-v2.0.11-beta.2](release-engine-v2.0.11-beta.2.md)
+- [release-engine-v2.0.11-beta.3](release-engine-v2.0.11-beta.3.md)
