@@ -127,6 +127,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "qwen35_config::final_moe_row_preserves_all_observed_rows",
         "contracts::q36_expert_lane_domain",
         "contracts::q36_lane_shape_admission",
+        "contracts::q36_head_lane_setting_is_strict",
+        "contracts::q36_head_lane_layout_admission_and_grid",
         "contracts::switch_glu_bank_layout_bounds_real_trellis_dimensions",
         "contracts::switch_glu_cpu_routes_bound_every_submitted_expert",
         "qwen35_config::replay_defaults_only_on_the_qualified_model_and_runtime",

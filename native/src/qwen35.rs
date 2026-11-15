@@ -5281,3 +5281,7 @@ mod memory_feature_tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "chat"))]
+#[path = "qwen35_head_lane.rs"]
+mod head_lane;

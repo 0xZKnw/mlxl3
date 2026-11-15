@@ -3688,3 +3688,163 @@ fn q36_lane_shape_admission() {
     kani::cover!(result && n == 4);
     kani::cover!(!result);
 }
+
+/// Strict rollback switch for the qualified 35B lm_head lane layout (Q36-HEAD-LANE-P24).
+/// Unset or `1` keeps the measured default, `0` restores the stock layout.
+pub fn q36_head_lane_setting(value: Option<&str>) -> Option<bool> {
+    match value {
+        None | Some("1") => Some(true),
+        Some("0") => Some(false),
+        Some(_) => None,
+    }
+}
+
+/// The 35B lm_head (K6 MCG, 2048 -> 248320) measured on M5 in Q36-HEAD3-P22/HEAD4-P23.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn q36_head_lane_shape(input: i32, output: i32, k: usize, mcg: bool, m5: bool) -> bool {
+    m5 && mcg && input == 2048 && output == 248_320 && k == 6
+}
+
+/// One unpadded pass over a lane-ordered input: H2 at three rows, F3 at four.
+/// Returns `(mb, groups, nt)`; other rows, splits or SIMD widths keep the stock layout.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn q36_head_lane_layout(
+    rows: i32,
+    prepared: bool,
+    splits: i32,
+    simdgroups: i32,
+) -> Option<(i32, i32, i32)> {
+    (prepared && splits == 1 && simdgroups == 8 && matches!(rows, 3 | 4)).then_some((rows, 1, 1))
+}
+
+#[test]
+fn q36_head_lane_setting_shape_and_layout_are_exact() {
+    for (value, expected) in [
+        (None, Some(true)),
+        (Some("1"), Some(true)),
+        (Some("0"), Some(false)),
+        (Some(""), None),
+        (Some("2"), None),
+        (Some("01"), None),
+        (Some("10"), None),
+        (Some("true"), None),
+        (Some("1 "), None),
+        (Some(" 0"), None),
+        (Some("１"), None),
+        (Some("1\0"), None),
+    ] {
+        assert_eq!(q36_head_lane_setting(value), expected, "{value:?}");
+    }
+    assert!(q36_head_lane_shape(2048, 248_320, 6, true, true));
+    for (input, output, k, mcg, m5) in [
+        (2048, 248_320, 6, true, false),
+        (2048, 248_320, 6, false, true),
+        (2048, 248_320, 5, true, true),
+        (2048, 248_320, 4, true, true),
+        (2048, 248_320, 7, true, true),
+        (2048, 248_192, 6, true, true),
+        (2048, 151_936, 6, true, true),
+        (5120, 248_320, 6, true, true),
+        (2560, 248_320, 6, true, true),
+        (4096, 248_320, 6, true, true),
+        (2048, 2048, 6, true, true),
+    ] {
+        assert!(!q36_head_lane_shape(input, output, k, mcg, m5));
+    }
+    for rows in -1..=25 {
+        let measured = matches!(rows, 3 | 4).then_some((rows, 1, 1));
+        assert_eq!(q36_head_lane_layout(rows, true, 1, 8), measured);
+        assert_eq!(q36_head_lane_layout(rows, false, 1, 8), None);
+        for splits in [0, 2, 4] {
+            assert_eq!(q36_head_lane_layout(rows, true, splits, 8), None);
+        }
+        for simdgroups in [2, 4, 16] {
+            assert_eq!(q36_head_lane_layout(rows, true, 1, simdgroups), None);
+        }
+    }
+    for rows in [i32::MIN, i32::MAX] {
+        assert_eq!(q36_head_lane_layout(rows, true, 1, 8), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn q36_head_lane_setting_is_strict() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    let decoded = std::str::from_utf8(&bytes[..length]);
+    let value = decoded.unwrap_or("");
+    let setting = q36_head_lane_setting(present.then_some(value));
+    let expected = if !present || (length == 1 && bytes[0] == b'1') {
+        Some(true)
+    } else if length == 1 && bytes[0] == b'0' {
+        Some(false)
+    } else {
+        None
+    };
+    assert_eq!(setting, expected);
+    kani::cover!(!present && setting == Some(true));
+    kani::cover!(present && setting == Some(true));
+    kani::cover!(present && setting == Some(false));
+    kani::cover!(present && length == 0 && setting.is_none());
+    kani::cover!(present && length > 1 && setting.is_none());
+    kani::cover!(present && decoded.is_err() && setting.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn q36_head_lane_layout_admission_and_grid() {
+    let (input, output): (i32, i32) = kani::any();
+    let k: usize = kani::any();
+    let (mcg, m5, prepared): (bool, bool, bool) = kani::any();
+    let shape = q36_head_lane_shape(input, output, k, mcg, m5);
+    assert_eq!(
+        shape,
+        m5 && mcg && input == 2048 && output == 248_320 && k == 6
+    );
+    let (rows, splits, simdgroups): (i32, i32, i32) = kani::any();
+    let layout = q36_head_lane_layout(rows, prepared, splits, simdgroups);
+    if let Some((mb, groups, nt)) = layout {
+        assert!(prepared && splits == 1 && simdgroups == 8);
+        assert!(rows == 3 || rows == 4);
+        // One pass, no padded row, the accumulator bound of the measured F3 kernel.
+        assert_eq!((mb, groups, nt), (rows, 1, 1));
+        assert!(mb * nt <= 4);
+        let (group, row): (i32, i32) = kani::any();
+        if (0..groups).contains(&group) && (0..mb).contains(&row) {
+            assert!(group * mb + row < rows);
+        }
+        // Every output tile of the head is dispatched exactly once.
+        let tiles = 248_320 / 16;
+        assert_eq!(tiles % nt, 0);
+        let threads = simdgroups * 32;
+        let grid = (tiles / nt).checked_mul(threads);
+        assert!(grid.is_some());
+        let thread: i32 = kani::any();
+        let column: i32 = kani::any();
+        if let Some(grid) = grid
+            && (0..grid).contains(&thread)
+            && (0..nt).contains(&column)
+        {
+            assert!((thread / threads) * nt + column < tiles);
+            kani::cover!(thread == grid - 1);
+        }
+        // The lane gather never leaves the 2048-wide input row.
+        let index: u32 = kani::any();
+        if index < 2048 {
+            assert!(exl3_lane_source_index(index) < 2048);
+        }
+    } else {
+        assert!(!prepared || splits != 1 || simdgroups != 8 || !(rows == 3 || rows == 4));
+    }
+    kani::cover!(shape);
+    kani::cover!(!shape && m5 && mcg && input == 2048 && output == 248_320 && k == 5);
+    kani::cover!(layout == Some((3, 1, 1)));
+    kani::cover!(layout == Some((4, 1, 1)));
+    kani::cover!(prepared && splits == 1 && simdgroups == 8 && rows == 2 && layout.is_none());
+    kani::cover!(prepared && splits == 1 && simdgroups == 8 && rows == 5 && layout.is_none());
+    kani::cover!(prepared && splits == 2 && simdgroups == 8 && rows == 3 && layout.is_none());
+    kani::cover!(!prepared && splits == 1 && simdgroups == 8 && rows == 4 && layout.is_none());
+}

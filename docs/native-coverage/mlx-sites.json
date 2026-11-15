@@ -13,7 +13,7 @@
   ".github/workflows/rust.yml": {
     "MLXL3_MLX_ROOT": 10,
     "array::tests": 2,
-    "mlx": 27,
+    "mlx": 28,
     "mlx_enabled": 1
   },
   "Cargo.toml": {
@@ -1525,7 +1525,7 @@
     "shader ../shaders/flash_reference_reduction.h": 1
   },
   "native/src/contracts.rs": {
-    "mlx": 35
+    "mlx": 37
   },
   "native/src/convert_matmul.rs": {
     ".take": 1
@@ -2496,17 +2496,17 @@
     ".add": 6,
     ".astype": 41,
     ".dtype": 19,
-    ".eval": 14,
+    ".eval": 16,
     ".flash_prepare128": 1,
     ".hadamard_transform": 12,
     ".mul": 12,
     ".reshape": 66,
-    ".shape": 54,
+    ".shape": 55,
     ".slice": 17,
     ".sum": 5,
-    ".take": 4,
-    ".to_bytes": 15,
-    ".to_f16_bits": 19,
+    ".take": 6,
+    ".to_bytes": 16,
+    ".to_f16_bits": 20,
     ".to_f32": 6,
     ".to_u32": 3,
     ".transpose": 2,
@@ -2514,18 +2514,18 @@
     ".view": 7,
     "Array::concatenate": 12,
     "Array::from_bytes": 3,
-    "Array::from_f16_bits": 21,
+    "Array::from_f16_bits": 22,
     "Array::from_f32": 5,
     "Array::from_file": 1,
     "Array::from_files": 1,
-    "Array::from_i32": 3,
+    "Array::from_i32": 5,
     "Array::from_u16": 4,
     "Array::from_u32": 10,
     "Array::host_readbacks_for_test": 8,
     "Array::to_f16_bits": 1,
     "Array::zeros_dtype": 3,
     "array::Array": 1,
-    "array::is_m5_gpu": 9,
+    "array::is_m5_gpu": 11,
     "array::metal_kernel": 10,
     "array::supports_exl3_tensor_ops": 3,
     "config MLXL3_DENSE_DECODE_NT4": 1,
@@ -2542,7 +2542,8 @@
     "config MLXL3_MTP_TEST_COMPACT_HEAD": 1,
     "config MLXL3_MTP_TEST_FULL_HEAD": 1,
     "config MLXL3_MTP_TEST_MODEL": 1,
-    "config MLXL3_QWEN_TEST_MODEL": 2,
+    "config MLXL3_Q36_HEAD_LANE": 1,
+    "config MLXL3_QWEN_TEST_MODEL": 3,
     "mlxl3_decode_codeword": 1,
     "shader ../shaders/_qmm_tensor_kernel.metal": 1,
     "shader ../shaders/_qmv_inner_kernel.metal": 1,
@@ -2559,7 +2560,7 @@
     "shader mlxl3_rs_inner_{}_{}_{}": 1,
     "shader mlxl3_rs_q36_group_input_lane": 1,
     "shader mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}": 1,
-    "shader mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}": 1,
+    "shader mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}{}": 1,
     "shader mlxl3_rs_tile_{}_{}_{}_{}_{}_{}_{}": 1
   },
   "native/src/linear/dense_epilogue_tests.rs": {
@@ -2839,6 +2840,7 @@
     "config MLXL3_MLX_VERSION": 1,
     "config MLXL3_MTP_ADAPTIVE": 1,
     "config MLXL3_MTP_LOOKUP": 2,
+    "config MLXL3_Q36_HEAD_LANE": 1,
     "config MLXL3_QWEN_PIPELINE": 1,
     "config MLXL3_QWEN_PIPELINE_STRIDE": 1
   },
@@ -2972,6 +2974,15 @@
   },
   "native/src/qwen35_config.rs": {
     "mlx": 3
+  },
+  "native/src/qwen35_head_lane.rs": {
+    ".chat_greedy_ids": 3,
+    ".shape": 2,
+    ".to_f16_bits": 4,
+    "array::is_m5_gpu": 1,
+    "config MLXL3_HEAD_LANE_REPORT": 1,
+    "config MLXL3_QWEN_TEST_MODEL": 1,
+    "config MLXL3_VERIFY_FIXTURES": 1
   },
   "native/src/qwen4.rs": {
     ".add": 5,
