@@ -71,10 +71,32 @@ def _raise(message):
     raise TemplateError(str(message))
 
 
+def _generation_extension(Extension, nodes):
+    """`{% generation %}…{% endgeneration %}` as transformers renders it for inference.
+
+    transformers' AssistantTracker uses the tag to mark assistant tokens for training masks;
+    the rendered text is the block body unchanged. LFM2/LFM3 and other templates use it.
+    """
+
+    class Generation(Extension):
+        tags = {"generation"}
+
+        def parse(self, parser):
+            lineno = next(parser.stream).lineno
+            body = parser.parse_statements(["name:endgeneration"], drop_needle=True)
+            return nodes.CallBlock(self.call_method("_body"), [], [], body).set_lineno(lineno)
+
+        def _body(self, caller):
+            return caller()
+
+    return Generation
+
+
 def render(source: str, special: dict, messages: list, enable_thinking: bool | None = None,
            tools: list | None = None) -> str:
     try:
-        from jinja2.ext import loopcontrols
+        from jinja2 import nodes
+        from jinja2.ext import Extension, loopcontrols
         from jinja2.sandbox import ImmutableSandboxedEnvironment
     except ImportError:
         raise TemplateError("jinja2 is required to render chat templates") from None
@@ -83,7 +105,9 @@ def render(source: str, special: dict, messages: list, enable_thinking: bool | N
         return json.dumps(value, ensure_ascii=ensure_ascii, indent=indent,
                           separators=separators, sort_keys=sort_keys)
 
-    env = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True, extensions=[loopcontrols])
+    env = ImmutableSandboxedEnvironment(
+        trim_blocks=True, lstrip_blocks=True,
+        extensions=[loopcontrols, _generation_extension(Extension, nodes)])
     env.filters["tojson"] = tojson
     env.globals["raise_exception"] = _raise
     env.globals["strftime_now"] = lambda fmt: datetime.now().strftime(fmt)

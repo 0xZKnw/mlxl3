@@ -68,6 +68,32 @@ class TemplateTests(unittest.TestCase):
                          'T:[{"type": "function", "function": {"name": "a.b"}}]a.b')
         self.assertEqual(chat_template.render(source, special, messages, None, []), "a.b")
 
+    def test_generation_tag_renders_its_body(self):
+        # Shape of the LFM2/LFM3 templates: the tag sits inside an `if` on assistant turns.
+        source = ("{% for m in messages %}<|im_start|>{{ m.role }}\n"
+                  "{% if m.role == 'assistant' %}{% generation %}{{ m.content }}<|im_end|>{% endgeneration %}"
+                  "{% else %}{{ m.content }}<|im_end|>{% endif %}\n{% endfor %}"
+                  "{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}")
+        messages = [{"role": "user", "content": "salut"}, {"role": "assistant", "content": "bonjour"},
+                    {"role": "user", "content": "ça va ?"}]
+        special = {"bos_token": "", "eos_token": ""}
+        rendered = chat_template.render(source, special, messages)
+        # trim_blocks drops the newline after `{% endif %}`, as in transformers.
+        self.assertEqual(
+            rendered,
+            "<|im_start|>user\nsalut<|im_end|><|im_start|>assistant\nbonjour<|im_end|>"
+            "<|im_start|>user\nça va ?<|im_end|><|im_start|>assistant\n")
+        # The tag adds nothing: same text as the template without it.
+        plain = source.replace("{% generation %}", "").replace("{% endgeneration %}", "")
+        self.assertEqual(rendered, chat_template.render(plain, special, messages))
+
+    def test_generation_tag_errors(self):
+        special = {"bos_token": "", "eos_token": ""}
+        with self.assertRaises(TemplateError):  # unclosed block
+            chat_template.render("{% generation %}x", special, [])
+        with self.assertRaises(TemplateError):  # other unknown tags still fail
+            chat_template.render("{% unknowntag %}", special, [])
+
     def test_tojson_keeps_unicode(self):
         text = chat_template.render("{{ messages | tojson }}", {"bos_token": "", "eos_token": ""},
                                     [{"role": "user", "content": "é"}])
