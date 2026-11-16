@@ -2763,12 +2763,19 @@ fn prefill_mtp(
     }
     // At every checkpoint the last trunk hidden is deliberately unpaired.
     // The next prompt token is supplied only after prefix eligibility is known.
-    for start in (cached..tokens.len()).step_by(CHUNK) {
+    // A grouped span runs the trunk once; the head still sees each 256-token
+    // chunk with the same pairs and widths as the per-chunk path.
+    let group = model.prefill_group()?;
+    let mut start = cached;
+    while start < tokens.len() {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             head.reset()?;
             bail!("generation cancelled");
         }
+        let end = model
+            .prefill_span_end(start, tokens.len(), CHUNK, group)
+            .context("invalid MTP prefill span")?;
         let NativeChatModel::Qwen(target) = &mut *model else {
             bail!("MTP requires Qwen");
         };
@@ -2776,16 +2783,52 @@ fn prefill_mtp(
             let last = target.mtp_hidden()?.try_clone()?;
             head.extend_cache(target, &last, &tokens[start..start + 1])?;
         }
-        let end = start.saturating_add(CHUNK).min(tokens.len());
-        let (output, raw) = target.forward_mtp(&tokens[start..end])?;
-        let paired = end - start - 1;
-        if paired > 0 {
-            head.extend_cache(
-                target,
-                &raw.slice(1, 0, paired as i32)?,
-                &tokens[start + 1..end],
-            )?;
+        let inner = reuse && start < checkpoint && checkpoint < end;
+        let (output, raw, mut saved) = if end - start > CHUNK {
+            target.forward_mtp_grouped(&tokens[start..end], inner)?
+        } else {
+            let (output, raw) = target.forward_mtp(&tokens[start..end])?;
+            (output, raw, None)
+        };
+        for chunk in (start..end).step_by(CHUNK) {
+            let chunk_end = chunk.saturating_add(CHUNK).min(end);
+            let row = i32::try_from(chunk - start)?;
+            if chunk > start {
+                head.extend_cache(
+                    target,
+                    &raw.slice(1, row - 1, row)?,
+                    &tokens[chunk..chunk + 1],
+                )?;
+            }
+            let paired = i32::try_from(chunk_end - chunk - 1)?;
+            if paired > 0 {
+                head.extend_cache(
+                    target,
+                    &raw.slice(1, row, row + paired)?,
+                    &tokens[chunk + 1..chunk_end],
+                )?;
+            }
+            if chunk_end == checkpoint
+                && let Some((state, checkpoint_logits)) = saved.take()
+            {
+                let mut prefix = PromptCache::capture_snapshot(
+                    conversation,
+                    &tokens[..checkpoint],
+                    state,
+                    &checkpoint_logits,
+                    None,
+                )?;
+                if let Some(prefix) = &mut prefix {
+                    prefix.mtp = Some(head.snapshot()?.compact_for_cache()?);
+                }
+                *cache = prefix
+                    .map(PromptCache::within_budget)
+                    .transpose()?
+                    .flatten();
+            }
         }
+        anyhow::ensure!(saved.is_none(), "grouped MTP checkpoint was not captured");
+        start = end;
         model.eval_state()?;
         logits = Some(output);
         if reuse && end == checkpoint {

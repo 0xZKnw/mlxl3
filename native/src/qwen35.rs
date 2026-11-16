@@ -1429,8 +1429,8 @@ impl Qwen35Moe {
                 crate::Q36_MOE_GROUP_MAX,
                 crate::Q36_MOE_TAIL_MIN
             );
-            let (normalized, saved) =
-                self.run_hidden_tokens_grouped(tokens, slice, checkpoint && tail > 0)?;
+            let (normalized, saved, _) =
+                self.run_hidden_tokens_grouped(tokens, slice, checkpoint && tail > 0, false)?;
             let logits = self.head.forward(&normalized)?;
             logits.eval()?;
             let saved = saved
@@ -1449,13 +1449,58 @@ impl Qwen35Moe {
         result.context("Qwen grouped prefill failed; its cache was reset")
     }
 
+    /// Grouped MTP prefill: the trunk of `forward_mtp` over whole 256-token
+    /// slices (plus an optional merged tail), returning the last-row logits,
+    /// every pre-final-norm residual row and, with `checkpoint`, the state and
+    /// logits after the last whole slice. Bit-identical to `forward_mtp` per
+    /// slice; the MTP head is then extended per slice by the caller.
+    #[allow(clippy::type_complexity)]
+    pub fn forward_mtp_grouped(
+        &mut self,
+        tokens: &[u32],
+        checkpoint: bool,
+    ) -> Result<(Array, Array, Option<(QwenSnapshot, Array)>)> {
+        let result: Result<_> = (|| {
+            let slice = crate::QWEN_PREFILL_SLICE;
+            let (full, tail) = (tokens.len() / slice, tokens.len() % slice);
+            ensure!(
+                (1..=crate::Q36_MOE_GROUP_MAX).contains(&full)
+                    && (tail == 0 || tail >= crate::Q36_MOE_TAIL_MIN),
+                "grouped MTP prefill needs one to {} whole slices and an optional tail of {} or more",
+                crate::Q36_MOE_GROUP_MAX,
+                crate::Q36_MOE_TAIL_MIN
+            );
+            let (normalized, saved, raw) =
+                self.run_hidden_tokens_grouped(tokens, slice, checkpoint && tail > 0, true)?;
+            let raw = raw.context("grouped MTP prefill lost its residual rows")?;
+            let logits = self.head.forward(&normalized)?;
+            logits.eval()?;
+            let saved = saved
+                .map(|(snapshot, normalized)| -> Result<_> {
+                    let logits = self.head.forward(&normalized)?;
+                    logits.eval()?;
+                    Ok((snapshot, logits))
+                })
+                .transpose()?;
+            self.offset += i32::try_from(tokens.len())?;
+            Ok((logits, raw, saved))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen grouped MTP prefill failed; its cache was reset")
+    }
+
+    /// With `all_rows`, every layer (the last included) runs its full MLP on
+    /// every row, as `forward_mtp` does, and all residual rows are returned.
     #[allow(clippy::type_complexity)]
     fn run_hidden_tokens_grouped(
         &mut self,
         tokens: &[u32],
         slice: usize,
         checkpoint: bool,
-    ) -> Result<(Array, Option<(QwenSnapshot, Array)>)> {
+        all_rows: bool,
+    ) -> Result<(Array, Option<(QwenSnapshot, Array)>, Option<Array>)> {
         ensure!(
             tokens.iter().all(|&token| token < self.vocab as u32),
             "Qwen token batch is outside vocabulary"
@@ -1498,7 +1543,7 @@ impl Qwen35Moe {
                         self.final_moe_row,
                     )
             };
-            hidden = if index + 1 == layer_count {
+            hidden = if index + 1 == layer_count && !all_rows {
                 // Only the last slice's final row is observable after the trunk.
                 let (residual, post) = mixed.pop().context("empty grouped prefill")?;
                 if checkpoint {
@@ -1532,12 +1577,28 @@ impl Qwen35Moe {
             if crate::contracts::pipeline_layer(
                 index,
                 layer_count,
-                self.pipeline,
+                if all_rows {
+                    self.mtp_pipeline
+                } else {
+                    self.pipeline
+                },
                 self.pipeline_stride,
             ) {
                 Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
             }
         }
+        if all_rows && checkpoint {
+            let slice = hidden
+                .len()
+                .checked_sub(2)
+                .context("grouped MTP checkpoint needs a whole slice before the tail")?;
+            saved_hidden = Some(hidden[slice].try_clone()?);
+        }
+        let raw = if all_rows {
+            Some(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?)
+        } else {
+            None
+        };
         let last_row = |hidden: &Array| -> Result<Array> {
             let end = hidden.shape()[1];
             hidden.slice(1, end - 1, end)
@@ -1559,7 +1620,7 @@ impl Qwen35Moe {
         let last = last_row(&hidden)?;
         let normalized = last.rms_norm(&self.norm, self.eps)?;
         self.last_hidden = Some(last);
-        Ok((normalized, saved))
+        Ok((normalized, saved, raw))
     }
 
     pub fn forward_tokens_with_dflash_capture(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
@@ -3570,6 +3631,150 @@ mod tests {
             }
         }
         ensure!(failed.is_empty(), "grouped MoE diverged: {failed:?}");
+        Ok(())
+    }
+
+    /// T4: grouped MTP prefill (trunk over whole slices + merged tail) must
+    /// return the same residual rows, logits, states, continuations and
+    /// checkpoint as `forward_mtp` per 256-token slice.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_mtp_group_matches_chunks_256() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        ensure!(model.supports_moe_grouping(), "expected the 35B MoE");
+        let mut failed = Vec::new();
+        let changed = |x: &[u16], y: &[u16]| -> Result<usize> {
+            ensure!(
+                x.len() == y.len() && !x.is_empty(),
+                "empty/mismatched observation"
+            );
+            ensure!(
+                x.iter().all(|&v| f16::from_bits(v).is_finite()),
+                "non-finite observation"
+            );
+            Ok(x.iter().zip(y).filter(|(p, q)| p != q).count())
+        };
+        // Logits, last hidden and three continuations (f16 bits), then the
+        // number of the 80 layer-state byte buffers.
+        type Seen = (Vec<Vec<u16>>, Vec<Vec<u8>>);
+        let finish = |model: &mut Qwen35Moe, logits: Array| -> Result<Seen> {
+            let mut out = vec![logits.to_f16_bits()?, model.mtp_hidden()?.to_f16_bits()?];
+            ensure!(
+                out[0].len() == 248320 && out[1].len() == 2048,
+                "observation shape"
+            );
+            let states = state_bytes(model)?;
+            ensure!(states.len() == 80, "state count");
+            for token in [42, 1234, 7] {
+                out.push(model.forward(token)?.to_f16_bits()?);
+            }
+            Ok((out, states))
+        };
+        let compare = |a: &Seen, b: &Seen| -> Result<Vec<usize>> {
+            let mut diffs =
+                a.0.iter()
+                    .zip(&b.0)
+                    .map(|(x, y)| changed(x, y))
+                    .collect::<Result<Vec<_>>>()?;
+            diffs.push(a.1.iter().zip(&b.1).filter(|(x, y)| x != y).count());
+            Ok(diffs)
+        };
+        for (len, group) in [
+            (256 + 73, 2),
+            (1097, 4),
+            (1097, 8),
+            (1024 + 63, 8),
+            (2048 + 73, 8),
+            (2048, 8),
+        ] {
+            let ids = (0..len)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let checkpoint = len / 256 * 256;
+            // Reference: forward_mtp per 256-token slice.
+            model.reset();
+            let mut parts = Vec::new();
+            let mut logits = None;
+            for chunk in ids.chunks(256) {
+                let (out, raw) = model.forward_mtp(chunk)?;
+                parts.push(raw);
+                logits = Some(out);
+            }
+            let reference_raw =
+                Array::concatenate(&parts.iter().collect::<Vec<_>>(), 1)?.to_f16_bits()?;
+            let reference = finish(&mut model, logits.context("empty reference")?)?;
+            // Candidate: grouped spans, as `prefill_mtp` runs them.
+            model.reset();
+            let (mut start, mut parts, mut logits, mut saved) = (0, Vec::new(), None, None);
+            while let Some(end) =
+                crate::prefill_span_end_merged(start, len, 256, group, crate::Q36_MOE_TAIL_MIN)
+            {
+                let chunk = &ids[start..end];
+                if chunk.len() > 256 {
+                    let inner = start < checkpoint && checkpoint < end;
+                    let (out, raw, found) = model.forward_mtp_grouped(chunk, inner)?;
+                    ensure!(found.is_some() == inner, "checkpoint presence");
+                    if found.is_some() {
+                        saved = found;
+                    }
+                    parts.push(raw);
+                    logits = Some(out);
+                } else {
+                    let (out, raw) = model.forward_mtp(chunk)?;
+                    parts.push(raw);
+                    logits = Some(out);
+                }
+                start = end;
+            }
+            let candidate_raw =
+                Array::concatenate(&parts.iter().collect::<Vec<_>>(), 1)?.to_f16_bits()?;
+            ensure!(
+                reference_raw.len() == len * 2048,
+                "raw rows: {}",
+                reference_raw.len()
+            );
+            let candidate = finish(&mut model, logits.context("empty candidate")?)?;
+            let mut diffs = vec![changed(&reference_raw, &candidate_raw)?];
+            diffs.extend(compare(&reference, &candidate)?);
+            eprintln!(
+                "grouped MTP L{len} G{group} raw/logits/hidden/3continuations/states {diffs:?}"
+            );
+            if diffs.iter().any(|&d| d != 0) {
+                failed.push((len, group, "span", diffs));
+            }
+            if let Some((snapshot, logits)) = saved {
+                ensure!(
+                    snapshot.offset() == i32::try_from(checkpoint)?,
+                    "checkpoint offset"
+                );
+                model.reset();
+                let mut prefix_logits = None;
+                for chunk in ids[..checkpoint].chunks(256) {
+                    prefix_logits = Some(model.forward_mtp(chunk)?.0);
+                }
+                let reference = finish(&mut model, prefix_logits.context("empty prefix")?)?;
+                model.reset();
+                model.restore(snapshot.compact_for_cache()?)?;
+                let candidate = finish(&mut model, logits)?;
+                let diffs = compare(&reference, &candidate)?;
+                eprintln!(
+                    "grouped MTP L{len} G{group} checkpoint @{checkpoint} logits/hidden/3continuations/states {diffs:?}"
+                );
+                if diffs.iter().any(|&d| d != 0) {
+                    failed.push((len, group, "checkpoint", diffs));
+                }
+            } else {
+                ensure!(
+                    len % 256 == 0 || len % 256 < crate::Q36_MOE_TAIL_MIN,
+                    "merged tail without checkpoint"
+                );
+            }
+        }
+        ensure!(
+            failed.is_empty(),
+            "grouped MTP prefill diverged: {failed:?}"
+        );
         Ok(())
     }
 

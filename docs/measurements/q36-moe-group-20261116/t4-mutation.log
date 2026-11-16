@@ -1,0 +1,14 @@
+test qwen35::tests::q36_mtp_group_matches_chunks_256 ... Error: Qwen grouped MTP prefill failed; its cache was reset
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 737 filtered out; finished in 5.32s
+test qwen35::tests::q36_mtp_group_matches_chunks_256 ... grouped MTP L329 G2 raw/logits/hidden/3continuations/states [108682, 221902, 1879, 214070, 223573, 221580, 47]
+grouped MTP L329 G2 checkpoint @256 logits/hidden/3continuations/states [0, 0, 0, 0, 0, 0]
+grouped MTP L1097 G4 raw/logits/hidden/3continuations/states [2218536, 246927, 2040, 246400, 241804, 242567, 77]
+grouped MTP L1097 G4 checkpoint @1024 logits/hidden/3continuations/states [244290, 2040, 245619, 244377, 243947, 77]
+grouped MTP L1097 G8 raw/logits/hidden/3continuations/states [2218536, 246927, 2040, 246400, 241804, 242567, 77]
+grouped MTP L1097 G8 checkpoint @1024 logits/hidden/3continuations/states [244290, 2040, 245619, 244377, 243947, 77]
+grouped MTP L1087 G8 raw/logits/hidden/3continuations/states [2198394, 240682, 1993, 246564, 240897, 245678, 77]
+grouped MTP L2121 G8 raw/logits/hidden/3continuations/states [4293694, 244461, 2039, 245209, 242253, 247559, 77]
+grouped MTP L2121 G8 checkpoint @2048 logits/hidden/3continuations/states [242807, 2019, 241591, 247074, 247315, 77]
+grouped MTP L2048 G8 raw/logits/hidden/3continuations/states [4145684, 242807, 2019, 241591, 247074, 247315, 77]
+Error: grouped MTP prefill diverged: [(329, 2, "span", [108682, 221902, 1879, 214070, 223573, 221580, 47]), (1097, 4, "span", [2218536, 246927, 2040, 246400, 241804, 242567, 77]), (1097, 4, "checkpoint", [244290, 2040, 245619, 244377, 243947, 77]), (1097, 8, "span", [2218536, 246927, 2040, 246400, 241804, 242567, 77]), (1097, 8, "checkpoint", [244290, 2040, 245619, 244377, 243947, 77]), (1087, 8, "span", [2198394, 240682, 1993, 246564, 240897, 245678, 77]), (2121, 8, "span", [4293694, 244461, 2039, 245209, 242253, 247559, 77]), (2121, 8, "checkpoint", [242807, 2019, 241591, 247074, 247315, 77]), (2048, 8, "span", [4145684, 242807, 2019, 241591, 247074, 247315, 77])]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 737 filtered out; finished in 42.51s
