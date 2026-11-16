@@ -1,0 +1,114 @@
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................ [ 13%]
+sssssssssss....ss....................................................... [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+...................sssssss........................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+.......sssssssssssssssssssssssssssssssssssssssssssssssssssss............ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+...........sssssssssss.................ssss............................. [ 69%]
+........................................................................ [ 71%]
+....ssssssss....sss..................................................... [ 74%]
+...................................................................... [ 76%]
+........................................................................................ [ 79%]
+...................................................................... [ 81%]
+............................................s........................... [ 84%]
+........................................................................ [ 86%]
+....................................................................................................... [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+......................................................................   [100%]
+=============================== warnings summary ===============================
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[timeout]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[incomplete]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[truncated]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[invalidlist]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[badshape]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[missing]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[complete]
+  /Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_functions.py:1965: UserWarning: The diagnose function is executing locally and will not have access to the mounted Volume or NetworkFileSystem data
+    warnings.warn(
+
+tests/test_lfm25_tuning.py::test_real_archived_source_imports_through_sdk_without_importing_cuda
+tests/test_lfm25_tuning_modal.py::test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk[None]
+  /Users/justin/.codex/worktrees/lfm3-prompt-lookup/mix-stq1_0/scripts/diagnose_lfm25_tuning.py:87: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    original = inspect.unwrap(namespace["diagnose"].get_raw_f())
+
+tests/test_lfm25_tuning_modal.py::test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount
+  /Users/justin/.codex/worktrees/lfm3-prompt-lookup/mix-stq1_0/tests/test_lfm25_tuning_modal.py:468: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    functions.append(inspect.unwrap(function.get_raw_f()))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_engine_builder.py:105: Native/hybrid v2 packaging is disabled; retained for future reactivation
+SKIPPED [4] tests/test_engine_builder.py:119: Native/hybrid v2 packaging is disabled; retained for future reactivation
+SKIPPED [6] tests/test_engine_builder.py:142: Native/hybrid v2 packaging is disabled; retained for future reactivation
+SKIPPED [1] tests/test_engine_builder.py:183: Native/hybrid v2 packaging is disabled; retained for future reactivation
+SKIPPED [1] tests/test_engine_builder.py:203: Native/hybrid v2 packaging is disabled; retained for future reactivation
+SKIPPED [4] tests/test_flash_request_memory.py:18: requires a guarded physical Flash engine and checkpoint
+SKIPPED [2] tests/test_flash_request_memory.py:51: requires a guarded physical Flash engine and checkpoint
+SKIPPED [1] tests/test_flash_request_memory.py:79: requires a guarded physical Flash engine and checkpoint
+SKIPPED [1] tests/test_kani_ci.py:43: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:60: Linux proof runner only
+SKIPPED [6] tests/test_kani_ci.py:282: Linux proof runner only
+SKIPPED [7] tests/test_kani_ci.py:301: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:317: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:323: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:343: Linux proof runner only
+SKIPPED [4] tests/test_kani_ci.py:349: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:364: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:383: Linux proof runner only
+SKIPPED [3] tests/test_kani_ci.py:394: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:410: Linux proof runner only
+SKIPPED [3] tests/test_kani_ci.py:469: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:486: Linux proof runner only
+SKIPPED [2] tests/test_kani_ci.py:495: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:510: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:520: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:527: Linux proof runner only
+SKIPPED [5] tests/test_kani_ci.py:561: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:567: Linux proof runner only
+SKIPPED [1] tests/test_kani_ci.py:576: Linux proof runner only
+SKIPPED [9] tests/test_kani_ci.py:584: Linux proof runner only
+SKIPPED [1] tests/test_lfm25_reference.py:121: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_reference.py:144: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:153: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:168: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:196: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_reference.py:236: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:51: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_trace.py:67: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:76: could not import 'torch': No module named 'torch'
+SKIPPED [3] tests/test_lfm25_v3_calibration.py:181: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_v3_calibration.py:244: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+SKIPPED [2] tests/test_metallib_override.py:15: requires the compiled MLX helper; no model or physical GPU required
+SKIPPED [1] tests/test_native_quantizer.py:295: explicit physical Apple GPU worker engine required
+2839 passed, 106 skipped, 10 warnings, 155 subtests passed in 308.12s (0:05:08)
