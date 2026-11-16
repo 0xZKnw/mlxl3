@@ -76,7 +76,8 @@ class Bridge:
         env = dict(os.environ)
         env.pop("MLXL3_LFM3_LOOKUP", None)
         env.pop("MLXL3_LFM3_CERT_HEAD", None)
-        env[env_name] = lookup
+        if lookup != "unset":
+            env[env_name] = lookup
         registry = str(Path(self.directory.name) / "models.json")
         self.process = JsonProcess(
             [engine, "--registry", registry, "bridge", model, "--context-length", str(context)],
@@ -224,7 +225,10 @@ def main():
     parser.add_argument("--cases", default="")
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--settle", type=float, default=2.0)
-    parser.add_argument("--flag", default="1", help="flag value for the candidate")
+    parser.add_argument(
+        "--flag", default="1", help="flag value for the candidate (`unset` removes it)"
+    )
+    parser.add_argument("--off", default="0", help="flag value for the baseline")
     parser.add_argument("--feature", choices=tuple(ENV), default="lookup")
     args = parser.parse_args()
     long_text = args.long_file.read_text()
@@ -240,6 +244,7 @@ def main():
         "status": "running",
         "mode": args.mode,
         "flag": args.flag,
+        "off": args.off,
         "feature": args.feature,
         "env_name": ENV[args.feature],
         "engine_sha256": engine_hash,
@@ -254,7 +259,7 @@ def main():
     try:
         with open(args.out / f"{args.mode}-stderr.log", "wb") as log:
             if args.mode == "parity":
-                off = run_pass(args, "0", selected, log)
+                off = run_pass(args, args.off, selected, log)
                 on = run_pass(args, args.flag, selected, log)
                 problems = (check_cert_parity if args.feature == "cert" else check_parity)(
                     off, on
@@ -264,7 +269,7 @@ def main():
                 report["status"] = "passed" if not problems else "failed"
             else:
                 passes = []
-                for order, flag in enumerate(("0", args.flag, args.flag, "0")):
+                for order, flag in enumerate((args.off, args.flag, args.flag, args.off)):
                     time.sleep(args.settle)
                     passes.append(
                         {
@@ -278,7 +283,7 @@ def main():
                 summary = {}
                 problems = []
                 for name, _, _ in selected:
-                    rows = {"0": [], args.flag: []}
+                    rows = {args.off: [], args.flag: []}
                     hashes = set()
                     for item in passes:
                         for run in item["results"][name]:
@@ -289,6 +294,7 @@ def main():
                     tps = {k: [r["decode_tps"] for r in v] for k, v in rows.items()}
                     total = {k: [r["elapsed_seconds"] for r in v] for k, v in rows.items()}
                     on_rows = rows[args.flag]
+                    tps["0"], total["0"] = tps[args.off], total[args.off]
                     tps["1"], total["1"] = tps[args.flag], total[args.flag]
                     base, cand = statistics.mean(tps["0"]), statistics.mean(tps["1"])
                     summary[name] = {
@@ -301,7 +307,7 @@ def main():
                         * (statistics.mean(total["1"]) / statistics.mean(total["0"]) - 1),
                         "drift_off_percent": 100 * (tps["0"][-1] / tps["0"][0] - 1),
                         "drift_on_percent": 100 * (tps["1"][-1] / tps["1"][0] - 1),
-                        "generated_tokens": rows["0"][0]["generated_tokens"],
+                        "generated_tokens": rows[args.off][0]["generated_tokens"],
                         "blocks_on": on_rows[0]["blocks"],
                         "accepted_on": on_rows[0]["accepted"],
                         "proposed_on": on_rows[0]["proposed"],

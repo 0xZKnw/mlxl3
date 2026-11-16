@@ -3316,95 +3316,86 @@ fn emit_generation_mode(
     }))
 }
 
-/// LFM3-PLD gate: `MLXL3_LFM3_LOOKUP=1` (any suffix match) or `lines` (the
-/// LOOKUP-LINES newline rule), an LFM3 target without other drafters, and
-/// exactly the greedy rule of `select_token`. Returns whether to filter.
+/// LFM3-PLD gate: `MLXL3_LFM3_LOOKUP=1` or `lines` (the LOOKUP-LINES
+/// newline rule), an LFM3 target without other drafters, and the greedy rule
+/// of `select_token` (`Sampler::is_greedy`). Returns whether to filter.
 #[cfg(all(feature = "mlx", feature = "chat"))]
-fn lfm3_lookup_enabled(
-    flag: Option<&str>,
-    plain_lfm3: bool,
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
-) -> Option<bool> {
+fn lfm3_lookup_enabled(flag: Option<&str>, plain_lfm3: bool, greedy: bool) -> Option<bool> {
     let lines = match flag {
         Some("1") => false,
         Some("lines") => true,
         _ => return None,
     };
-    (plain_lfm3 && (temperature == 0. || top_k == 1) && repetition_penalty == 1.).then_some(lines)
+    (plain_lfm3 && greedy).then_some(lines)
 }
 
-/// LFM3-CERT-HEAD gate: `MLXL3_LFM3_CERT_HEAD=1` exactly, an LFM3 target
-/// without MTP, draft or prompt lookup, and exactly the greedy rule of
-/// `select_token`.
+/// LFM3-CERT-HEAD gate: on by default (`MLXL3_LFM3_CERT_HEAD` unset or `1`;
+/// any other value, such as `0`, disables it) for an LFM3 target without MTP,
+/// draft or prompt lookup, under the greedy rule of `select_token`.
 #[cfg(all(feature = "mlx", feature = "chat"))]
-fn lfm3_cert_enabled(
-    flag: Option<&str>,
-    plain_lfm3: bool,
-    lookup: bool,
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
-) -> bool {
-    flag == Some("1")
-        && plain_lfm3
-        && !lookup
-        && (temperature == 0. || top_k == 1)
-        && repetition_penalty == 1.
+fn lfm3_cert_enabled(flag: Option<&str>, plain_lfm3: bool, lookup: bool, greedy: bool) -> bool {
+    matches!(flag, None | Some("1")) && plain_lfm3 && !lookup && greedy
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 #[test]
-fn lfm3_cert_head_is_opt_in_greedy_and_exclusive() {
-    assert!(lfm3_cert_enabled(Some("1"), true, false, 0., 40, 1.));
-    assert!(lfm3_cert_enabled(Some("1"), true, false, 0.7, 1, 1.));
-    for (flag, plain, lookup, temperature, top_k, penalty) in [
-        (None, true, false, 0., 1, 1.),
-        (Some("0"), true, false, 0., 1, 1.),
-        (Some("true"), true, false, 0., 1, 1.),
-        (Some("1 "), true, false, 0., 1, 1.),
-        (Some("1"), false, false, 0., 1, 1.),
-        (Some("1"), true, true, 0., 1, 1.),
-        (Some("1"), true, false, 0.2, 40, 1.),
-        (Some("1"), true, false, 0., 1, 1.1),
-        (Some("1"), true, false, 0., 1, 0.9),
+fn lfm3_cert_head_is_default_greedy_and_exclusive() {
+    assert!(lfm3_cert_enabled(None, true, false, true));
+    assert!(lfm3_cert_enabled(Some("1"), true, false, true));
+    for (flag, plain, lookup, greedy) in [
+        (Some("0"), true, false, true),
+        (Some("true"), true, false, true),
+        (Some("1 "), true, false, true),
+        (Some(""), true, false, true),
+        (None, false, false, true),
+        (None, true, true, true),
+        (None, true, false, false),
     ] {
-        assert!(!lfm3_cert_enabled(
-            flag,
-            plain,
-            lookup,
-            temperature,
-            top_k,
-            penalty
-        ));
+        assert!(!lfm3_cert_enabled(flag, plain, lookup, greedy));
+    }
+}
+
+/// The gates use exactly the greedy rule of `select_token`, presence penalty
+/// included.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_gates_follow_the_select_token_greedy_rule() {
+    use mlxl3_native::sampling::Sampler;
+    for (temperature, top_k, top_p, repetition, presence, greedy) in [
+        (0., 40, 1., 1., 0., true),
+        (0.7, 1, 0.8, 1., 0., true),
+        (0.2, 40, 1., 1., 0., false),
+        (0., 1, 1., 1.1, 0., false),
+        (0., 1, 1., 1., 0.5, false),
+        (0., 1, 1., 1., -0.5, false),
+    ] {
+        let sampler = Sampler::new(temperature, top_k, top_p, repetition, presence).unwrap();
+        assert_eq!(sampler.is_greedy(), greedy);
+        assert_eq!(
+            lfm3_cert_enabled(None, true, false, sampler.is_greedy()),
+            greedy
+        );
+        assert_eq!(
+            lfm3_lookup_enabled(Some("1"), true, sampler.is_greedy()).is_some(),
+            greedy
+        );
     }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 #[test]
 fn lfm3_lookup_is_opt_in_greedy_and_exclusive() {
-    assert_eq!(
-        lfm3_lookup_enabled(Some("1"), true, 0., 40, 1.),
-        Some(false)
-    );
-    assert_eq!(
-        lfm3_lookup_enabled(Some("lines"), true, 0.7, 1, 1.),
-        Some(true)
-    );
-    for (flag, plain, temperature, top_k, penalty) in [
-        (None, true, 0., 1, 1.),
-        (Some("0"), true, 0., 1, 1.),
-        (Some("true"), true, 0., 1, 1.),
-        (Some("1"), false, 0., 1, 1.),
-        (Some("lines"), false, 0., 1, 1.),
-        (Some("1"), true, 0.7, 40, 1.),
-        (Some("1"), true, 0., 1, 1.1),
+    assert_eq!(lfm3_lookup_enabled(Some("1"), true, true), Some(false));
+    assert_eq!(lfm3_lookup_enabled(Some("lines"), true, true), Some(true));
+    for (flag, plain, greedy) in [
+        (None, true, true),
+        (Some("0"), true, true),
+        (Some("true"), true, true),
+        (Some("1"), false, true),
+        (Some("lines"), false, true),
+        (Some("1"), true, false),
     ] {
-        assert_eq!(
-            lfm3_lookup_enabled(flag, plain, temperature, top_k, penalty),
-            None
-        );
+        assert_eq!(lfm3_lookup_enabled(flag, plain, greedy), None);
     }
 }
 
@@ -3536,12 +3527,10 @@ fn bridge_generate_round(
     let mut lfm3_lookup = lfm3_lookup_enabled(
         std::env::var("MLXL3_LFM3_LOOKUP").ok().as_deref(),
         matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
-        temperature,
-        top_k,
-        repetition_penalty,
+        sampler.is_greedy(),
     )
     .map(|lines| (mlxl3_native::lfm3::PromptLookup::new(&tokens), lines));
-    // LFM3-CERT-HEAD: opt-in, greedy only; `[certified, fallback]` steps.
+    // LFM3-CERT-HEAD: default on, greedy only; `[certified, fallback]` steps.
     #[cfg(feature = "mlx")]
     let mut lfm3_cert = None;
     #[cfg(feature = "mlx")]
@@ -3549,9 +3538,7 @@ fn bridge_generate_round(
         std::env::var("MLXL3_LFM3_CERT_HEAD").ok().as_deref(),
         matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
         lfm3_lookup.is_some(),
-        temperature,
-        top_k,
-        repetition_penalty,
+        sampler.is_greedy(),
     ) && let NativeChatModel::Lfm3(target) = &mut *model
         && target.enable_certified_head()?
     {
