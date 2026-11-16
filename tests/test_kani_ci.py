@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -55,6 +56,104 @@ def test_real_baseline_inventory_has_complete_disjoint_shards():
     assert ci.shard_for("flash_support::grouped_route_verification::future_proof") == "routes"
     with pytest.raises(ValueError, match="zero"):
         ci.select_names(["only::core"], "flash")
+
+
+def all_proof_names():
+    baseline = ci.inventory_names(
+        json.loads(
+            (ROOT / "docs/measurements/kani-ci-repair/baseline-library-inventory.json").read_text()
+        )
+    )
+    return sorted(set(baseline) | set(ci.required_names()) | set(ci.TARGETS))
+
+
+def test_parts_partition_every_shard_disjointly_and_completely():
+    names = all_proof_names()
+    for shard in ci.SHARDS:
+        selected = ci.select_names(names, shard)
+        for count in range(1, 9):
+            if count > len(selected):
+                with pytest.raises(ValueError, match="zero"):
+                    ci.select_part(selected, (count, count))
+                continue
+            parts = [ci.select_part(selected, (index, count)) for index in range(1, count + 1)]
+            flat = [name for part in parts for name in part]
+            assert len(flat) == len(set(flat)) == len(selected)
+            assert set(flat) == set(selected)
+            assert max(map(len, parts)) - min(map(len, parts)) <= 1
+            # Independent oracle: slice the sorted shard with a stride.
+            assert parts == [sorted(selected)[i::count] for i in range(count)]
+    assert ci.select_part(["b", "a"], (1, 1)) == ["a", "b"]
+
+
+@pytest.mark.parametrize("value", ["0/3", "4/3", "1/0", "a/b", "01/2", "1/65", " 1/2", "1/2/3"])
+def test_invalid_parts_are_rejected(value):
+    with pytest.raises(argparse.ArgumentTypeError):
+        ci.parse_part(value)
+
+
+def test_workflow_matrix_runs_every_shard_part_exactly_once():
+    workflow = (ROOT / ".github/workflows/rust.yml").read_text()
+    entries = re.findall(
+        r"^\s+- \{ shard: (\w+), part: (\d+), parts: (\d+) \}$", workflow, re.MULTILINE
+    )
+    assert len(entries) == len(set(entries))
+    by_shard = {}
+    for shard, part, parts in entries:
+        by_shard.setdefault(shard, []).append((int(part), int(parts)))
+    assert set(by_shard) == set(ci.SHARDS)
+    names = all_proof_names()
+    for shard, parts in by_shard.items():
+        counts = {count for _, count in parts}
+        assert len(counts) == 1
+        (count,) = counts
+        assert sorted(index for index, _ in parts) == list(range(1, count + 1))
+        assert count <= len(ci.select_names(names, shard))
+    assert "--part ${{ matrix.part }}/${{ matrix.parts }}" in workflow
+    assert "continue-on-error" not in workflow
+
+
+def test_separately_targeted_harnesses_are_real_unlisted_declarations():
+    names = all_proof_names()
+    assert set(ci.TARGETS) == {ci.API_HARNESS, *ci.TEST_ONLY_HARNESSES}
+    baseline = set(
+        ci.inventory_names(
+            json.loads(
+                (
+                    ROOT / "docs/measurements/kani-ci-repair/baseline-library-inventory.json"
+                ).read_text()
+            )
+        )
+    )
+    assert not (set(ci.TARGETS) & (baseline | set(ci.required_names())))
+    sources = {
+        ci.API_HARNESS: "native/src/openai.rs",
+        ci.TEST_ONLY_HARNESSES[0]: "native/src/flash_cache_profile/shared.rs",
+        **{name: "native/src/flash_profile.rs" for name in ci.TEST_ONLY_HARNESSES[1:]},
+    }
+    for name, source in sources.items():
+        function = name.rsplit("::", 1)[1]
+        text = (ROOT / source).read_text()
+        assert re.search(
+            r"#\[kani::proof\](?:\s*#\[[^\n]*\])*\s*fn\s+" + function + r"\s*\(", text
+        ), name
+        assert name in names
+    library = ci.proof_record("core::proof")["command"]
+    assert library[:4] == ci.LIBRARY and "--tests" not in library
+    api = ci.proof_record(ci.API_HARNESS)
+    assert api["expected_instances"] == 1
+    assert api["command"][:6] == [
+        "cargo",
+        "kani",
+        "--no-default-features",
+        "--bin",
+        "mlxl3-rs",
+        "--tests",
+    ]
+    for name in ci.TEST_ONLY_HARNESSES:
+        command = ci.proof_record(name)["command"]
+        assert command[:5] == ["cargo", "kani", "--lib", "--tests", "--no-default-features"]
+        assert command[command.index("--harness") + 1] == name and "--exact" in command
 
 
 def test_required_obligations_preserve_baseline_and_complete_partitions():
@@ -314,9 +413,10 @@ def test_zero_partial_foreign_and_failed_verdicts_never_pass(output):
     assert not ci.check_verdict(output, "core::proof", 1)
 
 
-def test_verdict_requires_both_api_instances_and_keeps_expected_unreachable_assertions():
+def test_verdict_requires_the_exact_instance_count_and_keeps_expected_unreachable_assertions():
     assert ci.check_verdict(success(ci.API_HARNESS, 2), ci.API_HARNESS, 2)
     assert not ci.check_verdict(success(ci.API_HARNESS), ci.API_HARNESS, 2)
+    assert not ci.check_verdict(success(ci.API_HARNESS, 2), ci.API_HARNESS, 1)
     assert ci.check_verdict(success("p") + " ** 0 of 10 failed (2 unreachable)\n", "p", 1)
 
 
@@ -455,7 +555,12 @@ def fake_cargo(tmp_path, monkeypatch):
         " time.sleep(30)\n"
         "if name == os.environ.get('FAKE_EMPTY'): sys.exit(0)\n"
         f"if name == {ci.PARSER_HARNESS!r}: print('  - Stub: super :: parse_slot_capacity -> proof_two_byte_capacity')\n"
-        "count = 2 if '--tests' in sys.argv else 1\n"
+        "if '--tests' in sys.argv and '--lib' not in sys.argv and '--bin' not in sys.argv:\n"
+        " print('error: target `mlxl3-hybrid` in package `mlxl3-native` requires the features: `hybrid-dispatch`')\n"
+        " sys.exit(101)\n"
+        "if name == os.environ.get('FAKE_ICE'):\n"
+        " print('error: internal compiler error: Kani unexpectedly panicked'); sys.exit(1)\n"
+        "count = 2 if name == os.environ.get('FAKE_DUPLICATE') else 1\n"
         "for _ in range(count):\n"
         " print(f'Checking harness {name}...')\n"
         " print('VERIFICATION:- SUCCESSFUL')\n"
@@ -476,11 +581,60 @@ def test_cli_runs_remaining_proofs_but_aggregate_rejects_any_failure(
     report = json.loads(Path("results/report.json").read_text())
     assert (result == 0) == (failure is None)
     assert report["discovered"] == len(ci.required_names()) + 2
-    assert len(report["proofs"]) == len(ci.select_names(ci.required_names(), "core")) + 3
-    assert report["proofs"][-1]["status"] == "success"  # Both API instances really ran.
+    core_tests = {name for name in ci.TEST_ONLY_HARNESSES if name.startswith("flash_profile::")}
+    assert len(core_tests) == 4
+    expected = sorted(
+        set(ci.select_names(ci.required_names(), "core"))
+        | {"core::a", "core::b", ci.API_HARNESS}
+        | core_tests
+    )
+    assert [r["name"] for r in report["proofs"]] == expected
+    assert report["part"] == "1/1"
+    # The binary API proof and the test-only proofs really ran on their own targets.
+    for record in report["proofs"]:
+        if record["name"] in ci.TARGETS:
+            assert record["status"] == "success" and record["expected_instances"] == 1
     if failure:
         assert report["status"] == "failure"
         assert next(r for r in report["proofs"] if r["name"] == "core::a")["status"] != "success"
+
+
+def test_cli_part_runs_only_its_slice_and_records_it(fake_cargo):
+    assert ci.main(["--shard", "core", "--part", "2/3", "--report-dir", "results"]) == 0
+    report = json.loads(Path("results/report.json").read_text())
+    core = sorted(report["assignment"]["core"])
+    assert ci.API_HARNESS in core and "core::a" in core
+    assert [r["name"] for r in report["proofs"]] == core[1::3]
+    assert report["part"] == "2/3" and report["status"] == "success"
+
+
+@pytest.mark.parametrize("environment", ["FAKE_DUPLICATE", "FAKE_ICE"])
+def test_separate_target_failures_stay_isolated_and_visible(fake_cargo, monkeypatch, environment):
+    broken = (
+        ci.API_HARNESS
+        if environment == "FAKE_DUPLICATE"
+        else "flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards"
+    )
+    monkeypatch.setenv(environment, broken)
+    assert ci.main(["--shard", "core", "--report-dir", "results"]) == 1
+    report = json.loads(Path("results/report.json").read_text())
+    failed = [r for r in report["proofs"] if r["status"] != "success"]
+    assert [r["name"] for r in failed] == [broken]
+    assert failed[0]["diagnostic"] == (
+        "unclassified_tool_or_verdict_failure"
+        if environment == "FAKE_DUPLICATE"
+        else "compiler_internal_error"
+    )
+    assert report["status"] == "failure"
+
+
+def test_allocator_shard_runs_its_test_only_aging_proof(fake_cargo):
+    # The fake cargo does not print the invalid-budget stub notice, so only the
+    # aging record's own verdict is asserted here.
+    ci.main(["--shard", "allocator", "--report-dir", "results"])
+    report = json.loads(Path("results/report.json").read_text())
+    record = next(r for r in report["proofs"] if r["name"] == ci.TEST_ONLY_HARNESSES[0])
+    assert record["status"] == "success" and "--tests" in record["command"]
 
 
 def test_stale_inventory_cannot_turn_missing_listing_into_success(fake_cargo, monkeypatch):

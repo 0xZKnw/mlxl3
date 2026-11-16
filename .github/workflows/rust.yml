@@ -6,81 +6,69 @@ on:
   pull_request:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+  # Superseded PR pushes are cancelled. Each push to main gets its own group,
+  # so a later push neither cancels nor queues behind (and drops) its verdict.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  kani-flash-contracts:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify every compiled Flash CPU harness
-        uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
-        with:
-          kani-version: '0.68.0'
-          command: python3 scripts/kani_ci.py
-          args: --shard flash --report-dir build/kani-flash
-      - name: Preserve each proof verdict and log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kani-flash
-          path: build/kani-flash
-          if-no-files-found: error
-
-  kani-other-contracts:
+  # One job per shard part; `scripts/kani_ci.py --part K/N` deals the sorted
+  # shard round-robin, so the parts of a shard are disjoint and cover it exactly
+  # (tests/test_kani_ci.py checks this matrix). Each part keeps the 600 s
+  # per-harness and 2700 s per-job budgets; parts only add parallel workers.
+  kani-contracts:
     strategy:
       fail-fast: false
-      max-parallel: 3
       matrix:
-        shard: [core, speculative, allocator, routes]
+        include:
+          - { shard: core, part: 1, parts: 6 }
+          - { shard: core, part: 2, parts: 6 }
+          - { shard: core, part: 3, parts: 6 }
+          - { shard: core, part: 4, parts: 6 }
+          - { shard: core, part: 5, parts: 6 }
+          - { shard: core, part: 6, parts: 6 }
+          - { shard: flash, part: 1, parts: 3 }
+          - { shard: flash, part: 2, parts: 3 }
+          - { shard: flash, part: 3, parts: 3 }
+          - { shard: speculative, part: 1, parts: 2 }
+          - { shard: speculative, part: 2, parts: 2 }
+          - { shard: routes, part: 1, parts: 1 }
+          - { shard: allocator, part: 1, parts: 1 }
+    name: kani-contracts (${{ matrix.shard }} ${{ matrix.part }}/${{ matrix.parts }})
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Verify each compiled CPU harness in this shard
+      - name: Verify each compiled CPU harness in this shard part
         uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
         with:
           kani-version: '0.68.0'
           command: python3 scripts/kani_ci.py
-          args: --shard ${{ matrix.shard }} --report-dir build/kani-${{ matrix.shard }}
-      - name: Verify test-only profiling and cache aging contracts
-        if: always() && matrix.shard == 'core'
-        uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
-        with:
-          kani-version: '0.68.0'
-          command: cargo kani
           args: >-
-            --lib --tests --no-default-features -Z stubbing --jobs 1 --output-format terse
-            --harness global_frequency_aging_matches_wide_arithmetic_for_all_counters
-            --harness flash_profile::readback_profile_accepts_exactly_valid_bounded_durations
-            --harness flash_profile::stage_retention_restores_symbolic_nested_scopes
-            --harness flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards
-            --harness flash_profile::native_allocation_attributes_two_symbolic_requests_exclusively
+            --shard ${{ matrix.shard }} --part ${{ matrix.part }}/${{ matrix.parts }}
+            --report-dir build/kani-${{ matrix.shard }}-${{ matrix.part }}
       - name: Preserve each proof verdict and log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kani-${{ matrix.shard }}
-          path: build/kani-${{ matrix.shard }}
+          name: kani-${{ matrix.shard }}-${{ matrix.part }}
+          path: build/kani-${{ matrix.shard }}-${{ matrix.part }}
           if-no-files-found: error
 
   # Keep the existing aggregate check name; no failed or missing shard can pass it.
   kani:
     if: always()
-    needs: [kani-flash-contracts, kani-other-contracts]
+    needs: [kani-contracts]
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
       - name: Require all proof shards
         env:
-          FLASH_RESULT: ${{ needs.kani-flash-contracts.result }}
-          OTHER_RESULT: ${{ needs.kani-other-contracts.result }}
-        run: test "$FLASH_RESULT" = success && test "$OTHER_RESULT" = success
+          SHARDS_RESULT: ${{ needs.kani-contracts.result }}
+        run: test "$SHARDS_RESULT" = success
 
   native:
     strategy:
@@ -91,6 +79,14 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      # build.rs watches .git/packed-refs, which actions/checkout does not
+      # create; Cargo treats a missing watched path as always stale and
+      # recompiled mlxl3-native on every cargo invocation. An empty file is a
+      # valid packed-refs with no entries and does not change any ref.
+      - name: Let Cargo reuse mlxl3-native between invocations
+        run: |
+          packed_refs="$(git rev-parse --git-path packed-refs)"
+          [ -e "$packed_refs" ] || : > "$packed_refs"
       - name: Install Rust tooling
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
@@ -525,6 +521,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      # build.rs watches .git/packed-refs, which actions/checkout does not
+      # create; Cargo treats a missing watched path as always stale and
+      # recompiled mlxl3-native on every cargo invocation. An empty file is a
+      # valid packed-refs with no entries and does not change any ref.
+      - name: Let Cargo reuse mlxl3-native between invocations
+        run: |
+          packed_refs="$(git rev-parse --git-path packed-refs)"
+          [ -e "$packed_refs" ] || : > "$packed_refs"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

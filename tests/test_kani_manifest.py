@@ -8,7 +8,19 @@ from test_kani_ci import (
     test_real_baseline_inventory_has_complete_disjoint_shards as _baseline,
 )
 from test_kani_ci import (
+    test_invalid_parts_are_rejected as _invalid_part,
+)
+from test_kani_ci import (
+    test_parts_partition_every_shard_disjointly_and_completely as _parts,
+)
+from test_kani_ci import (
     test_required_obligations_preserve_baseline_and_complete_partitions as _required,
+)
+from test_kani_ci import (
+    test_separately_targeted_harnesses_are_real_unlisted_declarations as _targets,
+)
+from test_kani_ci import (
+    test_workflow_matrix_runs_every_shard_part_exactly_once as _matrix,
 )
 
 from scripts.kani_ci import required_names
@@ -20,6 +32,20 @@ def test_baseline_inventory_partitions_are_portable():
 
 def test_required_proof_names_are_portable():
     _required()
+
+
+def test_shard_parts_are_portable():
+    _parts()
+    for value in ("0/3", "4/3", "1/65"):
+        _invalid_part(value)
+
+
+def test_workflow_shard_matrix_is_portable():
+    _matrix()
+
+
+def test_separately_targeted_harnesses_are_portable():
+    _targets()
 
 
 def test_slru_manifest_matches_its_literal_source_harnesses():

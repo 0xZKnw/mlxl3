@@ -73,7 +73,9 @@ jobs:
           python -m ruff check scripts/copy-test-runtime.py tests/test_copy_test_runtime.py
           python -m ruff format --check scripts/copy-test-runtime.py tests/test_copy_test_runtime.py
           zsh -n scripts/build-desktop-test.sh
-      - run: scripts/check-e2e.sh
+      # desktop-preferences runs the remaining Desktop units, so together the two
+      # jobs execute scripts/check-desktop.sh once.
+      - run: scripts/check-e2e.sh --skip-preferences
       # Hosted VMs are not a substitute for physical-Mac Metal validation.
 
   # Native archive delivery is suspended for v2; keep its recipe for later.

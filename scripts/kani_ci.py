@@ -19,6 +19,28 @@ PARSER_HARNESS = (
 INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
+# Harnesses in `#[cfg(test)]` modules are absent from the `--lib` inventory, and a
+# `--lib --tests` listing hits the Kani 0.68.0 catch_unwind ICE, so they are named
+# here (checked against the source by tests) and each one gets its own verdict.
+TEST_ONLY_HARNESSES = (
+    "flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters",
+    "flash_profile::readback_profile_accepts_exactly_valid_bounded_durations",
+    "flash_profile::stage_retention_restores_symbolic_nested_scopes",
+    "flash_profile::cross_layer_ancestry_checks_actual_two_event_parent_guards",
+    "flash_profile::native_allocation_attributes_two_symbolic_requests_exclusively",
+)
+LIBRARY = ["cargo", "kani", "--lib", "--no-default-features"]
+# The API proof is `#[cfg(kani)]` in the `mlxl3-rs` binary. A bare `--tests` also
+# selects `mlxl3-hybrid`, whose required `hybrid-dispatch` feature is off here, so
+# the test build of `mlxl3-rs` is selected explicitly: one compiled instance.
+TARGETS = {
+    API_HARNESS: ["cargo", "kani", "--no-default-features", "--bin", "mlxl3-rs", "--tests"],
+    **{
+        name: ["cargo", "kani", "--lib", "--tests", "--no-default-features"]
+        for name in TEST_ONLY_HARNESSES
+    },
+}
+MAX_PARTS = 64
 # kani-compiler codegen for this crate exceeds 6 GiB of address space on the
 # hosted runners; 12 GiB still bounds CBMC while leaving headroom to compile.
 MEMORY_BYTES = 12 * 1024**3
@@ -86,6 +108,34 @@ def select_names(names, shard):
     if not selected:
         raise ValueError(f"shard {shard} selected zero harnesses")
     return selected
+
+
+def parse_part(value):
+    """Parse K/N with 1 <= K <= N <= MAX_PARTS."""
+    match = re.fullmatch(r"([1-9]\d*)/([1-9]\d*)", value)
+    if not match or not int(match[1]) <= int(match[2]) <= MAX_PARTS:
+        raise argparse.ArgumentTypeError(f"part must be K/N with 1 <= K <= N <= {MAX_PARTS}")
+    return int(match[1]), int(match[2])
+
+
+def select_part(names, part):
+    """Deterministic round-robin over sorted names: the N parts are disjoint and cover all."""
+    index, count = part
+    selected = [n for i, n in enumerate(sorted(names)) if i % count == index - 1]
+    if not selected:
+        raise ValueError(f"part {index}/{count} selected zero harnesses")
+    return selected
+
+
+def proof_record(name):
+    return {
+        "name": name,
+        "status": "pending",
+        "expected_instances": 1,
+        "command": TARGETS.get(name, LIBRARY)
+        + ["-Z", "stubbing", "--exact", "--harness", name, "--jobs", "1"]
+        + ["--output-format", "regular"],
+    }
 
 
 def check_verdict(output, name, expected):
@@ -288,6 +338,7 @@ def main(argv=None):
     parser.add_argument("--report-dir", type=Path, required=True)
     parser.add_argument("--timeout", type=positive_seconds, default=600)
     parser.add_argument("--budget", type=positive_seconds, default=2700)
+    parser.add_argument("--part", type=parse_part, default=(1, 1), help="K/N subset of the shard")
     args = parser.parse_args(argv)
     directory = args.report_dir
     directory.mkdir(parents=True, exist_ok=True)
@@ -297,6 +348,7 @@ def main(argv=None):
     report = {
         "status": "incomplete",
         "shard": args.shard,
+        "part": "{}/{}".format(*args.part),
         "address_space_limit_bytes": MEMORY_BYTES,
         "per_harness_seconds": args.timeout,
         "total_budget_seconds": args.budget,
@@ -308,9 +360,8 @@ def main(argv=None):
         # Remove stale output: a successful listing must create its own complete inventory.
         inventory = Path("kani-list.json")
         inventory.unlink(missing_ok=True)
-        command = ["cargo", "kani", "--lib", "--no-default-features"]
         listing = run_process(
-            command + ["list", "--format", "json", "-Z", "stubbing"],
+            LIBRARY + ["list", "--format", "json", "-Z", "stubbing"],
             directory / "inventory.log",
             min(600, args.budget),
         )
@@ -322,53 +373,12 @@ def main(argv=None):
         check_obligations(names)
         inventory.replace(directory / "inventory.json")
         report["discovered"] = len(names)
+        if set(names) & set(TARGETS):
+            raise ValueError("a separately targeted harness appeared in the library inventory")
+        names = sorted(names + list(TARGETS))
         report["assignment"] = {shard: select_names(names, shard) for shard in SHARDS}
-        selected = select_names(names, args.shard)
-        for name in selected:
-            report["proofs"].append(
-                {
-                    "name": name,
-                    "status": "pending",
-                    "expected_instances": 1,
-                    "command": command
-                    + [
-                        "-Z",
-                        "stubbing",
-                        "--exact",
-                        "--harness",
-                        name,
-                        "--jobs",
-                        "1",
-                        "--output-format",
-                        "regular",
-                    ],
-                }
-            )
-        if args.shard in ("core", "all"):
-            report["proofs"].append(
-                {
-                    "name": API_HARNESS,
-                    "status": "pending",
-                    "expected_instances": 2,
-                    "command": [
-                        "cargo",
-                        "kani",
-                        "--no-default-features",
-                        "--tests",
-                        "-Z",
-                        "stubbing",
-                    ]
-                    + [
-                        "--exact",
-                        "--harness",
-                        API_HARNESS,
-                        "--jobs",
-                        "1",
-                        "--output-format",
-                        "regular",
-                    ],
-                }
-            )
+        selected = select_part(select_names(names, args.shard), args.part)
+        report["proofs"] = [proof_record(name) for name in selected]
         save_report(path, report)
         return (
             0
