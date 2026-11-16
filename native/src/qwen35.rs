@@ -3433,8 +3433,7 @@ mod tests {
                 .map(|&(a, b)| x.slice(1, a, b))
                 .collect::<Result<Vec<_>>>()?;
             let count = model.layers.len();
-            for index in 0..count - 1 {
-                let layer = &mut model.layers[index];
+            for (index, layer) in model.layers.iter_mut().enumerate().take(count - 1) {
                 let mixed = hidden
                     .iter()
                     .map(|h| layer.mix(h))

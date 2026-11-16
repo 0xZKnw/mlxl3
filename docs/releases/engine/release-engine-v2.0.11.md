@@ -73,6 +73,7 @@ The bundled MLX 0.32.2 libraries and Metal library are byte-identical to 2.0.11 
   - Other EXL3 MoE models (Gemma 4, Ling, LFM2 MoE, Qwen3.8 Flash Next) also use the shared-decode expert kernel when their prefill reaches it. The kernel is bit-identical by construction, but no oracle was run on these models.
   - DFlash2 prefill is not grouped. The Desktop app path and real prefix-cache reuse across turns were not exercised through Desktop.
   - M1–M4 and macOS 26.2 were not tested.
+- **Hosted CI (added after publication):** on the release source, the native coverage inventory check and the strict Clippy job of a newer Rust toolchain failed. The inventory did not yet list the new shader, and Clippy flagged a loop in a GPU-only test. Neither changes the shipped binary. Both are fixed in a later commit on `main`, whose CI runs are reported separately. The `desktop-and-protocol` job was already failing before this release.
 
 ## Acknowledgements
 
