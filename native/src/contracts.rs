@@ -1612,6 +1612,203 @@ pub fn reusable_prefix_len(saved: &[u32], next: &[u32], chunk_size: usize) -> us
     }
 }
 
+/// Prefill slice width whose shapes define the Qwen numeric contract.
+pub const QWEN_PREFILL_SLICE: usize = 256;
+/// Default number of full slices whose MoE rows are batched together
+/// (bit-identical to per-slice prefill; `MLXL3_Q36_MOE_GROUP=1` restores it).
+pub const Q36_MOE_GROUP_DEFAULT: usize = 8;
+/// Largest accepted MoE group, in slices.
+pub const Q36_MOE_GROUP_MAX: usize = 8;
+
+/// Strict `MLXL3_Q36_MOE_GROUP` parser: `1` keeps one MoE call per slice.
+pub fn q36_moe_group_setting(value: Option<&str>) -> Option<usize> {
+    match value {
+        None => Some(Q36_MOE_GROUP_DEFAULT),
+        Some(text) => match text.as_bytes() {
+            [digit @ b'1'..=b'9'] if usize::from(digit - b'0') <= Q36_MOE_GROUP_MAX => {
+                Some(usize::from(digit - b'0'))
+            }
+            _ => None,
+        },
+    }
+}
+
+/// Smallest tail whose MoE may join the preceding group: shorter tails use
+/// the small-batch expert kernels on their own.
+pub const Q36_MOE_TAIL_MIN: usize = 64;
+
+/// [`prefill_span_end`] whose last group also takes a tail of at least
+/// `min_tail` tokens; `group == 1` keeps every per-slice boundary.
+pub fn prefill_span_end_merged(
+    start: usize,
+    len: usize,
+    slice: usize,
+    group: usize,
+    min_tail: usize,
+) -> Option<usize> {
+    let end = prefill_span_end(start, len, slice, group)?;
+    let tail = len - end;
+    if group > 1 && min_tail > 0 && end - start >= slice && tail >= min_tail && tail < slice {
+        Some(len)
+    } else {
+        Some(end)
+    }
+}
+
+/// End of the next prefill span starting at `start`.
+///
+/// A span is either up to `group` complete slices or the final partial
+/// slice alone, so every span boundary of `group == 1` is kept and the
+/// whole-slice checkpoint `len / slice * slice` is always a span end.
+pub fn prefill_span_end(start: usize, len: usize, slice: usize, group: usize) -> Option<usize> {
+    if slice == 0 || group == 0 || start >= len {
+        return None;
+    }
+    let remaining = len - start;
+    let full = remaining / slice;
+    if full == 0 {
+        return Some(len);
+    }
+    start.checked_add(full.min(group).checked_mul(slice)?)
+}
+
+#[cfg(test)]
+#[test]
+fn prefill_spans_group_full_slices_and_keep_tail_and_checkpoint() {
+    let spans = |len: usize, group: usize| {
+        let mut out = Vec::new();
+        let mut start = 0;
+        while let Some(end) = prefill_span_end(start, len, 256, group) {
+            out.push((start, end));
+            start = end;
+        }
+        out
+    };
+    assert_eq!(spans(0, 4), []);
+    assert_eq!(spans(73, 4), [(0, 73)]);
+    assert_eq!(spans(1097, 4), [(0, 1024), (1024, 1097)]);
+    assert_eq!(spans(1280, 4), [(0, 1024), (1024, 1280)]);
+    assert_eq!(spans(2121, 4), [(0, 1024), (1024, 2048), (2048, 2121)]);
+    assert_eq!(spans(1097, 3), [(0, 768), (768, 1024), (1024, 1097)]);
+    for len in 0..3000 {
+        let chunks = (0..len)
+            .step_by(256)
+            .map(|start| (start, (start + 256).min(len)))
+            .collect::<Vec<_>>();
+        assert_eq!(spans(len, 1), chunks, "group 1 must equal chunks(256)");
+        for group in 1..=Q36_MOE_GROUP_MAX {
+            let ends = spans(len, group)
+                .into_iter()
+                .map(|(_, end)| end)
+                .collect::<Vec<_>>();
+            if len >= 256 {
+                assert!(
+                    ends.contains(&(len / 256 * 256)),
+                    "checkpoint missing at {len}/{group}"
+                );
+            }
+        }
+    }
+    let merged = |len: usize, group: usize| {
+        let mut out = Vec::new();
+        let mut start = 0;
+        while let Some(end) = prefill_span_end_merged(start, len, 256, group, Q36_MOE_TAIL_MIN) {
+            out.push((start, end));
+            start = end;
+        }
+        out
+    };
+    assert_eq!(merged(1097, 4), [(0, 1097)]);
+    assert_eq!(merged(1087, 4), [(0, 1024), (1024, 1087)]);
+    assert_eq!(merged(2121, 4), [(0, 1024), (1024, 2121)]);
+    assert_eq!(merged(320, 2), [(0, 320)]);
+    assert_eq!(merged(73, 4), [(0, 73)]);
+    for len in 0..3000 {
+        assert_eq!(merged(len, 1), spans(len, 1), "group 1 keeps chunks");
+        for group in 2..=Q36_MOE_GROUP_MAX {
+            let spans = merged(len, group);
+            assert_eq!(spans.last().map(|s| s.1), (len > 0).then_some(len));
+            for (start, end) in spans {
+                let (full, tail) = ((end - start) / 256, (end - start) % 256);
+                assert!(start % 256 == 0 && full <= group);
+                assert!(full == 0 || tail == 0 || (tail >= Q36_MOE_TAIL_MIN && end == len));
+            }
+        }
+    }
+    assert_eq!(prefill_span_end(0, 10, 0, 1), None);
+    assert_eq!(prefill_span_end(0, 10, 256, 0), None);
+    assert_eq!(
+        prefill_span_end(usize::MAX - 1, usize::MAX, 1, 4),
+        Some(usize::MAX)
+    );
+    assert_eq!(q36_moe_group_setting(None), Some(Q36_MOE_GROUP_DEFAULT));
+    for (text, value) in [
+        ("1", Some(1)),
+        ("2", Some(2)),
+        ("4", Some(4)),
+        ("8", Some(8)),
+    ] {
+        assert_eq!(q36_moe_group_setting(Some(text)), value);
+    }
+    for text in ["", "0", "9", "01", " 2", "2 ", "true", "-1", "10"] {
+        assert_eq!(q36_moe_group_setting(Some(text)), None, "{text:?}");
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn prefill_span_end_bounds_alignment_and_checkpoint() {
+    let start: usize = kani::any();
+    let len: usize = kani::any();
+    let slice: usize = kani::any();
+    let group: usize = kani::any();
+    match prefill_span_end(start, len, slice, group) {
+        // The span never exceeds `len`, so checked arithmetic cannot fail.
+        None => assert!(slice == 0 || group == 0 || start >= len),
+        Some(end) => {
+            assert!(slice > 0 && group > 0 && start < end && end <= len);
+            let width = end - start;
+            let checkpoint = len / slice * slice;
+            if len - start < slice {
+                kani::cover!(true, "tail span");
+                assert!(end == len);
+            } else {
+                assert!(width % slice == 0 && width / slice <= group && width / slice >= 1);
+            }
+            if group == 1 {
+                assert!(end == start + slice.min(len - start));
+            }
+            if start % slice == 0 {
+                assert!(end <= checkpoint || (start == checkpoint && end == len));
+                assert!(end % slice == 0 || end == len);
+            }
+            kani::cover!(width == group * slice && group == 4, "full group");
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(3)]
+fn q36_moe_group_setting_accepts_only_one_to_eight() {
+    let bytes: [u8; 2] = kani::any();
+    let len: usize = kani::any();
+    kani::assume(len <= 2);
+    let Ok(text) = std::str::from_utf8(&bytes[..len]) else {
+        return;
+    };
+    let parsed = q36_moe_group_setting(Some(text));
+    match parsed {
+        Some(value) => {
+            assert!((1..=Q36_MOE_GROUP_MAX).contains(&value));
+            assert!(text.len() == 1 && text.as_bytes()[0] == b'0' + value as u8);
+        }
+        None => assert!(!(text.len() == 1 && (b'1'..=b'8').contains(&text.as_bytes()[0]))),
+    }
+    kani::cover!(parsed == Some(8));
+    kani::cover!(parsed.is_none() && len == 1);
+}
+
 pub(crate) fn tensor_bytes(shape: &[usize], item_size: u64) -> Option<u64> {
     shape
         .iter()

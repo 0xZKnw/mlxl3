@@ -1,0 +1,27 @@
+
+running 1 test
+test qwen35::tests::q36_moe_group_matches_chunks_256 ... grouped MoE L512 G2 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L768 G3 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1024 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1097 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1097 G3 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1097 G2 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1280 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L2121 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1087 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1088 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1089 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1152 G4 differences logits/hidden/80states/4continuations [199732, 1722, 13, 823658]
+grouped MoE L1279 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L329 G2 differences logits/hidden/80states/4continuations [221902, 1879, 47, 851073]
+grouped MoE L712 G4 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+Error: grouped MoE diverged: [(1152, 4, [199732, 1722, 13, 823658]), (329, 2, [221902, 1879, 47, 851073])]
+FAILED
+
+failures:
+
+failures:
+    qwen35::tests::q36_moe_group_matches_chunks_256
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 733 filtered out; finished in 77.37s
+

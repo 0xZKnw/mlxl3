@@ -1,0 +1,25 @@
+running 1 test
+test qwen35::tests::q36_expert_qmm_shared_matches_reference ... experts rows 64 layer 0: differing bytes 0
+experts rows 64 layer 3: differing bytes 0
+experts rows 64 layer 21: differing bytes 0
+experts rows 100 layer 0: differing bytes 0
+experts rows 100 layer 3: differing bytes 0
+experts rows 100 layer 21: differing bytes 0
+experts rows 256 layer 0: differing bytes 0
+experts rows 256 layer 3: differing bytes 0
+experts rows 256 layer 21: differing bytes 0
+experts rows 1024 layer 0: differing bytes 0
+experts rows 1024 layer 3: differing bytes 0
+experts rows 1024 layer 21: differing bytes 0
+experts rows 2048 layer 0: differing bytes 0
+experts rows 2048 layer 3: differing bytes 0
+experts rows 2048 layer 21: differing bytes 0
+experts layer0 rows 256: reference 11.114 ms, shared 11.192 ms (+0.7%)
+experts layer0 rows 1024: reference 22.000 ms, shared 20.529 ms (-6.7%)
+experts layer0 rows 2048: reference 36.279 ms, shared 32.279 ms (-11.0%)
+shared-decode L329 G1 vs reference G1 logits/hidden/80states/4continuations [0, 0, 0, 0]
+shared-decode L1097 G1 vs reference G1 logits/hidden/80states/4continuations [0, 0, 0, 0]
+shared-decode L1097 G4 vs reference G1 logits/hidden/80states/4continuations [0, 0, 0, 0]
+shared-decode L2121 G8 vs reference G1 logits/hidden/80states/4continuations [0, 0, 0, 0]
+ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 736 filtered out; finished in 38.14s

@@ -1,0 +1,12 @@
+
+running 1 test
+test qwen35::tests::q36_moe_group_breakdown ... layer 0 rows 256: mixers_per256 9.81 ms, moe_per256 11.95 ms, moe_grouped 11.06 ms (experts 10.88, shared 0.66); per token mix 0.0383 moe_grouped 0.0432 ms
+layer 0 rows 1024: mixers_per256 20.42 ms, moe_per256 46.10 ms, moe_grouped 25.03 ms (experts 22.92, shared 1.92); per token mix 0.0199 moe_grouped 0.0244 ms
+layer 0 rows 2048: mixers_per256 40.16 ms, moe_per256 86.19 ms, moe_grouped 42.07 ms (experts 36.34, shared 3.29); per token mix 0.0196 moe_grouped 0.0205 ms
+layer 3 rows 256: mixers_per256 5.00 ms, moe_per256 10.73 ms, moe_grouped 10.89 ms (experts 10.48, shared 0.60); per token mix 0.0196 moe_grouped 0.0425 ms
+layer 3 rows 1024: mixers_per256 16.40 ms, moe_per256 43.69 ms, moe_grouped 24.34 ms (experts 21.65, shared 1.76); per token mix 0.0160 moe_grouped 0.0238 ms
+layer 3 rows 2048: mixers_per256 35.28 ms, moe_per256 87.40 ms, moe_grouped 40.91 ms (experts 36.57, shared 3.22); per token mix 0.0172 moe_grouped 0.0200 ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 732 filtered out; finished in 10.98s
+

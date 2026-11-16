@@ -1,0 +1,21 @@
+
+running 1 test
+test qwen35::tests::q36_moe_group_matches_chunks_256 ... grouped MoE L512 G2 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L768 G3 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1024 G4 differences logits/hidden/80states/4continuations [244290, 2040, 77, 970448]
+grouped MoE L1097 G4 differences logits/hidden/80states/4continuations [247228, 2045, 77, 976094]
+grouped MoE L1097 G3 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1097 G2 differences logits/hidden/80states/4continuations [0, 0, 0, 0]
+grouped MoE L1280 G4 differences logits/hidden/80states/4continuations [246113, 2041, 77, 976601]
+grouped MoE L2121 G4 differences logits/hidden/80states/4continuations [244568, 2033, 77, 968841]
+Error: grouped MoE diverged: [(1024, 4, [244290, 2040, 77, 970448]), (1097, 4, [247228, 2045, 77, 976094]), (1280, 4, [246113, 2041, 77, 976601]), (2121, 4, [244568, 2033, 77, 968841])]
+FAILED
+
+failures:
+
+failures:
+    qwen35::tests::q36_moe_group_matches_chunks_256
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 730 filtered out; finished in 47.96s
+
+build/target/release/deps/mlxl3_native-b524fbc65f5fea9b --ignored --exact     3.05s user 7.81s system 22% cpu 48.551 total

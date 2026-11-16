@@ -191,6 +191,46 @@ impl Moe {
         self.routed(x)?.add(&self.shared(x)?)
     }
 
+    /// [`Self::forward`] for rows made of whole `width` slices.
+    ///
+    /// The router projection runs per slice: its matmul rounds differently
+    /// from 1024 rows on (measured on layer 0 of the 35B), while softmax,
+    /// top-k, the segmented experts and the shared expert are row-invariant.
+    fn forward_slices(&self, x: &Array, width: i32) -> Result<Array> {
+        let rows = *x.shape().first().unwrap_or(&0);
+        ensure!(
+            x.shape() == [rows, self.hidden] && width > 0 && rows > 0,
+            "invalid grouped Qwen MoE input"
+        );
+        // A trailing partial slice keeps its own router width, as in its own call.
+        let logits = (0..rows)
+            .step_by(usize::try_from(width)?)
+            .map(|start| {
+                self.gate
+                    .forward(&x.slice(0, start, (start + width).min(rows))?)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let logits = Array::concatenate(&logits.iter().collect::<Vec<_>>(), 0)?;
+        let (selected, scores) = router::topk(&logits.softmax_precise()?, self.top_k, true)?;
+        // The 2048 -> 1 shared-expert gate is the same kind of row-count
+        // sensitive matmul (one tail row flipped when batched), so it too
+        // keeps the slice widths; the EXL3 shared projections do not need to.
+        let multiplier = (0..rows)
+            .step_by(usize::try_from(width)?)
+            .map(|start| {
+                self.shared_multiplier
+                    .forward(&x.slice(0, start, (start + width).min(rows))?)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let multiplier = Array::concatenate(&multiplier.iter().collect::<Vec<_>>(), 0)?;
+        let shared_inputs = self.shared_inputs.forward(x)?;
+        let shared = self
+            .shared_down
+            .forward(&shared_inputs[0].swiglu(&shared_inputs[1])?)?
+            .mul(&multiplier.sigmoid()?)?;
+        self.experts.forward(x, &selected, &scores)?.add(&shared)
+    }
+
     fn routed(&self, x: &Array) -> Result<Array> {
         let (selected, scores) = self.routes(x)?;
         self.experts.forward(x, &selected, &scores)
@@ -726,6 +766,13 @@ impl AttentionLayer {
     }
 
     fn forward_rows(&mut self, x: &Array, final_row: bool) -> Result<Array> {
+        let (hidden, post) = self.mix(x)?;
+        self.finish(&hidden, &post, final_row)
+    }
+
+    /// Input norm, attention and post-attention norm: everything that reads
+    /// or writes the K/V cache, at the caller's slice shape.
+    fn mix(&mut self, x: &Array) -> Result<(Array, Array)> {
         let time = *x
             .shape()
             .get(1)
@@ -737,7 +784,15 @@ impl AttentionLayer {
         let attention = self
             .attention
             .forward(&x.rms_norm(&self.input_norm, self.eps)?)?;
-        let (hidden, post) = post_attention_norm(x, &attention, &self.post_norm, self.eps)?;
+        post_attention_norm(x, &attention, &self.post_norm, self.eps)
+    }
+
+    /// Row-wise MLP half of the layer, from the outputs of [`Self::mix`].
+    fn finish(&self, hidden: &Array, post: &Array, final_row: bool) -> Result<Array> {
+        let time = *hidden
+            .shape()
+            .get(1)
+            .context("Qwen layer residual must have time")?;
         let post = post.reshape(&[time, self.hidden])?;
         if final_row && let Mlp::Moe(mlp) = &self.mlp {
             // Keep routing and shared projections at prefill width to preserve their rounding.
@@ -880,6 +935,11 @@ pub struct QwenSnapshot {
 }
 
 impl QwenSnapshot {
+    /// Token position this state was taken at.
+    pub fn offset(&self) -> i32 {
+        self.offset
+    }
+
     /// Logical payload, excluding shared weights and MLX allocator capacity.
     pub fn byte_len(&self) -> Result<usize> {
         self.payload_bytes(false)
@@ -940,6 +1000,34 @@ impl Layer {
         match self {
             Self::Linear(layer) => layer.forward(x),
             Self::Attention(layer) => layer.forward(x),
+        }
+    }
+
+    fn mix(&mut self, x: &Array) -> Result<(Array, Array)> {
+        match self {
+            Self::Linear(layer) => layer.mix(x),
+            Self::Attention(layer) => layer.mix(x),
+        }
+    }
+
+    fn finish(&self, hidden: &Array, post: &Array, final_row: bool) -> Result<Array> {
+        match self {
+            Self::Linear(layer) => layer.finish(hidden, post),
+            Self::Attention(layer) => layer.finish(hidden, post, final_row),
+        }
+    }
+
+    fn mlp(&self) -> &Mlp {
+        match self {
+            Self::Linear(layer) => &layer.mlp,
+            Self::Attention(layer) => &layer.mlp,
+        }
+    }
+
+    fn hidden(&self) -> i32 {
+        match self {
+            Self::Linear(layer) => layer.hidden,
+            Self::Attention(layer) => layer.hidden,
         }
     }
 
@@ -1301,6 +1389,177 @@ impl Qwen35Moe {
                 Err(error.context("Qwen batched forward failed; its cache was reset"))
             }
         }
+    }
+
+    /// True when every layer has a routed MoE, the only MLP the grouped
+    /// prefill batches.
+    pub fn supports_moe_grouping(&self) -> bool {
+        self.layers
+            .iter()
+            .all(|layer| matches!(layer.mlp(), Mlp::Moe(_)))
+    }
+
+    /// Prefills whole [`crate::QWEN_PREFILL_SLICE`] slices, optionally followed
+    /// by a tail of at least [`crate::Q36_MOE_TAIL_MIN`] tokens, with one MoE
+    /// call per layer for all of them.
+    ///
+    /// Attention, GDN and their norms still run slice by slice in order, so
+    /// every cache update keeps the shapes of `forward_tokens` per slice; only
+    /// row-wise MLP work is batched. The final layer computes its MLP for the
+    /// last slice alone, exactly as the last `forward_tokens` call would.
+    pub fn forward_tokens_grouped(&mut self, tokens: &[u32]) -> Result<Array> {
+        Ok(self.forward_tokens_grouped_checkpoint(tokens, false)?.0)
+    }
+
+    /// [`Self::forward_tokens_grouped`] that can also return the snapshot and
+    /// logits a per-slice prefill would have had after its last whole slice,
+    /// when a tail follows it.
+    pub fn forward_tokens_grouped_checkpoint(
+        &mut self,
+        tokens: &[u32],
+        checkpoint: bool,
+    ) -> Result<(Array, Option<(QwenSnapshot, Array)>)> {
+        let result: Result<_> = (|| {
+            let slice = crate::QWEN_PREFILL_SLICE;
+            let (full, tail) = (tokens.len() / slice, tokens.len() % slice);
+            ensure!(
+                (1..=crate::Q36_MOE_GROUP_MAX).contains(&full)
+                    && (tail == 0 || tail >= crate::Q36_MOE_TAIL_MIN),
+                "grouped Qwen prefill needs one to {} whole slices and an optional tail of {} or more",
+                crate::Q36_MOE_GROUP_MAX,
+                crate::Q36_MOE_TAIL_MIN
+            );
+            let (normalized, saved) =
+                self.run_hidden_tokens_grouped(tokens, slice, checkpoint && tail > 0)?;
+            let logits = self.head.forward(&normalized)?;
+            logits.eval()?;
+            let saved = saved
+                .map(|(snapshot, normalized)| -> Result<_> {
+                    let logits = self.head.forward(&normalized)?;
+                    logits.eval()?;
+                    Ok((snapshot, logits))
+                })
+                .transpose()?;
+            self.offset += i32::try_from(tokens.len())?;
+            Ok((logits, saved))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen grouped prefill failed; its cache was reset")
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn run_hidden_tokens_grouped(
+        &mut self,
+        tokens: &[u32],
+        slice: usize,
+        checkpoint: bool,
+    ) -> Result<(Array, Option<(QwenSnapshot, Array)>)> {
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab as u32),
+            "Qwen token batch is outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len())?;
+        let width = i32::try_from(slice)?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Qwen context is full"
+        );
+        let mut hidden = tokens
+            .chunks(slice)
+            .map(|chunk| {
+                let ids = chunk.iter().map(|&token| token as i32).collect::<Vec<_>>();
+                self.embeddings.take(
+                    &Array::from_i32(&ids, &[1, i32::try_from(chunk.len())?])?,
+                    0,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut saved_layers = Vec::new();
+        let mut saved_hidden = None;
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
+            let mut mixed = Vec::with_capacity(hidden.len());
+            for (position, x) in hidden.iter().enumerate() {
+                if checkpoint && position + 1 == hidden.len() {
+                    // State a per-slice prefill would hold before the tail.
+                    saved_layers.push(layer.snapshot()?);
+                }
+                mixed.push(layer.mix(x)?);
+            }
+            let final_row = |layer: &Layer, rows: i32| {
+                matches!(layer, Layer::Attention(_))
+                    && crate::qwen35_config::final_moe_row(
+                        index,
+                        layer_count,
+                        rows,
+                        false,
+                        self.final_moe_row,
+                    )
+            };
+            hidden = if index + 1 == layer_count {
+                // Only the last slice's final row is observable after the trunk.
+                let (residual, post) = mixed.pop().context("empty grouped prefill")?;
+                if checkpoint {
+                    let (residual, post) = mixed.last().context("missing checkpoint slice")?;
+                    saved_hidden = Some(layer.finish(residual, post, final_row(layer, width))?);
+                }
+                let rows = residual.shape()[1];
+                vec![layer.finish(&residual, &post, final_row(layer, rows))?]
+            } else if mixed.len() == 1 {
+                let (residual, post) = &mixed[0];
+                vec![layer.finish(residual, post, false)?]
+            } else {
+                let size = layer.hidden();
+                let posts = mixed.iter().map(|(_, post)| post).collect::<Vec<_>>();
+                let post = Array::concatenate(&posts, 1)?.reshape(&[time, size])?;
+                let Mlp::Moe(moe) = layer.mlp() else {
+                    anyhow::bail!("grouped Qwen prefill requires MoE layers");
+                };
+                let mlp = moe.forward_slices(&post, width)?;
+                let mut start = 0;
+                mixed
+                    .iter()
+                    .map(|(residual, _)| {
+                        let rows = residual.shape()[1];
+                        let part = mlp.slice(0, start, start + rows)?;
+                        start += rows;
+                        residual.add(&part.reshape(&[1, rows, size])?)
+                    })
+                    .collect::<Result<Vec<_>>>()?
+            };
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
+        }
+        let last_row = |hidden: &Array| -> Result<Array> {
+            let end = hidden.shape()[1];
+            hidden.slice(1, end - 1, end)
+        };
+        let saved = saved_hidden
+            .map(|value| -> Result<_> {
+                let last = last_row(&value)?;
+                let normalized = last.rms_norm(&self.norm, self.eps)?;
+                let full = i32::try_from(tokens.len() / slice * slice)?;
+                let snapshot = QwenSnapshot {
+                    offset: self.offset + full,
+                    layers: std::mem::take(&mut saved_layers),
+                    last_hidden: Some(last),
+                };
+                Ok((snapshot, normalized))
+            })
+            .transpose()?;
+        let hidden = hidden.pop().context("empty grouped prefill")?;
+        let last = last_row(&hidden)?;
+        let normalized = last.rms_norm(&self.norm, self.eps)?;
+        self.last_hidden = Some(last);
+        Ok((normalized, saved))
     }
 
     pub fn forward_tokens_with_dflash_capture(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
@@ -2067,6 +2326,31 @@ impl LinearLayer {
 
     pub fn states(&self) -> Result<(&Array, &Array)> {
         self.attention.states()
+    }
+
+    /// Non-trace mixer half of [`Self::run`]: input norm, GDN and post norm.
+    fn mix(&mut self, x: &Array) -> Result<(Array, Array)> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen layer input must have time")?;
+        ensure!(
+            x.shape() == [1, time, self.hidden] && time > 0,
+            "invalid Qwen layer input"
+        );
+        let normalized = x.rms_norm(&self.input_norm, self.eps)?;
+        let attention = self.attention.forward(&normalized)?;
+        post_attention_norm(x, &attention, &self.post_norm, self.eps)
+    }
+
+    /// Row-wise MLP half of [`Self::run`].
+    fn finish(&self, hidden: &Array, post: &Array) -> Result<Array> {
+        let time = *hidden
+            .shape()
+            .get(1)
+            .context("Qwen layer residual must have time")?;
+        let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
+        hidden.add(&mlp.reshape(&[1, time, self.hidden])?)
     }
 
     fn reset(&mut self) {
@@ -2914,6 +3198,666 @@ mod tests {
                 "final MoE T{time} differences logits/hidden/80states/continuation {diffs:?}"
             );
             ensure!(diffs == [0; 4], "final MoE diverged");
+        }
+        Ok(())
+    }
+
+    /// Prefill through `prefill_span_end` like the bridge, `group == 1` being
+    /// the established one-call-per-chunk path.
+    fn q36_grouped_prefill(model: &mut Qwen35Moe, ids: &[u32], group: usize) -> Result<Array> {
+        q36_grouped_prefill_tail(model, ids, group, crate::Q36_MOE_TAIL_MIN)
+    }
+
+    fn q36_grouped_prefill_tail(
+        model: &mut Qwen35Moe,
+        ids: &[u32],
+        group: usize,
+        min_tail: usize,
+    ) -> Result<Array> {
+        model.reset();
+        let (mut start, mut logits) = (0, None);
+        while let Some(end) = crate::prefill_span_end_merged(start, ids.len(), 256, group, min_tail)
+        {
+            let chunk = &ids[start..end];
+            logits = Some(if chunk.len() > 256 {
+                model.forward_tokens_grouped(chunk)?
+            } else {
+                model.forward_tokens(chunk)?
+            });
+            start = end;
+        }
+        logits.context("empty grouped prefill")
+    }
+
+    type Q36Observation = (Vec<u16>, Vec<u16>, Vec<Vec<u8>>, Vec<Vec<u16>>);
+
+    fn q36_group_observation(
+        model: &mut Qwen35Moe,
+        ids: &[u32],
+        group: usize,
+    ) -> Result<Q36Observation> {
+        let logits = q36_grouped_prefill(model, ids, group)?.to_f16_bits()?;
+        let hidden = model.mtp_hidden()?.to_f16_bits()?;
+        let states = state_bytes(model)?;
+        ensure!(
+            model.offset == i32::try_from(ids.len())?,
+            "grouped prefill offset"
+        );
+        let mut next = Vec::new();
+        for token in [42, 1234, 7, 99_999] {
+            next.push(model.forward(token)?.to_f16_bits()?);
+        }
+        ensure!(
+            logits.len() == 248320
+                && hidden.len() == 2048
+                && states.len() == 80
+                && next.iter().all(|row| row.len() == 248320)
+                && logits
+                    .iter()
+                    .chain(&hidden)
+                    .chain(next.iter().flatten())
+                    .all(|&v| f16::from_bits(v).is_finite()),
+            "invalid grouped prefill observation"
+        );
+        Ok((logits, hidden, states, next))
+    }
+
+    fn q36_group_differences(a: &Q36Observation, b: &Q36Observation) -> [usize; 4] {
+        let changed = |x: &[u16], y: &[u16]| x.iter().zip(y).filter(|(p, q)| p != q).count();
+        [
+            changed(&a.0, &b.0),
+            changed(&a.1, &b.1),
+            a.2.iter().zip(&b.2).filter(|(x, y)| x != y).count(),
+            a.3.iter().zip(&b.3).map(|(x, y)| changed(x, y)).sum(),
+        ]
+    }
+
+    /// Timing split of one GDN layer (0) and one attention layer (3) at
+    /// several MoE batch widths; GPU synchronised after every measured call.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_moe_group_breakdown() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let repeats = 6;
+        let time = |f: &mut dyn FnMut() -> Result<Array>| -> Result<f64> {
+            f()?.eval()?;
+            let mut best = f64::INFINITY;
+            for _ in 0..repeats {
+                let now = std::time::Instant::now();
+                f()?.eval()?;
+                best = best.min(now.elapsed().as_secs_f64());
+            }
+            Ok(best * 1e3)
+        };
+        for index in [0usize, 3] {
+            for rows in [256i32, 1024, 2048] {
+                model.reset();
+                let ids = (0..rows)
+                    .map(|i| ((i * 239 + 37) % 7919) as u32)
+                    .collect::<Vec<_>>();
+                let x = model.mtp_embeddings(&ids)?;
+                x.eval()?;
+                let mix_ms = {
+                    let mut total = 0.0;
+                    for _ in 0..repeats {
+                        model.reset();
+                        let layer = &mut model.layers[index];
+                        let now = std::time::Instant::now();
+                        let mut outs = Vec::new();
+                        for start in (0..rows).step_by(256) {
+                            outs.push(layer.mix(&x.slice(1, start, start + 256)?)?.1);
+                        }
+                        for out in &outs {
+                            out.eval()?;
+                        }
+                        total += now.elapsed().as_secs_f64();
+                    }
+                    total / f64::from(repeats) * 1e3
+                };
+                model.reset();
+                let layer = &mut model.layers[index];
+                let mut posts = Vec::new();
+                for start in (0..rows).step_by(256) {
+                    posts.push(layer.mix(&x.slice(1, start, start + 256)?)?.1);
+                }
+                let post = Array::concatenate(&posts.iter().collect::<Vec<_>>(), 1)?
+                    .reshape(&[rows, 2048])?;
+                post.eval()?;
+                let Mlp::Moe(mlp) = layer.mlp() else {
+                    anyhow::bail!("expected MoE")
+                };
+                let sliced_ms = time(&mut || {
+                    let parts = (0..rows)
+                        .step_by(256)
+                        .map(|s| mlp.forward(&post.slice(0, s, s + 256)?))
+                        .collect::<Result<Vec<_>>>()?;
+                    Array::concatenate(&parts.iter().collect::<Vec<_>>(), 0)
+                })?;
+                let grouped_ms = time(&mut || mlp.forward_slices(&post, 256))?;
+                let (routes, scores) = mlp.routes(&post)?;
+                routes.eval()?;
+                scores.eval()?;
+                let experts_ms = time(&mut || mlp.experts.forward(&post, &routes, &scores))?;
+                let shared_ms = time(&mut || mlp.shared(&post))?;
+                eprintln!(
+                    "layer {index} rows {rows}: mixers_per256 {mix_ms:.2} ms, moe_per256 {sliced_ms:.2} ms, moe_grouped {grouped_ms:.2} ms (experts {experts_ms:.2}, shared {shared_ms:.2}); per token mix {:.4} moe_grouped {:.4} ms",
+                    mix_ms / f64::from(rows),
+                    grouped_ms / f64::from(rows)
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Walks the per-slice prefill layer by layer and reports, for each layer,
+    /// which MoE component differs when the same rows are batched.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_moe_group_localize() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        for len in [329i32, 1152] {
+            model.reset();
+            let ids = (0..len)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let x = model.mtp_embeddings(&ids)?;
+            let bounds = (0..len)
+                .step_by(256)
+                .map(|s| (s, (s + 256).min(len)))
+                .collect::<Vec<_>>();
+            let mut hidden = bounds
+                .iter()
+                .map(|&(a, b)| x.slice(1, a, b))
+                .collect::<Result<Vec<_>>>()?;
+            let count = model.layers.len();
+            for index in 0..count - 1 {
+                let layer = &mut model.layers[index];
+                let mixed = hidden
+                    .iter()
+                    .map(|h| layer.mix(h))
+                    .collect::<Result<Vec<_>>>()?;
+                let post = Array::concatenate(&mixed.iter().map(|m| &m.1).collect::<Vec<_>>(), 1)?
+                    .reshape(&[len, 2048])?;
+                let Mlp::Moe(mlp) = layer.mlp() else {
+                    anyhow::bail!("expected MoE")
+                };
+                let per = |f: &dyn Fn(&Array) -> Result<Array>| -> Result<Array> {
+                    let parts = bounds
+                        .iter()
+                        .map(|&(a, b)| f(&post.slice(0, a, b)?))
+                        .collect::<Result<Vec<_>>>()?;
+                    Array::concatenate(&parts.iter().collect::<Vec<_>>(), 0)
+                };
+                let differ = |a: &Array, b: &Array| -> Result<usize> {
+                    let (a, b) = (a.to_bytes()?, b.to_bytes()?);
+                    ensure!(a.len() == b.len() && !a.is_empty());
+                    Ok(a.iter().zip(&b).filter(|(x, y)| x != y).count())
+                };
+                let reference = per(&|p| mlp.forward(p))?;
+                let grouped = mlp.forward_slices(&post, 256)?;
+                let total = differ(&reference, &grouped)?;
+                if total > 0 {
+                    let (routes, scores) = mlp.routes(&post)?;
+                    let gate = per(&|p| mlp.gate.forward(p))?;
+                    let (g_routes, g_scores) =
+                        router::topk(&gate.softmax_precise()?, mlp.top_k, true)?;
+                    let route = differ(&routes, &g_routes)?;
+                    let score = differ(&scores, &g_scores)?;
+                    let ref_routes = per(&|p| Ok(mlp.routes(p)?.0))?;
+                    let ref_scores = per(&|p| Ok(mlp.routes(p)?.1))?;
+                    let route_ref = differ(&ref_routes, &g_routes)?;
+                    let score_ref = differ(&ref_scores, &g_scores)?;
+                    let experts_ref = {
+                        let parts = bounds
+                            .iter()
+                            .map(|&(a, b)| {
+                                let r = |v: &Array| v.slice(0, a, b);
+                                mlp.experts
+                                    .forward(&r(&post)?, &r(&ref_routes)?, &r(&ref_scores)?)
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+                        Array::concatenate(&parts.iter().collect::<Vec<_>>(), 0)?
+                    };
+                    let experts = differ(
+                        &experts_ref,
+                        &mlp.experts.forward(&post, &ref_routes, &ref_scores)?,
+                    )?;
+                    let shared = differ(&per(&|p| mlp.shared(p))?, &mlp.shared(&post)?)?;
+                    let rows = {
+                        let (a, b) = (reference.to_f32()?, grouped.to_f32()?);
+                        let mut rows = std::collections::BTreeSet::new();
+                        for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+                            if x.to_bits() != y.to_bits() {
+                                rows.insert(i / 2048);
+                            }
+                        }
+                        rows.into_iter().take(12).collect::<Vec<_>>()
+                    };
+                    eprintln!(
+                        "L{len} layer {index}: moe bytes {total} rows {rows:?}; routes(all-vs-sliced-gate) {route} scores {score}; routes(per-slice-vs-grouped) {route_ref} scores {score_ref}; experts(same routes) {experts}; shared {shared}"
+                    );
+                }
+                hidden = mixed
+                    .iter()
+                    .zip(&bounds)
+                    .map(|((residual, _), &(a, b))| {
+                        residual.add(&reference.slice(0, a, b)?.reshape(&[1, b - a, 2048])?)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Localizes a grouped divergence to one MoE component of layer 0.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_moe_group_components() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        for rows in [768, 1024, 1280] {
+            model.reset();
+            let ids = (0..rows)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let x = model.mtp_embeddings(&ids)?;
+            let layer = &mut model.layers[0];
+            let mut posts = Vec::new();
+            for start in (0..rows).step_by(256) {
+                posts.push(layer.mix(&x.slice(1, start, start + 256)?)?.1);
+            }
+            let post =
+                Array::concatenate(&posts.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, 2048])?;
+            let Mlp::Moe(mlp) = layer.mlp() else {
+                anyhow::bail!("expected MoE")
+            };
+            let sliced = |f: &dyn Fn(&Array) -> Result<Array>| -> Result<Array> {
+                let parts = (0..rows)
+                    .step_by(256)
+                    .map(|start| f(&post.slice(0, start, start + 256)?))
+                    .collect::<Result<Vec<_>>>()?;
+                Array::concatenate(&parts.iter().collect::<Vec<_>>(), 0)
+            };
+            let differ = |a: &Array, b: &Array| -> Result<usize> {
+                let (a, b) = (a.to_bytes()?, b.to_bytes()?);
+                ensure!(a.len() == b.len() && !a.is_empty());
+                Ok(a.iter().zip(&b).filter(|(x, y)| x != y).count())
+            };
+            let gate = differ(
+                &mlp.gate.forward(&post)?,
+                &sliced(&|p| mlp.gate.forward(p))?,
+            )?;
+            let probs = differ(
+                &mlp.gate.forward(&post)?.softmax_precise()?,
+                &sliced(&|p| mlp.gate.forward(p)?.softmax_precise())?,
+            )?;
+            let (routes, scores) = mlp.routes(&post)?;
+            let route = differ(&routes, &sliced(&|p| Ok(mlp.routes(p)?.0))?)?;
+            let score = differ(&scores, &sliced(&|p| Ok(mlp.routes(p)?.1))?)?;
+            // Same routes for both: isolates the expert kernels from the router.
+            let experts_full = mlp.experts.forward(&post, &routes, &scores)?;
+            let experts_sliced = {
+                let parts = (0..rows)
+                    .step_by(256)
+                    .map(|start| {
+                        let r = |a: &Array| a.slice(0, start, start + 256);
+                        mlp.experts.forward(&r(&post)?, &r(&routes)?, &r(&scores)?)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Array::concatenate(&parts.iter().collect::<Vec<_>>(), 0)?
+            };
+            let experts = differ(&experts_full, &experts_sliced)?;
+            let shared_inputs = differ(
+                &mlp.shared_inputs.forward(&post)?[0],
+                &sliced(&|p| Ok(mlp.shared_inputs.forward(p)?.remove(0)))?,
+            )?;
+            let shared = differ(&mlp.shared(&post)?, &sliced(&|p| mlp.shared(p))?)?;
+            let multiplier = differ(
+                &mlp.shared_multiplier.forward(&post)?,
+                &sliced(&|p| mlp.shared_multiplier.forward(p))?,
+            )?;
+            eprintln!(
+                "rows {rows}: differing bytes gate {gate} softmax {probs} routes {route} scores {score} experts {experts} shared_inputs {shared_inputs} shared_multiplier {multiplier} shared {shared}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_moe_group_matches_chunks_256() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        ensure!(
+            model.layers.len() == 40 && model.vocab == 248320 && model.supports_moe_grouping(),
+            "expected the 35B MoE"
+        );
+        let mut failed = Vec::new();
+        for (len, group) in [
+            (512, 2),
+            (768, 3),
+            (1024, 4),
+            (1097, 4),
+            (1097, 3),
+            (1097, 2),
+            (1280, 4),
+            (2121, 4),
+            (1024 + 63, 4),
+            (1024 + 64, 4),
+            (1024 + 65, 4),
+            (1024 + 128, 4),
+            (1024 + 255, 4),
+            (256 + 73, 2),
+            (512 + 200, 4),
+            (2048, 8),
+            (2048 + 73, 8),
+            (1792 + 100, 8),
+            (4096 + 73, 8),
+        ] {
+            let ids = (0..len)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let reference = q36_group_observation(&mut model, &ids, 1)?;
+            let candidate = q36_group_observation(&mut model, &ids, group)?;
+            let diffs = q36_group_differences(&reference, &candidate);
+            eprintln!(
+                "grouped MoE L{len} G{group} differences logits/hidden/80states/4continuations {diffs:?}"
+            );
+            if diffs != [0; 4] {
+                failed.push((len, group, diffs));
+            }
+        }
+        ensure!(failed.is_empty(), "grouped MoE diverged: {failed:?}");
+        Ok(())
+    }
+
+    /// T3: the shared-decode expert kernel must be bit-identical to the
+    /// two-subblock reference kernel, at the component and full-model level,
+    /// then a same-session alternating timing of the expert component.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_expert_qmm_shared_matches_reference() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let mut failed = Vec::new();
+        let differ = |a: &Array, b: &Array| -> Result<usize> {
+            let (a, b) = (a.to_bytes()?, b.to_bytes()?);
+            ensure!(
+                a.len() == b.len() && !a.is_empty(),
+                "empty/mismatched output"
+            );
+            Ok(a.iter().zip(&b).filter(|(x, y)| x != y).count())
+        };
+        let mut timings = Vec::new();
+        for rows in [64i32, 100, 256, 1024, 2048] {
+            model.reset();
+            let ids = (0..rows)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let x = model.mtp_embeddings(&ids)?;
+            for index in [0usize, 3, 21] {
+                let layer = &mut model.layers[index];
+                let (_, post) = layer.mix(&x)?;
+                let post = post.reshape(&[rows, 2048])?;
+                post.eval()?;
+                let Mlp::Moe(mlp) = layer.mlp() else {
+                    anyhow::bail!("expected MoE")
+                };
+                let (routes, scores) = mlp.routes(&post)?;
+                routes.eval()?;
+                scores.eval()?;
+                let run = |shared: bool| -> Result<Array> {
+                    crate::moe::set_expert_qmm_shared(Some(shared));
+                    let y = mlp.experts.forward(&post, &routes, &scores)?;
+                    y.eval()?;
+                    Ok(y)
+                };
+                let reference = run(false)?;
+                let candidate = run(true)?;
+                let values = reference.to_f32()?;
+                ensure!(
+                    values.len() == (rows * 2048) as usize && values.iter().all(|v| v.is_finite()),
+                    "non-finite or wrong-shaped expert output"
+                );
+                let d = differ(&reference, &candidate)?;
+                eprintln!("experts rows {rows} layer {index}: differing bytes {d}");
+                if d != 0 {
+                    failed.push(("component", rows, index, d));
+                }
+                if index == 0 && rows >= 256 {
+                    let time = |shared: bool| -> Result<f64> {
+                        let start = std::time::Instant::now();
+                        for _ in 0..5 {
+                            run(shared)?;
+                        }
+                        Ok(start.elapsed().as_secs_f64() * 1000.0 / 5.0)
+                    };
+                    time(false)?;
+                    time(true)?;
+                    let mut a = Vec::new();
+                    let mut b = Vec::new();
+                    for round in 0..6 {
+                        if round % 2 == 0 {
+                            a.push(time(false)?);
+                            b.push(time(true)?);
+                        } else {
+                            b.push(time(true)?);
+                            a.push(time(false)?);
+                        }
+                    }
+                    a.sort_by(f64::total_cmp);
+                    b.sort_by(f64::total_cmp);
+                    timings.push((rows, a[3], b[3]));
+                }
+            }
+        }
+        for (rows, a, b) in &timings {
+            eprintln!(
+                "experts layer0 rows {rows}: reference {a:.3} ms, shared {b:.3} ms ({:+.1}%)",
+                (b / a - 1.0) * 100.0
+            );
+        }
+        for (len, group) in [(329, 1), (1097, 1), (1097, 4), (2121, 8)] {
+            let ids = (0..len)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            crate::moe::set_expert_qmm_shared(Some(false));
+            let reference = q36_group_observation(&mut model, &ids, 1)?;
+            crate::moe::set_expert_qmm_shared(Some(true));
+            let candidate = q36_group_observation(&mut model, &ids, group)?;
+            let diffs = q36_group_differences(&reference, &candidate);
+            eprintln!(
+                "shared-decode L{len} G{group} vs reference G1 logits/hidden/80states/4continuations {diffs:?}"
+            );
+            if diffs != [0; 4] {
+                failed.push(("model", len, group, diffs.iter().sum()));
+            }
+        }
+        crate::moe::set_expert_qmm_shared(None);
+        ensure!(
+            failed.is_empty(),
+            "shared-decode expert kernel diverged: {failed:?}"
+        );
+        Ok(())
+    }
+
+    /// Same-session rotation of G1, G4 without tail merge and G4 with it.
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical M5, Qwen 35B and 1097-token benchmark prompt; run alone"]
+    fn q36_moe_group_tail_rotation() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let prompt = std::fs::read_to_string(std::env::var("MLXL3_QWEN_PREFILL_PROMPT")?)?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let text = tokenizer
+            .render_values(&serde_json::json!([{"role":"user","content":prompt}]), None)?;
+        let tokens = tokenizer.encode(&text)?;
+        ensure!(tokens.len() == 1097);
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let group = std::env::var("MLXL3_Q36_GROUP_CANDIDATE")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(4);
+        let modes = [
+            (1, usize::MAX),
+            (group, usize::MAX),
+            (group, crate::Q36_MOE_TAIL_MIN),
+        ];
+        let reference = q36_grouped_prefill(&mut model, &tokens, 1)?.to_f16_bits()?;
+        for &(g, t) in &modes {
+            q36_grouped_prefill_tail(&mut model, &tokens, g, t)?;
+        }
+        let mut seconds = vec![Vec::new(); 3];
+        for round in 0..9 {
+            for k in 0..3 {
+                let mode = (round + k) % 3;
+                let (g, t) = modes[mode];
+                let now = std::time::Instant::now();
+                let logits = q36_grouped_prefill_tail(&mut model, &tokens, g, t)?;
+                seconds[mode].push(now.elapsed().as_secs_f64());
+                ensure!(logits.to_f16_bits()? == reference, "logits changed");
+            }
+        }
+        for (mode, values) in seconds.iter_mut().enumerate() {
+            values.sort_by(f64::total_cmp);
+            eprintln!(
+                "mode {:?}: median {:.4} s = {:.1} tok/s, min {:.4}, max {:.4}",
+                modes[mode],
+                values[4],
+                tokens.len() as f64 / values[4],
+                values[0],
+                values[8]
+            );
+        }
+        Ok(())
+    }
+
+    /// The prefix-cache state captured inside a merged-tail span equals the
+    /// state after a per-slice prefill of the whole slices.
+    #[test]
+    #[ignore = "physical M5 and Qwen 35B; run alone"]
+    fn q36_moe_group_checkpoint_matches_chunks_256() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        for (len, group) in [
+            (1097, 4),
+            (1024 + 255, 4),
+            (256 + 64, 2),
+            (2048 + 73, 4),
+            (2048 + 73, 8),
+        ] {
+            let ids = (0..len)
+                .map(|i| ((i * 239 + 37) % 7919) as u32)
+                .collect::<Vec<_>>();
+            let checkpoint = len / 256 * 256;
+            let observe = |model: &mut Qwen35Moe, logits: Array| -> Result<_> {
+                let logits = logits.to_f16_bits()?;
+                let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                let states = state_bytes(model)?;
+                let next = model.forward(42)?.to_f16_bits()?;
+                ensure!(
+                    logits.len() == 248320 && hidden.len() == 2048 && states.len() == 80,
+                    "invalid checkpoint observation"
+                );
+                Ok((logits, hidden, states, vec![next]))
+            };
+            let reference = {
+                let logits = q36_grouped_prefill(&mut model, &ids[..checkpoint], 1)?;
+                observe(&mut model, logits)?
+            };
+            model.reset();
+            let (mut start, mut saved) = (0, None);
+            while let Some(end) =
+                crate::prefill_span_end_merged(start, len, 256, group, crate::Q36_MOE_TAIL_MIN)
+            {
+                let chunk = &ids[start..end];
+                if chunk.len() > 256 {
+                    let inner = start < checkpoint && checkpoint < end;
+                    let (_, found) = model.forward_tokens_grouped_checkpoint(chunk, inner)?;
+                    ensure!(found.is_some() == inner, "checkpoint presence");
+                    if found.is_some() {
+                        saved = found;
+                    }
+                } else {
+                    model.forward_tokens(chunk)?;
+                }
+                start = end;
+            }
+            let (snapshot, logits) = saved.context("merged span returned no checkpoint")?;
+            ensure!(snapshot.offset() == i32::try_from(checkpoint)?);
+            model.restore(snapshot.compact_for_cache()?)?;
+            let candidate = observe(&mut model, logits)?;
+            let diffs = q36_group_differences(&reference, &candidate);
+            eprintln!("checkpoint L{len} G{group} at {checkpoint}: differences {diffs:?}");
+            ensure!(diffs == [0; 4], "merged checkpoint diverged");
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical M5, Qwen 35B and 1097-token benchmark prompt; run alone"]
+    fn q36_moe_group_paired_prefill() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let prompt = std::fs::read_to_string(std::env::var("MLXL3_QWEN_PREFILL_PROMPT")?)?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let text = tokenizer
+            .render_values(&serde_json::json!([{"role":"user","content":prompt}]), None)?;
+        let tokens = tokenizer.encode(&text)?;
+        ensure!(
+            tokens.len() == 1097,
+            "unexpected token count {}",
+            tokens.len()
+        );
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let reference = q36_group_observation(&mut model, &tokens, 1)?;
+        for group in [2, 3, 4] {
+            let candidate = q36_group_observation(&mut model, &tokens, group)?;
+            let diffs = q36_group_differences(&reference, &candidate);
+            eprintln!("prompt1097 G{group} differences {diffs:?}");
+            ensure!(diffs == [0; 4], "prompt grouped MoE diverged at G{group}");
+        }
+        let pairs: usize = std::env::var("MLXL3_Q36_GROUP_PAIRS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(6);
+        let group: usize = std::env::var("MLXL3_Q36_GROUP_CANDIDATE")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(4);
+        for _ in 0..2 {
+            q36_grouped_prefill(&mut model, &tokens, 1)?;
+            q36_grouped_prefill(&mut model, &tokens, group)?;
+        }
+        for pair in 0..pairs {
+            let mut seconds = [0.0; 2];
+            let order = if pair % 2 == 0 {
+                [1, group]
+            } else {
+                [group, 1]
+            };
+            for g in order {
+                let now = std::time::Instant::now();
+                let logits = q36_grouped_prefill(&mut model, &tokens, g)?;
+                let elapsed = now.elapsed().as_secs_f64();
+                ensure!(
+                    logits.to_f16_bits()? == reference.0,
+                    "logits changed in pair {pair}"
+                );
+                seconds[usize::from(g != 1)] = elapsed;
+            }
+            eprintln!(
+                "paired {pair} order {order:?} baseline_seconds={:.4} candidate_G{group}_seconds={:.4} baseline_tok_s={:.1} candidate_tok_s={:.1}",
+                seconds[0],
+                seconds[1],
+                tokens.len() as f64 / seconds[0],
+                tokens.len() as f64 / seconds[1]
+            );
         }
         Ok(())
     }

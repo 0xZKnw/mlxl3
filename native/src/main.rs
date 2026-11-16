@@ -2123,6 +2123,53 @@ impl NativeChatModel {
         output.context("empty token batch")
     }
 
+    /// Whole prefill chunks per span; Qwen MoE batches the MLP of a span.
+    fn prefill_group(&self) -> Result<usize> {
+        match self {
+            Self::Qwen(model) if model.supports_moe_grouping() => q36_moe_group(),
+            _ => Ok(1),
+        }
+    }
+
+    /// End of the prefill span from `start`; a Qwen MoE group may take the tail.
+    fn prefill_span_end(
+        &self,
+        start: usize,
+        len: usize,
+        chunk: usize,
+        group: usize,
+    ) -> Option<usize> {
+        mlxl3_native::prefill_span_end_merged(
+            start,
+            len,
+            chunk,
+            group,
+            mlxl3_native::Q36_MOE_TAIL_MIN,
+        )
+    }
+
+    /// Runs one span; with `checkpoint`, a span ending in a tail also returns
+    /// the state and logits at its last whole chunk.
+    #[allow(clippy::type_complexity)]
+    fn forward_span(
+        &mut self,
+        tokens: &[u32],
+        checkpoint: bool,
+    ) -> Result<(
+        mlxl3_native::array::Array,
+        Option<(
+            mlxl3_native::qwen35::QwenSnapshot,
+            mlxl3_native::array::Array,
+        )>,
+    )> {
+        if tokens.len() > self.prefill_chunk_size()
+            && let Self::Qwen(model) = self
+        {
+            return model.forward_tokens_grouped_checkpoint(tokens, checkpoint);
+        }
+        Ok((self.forward_many(tokens)?, None))
+    }
+
     fn prefill_chunk_size(&self) -> usize {
         match self {
             Self::Gemma4(_) | Self::Lfm3(_) => 256,
@@ -2470,7 +2517,25 @@ impl PromptCache {
         if prompt_cache_budget()? == 0 {
             return Ok(None);
         }
-        let state = target.snapshot()?.compact_for_cache()?;
+        Self::capture_snapshot(conversation, tokens, target.snapshot()?, logits, dflash)
+    }
+
+    /// Saves a Qwen state taken at `tokens.len()`, also from inside a span.
+    fn capture_snapshot(
+        conversation: &str,
+        tokens: &[u32],
+        state: mlxl3_native::qwen35::QwenSnapshot,
+        logits: &mlxl3_native::array::Array,
+        dflash: Option<&DFlashChat>,
+    ) -> Result<Option<Self>> {
+        anyhow::ensure!(
+            usize::try_from(state.offset()).ok() == Some(tokens.len()),
+            "prefix cache position differs from its token history"
+        );
+        if prompt_cache_budget()? == 0 {
+            return Ok(None);
+        }
+        let state = state.compact_for_cache()?;
         let saved = Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
@@ -2510,6 +2575,22 @@ impl PromptCache {
         );
         Ok(fits.then_some(self))
     }
+}
+
+/// Strict `MLXL3_Q36_MOE_GROUP`; an invalid value fails the request.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn q36_moe_group() -> Result<usize> {
+    let value = std::env::var_os("MLXL3_Q36_MOE_GROUP");
+    let text = value
+        .as_deref()
+        .map(|value| value.to_str().context("MLXL3_Q36_MOE_GROUP is not UTF-8"))
+        .transpose()?;
+    mlxl3_native::q36_moe_group_setting(text).with_context(|| {
+        format!(
+            "MLXL3_Q36_MOE_GROUP must be an integer from 1 to {}",
+            mlxl3_native::Q36_MOE_GROUP_MAX
+        )
+    })
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -2575,7 +2656,18 @@ fn prefill_round(
             )?;
         }
     }
-    for (index, chunk) in tokens[cached..].chunks(chunk_size).enumerate() {
+    // DFlash keeps its per-chunk capture; plain prefill may batch MoE rows of
+    // several whole chunks while attention and GDN keep the chunk shapes.
+    let group = if draft.is_some() {
+        1
+    } else {
+        model.prefill_group()?
+    };
+    let mut start = cached;
+    while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk_size, group) {
+        let chunk = &tokens[start..end];
+        let inner_checkpoint = reuse && start < checkpoint_offset && checkpoint_offset < end;
+        start = end;
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
@@ -2595,11 +2687,21 @@ fn prefill_round(
                     session.prefill(target, weights, chunk)?
                 }
             } else {
-                model.forward_many(chunk)?
+                let (logits, saved) = model.forward_span(chunk, inner_checkpoint)?;
+                if let Some((state, logits)) = saved {
+                    *cache = PromptCache::capture_snapshot(
+                        conversation,
+                        &tokens[..checkpoint_offset],
+                        state,
+                        &logits,
+                        None,
+                    )?;
+                }
+                logits
             },
         );
         model.eval_state()?;
-        let position = cached + index * chunk_size + chunk.len();
+        let position = end;
         if reuse && position == checkpoint_offset {
             *cache = PromptCache::capture(
                 conversation,
@@ -4642,9 +4744,12 @@ fn native_chat(
         #[cfg(feature = "mlx")]
         let mut logits = {
             let mut last = None;
-            for chunk in tokens.chunks(model.prefill_chunk_size()) {
-                last = Some(model.forward_many(chunk)?);
+            let (chunk, group) = (model.prefill_chunk_size(), model.prefill_group()?);
+            let mut start = 0;
+            while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk, group) {
+                last = Some(model.forward_span(&tokens[start..end], false)?.0);
                 model.eval_state()?;
+                start = end;
             }
             let logits = last.context("no prefill output")?;
             logits.eval()?;

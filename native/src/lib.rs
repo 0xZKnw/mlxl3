@@ -21,10 +21,11 @@ pub mod quantize;
 pub mod tensor_layout;
 pub mod transaction;
 pub use contracts::{
-    GenerationStopReason, QwenPipeline, evict_band, evict_width, exl3_lane_order_enabled,
-    exl3_lane_order_key, mtp_evict_setting, mtp_post_norm_setting, native_prompt_reuse,
-    q36_head_lane_setting, qwen_pipeline, qwen_pipeline_key, reusable_prefix_len,
-    smallm_kernel_key,
+    GenerationStopReason, Q36_MOE_GROUP_MAX, Q36_MOE_TAIL_MIN, QWEN_PREFILL_SLICE, QwenPipeline,
+    evict_band, evict_width, exl3_lane_order_enabled, exl3_lane_order_key, mtp_evict_setting,
+    mtp_post_norm_setting, native_prompt_reuse, prefill_span_end, prefill_span_end_merged,
+    q36_head_lane_setting, q36_moe_group_setting, qwen_pipeline, qwen_pipeline_key,
+    reusable_prefix_len, smallm_kernel_key,
 };
 #[cfg(feature = "mlx")]
 pub use contracts::{switch_glu_layout, switch_glu_route_rows};

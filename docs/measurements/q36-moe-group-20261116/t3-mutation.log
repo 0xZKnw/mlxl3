@@ -1,0 +1,5 @@
+test qwen35::tests::q36_expert_qmm_shared_matches_reference ... experts rows 64 layer 0: differing bytes 0
+experts rows 1024 layer 0: differing bytes 3245699
+shared-decode L329 G1 vs reference G1 logits/hidden/80states/4continuations [247835, 2046, 77, 990491]
+Error: shared-decode expert kernel diverged: [("component", 100, 0, 19030), ("component", 256, 0, 379352), ("component", 256, 3, 393724), ("component", 256, 21, 165300), ("component", 1024, 0, 3245699), ("component", 1024, 3, 3262941), ("component", 1024, 21, 2823183), ("component", 2048, 0, 7214240), ("component", 2048, 3, 7241678), ("component", 2048, 21, 6820615), ("model", 329, 1, 1240449), ("model", 1097, 1, 1241326), ("model", 1097, 4, 1242328), ("model", 2121, 8, 1242071)]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 736 filtered out; finished in 38.76s

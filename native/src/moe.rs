@@ -371,15 +371,29 @@ fn expert_segmented_qmm(
         k * 8,
         plan.max_blocks,
     );
+    let shared = expert_qmm_shared_decode();
+    let (variant, source, subblocks) = if shared {
+        (
+            "shared",
+            include_str!("../shaders/_expert_qmm_shared_tensor_kernel.metal"),
+            1,
+        )
+    } else {
+        (
+            "segmented",
+            include_str!("../shaders/_expert_qmm_tensor_kernel.metal"),
+            2,
+        )
+    };
     Ok(array::metal_kernel(
         &format!(
-            "mlxl3_rs_expert_qmm_segmented_{input}_{output}_{experts}_{k}_{}_o{tile_offset}_v1",
+            "mlxl3_rs_expert_qmm_{variant}_{input}_{output}_{experts}_{k}_{}_o{tile_offset}_v1",
             cb as u32
         ),
         &["xhat", "trellis", "block_table", "block_count"],
         &["yhat"],
         &header,
-        include_str!("../shaders/_expert_qmm_tensor_kernel.metal"),
+        source,
         &[
             xhat,
             &trellis.reshape(&[-1])?.view(Dtype::UInt32)?,
@@ -388,10 +402,34 @@ fn expert_segmented_qmm(
         ],
         &[vec![plan.slots, output]],
         &[Dtype::Float16],
-        [(output / 32) * 32, plan.max_blocks, 2],
+        [(output / 32) * 32, plan.max_blocks, subblocks],
         [32, 1, 1],
     )?
     .remove(0))
+}
+
+/// Decode each expert weight fragment once for both 32-row subblocks of a
+/// 64-row segment (bit-identical to the two-subblock kernel). On by default;
+/// `MLXL3_EXPERT_QMM_SHARED=0` restores the two-subblock kernel.
+fn expert_qmm_shared_decode() -> bool {
+    static SHARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    match EXPERT_QMM_SHARED_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => false,
+        1 => true,
+        _ => *SHARED.get_or_init(|| std::env::var("MLXL3_EXPERT_QMM_SHARED").as_deref() != Ok("0")),
+    }
+}
+
+static EXPERT_QMM_SHARED_OVERRIDE: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(2);
+
+/// Test hook: force the shared-decode expert kernel on/off (`None` = env).
+#[cfg(test)]
+pub(crate) fn set_expert_qmm_shared(value: Option<bool>) {
+    EXPERT_QMM_SHARED_OVERRIDE.store(
+        value.map_or(2, u8::from),
+        std::sync::atomic::Ordering::Relaxed,
+    );
 }
 
 fn glu_down_input(
