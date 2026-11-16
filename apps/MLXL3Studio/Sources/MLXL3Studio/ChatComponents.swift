@@ -361,9 +361,15 @@ private struct StreamingIndicator: View {
         Circle()
             .fill(StudioTheme.accent)
             .frame(width: 5, height: 5)
-            .opacity(!reduceMotion && pulse ? 0.3 : 1)
-            .scaleEffect(!reduceMotion && pulse ? 0.72 : 1)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.72).repeatForever(), value: pulse)
+            // Scope the endless animation to opacity/scale. A view-wide
+            // `.animation(_:value:)` started from `onAppear` also captured the
+            // insertion layout, so the dot's position looped forever between
+            // its first frame and its real slot (a "bouncing ball").
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.72).repeatForever()) { dot in
+                dot
+                    .opacity(!reduceMotion && pulse ? 0.3 : 1)
+                    .scaleEffect(!reduceMotion && pulse ? 0.72 : 1)
+            }
             .onAppear { pulse = !reduceMotion }
             .onChange(of: reduceMotion) { _, value in pulse = !value }
     }
@@ -383,12 +389,14 @@ private struct ThinkingPlaceholder: View {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .frame(width: 3, height: 3)
-                        .opacity(!reduceMotion && shimmer ? 0.25 + Double(index) * 0.28 : 0.9 - Double(index) * 0.25)
+                        // Only opacity repeats, never layout (see StreamingIndicator).
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever()) { dot in
+                            dot.opacity(!reduceMotion && shimmer ? 0.25 + Double(index) * 0.28 : 0.9 - Double(index) * 0.25)
+                        }
                 }
             }
         }
         .foregroundStyle(StudioTheme.thinking)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever(), value: shimmer)
         .onAppear { shimmer = !reduceMotion }
         .onChange(of: reduceMotion) { _, value in shimmer = !value }
     }
