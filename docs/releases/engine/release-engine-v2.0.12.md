@@ -65,6 +65,13 @@ Desktop versions before 2.0.5 keep working with this engine. They do not send th
   - Qwen3.8 Flash Next with sampled MTP was not run on a GPU (no local Flash model). It is covered only by compilation, Clippy and the shared CPU verification code.
   - The sampling law is checked by sampled and grid tests, not by a formal proof. Kani was not run.
   - M1–M4, 8/16 GiB Macs and macOS 26.2 were not tested.
+- **Hosted CI (added after publication)** on the release commit `a08acf560`:
+  - Passed: Flash profile compatibility, EXL3 conversion contracts, native coverage inventory, `mlx-package`, `native (ubuntu-latest)`, the Kani allocator and speculative shards, and the Metal and loader contracts.
+  - Failed or cancelled, exactly as on the previous `main` commit `9eabe8eda`:
+    - `desktop-and-protocol` and `desktop-preferences`: the hosted Swift compiler times out type-checking `ChatComponents.swift:390`, a file this release does not touch;
+    - the Kani `core`, `routes`, `flash` and main shards: an internal Kani compiler panic plus harness timeouts in files this release does not touch;
+    - `native (macos-26)` and `guard-proofs`: cancelled, as on every recent `main` commit.
+  - These failures were not introduced by this release, but they mean hosted CI is **not green**. The local checks above are the release verification.
 
 ## Acknowledgements
 
