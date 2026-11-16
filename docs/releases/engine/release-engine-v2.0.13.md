@@ -92,6 +92,14 @@ No Desktop update is required. Desktop 2.0.5 and earlier versions work with this
   - Only LFM3-1.7B EXL3 8 bpw was tested. Other LFM3 checkpoints with a dense F16 head use the same path but were not run.
   - LFM3-VL image requests use the same path but were not run with images.
   - M1–M4, 8/16 GiB Macs and macOS 26.2 were not tested.
+- **Hosted CI (added after publication)** on `main` commit `a1b73a9dc`. This commit is the release source plus a regenerated MLX source inventory and documentation; it changes no engine code.
+  - Passed: Flash profile compatibility, EXL3 conversion contracts (`conversion`, `packing-proof`), native coverage inventory, `mlx-package`, `native (ubuntu-latest)`, the Kani allocator and speculative shards, and the Metal and loader contracts.
+  - On the first push (`48d6a0888`), the native coverage inventory check failed because the reviewed inventory had not been updated for the new certified head and prompt lookup files. `a1b73a9dc` fixes this. The released archive is unaffected, because that check only reads sources.
+  - Failed or cancelled, exactly as on the `main` commit before this release (`a08acf560`):
+    - `desktop-and-protocol` and `desktop-preferences`: the hosted Swift compiler times out type-checking `ChatComponents.swift:390`, a file this release does not touch. The Python suite inside that job passed: 2,776 passed, 169 skipped;
+    - the Kani `core`, `routes`, `flash` and main shards: an internal Kani compiler panic plus harness failures and timeouts in files this release does not touch;
+    - `native (macos-26)` and `guard-proofs`: cancelled, as on every recent `main` commit.
+  - These failures were not introduced by this release, but they mean hosted CI is **not green**. The local checks above are the release verification. The full local Python suite on the same tree gave 2,839 passed and 106 skipped.
 
 ## Acknowledgements
 
