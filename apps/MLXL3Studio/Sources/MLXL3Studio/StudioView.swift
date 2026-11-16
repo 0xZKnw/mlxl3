@@ -116,10 +116,10 @@ private struct SidebarView: View {
         let visibleConversations = filteredConversations
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
+                // The monogram alone names the app; the wordmark repeated it.
                 MonogramMark(size: 35)
-                Text("MLXL3")
-                    .font(.system(size: 17, weight: .semibold))
-                    .tracking(-0.7)
+                    .accessibilityElement()
+                    .accessibilityLabel("MLXL3")
                 Spacer(minLength: 0)
                 DownloadNotificationButton(library: studio.modelLibrary)
             }
@@ -127,66 +127,51 @@ private struct SidebarView: View {
             .padding(.horizontal, 18)
             .padding(.top, 37).padding(.bottom, 16)
 
-            VStack(spacing: 2) {
-                ForEach(StudioMode.allCases) { mode in
-                    Button { studio.selectMode(mode) } label: {
-                        HStack(spacing: 11) {
-                            Image(systemName: mode.icon).frame(width: 18)
-                            Text(mode.title)
-                            Spacer()
-                        }
-                        .font(.system(size: 13, weight: studio.selectedMode == mode ? .semibold : .regular))
-                        .padding(.horizontal, 12).frame(height: 32)
-                    }
-                    .buttonStyle(StudioControlStyle(emphasized: studio.selectedMode == mode, cornerRadius: 8))
-                    .accessibilityLabel(mode.title)
-                    .accessibilityAddTraits(studio.selectedMode == mode ? .isSelected : [])
-                }
-            }
-            .padding(.horizontal, 10).disabled(studio.isGenerating)
-
-            SidebarProjectMenu()
-                .padding(.horizontal, 10).padding(.top, 14)
+            SidebarModePicker()
+                .padding(.horizontal, 10)
                 .disabled(studio.isGenerating)
 
-            HStack(spacing: 11) {
-                Image(systemName: "magnifyingglass").font(.system(size: 12)).frame(width: 18)
-                TextField(L("Rechercher", "Search"), text: $search)
-                    .textFieldStyle(.plain)
-                    .accessibilityLabel(L("Rechercher dans les titres des conversations", "Search conversation titles"))
-                if !search.isEmpty {
-                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain)
-                        .help(L("Effacer la recherche", "Clear search"))
+            SidebarProjectMenu()
+                .padding(.horizontal, 10).padding(.top, 8)
+                .disabled(studio.isGenerating)
+
+            // Search and the new-conversation action share one row so the
+            // conversation list keeps the vertical space.
+            HStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 11.5))
+                    TextField(L("Rechercher", "Search"), text: $search)
+                        .textFieldStyle(.plain)
+                        .accessibilityLabel(L("Rechercher dans les titres des conversations", "Search conversation titles"))
+                    if !search.isEmpty {
+                        Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain)
+                            .help(L("Effacer la recherche", "Clear search"))
+                    }
                 }
-            }
-            .font(.system(size: 12))
-            .foregroundStyle(StudioTheme.secondary)
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+                .font(.system(size: 12))
+                .foregroundStyle(StudioTheme.secondary)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+                }
+
+                Button(action: studio.newConversation) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
+                .accessibilityIdentifier("sidebar.newConversation")
+                .accessibilityLabel(newConversationTitle)
+                .help(newConversationTitle + " · ⌘N")
             }
             .padding(.horizontal, 10)
-            .padding(.top, 8)
-
-            Button(action: studio.newConversation) {
-                HStack(spacing: 11) {
-                    Image(systemName: "square.and.pencil").frame(width: 18)
-                    Text(studio.selectedMode == .agent
-                         ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 12).frame(height: 36)
-            }
-            .buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
-            .accessibilityIdentifier("sidebar.newConversation")
-            .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
-            .padding(.horizontal, 10).padding(.top, 12)
+            .padding(.top, 6)
 
             HStack(spacing: 7) {
                 Text("Conversations")
@@ -199,8 +184,8 @@ private struct SidebarView: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(StudioTheme.quiet)
             .padding(.horizontal, 22)
-            .padding(.top, 18)
-            .padding(.bottom, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
 
             ScrollView {
                 let conversations = visibleConversations
@@ -229,21 +214,26 @@ private struct SidebarView: View {
             .scrollIndicators(.hidden)
             .mask(StudioEdgeFade(top: 10, bottom: 18))
 
-            VStack(spacing: 2) {
+            // Projects, MCP, Models and Settings as one icon row (named in the
+            // tooltip and accessibility label) instead of four full-width rows.
+            VStack(spacing: 0) {
                 Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
-                    .padding(.horizontal, 12).padding(.bottom, 10)
-                utilityButton(L("Projets et profils", "Projects and profiles"), icon: "folder", action: { studio.showWorkspace = true })
-                utilityButton("MCP", icon: "shippingbox", action: { studio.showMCPManager = true })
-                utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
-                HStack(spacing: 0) {
+                    .padding(.horizontal, 12).padding(.bottom, 8)
+                HStack(spacing: 2) {
+                    utilityButton(L("Projets et profils", "Projects and profiles"), icon: "folder", action: { studio.showWorkspace = true })
+                    utilityButton("MCP", icon: "shippingbox", action: { studio.showMCPManager = true })
+                    utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
                     utilityButton(L("Réglages", "Settings"), icon: "gearshape", action: studio.openAppSettings)
                     SidebarUpdateBadge(updater: studio.updateManager, action: studio.openUpdateSettings)
-                        .padding(.trailing, 8)
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.bottom, 17)
+            .padding(.bottom, 12)
         }
+    }
+
+    private var newConversationTitle: String {
+        studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation")
     }
 
     private func sectionLabel(_ title: String) -> some View {
@@ -254,20 +244,66 @@ private struct SidebarView: View {
             .padding(.leading, 12).padding(.top, 10).padding(.bottom, 5)
     }
 
-    // Same icon column and inset as the mode list above, whatever the symbol width.
     private func utilityButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 11) {
-                Image(systemName: icon).frame(width: 18)
-                Text(title).lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .font(.system(size: 12))
-            .padding(.horizontal, 12)
-            .frame(height: 32)
+            Image(systemName: icon)
+                .font(.system(size: 13.5))
+                .frame(maxWidth: .infinity).frame(height: 32)
+                .contentShape(Rectangle())
         }
         .buttonStyle(StudioControlStyle(cornerRadius: 8))
+        .help(title)
         .accessibilityLabel(title)
+    }
+}
+
+/// Chat, Agent, Server and Lab as one segmented row: four full-width rows used
+/// to take the space of four conversations.
+private struct SidebarModePicker: View {
+    @EnvironmentObject private var studio: StudioModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selection
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(StudioMode.allCases) { mode in
+                let selected = studio.selectedMode == mode
+                Button { studio.selectMode(mode) } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: mode.icon).font(.system(size: 12.5, weight: selected ? .semibold : .regular))
+                            .frame(height: 15)
+                        Text(mode.title)
+                            .font(.system(size: 10.5, weight: selected ? .semibold : .medium))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.quiet)
+                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .background {
+                        if selected {
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(StudioTheme.contrast.opacity(0.09))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        .strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+                                }
+                                .matchedGeometryEffect(id: "mode", in: selection)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(mode.title)
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: studio.selectedMode)
     }
 }
 
@@ -306,7 +342,7 @@ private struct SidebarProjectMenu: View {
             }
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 12)
-            .frame(height: 32)
+            .frame(height: 30)
             .frame(maxWidth: .infinity)
             .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
@@ -340,7 +376,7 @@ private struct SidebarConversationItem: View {
         .overlay(alignment: .trailing) {
             Button { studio.setConversationPinned(conversation.id, !conversation.isPinned) } label: {
                 Image(systemName: conversation.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 10.5)).frame(width: 26, height: 32)
+                    .font(.system(size: 10.5)).frame(width: 26, height: 30)
                     .foregroundStyle(conversation.isPinned ? StudioTheme.secondary : StudioTheme.quiet)
                     .contentShape(Rectangle())
             }
@@ -388,7 +424,7 @@ private struct ConversationRow: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .frame(height: 34)
+        .frame(height: 30)
         .contentShape(Rectangle())
         .help(conversation.title)
         .accessibilityAddTraits(selected ? .isSelected : [])

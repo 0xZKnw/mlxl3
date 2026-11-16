@@ -442,18 +442,42 @@ extension DesktopExperienceCheck {
             }
             try await Task.sleep(for: .milliseconds(100))
         }
-        for x in [CGFloat(30), 200] {
+        // The compact sidebar puts search and the new-conversation button on one
+        // row (232-point sidebar): the button answers, the search field does not.
+        let beforeSearch = studio.conversations.count
+        try await click(90, 193)
+        precondition(studio.conversations.count == beforeSearch,
+                     "Clicking the sidebar search field must not create a conversation")
+        for x in [CGFloat(196), 207, 218] {
             let count = studio.conversations.count
-            try await click(x, 334)
+            try await click(x, 193)
             precondition(studio.conversations.count == count + 1,
-                         "New conversation must respond across the full sidebar row")
+                         "New conversation must respond across the whole compact sidebar button")
         }
         studio.draft = "Brouillon conservé"
         try await click(1195, 33)
         precondition(studio.showInspector && studio.draft == "Brouillon conservé")
         try await click(1188, 52)
         precondition(!studio.showInspector && studio.draft == "Brouillon conservé")
-        print("Workspace controls passed: full-width new conversation, inspector close and retained draft")
+        // Footer icon row (232-point sidebar, 780-point window): each icon opens its own page.
+        let footer: [(CGFloat, String, () -> Bool, () -> Void)] = [
+            (36, "Projects", { studio.showWorkspace }, { studio.showWorkspace = false }),
+            (89, "MCP", { studio.showMCPManager }, { studio.showMCPManager = false }),
+            (143, "Models", { studio.showModelManager }, { studio.showModelManager = false }),
+            (196, "Settings", { studio.showAppSettings }, { studio.showAppSettings = false }),
+        ]
+        for (x, name, isOpen, close) in footer {
+            precondition(!studio.showWorkspace && !studio.showMCPManager && !studio.showModelManager && !studio.showAppSettings,
+                         "A management page was already open before the \(name) footer click")
+            try await click(x, 752)
+            precondition(isOpen(), "The \(name) footer icon did not open its page")
+            precondition([studio.showWorkspace, studio.showMCPManager, studio.showModelManager, studio.showAppSettings]
+                .filter { $0 }.count == 1, "The \(name) footer icon opened more than one page")
+            close()
+            // Let the 0.2 s page fade-out finish; the fading page still owns the clicks.
+            try await Task.sleep(for: .milliseconds(450))
+        }
+        print("Workspace controls passed: compact new conversation button, search row, footer icon row, inspector close and retained draft")
     }
 }
 

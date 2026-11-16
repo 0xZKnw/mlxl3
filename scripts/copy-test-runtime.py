@@ -23,9 +23,16 @@ def copy_runtime(bundle):
     pointer = engines / "current.json"
     current = None
     if pointer.exists():
-        current = json.loads(pointer.read_text())["version"]
+        active = json.loads(pointer.read_text())
+        current = active["version"]
         version(current)
         source = engines / ("v" + current)
+        # Newer Desktop releases install each engine as engine-v<version>-<archive SHA-256>.
+        archive = active.get("archiveSHA256")
+        if isinstance(archive, str) and re.fullmatch(r"[a-f0-9]{64}", archive):
+            keyed = engines / ("engine-v" + current + "-" + archive)
+            if keyed.is_dir() or not source.exists():
+                source = keyed
         if (source / "disabled").exists():
             raise ValueError("The active runtime is disabled; select a working engine first")
     else:
