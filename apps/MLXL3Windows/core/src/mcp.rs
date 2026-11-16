@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
+    fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -185,10 +185,7 @@ fn update_config<T>(
 ) -> Result<T> {
     let path = config_path(registry);
     fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))?;
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path.with_extension("lock"))?;
+    let lock = crate::hub::open_lock_file(&path.with_extension("lock"))?;
     lock.lock()?;
     let mut payload = read_config_unlocked(&path)?;
     let result = change(&mut payload)?;

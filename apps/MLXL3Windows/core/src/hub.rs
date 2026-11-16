@@ -49,14 +49,31 @@ pub struct Curl {
 
 /// A child process spawned elsewhere in the app can hold a duplicate of the lock descriptor
 /// between `fork` and `exec`; retry for a bounded quarter second before reporting contention.
-fn lock_briefly(file: &File) -> std::result::Result<(), std::fs::TryLockError> {
+/// Open (or create) a lock file. Windows `LockFileEx` needs read or write access on the
+/// handle: an append-only handle fails with ERROR_ACCESS_DENIED.
+pub(crate) fn open_lock_file(path: &Path) -> std::io::Result<File> {
+    OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(path)
+}
+
+/// Take the lock within 250 ms. `busy` is the error when another holder keeps it; any other
+/// failure is reported as itself.
+fn lock_briefly(file: &File, busy: &str) -> Result<()> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_millis(250);
     loop {
         match file.try_lock() {
+            Ok(()) => return Ok(()),
             Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
-            other => return other,
+            Err(std::fs::TryLockError::WouldBlock) => anyhow::bail!("{busy}"),
+            Err(std::fs::TryLockError::Error(error)) => {
+                return Err(anyhow::Error::new(error).context("locking the download state"));
+            }
         }
     }
 }
@@ -880,11 +897,8 @@ pub fn run_download(
     );
     let stage = staging_root(&root).join(&request.id);
     fs::create_dir_all(&stage)?;
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(staging_root(&root).join(format!("{}.lock", request.id)))?;
-    lock_briefly(&lock).map_err(|_| anyhow::anyhow!("this variant is already downloading"))?;
+    let lock = open_lock_file(&staging_root(&root).join(format!("{}.lock", request.id)))?;
+    lock_briefly(&lock, "this variant is already downloading")?;
     write_json(&stage.join("request.json"), request)?;
 
     let model = info(http, &request.repo, &request.commit)?;
@@ -1019,12 +1033,11 @@ pub fn discard(models: &Path, id: &str) -> Result<()> {
         "invalid download directory"
     );
     let lock_path = root.join(format!("{id}.lock"));
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&lock_path)?;
-    lock_briefly(&lock)
-        .map_err(|_| anyhow::anyhow!("pause the download before removing its partial files"))?;
+    let lock = open_lock_file(&lock_path)?;
+    lock_briefly(
+        &lock,
+        "pause the download before removing its partial files",
+    )?;
     if stage.is_dir() {
         fs::remove_dir_all(&stage)?;
     }
