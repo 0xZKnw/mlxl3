@@ -33,26 +33,16 @@ pub(super) use model::{NativeChatModel, PromptCache, admit_request, prefill};
 pub(super) fn select(
     model: &NativeChatModel,
     logits: &[u16],
-    generated: &[u32],
-    temperature: f32,
-    top_k: usize,
-    penalty: f32,
+    history: &mlxl3_native::sampling::History,
+    sampler: &mlxl3_native::sampling::Sampler,
     random: &mut u64,
 ) -> Result<u32> {
-    anyhow::ensure!(
-        temperature.is_finite() && temperature >= 0.,
-        "temperature must be non-negative"
-    );
-    anyhow::ensure!(
-        penalty.is_finite() && penalty > 0.,
-        "repetition_penalty must be positive"
-    );
     let values = model.log_probs(logits)?;
-    if (temperature == 0. || top_k == 1) && penalty == 1. {
+    if sampler.is_greedy() {
         mlxl3_native::speculative::greedy_log_prob_id(&values)
             .context("invalid Flash log probabilities")
     } else {
-        sample_values(values, generated, temperature, top_k, penalty, random)
+        sample_values(values, history, sampler, random)
     }
 }
 
@@ -186,7 +176,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_profile":qwen_profile,"qwen_effective_flags":qwen_effective_flags,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_sampling_supported":false,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_profile":qwen_profile,"qwen_effective_flags":qwen_effective_flags,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -270,6 +260,8 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         mlxl3_native::structured::Schema::parse(schema)?;
                     }
                     let started = Instant::now();
+                    let sampler = request.sampler()?;
+                    // The direct engine verifies MTP drafts greedily only.
                     let active = request.mtp && request.greedy_unpenalized();
                     let draft_seconds = if active {
                         anyhow::ensure!(
@@ -316,9 +308,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         &id,
                         request.messages,
                         request.max_tokens,
-                        request.temperature,
-                        request.top_k,
-                        request.repetition_penalty,
+                        sampler,
                         context,
                         size,
                         &cancelled,

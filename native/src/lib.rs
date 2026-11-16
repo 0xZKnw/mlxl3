@@ -143,6 +143,7 @@ pub mod router;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod router_network;
 pub mod runtime_stats;
+pub mod sampling;
 pub mod speculation_plan;
 pub mod speculative;
 #[cfg(feature = "mlx")]

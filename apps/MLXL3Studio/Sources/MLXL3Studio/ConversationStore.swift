@@ -17,6 +17,8 @@ struct WorkspaceSnapshot: Codable, Sendable {
     var responseSchema: String? = nil
     var labSamples: [LabSample]? = nil
     var drafts: [ConversationDraft]? = nil
+    var topP: Double? = nil
+    var presencePenalty: Double? = nil
 
     init(
         selectedConversationID: UUID?,

@@ -1,0 +1,107 @@
+.......................................                                  [100%]
+39 passed in 1.46s
+warning: 'mlxl3studio': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Sources/MLXL3Studio/README.md
+[0/1] Planning build
+Building for debugging...
+[0/3] Write swift-version--1AB21518FC5DEDBE.txt
+Build complete! (0.20s)
+warning: '--build-system native' has been deprecated and will be removed in a future release; please report an issue at https://github.com/swiftlang/swift-package-manager/issues if you are unable to adopt the default build system.
+warning: '--build-system native' has been deprecated and will be removed in a future release; please report an issue at https://github.com/swiftlang/swift-package-manager/issues if you are unable to adopt the default build system.
+Studios checks passed: 58, actual Git, safe copy/edit/conflicts/restore, historical assets, ZIP, permissions and generated HTML extraction
+Agent sandbox checks passed: 25, real commands, file/network/child isolation, environment, limits, process cleanup and invalid input
+Agent protocol checks passed: 29, real MCP commands, errors, bounded input and parent-death cleanup
+warning: 'mlxl3studio': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Sources/MLXL3Studio/README.md
+Building for debugging...
+[Planning deferred tasks]
+[23 / 38]
+[24 / 39] SwiftMath
+[36 / 150]
+[46 / 150]
+[49 / 150]
+[55 / 150]
+[58 / 150]
+[65 / 150]
+[67 / 150]
+[70 / 150]
+[71 / 150]
+[81 / 150]
+[84 / 150]
+[86 / 150]
+[87 / 150]
+[94 / 150]
+[95 / 150]
+[101 / 150]
+[102 / 150]
+[104 / 150]
+[106 / 150]
+[107 / 150]
+[115 / 150]
+[119 / 150]
+[122 / 150]
+[123 / 150]
+[124 / 150]
+[135 / 150] SwiftMath
+[136 / 150] SwiftMath
+[144 / 151] MLXL3Studio-product
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: [1;33mwarning: [1;39m'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m112 |[0;0m         /// So we first load a CGFont from the file and then convert it to a CTFont.
+[0;36m113 |[0;0m         var errorRef: Unmanaged<CFError>? = nil
+[0;36m114 |[0;0m         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    [0;36m|[0;0m               `- [1;33mwarning: [1;39m'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m115 |[0;0m             throw FontError.registerFailed
+[0;36m116 |[0;0m         }
+
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: [1;33mwarning: [1;39m'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m194 |[0;0m         var errorRef: Unmanaged<CFError>? = nil
+[0;36m195 |[0;0m         cgFonts.values.forEach { cgFont in
+[0;36m196 |[0;0m             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    [0;36m|[0;0m             `- [1;33mwarning: [1;39m'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m197 |[0;0m         }
+[0;36m198 |[0;0m         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[154 / 303]
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[160 / 303]
+[169 / 303]
+[171 / 303]
+[177 / 303]
+[180 / 303]
+[189 / 303]
+[191 / 303]
+[194 / 303]
+[195 / 303]
+[208 / 303]
+[213 / 303]
+[215 / 303]
+[222 / 303]
+[223 / 303]
+[228 / 303]
+[230 / 303]
+[237 / 303]
+[239 / 303]
+[246 / 303]
+[247 / 303]
+[249 / 303]
+[250 / 303]
+[252 / 303]
+[263 / 303]
+[265 / 303]
+[266 / 303]
+[271 / 303]
+[275 / 303]
+[277 / 303]
+[278 / 303]
+[279 / 303]
+[284 / 303]
+[287 / 303]
+[298 / 303] MLXL3Studio-product
+[299 / 303] MLXL3Studio-product
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[301 / 303] MLXL3Studio-product
+Build complete! (47,30 secs)
+Workspace checks passed: 44, CPU-only Git/controller/native full-window navigation; no model, Metal or WebGL test
+exit=0

@@ -1,0 +1,40 @@
+   Compiling http-body v0.4.6
+   Compiling futures-channel v0.3.32
+   Compiling socket2 v0.5.10
+   Compiling bytemuck v1.25.2
+   Compiling unicode_categories v0.1.1
+   Compiling num-conv v0.2.2
+   Compiling tower-service v0.3.3
+   Compiling time-core v0.1.9
+   Compiling powerfmt v0.2.0
+   Compiling daachorse v3.0.3
+   Compiling log v0.4.34
+   Compiling deranged v0.5.8
+   Compiling httpdate v1.0.3
+   Compiling mlxl3-native v2.0.11 (/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling)
+   Compiling fastrand v2.5.0
+   Compiling minijinja-contrib v2.24.0
+   Compiling tempfile v3.27.0
+   Compiling tokenizers v0.23.2
+   Compiling clap v4.6.6
+   Compiling hyper v0.14.32
+   Compiling time v0.3.55
+   Compiling half v2.7.1
+   Compiling sha1 v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling fs2 v0.4.3
+   Compiling base64 v0.22.1
+   Compiling image v0.25.10
+error[E0524]: two closures require unique access to `*random` at the same time
+   --> native/src/sampling.rs:320:53
+    |
+320 |         self.verify_with(proposal, || unit(random), || xorshift(random))
+    |              -----------           --      ------   ^^          ------ second borrow occurs due to use of `*random` in closure
+    |              |                     |       |        |
+    |              |                     |       |        second closure is constructed here
+    |              |                     |       first borrow occurs due to use of `*random` in closure
+    |              |                     first closure is constructed here
+    |              first borrow later used by call
+
+For more information about this error, try `rustc --explain E0524`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

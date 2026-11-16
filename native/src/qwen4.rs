@@ -1767,6 +1767,22 @@ impl FlashMtpSession {
         context_limit: usize,
         output_remaining: usize,
     ) -> Result<u32> {
+        self.advance_sampled(target, head, anchor, context_limit, output_remaining, None)
+    }
+
+    /// [`Self::advance`] with an optional non-greedy target policy: the head
+    /// drafts its argmax and verification uses exact speculative rejection
+    /// sampling. A greedy policy keeps the greedy verification unchanged.
+    pub fn advance_sampled(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        anchor: u32,
+        context_limit: usize,
+        output_remaining: usize,
+        draw: Option<crate::sampling::Draw<'_>>,
+    ) -> Result<u32> {
+        let draw = draw.filter(|draw| !draw.sampler.is_greedy());
         ensure!(
             output_remaining > 0 && anchor < 248320,
             "invalid Flash MTP budget or token"
@@ -1781,7 +1797,7 @@ impl FlashMtpSession {
             .context("Flash MTP context or output exhausted")?;
         #[cfg(test)]
         let step_start = std::time::Instant::now();
-        let result = self.step(target, head, anchor, width);
+        let result = self.step(target, head, anchor, width, draw);
         if result.is_err() {
             self.pending.clear();
             target.reset();
@@ -1799,6 +1815,7 @@ impl FlashMtpSession {
         head: &mut FlashMtpHead,
         anchor: u32,
         width: usize,
+        mut draw: Option<crate::sampling::Draw<'_>>,
     ) -> Result<u32> {
         ensure!(
             target.offset() > 0 && head.offset() == target.offset() - 1,
@@ -1813,8 +1830,12 @@ impl FlashMtpSession {
             #[cfg(test)]
             let _profile = crate::flash_profile::span("mtp_tail_fallback");
             head.extend_cache(target, &hidden, anchor)?;
-            return target
-                .forward(anchor)?
+            let logits = target.forward(anchor)?;
+            if let Some(draw) = draw.as_mut() {
+                let rows = crate::sampling::log_prob_rows(&logits)?;
+                return draw.sample(rows.first().context("missing Flash fallback row")?.to_vec());
+            }
+            return logits
                 .chat_greedy_ids()?
                 .first()
                 .copied()
@@ -1839,15 +1860,21 @@ impl FlashMtpSession {
         #[cfg(test)]
         let verify_start = std::time::Instant::now();
         let (logits, hidden) = target.verify_pair([anchor, proposal])?;
-        let tokens = logits.chat_greedy_ids()?;
+        let acceptance = if let Some(draw) = draw.as_mut() {
+            let rows = crate::sampling::log_prob_rows(&logits)?;
+            ensure!(rows.len() == 2, "invalid Flash MTP verification");
+            draw.speculative_accept(&[proposal], |index| Ok(rows[index].to_vec()))?
+        } else {
+            let tokens = logits.chat_greedy_ids()?;
+            crate::speculative::greedy_accept(&[proposal], &tokens)
+                .context("invalid Flash MTP verification")?
+        };
         #[cfg(test)]
         {
             self.profile_seconds[1] += verify_start.elapsed().as_secs_f64();
         }
         #[cfg(test)]
         let repair_start = std::time::Instant::now();
-        let acceptance = crate::speculative::greedy_accept(&[proposal], &tokens)
-            .context("invalid Flash MTP verification")?;
         let accepted = acceptance.accepted_draft_tokens;
         target.commit_pair(1 + accepted as i32)?;
         if accepted > 0 {

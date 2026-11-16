@@ -1,0 +1,28 @@
+=== mutant: acceptance 2p
+test sampling::tests::greedy_policies_keep_exact_greedy_verification ... ok
+test sampling::tests::boundaries_and_invalid_parameters ... ok
+test sampling::tests::ordinary_sampling_matches_previous_bridge_golden ... ok
+test sampling::tests::verify_delivers_exact_target_law_on_a_uniform_grid ... FAILED
+test sampling::tests::speculative_chain_matches_sequential_target_sampling ... FAILED
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 459 filtered out; finished in 0.24s
+=== mutant: residual keeps proposal
+test sampling::tests::greedy_policies_keep_exact_greedy_verification ... ok
+test sampling::tests::boundaries_and_invalid_parameters ... ok
+test sampling::tests::ordinary_sampling_matches_previous_bridge_golden ... ok
+test sampling::tests::verify_delivers_exact_target_law_on_a_uniform_grid ... FAILED
+test sampling::tests::speculative_chain_matches_sequential_target_sampling ... FAILED
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 459 filtered out; finished in 0.20s
+=== mutant: top_p ignored
+test sampling::tests::greedy_policies_keep_exact_greedy_verification ... ok
+test sampling::tests::boundaries_and_invalid_parameters ... FAILED
+test sampling::tests::ordinary_sampling_matches_previous_bridge_golden ... ok
+test sampling::tests::speculative_chain_matches_sequential_target_sampling ... FAILED
+test sampling::tests::verify_delivers_exact_target_law_on_a_uniform_grid ... FAILED
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 459 filtered out; finished in 0.36s
+=== mutant: presence ignored for prefix
+test sampling::tests::greedy_policies_keep_exact_greedy_verification ... ok
+test sampling::tests::boundaries_and_invalid_parameters ... FAILED
+test sampling::tests::ordinary_sampling_matches_previous_bridge_golden ... ok
+test sampling::tests::speculative_chain_matches_sequential_target_sampling ... FAILED
+test sampling::tests::verify_delivers_exact_target_law_on_a_uniform_grid ... ok
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 459 filtered out; finished in 0.76s

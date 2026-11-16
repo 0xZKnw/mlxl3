@@ -89,6 +89,8 @@ final class StudioModel: ObservableObject {
     @Published var temperature = 0.2
     @Published var topK = 80
     @Published var repetitionPenalty = 1.05
+    @Published var topP = 1.0
+    @Published var presencePenalty = 0.0
     @Published private(set) var dflash2Enabled = false
     @Published private(set) var dflashDraftPath = ""
     @Published private(set) var dflashDownloading = false {
@@ -123,6 +125,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpDownloadTotal = 0.0
     @Published private(set) var mtpError: String?
     @Published private(set) var mtpSupported: Bool?
+    /// Engines announcing this verify MTP drafts by exact speculative sampling.
+    @Published private(set) var mtpSamplingSupported: Bool?
     @Published private(set) var mtpAutoDownloadSupported: Bool?
     @Published private(set) var mtpActive: Bool?
     @Published private(set) var mtpDepth = 1
@@ -290,6 +294,8 @@ final class StudioModel: ObservableObject {
             temperature = snapshot.temperature
             topK = snapshot.topK
             repetitionPenalty = snapshot.repetitionPenalty
+            if let value = snapshot.topP, value.isFinite, value > 0, value <= 1 { topP = value }
+            if let value = snapshot.presencePenalty, value.isFinite, (-2...2).contains(value) { presencePenalty = value }
             systemPrompt = snapshot.systemPrompt
             labSamples = Array((snapshot.labSamples ?? []).filter(\.valid).suffix(1000))
             projects = snapshot.projects ?? []
@@ -343,7 +349,7 @@ final class StudioModel: ObservableObject {
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
             self.dflashSupported = nil
-            self.mtpActive = nil; self.mtpSupported = nil; self.mtpAutoDownloadSupported = nil
+            self.mtpActive = nil; self.mtpSupported = nil; self.mtpSamplingSupported = nil; self.mtpAutoDownloadSupported = nil
             self.runtimeIdentity = nil
             self.runtimeQwenProfile = nil
             if self.activeRequestID != nil {
@@ -376,10 +382,29 @@ final class StudioModel: ObservableObject {
     // Saved intent can survive an incompatible model; applicability is not engine activity.
     var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
     var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
-    var samplingLocked: Bool { mtpApplicable || dflash2Applicable }
+    // DFlash2 stays greedy; MTP samples when the running engine says so.
+    var samplingLocked: Bool { dflash2Applicable || (mtpApplicable && mtpSamplingSupported != true) }
     var samplingTemperature: Double { samplingLocked ? 0 : temperature }
     var samplingTopK: Int { samplingLocked ? 1 : topK }
     var samplingRepetitionPenalty: Double { samplingLocked ? 1 : repetitionPenalty }
+    var samplingTopP: Double { samplingLocked ? 1 : topP }
+    var samplingPresencePenalty: Double { samplingLocked ? 0 : presencePenalty }
+
+    /// Official settings of the selected catalog model; empty for other models.
+    var recommendedSamplingPresets: [SamplingPreset] { SamplingPresets.presets(for: selectedModel) }
+
+    func isSamplingPresetActive(_ preset: SamplingPreset) -> Bool {
+        abs(temperature - preset.temperature) < 1e-9 && topK == preset.topK && abs(topP - preset.topP) < 1e-9
+            && abs(repetitionPenalty - preset.repetitionPenalty) < 1e-9
+            && abs(presencePenalty - preset.presencePenalty) < 1e-9
+    }
+
+    func applySamplingPreset(_ preset: SamplingPreset) {
+        guard !isGenerating, preset.valid, recommendedSamplingPresets.contains(preset) else { return }
+        temperature = preset.temperature; topK = preset.topK; topP = preset.topP
+        repetitionPenalty = preset.repetitionPenalty; presencePenalty = preset.presencePenalty
+        settingsDidChange()
+    }
 
     var mtpAutomaticDownloadAvailable: Bool {
         mtpAutoDownloadSupported ?? false
@@ -1052,6 +1077,7 @@ final class StudioModel: ObservableObject {
         dflashSupported = nil
         mtpActive = nil
         mtpSupported = nil
+        mtpSamplingSupported = nil
         mtpAutoDownloadSupported = nil
         mtpConfigureSupported = false
         memorySaverSupported = false
@@ -1251,6 +1277,8 @@ final class StudioModel: ObservableObject {
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
+                    topP: samplingTopP,
+                    presencePenalty: samplingPresencePenalty,
                     mcpEnabled: selectedMode == .agent || (mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
                     dflash2: dflash2Applicable,
                     dflashDraftPath: dflashDraftPath,
@@ -2008,6 +2036,7 @@ final class StudioModel: ObservableObject {
         dflashSupported = nil
         mtpActive = nil
         mtpSupported = nil
+        mtpSamplingSupported = nil
         mtpAutoDownloadSupported = nil
         cancelMTPPreparation()
         mtpConfigureSupported = false
@@ -2137,6 +2166,7 @@ final class StudioModel: ObservableObject {
             dflashConfigureSupported = event.dflashConfigureSupported == true
             dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
+            mtpSamplingSupported = event.mtpSamplingSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
             mtpConfigureSupported = event.mtpConfigureSupported == true
             mtpMaxDepth = min(3, max(1, event.mtpMaxDepth ?? 1))
@@ -2348,6 +2378,8 @@ final class StudioModel: ObservableObject {
             documents: documents,
             responseSchema: responseSchema
         )
+        snapshot.topP = topP
+        snapshot.presencePenalty = presencePenalty
         snapshot.labSamples = labSamples
         var savedDrafts: [ConversationDraft] = []
         var bytes = 0
@@ -2573,18 +2605,21 @@ extension StudioModel {
         guard !isGenerating, !name.isEmpty, name.count <= 100, profiles.count < 128 else { return }
         profiles.append(GenerationProfile(name: name, model: selectedModelName, systemPrompt: systemPrompt,
             temperature: temperature, topK: topK, repetitionPenalty: repetitionPenalty,
-            contextLength: savedContextLength, responseSchema: responseSchema))
+            contextLength: savedContextLength, responseSchema: responseSchema, topP: topP, presencePenalty: presencePenalty))
         schedulePersistence()
     }
 
     func applyProfile(_ profile: GenerationProfile) {
         guard !isGenerating, profile.temperature.isFinite, (0...2).contains(profile.temperature),
-            (0...10000).contains(profile.topK), profile.repetitionPenalty.isFinite, (0.1...4).contains(profile.repetitionPenalty), profile.contextLength >= 0 else {
+            (0...10000).contains(profile.topK), profile.repetitionPenalty.isFinite, (0.1...4).contains(profile.repetitionPenalty), profile.contextLength >= 0,
+            (profile.topP ?? 1).isFinite, (profile.topP ?? 1) > 0, (profile.topP ?? 1) <= 1,
+            (profile.presencePenalty ?? 0).isFinite, (-2...2).contains(profile.presencePenalty ?? 0) else {
             featureError = L("Profil invalide ou génération en cours.", "Invalid profile or generation in progress."); return
         }
         systemPrompt = profile.systemPrompt
         responseSchema = profile.responseSchema
         temperature = profile.temperature; topK = profile.topK; repetitionPenalty = profile.repetitionPenalty
+        topP = profile.topP ?? 1; presencePenalty = profile.presencePenalty ?? 0
         if let name = profile.model, models.contains(where: { $0.name == name }) {
             let previousContext = savedContextLength
             var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]

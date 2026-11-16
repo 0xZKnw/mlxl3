@@ -208,6 +208,9 @@ if model in ('mtp-memory-saver', 'dflash-memory-saver'):
     capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
 if model == 'image-import':
     capabilities['images_supported'] = True
+# Engines with exact speculative sampling announce it; older ones stay silent.
+if os.environ.get('MLXL3_FIXTURE_MTP_SAMPLING') == '1':
+    capabilities['mtp_sampling_supported'] = mtp_capable
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and not model.startswith('flash'),
      **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),

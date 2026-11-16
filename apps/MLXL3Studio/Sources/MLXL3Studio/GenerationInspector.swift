@@ -35,6 +35,9 @@ struct GenerationInspector: View {
                     VStack(spacing: 24) {
                         ContextSettings()
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium", grouped: false) {
+                            if !studio.recommendedSamplingPresets.isEmpty {
+                                RecommendedSamplingMenu()
+                            }
                             VStack(spacing: 16) {
                                 SliderSetting(
                                     label: L("Température", "Temperature"),
@@ -70,6 +73,24 @@ struct GenerationInspector: View {
                                         get: { studio.samplingRepetitionPenalty },
                                         set: { studio.repetitionPenalty = $0 }),
                                     range: 1...1.3,
+                                    format: "%.2f"
+                                )
+                                Divider().overlay(StudioTheme.contrast.opacity(0.08))
+                                SliderSetting(
+                                    label: "Top P",
+                                    value: Binding(
+                                        get: { studio.samplingTopP },
+                                        set: { studio.topP = min(1, max(0.05, $0)) }),
+                                    range: 0.05...1,
+                                    format: "%.2f"
+                                )
+                                Divider().overlay(StudioTheme.contrast.opacity(0.08))
+                                SliderSetting(
+                                    label: L("Présence", "Presence"),
+                                    value: Binding(
+                                        get: { studio.samplingPresencePenalty },
+                                        set: { studio.presencePenalty = $0 }),
+                                    range: 0...2,
                                     format: "%.2f"
                                 )
                             }
@@ -341,6 +362,8 @@ struct GenerationInspector: View {
         .onChange(of: studio.temperature) { studio.settingsDidChange() }
         .onChange(of: studio.topK) { studio.settingsDidChange() }
         .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }
+        .onChange(of: studio.topP) { studio.settingsDidChange() }
+        .onChange(of: studio.presencePenalty) { studio.settingsDidChange() }
         .onChange(of: studio.systemPrompt) { studio.settingsDidChange() }
     }
 
@@ -539,5 +562,37 @@ struct ContextLimitField: View {
         .onChange(of: value) {
             if value >= 0 && Int(text) != value { text = String(value) }
         }
+    }
+}
+
+/// Official settings of the selected catalog model (absent for other models).
+private struct RecommendedSamplingMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        let presets = studio.recommendedSamplingPresets
+        let active = presets.first(where: studio.isSamplingPresetActive)
+        Menu {
+            ForEach(presets) { preset in
+                Button(action: { studio.applySamplingPreset(preset) }) {
+                    if preset == active {
+                        Label(preset.title, systemImage: "checkmark")
+                    } else {
+                        Text(preset.title)
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Label(L("Réglages recommandés", "Recommended settings"), systemImage: "wand.and.stars")
+                Spacer()
+                Text(active?.title ?? L("Personnalisé", "Custom")).foregroundStyle(StudioTheme.quiet)
+            }
+            .font(.system(size: 13, weight: .medium))
+        }
+        .menuStyle(.borderlessButton)
+        .disabled(studio.isGenerating || studio.samplingLocked)
+        .accessibilityIdentifier("generation.recommendedSampling")
+        .padding(.bottom, 8)
     }
 }

@@ -2700,7 +2700,6 @@
     ".chat_greedy_ids": 12,
     ".compact_for_cache": 6,
     ".eval": 13,
-    ".exp": 1,
     ".finish": 5,
     ".log_probs": 2,
     ".memory_stats": 1,
@@ -2708,7 +2707,7 @@
     ".shape": 8,
     ".slice": 3,
     ".swiglu": 1,
-    ".take": 11,
+    ".take": 10,
     ".to_bytes": 5,
     ".to_f16_bits": 32,
     ".to_f32": 12,
@@ -2738,12 +2737,12 @@
     "config MLXL3_MTP_ADAPTIVE": 1,
     "config MLXL3_MTP_LOOKUP": 2,
     "config MLXL3_MTP_TEST_COPY_BUDGET": 1,
-    "config MLXL3_MTP_TEST_HEAD": 1,
-    "config MLXL3_MTP_TEST_MODEL": 1,
+    "config MLXL3_MTP_TEST_HEAD": 2,
+    "config MLXL3_MTP_TEST_MODEL": 2,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_Q36_MOE_GROUP": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 220,
+    "mlx": 221,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -3244,6 +3243,16 @@
     "shader mlxl3_rs_topk_biased_e{experts}_k{top_k}_v3": 1
   },
   "native/src/runtime_stats.rs": {
+    "mlx": 1
+  },
+  "native/src/sampling.rs": {
+    ".exp": 2,
+    ".log_probs": 1,
+    ".shape": 1,
+    ".sum": 3,
+    ".take": 2,
+    ".to_f32": 1,
+    "array::Array": 1,
     "mlx": 1
   },
   "native/src/speculation_plan.rs": {

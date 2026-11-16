@@ -2277,6 +2277,10 @@ struct BridgeRequest {
     top_k: usize,
     #[serde(default = "unit_penalty")]
     repetition_penalty: f32,
+    #[serde(default = "unit_penalty")]
+    top_p: f32,
+    #[serde(default)]
+    presence_penalty: f32,
     #[serde(default)]
     enabled: bool,
     #[serde(default)]
@@ -2357,6 +2361,7 @@ impl ChatMtpSession {
             }
         }
     }
+    #[allow(clippy::too_many_arguments)]
     fn advance(
         &mut self,
         model: &mut NativeChatModel,
@@ -2365,13 +2370,22 @@ impl ChatMtpSession {
         context: usize,
         remaining: usize,
         allow_lookup: impl Fn(&[u32]) -> bool,
+        draw: mlxl3_native::sampling::Draw<'_>,
     ) -> Result<u32> {
         match (self, model, head) {
             (Self::Qwen(session), NativeChatModel::Qwen(target), ChatMtpHead::Qwen(head)) => {
-                session.advance(target, head, anchor, context, remaining, allow_lookup)
+                session.advance_sampled(
+                    target,
+                    head,
+                    anchor,
+                    context,
+                    remaining,
+                    allow_lookup,
+                    Some(draw),
+                )
             }
             (Self::Flash(session), NativeChatModel::Flash(target), ChatMtpHead::Flash(head)) => {
-                session.advance(target, head, anchor, context, remaining)
+                session.advance_sampled(target, head, anchor, context, remaining, Some(draw))
             }
             _ => bail!("MTP head and target do not match"),
         }
@@ -3188,35 +3202,18 @@ fn emit_event(value: Value) -> Result<()> {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn select_token(
     logits: &mlxl3_native::array::Array,
-    generated: &[u32],
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
+    history: &mlxl3_native::sampling::History,
+    sampler: &mlxl3_native::sampling::Sampler,
     random: &mut u64,
 ) -> Result<u32> {
-    anyhow::ensure!(
-        temperature.is_finite() && temperature >= 0.,
-        "temperature must be non-negative"
-    );
-    anyhow::ensure!(
-        repetition_penalty.is_finite() && repetition_penalty > 0.,
-        "repetition_penalty must be positive"
-    );
-    if (temperature == 0. || top_k == 1) && repetition_penalty == 1. {
+    if sampler.is_greedy() {
         return logits
             .chat_greedy_ids()?
             .into_iter()
             .next()
             .context("model returned no logits");
     }
-    sample_values(
-        logits.log_probs()?.to_f32()?,
-        generated,
-        temperature,
-        top_k,
-        repetition_penalty,
-        random,
-    )
+    sample_values(logits.log_probs()?.to_f32()?, history, sampler, random)
 }
 
 #[cfg(all(
@@ -3224,73 +3221,12 @@ fn select_token(
     any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
 ))]
 fn sample_values(
-    mut values: Vec<f32>,
-    generated: &[u32],
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
+    values: Vec<f32>,
+    history: &mlxl3_native::sampling::History,
+    sampler: &mlxl3_native::sampling::Sampler,
     random: &mut u64,
 ) -> Result<u32> {
-    if repetition_penalty != 1. {
-        for &token in generated.iter().rev().take(20) {
-            if let Some(value) = values.get_mut(token as usize) {
-                *value = if *value < 0. {
-                    *value * repetition_penalty
-                } else {
-                    *value / repetition_penalty
-                };
-            }
-        }
-    }
-    if temperature == 0. || top_k == 1 {
-        return values
-            .iter()
-            .enumerate()
-            .filter(|(_, value)| value.is_finite())
-            .max_by(|left, right| left.1.total_cmp(right.1))
-            .map(|(index, _)| index as u32)
-            .context("model returned no finite logits");
-    }
-    let keep = if top_k == 0 {
-        values.len()
-    } else {
-        top_k.min(values.len())
-    };
-    let mut candidates: Vec<_> = values.into_iter().enumerate().collect();
-    if keep < candidates.len() {
-        candidates.select_nth_unstable_by(keep, |left, right| right.1.total_cmp(&left.1));
-        candidates.truncate(keep);
-    }
-    candidates.retain(|(_, value)| value.is_finite());
-    let maximum = candidates
-        .iter()
-        .map(|(_, value)| *value)
-        .max_by(f32::total_cmp)
-        .context("model returned no finite logits")?;
-    let mut total = 0f64;
-    let weights: Vec<_> = candidates
-        .iter()
-        .map(|(_, value)| {
-            let weight = (((*value - maximum) / temperature) as f64).exp();
-            total += weight;
-            weight
-        })
-        .collect();
-    anyhow::ensure!(
-        total.is_finite() && total > 0.,
-        "invalid sampling distribution"
-    );
-    *random ^= *random << 13;
-    *random ^= *random >> 7;
-    *random ^= *random << 17;
-    let mut target = (*random as f64 / u64::MAX as f64) * total;
-    for ((index, _), weight) in candidates.iter().zip(weights) {
-        if target <= weight {
-            return Ok(*index as u32);
-        }
-        target -= weight;
-    }
-    Ok(candidates.last().expect("nonempty candidates").0 as u32)
+    Ok(sampler.distribution(values, history, &[])?.sample(random))
 }
 
 #[cfg(all(
@@ -3319,7 +3255,18 @@ fn bridge_emit_delta(
 ))]
 impl BridgeRequest {
     fn greedy_unpenalized(&self) -> bool {
-        (self.temperature == 0. || self.top_k == 1) && self.repetition_penalty == 1.
+        (self.temperature == 0. || self.top_k == 1)
+            && self.repetition_penalty == 1.
+            && self.presence_penalty == 0.
+    }
+    fn sampler(&self) -> Result<mlxl3_native::sampling::Sampler> {
+        mlxl3_native::sampling::Sampler::new(
+            self.temperature,
+            self.top_k,
+            self.top_p,
+            self.repetition_penalty,
+            self.presence_penalty,
+        )
     }
 }
 
@@ -3338,7 +3285,8 @@ fn emit_generation_mode(
         "type":"generation_mode", "request_id":request.request_id,
         "dflash_requested":request.dflash2,"dflash_active":dflash,
         "mtp_requested":request.mtp, "mtp_active":mtp, "mtp_depth":if mtp { request.mtp_depth } else { 0 },
-        "mtp_reason":if request.mtp && !mtp { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
+        "mtp_reason":if request.mtp && !mtp { Some(if cfg!(feature = "mlx") { "MTP is unavailable for this request; ordinary sampling remains active" } else { "MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active" }) } else { None },
+        "mtp_sampling":mtp && !request.greedy_unpenalized(),
         "dflash_proposals":proposals, "dflash_mode":if dflash { request.dflash_mode } else { 0 },
         "dflash_draft_path":path
     }))
@@ -3356,9 +3304,7 @@ fn bridge_generate_round(
     messages: &[Value],
     tools: &[Value],
     max_tokens: i64,
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
+    sampler: mlxl3_native::sampling::Sampler,
     context_limit: usize,
     resident_gb: f64,
     cancelled: &AtomicBool,
@@ -3377,10 +3323,11 @@ fn bridge_generate_round(
     #[cfg(not(feature = "mlx"))]
     let device_greedy = tools.is_empty()
         && (!buffer_output || model.is_flash())
+        && sampler.is_greedy()
         && model.device_greedy_eligible(
-            temperature,
-            top_k,
-            repetition_penalty,
+            sampler.temperature,
+            sampler.top_k,
+            sampler.repetition_penalty,
             mtp.is_some() || draft.is_some(),
         );
     #[cfg(not(feature = "mlx"))]
@@ -3495,6 +3442,7 @@ fn bridge_generate_round(
     let mut answer = String::new();
     let mut tool_text = String::new();
     let mut generated = Vec::new();
+    let mut history = mlxl3_native::sampling::History::default();
     let mut first_token = None;
     let mut first_visible_text = None;
     let mut dflash_next = None;
@@ -3515,14 +3463,7 @@ fn bridge_generate_round(
             token
         } else {
             #[cfg(feature = "mlx")]
-            let sampled = select_token(
-                &logits,
-                &generated,
-                temperature,
-                top_k,
-                repetition_penalty,
-                random,
-            )?;
+            let sampled = select_token(&logits, &history, &sampler, random)?;
             #[cfg(not(feature = "mlx"))]
             let sampled = if device_greedy {
                 match device_greedy_next.take() {
@@ -3530,15 +3471,7 @@ fn bridge_generate_round(
                     None => model.greedy_from_logits(&logits)?,
                 }
             } else {
-                direct_bridge::select(
-                    model,
-                    &logits,
-                    &generated,
-                    temperature,
-                    top_k,
-                    repetition_penalty,
-                    random,
-                )?
+                direct_bridge::select(model, &logits, &history, &sampler, random)?
             };
             sampled
         };
@@ -3548,6 +3481,7 @@ fn bridge_generate_round(
         }
         first_token.get_or_insert_with(|| started.elapsed().as_secs_f64());
         generated.push(next);
+        history.push(next);
         if let Some(text) = decoder
             .step(next)
             .map_err(|error| anyhow::anyhow!("token decode failed: {error}"))?
@@ -3607,6 +3541,11 @@ fn bridge_generate_round(
                                 .tokenizer()
                                 .decode(ids, false)
                                 .is_ok_and(|s| s.contains('\n'))
+                        },
+                        mlxl3_native::sampling::Draw {
+                            sampler,
+                            history: &history,
+                            random: &mut *random,
                         },
                     )?);
                 } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
@@ -3880,9 +3819,7 @@ fn bridge_generate(
     request_id: &str,
     messages: Vec<Value>,
     max_tokens: i64,
-    temperature: f32,
-    top_k: usize,
-    repetition_penalty: f32,
+    sampler: mlxl3_native::sampling::Sampler,
     context_limit: usize,
     resident_gb: f64,
     cancelled: &AtomicBool,
@@ -3956,9 +3893,7 @@ fn bridge_generate(
             &dialogue,
             &tools,
             round_max_tokens,
-            temperature,
-            top_k,
-            repetition_penalty,
+            sampler,
             context_limit,
             resident_gb,
             cancelled,
@@ -4255,6 +4190,7 @@ fn native_bridge(
         "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
+        "mtp_sampling_supported":true,
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
         "mtp_max_depth":if matches!(&model, NativeChatModel::Flash(_)) { 1 } else { 3 }, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
@@ -4529,7 +4465,9 @@ fn native_bridge(
                         !(request.mtp && request.dflash2),
                         "Choose either MTP or DFlash2"
                     );
-                    let mtp_active = request.mtp && request.greedy_unpenalized();
+                    let sampler = request.sampler()?;
+                    // Non-greedy MTP verifies by exact speculative sampling.
+                    let mtp_active = request.mtp;
                     if mtp_active {
                         anyhow::ensure!(
                             (1..=3).contains(&request.mtp_depth),
@@ -4628,9 +4566,7 @@ fn native_bridge(
                         &request.request_id,
                         request.messages,
                         request.max_tokens,
-                        request.temperature,
-                        request.top_k,
-                        request.repetition_penalty,
+                        sampler,
                         context_limit,
                         resident_gb,
                         &cancelled,
@@ -5028,7 +4964,13 @@ mod tests {
         let logits = mlxl3_native::array::Array::from_f32(&[1., 4., 2.], &[1, 3]).unwrap();
         let mut random = 1;
         assert_eq!(
-            select_token(&logits, &[], 0., 0, 1., &mut random).unwrap(),
+            select_token(
+                &logits,
+                &mlxl3_native::sampling::History::default(),
+                &mlxl3_native::sampling::Sampler::greedy(),
+                &mut random,
+            )
+            .unwrap(),
             1
         );
     }
@@ -5245,9 +5187,7 @@ mod tests {
                 &messages,
                 &[],
                 budget,
-                0.,
-                1,
-                1.,
+                mlxl3_native::sampling::Sampler::greedy(),
                 4096,
                 0.,
                 &cancelled,
@@ -5275,9 +5215,7 @@ mod tests {
                         &messages,
                         &[],
                         budget,
-                        0.,
-                        1,
-                        1.,
+                        mlxl3_native::sampling::Sampler::greedy(),
                         4096,
                         0.,
                         &cancelled,
@@ -5319,9 +5257,7 @@ mod tests {
                 &messages,
                 &[],
                 128,
-                0.,
-                1,
-                1.,
+                mlxl3_native::sampling::Sampler::greedy(),
                 4096,
                 0.,
                 &cancelled,
@@ -5350,6 +5286,93 @@ mod tests {
         eprintln!(
             "production lookup: 37 nonempty completions, {lookup_blocks} copy lookup blocks; in-line echo skipped"
         );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints (MLXL3_MTP_TEST_MODEL/HEAD) and Apple GPU; run alone"]
+    fn bridge_mtp_sampling_matches_autoregressive_policy() -> Result<()> {
+        use mlxl3_native::{mtp::Head, sampling::Sampler, tokenizer::ChatTokenizer};
+        let path = std::path::PathBuf::from(
+            std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        );
+        let mut model = NativeChatModel::load(&path)?;
+        let tokenizer = ChatTokenizer::load(&path)?;
+        let NativeChatModel::Qwen(target) = &model else {
+            bail!("requires Qwen target")
+        };
+        let mut head = ChatMtpHead::Qwen(Box::new(Head::load(
+            std::path::Path::new(
+                &std::env::var("MLXL3_MTP_TEST_HEAD")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+            ),
+            target,
+        )?));
+        let messages = vec![json!({"role":"user", "content":
+            "List ten distinct uses of a paperclip, one per line, then explain which is most surprising."})];
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        let mut run = |sampler, mtp: Option<&mut ChatMtpHead>, depth, seed| {
+            let mut random = seed;
+            bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "mtp-sampling",
+                &messages,
+                &[],
+                96,
+                sampler,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                None,
+                mtp,
+                depth,
+                1,
+                &mut cache,
+                "mtp-sampling",
+                false,
+                false,
+            )
+        };
+        // Deterministic but penalized: the sampled verifier runs (not the
+        // greedy one) and every delivered token is a point mass, so MTP must
+        // reproduce autoregressive decoding token for token. A misaligned
+        // row, penalty prefix or bonus token diverges here.
+        let penalized = Sampler::new(0., 0, 1., 1.1, 0.5)?;
+        assert!(!penalized.is_greedy());
+        let reference = run(penalized, None, 1, 7)?;
+        assert_eq!(reference.stats.generated_tokens, 96);
+        for depth in 1..=3 {
+            let actual = run(penalized, Some(&mut head), depth, 7)?;
+            assert_eq!(actual.raw, reference.raw, "penalized depth {depth}");
+            assert_eq!(actual.token_hash, reference.token_hash);
+            assert!(actual.stats.mtp_accepted_tokens.unwrap() > 0);
+        }
+        // Stochastic official preset: MTP must run, accept drafts, finish
+        // the budget and be reproducible for a seed.
+        let stochastic = Sampler::new(0.7, 20, 0.8, 1., 1.5)?;
+        let mut accepted = 0;
+        for depth in 1..=3 {
+            let first = run(stochastic, Some(&mut head), depth, 11)?;
+            let again = run(stochastic, Some(&mut head), depth, 11)?;
+            assert!(!first.raw.is_empty());
+            assert_eq!(first.raw, again.raw, "seeded stochastic depth {depth}");
+            assert_eq!(first.stats.generated_tokens, again.stats.generated_tokens);
+            let (proposed, hits) = (
+                first.stats.mtp_proposed_tokens.unwrap(),
+                first.stats.mtp_accepted_tokens.unwrap(),
+            );
+            assert!(hits <= proposed);
+            accepted += hits;
+            eprintln!(
+                "stochastic MTP depth {depth}: {} tokens, {hits}/{proposed} drafts accepted",
+                first.stats.generated_tokens
+            );
+        }
+        assert!(accepted > 0, "stochastic MTP never accepted a draft");
         Ok(())
     }
 
@@ -5483,9 +5506,7 @@ mod tests {
                 &messages,
                 &[],
                 budget,
-                0.,
-                1,
-                1.,
+                mlxl3_native::sampling::Sampler::greedy(),
                 4096,
                 0.,
                 &cancelled,
@@ -5513,9 +5534,7 @@ mod tests {
                         &messages,
                         &[],
                         budget,
-                        0.,
-                        1,
-                        1.,
+                        mlxl3_native::sampling::Sampler::greedy(),
                         4096,
                         0.,
                         &cancelled,

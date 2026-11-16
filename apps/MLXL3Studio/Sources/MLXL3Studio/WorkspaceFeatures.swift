@@ -18,6 +18,9 @@ struct GenerationProfile: Codable, Identifiable, Sendable {
     var repetitionPenalty: Double
     var contextLength: Int
     var responseSchema: String
+    // Optional so profiles saved before these settings keep decoding.
+    var topP: Double? = nil
+    var presencePenalty: Double? = nil
 }
 
 struct LibraryDocument: Codable, Identifiable, Sendable, Equatable {

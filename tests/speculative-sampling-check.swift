@@ -97,19 +97,24 @@ extension StudioModel {
         for flash in [false, true] {
           for mtpCapability in capabilities {
             for flashCapability in capabilities {
+             for samplingCapability in capabilities {
               let model = StudioModel(
                 conversationFileURL: file, isPreview: true, preferences: preferences)
               model.models = [local("qwen3.6-35b-a3b", type)]
               model.selectedModelName = "qwen3.6-35b-a3b"
+              model.topP = 0.9
+              model.presencePenalty = 0.4
               var ready: [String: Any] = ["type": "ready"]
               if let mtpCapability { ready["mtp_supported"] = mtpCapability }
               if let flashCapability { ready["dflash_supported"] = flashCapability }
+              if let samplingCapability { ready["mtp_sampling_supported"] = samplingCapability }
               let data = try JSONSerialization.data(withJSONObject: ready)
               try model.samplingFixtureEvent(String(decoding: data, as: UTF8.self))
               model.samplingFixtureIntent(mtp: mtp, dflash: flash)
               let wantsMTP = mtp && (mtpCapability ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(type))
               let wantsFlash = flash && (flashCapability ?? (type == "qwen3_5_moe"))
-              let locked = wantsMTP || wantsFlash
+              // Only an engine announcing exact speculative sampling unlocks MTP.
+              let locked = (wantsMTP && samplingCapability != true) || wantsFlash
               try check(
                 model.mtpApplicable == wantsMTP && model.dflash2Applicable == wantsFlash,
                 "Intent/capability mismatch for \(type), \(String(describing: mtpCapability)), \(String(describing: flashCapability))"
@@ -117,7 +122,9 @@ extension StudioModel {
               try check(
                 model.samplingLocked == locked && model.samplingTemperature == (locked ? 0 : 0.73)
                   && model.samplingTopK == (locked ? 1 : 37)
-                  && model.samplingRepetitionPenalty == (locked ? 1 : 1.12),
+                  && model.samplingRepetitionPenalty == (locked ? 1 : 1.12)
+                  && model.samplingTopP == (locked ? 1 : 0.9)
+                  && model.samplingPresencePenalty == (locked ? 0 : 0.4),
                 "Displayed/request sampling disagrees with applicability")
               try check(
                 model.temperature == 0.73 && model.topK == 37 && model.repetitionPenalty == 1.12,
@@ -125,6 +132,7 @@ extension StudioModel {
               try check(
                 model.mtpActive == nil && model.dflashActive == nil,
                 "Intent was incorrectly reported as observed engine activity")
+             }
             }
           }
         }
@@ -179,6 +187,14 @@ extension StudioModel {
       "get: { Double(studio.samplingTopK) }",
       "value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 })",
       ".disabled(studio.samplingLocked)",
+      "get: { studio.samplingTopP }",
+      "set: { studio.topP = min(1, max(0.05, $0)) }",
+      "get: { studio.samplingPresencePenalty }",
+      "set: { studio.presencePenalty = $0 }",
+      "if !studio.recommendedSamplingPresets.isEmpty {",
+      "RecommendedSamplingMenu()",
+      "Button(action: { studio.applySamplingPreset(preset) })",
+      ".disabled(studio.isGenerating || studio.samplingLocked)",
       "let mode = studio.dflash2Applicable ? \"DFlash2\" : \"MTP\"",
       "if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {",
       "if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {",
@@ -239,7 +255,9 @@ extension StudioModel {
       try check(
         request["temperature"] as? Double == (greedy ? 0 : 0.73)
           && request["top_k"] as? Int == (greedy ? 1 : 37)
-          && request["repetition_penalty"] as? Double == (greedy ? 1 : 1.12),
+          && request["repetition_penalty"] as? Double == (greedy ? 1 : 1.12)
+          && request["top_p"] as? Double == (greedy ? 1 : model.topP)
+          && request["presence_penalty"] as? Double == (greedy ? 0 : model.presencePenalty),
         "Production bridge sampling mismatch")
       try check(
         model.temperature == 0.73 && model.topK == 37 && model.repetitionPenalty == 1.12,
@@ -327,8 +345,119 @@ extension StudioModel {
     try check(!model.canSend, "Profile sent before DFlash configuration acknowledgement")
     try await wait("profile DFlash off") { model.dflashActive == false && model.canSend }
     try await send(mtp: false, flash: false, greedy: false)
+
+    // An engine announcing exact speculative sampling keeps MTP and the user's sampling.
+    setenv("MLXL3_FIXTURE_MTP_SAMPLING", "1", 1)
+    defer { unsetenv("MLXL3_FIXTURE_MTP_SAMPLING") }
+    model.topP = 0.85
+    model.presencePenalty = 0.5
+    try await select("lfm-dense")
+    try await select("auto-dense")
+    model.setMTPEnabled(true)
+    try await wait("sampled MTP ready") { model.mtpActive == true }
+    try check(
+      model.mtpSamplingSupported == true && model.mtpApplicable && !model.samplingLocked,
+      "Sampling-capable engine kept MTP greedy")
+    try await send(mtp: true, flash: false, greedy: false)
+    try await checkInspector(greedy: false)
+    try check(model.persistNow(), "Could not persist top-p/presence")
+    let sampledPersisted = try ConversationStore.load(from: file)!
+    try check(
+      sampledPersisted.topP == 0.85 && sampledPersisted.presencePenalty == 0.5,
+      "Workspace lost top-p/presence")
+    let restored = StudioModel(conversationFileURL: file, isPreview: true, preferences: preferences)
+    try check(restored.topP == 0.85 && restored.presencePenalty == 0.5, "Relaunch lost top-p/presence")
+    // Snapshots written before top-p/presence still decode with neutral values.
+    let legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+    var stripped = legacy
+    stripped.removeValue(forKey: "topP")
+    stripped.removeValue(forKey: "presencePenalty")
+    try JSONSerialization.data(withJSONObject: stripped).write(to: file)
+    let legacyRelaunch = StudioModel(conversationFileURL: file, isPreview: true, preferences: preferences)
+    try check(
+      legacyRelaunch.topP == 1 && legacyRelaunch.presencePenalty == 0
+        && legacyRelaunch.temperature == 0.73,
+      "Legacy snapshot did not decode with neutral top-p/presence")
+    // Recommended settings: exactly the catalog (with its alternative
+    // quantizations) and the values published on each official model card.
+    let catalog = Set(ModelLibrary.recommendedModels.flatMap { [$0.id] + $0.choices.map(\.id) })
+    try check(catalog == Set(SamplingPresets.byRepository.keys), "Presets do not cover exactly the catalog")
+    func values(_ preset: SamplingPreset) -> [Double] {
+      [preset.temperature, Double(preset.topK), preset.topP, preset.repetitionPenalty, preset.presencePenalty]
+    }
+    // Independent oracle: [temperature, top_k, top_p, repetition, presence].
+    let qwen36: [[Double]] = [[1.0, 20, 0.95, 1, 1.5], [0.6, 20, 0.95, 1, 0], [0.7, 20, 0.8, 1, 1.5]]
+    let qwen38: [[Double]] = [[1.0, 20, 0.95, 1, 0], [0.7, 20, 0.8, 1, 1.5]]
+    let lfm3: [[Double]] = [[0.1, 50, 1, 1.1, 0], [1.0, 20, 0.95, 1, 0]]
+    let oracle: [String: [[Double]]] = [
+      "0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw": [[0.1, 50, 1, 1.1, 0]],
+      "0xzknw/LFM3-1.7B-EXL3-8bpw": lfm3, "0xzknw/LFM3-1.7B-EXL3-4.49bpw": lfm3,
+      "0xzknw/LFM3-1.7B-EXL3-4bpw": lfm3,
+      "0xzknw/LFM3-VL-2B-EXL3-8bpw": [[0.1, 50, 1, 1.1, 0]],
+      "0xzknw/LFM3-VL-2B-EXL3-4.49bpw": [[0.1, 50, 1, 1.1, 0]],
+      "0xzknw/LFM3-VL-2B-EXL3-4bpw": [[0.1, 50, 1, 1.1, 0]],
+      "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw": [[0.1, 50, 1, 1.05, 0]],
+      "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw": qwen36,
+      "turboderp/Qwen3.8-27B-exl3": qwen38, "turboderp/Qwen3.8-Flash-Next-exl3": qwen38,
+    ]
+    for (repository, presets) in SamplingPresets.byRepository {
+      try check(presets.map(values) == oracle[repository], "Preset values differ for " + repository)
+      try check(
+        presets.allSatisfy(\.valid) && Set(presets.map(\.id)).count == presets.count
+          && presets.allSatisfy { !$0.french.isEmpty && !$0.english.isEmpty },
+        "Invalid preset table for " + repository)
+      let stem = String(repository.split(separator: "/").last!)
+      // Engine download names: <repo name>-<variant folder or 8-char id>.
+      for suffix in ["-0123abcd", "-2.00bpw", "--8bpw", ""] {
+        try check(
+          SamplingPresets.repository(name: stem + suffix, path: "/m/" + stem + suffix) == repository
+            && SamplingPresets.repository(name: "renamed", path: "/m/" + (stem + suffix).lowercased()) == repository,
+          "Catalog download not matched: " + stem + suffix)
+      }
+      for other in [stem + "x-1", "x" + stem + "-1", String(stem.dropLast()), stem + "_1"] {
+        try check(SamplingPresets.presets(name: other, path: "/m/" + other).isEmpty, "Foreign model matched " + other)
+      }
+    }
+    // Installs named by older multi-variant catalog repos (`<repo>--<variant>`).
+    for (legacy, repository) in [
+      ("LFM3-1.7B-EXL3--8bpw", "0xzknw/LFM3-1.7B-EXL3-8bpw"),
+      ("LFM3-1.7B-EXL3--4.49bpw", "0xzknw/LFM3-1.7B-EXL3-4.49bpw"),
+      ("LFM3-1.7B-Heretic-NX-EXL3--8bpw", "0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw"),
+      ("LFM3-VL-2B-EXL3--4bpw", "0xzknw/LFM3-VL-2B-EXL3-4bpw"),
+    ] {
+      try check(SamplingPresets.repository(name: legacy, path: "/m/" + legacy) == repository,
+        "Legacy catalog install not matched: " + legacy)
+    }
+    for other in ["plain", "qwen3.6-35b-a3b", "Qwen3.8-27B-1", "LFM3-1.7B-EXL3-4.4-1", "my-LFM3-1.7B-EXL3-8bpw-1",
+                  "LFM3-1.7B-EXL3--16bpw", "LFM3-1.7B-EXL3"] {
+      try check(SamplingPresets.presets(name: other, path: "/m/" + other).isEmpty, "Foreign model matched " + other)
+    }
+    let presetModel = StudioModel(conversationFileURL: file, isPreview: true, preferences: preferences)
+    presetModel.models = [local("Qwen3.8-27B-exl3-2.00bpw", "qwen3_5"), local("plain", "qwen3_5")]
+    presetModel.selectedModelName = "plain"
+    try check(presetModel.recommendedSamplingPresets.isEmpty, "Non-catalog model offered presets")
+    presetModel.selectedModelName = "Qwen3.8-27B-exl3-2.00bpw"
+    let offered = presetModel.recommendedSamplingPresets
+    try check(offered.map(values) == qwen38, "Selected catalog model offered the wrong presets")
+    for preset in offered {
+      presetModel.applySamplingPreset(preset)
+      try check(
+        [presetModel.temperature, Double(presetModel.topK), presetModel.topP, presetModel.repetitionPenalty,
+         presetModel.presencePenalty] == values(preset)
+          && presetModel.isSamplingPresetActive(preset)
+          && offered.filter(presetModel.isSamplingPresetActive) == [preset],
+        "Preset was not applied exactly: " + preset.id)
+    }
+    let before = values(offered[1])
+    presetModel.applySamplingPreset(SamplingPresets.byRepository["0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"]![0])
+    try check(
+      [presetModel.temperature, Double(presetModel.topK), presetModel.topP, presetModel.repetitionPenalty,
+       presetModel.presencePenalty] == before,
+      "A preset of another model was applied")
+    presetModel.topK = 21
+    try check(offered.allSatisfy { !presetModel.isSamplingPresetActive($0) }, "Edited settings still marked as a preset")
     print(
-      "Speculative sampling checks passed: \(checks) assertions, 216 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
+      "Speculative sampling checks passed: \(checks) assertions, 648 capability/intent states, sampled MTP, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
     )
   }
 }

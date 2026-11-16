@@ -1,0 +1,1169 @@
+commit=9eabe8eda1f60abb50feb7815e05253a93331b3f (local modifications, see git diff)
+model=/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw
+head=/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.6-35B-A3B-MTP-4bit
+Mon Nov 16 13:37:14 CET 2026
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.4
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling zerocopy v0.8.57
+   Compiling once_cell v1.21.4
+   Compiling cc v1.4.5
+   Compiling bitflags v2.13.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling generic-array v0.14.7
+   Compiling getrandom v0.3.4
+   Compiling itoa v1.0.18
+   Compiling fnv v1.0.7
+   Compiling strsim v0.11.1
+   Compiling ident_case v1.0.1
+   Compiling memchr v2.8.3
+   Compiling pin-project-lite v0.2.17
+   Compiling crossbeam-epoch v0.9.21
+   Compiling bytes v1.11.1
+   Compiling simd-adler32 v0.3.10
+   Compiling crossbeam-deque v0.8.8
+   Compiling typenum v1.20.1
+   Compiling errno v0.3.14
+   Compiling rustversion v1.0.23
+   Compiling syn v2.0.119
+   Compiling syn v3.0.5
+   Compiling signal-hook-registry v1.4.8
+   Compiling adler2 v2.0.1
+   Compiling crc32fast v1.5.4
+   Compiling rayon-core v1.13.0
+   Compiling futures-core v0.3.34
+   Compiling pkg-config v0.3.34
+   Compiling autocfg v1.5.1
+   Compiling socket2 v0.6.3
+   Compiling num-traits v0.2.19
+   Compiling mio v1.2.0
+   Compiling portable-atomic v1.15.0
+   Compiling onig_sys v69.9.3
+   Compiling paste v1.0.15
+   Compiling either v1.18.0
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling anstyle-parse v1.0.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling http v0.2.12
+   Compiling miniz_oxide v0.9.1
+   Compiling esaxx-rs v0.1.10
+   Compiling rand_core v0.9.5
+   Compiling aho-corasick v1.1.5
+   Compiling tracing-core v0.1.36
+   Compiling ahash v0.8.12
+   Compiling anstyle-query v1.1.5
+   Compiling httparse v1.10.1
+   Compiling colorchoice v1.0.5
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling core-foundation-sys v0.8.7
+   Compiling minimal-lexical v0.2.1
+   Compiling futures-task v0.3.34
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling futures-sink v0.3.32
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.3
+   Compiling regex-syntax v0.8.11
+   Compiling unicode-width v0.2.2
+   Compiling anstream v1.0.0
+   Compiling console v0.16.6
+   Compiling darling_core v0.20.11
+   Compiling indexmap v2.13.0
+   Compiling nom v7.1.3
+   Compiling core-foundation v0.10.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling foreign-types-macros v0.2.4
+   Compiling futures-util v0.3.34
+   Compiling zerocopy-derive v0.8.57
+   Compiling tokio-macros v2.6.1
+   Compiling monostate-impl v0.1.18
+   Compiling regex-automata v0.4.18
+   Compiling tokio v1.50.0
+   Compiling darling_macro v0.20.11
+   Compiling flate2 v1.1.10
+   Compiling darling v0.20.11
+   Compiling tracing v0.1.44
+   Compiling rayon v1.12.0
+   Compiling derive_builder_core v0.20.2
+   Compiling castaway v0.2.4
+   Compiling derive_builder_macro v0.20.2
+   Compiling digest v0.10.7
+   Compiling itertools v0.14.0
+   Compiling miniz_oxide v0.8.9
+   Compiling cpufeatures v0.2.17
+   Compiling malloc_buf v0.0.6
+   Compiling fdeflate v0.3.7
+   Compiling zune-core v0.5.3
+   Compiling log v0.4.34
+   Compiling signal-hook v0.3.18
+   Compiling pastey v0.2.3
+   Compiling smallvec v1.16.1
+   Compiling byteorder-lite v0.1.0
+   Compiling heck v0.5.0
+   Compiling try-lock v0.2.5
+   Compiling ryu v1.0.23
+   Compiling static_assertions v1.1.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling pxfm v0.1.30
+   Compiling macro_rules_attribute-proc_macro v0.2.3
+   Compiling base64 v0.13.1
+   Compiling clap_lex v1.1.0
+   Compiling quick-error v2.0.1
+   Compiling slab v0.4.12
+   Compiling anyhow v1.0.104
+   Compiling unit-prefix v0.5.2
+   Compiling foreign-types-shared v0.3.1
+   Compiling memo-map v0.3.4
+   Compiling indicatif v0.18.6
+   Compiling foreign-types v0.5.0
+   Compiling clap_builder v4.6.6
+   Compiling minijinja v2.24.0
+   Compiling rayon-cond v0.4.0
+   Compiling image-webp v0.2.4
+   Compiling macro_rules_attribute v0.2.3
+   Compiling spm_precompiled v0.1.4
+   Compiling compact_str v0.9.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.9.0
+   Compiling tokio-util v0.7.18
+   Compiling rand v0.9.5
+   Compiling h2 v0.3.27
+   Compiling clap_derive v4.6.4
+   Compiling moxcms v0.8.1
+   Compiling want v0.3.1
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling regex v1.13.1
+   Compiling onig v6.5.3
+   Compiling png v0.18.1
+   Compiling zune-jpeg v0.5.15
+   Compiling objc v0.2.7
+   Compiling dary_heap v0.3.9
+   Compiling derive_builder v0.20.2
+   Compiling monostate v0.1.18
+   Compiling core-graphics-types v0.2.0
+   Compiling http-body v0.4.6
+   Compiling futures-channel v0.3.32
+   Compiling socket2 v0.5.10
+   Compiling fastrand v2.5.0
+   Compiling unicode_categories v0.1.1
+   Compiling bytemuck v1.25.2
+   Compiling time-core v0.1.9
+   Compiling block v0.1.6
+   Compiling powerfmt v0.2.0
+   Compiling daachorse v3.0.3
+   Compiling httpdate v1.0.3
+   Compiling mlxl3-native v2.0.11 (/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling)
+   Compiling deranged v0.5.8
+   Compiling tower-service v0.3.3
+   Compiling num-conv v0.2.2
+   Compiling hyper v0.14.32
+   Compiling tokenizers v0.23.2
+   Compiling tempfile v3.27.0
+   Compiling image v0.25.10
+   Compiling metal v0.33.0
+   Compiling time v0.3.55
+   Compiling minijinja-contrib v2.24.0
+   Compiling clap v4.6.6
+   Compiling half v2.7.1
+   Compiling sha2 v0.10.9
+   Compiling sha1 v0.10.7
+   Compiling fs2 v0.4.3
+   Compiling base64 v0.22.1
+    Finished `release` profile [optimized] target(s) in 1m 27s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/main.rs (target/release/deps/mlxl3_rs-dcce3cb26be823c2)
+
+running 1 test
+test tests::bridge_mtp_sampling_matches_autoregressive_policy ... {"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" for","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" cleaning","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" small","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" cre","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" for","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Common","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" alternatives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Reset","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"electronics","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"),","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" cleaning","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" small","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" cre","type":"delta"}
+stochastic MTP depth 1: 96 tokens, 44/50 drafts accepted
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Additional","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" requirement","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"div","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"erg","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ent","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"):**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Small","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" tools","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Opening","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" USB","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" drives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" resetting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Additional","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" requirement","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"div","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"erg","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ent","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"):**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Small","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" tools","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Opening","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" USB","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" drives","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" resetting","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" buttons","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" picking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" locks","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+stochastic MTP depth 2: 96 tokens, 56/64 drafts accepted
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" for","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Must","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" include","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" this","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" as","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" it","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" primary","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" function","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" though","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" maybe","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" not","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" \"","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"sur","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"prising","type":"delta"}
+{"context_limit":4096,"request_id":"mtp-sampling","type":"context_usage","used_tokens":30}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Thinking","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Process","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"1","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"De","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"construct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Goal","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" List","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ten","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" distinct","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Format","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" One","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" per","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" line","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Follow","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"-up","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Explain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" which","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" most","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" surprising","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"2","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" **","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Brain","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"storm","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"ing","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" uses","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" for","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" paper","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"clip","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":**","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"\n","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"   ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"  ","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" *","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Standard","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" use","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":":*","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" Holding","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" papers","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" together","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":".","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"Must","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" include","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" this","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" as","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" it","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"'s","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" primary","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" function","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":",","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" though","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" maybe","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" not","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":" \"","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"sur","type":"delta"}
+{"phase":"thinking","request_id":"mtp-sampling","text":"prising","type":"delta"}
+stochastic MTP depth 3: 96 tokens, 64/77 drafts accepted
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 36.26s
+
+exit=0
+Mon Nov 16 13:39:18 CET 2026

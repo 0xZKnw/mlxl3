@@ -1052,6 +1052,33 @@ mod native {
             output_remaining: usize,
             allow_lookup: impl Fn(&[u32]) -> bool,
         ) -> Result<u32> {
+            self.advance_sampled(
+                target,
+                head,
+                anchor,
+                context_limit,
+                output_remaining,
+                allow_lookup,
+                None,
+            )
+        }
+
+        /// [`Self::advance`] with an optional non-greedy target policy. The
+        /// head still drafts deterministically; verification then uses exact
+        /// speculative rejection sampling (`crate::sampling`). A greedy
+        /// policy keeps the greedy verification unchanged.
+        #[allow(clippy::too_many_arguments)]
+        pub fn advance_sampled(
+            &mut self,
+            target: &mut Qwen35Moe,
+            head: &mut Head,
+            anchor: u32,
+            context_limit: usize,
+            output_remaining: usize,
+            allow_lookup: impl Fn(&[u32]) -> bool,
+            draw: Option<crate::sampling::Draw<'_>>,
+        ) -> Result<u32> {
+            let mut draw = draw.filter(|draw| !draw.sampler.is_greedy());
             ensure!(output_remaining > 0, "MTP output budget exhausted");
             if let Some(next) = self.pending.pop_front() {
                 return Ok(next);
@@ -1080,11 +1107,16 @@ mod native {
                 }
                 let logits = target.forward(anchor)?;
                 self.remember(&[anchor]);
-                let next = logits
-                    .chat_greedy_ids()?
-                    .last()
-                    .copied()
-                    .context("missing MTP fallback token")?;
+                let next = if let Some(draw) = draw.as_mut() {
+                    let rows = crate::sampling::log_prob_rows(&logits)?;
+                    draw.sample(rows.last().context("missing MTP fallback row")?.to_vec())?
+                } else {
+                    logits
+                        .chat_greedy_ids()?
+                        .last()
+                        .copied()
+                        .context("missing MTP fallback token")?
+                };
                 if self.adaptive.is_some() {
                     head.eval_cache()?;
                 }
@@ -1127,11 +1159,17 @@ mod native {
             let (logits, raw) = target.verify_mtp(&verification)?;
             #[cfg(test)]
             super::cycle_trace::mark("verify_ready");
-            let tokens = logits.chat_greedy_ids()?;
-            #[cfg(test)]
-            super::cycle_trace::mark("greedy_ready");
-            let accepted = crate::speculative::greedy_accept(&proposals, &tokens)
-                .context("invalid MTP verification output")?;
+            let accepted = if let Some(draw) = draw.as_mut() {
+                let rows = crate::sampling::log_prob_rows(&logits)?;
+                ensure!(rows.len() == width + 1, "invalid MTP verification output");
+                draw.speculative_accept(&proposals, |index| Ok(rows[index].to_vec()))?
+            } else {
+                let tokens = logits.chat_greedy_ids()?;
+                #[cfg(test)]
+                super::cycle_trace::mark("greedy_ready");
+                crate::speculative::greedy_accept(&proposals, &tokens)
+                    .context("invalid MTP verification output")?
+            };
             // Validate before any commit (an impossible cycle fails closed);
             // publish with the other counters once the cycle is complete.
             let mut histogram = if is_lookup {

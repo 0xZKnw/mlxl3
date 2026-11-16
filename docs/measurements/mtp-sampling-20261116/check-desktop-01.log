@@ -1,0 +1,142 @@
+App icon checks passed: supplied artwork, generated ICNS, missing source
+warning: 'mlxl3studio': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Sources/MLXL3Studio/README.md
+Building for debugging...
+[0/7] Write sources
+[0/7] Write MLXL3Studio-entitlement.plist
+[0/7] Write sources
+[3/7] Write swift-version--1AB21518FC5DEDBE.txt
+[5/28] Compiling SwiftMath MTMathListBuilder.swift
+[6/28] Compiling SwiftMath MTMathListDisplay.swift
+[7/28] Compiling SwiftMath MTFontMathTableV2.swift
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[8/28] Compiling SwiftMath MTFontV2.swift
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[9/28] Compiling SwiftMath MathFont.swift
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[10/28] Emitting module SwiftMath
+[11/28] Compiling SwiftMath MTLabel.swift
+[12/28] Compiling SwiftMath MTMathAtomFactory.swift
+[13/28] Compiling SwiftMath MTMathListIndex.swift
+[14/28] Compiling SwiftMath MTMathUILabel.swift
+[15/28] Compiling SwiftMath MTFontManager.swift
+[16/28] Compiling SwiftMath MTFontMathTable.swift
+[17/28] Compiling SwiftMath MTMathImage.swift
+[18/28] Compiling SwiftMath MTMathList.swift
+[19/28] Compiling SwiftMath MathImage.swift
+[20/28] Compiling SwiftMath MTBezierPath.swift
+[21/28] Compiling SwiftMath MTColor.swift
+[22/28] Compiling SwiftMath MTConfig.swift
+[23/28] Compiling SwiftMath MTFont.swift
+[24/28] Compiling SwiftMath MTTypesetter.swift
+[25/28] Compiling SwiftMath MTUnicode.swift
+[26/30] Compiling SwiftMath RWLock.swift
+[27/30] Compiling SwiftMath SwiftMathResources.swift
+[28/81] Compiling MLXL3Studio ContextMemoryProfile.swift
+[29/81] Compiling MLXL3Studio ConversationDisplayControl.swift
+[30/81] Compiling MLXL3Studio ConversationStore.swift
+[31/81] Compiling MLXL3Studio DesktopExperience.swift
+[32/81] Compiling MLXL3Studio DesktopPreferences.swift
+[33/81] Compiling MLXL3Studio Domain.swift
+[34/86] Compiling MLXL3Studio MCPManager.swift
+[35/86] Compiling MLXL3Studio MCPManagerView.swift
+[36/86] Compiling MLXL3Studio MCPPreferenceCheck.swift
+[37/86] Compiling MLXL3Studio MLXL3Bridge.swift
+[38/86] Compiling MLXL3Studio MLXL3StudioApp.swift
+[39/86] Compiling MLXL3Studio MTPSettingsContent.swift
+[40/86] Compiling MLXL3Studio DownloadProgressCard.swift
+[41/86] Compiling MLXL3Studio EngineRuntimeStore.swift
+[42/86] Compiling MLXL3Studio GenerationInspector.swift
+[43/86] Compiling MLXL3Studio HTMLPreview.swift
+[44/86] Compiling MLXL3Studio Localization.swift
+[45/86] Compiling MLXL3Studio MCPConfiguration.swift
+[46/86] Emitting module MLXL3Studio
+[47/86] Compiling MLXL3Studio MTPTuning.swift
+[48/86] Compiling MLXL3Studio MTPTuningControls.swift
+[49/86] Compiling MLXL3Studio MarkdownResponseView.swift
+[50/86] Compiling MLXL3Studio MenuBarPanel.swift
+[51/86] Compiling MLXL3Studio MessageActionsView.swift
+[52/86] Compiling MLXL3Studio ModelManager.swift
+[53/86] Compiling MLXL3Studio QuantizationStudio.swift
+[54/86] Compiling MLXL3Studio SamplingPresets.swift
+[55/86] Compiling MLXL3Studio SidebarUpdateBadge.swift
+[56/86] Compiling MLXL3Studio StudioAurora.swift
+[57/86] Compiling MLXL3Studio AgentProjectStore.swift
+[58/86] Compiling MLXL3Studio AgentSandbox.swift
+[59/86] Compiling MLXL3Studio AgentStudio.swift
+[60/86] Compiling MLXL3Studio AgentStudioModel.swift
+[61/86] Compiling MLXL3Studio AppDelegate.swift
+[62/86] Compiling MLXL3Studio AppSettingsView.swift
+[63/86] Compiling MLXL3Studio UIPreview.swift
+[64/86] Compiling MLXL3Studio UpdateManager.swift
+[65/86] Compiling MLXL3Studio VoiceController.swift
+[66/86] Compiling MLXL3Studio WorkspaceFeatures.swift
+[67/86] Compiling MLXL3Studio WorkspaceManagerView.swift
+[68/86] Compiling MLXL3Studio StudioCodeEditor.swift
+[69/86] Compiling MLXL3Studio StudioModel.swift
+[70/86] Compiling MLXL3Studio StudioModes.swift
+[71/86] Compiling MLXL3Studio StudioView.swift
+[72/86] Compiling MLXL3Studio Theme.swift
+[73/86] Compiling MLXL3Studio MessageCopyButton.swift
+[74/86] Compiling MLXL3Studio ModelCardView.swift
+[75/86] Compiling MLXL3Studio ModelDownloadProgress.swift
+[76/86] Compiling MLXL3Studio ModelIdleUnload.swift
+[77/86] Compiling MLXL3Studio ModelLibrary.swift
+[78/86] Compiling MLXL3Studio AppearanceSettings.swift
+[79/86] Compiling MLXL3Studio CLICommand.swift
+[80/86] Compiling MLXL3Studio ChatAttachment.swift
+[81/86] Compiling MLXL3Studio ChatComponents.swift
+[82/86] Compiling MLXL3Studio ChatTimelineCheck.swift
+[83/86] Compiling MLXL3Studio CompletionNotifications.swift
+error: input file '/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Sources/MLXL3Studio/SamplingPresets.swift' was modified during the build
+error: input file '/Users/justin/Documents/mix-stq1_0/.claude/worktrees/mtp-sampling/apps/MLXL3Studio/Sources/MLXL3Studio/SamplingPresets.swift' was modified during the build
+warning: '--build-system native' has been deprecated and will be removed in a future release; please report an issue at https://github.com/swiftlang/swift-package-manager/issues if you are unable to adopt the default build system.
+exit=1

@@ -163,6 +163,7 @@ struct BridgeEvent: Decodable {
     var dflashTuningKey: String? = nil
     var dflashFamily: String? = nil
     var mtpSupported: Bool? = nil
+    var mtpSamplingSupported: Bool? = nil
     var mtpAutoDownloadSupported: Bool? = nil
     var mtpConfigureSupported: Bool? = nil
     var mtpActive: Bool? = nil
@@ -227,6 +228,7 @@ struct BridgeEvent: Decodable {
         case dflashTuneSupported = "dflash_tune_supported", dflashConfigureSupported = "dflash_configure_supported"
         case dflashTuningKey = "dflash_tuning_key", dflashFamily = "dflash_family"
         case mtpSupported = "mtp_supported"
+        case mtpSamplingSupported = "mtp_sampling_supported"
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
         case mtpConfigureSupported = "mtp_configure_supported"
         case mtpActive = "mtp_active"
@@ -296,6 +298,8 @@ struct GenerationRequest: Encodable {
     let temperature: Double
     let topK: Int
     let repetitionPenalty: Double
+    var topP: Double = 1
+    var presencePenalty: Double = 0
     var mcpEnabled: Bool = false
     var dflash2: Bool = false
     var dflashDraftPath: String = ""
@@ -314,6 +318,8 @@ struct GenerationRequest: Encodable {
         case maxTokens = "max_tokens"
         case topK = "top_k"
         case repetitionPenalty = "repetition_penalty"
+        case topP = "top_p"
+        case presencePenalty = "presence_penalty"
         case mcpEnabled = "mcp_enabled"
         case dflash2
         case dflashDraftPath = "dflash_draft_path"
