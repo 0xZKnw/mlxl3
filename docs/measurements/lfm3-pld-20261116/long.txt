@@ -1,0 +1,145 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/MLXL3Studio/Resources/AppIcon.png">
+    <img src="apps/MLXL3Studio/Resources/LogoDark.png" alt="MLXL3 logo" width="128">
+  </picture>
+</p>
+
+<h1 align="center">MLXL3</h1>
+
+<p align="center">Local inference on Apple Silicon.</p>
+
+<p align="center">
+  <a href="https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1">Download Desktop v2.0.1</a> ·
+  <a href="https://mlxl3.0xzknw.tech/">Website</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://discord.gg/9hU46NVNnY">Discord</a>
+</p>
+
+MLXL3 runs EXL3 language and vision models on your Mac. A native SwiftUI app
+brings together **Chat, Agent, Server and Lab**, backed by a Rust engine using
+MLX and custom Metal kernels. The same engine powers the command-line client
+and OpenAI-compatible HTTP API.
+
+**Desktop 2.0.1 · Engine 2.0.10 · Apple Silicon · macOS 26.2+ · MIT**
+
+![MLXL3 Desktop v2 with its ASCII aurora, conversation history and composer](docs/desktop/assets/mlxl3-ascii.png)
+
+## What’s new in v2
+
+The stable v2 brings together all **21 betas**, from the new interface to
+project workspaces, vision, conversion and independent engine updates.
+
+| Area | Included in v2 |
+| --- | --- |
+| **A new Desktop** | Animated violet, rose and amber ASCII aurora, native glass controls, a redesigned menu bar widget and smooth conversation transitions. |
+| **Chat** | Streaming responses and reasoning, Markdown, code, math, HTML previews, attachments, vision, conversation branches, search and export. |
+| **Agent Studio** | Isolated project copies, file editing, diffs, Git checkpoints, restore, ZIP export and reviewed changes applied to the original project. |
+| **Models** | Recommended EXL3 checkpoints, model cards, resumable downloads, local imports and Quantization Studio. |
+| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, recorded generation metrics, charts and JSON export. |
+| **Personalization** | System, Light and Dark appearances, Iris and custom accents, reading controls, project profiles, startup models and idle unloading. |
+
+The ASCII characters transform within fixed cells as light flows across the
+main window and widget. Motion responds to generation and follows Reduce
+Motion. Settings, Models, MCP, Projects and Agent Studio share the same visual
+language.
+
+**New in 2.0.1:** the management screens follow the v2 design, generation
+animation settles at twice the resting speed, and the Iris/amber/rose code
+palette highlights embedded CSS, JavaScript, TypeScript and JSON inside HTML.
+Chat and Agent Studio use the same syntax rules.
+
+Read the [v2.0.0 release notes](docs/releases/desktop/release-v2.0.0.md) and
+[v2.0.1 patch notes](docs/releases/desktop/release-v2.0.1.md) for the complete
+changes, verification and known limits.
+
+## Install and run your first model
+
+Install the latest **stable Desktop and its bundled CLI**:
+
+```sh
+curl -fsSL https://mlxl3.0xzknw.tech/install.sh | bash
+```
+
+Or download the [Desktop DMG](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.1)
+and drag **MLXL3 Desktop** into Applications. The distribution includes the
+engine, MLX libraries, Metal assets and conversion environment. No separate
+Python, Homebrew or MLX installation is required. Download model weights
+separately and allow enough unified memory for the chosen checkpoint.
+
+1. Open **Models → Hugging Face**, or import a complete local EXL3 folder.
+2. Choose a model and quantization, download it, then load it from the model selector.
+3. Start a conversation. Use **+** for attachments and tools, or switch to Agent, Server or Lab.
+
+The app is **ad-hoc signed, not notarized**. If macOS blocks first launch,
+approve this specific app in **System Settings → Privacy & Security**.
+Agent project features also require Git from Apple's Command Line Tools.
+
+Desktop **2.0.1 / build 54** bundles [engine 2.0.10](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.10).
+Desktop and engine have separate Stable/Beta update channels in Settings.
+Engine updates validate their identity, compatibility, hashes and architecture.
+A managed engine that fails before startup can fall back to the bundled runtime.
+
+## Desktop workspaces
+
+### Chat
+
+- Stream answers and separate reasoning with Markdown, tables, syntax-colored code and rendered math.
+- Edit, regenerate or branch messages. Pin and search saved conversations, then export them.
+- Attach text documents and PDFs with extracted text, source excerpts and page references. Scanned PDFs require prior text extraction.
+- Send PNG, JPEG or WebP images with **LFM3-VL** using the picker, drag and drop or Command-V. Saved history retains image bytes after the original is removed.
+- Open completed HTML in the inline **Code / Preview** view. Supported module CDNs, import maps and project CSS/JavaScript work in an isolated WebKit preview.
+- Add MCP tools, structured JSON replies, project instructions, document retrieval, dictation or reply speech when needed.
+
+Image input is limited to **eight images / 8 MiB per conversation**, with at
+most 64 million source pixels per image. Text-only models cannot continue an
+image conversation. Documents and images can be attached together.
+
+### Agent
+
+Each task works in an isolated project copy. **Agent Studio** combines a file
+browser, code editor, diffs, Git history, checkpoints and ZIP export. Review a
+revision before applying it to the original folder. Conflicting external edits
+and changes made after review are refused.
+
+File reading, writing and command execution have separate permissions. Native
+macOS sandboxing confines the built-in tools to the task workspace. Commands
+default to a five-second limit, adjustable from 1–30 seconds. External MCP
+servers have their own permissions and trust boundary.
+
+### Server and Lab
+
+**Server** keeps one model resident behind an OpenAI-compatible API. Choose the
+context and port, copy the endpoint and key, and inspect logs. Loopback access
+is the default. Optional LAN access uses a generated bearer key over HTTP.
+Desktop passes the key to the engine through a private pipe.
+
+**Lab** displays recorded generations with decode and prefill rates, latency,
+token counts, memory and runtime details. Compare samples or export JSON.
+These are observations from actual sessions, not controlled benchmarks.
+
+## Models and compatibility
+
+EXL3 is a quantization format. A checkpoint also needs a supported architecture,
+tensor layout, configuration, tokenizer and every weight shard. A single
+`.safetensors` file is insufficient.
+
+| Runtime family | Configuration type | Supported input / execution |
+| --- | --- | --- |
+| LFM2 / LFM2.5, dense and MoE | `lfm2`, `lfm2_moe` | Text, convolution, recurrent state and routed experts |
+| LFM3-1.7B | `lfm3` | Text, gated attention, sliding window and seven-tap convolutions |
+| LFM3-VL-2B | `lfm3_vl` | Text and images, vision encoder and projector |
+| Qwen 3.5 / 3.6 / 3.8 | `qwen3_5`, `qwen3_5_moe` | Text, hybrid attention and dense/MoE models |
+| Qwen 3.8 Flash Next | `qwen4_exp` | Text, SSD expert streaming and a bounded cache |
+| Gemma 4 | `gemma4` | Text and native tool-call parsing |
+| Ling / Bailing | `bailing_hybrid` | Text, routed experts and native tool-call parsing |
+
+The Desktop catalogue includes these pinned exports:
+
+| Checkpoint | Projection bpw | Repository |
+| --- | ---: | --- |
+| LFM3-1.7B Heretic NX | 8 | [0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw) |
+| LFM3-1.7B original | 8 | [0xzknw/LFM3-1.7B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-1.7B-EXL3-8bpw) |
+| LFM3-VL-2B | 8 | [0xzknw/LFM3-VL-2B-EXL3-8bpw](https://huggingface.co/0xzknw/LFM3-VL-2B-EXL3-8bpw) |
+| LFM2.5-24B-A2B | 4 | [0xzknw/LFM2.5-24B-A2B-EXL3-4bpw](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw) |
+| Qwen3.6-35B-A3B | 2.49 | [UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw](https://huggingface.co/UnstableLlama/Qwen3.6-35B-A3B

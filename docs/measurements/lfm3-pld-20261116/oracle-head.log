@@ -1,0 +1,18 @@
+    Finished `release` profile [optimized] target(s) in 0.16s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-b524fbc65f5fea9b)
+
+running 1 test
+test lfm2::lfm3_verify_tests::shared_head_rows_match_single_row_matmul_bits ... PLD_ORACLE head.shared rows=1 values=128000 mismatches=0
+PLD_ORACLE head.shared rows=2 values=256000 mismatches=0
+PLD_ORACLE head.exact_rows rows=2 values=256000 mismatches=0
+PLD_ORACLE head.shared rows=3 values=384000 mismatches=0
+PLD_ORACLE head.exact_rows rows=3 values=384000 mismatches=0
+PLD_ORACLE head.shared rows=4 values=512000 mismatches=0
+PLD_ORACLE head.exact_rows rows=4 values=512000 mismatches=0
+PLD_ORACLE total_mismatches=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 740 filtered out; finished in 0.70s
+

@@ -103,6 +103,8 @@ pub mod hub;
 pub mod lfm2;
 pub mod lfm3;
 #[cfg(feature = "mlx")]
+mod lfm3_cert_head;
+#[cfg(feature = "mlx")]
 mod lfm3_kernels;
 #[cfg(feature = "mlx")]
 mod lfm3_vision;

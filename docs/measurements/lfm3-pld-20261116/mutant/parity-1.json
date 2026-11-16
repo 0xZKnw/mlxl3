@@ -1,0 +1,130 @@
+{
+  "status": "failed",
+  "mode": "parity",
+  "flag": "1",
+  "engine_sha256": "124825ef5f287977451797a3132591b4b968e133baa7f88fec1e1cf5997fe7ef",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "long_file_sha256": "bb749793e5b1b5f72f3c96886213a4a34c67530b623efbd084bb27f576957526",
+  "cases": [
+    "copy",
+    "edit",
+    "code"
+  ],
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t67%; charging; 1:48 remaining present: true",
+  "off": {
+    "copy": [
+      {
+        "token_hash": "5c7ada2560d0c18b",
+        "text": "Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "cache_context": "The user asks: \"Recopie exactement le texte suivant, sans rien changer :\" and then provides the text. So we need to repeat exactly the text, unchanged. So just output the same paragraph.\n\nThus answer: the same text.\n\nWe must ensure no modifications. Let's copy exactly:\n\n\"Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées et les mouettes tournent au-dessus des remparts. Quand la marée remonte, les bateaux quittent le bassin un par un, en suivant le chenal balisé par des bouées rouges et vertes. Le soir, les familles se retrouvent sur la plage du Sillon pour regarder le soleil disparaître derrière l'île du Grand Bé, tandis que le vent apporte une odeur d'iode et de pain chaud.\"\n\nCheck punctuation: The original includes apostrophe in \"s'anime\". Also \"Saint-Malo\". Ensure same.\n\nThus final answer: exactly that.</think>Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 151,
+        "decode_tps": 45.16844342126604,
+        "decode_seconds": 5.6455343749999995,
+        "elapsed_seconds": 5.792017209,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "edit": [
+      {
+        "token_hash": "a00ba7dbc0690d3d",
+        "text": "",
+        "cache_context": "We need to rename variable `users` to `people` everywhere in the given code. The code:\n\n```python\ndef load_users(path):\n    users = []\n    with open(path) as handle:\n        for line in handle:\n            name, age = line.strip().split(\",\")\n            users.append({\"name\": name, \"age\": int(age)})\n    return users\n\n\ndef adults(users):\n    return [user for user in users if user[\"age\"] >= 18]\n```\n\nWe need to change `users` to `people` in both functions. Also, the function `load_users` takes parameter `path` and returns `users`. Inside, we create `users = []`. Should rename to `people = []`. Also, the variable `users` is used in the return statement. And in `adults`, parameter is `users` and we iterate over `users`. So we need to rename that parameter to `people` as well? The function definition `def adults(users):` should become `def adults(people):`? But the problem says \"Rename the variable `users` to `people` everywhere\". That includes function parameters? Typically yes. So we need to update all occurrences of `users` to `",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 109,
+        "decode_tps": 46.459159216323165,
+        "decode_seconds": 5.488691665999999,
+        "elapsed_seconds": 5.601165625,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "code": [
+      {
+        "token_hash": "641e4e422ede4711",
+        "text": "",
+        "cache_context": "We need to write a Rust function that parses an ISO 8601 date like \"2026-11-16\". The user didn't specify the exact format, but ISO 8601 date is typically YYYY-MM-DD. Possibly also with time? The example is just date. So we need to parse a string into a date. In Rust, there is `chrono` crate which is standard for date parsing. We can use `chrono::parse` or `FromStr` for `DateTime`. We'll need to mention dependencies? The user just asked to write a function. We can provide code using `chrono`. Alternatively, we could implement manually but that's error-prone. Usually, for such tasks, using a well-known crate is acceptable. I'll write a function that takes a string and returns a `DateTime<chrono::Utc>` or `Date<...>`. Let's decide: ISO 8601 date is just date part, but we can parse as `chrono::NaiveDate` or `DateTime`. The example \"2026-11-16\" is a date without time. I'll parse as `NaiveDate` for simplicity, but often ISO 8601 includes time. The user said \"date like 2026",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 32,
+        "decode_tps": 45.84850548031231,
+        "decode_seconds": 5.56179525,
+        "elapsed_seconds": 5.616115375,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ]
+  },
+  "on": {
+    "copy": [
+      {
+        "token_hash": "f8d670294389f730",
+        "text": "",
+        "cache_context": "The user asks: \"Recopie exactement le texte suivant, sans rien changer :\n\nLe port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées et les mouettes tournent au-dessus des remparts. Quand la marée remonte, les bateaux quittent le bassin un par un, en suivant le chenal balisé par des bouées rouges et vertes. Le soir, les familles se retrouvent sur la plage du Sillon pour regarder le soleil disparaître derrière l'île du Grand Bé, tandis que le vent apporte une odeur d'iode et de pain chaud.",
+        "stop_reason": "eos",
+        "generated_tokens": 146,
+        "prompt_tokens": 151,
+        "decode_tps": 134.69176436709515,
+        "decode_seconds": 1.0765320409999999,
+        "elapsed_seconds": 1.21849375,
+        "blocks": 34,
+        "proposed": 102,
+        "accepted": 102
+      }
+    ],
+    "edit": [
+      {
+        "token_hash": "61889ce51051d432",
+        "text": "",
+        "cache_context": "We need to rename variable `users` to `people` everywhere and return the complete code only. So we need to modify the function definitions and internal references.\n\nOriginal code:\n\n```python\ndef load_users(path):\n    users = []\n    with open(path) as handle:\n        for line in handle:\n            name, age = line.strip().split(\",\")\n            users.append({\"name\": name, \"age\": int(age)})\n    return users\n\n\ndef adults(users):\n    return [user for user in users if user[\"age\"] >= 18]\n```",
+        "stop_reason": "eos",
+        "generated_tokens": 115,
+        "prompt_tokens": 109,
+        "decode_tps": 93.35048403364193,
+        "decode_seconds": 1.221204166,
+        "elapsed_seconds": 1.332637209,
+        "blocks": 21,
+        "proposed": 63,
+        "accepted": 63
+      }
+    ],
+    "code": [
+      {
+        "token_hash": "ed08af8956dc1db1",
+        "text": "",
+        "cache_context": "We need to write a Rust function that parses an ISO 8601 date like 2026-11-16.",
+        "stop_reason": "eos",
+        "generated_tokens": 25,
+        "prompt_tokens": 32,
+        "decode_tps": 72.21125395122304,
+        "decode_seconds": 0.33235816700000004,
+        "elapsed_seconds": 0.386252208,
+        "blocks": 4,
+        "proposed": 12,
+        "accepted": 12
+      }
+    ]
+  },
+  "problems": [
+    "copy[0].token_hash differs",
+    "copy[0].text differs",
+    "copy[0].cache_context differs",
+    "copy[0].stop_reason differs",
+    "copy[0].generated_tokens differs",
+    "edit[0].token_hash differs",
+    "edit[0].cache_context differs",
+    "edit[0].stop_reason differs",
+    "edit[0].generated_tokens differs",
+    "code[0].token_hash differs",
+    "code[0].cache_context differs",
+    "code[0].stop_reason differs",
+    "code[0].generated_tokens differs"
+  ],
+  "parity": false
+}

@@ -3072,6 +3072,19 @@ struct NativeStats {
     mtp_accept_histogram: Option<mlxl3_native::speculative::AcceptHistogram>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mtp_lookup_accept_histogram: Option<mlxl3_native::speculative::AcceptHistogram>,
+    /// LFM3-PLD verification blocks, proposed and accepted lookup IDs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_lookup_blocks: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_lookup_proposed_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_lookup_accepted_tokens: Option<usize>,
+    /// LFM3-CERT-HEAD decode steps certified by the screening head, and
+    /// steps that fell back to the full head.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_cert_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_cert_fallbacks: Option<usize>,
 }
 
 #[cfg(all(
@@ -3151,6 +3164,17 @@ impl NativeStats {
             (&mut self.mtp_accepted_tokens, round.mtp_accepted_tokens),
             (&mut self.mtp_blocks, round.mtp_blocks),
             (&mut self.mtp_lookup_blocks, round.mtp_lookup_blocks),
+            (&mut self.lfm3_lookup_blocks, round.lfm3_lookup_blocks),
+            (
+                &mut self.lfm3_lookup_proposed_tokens,
+                round.lfm3_lookup_proposed_tokens,
+            ),
+            (
+                &mut self.lfm3_lookup_accepted_tokens,
+                round.lfm3_lookup_accepted_tokens,
+            ),
+            (&mut self.lfm3_cert_tokens, round.lfm3_cert_tokens),
+            (&mut self.lfm3_cert_fallbacks, round.lfm3_cert_fallbacks),
         ] {
             if let Some(value) = value {
                 *sum = Some(sum.unwrap_or(0) + value);
@@ -3292,6 +3316,98 @@ fn emit_generation_mode(
     }))
 }
 
+/// LFM3-PLD gate: `MLXL3_LFM3_LOOKUP=1` (any suffix match) or `lines` (the
+/// LOOKUP-LINES newline rule), an LFM3 target without other drafters, and
+/// exactly the greedy rule of `select_token`. Returns whether to filter.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn lfm3_lookup_enabled(
+    flag: Option<&str>,
+    plain_lfm3: bool,
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+) -> Option<bool> {
+    let lines = match flag {
+        Some("1") => false,
+        Some("lines") => true,
+        _ => return None,
+    };
+    (plain_lfm3 && (temperature == 0. || top_k == 1) && repetition_penalty == 1.).then_some(lines)
+}
+
+/// LFM3-CERT-HEAD gate: `MLXL3_LFM3_CERT_HEAD=1` exactly, an LFM3 target
+/// without MTP, draft or prompt lookup, and exactly the greedy rule of
+/// `select_token`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn lfm3_cert_enabled(
+    flag: Option<&str>,
+    plain_lfm3: bool,
+    lookup: bool,
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+) -> bool {
+    flag == Some("1")
+        && plain_lfm3
+        && !lookup
+        && (temperature == 0. || top_k == 1)
+        && repetition_penalty == 1.
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_cert_head_is_opt_in_greedy_and_exclusive() {
+    assert!(lfm3_cert_enabled(Some("1"), true, false, 0., 40, 1.));
+    assert!(lfm3_cert_enabled(Some("1"), true, false, 0.7, 1, 1.));
+    for (flag, plain, lookup, temperature, top_k, penalty) in [
+        (None, true, false, 0., 1, 1.),
+        (Some("0"), true, false, 0., 1, 1.),
+        (Some("true"), true, false, 0., 1, 1.),
+        (Some("1 "), true, false, 0., 1, 1.),
+        (Some("1"), false, false, 0., 1, 1.),
+        (Some("1"), true, true, 0., 1, 1.),
+        (Some("1"), true, false, 0.2, 40, 1.),
+        (Some("1"), true, false, 0., 1, 1.1),
+        (Some("1"), true, false, 0., 1, 0.9),
+    ] {
+        assert!(!lfm3_cert_enabled(
+            flag,
+            plain,
+            lookup,
+            temperature,
+            top_k,
+            penalty
+        ));
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_lookup_is_opt_in_greedy_and_exclusive() {
+    assert_eq!(
+        lfm3_lookup_enabled(Some("1"), true, 0., 40, 1.),
+        Some(false)
+    );
+    assert_eq!(
+        lfm3_lookup_enabled(Some("lines"), true, 0.7, 1, 1.),
+        Some(true)
+    );
+    for (flag, plain, temperature, top_k, penalty) in [
+        (None, true, 0., 1, 1.),
+        (Some("0"), true, 0., 1, 1.),
+        (Some("true"), true, 0., 1, 1.),
+        (Some("1"), false, 0., 1, 1.),
+        (Some("lines"), false, 0., 1, 1.),
+        (Some("1"), true, 0.7, 40, 1.),
+        (Some("1"), true, 0., 1, 1.1),
+    ] {
+        assert_eq!(
+            lfm3_lookup_enabled(flag, plain, temperature, top_k, penalty),
+            None
+        );
+    }
+}
+
 #[cfg(all(
     feature = "chat",
     any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
@@ -3415,6 +3531,32 @@ fn bridge_generate_round(
         }
         (logits, dflash, cached, mtp_session)
     };
+    // LFM3-PLD: opt-in, greedy only; the target verifies every proposal exactly.
+    #[cfg(feature = "mlx")]
+    let mut lfm3_lookup = lfm3_lookup_enabled(
+        std::env::var("MLXL3_LFM3_LOOKUP").ok().as_deref(),
+        matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
+        temperature,
+        top_k,
+        repetition_penalty,
+    )
+    .map(|lines| (mlxl3_native::lfm3::PromptLookup::new(&tokens), lines));
+    // LFM3-CERT-HEAD: opt-in, greedy only; `[certified, fallback]` steps.
+    #[cfg(feature = "mlx")]
+    let mut lfm3_cert = None;
+    #[cfg(feature = "mlx")]
+    if lfm3_cert_enabled(
+        std::env::var("MLXL3_LFM3_CERT_HEAD").ok().as_deref(),
+        matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
+        lfm3_lookup.is_some(),
+        temperature,
+        top_k,
+        repetition_penalty,
+    ) && let NativeChatModel::Lfm3(target) = &mut *model
+        && target.enable_certified_head()?
+    {
+        lfm3_cert = Some([0usize; 2]);
+    }
     #[cfg(not(feature = "mlx"))]
     let (mut logits, cached, mut mtp_session) = {
         let _ = dflash_mode;
@@ -3563,6 +3705,29 @@ fn bridge_generate_round(
                     && target.dflash2_active()
                 {
                     dflash_next = Some(target.advance_dflash2(next, budget - generated.len())?);
+                } else if let (Some((session, lines)), NativeChatModel::Lfm3(target)) =
+                    (lfm3_lookup.as_mut(), &mut *model)
+                {
+                    let lines = *lines;
+                    dflash_next = Some(session.advance(
+                        target,
+                        next,
+                        budget - generated.len(),
+                        tokenizer.eos_ids(),
+                        |ids| {
+                            !lines
+                                || tokenizer
+                                    .tokenizer()
+                                    .decode(ids, false)
+                                    .is_ok_and(|s| s.contains('\n'))
+                        },
+                    )?);
+                } else if let (Some(counts), NativeChatModel::Lfm3(target)) =
+                    (lfm3_cert.as_mut(), &mut *model)
+                {
+                    let (id, certified) = target.forward_greedy_certified(next)?;
+                    counts[usize::from(!certified)] += 1;
+                    dflash_next = Some(id);
                 } else {
                     logits = model.forward(next)?;
                 }
@@ -3698,6 +3863,16 @@ fn bridge_generate_round(
         mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.stats().3),
         #[cfg(feature = "mlx")]
         mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
+        #[cfg(feature = "mlx")]
+        lfm3_lookup_blocks: lfm3_lookup.as_ref().map(|s| s.0.blocks),
+        #[cfg(feature = "mlx")]
+        lfm3_lookup_proposed_tokens: lfm3_lookup.as_ref().map(|s| s.0.proposed),
+        #[cfg(feature = "mlx")]
+        lfm3_lookup_accepted_tokens: lfm3_lookup.as_ref().map(|s| s.0.accepted),
+        #[cfg(feature = "mlx")]
+        lfm3_cert_tokens: lfm3_cert.map(|counts| counts[0]),
+        #[cfg(feature = "mlx")]
+        lfm3_cert_fallbacks: lfm3_cert.map(|counts| counts[1]),
         #[cfg(feature = "mlx")]
         mtp_accept_histogram: mtp_session
             .as_ref()

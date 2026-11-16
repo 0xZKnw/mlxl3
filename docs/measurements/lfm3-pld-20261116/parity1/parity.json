@@ -1,0 +1,414 @@
+{
+  "status": "failed",
+  "mode": "parity",
+  "engine_sha256": "c62ed425bdb78d75652d76251cceeec108d6f1539a4ac2184035b948e36ce4f3",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "long_file_sha256": "bb749793e5b1b5f72f3c96886213a4a34c67530b623efbd084bb27f576957526",
+  "cases": [
+    "copy",
+    "edit",
+    "code",
+    "fr",
+    "long",
+    "eos",
+    "copy-budget-1",
+    "copy-budget-2",
+    "copy-budget-3",
+    "copy-budget-4",
+    "copy-budget-5",
+    "copy-budget-9"
+  ],
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t61%; charging; 1:23 remaining present: true",
+  "off": {
+    "copy": [
+      {
+        "token_hash": "5c7ada2560d0c18b",
+        "text": "Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "cache_context": "The user asks: \"Recopie exactement le texte suivant, sans rien changer :\" and then provides the text. So we need to repeat exactly the text, unchanged. So just output the same paragraph.\n\nThus answer: the same text.\n\nWe must ensure no modifications. Let's copy exactly:\n\n\"Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées et les mouettes tournent au-dessus des remparts. Quand la marée remonte, les bateaux quittent le bassin un par un, en suivant le chenal balisé par des bouées rouges et vertes. Le soir, les familles se retrouvent sur la plage du Sillon pour regarder le soleil disparaître derrière l'île du Grand Bé, tandis que le vent apporte une odeur d'iode et de pain chaud.\"\n\nCheck punctuation: The original includes apostrophe in \"s'anime\". Also \"Saint-Malo\". Ensure same.\n\nThus final answer: exactly that.</think>Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 151,
+        "decode_tps": 47.35448226517507,
+        "decode_seconds": 5.384917917,
+        "elapsed_seconds": 6.314128708,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "edit": [
+      {
+        "token_hash": "a00ba7dbc0690d3d",
+        "text": "",
+        "cache_context": "We need to rename variable `users` to `people` everywhere in the given code. The code:\n\n```python\ndef load_users(path):\n    users = []\n    with open(path) as handle:\n        for line in handle:\n            name, age = line.strip().split(\",\")\n            users.append({\"name\": name, \"age\": int(age)})\n    return users\n\n\ndef adults(users):\n    return [user for user in users if user[\"age\"] >= 18]\n```\n\nWe need to change `users` to `people` in both functions. Also, the function `load_users` takes parameter `path` and returns `users`. Inside, we create `users = []`. Should rename to `people = []`. Also, the variable `users` is used in the return statement. And in `adults`, parameter is `users` and we iterate over `users`. So we need to rename that parameter to `people` as well? The function definition `def adults(users):` should become `def adults(people):`? But the problem says \"Rename the variable `users` to `people` everywhere\". That includes function parameters? Typically yes. So we need to update all occurrences of `users` to `",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 109,
+        "decode_tps": 49.14213055798381,
+        "decode_seconds": 5.189030208999999,
+        "elapsed_seconds": 5.844529167,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "code": [
+      {
+        "token_hash": "641e4e422ede4711",
+        "text": "",
+        "cache_context": "We need to write a Rust function that parses an ISO 8601 date like \"2026-11-16\". The user didn't specify the exact format, but ISO 8601 date is typically YYYY-MM-DD. Possibly also with time? The example is just date. So we need to parse a string into a date. In Rust, there is `chrono` crate which is standard for date parsing. We can use `chrono::parse` or `FromStr` for `DateTime`. We'll need to mention dependencies? The user just asked to write a function. We can provide code using `chrono`. Alternatively, we could implement manually but that's error-prone. Usually, for such tasks, using a well-known crate is acceptable. I'll write a function that takes a string and returns a `DateTime<chrono::Utc>` or `Date<...>`. Let's decide: ISO 8601 date is just date part, but we can parse as `chrono::NaiveDate` or `DateTime`. The example \"2026-11-16\" is a date without time. I'll parse as `NaiveDate` for simplicity, but often ISO 8601 includes time. The user said \"date like 2026",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 32,
+        "decode_tps": 49.17081692416641,
+        "decode_seconds": 5.186002917000001,
+        "elapsed_seconds": 5.517595375,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "fr": [
+      {
+        "token_hash": "0c2c89237066788f",
+        "text": "Le ciel apparaît bleu à cause de la diffusion de la lumière du soleil par les molécules d’air et les minuscules particules qui composent l’atmosphère terrestre. La lumière du soleil est composée de plusieurs couleurs,",
+        "cache_context": "The user asks: \"Explique en quelques paragraphes pourquoi le ciel est bleu.\" (Explain in a few paragraphs why the sky is blue.) So we need to give a concise explanation in French, about the scattering of sunlight by the atmosphere, Rayleigh scattering, shorter wavelengths (blue) scattered more, etc. Provide a few paragraphs. Should be straightforward. No disallowed content. So answer in French.\n\nWe'll talk about sunlight composition, scattering, Rayleigh scattering, the effect of molecules and small particles, the angle, why we see blue at sunrise/sunset is red/orange due to longer path length.\n\nWe can also mention that the sky appears blue because of the scattering of shorter wavelengths (blue) by the atmosphere's molecules, which preferentially scatter them in all directions. The longer path at sunrise leads to less scattering of blue and more red.\n\nWe'll keep it to a few paragraphs (maybe 3). Use simple language but accurate.\n\nLet's write in French. Ensure we answer the question.</think>Le ciel apparaît bleu à cause de la diffusion de la lumière du soleil par les molécules d’air et les minuscules particules qui composent l’atmosphère terrestre. La lumière du soleil est composée de plusieurs couleurs,",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 24,
+        "decode_tps": 49.11770398040724,
+        "decode_seconds": 5.19161075,
+        "elapsed_seconds": 5.268183,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "long": [
+      {
+        "token_hash": "b833cf068edc5ce8",
+        "text": "",
+        "cache_context": "We need to summarize the given document into five points. The document is a long description of MLXL3 Desktop v2.0.1, features, installation, etc. We need to extract key points.\n\nLet's parse the content:\n\n- It's a paragraph with `<p align=\"center\">` etc. but essentially a webpage snippet.\n\nKey sections:\n\n- Header: \"MLXL3 runs EXL3 language and vision models on your Mac. A native SwiftUI app brings together Chat, Agent, Server and Lab, backed by a Rust engine using MLX and custom Metal kernels. The same engine powers the command-line client and OpenAI-compatible HTTP API.\"\n\n- Desktop 2.0.1 · Engine 2.0.10 · Apple Silicon · macOS 26.2+ · MIT\n\n- Image: ASCII aurora etc.\n\n- \"What’s new in v2\" table: new Desktop, Chat, Agent Studio, Models, Server and Lab, Personalization.\n\n- Details: ASCII characters transform, motion responds to generation, settings share visual language.\n\n- New in 2.0.1: management screens follow v2 design, generation animation speed, Iris/amber/rose palette highlights embedded CSS etc.\n\n",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 2248,
+        "decode_tps": 44.7309933944686,
+        "decode_seconds": 5.700745292000001,
+        "elapsed_seconds": 7.655407375,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "eos": [
+      {
+        "token_hash": "d64c7e28927488aa",
+        "text": "",
+        "cache_context": "The user asks: \"Recopie exactement cette phrase et rien d'autre : « Bonjour le monde. »\" That means \"Copy exactly this phrase and nothing else: 'Bonjour le monde.'\" So I need to output exactly that phrase, nothing else. The phrase includes the quotes? The user wrote",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 64,
+        "prompt_tokens": 29,
+        "decode_tps": 46.91995039470913,
+        "decode_seconds": 1.342712417,
+        "elapsed_seconds": 1.423808417,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-1": [
+      {
+        "token_hash": "3316797d548c33be",
+        "text": "",
+        "cache_context": "We",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 1,
+        "prompt_tokens": 144,
+        "decode_tps": 0.0,
+        "decode_seconds": 2.34169999999978e-05,
+        "elapsed_seconds": 0.1612375,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-2": [
+      {
+        "token_hash": "746ea04fff8b8a24",
+        "text": "",
+        "cache_context": "We need",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 2,
+        "prompt_tokens": 144,
+        "decode_tps": 45.565698834516,
+        "decode_seconds": 0.021946333,
+        "elapsed_seconds": 0.145685333,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-3": [
+      {
+        "token_hash": "0a2a38cfde106add",
+        "text": "",
+        "cache_context": "We need to",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 3,
+        "prompt_tokens": 144,
+        "decode_tps": 48.57852200721207,
+        "decode_seconds": 0.04117045799999999,
+        "elapsed_seconds": 0.161719375,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-4": [
+      {
+        "token_hash": "677bb543dcba5478",
+        "text": "",
+        "cache_context": "We need to copy",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 4,
+        "prompt_tokens": 144,
+        "decode_tps": 48.20419296138443,
+        "decode_seconds": 0.06223524999999999,
+        "elapsed_seconds": 0.181645208,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-5": [
+      {
+        "token_hash": "37db6ff2e4fe8172",
+        "text": "",
+        "cache_context": "We need to copy exactly",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 5,
+        "prompt_tokens": 144,
+        "decode_tps": 47.64714865942543,
+        "decode_seconds": 0.083950459,
+        "elapsed_seconds": 0.204449458,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ],
+    "copy-budget-9": [
+      {
+        "token_hash": "c6549816a876bc9b",
+        "text": "",
+        "cache_context": "We need to copy exactly the given text.",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 9,
+        "prompt_tokens": 144,
+        "decode_tps": 48.28229460253195,
+        "decode_seconds": 0.16569220799999998,
+        "elapsed_seconds": 0.286514708,
+        "blocks": null,
+        "proposed": null,
+        "accepted": null
+      }
+    ]
+  },
+  "on": {
+    "copy": [
+      {
+        "token_hash": "5c7ada2560d0c18b",
+        "text": "Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "cache_context": "The user asks: \"Recopie exactement le texte suivant, sans rien changer :\" and then provides the text. So we need to repeat exactly the text, unchanged. So just output the same paragraph.\n\nThus answer: the same text.\n\nWe must ensure no modifications. Let's copy exactly:\n\n\"Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées et les mouettes tournent au-dessus des remparts. Quand la marée remonte, les bateaux quittent le bassin un par un, en suivant le chenal balisé par des bouées rouges et vertes. Le soir, les familles se retrouvent sur la plage du Sillon pour regarder le soleil disparaître derrière l'île du Grand Bé, tandis que le vent apporte une odeur d'iode et de pain chaud.\"\n\nCheck punctuation: The original includes apostrophe in \"s'anime\". Also \"Saint-Malo\". Ensure same.\n\nThus final answer: exactly that.</think>Le port de Saint-Malo s'anime avant l'aube. Les pêcheurs vérifient leurs filets, les boulangers sortent les premières fournées",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 151,
+        "decode_tps": 46.818783387221465,
+        "decode_seconds": 5.4465319590000005,
+        "elapsed_seconds": 5.5899035,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "edit": [
+      {
+        "token_hash": "a00ba7dbc0690d3d",
+        "text": "",
+        "cache_context": "We need to rename variable `users` to `people` everywhere in the given code. The code:\n\n```python\ndef load_users(path):\n    users = []\n    with open(path) as handle:\n        for line in handle:\n            name, age = line.strip().split(\",\")\n            users.append({\"name\": name, \"age\": int(age)})\n    return users\n\n\ndef adults(users):\n    return [user for user in users if user[\"age\"] >= 18]\n```\n\nWe need to change `users` to `people` in both functions. Also, the function `load_users` takes parameter `path` and returns `users`. Inside, we create `users = []`. Should rename to `people = []`. Also, the variable `users` is used in the return statement. And in `adults`, parameter is `users` and we iterate over `users`. So we need to rename that parameter to `people` as well? The function definition `def adults(users):` should become `def adults(people):`? But the problem says \"Rename the variable `users` to `people` everywhere\". That includes function parameters? Typically yes. So we need to update all occurrences of `users` to `",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 109,
+        "decode_tps": 51.557686606601955,
+        "decode_seconds": 4.945916250000001,
+        "elapsed_seconds": 5.0604585,
+        "blocks": 13,
+        "proposed": 39,
+        "accepted": 39
+      }
+    ],
+    "code": [
+      {
+        "token_hash": "641e4e422ede4711",
+        "text": "",
+        "cache_context": "We need to write a Rust function that parses an ISO 8601 date like \"2026-11-16\". The user didn't specify the exact format, but ISO 8601 date is typically YYYY-MM-DD. Possibly also with time? The example is just date. So we need to parse a string into a date. In Rust, there is `chrono` crate which is standard for date parsing. We can use `chrono::parse` or `FromStr` for `DateTime`. We'll need to mention dependencies? The user just asked to write a function. We can provide code using `chrono`. Alternatively, we could implement manually but that's error-prone. Usually, for such tasks, using a well-known crate is acceptable. I'll write a function that takes a string and returns a `DateTime<chrono::Utc>` or `Date<...>`. Let's decide: ISO 8601 date is just date part, but we can parse as `chrono::NaiveDate` or `DateTime`. The example \"2026-11-16\" is a date without time. I'll parse as `NaiveDate` for simplicity, but often ISO 8601 includes time. The user said \"date like 2026",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 32,
+        "decode_tps": 46.23567213000738,
+        "decode_seconds": 5.5152220839999995,
+        "elapsed_seconds": 5.566438625,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "fr": [
+      {
+        "token_hash": "0c2c89237066788f",
+        "text": "Le ciel apparaît bleu à cause de la diffusion de la lumière du soleil par les molécules d’air et les minuscules particules qui composent l’atmosphère terrestre. La lumière du soleil est composée de plusieurs couleurs,",
+        "cache_context": "The user asks: \"Explique en quelques paragraphes pourquoi le ciel est bleu.\" (Explain in a few paragraphs why the sky is blue.) So we need to give a concise explanation in French, about the scattering of sunlight by the atmosphere, Rayleigh scattering, shorter wavelengths (blue) scattered more, etc. Provide a few paragraphs. Should be straightforward. No disallowed content. So answer in French.\n\nWe'll talk about sunlight composition, scattering, Rayleigh scattering, the effect of molecules and small particles, the angle, why we see blue at sunrise/sunset is red/orange due to longer path length.\n\nWe can also mention that the sky appears blue because of the scattering of shorter wavelengths (blue) by the atmosphere's molecules, which preferentially scatter them in all directions. The longer path at sunrise leads to less scattering of blue and more red.\n\nWe'll keep it to a few paragraphs (maybe 3). Use simple language but accurate.\n\nLet's write in French. Ensure we answer the question.</think>Le ciel apparaît bleu à cause de la diffusion de la lumière du soleil par les molécules d’air et les minuscules particules qui composent l’atmosphère terrestre. La lumière du soleil est composée de plusieurs couleurs,",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 24,
+        "decode_tps": 46.03189876423942,
+        "decode_seconds": 5.539636792,
+        "elapsed_seconds": 5.590708667,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "long": [
+      {
+        "token_hash": "b833cf068edc5ce8",
+        "text": "",
+        "cache_context": "We need to summarize the given document into five points. The document is a long description of MLXL3 Desktop v2.0.1, features, installation, etc. We need to extract key points.\n\nLet's parse the content:\n\n- It's a paragraph with `<p align=\"center\">` etc. but essentially a webpage snippet.\n\nKey sections:\n\n- Header: \"MLXL3 runs EXL3 language and vision models on your Mac. A native SwiftUI app brings together Chat, Agent, Server and Lab, backed by a Rust engine using MLX and custom Metal kernels. The same engine powers the command-line client and OpenAI-compatible HTTP API.\"\n\n- Desktop 2.0.1 · Engine 2.0.10 · Apple Silicon · macOS 26.2+ · MIT\n\n- Image: ASCII aurora etc.\n\n- \"What’s new in v2\" table: new Desktop, Chat, Agent Studio, Models, Server and Lab, Personalization.\n\n- Details: ASCII characters transform, motion responds to generation, settings share visual language.\n\n- New in 2.0.1: management screens follow v2 design, generation animation speed, Iris/amber/rose palette highlights embedded CSS etc.\n\n",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 256,
+        "prompt_tokens": 2248,
+        "decode_tps": 43.64683078685105,
+        "decode_seconds": 5.842348583000001,
+        "elapsed_seconds": 7.262152333,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "eos": [
+      {
+        "token_hash": "d64c7e28927488aa",
+        "text": "",
+        "cache_context": "The user asks: \"Recopie exactement cette phrase et rien d'autre : « Bonjour le monde. »\" That means \"Copy exactly this phrase and nothing else: 'Bonjour le monde.'\" So I need to output exactly that phrase, nothing else. The phrase includes the quotes? The user wrote",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 64,
+        "prompt_tokens": 29,
+        "decode_tps": 46.04324959369573,
+        "decode_seconds": 1.36827875,
+        "elapsed_seconds": 1.420757875,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-1": [
+      {
+        "token_hash": "3316797d548c33be",
+        "text": "",
+        "cache_context": "We",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 1,
+        "prompt_tokens": 144,
+        "decode_tps": 0.0,
+        "decode_seconds": 1.262499999998834e-05,
+        "elapsed_seconds": 0.125847333,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-2": [
+      {
+        "token_hash": "746ea04fff8b8a24",
+        "text": "",
+        "cache_context": "We need",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 2,
+        "prompt_tokens": 144,
+        "decode_tps": 44.29547973045493,
+        "decode_seconds": 0.022575666999999994,
+        "elapsed_seconds": 0.146519458,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-3": [
+      {
+        "token_hash": "0a2a38cfde106add",
+        "text": "",
+        "cache_context": "We need to",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 3,
+        "prompt_tokens": 144,
+        "decode_tps": 46.29393016208802,
+        "decode_seconds": 0.04320220799999999,
+        "elapsed_seconds": 0.167761667,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-4": [
+      {
+        "token_hash": "677bb543dcba5478",
+        "text": "",
+        "cache_context": "We need to copy",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 4,
+        "prompt_tokens": 144,
+        "decode_tps": 46.522657022457835,
+        "decode_seconds": 0.064484709,
+        "elapsed_seconds": 0.187701292,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-5": [
+      {
+        "token_hash": "37db6ff2e4fe8172",
+        "text": "",
+        "cache_context": "We need to copy exactly",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 5,
+        "prompt_tokens": 144,
+        "decode_tps": 47.483404490776216,
+        "decode_seconds": 0.084239958,
+        "elapsed_seconds": 0.218058459,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ],
+    "copy-budget-9": [
+      {
+        "token_hash": "c6549816a876bc9b",
+        "text": "",
+        "cache_context": "We need to copy exactly the given text.",
+        "stop_reason": "max_tokens",
+        "generated_tokens": 9,
+        "prompt_tokens": 144,
+        "decode_tps": 47.69878238006502,
+        "decode_seconds": 0.167719166,
+        "elapsed_seconds": 0.290933583,
+        "blocks": 0,
+        "proposed": 0,
+        "accepted": 0
+      }
+    ]
+  },
+  "problems": [
+    "copy: no verification block"
+  ],
+  "parity": false
+}

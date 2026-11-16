@@ -172,6 +172,14 @@ impl Projection {
         matches!(self.weights, ProjectionWeights::Exl3(_))
     }
 
+    /// The F16 weight of a bias-free dense projection (LFM3-CERT-HEAD).
+    pub(crate) fn dense_weight(&self) -> Option<&Array> {
+        match (&self.weights, &self.bias) {
+            (ProjectionWeights::Dense(weight), None) => Some(weight),
+            _ => None,
+        }
+    }
+
     pub(crate) fn load(
         checkpoint: &Checkpoint,
         prefix: &str,
@@ -382,7 +390,100 @@ impl Projection {
         )?
         .remove(0))
     }
+
+    /// LFM3-PLD: the `forward_dense_rows_exact` arithmetic for every row, but
+    /// each thread loads its weights once and applies them to all rows, so the
+    /// head is read from memory once per verification instead of once per row.
+    pub(crate) fn forward_dense_rows_shared(&self, x: &Array) -> Result<Array> {
+        let ProjectionWeights::Dense(weight) = &self.weights else {
+            anyhow::bail!("shared dense rows require dense projection weights");
+        };
+        ensure!(
+            self.bias.is_none()
+                && x.shape().len() == 2
+                && (1..=LFM3_VERIFY_MAX_ROWS).contains(&x.shape()[0])
+                && x.shape()[1] == self.logical_input
+                && x.dtype() == Dtype::Float16
+                && weight.dtype() == Dtype::Float16
+                && self.logical_input % 128 == 0
+                && self.logical_output % 16 == 0,
+            "invalid shared dense row input"
+        );
+        let rows = x.shape()[0];
+        let source = format!(
+            r#"
+                constexpr uint INPUT_DIMS = {input}u;
+                constexpr uint OUTPUT_DIMS = {output}u;
+                constexpr uint ROWS = {rows}u;
+                uint output = threadgroup_position_in_grid.x * 16u
+                    + simdgroup_index_in_threadgroup * 4u;
+                uint lane = thread_index_in_simdgroup;
+                float result[ROWS][4];
+                for (uint r = 0u; r < ROWS; ++r) {{
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        result[r][m] = 0.0f;
+                    }}
+                }}
+                uint k = lane * 4u;
+                for (uint block = 0u; block < INPUT_DIMS / 128u; ++block) {{
+                    float w[4][4];
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        for (uint n = 0u; n < 4u; ++n) {{
+                            w[m][n] = float(weight[(output + m) * INPUT_DIMS + k + n]);
+                        }}
+                    }}
+                    for (uint r = 0u; r < ROWS; ++r) {{
+                        float coeff[4];
+                        for (uint n = 0u; n < 4u; ++n) {{
+                            coeff[n] = float(x[r * INPUT_DIMS + k + n]);
+                        }}
+                        for (uint m = 0u; m < 4u; ++m) {{
+                            for (uint n = 0u; n < 4u; ++n) {{
+                                result[r][m] += w[m][n] * coeff[n];
+                            }}
+                        }}
+                    }}
+                    k += 128u;
+                }}
+                for (ushort offset = 16u; offset >= 1u; offset >>= 1u) {{
+                    for (uint r = 0u; r < ROWS; ++r) {{
+                        for (uint m = 0u; m < 4u; ++m) {{
+                            result[r][m] += simd_shuffle_down(result[r][m], offset);
+                        }}
+                    }}
+                }}
+                if (lane == 0u) {{
+                    for (uint r = 0u; r < ROWS; ++r) {{
+                        for (uint m = 0u; m < 4u; ++m) {{
+                            y[r * OUTPUT_DIMS + output + m] = half(result[r][m]);
+                        }}
+                    }}
+                }}
+            "#,
+            input = self.logical_input,
+            output = self.logical_output,
+        );
+        Ok(array::metal_kernel(
+            &format!(
+                "mlxl3_rs_dense_rows_shared_{}_{}_{rows}_v1",
+                self.logical_input, self.logical_output
+            ),
+            &["x", "weight"],
+            &["y"],
+            "",
+            &source,
+            &[x, weight],
+            &[vec![rows, self.logical_output]],
+            &[Dtype::Float16],
+            [(self.logical_output / 16) * 128, 1, 1],
+            [128, 1, 1],
+        )?
+        .remove(0))
+    }
 }
+
+/// LFM3-PLD: anchor plus at most three prompt-lookup proposals.
+pub(crate) const LFM3_VERIFY_MAX_ROWS: i32 = 4;
 
 pub(crate) enum ProjectionBundle<const N: usize> {
     Separate(Box<[Projection; N]>),
@@ -626,10 +727,131 @@ impl Attention {
         self.output.forward(&out)
     }
 
+    /// LFM3-PLD: `rows` T1 steps without mutating the cache. Every query sees
+    /// exactly the keys its T1 step would see (same count, same SWA mask).
+    fn verify(&self, x: &Array, offset: i32) -> Result<(Array, PendingLayer)> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM3 verification input must have time")?;
+        ensure!(time > 0, "empty LFM3 verification input");
+        let rope = self
+            .lfm3_rope
+            .as_ref()
+            .context("verification requires LFM3 RoPE")?;
+        let projections = self.qkv.forward(x)?;
+        let q = rope.apply(
+            &projections[0]
+                .reshape(&[1, time, self.heads, self.head_dim])?
+                .rms_norm(&self.q_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?,
+            offset,
+        )?;
+        let k = rope.apply(
+            &projections[1]
+                .reshape(&[1, time, self.kv_heads, self.head_dim])?
+                .rms_norm(&self.k_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?,
+            offset,
+        )?;
+        let v = projections[2]
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
+            .transpose(&[0, 2, 1, 3])?;
+        let previous = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+        let scale = (self.head_dim as f32).powf(-0.5);
+        let mut attended = Vec::with_capacity(time as usize);
+        for row in 0..time {
+            let k_row = k.slice(2, row, row + 1)?;
+            let v_row = v.slice(2, row, row + 1)?;
+            // Keys T1 holds before this row: the trimmed cache plus earlier rows.
+            let held = previous + row;
+            let start = self.window.map_or(0, |w| (held - (w - 1)).max(0));
+            let past = |cache: &Option<Array>, rows: &Array| -> Result<Option<Array>> {
+                let mut parts = Vec::new();
+                if let Some(cache) = cache
+                    && start < previous
+                {
+                    parts.push(cache.slice(2, start, previous)?);
+                }
+                let first = (start - previous).max(0);
+                if first < row {
+                    parts.push(rows.slice(2, first, row)?);
+                }
+                Ok(match parts.len() {
+                    0 => None,
+                    1 => parts.pop(),
+                    _ => Some(Array::concatenate(&parts.iter().collect::<Vec<_>>(), 2)?),
+                })
+            };
+            let keys = match past(&self.keys, &k)? {
+                Some(past) => Array::concatenate(&[&past, &k_row], 2)?,
+                None => k_row,
+            };
+            let values = match past(&self.values, &v)? {
+                Some(past) => Array::concatenate(&[&past, &v_row], 2)?,
+                None => v_row,
+            };
+            let q_row = q.slice(2, row, row + 1)?;
+            attended.push(if let Some(window) = self.window {
+                let mask =
+                    crate::lfm3::sliding_mask(1, keys.shape()[2], window)?.astype(q.dtype())?;
+                Array::sdpa_mask(&q_row, &keys, &values, scale, &mask)?
+            } else {
+                Array::sdpa(&q_row, &keys, &values, scale, false)?
+            });
+        }
+        let attended = Array::concatenate(&attended.iter().collect::<Vec<_>>(), 2)?;
+        let gate = self
+            .gate
+            .as_ref()
+            .context("verification requires the LFM3 attention gate")?
+            .forward(x)?;
+        ensure!(
+            attended.dtype() == Dtype::Float16 && gate.dtype() == Dtype::Float16,
+            "LFM3 verification requires F16 attention"
+        );
+        let out = crate::lfm3_kernels::attention_gate(&attended, &gate)?;
+        let keys = match &self.keys {
+            Some(cache) => Array::concatenate(&[cache, &k], 2)?,
+            None => k,
+        };
+        let values = match &self.values {
+            Some(cache) => Array::concatenate(&[cache, &v], 2)?,
+            None => v,
+        };
+        Ok((
+            self.output.forward(&out)?,
+            PendingLayer::Attention {
+                keys,
+                values,
+                previous,
+            },
+        ))
+    }
+
     fn reset(&mut self) {
         self.keys = None;
         self.values = None;
     }
+}
+
+/// LFM3-PLD: cache candidates of one verified layer, committed for a prefix.
+pub(crate) enum PendingLayer {
+    /// Untrimmed cache plus every verified row.
+    Attention {
+        keys: Array,
+        values: Array,
+        previous: i32,
+    },
+    /// Convolution state after each verified row.
+    Conv(Vec<Array>),
+}
+
+/// LFM3-PLD: result of `Lfm2::verify_rows`; nothing changes until committed.
+pub struct Lfm3Verification {
+    rows: i32,
+    offset: i32,
+    layers: Vec<PendingLayer>,
 }
 
 struct ShortConv {
@@ -732,6 +954,43 @@ impl ShortConv {
             )?,
         );
         self.output.forward(&c.mul(&conv)?)
+    }
+}
+
+impl ShortConv {
+    /// LFM3-PLD: chain the fused T1 convolution step over each row.
+    fn verify(&self, x: &Array) -> Result<(Array, PendingLayer)> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM3 convolution input must have time")?;
+        ensure!(
+            self.lfm3 && self.length == 7 && self.bias.is_none() && time > 0,
+            "verification requires the fused LFM3 convolution"
+        );
+        let bcx = self.input.forward(x)?;
+        ensure!(
+            bcx.dtype() == Dtype::Float16,
+            "LFM3 verification requires F16 convolution"
+        );
+        let mut state = match &self.state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, self.length - 1, self.dim], bcx.dtype())?,
+        };
+        let mut mixed = Vec::with_capacity(time as usize);
+        let mut states = Vec::with_capacity(time as usize);
+        for row in 0..time {
+            let (value, next) = crate::lfm3_kernels::short_conv_step(
+                &bcx.slice(1, row, row + 1)?,
+                &state,
+                &self.weight,
+            )?;
+            mixed.push(value);
+            states.push(next.try_clone()?);
+            state = next;
+        }
+        let mixed = Array::concatenate(&mixed.iter().collect::<Vec<_>>(), 1)?;
+        Ok((self.output.forward(&mixed)?, PendingLayer::Conv(states)))
     }
 }
 
@@ -1024,6 +1283,29 @@ impl Layer {
         }
         h.add(&output)
     }
+
+    /// LFM3-PLD: `forward` for several T1 rows without touching the caches.
+    fn verify(&self, x: &Array, offset: i32) -> Result<(Array, PendingLayer)> {
+        ensure!(
+            matches!(self.feed_forward, FeedForward::Dense { .. }),
+            "verification requires dense LFM3 feed-forward layers"
+        );
+        let normalized = x.rms_norm(&self.operator_norm, self.eps)?;
+        let (mut mixed, pending) = match &self.operator {
+            Operator::Attention(attention) => attention.verify(&normalized, offset)?,
+            Operator::Conv(conv) => conv.verify(&normalized)?,
+        };
+        if let Some(norm) = &self.post_operator_norm {
+            mixed = mixed.rms_norm(norm, self.eps)?;
+        }
+        let h = x.add(&mixed)?;
+        let normalized = h.rms_norm(&self.ffn_norm, self.eps)?;
+        let mut output = self.feed_forward.forward(&normalized)?;
+        if let Some(norm) = &self.post_ffn_norm {
+            output = output.rms_norm(norm, self.eps)?;
+        }
+        Ok((h.add(&output)?, pending))
+    }
 }
 
 /// Dispatch evidence for the explicitly requested experimental MoE prefill.
@@ -1040,6 +1322,8 @@ pub struct Lfm2 {
     embeddings: Array,
     norm: Array,
     head: Option<Projection>,
+    /// LFM3-CERT-HEAD screening copy of `head`, built on request only.
+    certified_head: Option<crate::lfm3_cert_head::CertifiedHead>,
     layers: Vec<Layer>,
     vocab_size: i32,
     context_limit: i32,
@@ -1257,6 +1541,7 @@ impl Lfm2 {
             embeddings,
             norm,
             head,
+            certified_head: None,
             layers,
             vocab_size: config.vocab_size,
             context_limit: config.max_position_embeddings,
@@ -1309,6 +1594,83 @@ impl Lfm2 {
         tokens: &[u32],
         embedded: Option<Array>,
     ) -> Result<Array> {
+        self.forward_with(tokens, embedded, |model, hidden, time| {
+            match &model.head {
+                Some(head) => head.forward(hidden)?,
+                None => hidden.matmul(&model.embeddings.transpose(&[1, 0])?)?,
+            }
+            .slice(1, time - 1, time)
+        })
+    }
+
+    /// LFM3-CERT-HEAD: builds the int8 screening copy of a dense F16 head.
+    /// Returns false (and keeps the normal head) for unsupported heads.
+    pub fn enable_certified_head(&mut self) -> Result<bool> {
+        if self.certified_head.is_some() {
+            return Ok(true);
+        }
+        let Some(weight) = self.head.as_ref().and_then(Projection::dense_weight) else {
+            return Ok(false);
+        };
+        if weight.dtype() != Dtype::Float16
+            || !crate::lfm3_cert_head::supported(weight.shape()[0], weight.shape()[1])
+            || weight.shape()[0] != self.vocab_size
+        {
+            return Ok(false);
+        }
+        self.certified_head = Some(crate::lfm3_cert_head::CertifiedHead::build(weight)?);
+        Ok(true)
+    }
+
+    /// LFM3-CERT-HEAD: one T1 step returning the greedy ID of `select_token`
+    /// (`chat_greedy_ids` of the step logits) and whether it was certified
+    /// without the full head. Uncertified steps run the normal head, so the
+    /// caches and the returned ID always match `forward_embedded`.
+    pub(crate) fn forward_certified_embedded(
+        &mut self,
+        tokens: &[u32],
+        embedded: Option<Array>,
+    ) -> Result<(u32, bool)> {
+        ensure!(
+            tokens.len() == 1,
+            "certified LFM2 head steps take one token"
+        );
+        ensure!(
+            self.certified_head.is_some(),
+            "certified LFM2 head is not enabled"
+        );
+        self.forward_with(tokens, embedded, |model, hidden, _| {
+            let head = model
+                .head
+                .as_ref()
+                .context("certified head requires a head")?;
+            if let (Some(certified), Some(weight)) = (&model.certified_head, head.dense_weight())
+                && hidden.dtype() == Dtype::Float16
+            {
+                let x = hidden.reshape(&[1, hidden.shape()[hidden.shape().len() - 1]])?;
+                let (id, certified) = certified.greedy(weight, &x)?;
+                if certified {
+                    ensure!(id < model.vocab_size as u32, "certified head ID is invalid");
+                    return Ok((id, true));
+                }
+            }
+            let id = head
+                .forward(hidden)?
+                .slice(1, 0, 1)?
+                .chat_greedy_ids()?
+                .into_iter()
+                .next()
+                .context("model returned no logits")?;
+            Ok((id, false))
+        })
+    }
+
+    fn forward_with<T>(
+        &mut self,
+        tokens: &[u32],
+        embedded: Option<Array>,
+        finish: impl FnOnce(&Self, &Array, i32) -> Result<T>,
+    ) -> Result<T> {
         ensure!(
             tokens.len() == 1 || tokens.len() >= 24,
             "LFM2 batches must contain one token or at least 24 tokens"
@@ -1327,7 +1689,7 @@ impl Lfm2 {
             "LFM2 context is full ({} tokens); reset the model cache before continuing",
             self.context_limit
         );
-        let result = (|| -> Result<Array> {
+        let result = (|| -> Result<T> {
             let next_offset = self
                 .offset
                 .checked_add(time)
@@ -1340,16 +1702,12 @@ impl Lfm2 {
                 hidden = layer.forward(&hidden, self.offset)?;
             }
             let hidden = hidden.rms_norm(&self.norm, self.eps)?;
-            let logits = match &self.head {
-                Some(head) => head.forward(&hidden)?,
-                None => hidden.matmul(&self.embeddings.transpose(&[1, 0])?)?,
-            }
-            .slice(1, time - 1, time)?;
+            let value = finish(self, &hidden, time)?;
             self.offset = next_offset;
-            Ok(logits)
+            Ok(value)
         })();
         match result {
-            Ok(logits) => Ok(logits),
+            Ok(value) => Ok(value),
             Err(error) => {
                 self.reset();
                 Err(error.context("LFM2 forward failed; its cache was reset"))
@@ -1453,6 +1811,96 @@ impl Lfm2 {
     }
 
     /// Read-only cache snapshots for numerical parity checks; no array is copied.
+    /// LFM3-PLD: logits `[rows, vocab]` that `rows` successive T1 forwards of
+    /// `tokens` would return, without changing the model. Commit a prefix with
+    /// [`Self::commit_verified`] or drop the result to discard it.
+    pub(crate) fn verify_rows(
+        &self,
+        tokens: &[u32],
+        hidden: Array,
+    ) -> Result<(Array, Lfm3Verification)> {
+        let rows = i32::try_from(tokens.len()).context("too many verification rows")?;
+        ensure!(
+            (2..=LFM3_VERIFY_MAX_ROWS).contains(&rows),
+            "LFM3 verification requires 2 to {LFM3_VERIFY_MAX_ROWS} rows"
+        );
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab_size as u32),
+            "LFM3 token is outside vocabulary"
+        );
+        ensure!(
+            self.offset > 0 && self.offset <= self.context_limit - rows,
+            "LFM3 verification needs a prefilled cache with room for {rows} tokens"
+        );
+        ensure!(
+            hidden.shape() == [1, rows, self.embeddings.shape()[1]],
+            "invalid LFM3 verification embeddings"
+        );
+        let head = self
+            .head
+            .as_ref()
+            .context("LFM3 verification requires a dense head")?;
+        let mut hidden = hidden;
+        let mut layers = Vec::with_capacity(self.layers.len());
+        for layer in &self.layers {
+            let (next, pending) = layer.verify(&hidden, self.offset)?;
+            hidden = next;
+            layers.push(pending);
+        }
+        let hidden = hidden
+            .rms_norm(&self.norm, self.eps)?
+            .reshape(&[rows, self.embeddings.shape()[1]])?;
+        let logits = head.forward_dense_rows_shared(&hidden)?;
+        Ok((
+            logits,
+            Lfm3Verification {
+                rows,
+                offset: self.offset,
+                layers,
+            },
+        ))
+    }
+
+    /// LFM3-PLD: keep the first `accepted` verified rows, exactly as if they
+    /// had been forwarded one by one; later rows are discarded.
+    pub(crate) fn commit_verified(
+        &mut self,
+        verification: Lfm3Verification,
+        accepted: i32,
+    ) -> Result<()> {
+        ensure!(
+            (1..=verification.rows).contains(&accepted)
+                && verification.offset == self.offset
+                && verification.layers.len() == self.layers.len(),
+            "stale or invalid LFM3 verification commit"
+        );
+        let index = usize::try_from(accepted - 1)?;
+        for (layer, pending) in self.layers.iter_mut().zip(verification.layers) {
+            match (&mut layer.operator, pending) {
+                (
+                    Operator::Attention(attention),
+                    PendingLayer::Attention {
+                        keys,
+                        values,
+                        previous,
+                    },
+                ) => {
+                    let end = previous + accepted;
+                    let start = attention.window.map_or(0, |w| (end - (w - 1)).max(0));
+                    attention.keys = Some(keys.slice(2, start, end)?);
+                    attention.values = Some(values.slice(2, start, end)?);
+                }
+                (Operator::Conv(conv), PendingLayer::Conv(mut states)) => {
+                    ensure!(states.len() > index, "missing LFM3 convolution state");
+                    conv.state = Some(states.swap_remove(index));
+                }
+                _ => anyhow::bail!("LFM3 verification layer kinds do not match"),
+            }
+        }
+        self.offset += accepted;
+        Ok(())
+    }
+
     pub fn state_arrays(&self) -> Vec<(String, &Array)> {
         let mut states = Vec::new();
         for (index, layer) in self.layers.iter().enumerate() {
@@ -1716,6 +2164,14 @@ mod flash_hc_tests {
 #[cfg(test)]
 #[path = "lfm2_prefill_tests.rs"]
 mod prefill_tests;
+
+#[cfg(test)]
+#[path = "lfm3_verify_tests.rs"]
+mod lfm3_verify_tests;
+
+#[cfg(test)]
+#[path = "lfm3_cert_tests.rs"]
+mod lfm3_cert_tests;
 
 #[cfg(test)]
 mod lfm3_prefill_release_tests {

@@ -1,0 +1,93 @@
+   Compiling mlxl3-native v2.0.11 (/Users/justin/.codex/worktrees/lfm3-prompt-lookup/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 2m 28s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-b524fbc65f5fea9b)
+
+running 1 test
+test lfm2::lfm3_verify_tests::batch_projections_match_single_row_bits ... PLD_ORACLE L0.conv.in rows=2 values=12288 mismatches=0 max_abs=0
+PLD_ORACLE L0.conv.out rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in0 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in1 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.w2 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.in rows=2 values=12288 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.out rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in0 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in1 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.w2 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv0 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv1 rows=2 values=1024 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv2 rows=2 values=1024 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.out rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.gate rows=2 values=32 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in0 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in1 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.w2 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv0 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv1 rows=2 values=1024 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv2 rows=2 values=1024 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.out rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.gate rows=2 values=32 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in0 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in1 rows=2 values=15360 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.w2 rows=2 values=4096 mismatches=0 max_abs=0
+PLD_ORACLE head.matmul rows=2 values=256000 mismatches=227 max_abs=0.001953125
+PLD_ORACLE L0.conv.in rows=3 values=18432 mismatches=0 max_abs=0
+PLD_ORACLE L0.conv.out rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in0 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in1 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.w2 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.in rows=3 values=18432 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.out rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in0 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in1 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.w2 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv0 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv1 rows=3 values=1536 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv2 rows=3 values=1536 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.out rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.gate rows=3 values=48 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in0 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in1 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.w2 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv0 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv1 rows=3 values=1536 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv2 rows=3 values=1536 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.out rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.gate rows=3 values=48 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in0 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in1 rows=3 values=23040 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.w2 rows=3 values=6144 mismatches=0 max_abs=0
+PLD_ORACLE head.matmul rows=3 values=384000 mismatches=450 max_abs=0.001953125
+PLD_ORACLE L0.conv.in rows=4 values=24576 mismatches=0 max_abs=0
+PLD_ORACLE L0.conv.out rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in0 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.in1 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L0.ffn.w2 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.in rows=4 values=24576 mismatches=0 max_abs=0
+PLD_ORACLE L1.conv.out rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in0 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.in1 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L1.ffn.w2 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv0 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv1 rows=4 values=2048 mismatches=0 max_abs=0
+PLD_ORACLE L2.qkv2 rows=4 values=2048 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.out rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L2.attn.gate rows=4 values=64 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in0 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.in1 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L2.ffn.w2 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv0 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv1 rows=4 values=2048 mismatches=0 max_abs=0
+PLD_ORACLE L4.qkv2 rows=4 values=2048 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.out rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE L4.attn.gate rows=4 values=64 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in0 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.in1 rows=4 values=30720 mismatches=0 max_abs=0
+PLD_ORACLE L4.ffn.w2 rows=4 values=8192 mismatches=0 max_abs=0
+PLD_ORACLE head.matmul rows=4 values=512000 mismatches=507 max_abs=0.0009765625
+PLD_ORACLE total_mismatches=1184
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 740 filtered out; finished in 3.03s
+

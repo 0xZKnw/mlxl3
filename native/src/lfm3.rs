@@ -305,6 +305,122 @@ mod runtime {
         Array::from_f32(&mask, &[time, keys])
     }
 
+    /// LFM3-PLD: greedy decoding that verifies prompt-lookup continuations on
+    /// the target. Every emitted ID is the target's T1 argmax; only the number
+    /// of weight reads changes.
+    pub struct PromptLookup {
+        history: Vec<u32>,
+        queue: std::collections::VecDeque<u32>,
+        pub blocks: usize,
+        pub proposed: usize,
+        pub accepted: usize,
+    }
+
+    impl PromptLookup {
+        pub fn new(prompt: &[u32]) -> Self {
+            Self {
+                history: prompt.to_vec(),
+                queue: Default::default(),
+                blocks: 0,
+                proposed: 0,
+                accepted: 0,
+            }
+        }
+
+        /// Next ID after `anchor`, which was just emitted. `remaining` counts
+        /// the IDs that may still be emitted including the returned one, so a
+        /// block never commits a token the caller cannot emit. Accepted IDs
+        /// stop before an end ID, which T1 decoding would never forward.
+        pub fn advance(
+            &mut self,
+            model: &mut Lfm3,
+            anchor: u32,
+            remaining: usize,
+            eos: &[u32],
+            allow_context: impl Fn(&[u32]) -> bool,
+        ) -> Result<u32> {
+            ensure!(remaining > 0, "prompt lookup has no token budget");
+            if let Some(next) = self.queue.pop_front() {
+                self.history.push(anchor);
+                return Ok(next);
+            }
+            let room =
+                usize::try_from(model.context_limit() - model.language.position()).unwrap_or(0);
+            let width = remaining
+                .min(room)
+                .saturating_sub(1)
+                .min(crate::lfm2::LFM3_VERIFY_MAX_ROWS as usize - 1);
+            let draft = (width > 0)
+                .then(|| {
+                    crate::speculative::prompt_lookup(&self.history, anchor, width, allow_context)
+                        .map(<[u32]>::to_vec)
+                })
+                .flatten()
+                .filter(|draft| !draft.is_empty());
+            self.history.push(anchor);
+            let Some(draft) = draft else {
+                return greedy(&model.forward(&[anchor])?);
+            };
+            let mut rows = Vec::with_capacity(draft.len() + 1);
+            rows.push(anchor);
+            rows.extend_from_slice(&draft);
+            let (logits, verification) = match model.verify_rows(&rows) {
+                Ok(result) => result,
+                Err(error) => {
+                    model.reset();
+                    return Err(error.context("LFM3 prompt-lookup verification failed"));
+                }
+            };
+            let ids = row_greedy(&logits, rows.len())?;
+            let accepted = draft
+                .iter()
+                .zip(&ids)
+                .take_while(|(draft, target)| draft == target && !eos.contains(target))
+                .count();
+            model.commit_verified(verification, accepted as i32 + 1)?;
+            self.blocks += 1;
+            self.proposed += draft.len();
+            self.accepted += accepted;
+            self.queue.extend(&draft[..accepted]);
+            self.queue.push_back(ids[accepted]);
+            Ok(self.queue.pop_front().expect("queued target ID"))
+        }
+    }
+
+    /// The bridge's greedy rule: argmax of log-probabilities of one row.
+    fn greedy(logits: &Array) -> Result<u32> {
+        logits
+            .chat_greedy_ids()?
+            .first()
+            .copied()
+            .context("model returned no logits")
+    }
+
+    /// `greedy` on each `[1, 1, vocab]` row, read back with one synchronization.
+    fn row_greedy(logits: &Array, rows: usize) -> Result<Vec<u32>> {
+        let vocab = *logits.shape().last().context("empty verification logits")?;
+        ensure!(
+            logits.shape() == [rows as i32, vocab],
+            "verification logits have the wrong shape"
+        );
+        let ids = (0..rows as i32)
+            .map(|row| {
+                logits
+                    .slice(0, row, row + 1)?
+                    .reshape(&[1, 1, vocab])?
+                    .log_probs()?
+                    .argmax()?
+                    .reshape(&[1])
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let ids = Array::concatenate(&ids.iter().collect::<Vec<_>>(), 0)?.to_u32()?;
+        ensure!(
+            ids.len() == rows,
+            "verification returned the wrong ID count"
+        );
+        Ok(ids)
+    }
+
     pub struct Lfm3 {
         pub(crate) language: Lfm2,
         vision: Option<Vision>,
@@ -396,6 +512,37 @@ mod runtime {
             Ok(())
         }
         pub fn forward(&mut self, tokens: &[u32]) -> Result<Array> {
+            let hidden = self.embedded(tokens)?;
+            match self.language.forward_embedded(tokens, Some(hidden)) {
+                Ok(logits) => Ok(logits),
+                Err(error) => {
+                    self.reset();
+                    Err(error)
+                }
+            }
+        }
+        /// LFM3-CERT-HEAD: see `Lfm2::enable_certified_head`.
+        pub fn enable_certified_head(&mut self) -> Result<bool> {
+            self.language.enable_certified_head()
+        }
+        /// LFM3-CERT-HEAD: one decode step returning the greedy ID of
+        /// `forward` and whether the screening head certified it.
+        pub fn forward_greedy_certified(&mut self, token: u32) -> Result<(u32, bool)> {
+            let tokens = [token];
+            let hidden = self.embedded(&tokens)?;
+            match self
+                .language
+                .forward_certified_embedded(&tokens, Some(hidden))
+            {
+                Ok(value) => Ok(value),
+                Err(error) => {
+                    self.reset();
+                    Err(error)
+                }
+            }
+        }
+        /// Token embeddings with the prepared image features spliced in.
+        fn embedded(&self, tokens: &[u32]) -> Result<Array> {
             let begin = self.language.position() as usize;
             let end = begin
                 .checked_add(tokens.len())
@@ -413,13 +560,35 @@ mod runtime {
                     hidden = Array::concatenate(&[&prefix, &image, &suffix], 1)?;
                 }
             }
-            match self.language.forward_embedded(tokens, Some(hidden)) {
-                Ok(logits) => Ok(logits),
-                Err(error) => {
-                    self.reset();
-                    Err(error)
-                }
+            Ok(hidden)
+        }
+        /// LFM3-PLD: logits `[rows, vocab]` of successive T1 steps over
+        /// `tokens`, leaving the caches unchanged until `commit_verified`.
+        pub fn verify_rows(
+            &self,
+            tokens: &[u32],
+        ) -> Result<(Array, crate::lfm2::Lfm3Verification)> {
+            let begin = self.language.position() as usize;
+            anyhow::ensure!(
+                self.images
+                    .iter()
+                    .all(|(start, features)| start + features.shape()[0] as usize <= begin),
+                "LFM3 verification cannot cover image positions"
+            );
+            self.language
+                .verify_rows(tokens, self.language.embed_tokens(tokens)?)
+        }
+        /// Commits the first `accepted` verified rows; resets on failure.
+        pub fn commit_verified(
+            &mut self,
+            verification: crate::lfm2::Lfm3Verification,
+            accepted: i32,
+        ) -> Result<()> {
+            let result = self.language.commit_verified(verification, accepted);
+            if result.is_err() {
+                self.reset();
             }
+            result
         }
         pub fn reset(&mut self) {
             self.language.reset();
@@ -442,6 +611,8 @@ mod runtime {
 }
 #[cfg(feature = "mlx")]
 pub use runtime::Lfm3;
+#[cfg(feature = "mlx")]
+pub use runtime::PromptLookup;
 #[cfg(feature = "mlx")]
 pub(crate) use runtime::{Rope, rotate, sliding_mask};
 
