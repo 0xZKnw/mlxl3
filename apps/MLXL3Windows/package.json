@@ -1,0 +1,15 @@
+{
+  "name": "mlxl3-windows",
+  "private": true,
+  "version": "0.0.0",
+  "description": "MLXL3 Desktop for Windows (ExLlamaV3 CUDA / ROCm engine)",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build --bundles nsis",
+    "check:ui": "node --check src/app.js && node --check src/aurora.js && node --check src/icons.js && node --check src/lab.js && node --check src/workspace.js && node --test \"tests/*.test.js\""
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  },
+  "type": "module"
+}

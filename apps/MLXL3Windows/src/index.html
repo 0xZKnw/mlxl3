@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MLXL3</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <canvas id="aurora" aria-hidden="true"></canvas>
+
+  <!-- ===== Chat ===== -->
+  <div id="chat-view" class="app">
+    <aside id="sidebar" class="sidebar">
+      <header class="side-head">
+        <span class="mark" data-logo="35" role="img" aria-label="MLXL3"></span>
+        <span class="spacer"></span>
+        <button id="downloads-indicator" class="round-icon" data-i18n-title="downloadsIndicator" data-icon="download" hidden></button>
+      </header>
+      <nav id="modes" class="mode-tabs" aria-label="Modes">
+        <button class="mode-tab selected" data-mode="chat"><span data-icon="chat"></span><span data-i18n="chat">Chat</span></button>
+        <button class="mode-tab" data-mode="agent"><span data-icon="terminal"></span><span>Agent</span></button>
+        <button class="mode-tab" data-mode="server"><span data-icon="server"></span><span>Server</span></button>
+        <button class="mode-tab" data-mode="lab"><span data-icon="chart"></span><span>Lab</span></button>
+      </nav>
+      <label class="project-pick" data-i18n-title="conversationProject"><span data-icon="folder"></span><select id="project-select"></select></label>
+      <div class="side-actions">
+        <label class="side-search"><span data-icon="search"></span><input id="chat-search" data-i18n-placeholder="search" placeholder="Search" spellcheck="false" autocomplete="off"></label>
+        <button id="new-chat" class="new-chat" title="New conversation"><span data-icon="compose"></span><span id="new-chat-label" class="sr-only" data-i18n="newChat">New conversation</span></button>
+      </div>
+      <div class="section-label"><span data-i18n="conversations">Conversations</span><span id="chat-count" class="count"></span></div>
+      <nav id="chats" class="chats" aria-label="Conversations"></nav>
+      <footer class="side-bottom">
+        <button id="open-workspace" class="side-tool" data-i18n-title="projectsProfiles"><span data-icon="folder"></span><span class="sr-only" data-i18n="projectsProfiles">Projects and profiles</span></button>
+        <button id="open-mcp" class="side-tool" data-i18n-title="mcp"><span data-icon="tool"></span><span class="sr-only" data-i18n="mcp">MCP</span></button>
+        <button id="open-models" class="side-tool" data-i18n-title="models"><span data-icon="stack"></span><span class="sr-only" data-i18n="models">Models</span></button>
+        <button id="open-settings" class="side-tool" data-i18n-title="settings"><span data-icon="gear"></span><span class="sr-only" data-i18n="settings">Settings</span></button>
+        <button id="update-badge" class="update-badge" data-icon="update" hidden></button>
+      </footer>
+    </aside>
+
+    <main id="workspace" class="workspace">
+      <header class="work-head">
+        <button id="toggle-sidebar" class="tool-icon" data-i18n-title="toggleSidebar" data-icon="sidebar"></button>
+        <span id="chat-title" class="work-title"></span>
+        <span class="spacer"></span>
+        <div class="model-menu">
+          <button id="model-button" class="model-pill glass"><span id="status-dot" class="dot"></span><span id="model-name" class="model-name"></span><span data-icon="chevronDown"></span></button>
+          <div id="model-list" class="menu glass" hidden></div>
+        </div>
+        <div class="display-menu">
+          <button id="display-button" class="tool-icon glass-round" data-i18n-title="displayTitle" data-icon="textSize"></button>
+          <div id="display-pop" class="menu glass display-pop" hidden>
+            <div class="pop-title" data-i18n="display">Appearance</div>
+            <div class="setting-label" data-i18n="responseWidth">Response width</div>
+            <div class="segmented" data-set="width">
+              <button data-value="narrow" data-i18n="widthNarrow">Narrow</button><button data-value="centered" data-i18n="widthCentered">Centered</button><button data-value="wide" data-i18n="widthWide">Wide</button>
+            </div>
+            <div class="menu-sep"></div>
+            <div class="setting-label row"><span data-i18n="textSize">Text size</span><output class="text-size-value"></output></div>
+            <div class="size-row"><span class="a-small">A</span><input type="range" min="12" max="24" step="1" data-set="textSize" data-i18n-title="textSize"><span class="a-large">A</span></div>
+            <div class="sample" data-i18n="sampleText">Sample text</div>
+            <button class="text-button" data-reset-text-size data-i18n="resetTextSize">Reset text size</button>
+          </div>
+        </div>
+        <div class="head-tools glass">
+          <button id="eject" class="tool-icon" data-i18n-title="eject" data-icon="eject" hidden></button>
+          <button id="toggle-inspector" class="tool-icon" data-i18n-title="inspector" data-icon="sliders"></button>
+        </div>
+      </header>
+
+      <div class="work-body">
+        <section id="conversation" class="conversation">
+          <div id="agent-bar" class="agent-bar glass" hidden>
+            <span data-icon="folderOpen"></span>
+            <div class="agent-where"><div id="agent-folder" class="strong"></div><div id="agent-files" class="quiet small"></div></div>
+            <span class="spacer"></span>
+            <button id="agent-open" class="glass-button"><span data-icon="folderPlus"></span><span data-i18n="openProject">Open project…</span></button>
+            <div class="agent-menu">
+              <button id="agent-perms" class="glass-button"><span data-icon="lock"></span><span data-i18n="agentPermissions">Agent permissions</span></button>
+              <div id="agent-pop" class="menu glass agent-pop" hidden>
+                <div class="pop-title" data-i18n="agentPermissions">Agent permissions</div>
+                <label class="menu-check"><input id="perm-read" type="checkbox"><span data-i18n="readTool">Read tool</span></label>
+                <label class="menu-check"><input id="perm-write" type="checkbox"><span data-i18n="fileWrites">File writes</span></label>
+                <label class="menu-check"><input id="perm-run" type="checkbox"><span data-i18n="commands">Commands</span></label>
+                <label class="field inline"><span data-i18n="timeoutSeconds">Timeout (s)</span><input id="perm-seconds" type="number" min="1" max="30" step="1"></label>
+                <p class="warn" data-i18n="commandsWarning"></p>
+              </div>
+            </div>
+            <button id="agent-review" class="primary-button"><span data-icon="branch"></span><span data-i18n="reviewChanges">Review changes</span></button>
+          </div>
+          <div id="scroll" class="scroll"><div id="messages" class="messages" aria-live="polite"></div></div>
+          <div id="welcome" class="welcome">
+            <span class="mark" data-logo="76"></span>
+            <h1 id="greeting" class="greeting"></h1>
+            <div id="welcome-slot" class="welcome-slot"></div>
+            <div class="welcome-foot">
+              <button id="welcome-models" class="quiet-link"><span data-icon="stack"></span><span id="welcome-models-label"></span></button>
+              <span id="welcome-meta" class="mono-meta"></span>
+            </div>
+          </div>
+          <div id="dock" class="dock">
+            <form id="composer" class="composer">
+              <div id="attachments" class="attachments" hidden></div>
+              <textarea id="prompt" rows="1" data-i18n-placeholder="placeholder" placeholder="Write a message…"></textarea>
+              <div class="composer-foot">
+                <div class="tools-menu">
+                  <button id="tools" type="button" class="tools-pill"><span data-icon="plus"></span><span data-i18n="tools">Tools</span></button>
+                  <div id="tools-list" class="menu glass up" hidden>
+                    <button id="tools-attach" type="button" class="menu-item"><span data-icon="paperclip"></span><span data-i18n="attachFiles">Attach files…</span></button>
+                    <label id="tools-mcp-row" class="menu-check" data-i18n-title="enableMcpHelp"><input id="tools-mcp" type="checkbox"><span data-i18n="enableMcp">Enable MCP tools</span></label>
+                    <button id="tools-configure" type="button" class="menu-item"><span data-icon="tool"></span><span data-i18n="configureTools">Configure tools…</span></button>
+                    <div class="menu-sep"></div>
+                    <label class="menu-check"><input id="thinking-quick" type="checkbox"><span data-i18n="thinking">Reasoning</span></label>
+                    <button id="tools-system" type="button" class="menu-item" data-i18n="toolsSystem">System prompt…</button>
+                    <div class="menu-sep"></div>
+                    <button id="tools-export" type="button" class="menu-item" data-i18n="exportConversation">Export conversation…</button>
+                  </div>
+                </div>
+                <span id="mcp-indicator" class="mcp-indicator" hidden></span>
+                <span id="engine-note" class="engine-note"></span>
+                <span class="spacer"></span>
+                <button id="send" type="submit" class="send" data-i18n-title="send" data-icon="arrowUp"></button>
+                <button id="stop" type="button" class="send" data-i18n-title="stop" data-icon="stop" hidden></button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===== Server mode ===== -->
+        <section id="server-view" class="mode-view" hidden>
+          <div class="mode-inner">
+            <h1 class="panel-title">Server</h1><p class="panel-detail" data-i18n="serverSubtitle"></p>
+            <div class="group">
+              <div class="row-field"><span data-i18n="model">Model</span><span id="server-model" class="row-value"></span></div>
+              <div class="row-field"><span data-i18n="access">Access</span><span class="spacer"></span>
+                <div id="server-access" class="segmented compact"><button data-access="local" data-i18n="thisPc">This PC</button><button data-access="network" data-i18n="localNetwork">Local network</button></div></div>
+              <label class="row-field"><span data-i18n="localPort">Local port</span><input id="server-port" class="short-input" type="number" min="1024" max="65535" step="1"></label>
+              <div class="row-field"><span id="server-state" class="row-status"></span><span class="spacer"></span><button id="server-toggle" class="primary-button"></button></div>
+            </div>
+            <p id="server-network-note" class="warn" data-i18n="networkNote" hidden></p>
+            <p id="server-invalid" class="warn" hidden></p>
+            <div id="server-running" class="group padded" hidden>
+              <div class="server-url"><code id="server-url"></code><span class="spacer"></span>
+                <button id="server-copy-url" class="glass-button"><span data-icon="copy"></span><span data-i18n="copyUrl">Copy URL</span></button></div>
+              <div class="button-row">
+                <button id="server-copy-key" class="glass-button"><span data-icon="lock"></span><span data-i18n="copyKey">Copy API key</span></button>
+                <button id="server-copy-curl" class="glass-button"><span data-icon="terminal"></span><span data-i18n="copyTest">Copy test command</span></button>
+              </div>
+              <p class="quiet small" data-i18n="keyNote"></p>
+              <p class="mono-meta">GET /v1/models · POST /v1/chat/completions</p>
+              <p id="server-replace-note" class="quiet small" data-i18n="networkReplace" hidden></p>
+            </div>
+            <p class="quiet small" data-i18n="serverShares"></p>
+            <details class="log"><summary data-i18n="serverLog">Server log</summary><pre id="server-log"></pre></details>
+          </div>
+        </section>
+
+        <!-- ===== Lab mode ===== -->
+        <section id="lab-view" class="mode-view" hidden>
+          <div class="mode-inner">
+            <h1 class="panel-title">Lab</h1><p class="panel-detail" data-i18n="labSubtitle"></p>
+            <details class="group padded lab-hardware" open><summary class="strong" data-i18n="hardware">Hardware</summary><div id="lab-hw" class="kv"></div></details>
+            <div class="lab-head"><span class="caps quiet" data-i18n="measurements">Measurements by generation</span><span class="spacer"></span>
+              <select id="lab-model"></select>
+              <button id="lab-export" class="glass-button"><span data-icon="export"></span><span data-i18n="exportJson">Export JSON</span></button></div>
+            <p class="quiet small" data-i18n="labNote"></p>
+            <div id="lab-empty" class="empty-state"><span data-icon="chart"></span><div class="strong" data-i18n="labEmpty">No measurements yet</div><div class="quiet" data-i18n="labEmptyDetail"></div></div>
+            <div id="lab-content">
+              <div class="caps quiet group-title" data-i18n="latestDecode">Latest decode speed by model</div>
+              <div id="lab-bars" class="group padded lab-bars"></div>
+              <div class="lab-head"><span class="caps quiet" data-i18n="history">History</span><span class="spacer"></span>
+                <label class="inline-pick"><span data-i18n="historyModel">History model</span><select id="lab-history-model"></select></label>
+                <label class="inline-pick"><span data-i18n="metric">Metric</span><select id="lab-metric"></select></label></div>
+              <div class="group padded"><svg id="lab-chart" class="lab-chart" viewBox="0 0 640 220" preserveAspectRatio="none" aria-hidden="true"></svg><p id="lab-no-values" class="quiet small" data-i18n="noValues" hidden></p></div>
+              <details class="log"><summary data-i18n="generationDetails">Generation details</summary><div id="lab-details" class="lab-details"></div></details>
+            </div>
+          </div>
+        </section>
+
+        <div id="scrim" class="scrim" hidden></div>
+        <aside id="inspector" class="inspector glass" hidden>
+          <header class="inspector-head"><span data-i18n="generation">Generation</span><span class="spacer"></span><button id="reset-sampling" class="text-button" data-i18n="reset">Reset</button></header>
+          <div class="inspector-body">
+            <label class="field"><span data-i18n="systemPrompt">System prompt</span><textarea id="system" rows="4"></textarea></label>
+            <div class="slider"><div class="slider-top"><span data-i18n="temperature"></span><output id="temperature-value"></output></div><input id="temperature" type="range" min="0" max="2" step="0.05" value="0.6"></div>
+            <div class="slider"><div class="slider-top"><span data-i18n="topP"></span><output id="top-p-value"></output></div><input id="top-p" type="range" min="0.05" max="1" step="0.01" value="0.95"></div>
+            <div class="slider"><div class="slider-top"><span data-i18n="topK"></span><output id="top-k-value"></output></div><input id="top-k" type="range" min="0" max="200" step="1" value="20"></div>
+            <div class="slider"><div class="slider-top"><span data-i18n="minP"></span><output id="min-p-value"></output></div><input id="min-p" type="range" min="0" max="0.5" step="0.01" value="0"></div>
+            <div class="slider"><div class="slider-top"><span data-i18n="repetition"></span><output id="rep-value"></output></div><input id="rep" type="range" min="1" max="2" step="0.01" value="1"></div>
+            <div class="pair">
+              <label class="field"><span data-i18n="maxTokens">Max tokens</span><input id="max-tokens" type="number" min="-1" step="1" value="-1"></label>
+              <label class="field"><span data-i18n="context">Context</span><input id="context" type="number" min="0" step="256" value="0"></label>
+            </div>
+            <label class="switch"><span data-i18n="thinking">Reasoning</span><input id="thinking" type="checkbox" checked></label>
+            <div id="json-card" class="card">
+              <div class="card-title"><span data-icon="doc"></span><span data-i18n="validatedJson">Validated JSON</span></div>
+              <textarea id="schema" class="mono-input" rows="4" spellcheck="false" placeholder="{&quot;type&quot;: &quot;object&quot;}"></textarea>
+              <p class="quiet small" data-i18n="schemaNote"></p>
+              <button id="schema-clear" class="text-button" data-i18n="useFreeText">Use free text</button>
+            </div>
+            <div id="mcp-card" class="card">
+              <div class="card-title"><span data-icon="tool"></span><span>MCP</span><span class="spacer"></span><span id="mcp-card-dot" class="dot"></span></div>
+              <div id="mcp-card-status" class="small"></div>
+              <div id="mcp-card-error" class="warn" hidden></div>
+              <div class="button-row"><button id="mcp-card-configure" class="glass-button" data-i18n="configure">Configure…</button><button id="mcp-card-reload" class="round-icon" data-i18n-title="reloadMcp" data-icon="retry"></button></div>
+              <p class="quiet small" data-i18n="mcpInspectorNote"></p>
+            </div>
+            <div id="agent-card" class="card" hidden>
+              <div class="card-title"><span data-icon="terminal"></span><span data-i18n="agentCard">Agent tools</span></div>
+              <p class="quiet small" data-i18n="agentCardNote"></p>
+              <p id="agent-card-run" class="warn" data-i18n="commandsWarning" hidden></p>
+            </div>
+            <button id="inspector-workspace" class="glass-button wide"><span data-icon="folder"></span><span data-i18n="projectsSavedProfiles">Projects and saved profiles</span></button>
+            <div class="inspector-section" data-i18n="lastRun">Last response</div>
+            <div id="stats" class="stat-chips"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== Models (full page, like the Mac) ===== -->
+  <section id="models-page" class="app page" hidden>
+    <aside class="sidebar">
+      <header class="side-head"><span class="mark" data-logo="35"></span><span class="wordmark" data-i18n="models">Models</span></header>
+      <nav class="page-nav">
+        <button id="nav-library" class="side-row selected"><span data-icon="stack"></span><span data-i18n="myLibrary">My library</span></button>
+        <button id="nav-hub" class="side-row"><span data-icon="search"></span><span data-i18n="huggingFace">Hugging Face</span></button>
+      </nav>
+      <div id="side-downloads" class="side-downloads"></div>
+      <span class="grow"></span>
+      <div class="storage">
+        <div class="quiet small" data-i18n="localStorage">Local storage</div>
+        <div id="storage-size" class="storage-size"></div>
+        <div id="storage-count" class="quiet small"></div>
+      </div>
+      <footer class="page-back"><button class="back-button" data-back><span data-icon="arrowLeft"></span><span data-i18n="back">Back</span></button></footer>
+    </aside>
+    <main class="page-main">
+      <div id="library-view" class="pane">
+        <div class="pane-head">
+          <div><h1 class="panel-title" data-i18n="myLibrary">My library</h1><p class="panel-detail" data-i18n="libraryDetail"></p></div>
+          <span class="spacer"></span>
+          <button id="import-folder" class="glass-button"><span data-icon="folderPlus"></span><span data-i18n="importFolder">Import folder</span></button>
+          <button id="refresh-library" class="round-icon" data-i18n-title="refresh" data-icon="retry"></button>
+        </div>
+        <div id="library-list" class="cards"></div>
+      </div>
+
+      <div id="hub-view" class="pane" hidden>
+        <h1 class="panel-title" data-i18n="huggingFace">Hugging Face</h1><p class="panel-detail" data-i18n="hubDetail"></p>
+        <label class="hub-search"><span data-icon="search"></span><input id="hub-query" data-i18n-placeholder="searchHub" spellcheck="false" autocomplete="off"><span id="hub-spinner" class="spinner" hidden></span><span class="tag">EXL3</span></label>
+        <div class="hub-hint"><span data-i18n="hubHint"></span><span class="spacer"></span><button id="hub-refresh" class="round-icon" data-i18n-title="refresh" data-icon="retry"></button></div>
+        <div id="hub-scroll" class="hub-scroll">
+          <div id="recommended" class="recommended"></div>
+          <div id="hub-results" class="hub-results"></div>
+          <p id="hub-empty" class="quiet empty" data-i18n="noResults" hidden></p>
+          <button id="hub-more" class="glass-button more" data-i18n="moreResults" hidden></button>
+        </div>
+        <p id="hub-error" class="warn" hidden></p>
+      </div>
+
+      <div id="detail-view" class="pane" hidden>
+        <div class="detail-top">
+          <button id="detail-back" class="quiet-link"><span data-icon="arrowLeft"></span><span data-i18n="searchBack">Search</span></button>
+          <span class="spacer"></span>
+          <button id="detail-hub" class="quiet-link">Hugging Face ↗</button>
+        </div>
+        <h2 id="detail-title" class="detail-title"></h2>
+        <div class="detail-card">
+          <div class="pickers">
+            <span class="caps" data-i18n="version">VERSION</span>
+            <select id="detail-revision"></select>
+            <label id="detail-quant-row" class="inline-pick" hidden><span data-i18n="quantization"></span><select id="detail-quant"></select></label>
+            <label id="detail-variant-row" class="inline-pick" hidden><span data-i18n="variant"></span><select id="detail-variant"></select></label>
+          </div>
+          <span class="spacer"></span>
+          <div class="detail-size"><div id="detail-size" class="serif-size"></div><div class="quiet small" data-i18n="toDownload"></div></div>
+          <button id="detail-download" class="primary-button"><span data-icon="download"></span><span data-i18n="download">Download</span></button>
+        </div>
+        <p id="detail-notes" class="detail-notes"></p>
+        <div class="caps quiet" data-i18n="modelCard">MODEL CARD</div>
+        <article id="detail-readme" class="readme"></article>
+        <p class="quiet small" data-i18n="formatNote"></p>
+        <div id="detail-loading" class="loading-card" hidden><span class="spinner"></span></div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===== Settings (full page) ===== -->
+  <section id="settings-page" class="app page" hidden>
+    <aside class="sidebar">
+      <header class="side-head"><span class="mark" data-logo="35"></span><span class="wordmark" data-i18n="settings">Settings</span></header>
+      <nav class="page-nav">
+        <button class="side-row selected" data-settings="general"><span data-icon="gear"></span><span data-i18n="general">General</span></button>
+        <button class="side-row" data-settings="appearance"><span data-icon="palette"></span><span data-i18n="appearance">Appearance</span></button>
+        <button class="side-row" data-settings="memory"><span data-icon="chip"></span><span data-i18n="modelsMemory">Models &amp; memory</span></button>
+        <button class="side-row" data-settings="engine"><span data-icon="cpu"></span><span data-i18n="engine">Engine</span></button>
+        <button class="side-row" data-settings="history"><span data-icon="chat"></span><span data-i18n="conversationsPane">Conversations</span></button>
+        <button class="side-row" data-settings="connections"><span data-icon="link"></span><span data-i18n="connections">Connections</span></button>
+        <button class="side-row" data-settings="privacy"><span data-icon="hand"></span><span data-i18n="privacy">Privacy</span></button>
+        <button class="side-row" data-settings="updates"><span data-icon="sync"></span><span data-i18n="updates">Updates</span></button>
+      </nav>
+      <span class="grow"></span>
+      <footer class="page-back"><button class="back-button" data-back><span data-icon="arrowLeft"></span><span data-i18n="back">Back</span></button></footer>
+    </aside>
+    <main class="page-main">
+      <div class="pane settings-pane" data-pane="general">
+        <h1 class="panel-title" data-i18n="general">General</h1><p class="panel-detail" data-i18n="generalDetail"></p>
+        <div class="caps quiet group-title" data-i18n="appLanguage">App language</div>
+        <div class="group">
+          <label class="row-field"><span data-i18n="language">Language</span>
+            <select id="language"><option value="" data-i18n="autoLanguage">Automatic</option><option value="en">English</option><option value="fr">Français</option></select></label>
+        </div>
+        <div class="caps quiet group-title" data-i18n="notifications">Notifications</div>
+        <div class="group">
+          <label class="row-field switch"><span data-i18n="completionNotification">Generation completion notification</span><input id="notifications" type="checkbox"></label>
+        </div>
+        <p class="quiet small" data-i18n="notificationNote"></p>
+      </div>
+
+      <div class="pane settings-pane" data-pane="appearance" hidden>
+        <h1 class="panel-title" data-i18n="appearance">Appearance</h1><p class="panel-detail" data-i18n="appearanceDetail"></p>
+        <div class="caps quiet group-title" data-i18n="interfaceTheme">Interface theme</div>
+        <div class="group">
+          <label class="row-field"><span data-i18n="theme">Theme</span>
+            <select id="theme"><option value="" data-i18n="themeSystem">System</option><option value="dark" data-i18n="themeDark">Dark</option><option value="light" data-i18n="themeLight">Light</option></select></label>
+        </div>
+        <div class="caps quiet group-title" data-i18n="accentColor">Accent color</div>
+        <div class="group padded">
+          <div class="swatches" data-set="accent">
+            <button data-value="violet" class="swatch"><i class="sw violet"></i><span data-i18n="accentIris">Iris</span></button>
+            <button data-value="rose" class="swatch"><i class="sw rose"></i><span data-i18n="accentRose">Rose</span></button>
+            <button data-value="amber" class="swatch"><i class="sw amber"></i><span data-i18n="accentAmber">Amber</span></button>
+            <button data-value="neutral" class="swatch"><i class="sw neutral"></i><span data-i18n="accentNeutral">Neutral</span></button>
+          </div>
+          <div class="custom-accent"><label class="row-inline"><span data-i18n="customColor">Custom color</span><input id="custom-accent" type="color"></label>
+            <button id="use-custom-accent" class="glass-button" data-i18n="use">Use</button><span id="custom-selected" class="quiet small" data-i18n="selected" hidden>Selected</span></div>
+          <p class="quiet small" data-i18n="accentNote"></p>
+        </div>
+        <div class="caps quiet group-title" data-i18n="reading">Reading &amp; conversations</div>
+        <div class="group padded">
+          <div class="setting-label" data-i18n="responseWidth">Response width</div>
+          <div class="segmented" data-set="width">
+            <button data-value="narrow" data-i18n="widthNarrow">Narrow</button><button data-value="centered" data-i18n="widthCentered">Centered</button><button data-value="wide" data-i18n="widthWide">Wide</button>
+          </div>
+          <div class="setting-label row"><span data-i18n="textSize">Text size</span><output class="text-size-value"></output></div>
+          <div class="size-row"><span class="a-small">A</span><input type="range" min="12" max="24" step="1" data-set="textSize" data-i18n-title="textSize"><span class="a-large">A</span></div>
+          <div class="sample" data-i18n="sampleText">Sample text</div>
+          <button class="text-button" data-reset-text-size data-i18n="resetTextSize">Reset text size</button>
+        </div>
+        <div class="group">
+          <label class="row-field"><span data-i18n="messageSpacing">Message spacing</span>
+            <select data-set="density"><option value="tight" data-i18n="densityTight"></option><option value="compact" data-i18n="densityCompact"></option><option value="comfortable" data-i18n="densityComfortable"></option><option value="spacious" data-i18n="densitySpacious"></option><option value="extraSpacious" data-i18n="densityExtra"></option></select></label>
+          <label class="row-field"><span data-i18n="messageFont">Message font</span>
+            <select data-set="font"><option value="standard" data-i18n="fontStandard"></option><option value="rounded" data-i18n="fontRounded"></option><option value="serif" data-i18n="fontSerif"></option><option value="monospaced" data-i18n="fontMono"></option></select></label>
+          <label class="row-field"><span data-i18n="bubbleStyle">Your message bubbles</span>
+            <select data-set="bubble"><option value="subtle" data-i18n="bubbleSubtle"></option><option value="outlined" data-i18n="bubbleOutlined"></option><option value="tinted" data-i18n="bubbleTinted"></option></select></label>
+        </div>
+        <div class="caps quiet group-title" data-i18n="sidebarTitle">Sidebar</div>
+        <div class="group padded">
+          <div class="setting-label" data-i18n="width">Width</div>
+          <div class="segmented" data-set="sidebar">
+            <button data-value="compact" data-i18n="widthNarrow">Narrow</button><button data-value="standard" data-i18n="widthStandard">Standard</button><button data-value="wide" data-i18n="widthWide">Wide</button>
+          </div>
+        </div>
+        <button id="reset-appearance" class="glass-button" data-i18n="resetAppearance">Restore default appearance</button>
+      </div>
+
+      <div class="pane settings-pane" data-pane="memory" hidden>
+        <h1 class="panel-title" data-i18n="modelsMemory">Models &amp; memory</h1><p class="panel-detail" data-i18n="memoryDetail"></p>
+        <div class="caps quiet group-title" data-i18n="atStartup">At startup</div>
+        <div class="group">
+          <label class="row-field switch"><span data-i18n="loadOnStartup">Load model on startup</span><input id="load-on-startup" type="checkbox"></label>
+          <label class="row-field"><span data-i18n="startupModel">Startup model</span><select id="startup-model"></select></label>
+        </div>
+        <div class="caps quiet group-title" data-i18n="memory">Memory</div>
+        <div class="group">
+          <label class="row-field"><span data-i18n="autoUnload">Automatic model unloading</span>
+            <select id="idle-unload"><option value="never" data-i18n="never"></option><option value="1m">1 min</option><option value="5m">5 min</option><option value="10m">10 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 h</option><option value="2h">2 h</option></select></label>
+        </div>
+        <p class="quiet small" data-i18n="autoUnloadNote"></p>
+      </div>
+
+      <div class="pane settings-pane" data-pane="engine" hidden>
+        <h1 class="panel-title" data-i18n="engine">Engine</h1><p class="panel-detail" data-i18n="engineDetail"></p>
+        <div class="group">
+          <div class="row-field"><span data-i18n="gpus">Graphics</span><span id="gpu-summary" class="row-value"></span></div>
+          <label class="row-field"><span data-i18n="backend">Backend</span>
+            <select id="backend"><option value="cuda">NVIDIA · CUDA (native)</option><option value="rocm_wsl">AMD · ROCm (WSL2, experimental)</option></select></label>
+          <label id="distro-row" class="row-field" hidden><span data-i18n="distro">WSL2 distribution</span><select id="distro"></select></label>
+          <div class="row-field"><span id="runtime-status" class="row-status"></span><span class="spacer"></span><button id="install-runtime" class="primary-button"></button></div>
+          <progress id="runtime-progress" hidden></progress>
+        </div>
+        <p id="amd-help" class="quiet small" data-i18n="amdHelp" hidden></p>
+        <details class="log"><summary data-i18n="log">Log</summary><pre id="log"></pre></details>
+      </div>
+
+      <div class="pane settings-pane" data-pane="history" hidden>
+        <h1 class="panel-title" data-i18n="conversationsPane">Conversations</h1><p class="panel-detail" data-i18n="historyDetail"></p>
+        <div class="caps quiet group-title" data-i18n="history">History</div>
+        <div class="group">
+          <div class="row-field"><span data-i18n="exportAll">Export conversations…</span><span class="spacer"></span><button id="export-history" class="glass-button"><span data-icon="export"></span><span data-i18n="export">Export</span></button></div>
+          <div class="row-field"><span data-i18n="importBackup">Import a backup…</span><span class="spacer"></span><button id="import-history" class="glass-button"><span data-icon="arrowDown"></span><span data-i18n="import">Import</span></button></div>
+        </div>
+        <p class="quiet small" data-i18n="historyNote"></p>
+      </div>
+
+      <div class="pane settings-pane" data-pane="connections" hidden>
+        <h1 class="panel-title" data-i18n="connections">Connections</h1><p class="panel-detail" data-i18n="connectionsDetail"></p>
+        <div class="caps quiet group-title">Hugging Face</div>
+        <div class="group padded">
+          <p class="quiet" data-i18n="hfIntro"></p>
+          <input id="hf-token" class="token-input" type="password" autocomplete="off" spellcheck="false" data-i18n-placeholder="hfPlaceholder">
+          <div class="button-row"><button id="hf-sign-in" class="primary-button" data-i18n="signIn">Sign in</button><button id="hf-sign-out" class="glass-button" data-i18n="signOut">Sign out</button></div>
+          <p id="hf-status" class="small"></p>
+          <p class="quiet small" data-i18n="hfNote"></p>
+        </div>
+      </div>
+
+      <div class="pane settings-pane" data-pane="privacy" hidden>
+        <h1 class="panel-title" data-i18n="privacy">Privacy</h1><p class="panel-detail" data-i18n="privacyDetail"></p>
+        <div class="caps quiet group-title" data-i18n="onThisPc">On this PC</div>
+        <div class="group"><div class="row-field flow"><span data-icon="cpu"></span><div><div class="strong" data-i18n="localInference">Inference and GPU kernels</div><div class="quiet" data-i18n="localInferenceDetail"></div></div></div></div>
+        <div class="caps quiet group-title" data-i18n="networkAccess">Network access</div>
+        <div class="group"><div class="row-field flow"><span data-icon="download"></span><div><div class="strong" data-i18n="modelsAndUpdates">Models and updates</div><div class="quiet">Hugging Face · GitHub</div></div></div>
+          <div class="row-field flow"><span data-icon="cpu"></span><div><div class="strong" data-i18n="runtimeDownloads">Engine runtime</div><div class="quiet">PyPI · download.pytorch.org · GitHub</div></div></div></div>
+        <p class="quiet small" data-i18n="privacyNote"></p>
+      </div>
+
+      <div class="pane settings-pane" data-pane="updates" hidden>
+        <h1 class="panel-title" data-i18n="updates">Updates</h1><p class="panel-detail" data-i18n="updatesDetail"></p>
+        <div class="group">
+          <div class="row-field"><span data-i18n="appVersion">Version</span><span id="app-version" class="row-value mono-meta"></span></div>
+          <label class="row-field"><span data-i18n="updateChannel">Update channel</span>
+            <select id="update-channel"><option value="stable" data-i18n="channelStable">Stable</option><option value="beta" data-i18n="channelBeta">Beta</option></select></label>
+          <div class="row-field"><span id="update-text" class="row-status"></span><span class="spacer"></span>
+            <button id="update-check" class="glass-button" data-i18n="checkUpdates"></button>
+            <button id="update-install" class="primary-button" data-i18n="installRestart" hidden></button></div>
+          <progress id="update-progress" max="100" hidden></progress>
+        </div>
+        <p class="quiet small" data-i18n="autoUpdateNote"></p>
+        <button id="update-notes" class="quiet-link" data-i18n="releaseNotes"></button>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===== Projects and profiles (Mac workspace manager) ===== -->
+  <section id="workspace-page" class="app page" hidden>
+    <aside class="sidebar">
+      <header class="side-head"><span class="mark" data-logo="35"></span><span class="wordmark" data-i18n="projectsProfiles">Projects and profiles</span></header>
+      <nav class="page-nav">
+        <button class="side-row selected" data-ws="projects"><span data-icon="folder"></span><span data-i18n="projects">Projects</span></button>
+        <button class="side-row" data-ws="documents"><span data-icon="doc"></span><span data-i18n="documents">Documents</span></button>
+        <button class="side-row" data-ws="profiles"><span data-icon="sliders"></span><span data-i18n="profiles">Profiles</span></button>
+      </nav>
+      <span class="grow"></span>
+      <footer class="page-back"><button class="back-button" data-back><span data-icon="arrowLeft"></span><span data-i18n="back">Back</span></button></footer>
+    </aside>
+    <main class="page-main">
+      <p id="ws-busy" class="warn" data-i18n="wsBusy" hidden></p>
+      <div class="pane" data-ws-pane="projects">
+        <h1 class="panel-title" data-i18n="projects">Projects</h1><p class="panel-detail" data-i18n="wsProjectsDetail"></p>
+        <div class="caps quiet group-title" data-i18n="activeProject">Active project</div>
+        <div class="group">
+          <label class="row-field"><span data-i18n="activeProject">Active project</span><select id="ws-project"></select></label>
+          <div class="row-field"><input id="ws-new-name" class="text-input" maxlength="100" data-i18n-placeholder="newProjectName"><button id="ws-create" class="primary-button" data-i18n="create">Create</button></div>
+        </div>
+        <div id="ws-project-card">
+          <div class="caps quiet group-title" data-i18n="instructionsProfile">Instructions and profile</div>
+          <div class="group padded">
+            <label class="field"><span data-i18n="name">Name</span><input id="ws-name" class="text-input" maxlength="100"></label>
+            <label class="field"><span data-i18n="projectInstructions">Instructions for this project</span><textarea id="ws-instructions" rows="6"></textarea></label>
+            <label class="row-field bare"><span data-i18n="profileOnOpening">Profile on opening</span><select id="ws-profile"></select></label>
+            <p class="quiet small" data-i18n="removeProjectNote"></p>
+            <button id="ws-remove-project" class="danger-button" data-i18n="removeProject">Remove this project</button>
+          </div>
+        </div>
+      </div>
+      <div class="pane" data-ws-pane="documents" hidden>
+        <h1 class="panel-title" data-i18n="documents">Documents</h1><p class="panel-detail" data-i18n="wsDocumentsDetail"></p>
+        <div id="ws-docs-none" class="empty-state"><span data-icon="doc"></span><div class="strong" data-i18n="chooseAProject">Choose a project</div>
+          <div class="quiet" data-i18n="docsStayWithProject"></div><button id="ws-view-projects" class="glass-button" data-i18n="viewProjects">View projects</button></div>
+        <div id="ws-docs">
+          <div class="button-row">
+            <button id="ws-add-files" class="glass-button"><span data-icon="doc"></span><span data-i18n="addFiles">Add files</span></button>
+            <button id="ws-add-folder" class="glass-button"><span data-icon="folderPlus"></span><span data-i18n="addFolder">Add folder</span></button>
+            <span id="ws-docs-spinner" class="spinner" hidden></span><span class="spacer"></span><span id="ws-docs-count" class="mono-meta"></span>
+          </div>
+          <label class="hub-search"><span data-icon="search"></span><input id="ws-doc-query" data-i18n-placeholder="findPassage" spellcheck="false" autocomplete="off"></label>
+          <p class="quiet small" data-i18n="docSearchNote"></p>
+          <div id="ws-doc-list" class="group"></div>
+        </div>
+      </div>
+      <div class="pane" data-ws-pane="profiles" hidden>
+        <h1 class="panel-title" data-i18n="profiles">Profiles</h1><p class="panel-detail" data-i18n="wsProfilesDetail"></p>
+        <p class="quiet" data-i18n="profilesIntro"></p>
+        <div class="group"><div class="row-field"><input id="ws-profile-name" class="text-input" maxlength="100" data-i18n-placeholder="profileName"><button id="ws-save-profile" class="primary-button" data-i18n="save">Save</button></div></div>
+        <div id="ws-profiles" class="group"></div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===== MCP servers (Mac MCPManagerView) ===== -->
+  <section id="mcp-page" class="app page" hidden>
+    <aside class="sidebar">
+      <header class="side-head"><span class="mark" data-logo="35"></span><span class="wordmark">MCP</span></header>
+      <nav id="mcp-servers" class="page-nav"></nav>
+      <p id="mcp-empty" class="quiet small side-note" data-i18n="mcpEmpty"></p>
+      <div class="side-actions"><button id="mcp-new" class="new-chat"><span data-icon="plus"></span><span data-i18n="newServer">New server</span></button></div>
+      <span class="grow"></span>
+      <footer class="page-back"><button class="back-button" data-back><span data-icon="arrowLeft"></span><span data-i18n="back">Back</span></button></footer>
+    </aside>
+    <main class="page-main">
+      <div class="pane">
+        <h1 class="panel-title" data-i18n="mcpServers">MCP servers</h1><p class="panel-detail" data-i18n="mcpDetail"></p>
+        <div class="group">
+          <label class="row-field switch"><span data-i18n="enableMcp">Enable MCP tools</span><input id="mcp-global" type="checkbox"></label>
+          <div class="row-field"><span id="mcp-status-line" class="row-status"></span><span class="spacer"></span><button id="mcp-reload" class="round-icon" data-i18n-title="reloadMcp" data-icon="retry"></button></div>
+        </div>
+        <p class="warn" data-i18n="mcpWarning"></p>
+        <div id="mcp-editor" class="group padded">
+          <label class="field"><span data-i18n="serverName">Server name</span><input id="mcp-name" class="text-input" maxlength="64" spellcheck="false" data-i18n-placeholder="serverNamePlaceholder"></label>
+          <div class="row-field bare"><span data-i18n="transport">Transport</span><span class="spacer"></span>
+            <div id="mcp-transport" class="segmented compact"><button data-transport="https">HTTPS</button><button data-transport="local" data-i18n="localProcess">Local process</button></div></div>
+          <label id="mcp-url-row" class="field"><span>URL</span><input id="mcp-url" class="text-input" spellcheck="false" placeholder="https://…"></label>
+          <div id="mcp-local-rows">
+            <label class="field"><span data-i18n="executable">Executable</span><input id="mcp-command" class="text-input" spellcheck="false" data-i18n-placeholder="executablePlaceholder"></label>
+            <label class="field"><span data-i18n="argumentsLines">Arguments: one per line</span><textarea id="mcp-args" class="mono-input" rows="3" spellcheck="false"></textarea></label>
+          </div>
+          <label class="row-field bare switch"><span data-i18n="serverEnabled">Server enabled</span><input id="mcp-enabled" type="checkbox"></label>
+          <details><summary data-i18n="mcpAdvanced">Advanced: environment, headers and JSON</summary><textarea id="mcp-json" class="mono-input" rows="8" spellcheck="false"></textarea></details>
+          <div class="button-row">
+            <button id="mcp-save" class="primary-button" data-i18n="save">Save</button>
+            <button id="mcp-remove" class="danger-button" data-i18n="removeServer">Remove</button>
+            <span class="spacer"></span>
+            <button id="mcp-test" class="glass-button"><span data-icon="sync"></span><span data-i18n="testConnections">Test connections</span></button>
+          </div>
+          <p class="quiet small" data-i18n="testNote"></p>
+          <div id="mcp-errors" class="warn"></div>
+        </div>
+        <div class="caps quiet group-title" data-i18n="projectPermissions">Project permissions</div>
+        <div class="group padded">
+          <div id="mcp-perms-title" class="strong"></div>
+          <div id="mcp-perms" class="perm-list"></div>
+          <p class="quiet small" data-i18n="permissionsFooter"></p>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===== Sheet: cited excerpts, attachment previews and Agent review ===== -->
+  <div id="sheet" class="sheet-scrim" hidden>
+    <div class="sheet glass" role="dialog" aria-modal="true">
+      <header class="sheet-head"><span id="sheet-title" class="strong"></span><span class="spacer"></span>
+        <button id="sheet-apply" class="primary-button" data-i18n="applyToProject" hidden>Apply to project</button>
+        <button id="sheet-close" class="glass-button" data-i18n="close">Close</button></header>
+      <div id="sheet-body" class="sheet-body"></div>
+      <p id="sheet-note" class="quiet small" hidden></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>
