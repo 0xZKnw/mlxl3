@@ -1,0 +1,230 @@
+name: Windows Desktop
+
+# Builds MLXL3 Desktop for Windows (Tauri shell + ExLlamaV3 worker).
+# - Every published Desktop release (tag vX.Y.Z[-pre], i.e. the release that
+#   carries the Apple Silicon DMG) gets a matching Windows installer attached.
+# - Pushes and pull requests touching the Windows app or the EXL3 worker run
+#   the checks and build the installer as a workflow artifact only.
+# Engine releases (engine-v*) are ignored so the Mac updater channel is untouched.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Desktop release tag to build and attach (for example v2.1.0)
+        required: true
+  push:
+    branches: [main]
+    paths:
+      - apps/MLXL3Windows/**
+      - engines/exl3/**
+      - .github/workflows/windows-desktop.yml
+  pull_request:
+    paths:
+      - apps/MLXL3Windows/**
+      - engines/exl3/**
+      - .github/workflows/windows-desktop.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-desktop-${{ github.event.release.tag_name || inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+env:
+  RUST_TOOLCHAIN: 1.98.1
+  UV_VERSION: 0.13.8
+  UV_WINDOWS_SHA256: 529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8
+  UV_LINUX_SHA256: 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91
+
+jobs:
+  release-gate:
+    # Decides whether this run publishes, and for which tag/version.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+      tag: ${{ steps.gate.outputs.tag }}
+      version: ${{ steps.gate.outputs.version }}
+      ref: ${{ steps.gate.outputs.ref }}
+    steps:
+      - id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag=""
+          case "$EVENT" in
+            release) tag="$RELEASE_TAG" ;;
+            workflow_dispatch) tag="$INPUT_TAG" ;;
+          esac
+          if [[ -z "$tag" || "$tag" == engine-v* ]]; then
+            # Empty ref: checkout uses the event's own commit.
+            printf 'publish=false\nref=\nversion=0.0.0\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$tag' is not a Desktop release tag (vX.Y.Z[-pre])"
+            exit 1
+          fi
+          numeric="${BASH_REMATCH[1]}"
+          display="${tag#v}"
+          dmg_re="^MLXL3-Desktop-v${display//./\\.}-b[0-9]+-Apple-Silicon\.dmg$"
+          # The DMG may still be uploading right after publication: wait up to 20 minutes.
+          for _ in $(seq 1 40); do
+            names="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+            if grep -Eq "$dmg_re" <<<"$names"; then
+              echo "Found the Apple Silicon DMG for $tag"
+              printf 'publish=true\ntag=%s\nversion=%s\nref=refs/tags/%s\n' "$tag" "$numeric" "$tag" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::release $tag has no asset matching $dmg_re after 20 minutes; not building a Windows installer"
+          exit 1
+
+  checks:
+    needs: release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-gate.outputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'jinja2>=3.1,<4'
+      - name: EXL3 worker tests (fake backend, no GPU)
+        working-directory: engines/exl3
+        run: python -m unittest discover -s tests -t . -v
+      - name: Install Rust tooling
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Core crate
+        working-directory: apps/MLXL3Windows/core
+        env:
+          MLXL3_TEST_PYTHON: python
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: UI tests
+        working-directory: apps/MLXL3Windows
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check:ui
+
+  windows:
+    needs: [release-gate, checks]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-gate.outputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'jinja2>=3.1,<4'
+      - name: Install Rust tooling
+        run: |
+          rustup toolchain install $env:RUST_TOOLCHAIN --profile minimal --component rustfmt --component clippy
+          rustup default $env:RUST_TOOLCHAIN
+      - name: Core crate on Windows (process supervision, paths, real worker)
+        working-directory: apps/MLXL3Windows/core
+        env:
+          MLXL3_TEST_PYTHON: python
+        run: |
+          cargo clippy --locked --all-targets -- -D warnings
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Fetch pinned uv binaries
+        working-directory: apps/MLXL3Windows/src-tauri
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = "https://github.com/astral-sh/uv/releases/download/$env:UV_VERSION"
+          $tmp = Join-Path $env:RUNNER_TEMP 'uv'
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          $files = @(
+            @{ Name = 'uv-x86_64-pc-windows-msvc.zip'; Sha = $env:UV_WINDOWS_SHA256 },
+            @{ Name = 'uv-x86_64-unknown-linux-gnu.tar.gz'; Sha = $env:UV_LINUX_SHA256 }
+          )
+          foreach ($f in $files) {
+            $path = Join-Path $tmp $f.Name
+            Invoke-WebRequest "$base/$($f.Name)" -OutFile $path
+            $actual = (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant()
+            if ($actual -ne $f.Sha) { throw "$($f.Name): sha256 $actual, expected $($f.Sha)" }
+          }
+          Expand-Archive (Join-Path $tmp 'uv-x86_64-pc-windows-msvc.zip') -DestinationPath (Join-Path $tmp 'win')
+          Copy-Item (Join-Path $tmp 'win/uv.exe') bin/uv.exe
+          tar -xzf (Join-Path $tmp 'uv-x86_64-unknown-linux-gnu.tar.gz') -C $tmp
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item (Join-Path $tmp 'uv-x86_64-unknown-linux-gnu/uv') bin/uv
+          ./bin/uv.exe --version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build NSIS installer
+        working-directory: apps/MLXL3Windows
+        env:
+          APP_VERSION: ${{ needs.release-gate.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $config = Join-Path $env:RUNNER_TEMP 'version.json'
+          @{ version = $env:APP_VERSION } | ConvertTo-Json | Set-Content -Encoding utf8 $config
+          npx tauri build --bundles nsis --config $config -- --locked
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Name and hash the installer
+        id: installer
+        working-directory: apps/MLXL3Windows
+        env:
+          TAG: ${{ needs.release-gate.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $built = @(Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*-setup.exe')
+          if ($built.Count -ne 1) { throw "expected one NSIS installer, found $($built.Count)" }
+          $label = if ($env:TAG) { $env:TAG } else { "dev-$($env:GITHUB_SHA.Substring(0, 12))" }
+          $name = "MLXL3-Desktop-$label-Windows-x64-setup.exe"
+          $out = Join-Path $env:RUNNER_TEMP 'dist'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $exe = Join-Path $out $name
+          Copy-Item $built[0].FullName $exe
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content -Encoding ascii -NoNewline "$exe.sha256"
+          "{0}  {1} bytes  {2}" -f $name, (Get-Item $exe).Length, $hash | Write-Host
+          "dir=$out" >> $env:GITHUB_OUTPUT
+          "exe=$exe" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlxl3-windows-installer
+          path: ${{ steps.installer.outputs.dir }}
+          if-no-files-found: error
+      - name: Attach to the Desktop release
+        if: needs.release-gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-gate.outputs.tag }}
+          EXE: ${{ steps.installer.outputs.exe }}
+        run: |
+          gh release upload $env:TAG $env:EXE "$($env:EXE).sha256" --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

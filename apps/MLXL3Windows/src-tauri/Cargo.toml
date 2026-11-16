@@ -1,0 +1,26 @@
+[package]
+name = "mlxl3-windows"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "MLXL3 Desktop for Windows"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+mlxl3-windows-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -1,0 +1,10 @@
+# MLXL3 Windows CUDA runtime (Python 3.12, x86-64). Installed by the app with
+#   uv pip install --python <runtime>\Scripts\python.exe -r cuda-windows.txt
+# The three binary wheels are pinned by URL and SHA-256; uv verifies them.
+# ExLlamaV3's extension ABI is tied to this exact torch build: change all three together.
+# Requires an NVIDIA driver supporting CUDA 12.8 (R570 or newer).
+torch @ https://download-r2.pytorch.org/whl/cu128/torch-2.10.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=fbde8f6a9ec8c76979a0d14df21c10b9e5cab6f0d106a73ca73e2179bc597cae
+triton-windows @ https://files.pythonhosted.org/packages/62/1e/8d9814e67ba3f20094cf3c69e7815a491f20beb86469a647550ba86728b0/triton_windows-3.6.0.post26-cp312-cp312-win_amd64.whl#sha256=189d8c57911aa9d2ff983a715e5c967b325f576307db60924cab22b501a36515
+exllamav3 @ https://github.com/turboderp-org/exllamav3/releases/download/v1.6.7/exllamav3-1.6.7%2Bcu128.torch2.10.0-cp312-cp312-win_amd64.whl#sha256=1c8153d5cc42aff1943df94fd46868f20fd67a798c3f70a1d94c61386d86ec72
+jinja2>=3.1,<4
+huggingface_hub>=0.30,<2

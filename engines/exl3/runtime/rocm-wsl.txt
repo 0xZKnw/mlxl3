@@ -1,0 +1,13 @@
+# MLXL3 AMD runtime inside WSL2 (Ubuntu, Python 3.12, x86-64). Installed with
+#   uv pip install --python <runtime>/bin/python --index-strategy unsafe-best-match -r rocm-wsl.txt
+# Upstream ExLlamaV3 ships its ROCm build for Linux only; its wheel targets
+# gfx10-1/gfx10-3/gfx11/gfx12 generic families (RDNA1-4). CDNA is not supported.
+# AMD's index publishes no hashes: torch and the ROCm SDK are pinned by exact
+# version; the ExLlamaV3 wheel is pinned by URL and SHA-256.
+--extra-index-url https://stable.repo.amd.com/rocm/pytorch/whl-next/
+--extra-index-url https://stable.repo.amd.com/rocm/core/whl-next/
+torch==2.13.0+rocm10.0.0
+rocm[libraries]==10.0.0
+exllamav3 @ https://github.com/turboderp-org/exllamav3/releases/download/v1.6.7/exllamav3-1.6.7%2Brocm10.0.torch2.13.0-cp312-cp312-linux_x86_64.whl#sha256=0a6d11509e3ff1c52da6d3b93d54de2b502f85d7a12f0dd2903fe2d61a95eca9
+jinja2>=3.1,<4
+huggingface_hub>=0.30,<2
