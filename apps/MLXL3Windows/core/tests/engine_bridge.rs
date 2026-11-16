@@ -88,10 +88,7 @@ fn until(rx: &Receiver<EngineMessage>, kind: &str) -> Vec<protocol::Event> {
 }
 
 fn generate(id: &str, text: &str) -> Vec<u8> {
-    let messages = [Message {
-        role: "user".into(),
-        content: text.into(),
-    }];
+    let messages = [Message::text("user", text)];
     protocol::generate_request(id, &messages, &Sampling::default()).unwrap()
 }
 

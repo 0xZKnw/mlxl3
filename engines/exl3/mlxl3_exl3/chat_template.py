@@ -71,7 +71,8 @@ def _raise(message):
     raise TemplateError(str(message))
 
 
-def render(source: str, special: dict, messages: list, enable_thinking: bool | None = None) -> str:
+def render(source: str, special: dict, messages: list, enable_thinking: bool | None = None,
+           tools: list | None = None) -> str:
     try:
         from jinja2.ext import loopcontrols
         from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -91,6 +92,8 @@ def render(source: str, special: dict, messages: list, enable_thinking: bool | N
         context = {"messages": messages, "add_generation_prompt": True, **special}
         if enable_thinking is not None:
             context["enable_thinking"] = enable_thinking
+        if tools:
+            context["tools"] = tools
         return template.render(**context)
     except TemplateError:
         raise

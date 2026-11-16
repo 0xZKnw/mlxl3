@@ -61,6 +61,28 @@ pub fn parse_event(line: &[u8]) -> Result<Event> {
 pub struct Message {
     pub role: String,
     pub content: String,
+    /// Base64 PNG/JPEG/WebP images attached to a user message (vision models only).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<String>,
+    /// OpenAI-style `{"type":"function","function":{"name","arguments"}}` calls made by an
+    /// assistant message (tool loop history).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<Value>,
+    /// Tool name of a `tool` result message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl Message {
+    pub fn text(role: &str, content: impl Into<String>) -> Self {
+        Self {
+            role: role.into(),
+            content: content.into(),
+            images: vec![],
+            tool_calls: vec![],
+            name: None,
+        }
+    }
 }
 
 /// User-tunable sampling settings. Validated here so a bad value fails in the
@@ -75,6 +97,7 @@ pub struct Sampling {
     pub min_p: f64,
     pub repetition_penalty: f64,
     pub enable_thinking: Option<bool>,
+    pub seed: Option<u64>,
 }
 
 impl Default for Sampling {
@@ -87,6 +110,7 @@ impl Default for Sampling {
             min_p: 0.0,
             repetition_penalty: 1.0,
             enable_thinking: None,
+            seed: None,
         }
     }
 }
@@ -110,6 +134,10 @@ impl Sampling {
             (0.5..=3.0).contains(&self.repetition_penalty),
             "repetition penalty must be between 0.5 and 3"
         );
+        ensure!(
+            self.seed.is_none_or(|seed| seed < 1 << 63),
+            "seed must be a non-negative 63-bit integer"
+        );
         Ok(())
     }
 }
@@ -119,6 +147,25 @@ pub fn generate_request(
     messages: &[Message],
     sampling: &Sampling,
 ) -> Result<Vec<u8>> {
+    generate_request_with_tools(request_id, messages, sampling, &[])
+}
+
+/// Tools are OpenAI function definitions handed to the model's chat template.
+pub const MAX_TOOLS: usize = 256;
+
+pub fn generate_request_with_tools(
+    request_id: &str,
+    messages: &[Message],
+    sampling: &Sampling,
+    tools: &[Value],
+) -> Result<Vec<u8>> {
+    ensure!(tools.len() <= MAX_TOOLS, "at most {MAX_TOOLS} tools");
+    ensure!(
+        tools.iter().all(|tool| tool["function"]["name"]
+            .as_str()
+            .is_some_and(|n| !n.is_empty())),
+        "every tool needs a function name"
+    );
     ensure!(!request_id.is_empty(), "request id is empty");
     ensure!(!messages.is_empty(), "conversation is empty");
     ensure!(
@@ -133,9 +180,15 @@ pub fn generate_request(
     if sampling.enable_thinking.is_none() {
         object.remove("enable_thinking");
     }
+    if sampling.seed.is_none() {
+        object.remove("seed");
+    }
     object.insert("type".into(), "generate".into());
     object.insert("request_id".into(), request_id.into());
     object.insert("messages".into(), serde_json::to_value(messages)?);
+    if !tools.is_empty() {
+        object.insert("tools".into(), Value::Array(tools.to_vec()));
+    }
     line(&value)
 }
 
@@ -202,10 +255,7 @@ mod tests {
 
     #[test]
     fn generate_request_shape() {
-        let messages = vec![Message {
-            role: "user".into(),
-            content: "a\nb".into(),
-        }];
+        let messages = vec![Message::text("user", "a\nb")];
         let bytes = generate_request("r1", &messages, &Sampling::default()).unwrap();
         assert_eq!(bytes.iter().filter(|b| **b == b'\n').count(), 1);
         let value: Value = serde_json::from_slice(&bytes).unwrap();
@@ -213,6 +263,25 @@ mod tests {
         assert_eq!(value["messages"][0]["content"], "a\nb");
         assert_eq!(value["max_tokens"], -1);
         assert!(value.get("enable_thinking").is_none());
+        assert!(value.get("seed").is_none());
+        assert!(value["messages"][0].get("images").is_none());
+        let pictured = vec![Message {
+            images: vec!["AAAA".into()],
+            ..Message::text("user", "see")
+        }];
+        let seeded = Sampling {
+            seed: Some(7),
+            ..Sampling::default()
+        };
+        let value: Value =
+            serde_json::from_slice(&generate_request("r", &pictured, &seeded).unwrap()).unwrap();
+        assert_eq!(
+            (
+                value["seed"].as_u64(),
+                value["messages"][0]["images"][0].as_str()
+            ),
+            (Some(7), Some("AAAA"))
+        );
         let thinking = Sampling {
             enable_thinking: Some(false),
             ..Sampling::default()
@@ -220,18 +289,42 @@ mod tests {
         let value: Value =
             serde_json::from_slice(&generate_request("r", &messages, &thinking).unwrap()).unwrap();
         assert_eq!(value["enable_thinking"], false);
+        assert!(value.get("tools").is_none());
+        let tool = serde_json::json!({"type":"function","function":{"name":"a.b","parameters":{}}});
+        let history = vec![
+            Message::text("user", "x"),
+            Message {
+                tool_calls: vec![
+                    serde_json::json!({"type":"function","function":{"name":"a.b","arguments":{}}}),
+                ],
+                ..Message::text("assistant", "")
+            },
+            Message {
+                name: Some("a.b".into()),
+                ..Message::text("tool", "result")
+            },
+        ];
+        let value: Value = serde_json::from_slice(
+            &generate_request_with_tools("r", &history, &Sampling::default(), &[tool]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(value["tools"][0]["function"]["name"], "a.b");
+        assert_eq!(
+            value["messages"][1]["tool_calls"][0]["function"]["name"],
+            "a.b"
+        );
+        assert_eq!(value["messages"][2]["name"], "a.b");
+        assert!(value["messages"][0].get("name").is_none());
+        let unnamed = serde_json::json!({"type":"function","function":{}});
+        assert!(
+            generate_request_with_tools("r", &history, &Sampling::default(), &[unnamed]).is_err()
+        );
     }
 
     #[test]
     fn generate_request_validation() {
-        let user = vec![Message {
-            role: "user".into(),
-            content: "x".into(),
-        }];
-        let assistant = vec![Message {
-            role: "assistant".into(),
-            content: "x".into(),
-        }];
+        let user = vec![Message::text("user", "x")];
+        let assistant = vec![Message::text("assistant", "x")];
         assert!(generate_request("", &user, &Sampling::default()).is_err());
         assert!(generate_request("r", &[], &Sampling::default()).is_err());
         assert!(generate_request("r", &assistant, &Sampling::default()).is_err());
@@ -250,6 +343,10 @@ mod tests {
             },
             Sampling {
                 top_p: 0.0,
+                ..Sampling::default()
+            },
+            Sampling {
+                seed: Some(1 << 63),
                 ..Sampling::default()
             },
             Sampling {

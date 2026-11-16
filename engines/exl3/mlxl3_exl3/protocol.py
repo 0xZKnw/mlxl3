@@ -7,13 +7,19 @@ the bridge moves library output (progress bars, warnings) to stderr.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import math
 import threading
 from typing import IO, Any
 
-MAX_REQUEST_BYTES = 8 * 1024 * 1024
+MAX_REQUEST_BYTES = 16 * 1024 * 1024
 MAX_MESSAGES = 4096
+MAX_IMAGES = 16
+MAX_TOOLS = 256
+MAX_TOOL_CALLS = 64
+IMAGE_MAGIC = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff")
 ROLES = frozenset({"system", "user", "assistant", "tool"})
 REQUEST_TYPES = frozenset({"ping", "generate", "cancel", "shutdown"})
 
@@ -45,13 +51,13 @@ def parse_request(line: str | bytes) -> dict:
     """Parse and validate one request line. Raises RequestError."""
     if isinstance(line, bytes):
         if len(line) > MAX_REQUEST_BYTES:
-            raise RequestError("request line exceeds 8 MiB")
+            raise RequestError("request line exceeds 16 MiB")
         try:
             line = line.decode("utf-8")
         except UnicodeDecodeError as error:
             raise RequestError(f"request is not UTF-8: {error}") from None
     elif len(line.encode("utf-8")) > MAX_REQUEST_BYTES:
-        raise RequestError("request line exceeds 8 MiB")
+        raise RequestError("request line exceeds 16 MiB")
     try:
         raw = json.loads(line)
     except json.JSONDecodeError as error:
@@ -71,6 +77,20 @@ def parse_request(line: str | bytes) -> dict:
     return {"type": "generate", "request_id": request_id, **_generate_fields(raw, request_id)}
 
 
+def _image(item: Any, index: int, request_id: str) -> bytes:
+    """One base64 PNG, JPEG or WebP image, decoded strictly."""
+    if not isinstance(item, str):
+        raise RequestError(f"message {index}: images must be base64 strings", request_id)
+    try:
+        data = base64.b64decode(item, validate=True)
+    except (binascii.Error, ValueError):
+        raise RequestError(f"message {index}: an image is not valid base64", request_id) from None
+    webp = data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    if not (webp or data.startswith(IMAGE_MAGIC)):
+        raise RequestError(f"message {index}: images must be PNG, JPEG or WebP", request_id)
+    return data
+
+
 def _generate_fields(raw: dict, request_id: str) -> dict:
     messages = raw.get("messages")
     if not isinstance(messages, list) or not messages:
@@ -78,6 +98,7 @@ def _generate_fields(raw: dict, request_id: str) -> dict:
     if len(messages) > MAX_MESSAGES:
         raise RequestError(f"at most {MAX_MESSAGES} messages are accepted", request_id)
     clean = []
+    image_count = 0
     for index, message in enumerate(messages):
         if not isinstance(message, dict):
             raise RequestError(f"message {index} must be an object", request_id)
@@ -86,7 +107,31 @@ def _generate_fields(raw: dict, request_id: str) -> dict:
             raise RequestError(f"message {index} has an unsupported role", request_id)
         if not isinstance(content, str):
             raise RequestError(f"message {index} content must be text", request_id)
-        clean.append({"role": role, "content": content})
+        entry = {"role": role, "content": content}
+        images = message.get("images")
+        if images is not None:
+            if role != "user" or not isinstance(images, list):
+                raise RequestError(f"message {index}: images are accepted on user messages only", request_id)
+            if images:
+                entry["images"] = [_image(item, index, request_id) for item in images]
+                image_count += len(images)
+                if image_count > MAX_IMAGES:
+                    raise RequestError(f"at most {MAX_IMAGES} images are accepted", request_id)
+        tool_calls = message.get("tool_calls")
+        if tool_calls is not None:
+            if role != "assistant" or not isinstance(tool_calls, list) or len(tool_calls) > MAX_TOOL_CALLS:
+                raise RequestError(f"message {index}: tool_calls must be a list on an assistant message", request_id)
+            if not all(isinstance(call, dict) and isinstance(call.get("function"), dict)
+                       and isinstance(call["function"].get("name"), str) for call in tool_calls):
+                raise RequestError(f"message {index}: each tool call needs a function name", request_id)
+            if tool_calls:
+                entry["tool_calls"] = tool_calls
+        name = message.get("name")
+        if name is not None:
+            if role != "tool" or not isinstance(name, str) or not 0 < len(name) <= 256:
+                raise RequestError(f"message {index}: name is accepted on tool messages only", request_id)
+            entry["name"] = name
+        clean.append(entry)
     if clean[-1]["role"] == "assistant":
         raise RequestError("the last message must not be an assistant message", request_id)
 
@@ -116,8 +161,17 @@ def _generate_fields(raw: dict, request_id: str) -> dict:
     enable_thinking = raw.get("enable_thinking")
     if enable_thinking is not None and not isinstance(enable_thinking, bool):
         raise RequestError("enable_thinking must be a boolean", request_id)
+    tools = raw.get("tools")
+    if tools is not None:
+        if not isinstance(tools, list) or len(tools) > MAX_TOOLS:
+            raise RequestError(f"tools must be a list of at most {MAX_TOOLS} functions", request_id)
+        for tool in tools:
+            function = tool.get("function") if isinstance(tool, dict) else None
+            if not isinstance(function, dict) or not isinstance(function.get("name"), str) or not function["name"]:
+                raise RequestError("each tool needs a function name", request_id)
     return {
         "messages": clean,
+        "tools": tools or [],
         "max_tokens": max_tokens,
         "temperature": temperature,
         "top_k": top_k,

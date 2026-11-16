@@ -7,12 +7,22 @@
 //! library. The engine itself is upstream ExLlamaV3 driven by the Python
 //! worker in `engines/exl3`.
 
+pub mod agent;
+pub mod documents;
+pub mod extract;
 pub mod framer;
 pub mod gpu;
+pub mod hub;
 pub mod library;
+pub mod mcp;
 pub mod protocol;
 pub mod runtime;
+pub mod server;
+pub mod structured;
 pub mod supervisor;
+pub mod tool_call;
+pub mod turn;
+pub mod update;
 pub mod wsl;
 
 /// Which ExLlamaV3 build runs the model.

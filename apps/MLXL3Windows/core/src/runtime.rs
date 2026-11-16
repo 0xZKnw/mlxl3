@@ -89,6 +89,17 @@ fn wsl_python(target: &WslTarget) -> String {
     )
 }
 
+/// AMD's WSL2 GPU bridge (ROCm/librocdxg v1.2.2), bundled under `bin\` by CI
+/// after a SHA-256 check. Without it ROCm inside WSL2 enumerates no GPU.
+pub const ROCDXG_DEB: &str = "rocdxg-roct_1.2.2_amd64.deb";
+
+/// Environment every ROCm worker gets inside WSL2: DXG device discovery for the
+/// HSA runtime, and the directories holding librocdxg and DXCore.
+pub const ROCM_WSL_ENV: [&str; 2] = [
+    "HSA_ENABLE_DXG_DETECTION=1",
+    "LD_LIBRARY_PATH=/opt/rocm/lib:/usr/lib/wsl/lib",
+];
+
 fn wsl_exec(
     target: &WslTarget,
     env: &[String],
@@ -174,6 +185,21 @@ pub fn install_plan(
                 "UV_NO_CONFIG=1".into(),
             ];
             let venv = format!("{root}/runtimes/{id}");
+            let deb = wsl::to_wsl_path(
+                &s(&layout.resources.join("bin").join(ROCDXG_DEB)),
+                &target.distro,
+            )?;
+            wsl::validate_distro(&target.distro)?;
+            let bridge_args = strings(&[
+                "-d",
+                &target.distro,
+                "-u",
+                "root",
+                "--exec",
+                "/usr/bin/dpkg",
+                "-i",
+                &deb,
+            ]);
             let (program, venv_args) = wsl_exec(
                 target,
                 &env,
@@ -204,6 +230,12 @@ pub fn install_plan(
                 ]),
             )?;
             Ok(vec![
+                Command {
+                    label: "AMD WSL GPU bridge (librocdxg 1.2.2, installed as root)".into(),
+                    program: "wsl.exe".into(),
+                    args: bridge_args,
+                    env: vec![],
+                },
                 Command {
                     label: "Python 3.12 (WSL2)".into(),
                     program: program.clone(),
@@ -256,7 +288,10 @@ fn worker_command(
                 ),
                 "PYTHONUNBUFFERED=1".into(),
                 "PYTHONNOUSERSITE=1".into(),
-            ];
+            ]
+            .into_iter()
+            .chain(ROCM_WSL_ENV.iter().map(|v| (*v).to_owned()))
+            .collect::<Vec<_>>();
             let (program, argv) = wsl_exec(target, &env, wsl_python(target), &args)?;
             Ok(Command {
                 label: label.into(),
@@ -444,28 +479,74 @@ mod tests {
     fn rocm_plan_runs_inside_wsl() {
         assert!(install_plan(Backend::RocmWsl, &layout(), None).is_err());
         let plan = install_plan(Backend::RocmWsl, &layout(), Some(&target())).unwrap();
-        for command in &plan {
-            assert_eq!(command.program, "wsl.exe");
+        assert!(plan.iter().all(|command| command.program == "wsl.exe"));
+        // Step 1: AMD's DXG bridge, installed by dpkg as root from the bundled package.
+        assert_eq!(
+            plan[0].args,
+            [
+                "-d",
+                "Ubuntu-24.04",
+                "-u",
+                "root",
+                "--exec",
+                "/usr/bin/dpkg",
+                "-i",
+                "/mnt/c/Program Files/MLXL3/bin/rocdxg-roct_1.2.2_amd64.deb"
+            ]
+        );
+        for command in &plan[1..] {
             assert_eq!(
                 &command.args[..4],
                 ["-d", "Ubuntu-24.04", "--exec", "/usr/bin/env"]
             );
         }
         assert!(
-            plan[0]
+            plan[1]
                 .args
                 .contains(&"/mnt/c/Program Files/MLXL3/bin/uv".to_owned())
         );
         assert!(
-            plan[1]
+            plan[2]
                 .args
                 .contains(&"/mnt/c/Program Files/MLXL3/runtime/rocm-wsl.txt".to_owned())
         );
         assert!(
-            plan[1]
+            plan[2]
                 .args
                 .iter()
                 .any(|a| a.starts_with("/home/me/.local/share/mlxl3/runtimes/rocm-"))
+        );
+        // The probe (and every worker) gets DXG discovery and the bridge's library path.
+        let probe = plan.last().unwrap();
+        for value in ROCM_WSL_ENV {
+            assert!(probe.args.contains(&value.to_owned()), "{value}");
+        }
+        let program = probe
+            .args
+            .iter()
+            .position(|a| a.ends_with("/bin/python"))
+            .unwrap();
+        let env_end = probe
+            .args
+            .iter()
+            .position(|a| a.starts_with("HSA_ENABLE"))
+            .unwrap();
+        assert!(
+            env_end < program,
+            "env assignments precede the program for /usr/bin/env"
+        );
+        let bridge = bridge_command(
+            Backend::RocmWsl,
+            &layout(),
+            Some(&target()),
+            r"C:\Models\m",
+            0,
+        )
+        .unwrap();
+        assert!(
+            bridge
+                .args
+                .contains(&"HSA_ENABLE_DXG_DETECTION=1".to_owned())
         );
         let bad = WslTarget {
             distro: "x;y".into(),

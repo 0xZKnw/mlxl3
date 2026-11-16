@@ -70,3 +70,70 @@ class ParseRequestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ToolRequestTests(unittest.TestCase):
+    TOOL = {"type": "function", "function": {"name": "exa.search", "parameters": {"type": "object"}}}
+    CALL = {"id": "c1", "type": "function", "function": {"name": "exa.search", "arguments": {"q": "x"}}}
+
+    def test_tool_loop_messages_are_kept(self):
+        messages = [{"role": "user", "content": "find"},
+                    {"role": "assistant", "content": "", "tool_calls": [self.CALL]},
+                    {"role": "tool", "content": "result", "name": "exa.search"}]
+        request = parse_request(gen(messages=messages, tools=[self.TOOL]))
+        self.assertEqual(request["tools"], [self.TOOL])
+        self.assertEqual(request["messages"][1]["tool_calls"], [self.CALL])
+        self.assertEqual(request["messages"][2]["name"], "exa.search")
+        self.assertEqual(parse_request(gen())["tools"], [])
+        self.assertNotIn("tool_calls", parse_request(gen(messages=[
+            {"role": "assistant", "content": "a", "tool_calls": []}, {"role": "user", "content": "q"}]))["messages"][0])
+
+    def test_bad_tools_are_refused(self):
+        user = {"role": "user", "content": "q"}
+        cases = [
+            gen(tools={"a": 1}), gen(tools=[{"type": "function"}]), gen(tools=[{"function": {"name": ""}}]),
+            gen(tools=[3]), gen(tools=[self.TOOL] * 257),
+            gen(messages=[{"role": "user", "content": "x", "tool_calls": [self.CALL]}]),
+            gen(messages=[{"role": "assistant", "content": "", "tool_calls": [{"id": "c"}]}, user]),
+            gen(messages=[{"role": "assistant", "content": "", "tool_calls": "x"}, user]),
+            gen(messages=[{"role": "assistant", "content": "", "tool_calls": [self.CALL] * 65}, user]),
+            gen(messages=[{"role": "user", "content": "x", "name": "n"}]),
+            gen(messages=[{"role": "tool", "content": "x", "name": ""}]),
+            gen(messages=[{"role": "tool", "content": "x", "name": "n" * 257}]),
+        ]
+        for line in cases:
+            with self.subTest(line=line[:90]):
+                with self.assertRaises(RequestError) as caught:
+                    parse_request(line)
+                self.assertEqual(caught.exception.request_id, "r1")
+
+
+class ImageRequestTests(unittest.TestCase):
+    PNG = "iVBORw0KGgoAAAANSUhEUg=="  # PNG signature + IHDR start
+
+    def test_images_decode_on_user_messages(self):
+        import base64
+        jpeg = base64.b64encode(b"\xff\xd8\xff\xe0rest").decode()
+        webp = base64.b64encode(b"RIFF\0\0\0\0WEBPVP8X").decode()
+        request = parse_request(gen(messages=[{"role": "user", "content": "see", "images": [self.PNG, jpeg, webp]}]))
+        images = request["messages"][0]["images"]
+        self.assertEqual(len(images), 3)
+        self.assertTrue(images[0].startswith(b"\x89PNG"))
+        self.assertNotIn("images", parse_request(gen(messages=[{"role": "user", "content": "x", "images": []}]))["messages"][0])
+
+    def test_bad_images_are_refused(self):
+        import base64
+        gif = base64.b64encode(b"GIF89a....").decode()
+        cases = [
+            [{"role": "system", "content": "x", "images": [self.PNG]}, {"role": "user", "content": "q"}],
+            [{"role": "user", "content": "x", "images": self.PNG}],
+            [{"role": "user", "content": "x", "images": [3]}],
+            [{"role": "user", "content": "x", "images": ["not base64!"]}],
+            [{"role": "user", "content": "x", "images": [gif]}],
+            [{"role": "user", "content": "x", "images": [self.PNG] * 17}],
+        ]
+        for messages in cases:
+            with self.subTest(messages=str(messages)[:80]):
+                with self.assertRaises(RequestError) as caught:
+                    parse_request(gen(messages=messages))
+                self.assertEqual(caught.exception.request_id, "r1")

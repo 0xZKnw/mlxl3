@@ -101,3 +101,19 @@ test("events may arrive before engine-started; late notices do not reset", () =>
   assert.equal(engineStarted(failedFast, 2).engine, "stopped");
   assert.equal(engineStarted(unloaded(s), 5).engine, "loading");
 });
+
+test("rewind drops a user turn and what follows, and refuses while generating", async () => {
+  const { rewind } = await import("../src/session.js");
+  const base = { ...initialSession(), engine: "ready", turns: [
+    { role: "user", content: "one", complete: true }, { role: "assistant", content: "a", complete: true },
+    { role: "user", content: "two", complete: true }, { role: "assistant", content: "b", complete: true },
+  ] };
+  const { state, prompt } = rewind(base, 2);
+  assert.equal(prompt, "two");
+  assert.equal(state.turns.length, 2);
+  assert.equal(base.turns.length, 4);
+  assert.throws(() => rewind(base, 1), /not a user message/);
+  assert.throws(() => rewind(base, 9), /not a user message/);
+  assert.throws(() => rewind({ ...base, active: "r1" }, 0), /stop the current answer/);
+  assert.equal(rewind(base, 0).state.turns.length, 0);
+});

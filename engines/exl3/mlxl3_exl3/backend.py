@@ -83,6 +83,10 @@ class Exl3Backend:
         self.model.load()
         self.tokenizer = Tokenizer.from_config(self.config)
         self.generator = Generator(model=self.model, cache=self.cache, tokenizer=self.tokenizer)
+        # Vision tower, for VL checkpoints: loaded on the first image so text-only use keeps
+        # its VRAM.
+        self.vision_capable = "vision" in getattr(self.config, "model_classes", {})
+        self.vision = None
         stops = list(getattr(self.config, "eos_token_id_list", None) or [])
         if not stops and self.tokenizer.eos_token_id is not None:
             stops = [self.tokenizer.eos_token_id]
@@ -96,6 +100,7 @@ class Exl3Backend:
             "device": device.name,
             "device_memory_gb": round(device.total_memory / 1e9, 2),
             "torch_version": torch.__version__,
+            "vision": self.vision_capable,
             "gpu_runtime": torch.version.hip or torch.version.cuda,
             "exllamav3_version": self._exl3_version,
             "context_limit": self.context,
@@ -113,16 +118,49 @@ class Exl3Backend:
         return ComboSampler(rep_p=rep, temperature=request["temperature"], top_k=request["top_k"],
                             top_p=request["top_p"], min_p=request["min_p"])
 
+    def _embed_images(self, messages: list[dict]) -> tuple[list[dict], list]:
+        """Replace each message's images by the placeholders ExLlamaV3 tokenizes as embeddings."""
+        if not any(m.get("images") for m in messages):
+            return messages, []
+        if not self.vision_capable:
+            raise BackendError("this model has no vision component; images need a vision-language model")
+        import io
+        from exllamav3 import Model
+        from PIL import Image
+        if self.vision is None:
+            vision = Model.from_config(self.config, component="vision")
+            vision.load()
+            self.vision = vision
+        embeddings, out = [], []
+        for message in messages:
+            images = message.get("images") or []
+            aliases = []
+            for data in images:
+                image = Image.open(io.BytesIO(data))
+                image.load()
+                embedding = self.vision.get_image_embeddings(tokenizer=self.tokenizer, image=image.convert("RGB"))
+                embeddings.append(embedding)
+                aliases.append(embedding.text_alias)
+            content = message["content"]
+            if aliases:
+                content = "\n".join(aliases) + "\n" + content
+            entry = {key: value for key, value in message.items() if key != "images"}
+            entry["content"] = content
+            out.append(entry)
+        return out, embeddings
+
     def generate(self, request: dict, should_stop: Callable[[], bool]) -> Iterator[dict]:
         from exllamav3 import Job
-        text = chat_template.render(self.template, self.special, request["messages"],
-                                    request.get("enable_thinking"))
-        input_ids = self.tokenizer.encode(text, add_bos=False, encode_special_tokens=True)
+        messages, embeddings = self._embed_images(request["messages"])
+        text = chat_template.render(self.template, self.special, messages,
+                                    request.get("enable_thinking"), request.get("tools"))
+        extra = {"embeddings": embeddings} if embeddings else {}
+        input_ids = self.tokenizer.encode(text, add_bos=False, encode_special_tokens=True, **extra)
         prompt_tokens = int(input_ids.shape[-1])
         budget = new_token_budget(request["max_tokens"], prompt_tokens, self.context)
         job = Job(input_ids=input_ids, max_new_tokens=budget, sampler=self._sampler(request),
                   seed=request.get("seed"), stop_conditions=self.stop_conditions,
-                  identifier=request["request_id"])
+                  identifier=request["request_id"], **extra)
         self.generator.enqueue(job)
         started = time.perf_counter()
         try:
@@ -174,11 +212,14 @@ class FakeBackend:
 
     def info(self) -> dict:
         return {"backend": "fake", "device": "none", "device_memory_gb": 0.0,
-                "torch_version": "none", "gpu_runtime": "none", "exllamav3_version": "none",
+                "torch_version": "none", "gpu_runtime": "none", "exllamav3_version": "none", "vision": True,
                 "context_limit": self.context, "model_context_limit": 4096, "resident_gb": 0.0}
 
     def generate(self, request: dict, should_stop: Callable[[], bool]) -> Iterator[dict]:
-        last = next(m["content"] for m in reversed(request["messages"]) if m["role"] != "assistant")
+        final = next(m for m in reversed(request["messages"]) if m["role"] != "assistant")
+        last = final["content"]
+        if final.get("images"):
+            last = f"[{len(final['images'])} image(s)] {last}"
         if last == "__raise__":
             raise BackendError("fake backend failure")
         words = last.split() or ["(empty)"]

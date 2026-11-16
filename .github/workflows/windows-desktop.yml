@@ -39,6 +39,9 @@ env:
   UV_VERSION: 0.13.8
   UV_WINDOWS_SHA256: 529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8
   UV_LINUX_SHA256: 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91
+  # AMD's WSL2 GPU bridge (ROCm/librocdxg), installed into the user's distro by the AMD runtime.
+  ROCDXG_URL: https://github.com/ROCm/librocdxg/releases/download/v1.2.2/rocdxg-roct_1.2.2_amd64.deb
+  ROCDXG_SHA256: 28ded1254811192ebace1f76c0227580184af7b27ab2475fb9728295a702d541
 
 jobs:
   release-gate:
@@ -158,7 +161,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Fetch pinned uv binaries
+      - name: Fetch pinned uv binaries and the AMD WSL bridge
         working-directory: apps/MLXL3Windows/src-tauri
         run: |
           $ErrorActionPreference = 'Stop'
@@ -180,12 +183,17 @@ jobs:
           tar -xzf (Join-Path $tmp 'uv-x86_64-unknown-linux-gnu.tar.gz') -C $tmp
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item (Join-Path $tmp 'uv-x86_64-unknown-linux-gnu/uv') bin/uv
+          Invoke-WebRequest $env:ROCDXG_URL -OutFile bin/rocdxg-roct_1.2.2_amd64.deb
+          $actual = (Get-FileHash -Algorithm SHA256 bin/rocdxg-roct_1.2.2_amd64.deb).Hash.ToLowerInvariant()
+          if ($actual -ne $env:ROCDXG_SHA256) { throw "rocdxg-roct: sha256 $actual, expected $env:ROCDXG_SHA256" }
           ./bin/uv.exe --version
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Build NSIS installer
         working-directory: apps/MLXL3Windows
         env:
           APP_VERSION: ${{ needs.release-gate.outputs.version }}
+          # Full tag (v2.1.0-beta.3) for the updater; the NSIS version is only its numeric part.
+          MLXL3_RELEASE_TAG: ${{ needs.release-gate.outputs.tag }}
         run: |
           $ErrorActionPreference = 'Stop'
           npm ci --no-audit --no-fund

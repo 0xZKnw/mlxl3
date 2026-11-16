@@ -71,6 +71,36 @@ ExLlamaV3 (Generator / Job / Cache paginé 256)  →  torch CUDA ou HIP
 - **Téléchargements** : `huggingface_hub.snapshot_download`, dépôt et
   sous-dossier validés (aucune traversée de chemin) côté Rust et Python.
 
+## Correctif AMD « torch sees no GPU » (2026-11-16)
+
+Cause : dans WSL2, ROCm ne voit le GPU Radeon qu'à travers le pont DXG d'AMD,
+**librocdxg** (paquet `rocdxg-roct`), qui n'est pas une roue pip. Le runtime
+ne l'installait pas, donc `torch.cuda.device_count()` renvoyait 0 même avec le
+backend ROCm choisi. Pour les versions de ROCm antérieures à 7.13, il faut aussi
+`HSA_ENABLE_DXG_DETECTION=1`, ainsi qu'un pilote Adrenalin récent et un GPU pris
+en charge (RX 9000/7000, PRO W7000/R9700, Ryzen AI Max ; pas de RX 6000).
+
+Changements :
+
+- La CI télécharge `rocdxg-roct_1.2.2_amd64.deb` (sha256
+  `28ded125…702d541`, sans dépendance) dans `bin/` de l'installeur.
+- Le plan ROCm commence par `wsl.exe -d <distro> -u root --exec /usr/bin/dpkg -i
+  <deb>`. Cette commande ne demande pas de mot de passe et vise les
+  distributions Debian/Ubuntu.
+- Tous les processus ROCm (sonde, bridge, téléchargement) reçoivent
+  `HSA_ENABLE_DXG_DETECTION=1` et `LD_LIBRARY_PATH=/opt/rocm/lib:/usr/lib/wsl/lib`.
+- La sonde vérifie `/dev/dxg`, `libdxcore.so`, `librocdxg` et la variable
+  d'environnement. Elle renvoie des `hints` affichés dans l'erreur
+  d'installation.
+
+Pour l'utilisateur : mettre à jour l'app, lancer `wsl --update` puis
+`wsl --shutdown`, installer le dernier pilote Adrenalin, puis cliquer
+**Réinstaller le runtime**. **Non vérifié sur GPU AMD réel.**
+
+Sources : https://github.com/ROCm/librocdxg,
+https://github.com/ROCm/ROCm/issues/3470,
+https://github.com/emilywilder/rocm-wsl-ai.
+
 ## CI : `.github/workflows/windows-desktop.yml`
 
 - `release: published` sur un tag Desktop `vX.Y.Z[-pre]` (les `engine-v*`
@@ -96,6 +126,39 @@ release publiée avec `gh` par l'utilisateur, si. L'installeur n'est **pas
 signé** (alerte SmartScreen attendue) et il n'y a **pas d'auto-updater
 Windows**.
 
+## Parité avec MLXL3 Desktop macOS (2026-11-16)
+
+Référence : `origin/main` v2.0.4 (inventaire complet des fonctions Mac, fichier
+par fichier). « Fait » = implémenté dans `apps/MLXL3Windows` et testé dans le
+harnais stub (UI) ou par des tests unitaires ; rien n'a été exécuté sous Windows.
+
+| Fonction Mac | Windows | Notes |
+| --- | --- | --- |
+| Interface 2.0.3 (barre latérale, conversations épinglées/récentes, recherche, aurora, accueil) | Fait | |
+| Chat en streaming, réflexion repliable, Markdown, blocs de code, stats | Fait | |
+| Copier / modifier / régénérer | Fait | Modifier et régénérer réécrivent la conversation courante |
+| Créer une branche ici (et « modifier dans une branche » depuis un message utilisateur) | Fait | Titre « · branch », texte remis dans le brouillon |
+| Lire à voix haute | Fait | `speechSynthesis` de WebView2 (voix Windows) |
+| Export Markdown de la conversation (menu +) | Fait | Même format que `MarkdownExport` ; enregistrement par boîte de dialogue native |
+| Contrôle d'affichage (largeur, taille du texte 12–24) | Fait | Popover de l'en-tête et Réglages → Apparence |
+| Apparence : thème, accents Iris/Rose/Ambre/Neutre + personnalisé, espacement, police, bulles, largeur de barre latérale, réinitialisation | Fait | Valeurs reprises des enums Swift ; valeurs héritées sage/mint/coral converties |
+| Notifications de fin de génération | Fait | Plugin Tauri ; seulement en arrière-plan, sans contenu de conversation |
+| Modèle au démarrage (dernier sélectionné ou choisi) | Fait | Ignoré si le runtime n'est pas installé |
+| Déchargement automatique après inactivité (jamais … 2 h, défaut 15 min) | Fait | Échéance non prolongée par les rendus ; jamais pendant une génération |
+| Export / import de l'historique | Fait | JSON `mlxl3-windows-conversations` v1 ; l'import n'ajoute que les ids inconnus |
+| Compte Hugging Face (token) | Fait | `%USERPROFILE%\.cache\huggingface\token`, validé par `whoami-v2` ; HF_TOKEN prioritaire |
+| Page Confidentialité | Fait | Flux réseau propres à Windows (PyPI, download.pytorch.org, GitHub) |
+| Mises à jour auto avec canaux Stable / Bêta | Fait | Tags `vX.Y.Z-beta.N` marqués prerelease ; installeur NSIS vérifié par SHA-256 |
+| Bibliothèque, catalogue recommandé, recherche/téléchargement HF avec reprise | Fait | |
+| Pièces jointes texte/PDF, images (modèles VL) | Fait (révision « tout ») | Bouton trombone, glisser-déposer Tauri, miniatures ; images envoyées seulement à un modèle VL, avec un budget limité. Les octets d'image ne sont pas conservés : une conversation rouverte garde les noms, et le modèle ne voit plus les pixels. Pas de brouillon par conversation |
+| Outils MCP, mode Agent, Agent Studio | Fait, partiellement (révision « tout ») | Client MCP (stdio et HTTP), permissions par outil (refus par défaut dans un projet), lignes d'activité des outils. Agent : import d'un dossier, permissions lecture/écriture/commandes, revue des changements puis application. Les **commandes ne sont pas sandboxées** (désactivées par défaut ; pas d'AppContainer/Job Objects, alors que le Mac utilise Seatbelt). Pas de checkpoints git, d'export ZIP ni d'aperçu HTML depuis Agent Studio |
+| Projets, profils, bibliothèque de documents et citations | Fait (révision « tout ») | Projets persistants avec instructions et profils ; documents indexés et recherchés, avec extraits cités et une fiche des sources. Les messages d'erreur d'extraction Rust sont en anglais seulement |
+| Réponses JSON validées (`response_schema`) | Fait (révision « tout ») | Un schéma invalide affiche un toast et garde le prompt ; une réponse conforme affiche le badge « JSON validé » |
+| Mode Serveur (API OpenAI), mode Lab | Fait (révision « tout ») | Serveur local ou réseau, avec une clé API régénérée à chaque démarrage et un journal. Il partage le modèle chargé : Chat et Agent sont bloqués tant qu'il tourne, et il s'arrête quand on quitte le mode. Lab : statistiques des tours (préremplissage, décodage, cache), graphique et matériel |
+| MTP, DFlash2, auto-tuning | Sans objet | Spécifiques au moteur MLX/Metal |
+| Quantization Studio | Sans objet | Le convertisseur Mac utilise MLX |
+| Streaming SSD Flash Next, menu de barre de menus, dictée sur l'appareil | Sans objet | macOS uniquement (dictée : pas de reconnaissance locale fiable dans WebView2) |
+
 ## Vérification (2026-11-16, macOS arm64)
 
 | Contrôle | Résultat |
@@ -105,11 +168,25 @@ Windows**.
 | Core `cargo clippy --all-targets -D warnings` | OK sur `aarch64-apple-darwin` et `x86_64-pc-windows-msvc` (check croisé, sans lien) |
 | Shell Tauri `cargo clippy -D warnings` | OK sur macOS ; check croisé Windows impossible localement (`llvm-rc` absent pour tauri-winres) |
 | UI `npm run check:ui` | 15/15 (Markdown sûr contre HTML hostile, machine d'état chat/moteur, i18n) |
+| Révision parité Mac (même jour) : UI `npm run check:ui` | 47/47 (apparence, sauvegarde/import, branche, export Markdown, parité des clés en/fr, CSP, icônes) |
+| Révision parité Mac : core `cargo test` / shell `cargo clippy --all-targets -D warnings` | 45 unitaires + 6 intégration ; clippy OK (macOS) |
+| Révision parité Mac : worker Python | 33/33 |
+| Révision parité Mac : harnais stub dans un navigateur | Popover d'affichage, Réglages (8 panneaux, en/fr, clair/sombre), chargement au démarrage, déchargement auto (minuterie raccourcie), notification seulement hors focus, export/import, branche, lecture à voix haute, connexion HF |
+| Révision « tout » (même jour) : UI `npm run check:ui` | 64/64 |
+| Révision « tout » : core `cargo test` / `cargo clippy --all-targets -D warnings` (core et shell Tauri) | 99 unitaires + 6 intégration ; clippy OK (macOS) |
+| Révision « tout » : worker Python | 38/38 |
+| Révision « tout » : harnais stub dans un navigateur | Création et persistance d'un projet ; ajout de documents (toast des fichiers ignorés) et recherche ; profils ; pièces jointes texte et miniature d'image ; envoi avec MCP, instructions du projet, extraits cités et images ; ligne d'outil et fiche des sources (Échap la ferme) ; mode Agent (import d'un dossier, popover des permissions avec l'avertissement sur les commandes, revue puis application) ; Serveur (démarrage réseau, journal, URL, arrêt quand on quitte le mode) ; Lab ; page MCP (transport local, permissions d'outil) ; schéma JSON invalide puis valide ; interface en français |
 | Workflow | `actionlint` OK ; porte de release simulée sous bash (tags valides, prerelease, `engine-v*`, tags invalides, regex DMG) |
 | uv 0.13.8 | sha256 Windows/Linux vérifiés contre les `.sha256` publiés ; arborescence des archives contrôlée |
 
 **Non vérifié** : build NSIS réel, exécution sous Windows, génération sur GPU
 NVIDIA (CUDA) ou AMD (ROCm/WSL2), compatibilité WSL2 ROCm du pilote/GPU,
 installation effective des runtimes (plusieurs Go), parité numérique avec
-ExLlamaV3 hors app, harnais Kani `buffer_and_lines_stay_bounded` (présent,
-**non exécuté** à la demande de l'utilisateur), signature de code.
+ExLlamaV3 hors app, notifications Windows, boîtes de dialogue natives
+d'export/import, connexion HF réelle, voix Windows, harnais Kani `buffer_and_lines_stay_bounded` (présent,
+**non exécuté** à la demande de l'utilisateur), signature de code. Révision
+« tout » : vrais serveurs MCP, exécution réelle des outils Agent, vrai serveur
+OpenAI face à un client, extraction de vrais PDF, vision avec un vrai modèle VL
+et glisser-déposer sous Windows ne sont pas vérifiés. Ces parcours n'ont été
+exercés que dans le harnais stub et par les tests unitaires. Kani n'a pas été
+exécuté.

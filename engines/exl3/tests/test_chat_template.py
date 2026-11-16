@@ -59,6 +59,15 @@ class TemplateTests(unittest.TestCase):
         with self.assertRaises(TemplateError):  # sandbox refuses dunder access
             chat_template.render("{{ messages.__class__.__mro__ }}", special, [])
 
+    def test_tools_reach_the_template_only_when_offered(self):
+        special = {"bos_token": "", "eos_token": ""}
+        source = "{% if tools %}T:{{ tools | tojson }}{% endif %}{{ messages[-1].name }}"
+        tools = [{"type": "function", "function": {"name": "a.b"}}]
+        messages = [{"role": "tool", "content": "r", "name": "a.b"}]
+        self.assertEqual(chat_template.render(source, special, messages, None, tools),
+                         'T:[{"type": "function", "function": {"name": "a.b"}}]a.b')
+        self.assertEqual(chat_template.render(source, special, messages, None, []), "a.b")
+
     def test_tojson_keeps_unicode(self):
         text = chat_template.render("{{ messages | tojson }}", {"bos_token": "", "eos_token": ""},
                                     [{"role": "user", "content": "é"}])

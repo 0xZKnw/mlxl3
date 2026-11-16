@@ -25,7 +25,7 @@ pub enum EngineMessage {
     },
 }
 
-fn process(command: &Command) -> std::process::Command {
+pub fn process(command: &Command) -> std::process::Command {
     let mut process = std::process::Command::new(&command.program);
     process
         .args(&command.args)
