@@ -1378,7 +1378,9 @@ function renderModes() {
   $("tools-configure").hidden = agent;
   $("tools-mcp").checked = mcpEnabled;
   $("tools-mcp").disabled = mcpBusy;
-  $("new-chat-label").textContent = t(agent ? "newTask" : "newChat");
+  const newLabel = t(agent ? "newTask" : "newChat");
+  $("new-chat-label").textContent = newLabel;
+  $("new-chat").title = `${newLabel} · Ctrl+N`;
   $("prompt").placeholder = t(agent ? "taskPlaceholder" : "placeholder");
   const select = $("project-select");
   if (document.activeElement !== select) select.innerHTML = [["", t("noProject")], ...workspace.projects.map((p) => [p.id, p.name])]

@@ -14,31 +14,29 @@
   <div id="chat-view" class="app">
     <aside id="sidebar" class="sidebar">
       <header class="side-head">
-        <span class="mark" data-logo="35"></span><span class="wordmark">MLXL3</span>
+        <span class="mark" data-logo="35" role="img" aria-label="MLXL3"></span>
         <span class="spacer"></span>
         <button id="downloads-indicator" class="round-icon" data-i18n-title="downloadsIndicator" data-icon="download" hidden></button>
       </header>
-      <nav id="modes" class="page-nav modes">
-        <button class="side-row selected" data-mode="chat"><span data-icon="chat"></span><span>Chat</span></button>
-        <button class="side-row" data-mode="agent"><span data-icon="terminal"></span><span>Agent</span></button>
-        <button class="side-row" data-mode="server"><span data-icon="server"></span><span>Server</span></button>
-        <button class="side-row" data-mode="lab"><span data-icon="chart"></span><span>Lab</span></button>
+      <nav id="modes" class="mode-tabs" aria-label="Modes">
+        <button class="mode-tab selected" data-mode="chat"><span data-icon="chat"></span><span data-i18n="chat">Chat</span></button>
+        <button class="mode-tab" data-mode="agent"><span data-icon="terminal"></span><span>Agent</span></button>
+        <button class="mode-tab" data-mode="server"><span data-icon="server"></span><span>Server</span></button>
+        <button class="mode-tab" data-mode="lab"><span data-icon="chart"></span><span>Lab</span></button>
       </nav>
       <label class="project-pick" data-i18n-title="conversationProject"><span data-icon="folder"></span><select id="project-select"></select></label>
       <div class="side-actions">
         <label class="side-search"><span data-icon="search"></span><input id="chat-search" data-i18n-placeholder="search" placeholder="Search" spellcheck="false" autocomplete="off"></label>
-        <button id="new-chat" class="new-chat"><span data-icon="compose"></span><span id="new-chat-label" data-i18n="newChat">New conversation</span></button>
+        <button id="new-chat" class="new-chat" title="New conversation"><span data-icon="compose"></span><span id="new-chat-label" class="sr-only" data-i18n="newChat">New conversation</span></button>
       </div>
       <div class="section-label"><span data-i18n="conversations">Conversations</span><span id="chat-count" class="count"></span></div>
       <nav id="chats" class="chats" aria-label="Conversations"></nav>
       <footer class="side-bottom">
-        <button id="open-workspace" class="side-row"><span data-icon="folder"></span><span data-i18n="projectsProfiles">Projects and profiles</span></button>
-        <button id="open-mcp" class="side-row"><span data-icon="tool"></span><span data-i18n="mcp">MCP</span></button>
-        <button id="open-models" class="side-row"><span data-icon="stack"></span><span data-i18n="models">Models</span></button>
-        <div class="side-row-line">
-          <button id="open-settings" class="side-row"><span data-icon="gear"></span><span data-i18n="settings">Settings</span></button>
-          <button id="update-badge" class="update-badge" data-icon="update" hidden></button>
-        </div>
+        <button id="open-workspace" class="side-tool" data-i18n-title="projectsProfiles"><span data-icon="folder"></span><span class="sr-only" data-i18n="projectsProfiles">Projects and profiles</span></button>
+        <button id="open-mcp" class="side-tool" data-i18n-title="mcp"><span data-icon="tool"></span><span class="sr-only" data-i18n="mcp">MCP</span></button>
+        <button id="open-models" class="side-tool" data-i18n-title="models"><span data-icon="stack"></span><span class="sr-only" data-i18n="models">Models</span></button>
+        <button id="open-settings" class="side-tool" data-i18n-title="settings"><span data-icon="gear"></span><span class="sr-only" data-i18n="settings">Settings</span></button>
+        <button id="update-badge" class="update-badge" data-icon="update" hidden></button>
       </footer>
     </aside>
 
