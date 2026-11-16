@@ -1,6 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h:h}"
+# Arguments go to check-desktop.sh (CI passes --skip-preferences: its
+# desktop-preferences job runs those units).
 
 python_bin="${MLXL3_TEST_PYTHON:-}"
 if [[ -z "${python_bin}" ]]; then
@@ -15,5 +17,5 @@ export PYTHONPATH="$PWD/src:$PWD/apps/MLXL3Studio/Vendor/PonyExl3${PYTHONPATH:+:
 "${python_bin}" -m compileall -q src
 "${python_bin}" -m pytest -q
 export MLXL3_TEST_PYTHON="${python_bin}"
-scripts/check-desktop.sh
+scripts/check-desktop.sh "$@"
 print "MLXL3 full E2E suite passed"
