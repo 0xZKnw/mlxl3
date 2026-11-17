@@ -119,6 +119,45 @@ impl CompactWeight {
     }
 }
 
+/// Why a ring commit was refused, kept free of `anyhow` so the admission
+/// logic can be proved on its own.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum RingRejection {
+    Conversion(std::num::TryFromIntError),
+    Invalid(&'static str),
+}
+
+/// Pure admission for [`commit_ring`]: same checks, same order, no mutation.
+pub(crate) fn ring_commit_plan(
+    planes: &[&mut [f32]],
+    updates: &[&[f32]],
+    start: usize,
+    rows: usize,
+    width: usize,
+) -> std::result::Result<[(i32, i32, i32); 2], RingRejection> {
+    let start = i32::try_from(start).map_err(RingRejection::Conversion)?;
+    let rows_i32 = i32::try_from(rows).map_err(RingRejection::Conversion)?;
+    let writes = crate::flash_draft_budget::ring_writes(start, rows_i32)
+        .ok_or(RingRejection::Invalid("invalid ring interval"))?;
+    let capacity = 2048usize
+        .checked_mul(width)
+        .ok_or(RingRejection::Invalid("ring capacity overflow"))?;
+    let count = rows
+        .checked_mul(width)
+        .ok_or(RingRejection::Invalid("ring update overflow"))?;
+    if !(width > 0 && !planes.is_empty() && planes.len() == updates.len()) {
+        return Err(RingRejection::Invalid("invalid ring planes"));
+    }
+    if !(planes.iter().all(|p| p.len() == capacity)
+        && updates
+            .iter()
+            .all(|p| p.len() == count && p.iter().all(|v| v.is_finite())))
+    {
+        return Err(RingRejection::Invalid("invalid ring plane storage"));
+    }
+    Ok(writes)
+}
+
 /// All planes are validated before the first mutation; admitted copies cannot
 /// fail, allocate, or clone old planes. Callers stage every producer first.
 pub(crate) fn commit_ring(
@@ -128,24 +167,10 @@ pub(crate) fn commit_ring(
     rows: usize,
     width: usize,
 ) -> Result<()> {
-    let writes =
-        crate::flash_draft_budget::ring_writes(i32::try_from(start)?, i32::try_from(rows)?)
-            .context("invalid ring interval")?;
-    let capacity = 2048usize
-        .checked_mul(width)
-        .context("ring capacity overflow")?;
-    let count = rows.checked_mul(width).context("ring update overflow")?;
-    ensure!(
-        width > 0 && !planes.is_empty() && planes.len() == updates.len(),
-        "invalid ring planes"
-    );
-    ensure!(
-        planes.iter().all(|p| p.len() == capacity)
-            && updates
-                .iter()
-                .all(|p| p.len() == count && p.iter().all(|v| v.is_finite())),
-        "invalid ring plane storage"
-    );
+    let writes = ring_commit_plan(planes, updates, start, rows, width).map_err(|e| match e {
+        RingRejection::Conversion(e) => anyhow::Error::from(e),
+        RingRejection::Invalid(message) => anyhow::Error::msg(message),
+    })?;
     for (plane, update) in planes.iter_mut().zip(updates) {
         for (source, destination, rows) in writes {
             let (source, destination, rows) = (
@@ -340,13 +365,17 @@ mod tests {
 mod proofs {
     use super::*;
     #[kani::proof]
-    #[kani::unwind(2050)]
+    // 28 covers the memcmp on the 26-byte rejection message.
+    #[kani::unwind(28)]
     fn invalid_ring_producer_preserves_all_planes() {
         let start: u16 = kani::any();
         let mut plane = [3.; 2048];
-        // A malformed producer is rejected for all starts before any mutation.
-        assert!(commit_ring(&mut [&mut plane], &[&[]], usize::from(start), 1, 1).is_err());
-        assert!(plane.iter().all(|&v| v == 3.));
+        // A malformed producer is rejected for all starts by the read-only
+        // admission, which `commit_ring` runs before its first write.
+        let plan = ring_commit_plan(&[&mut plane], &[&[]], usize::from(start), 1, 1);
+        assert!(plan == Err(RingRejection::Invalid("invalid ring plane storage")));
+        let cell: usize = kani::any_where(|&i: &usize| i < 2048);
+        assert!(plane[cell] == 3.);
         kani::cover!(start == 2047);
     }
 }
