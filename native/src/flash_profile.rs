@@ -592,6 +592,26 @@ fn real_profile_scope_lifecycle() {
 /// The fused command ends before residual HC/router/MoE work starts. Validate the
 /// actual trace's ancestry, including indirect descendants; central intervals stay valid.
 pub(crate) fn validate_cross_layer_ancestry(events: &[Event]) -> Result<()> {
+    check_cross_layer_ancestry(events).map_err(|rejection| match rejection {
+        AncestryRejection::InvalidParent => anyhow::anyhow!("invalid profile parent index"),
+        AncestryRejection::InsideTriple(index) => anyhow::anyhow!(
+            "MoE/residual event {} is inside HC/GDN triple",
+            events[index].name
+        ),
+        AncestryRejection::Cyclic => anyhow::anyhow!("cyclic profile ancestry"),
+    })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum AncestryRejection {
+    InvalidParent,
+    /// Index of the protected event found under a cross-layer triple.
+    InsideTriple(usize),
+    Cyclic,
+}
+
+/// Allocation-free core of `validate_cross_layer_ancestry`, in the same order.
+fn check_cross_layer_ancestry(events: &[Event]) -> Result<(), AncestryRejection> {
     for (index, event) in events.iter().enumerate() {
         let protected = matches!(
             event.name.as_str(),
@@ -600,17 +620,16 @@ pub(crate) fn validate_cross_layer_ancestry(events: &[Event]) -> Result<()> {
             || (event.name == "native.gpu_interval" && event.data["owner"] == "moe");
         let mut ancestor = event.parent;
         while let Some(parent) = ancestor {
-            ensure!(parent < index, "invalid profile parent index");
+            if parent >= index {
+                return Err(AncestryRejection::InvalidParent);
+            }
             let upstream = &events[parent];
-            ensure!(
-                !protected || upstream.name != "native.hc_gdn.cross_layer",
-                "MoE/residual event {} is inside HC/GDN triple",
-                event.name
-            );
-            ensure!(
-                upstream.parent.is_none_or(|next| next < parent),
-                "cyclic profile ancestry"
-            );
+            if protected && upstream.name == "native.hc_gdn.cross_layer" {
+                return Err(AncestryRejection::InsideTriple(index));
+            }
+            if !upstream.parent.is_none_or(|next| next < parent) {
+                return Err(AncestryRejection::Cyclic);
+            }
             ancestor = upstream.parent;
         }
     }
@@ -726,7 +745,8 @@ fn cross_layer_ancestry_checks_actual_two_event_parent_guards() {
             child_parent,
         ),
     ];
-    let actual = validate_cross_layer_ancestry(&events).is_ok();
+    // The allocation-free core; the public wrapper only maps rejections to anyhow.
+    let actual = check_cross_layer_ancestry(&events).is_ok();
     let expected = root_parent.is_none()
         && (child_parent.is_none() || child_parent == Some(0))
         && !(child_parent == Some(0) && protected && triple);

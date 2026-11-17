@@ -668,9 +668,20 @@ mod tests {
 }
 
 #[cfg(kani)]
+fn kani_bounded_i32() -> i32 {
+    kani::any_where(|value: &i32| value.unsigned_abs() <= u32::from(u16::MAX))
+}
+
+#[cfg(kani)]
 #[kani::proof]
+#[kani::solver(kissat)]
 fn qwen_attention_widths_match_wide_arithmetic_or_reject() {
-    let (heads, kv_heads, dim): (i32, i32, i32) = kani::any();
+    // Bound: each input has a magnitude of at most u16::MAX (sign kept), so
+    // rejected negative/zero shapes and i32 overflow (65535 * 65535 * 2) stay
+    // reachable while the symbolic 32-bit products remain tractable for CBMC.
+    let heads = kani_bounded_i32();
+    let kv_heads = kani_bounded_i32();
+    let dim = kani_bounded_i32();
     let result = attention_widths(heads, kv_heads, dim);
     let shape_valid = heads > 0 && kv_heads > 0 && heads % kv_heads == 0 && dim > 0;
     let output = i64::from(heads) * i64::from(dim);
@@ -691,8 +702,15 @@ fn qwen_attention_widths_match_wide_arithmetic_or_reject() {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::solver(kissat)]
 fn qwen_gated_delta_widths_match_wide_arithmetic_or_reject() {
-    let (key_heads, value_heads, key_dim, value_dim): (i32, i32, i32, i32) = kani::any();
+    // Bound: each input has a magnitude of at most u16::MAX (sign kept), so
+    // invalid shapes and i32 overflow (value_heads * value_dim > i32::MAX)
+    // stay reachable while the symbolic products remain tractable for CBMC.
+    let key_heads = kani_bounded_i32();
+    let value_heads = kani_bounded_i32();
+    let key_dim = kani_bounded_i32();
+    let value_dim = kani_bounded_i32();
     let result = gated_delta_widths(key_heads, value_heads, key_dim, value_dim);
     let shape_valid = key_heads > 0
         && value_heads > 0

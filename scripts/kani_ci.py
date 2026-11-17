@@ -19,9 +19,7 @@ PARSER_HARNESS = (
 INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
-FAILED_FILL_HARNESS = (
-    "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots"
-)
+FAILED_FILL_HARNESS = "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots"
 # Harnesses in `#[cfg(test)]` modules are absent from the `--lib` inventory, and a
 # `--lib --tests` listing hits the Kani 0.68.0 catch_unwind ICE, so they are named
 # here (checked against the source by tests) and each one gets its own verdict.
