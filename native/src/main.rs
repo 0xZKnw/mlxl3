@@ -3085,6 +3085,19 @@ struct NativeStats {
     lfm3_cert_tokens: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     lfm3_cert_fallbacks: Option<usize>,
+    /// `MLXL3_LFM3_CERT_CHECK=1`: certified steps whose ID or distribution
+    /// differed from the full head.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lfm3_cert_check_mismatches: Option<usize>,
+    /// Q1 top-k readback (on by default for autoregressive sampling, opt-in
+    /// `MLXL3_TOPK_READBACK=1` for MTP rows): sampled rows
+    /// `[certified, fallback]` during this round.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    topk_readback_rows: Option<[usize; 2]>,
+    /// Q3 (`MLXL3_MTP_SAMPLED_DRAFT=1`): MTP draft levels drawn from the
+    /// head's law during this round.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mtp_sampled_draft_levels: Option<usize>,
 }
 
 #[cfg(all(
@@ -3175,10 +3188,23 @@ impl NativeStats {
             ),
             (&mut self.lfm3_cert_tokens, round.lfm3_cert_tokens),
             (&mut self.lfm3_cert_fallbacks, round.lfm3_cert_fallbacks),
+            (
+                &mut self.lfm3_cert_check_mismatches,
+                round.lfm3_cert_check_mismatches,
+            ),
+            (
+                &mut self.mtp_sampled_draft_levels,
+                round.mtp_sampled_draft_levels,
+            ),
         ] {
             if let Some(value) = value {
                 *sum = Some(sum.unwrap_or(0) + value);
             }
+        }
+        if let Some([certified, fallbacks]) = round.topk_readback_rows {
+            let [sum_certified, sum_fallbacks] = self.topk_readback_rows.get_or_insert([0, 0]);
+            *sum_certified += certified;
+            *sum_fallbacks += fallbacks;
         }
     }
 }
@@ -3237,7 +3263,42 @@ fn select_token(
             .next()
             .context("model returned no logits");
     }
+    if mlxl3_native::topk_readback::ar_enabled() {
+        let mut rows =
+            mlxl3_native::topk_readback::ReadbackRows::new(logits, sampler, history, &[])?;
+        let last = rows
+            .len()
+            .checked_sub(1)
+            .context("model returned no logits")?;
+        return Ok(rows
+            .distribution(last, sampler, history, &[])?
+            .sample(random));
+    }
     sample_values(logits.log_probs()?.to_f32()?, history, sampler, random)
+}
+
+/// Whether a bridge round reports `topk_readback_rows`: a readback gate is on
+/// and the sampler is outside the greedy rule (greedy rounds never read back).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn readback_reported(ar: bool, mtp: bool, greedy: bool) -> bool {
+    (ar || mtp) && !greedy
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn readback_rows_are_reported_for_sampled_rounds_only() {
+    for (ar, mtp, greedy, reported) in [
+        (true, false, false, true),
+        (false, true, false, true),
+        (true, true, false, true),
+        (false, false, false, false),
+        (true, false, true, false),
+        (false, true, true, false),
+        (true, true, true, false),
+        (false, false, true, false),
+    ] {
+        assert_eq!(readback_reported(ar, mtp, greedy), reported);
+    }
 }
 
 #[cfg(all(
@@ -3329,12 +3390,129 @@ fn lfm3_lookup_enabled(flag: Option<&str>, plain_lfm3: bool, greedy: bool) -> Op
     (plain_lfm3 && greedy).then_some(lines)
 }
 
+/// L4+L3 gate: `MLXL3_LFM3_LOOKUP=v2` under the conditions of
+/// `lfm3_lookup_enabled`; its steps without a proposal use the certified
+/// head under the default gate of `lfm3_cert_enabled` (`MLXL3_LFM3_CERT_HEAD`).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn lfm3_lookup_v2_enabled(flag: Option<&str>, plain_lfm3: bool, greedy: bool) -> bool {
+    flag == Some("v2") && plain_lfm3 && greedy
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_lookup_v2_is_opt_in_and_greedy() {
+    assert!(lfm3_lookup_v2_enabled(Some("v2"), true, true));
+    for (flag, plain, greedy) in [
+        (None, true, true),
+        (Some("1"), true, true),
+        (Some("lines"), true, true),
+        (Some("V2"), true, true),
+        (Some("v2"), false, true),
+        (Some("v2"), true, false),
+    ] {
+        assert!(!lfm3_lookup_v2_enabled(flag, plain, greedy));
+    }
+    assert_eq!(lfm3_lookup_enabled(Some("v2"), true, true), None);
+}
+
 /// LFM3-CERT-HEAD gate: on by default (`MLXL3_LFM3_CERT_HEAD` unset or `1`;
 /// any other value, such as `0`, disables it) for an LFM3 target without MTP,
 /// draft or prompt lookup, under the greedy rule of `select_token`.
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn lfm3_cert_enabled(flag: Option<&str>, plain_lfm3: bool, lookup: bool, greedy: bool) -> bool {
     matches!(flag, None | Some("1")) && plain_lfm3 && !lookup && greedy
+}
+
+/// L1 gate: on by default (`MLXL3_LFM3_CERT_SAMPLE` unset or `1`; any other
+/// value, such as `0`, disables it) for an LFM3 target without MTP, draft or
+/// prompt lookup, a sampler outside the greedy rule of `select_token`, and a
+/// kept set the head can certify (`Sampler::certified_k`: penalties that
+/// only lower values and `1 <= top_k <= SAMPLE_MAX_K`).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn lfm3_cert_sample_enabled(
+    flag: Option<&str>,
+    plain_lfm3: bool,
+    lookup: bool,
+    greedy: bool,
+    certified_k: bool,
+) -> bool {
+    matches!(flag, None | Some("1")) && plain_lfm3 && !lookup && !greedy && certified_k
+}
+
+/// L2 screening copy of the greedy head: int4 by default,
+/// `MLXL3_LFM3_CERT_SCREEN=int8` keeps the previous int8 screen.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn lfm3_cert_screen(flag: Option<&str>) -> mlxl3_native::lfm2::CertScreenKind {
+    if flag == Some("int8") {
+        mlxl3_native::lfm2::CertScreenKind::Int8
+    } else {
+        mlxl3_native::lfm2::CertScreenKind::Int4
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_cert_sample_is_default_sampled_and_exclusive() {
+    for flag in [None, Some("1")] {
+        assert!(lfm3_cert_sample_enabled(flag, true, false, false, true));
+    }
+    for (flag, plain, lookup, greedy, certified_k) in [
+        (Some("0"), true, false, false, true),
+        (Some("true"), true, false, false, true),
+        (Some("1 "), true, false, false, true),
+        (Some(""), true, false, false, true),
+        (None, false, false, false, true),
+        (None, true, true, false, true),
+        (None, true, false, true, true),
+        (None, true, false, false, false),
+        (Some("1"), false, false, false, true),
+        (Some("1"), true, true, false, true),
+        (Some("1"), true, false, true, true),
+        (Some("1"), true, false, false, false),
+    ] {
+        assert!(!lfm3_cert_sample_enabled(
+            flag,
+            plain,
+            lookup,
+            greedy,
+            certified_k
+        ));
+    }
+    use mlxl3_native::lfm2::CertScreenKind;
+    assert_eq!(lfm3_cert_screen(Some("int8")), CertScreenKind::Int8);
+    for flag in [
+        None,
+        Some(""),
+        Some("int4"),
+        Some("INT8"),
+        Some("int8 "),
+        Some("0"),
+    ] {
+        assert_eq!(lfm3_cert_screen(flag), CertScreenKind::Int4);
+    }
+}
+
+/// The L1 gate follows the Desktop presets: the default (T 0.2, top-k 80,
+/// repetition 1.05) and LFM3 (T 0.1, top-k 50, repetition 1.1) presets are
+/// certifiable; top-k 0, above `SAMPLE_MAX_K` or a negative presence penalty
+/// are not.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[test]
+fn lfm3_cert_sample_gate_covers_the_app_presets() {
+    use mlxl3_native::sampling::Sampler;
+    for (temperature, top_k, top_p, repetition, presence, k) in [
+        (0.2, 80, 1., 1.05, 0., Some(80)),
+        (0.1, 50, 1., 1.1, 0., Some(50)),
+        (0.7, 256, 0.9, 1., 0., Some(256)),
+        (0.7, 257, 0.9, 1., 0., None),
+        (0.7, 0, 0.9, 1., 0., None),
+        (0.7, 40, 1., 1., -0.5, None),
+        (0.7, 40, 1., 0.9, 0., None),
+        (0., 40, 1., 1.1, 0., Some(1)),
+    ] {
+        let sampler = Sampler::new(temperature, top_k, top_p, repetition, presence).unwrap();
+        assert_eq!(sampler.certified_k(256), k, "{temperature} {top_k}");
+    }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -3524,15 +3702,53 @@ fn bridge_generate_round(
     };
     // LFM3-PLD: opt-in, greedy only; the target verifies every proposal exactly.
     #[cfg(feature = "mlx")]
-    let mut lfm3_lookup = lfm3_lookup_enabled(
-        std::env::var("MLXL3_LFM3_LOOKUP").ok().as_deref(),
-        matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
-        sampler.is_greedy(),
-    )
-    .map(|lines| (mlxl3_native::lfm3::PromptLookup::new(&tokens), lines));
+    let lookup_flag = std::env::var("MLXL3_LFM3_LOOKUP").ok();
+    #[cfg(feature = "mlx")]
+    let plain_lfm3 = matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none();
+    #[cfg(feature = "mlx")]
+    let mut lfm3_lookup =
+        lfm3_lookup_enabled(lookup_flag.as_deref(), plain_lfm3, sampler.is_greedy())
+            .map(|lines| (mlxl3_native::lfm3::PromptLookup::new(&tokens), lines));
+    // L4+L3: whole-context lookup composed with the certified head.
+    #[cfg(feature = "mlx")]
+    let mut lfm3_lookup_certified = false;
+    #[cfg(feature = "mlx")]
+    if lfm3_lookup_v2_enabled(lookup_flag.as_deref(), plain_lfm3, sampler.is_greedy()) {
+        let mut session = mlxl3_native::lfm3::PromptLookup::new_v2(&tokens);
+        if lfm3_cert_enabled(
+            std::env::var("MLXL3_LFM3_CERT_HEAD").ok().as_deref(),
+            plain_lfm3,
+            false,
+            sampler.is_greedy(),
+        ) && let NativeChatModel::Lfm3(target) = &mut *model
+            && target.enable_certified_head()?
+        {
+            session.use_certified_head();
+            lfm3_lookup_certified = true;
+        }
+        lfm3_lookup = Some((session, false));
+    }
     // LFM3-CERT-HEAD: default on, greedy only; `[certified, fallback]` steps.
+    // `[certified, fallback, check mismatch]` steps.
     #[cfg(feature = "mlx")]
     let mut lfm3_cert = None;
+    // L1: the same counters for sampled steps.
+    #[cfg(feature = "mlx")]
+    let mut lfm3_sample = false;
+    #[cfg(feature = "mlx")]
+    let lfm3_check = std::env::var("MLXL3_LFM3_CERT_CHECK").as_deref() == Ok("1");
+    // Q1: process-wide counters, reported as this round's difference for
+    // rounds that may read back rows (greedy rounds never do).
+    #[cfg(feature = "mlx")]
+    let readback_start = readback_reported(
+        mlxl3_native::topk_readback::ar_enabled(),
+        mlxl3_native::topk_readback::mtp_enabled(),
+        sampler.is_greedy(),
+    )
+    .then(mlxl3_native::topk_readback::counters);
+    #[cfg(feature = "mlx")]
+    let sampled_draft_start = mlxl3_native::sampling::sampled_draft_enabled()
+        .then(mlxl3_native::sampling::sampled_draft_levels);
     #[cfg(feature = "mlx")]
     if lfm3_cert_enabled(
         std::env::var("MLXL3_LFM3_CERT_HEAD").ok().as_deref(),
@@ -3540,9 +3756,24 @@ fn bridge_generate_round(
         lfm3_lookup.is_some(),
         sampler.is_greedy(),
     ) && let NativeChatModel::Lfm3(target) = &mut *model
+        && target.enable_certified_head_kind(lfm3_cert_screen(
+            std::env::var("MLXL3_LFM3_CERT_SCREEN").ok().as_deref(),
+        ))?
+    {
+        lfm3_cert = Some([0usize; 3]);
+    } else if lfm3_cert_sample_enabled(
+        std::env::var("MLXL3_LFM3_CERT_SAMPLE").ok().as_deref(),
+        matches!(model, NativeChatModel::Lfm3(_)) && mtp.is_none() && draft.is_none(),
+        lfm3_lookup.is_some(),
+        sampler.is_greedy(),
+        sampler
+            .certified_k(mlxl3_native::lfm2::CERT_SAMPLE_MAX_K)
+            .is_some(),
+    ) && let NativeChatModel::Lfm3(target) = &mut *model
         && target.enable_certified_head()?
     {
-        lfm3_cert = Some([0usize; 2]);
+        lfm3_cert = Some([0usize; 3]);
+        lfm3_sample = true;
     }
     #[cfg(not(feature = "mlx"))]
     let (mut logits, cached, mut mtp_session) = {
@@ -3709,12 +3940,40 @@ fn bridge_generate_round(
                                     .is_ok_and(|s| s.contains('\n'))
                         },
                     )?);
+                } else if let (Some(counts), NativeChatModel::Lfm3(target), true) =
+                    (lfm3_cert.as_mut(), &mut *model, lfm3_sample)
+                {
+                    let step =
+                        target.forward_sampled_certified(next, &sampler, &history, lfm3_check)?;
+                    counts[usize::from(!step.certified)] += 1;
+                    let mut distribution = sampler
+                        .distribution(step.values, &history, &[])?
+                        .canonical();
+                    if let Some(reference) = step.reference {
+                        let expected = sampler.distribution(reference, &history, &[])?.canonical();
+                        if expected != distribution {
+                            counts[2] += 1;
+                            eprintln!(
+                                "MLXL3_LFM3_CERT_CHECK: sampled distribution mismatch at token {}",
+                                generated.len()
+                            );
+                            distribution = expected;
+                        }
+                    }
+                    dflash_next = Some(distribution.sample(random));
                 } else if let (Some(counts), NativeChatModel::Lfm3(target)) =
                     (lfm3_cert.as_mut(), &mut *model)
                 {
-                    let (id, certified) = target.forward_greedy_certified(next)?;
-                    counts[usize::from(!certified)] += 1;
-                    dflash_next = Some(id);
+                    let step = target.forward_greedy_checked(next, lfm3_check)?;
+                    counts[usize::from(!step.certified)] += 1;
+                    if step.mismatch {
+                        counts[2] += 1;
+                        eprintln!(
+                            "MLXL3_LFM3_CERT_CHECK: greedy ID mismatch at token {}",
+                            generated.len()
+                        );
+                    }
+                    dflash_next = Some(step.id);
                 } else {
                     logits = model.forward(next)?;
                 }
@@ -3857,9 +4116,32 @@ fn bridge_generate_round(
         #[cfg(feature = "mlx")]
         lfm3_lookup_accepted_tokens: lfm3_lookup.as_ref().map(|s| s.0.accepted),
         #[cfg(feature = "mlx")]
-        lfm3_cert_tokens: lfm3_cert.map(|counts| counts[0]),
+        lfm3_cert_tokens: lfm3_cert.map(|counts| counts[0]).or_else(|| {
+            lfm3_lookup
+                .as_ref()
+                .filter(|_| lfm3_lookup_certified)
+                .map(|s| s.0.certified[0])
+        }),
         #[cfg(feature = "mlx")]
-        lfm3_cert_fallbacks: lfm3_cert.map(|counts| counts[1]),
+        lfm3_cert_fallbacks: lfm3_cert.map(|counts| counts[1]).or_else(|| {
+            lfm3_lookup
+                .as_ref()
+                .filter(|_| lfm3_lookup_certified)
+                .map(|s| s.0.certified[1])
+        }),
+        #[cfg(feature = "mlx")]
+        lfm3_cert_check_mismatches: lfm3_cert.filter(|_| lfm3_check).map(|counts| counts[2]),
+        #[cfg(feature = "mlx")]
+        topk_readback_rows: readback_start.map(|[certified, fallbacks]| {
+            let [now_certified, now_fallbacks] = mlxl3_native::topk_readback::counters();
+            [
+                now_certified.saturating_sub(certified),
+                now_fallbacks.saturating_sub(fallbacks),
+            ]
+        }),
+        #[cfg(feature = "mlx")]
+        mtp_sampled_draft_levels: sampled_draft_start
+            .map(|start| mlxl3_native::sampling::sampled_draft_levels().saturating_sub(start)),
         #[cfg(feature = "mlx")]
         mtp_accept_histogram: mtp_session
             .as_ref()
@@ -5157,6 +5439,25 @@ mod tests {
         assert!(!dflash_context_copy_enabled(Some(
             mlxl3_native::dflash::Family::Qwen38Dense
         )));
+    }
+
+    #[test]
+    fn bridge_stats_merge_topk_readback_rows_and_omit_them_when_off() {
+        let mut total = NativeStats::default();
+        total.accumulate(&NativeStats::default());
+        let plain = serde_json::to_value(&total).unwrap();
+        assert!(plain.get("topk_readback_rows").is_none());
+        total.accumulate(&NativeStats {
+            topk_readback_rows: Some([5, 1]),
+            ..Default::default()
+        });
+        total.accumulate(&NativeStats::default());
+        total.accumulate(&NativeStats {
+            topk_readback_rows: Some([2, 0]),
+            ..Default::default()
+        });
+        let json = serde_json::to_value(&total).unwrap();
+        assert_eq!(json["topk_readback_rows"], serde_json::json!([7, 1]));
     }
 
     #[test]

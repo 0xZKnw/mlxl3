@@ -1,0 +1,167 @@
+{
+  "status": "passed",
+  "off": {},
+  "on": {
+    "MLXL3_LFM3_EMBED_LAZY": "1"
+  },
+  "sampler": "greedy",
+  "sampled": false,
+  "mtp_head": null,
+  "mtp_depth": null,
+  "engine_sha256": "db2cf14ad3cb5cb5ea9ee18d3449c9e0956a6aa8d97fe424ae13f4cb716e823b",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "cases": [
+    "eos"
+  ],
+  "repeats": 1,
+  "long_file_sha256": "bb749793e5b1b5f72f3c96886213a4a34c67530b623efbd084bb27f576957526",
+  "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t83%; discharging; 6:35 remaining present: true",
+  "load_before": [
+    2.39453125,
+    3.1298828125,
+    3.51708984375
+  ],
+  "passes": [
+    {
+      "arm": "off",
+      "load": [
+        2.39453125,
+        3.1298828125,
+        3.51708984375
+      ],
+      "results": {
+        "eos": [
+          {
+            "token_hash": "d64c7e28927488aa",
+            "stop_reason": "max_tokens",
+            "generated_tokens": 64,
+            "decode_tps": 54.34741585585857,
+            "elapsed_seconds": 1.210242459,
+            "mlx_active_bytes": 2791426956,
+            "mlx_peak_bytes": 2797681554,
+            "process_footprint_bytes": 3540765720,
+            "lfm3_cert_tokens": 63,
+            "lfm3_cert_fallbacks": 0
+          }
+        ]
+      }
+    },
+    {
+      "arm": "on",
+      "load": [
+        2.39453125,
+        3.1298828125,
+        3.51708984375
+      ],
+      "results": {
+        "eos": [
+          {
+            "token_hash": "d64c7e28927488aa",
+            "stop_reason": "max_tokens",
+            "generated_tokens": 64,
+            "decode_tps": 54.10077428512912,
+            "elapsed_seconds": 1.216447959,
+            "mlx_active_bytes": 2267200396,
+            "mlx_peak_bytes": 2273454994,
+            "process_footprint_bytes": 3017264176,
+            "lfm3_cert_tokens": 63,
+            "lfm3_cert_fallbacks": 0
+          }
+        ]
+      }
+    },
+    {
+      "arm": "on",
+      "load": [
+        2.20263671875,
+        3.07763671875,
+        3.49609375
+      ],
+      "results": {
+        "eos": [
+          {
+            "token_hash": "d64c7e28927488aa",
+            "stop_reason": "max_tokens",
+            "generated_tokens": 64,
+            "decode_tps": 54.315587124571806,
+            "elapsed_seconds": 1.212047541,
+            "mlx_active_bytes": 2267200396,
+            "mlx_peak_bytes": 2273454994,
+            "process_footprint_bytes": 3018116048,
+            "lfm3_cert_tokens": 63,
+            "lfm3_cert_fallbacks": 0
+          }
+        ]
+      }
+    },
+    {
+      "arm": "off",
+      "load": [
+        2.20263671875,
+        3.07763671875,
+        3.49609375
+      ],
+      "results": {
+        "eos": [
+          {
+            "token_hash": "d64c7e28927488aa",
+            "stop_reason": "max_tokens",
+            "generated_tokens": 64,
+            "decode_tps": 54.53106443492626,
+            "elapsed_seconds": 1.207271458,
+            "mlx_active_bytes": 2791417740,
+            "mlx_peak_bytes": 2797672338,
+            "process_footprint_bytes": 3542354920,
+            "lfm3_cert_tokens": 63,
+            "lfm3_cert_fallbacks": 0
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "eos": {
+      "decode_tps_off": 54.43924014539242,
+      "decode_tps_on": 54.20818070485046,
+      "decode_gain_percent": -0.42443546222331596,
+      "pass_means": [
+        54.34741585585857,
+        54.10077428512912,
+        54.315587124571806,
+        54.53106443492626
+      ],
+      "drift_off_percent": 0.33791593615926097,
+      "drift_on_percent": 0.3970605638849989,
+      "generated_tokens": {
+        "off": [
+          64,
+          64
+        ],
+        "on": [
+          64,
+          64
+        ]
+      },
+      "distinct_hashes": 1,
+      "mlx_active_bytes": {
+        "off": 2791426956,
+        "on": 2267200396
+      },
+      "mlx_peak_bytes": {
+        "off": 2797681554,
+        "on": 2273454994
+      },
+      "process_footprint_bytes": {
+        "off": 3542354920,
+        "on": 3018116048
+      },
+      "counters_on_first": {
+        "lfm3_cert_tokens": 63,
+        "lfm3_cert_fallbacks": 0
+      }
+    }
+  },
+  "problems": [],
+  "mean_gain_percent": -0.42443546222331596,
+  "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t83%; discharging; 6:35 remaining present: true"
+}

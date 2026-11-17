@@ -1,0 +1,538 @@
+{
+  "campaign": "lfm3",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "max_tokens": 160,
+  "status": "failed",
+  "configs": {
+    "base-greedy": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 50.316533320601245,
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.7121295547475,
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 604
+        }
+      ],
+      "binary": "base",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 9.0
+    },
+    "new-greedy-default": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 51.022814899817185,
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.11638266220331,
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 8.0
+    },
+    "new-greedy-int4-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 44.386950780838696,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 44.56539542591572,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SCREEN": "int4",
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 8.4
+    },
+    "new-greedy-lookup-v2": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.56373197538183,
+          "counters": {
+            "lfm3_cert_fallbacks": 4,
+            "lfm3_cert_tokens": 132,
+            "lfm3_lookup_accepted_tokens": 13,
+            "lfm3_lookup_blocks": 10,
+            "lfm3_lookup_proposed_tokens": 30,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "17e338502042b6b7",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 60.68819749534611,
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 102,
+            "lfm3_lookup_accepted_tokens": 26,
+            "lfm3_lookup_blocks": 30,
+            "lfm3_lookup_proposed_tokens": 90,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 598
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_LOOKUP": "v2"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 6.9
+    },
+    "new-greedy-embed-lazy": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 53.46008941546941,
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 53.320599739186875,
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_EMBED_LAZY": "1"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 7.1
+    },
+    "new-lfm3preset-cert-sample-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "39a12c8bd66f87fb",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 40.09314679918952,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 25,
+            "lfm3_cert_tokens": 134,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" (Explain in five sentences how photosynthesis works.) So we need to produce exactly five sentences in French, explaining photosynthesis. Ensure it's five sentenc",
+          "text_chars": 752
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 42.084479103348656,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 30,
+            "lfm3_cert_tokens": 129,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SAMPLE": "1",
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.1
+      },
+      "mtp": false,
+      "wall_seconds": 9.0
+    },
+    "new-desktop-cert-sample-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "c9f2ad39dfc3167b",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 41.00234751333334,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 32,
+            "lfm3_cert_tokens": 127,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" So they want an explanation in five sentences about how photosynthesis works. I need to respond in French, presumably. The answer should be exactly five sentence",
+          "text_chars": 774
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "311326109324edb7",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 41.9861065596822,
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 39,
+            "lfm3_cert_tokens": 120,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text_head": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is ",
+          "text_chars": 601
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SAMPLE": "1",
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": false,
+      "wall_seconds": 8.9
+    },
+    "new-desktop-topk-readback": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "ef18f0e2305240f9",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 38.82144205908929,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              133,
+              27
+            ]
+          },
+          "text_head": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The languag",
+          "text_chars": 809
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "607d35195522bf2f",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 47.1415732973822,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              126,
+              34
+            ]
+          },
+          "text_head": "We need to copy exactly the function Python, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In `moyenne`, there is `total = 0` and then `to",
+          "text_chars": 556
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_TOPK_READBACK": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": false,
+      "wall_seconds": 8.6
+    }
+  },
+  "checks": {
+    "base-greedy": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-greedy-default": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-greedy-int4-check": {
+      "greedy_hashes_equal_base": true,
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-greedy-lookup-v2": {
+      "greedy_hashes_equal_base": false,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-greedy-embed-lazy": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-lfm3preset-cert-sample-check": {
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-cert-sample-check": {
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-topk-readback": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    }
+  },
+  "failures": []
+}

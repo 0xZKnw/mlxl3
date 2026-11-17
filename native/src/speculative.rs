@@ -285,6 +285,118 @@ pub fn prompt_lookup(
     Some(&history[end..end + width.min(history.len() - end)])
 }
 
+/// Longest n-gram of `NgramIndex` (the anchor included).
+pub const NGRAM_MAX: usize = 8;
+/// Shortest n-gram of `NgramIndex` (L3: two IDs).
+pub const NGRAM_MIN: usize = 2;
+
+/// L4+L3 (`MLXL3_LFM3_LOOKUP=v2`): prompt lookup over the whole context.
+/// The proposal continues the latest earlier occurrence of the longest
+/// suffix of `NGRAM_MAX` down to `NGRAM_MIN` IDs (the anchor included), as
+/// the R2 simulation. One hash map per length stores the latest end of each
+/// n-gram; a hit is compared with the IDs, and a hash collision falls back to
+/// a scan, so the result is the one of `ngram_lookup_scan`.
+pub struct NgramIndex {
+    sequence: Vec<u32>,
+    /// N-grams ending at most at this length are indexed.
+    indexed: usize,
+    ends: [std::collections::HashMap<u64, usize>; NGRAM_MAX - NGRAM_MIN + 1],
+}
+
+fn ngram_hash(ids: &[u32]) -> u64 {
+    let mut hash = 0x9e37_79b9_7f4a_7c15u64 ^ ids.len() as u64;
+    for &id in ids {
+        hash = (hash.rotate_left(5) ^ u64::from(id)).wrapping_mul(0x5170_9b72_2ac1_29b3);
+    }
+    hash ^ (hash >> 29)
+}
+
+/// Reference of `NgramIndex::lookup`: a backward scan per length.
+pub fn ngram_lookup_scan(sequence: &[u32], width: usize) -> Option<&[u32]> {
+    let length = sequence.len();
+    if width == 0 {
+        return None;
+    }
+    for n in (NGRAM_MIN..=NGRAM_MAX).rev() {
+        if n >= length {
+            continue;
+        }
+        let gram = &sequence[length - n..];
+        if let Some(end) = (n..length)
+            .rev()
+            .find(|&end| &sequence[end - n..end] == gram)
+        {
+            return Some(&sequence[end..(end + width).min(length)]);
+        }
+    }
+    None
+}
+
+impl NgramIndex {
+    pub fn new(prompt: &[u32]) -> Self {
+        Self {
+            sequence: prompt.to_vec(),
+            indexed: 0,
+            ends: Default::default(),
+        }
+    }
+
+    pub fn push(&mut self, id: u32) {
+        self.sequence.push(id);
+    }
+
+    pub fn sequence(&self) -> &[u32] {
+        &self.sequence
+    }
+
+    fn index_until(&mut self, limit: usize) {
+        while self.indexed < limit {
+            self.indexed += 1;
+            let end = self.indexed;
+            for n in NGRAM_MIN..=NGRAM_MAX.min(end) {
+                let hash = ngram_hash(&self.sequence[end - n..end]);
+                self.ends[n - NGRAM_MIN].insert(hash, end);
+            }
+        }
+    }
+
+    /// Up to `width` proposed IDs after the current sequence (which ends with
+    /// the anchor).
+    pub fn lookup(&mut self, width: usize) -> Option<&[u32]> {
+        let length = self.sequence.len();
+        if width == 0 || length < NGRAM_MIN + 1 {
+            return None;
+        }
+        self.index_until(length - 1);
+        let mut found = None;
+        for n in (NGRAM_MIN..=NGRAM_MAX).rev() {
+            if n >= length {
+                continue;
+            }
+            let gram = &self.sequence[length - n..];
+            match self.ends[n - NGRAM_MIN].get(&ngram_hash(gram)) {
+                Some(&end) if &self.sequence[end - n..end] == gram => {
+                    found = Some(end);
+                    break;
+                }
+                Some(_) => {
+                    // Collision: the map may hide an older occurrence.
+                    if let Some(end) = (n..length)
+                        .rev()
+                        .find(|&end| &self.sequence[end - n..end] == gram)
+                    {
+                        found = Some(end);
+                        break;
+                    }
+                }
+                None => {}
+            }
+        }
+        let end = found?;
+        Some(&self.sequence[end..(end + width).min(length)])
+    }
+}
+
 /// Request-local copy proposals; target verification remains authoritative.
 pub struct DFlashCopy {
     history: [u32; LOOKUP_WINDOW],
@@ -617,6 +729,79 @@ fn dflash_modes_preserve_context_and_output_budgets() {
 
 #[cfg(test)]
 mod tests {
+
+    fn sequence(seed: u64, length: usize, alphabet: u64) -> Vec<u32> {
+        let mut state = seed | 1;
+        (0..length)
+            .map(|i| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                // Repeated spans make long matches common.
+                if i % 50 < 20 {
+                    (i % 13) as u32
+                } else {
+                    (state % alphabet) as u32
+                }
+            })
+            .collect()
+    }
+
+    /// L4+L3: the incremental index equals the scan reference at every
+    /// position and width, on random and repetitive sequences.
+    #[test]
+    fn ngram_index_matches_the_scan_reference() {
+        let mut hits = 0;
+        let mut checked = 0;
+        for (seed, alphabet) in [(1u64, 3u64), (2, 7), (3, 50), (4, 1000)] {
+            let ids = sequence(seed, 700, alphabet);
+            let mut index = NgramIndex::new(&ids[..5]);
+            for &id in &ids[5..] {
+                index.push(id);
+                for width in 0..=3 {
+                    let expected = ngram_lookup_scan(index.sequence(), width).map(<[u32]>::to_vec);
+                    let got = index.lookup(width).map(<[u32]>::to_vec);
+                    assert_eq!(
+                        got,
+                        expected,
+                        "seed {seed} length {}",
+                        index.sequence().len()
+                    );
+                    hits += usize::from(got.is_some());
+                    checked += 1;
+                }
+            }
+        }
+        assert!(hits > checked / 3 && hits < checked, "{hits}/{checked}");
+    }
+
+    #[test]
+    fn ngram_scan_policy_boundaries() {
+        // The longest suffix wins over a more recent shorter one.
+        let ids = [1, 2, 3, 9, 7, 3, 8, 1, 2, 3];
+        assert_eq!(ngram_lookup_scan(&ids, 3), Some(&[9, 7, 3][..]));
+        // The proposal stops at the end of the sequence.
+        assert_eq!(ngram_lookup_scan(&[5, 6, 5, 6], 3), Some(&[5, 6][..]));
+        // A single repeated ID is not a two-ID match.
+        assert_eq!(ngram_lookup_scan(&[4, 1, 2, 4], 3), None);
+        assert_eq!(ngram_lookup_scan(&[4, 4], 3), None);
+        assert_eq!(ngram_lookup_scan(&[4, 4, 4], 3), Some(&[4][..]));
+        assert_eq!(ngram_lookup_scan(&[1, 2, 1, 2], 0), None);
+        let mut index = NgramIndex::new(&[]);
+        assert_eq!(index.lookup(3), None);
+        for id in [4, 4, 4] {
+            index.push(id);
+        }
+        assert_eq!(index.lookup(3), Some(&[4][..]));
+        // The whole context is searched, past the old 1024-ID window.
+        let mut far = vec![10, 11, 12];
+        far.extend((0..3000).map(|i| 100 + i));
+        far.extend([10, 11]);
+        assert_eq!(ngram_lookup_scan(&far, 2), Some(&[12, 100][..]));
+        let mut index = NgramIndex::new(&far);
+        assert_eq!(index.lookup(2), Some(&[12, 100][..]));
+    }
+
     use super::*;
 
     #[test]

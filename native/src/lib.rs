@@ -164,6 +164,8 @@ pub mod structured;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
 pub mod tool_call;
+#[cfg(feature = "mlx")]
+pub mod topk_readback;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod weighted_epilogue;
 

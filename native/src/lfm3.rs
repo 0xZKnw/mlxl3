@@ -311,9 +311,15 @@ mod runtime {
     pub struct PromptLookup {
         history: Vec<u32>,
         queue: std::collections::VecDeque<u32>,
+        /// L4+L3 (`v2`): whole-context n-gram index, two-ID matches.
+        index: Option<crate::speculative::NgramIndex>,
+        /// L4+L3: steps without a proposal use the certified greedy head.
+        certified_steps: bool,
         pub blocks: usize,
         pub proposed: usize,
         pub accepted: usize,
+        /// Certified-head steps without a proposal: `[certified, fallback]`.
+        pub certified: [usize; 2],
     }
 
     impl PromptLookup {
@@ -321,9 +327,34 @@ mod runtime {
             Self {
                 history: prompt.to_vec(),
                 queue: Default::default(),
+                index: None,
+                certified_steps: false,
                 blocks: 0,
                 proposed: 0,
                 accepted: 0,
+                certified: [0; 2],
+            }
+        }
+
+        /// L4+L3: proposals from `NgramIndex` instead of the 7+1-ID match
+        /// over the last 1024 IDs.
+        pub fn new_v2(prompt: &[u32]) -> Self {
+            Self {
+                index: Some(crate::speculative::NgramIndex::new(prompt)),
+                ..Self::new(&[])
+            }
+        }
+
+        /// L4+L3: steps without a proposal run `forward_greedy_certified`
+        /// (the certified head must be enabled on the model).
+        pub fn use_certified_head(&mut self) {
+            self.certified_steps = true;
+        }
+
+        fn push(&mut self, id: u32) {
+            match &mut self.index {
+                Some(index) => index.push(id),
+                None => self.history.push(id),
             }
         }
 
@@ -341,7 +372,7 @@ mod runtime {
         ) -> Result<u32> {
             ensure!(remaining > 0, "prompt lookup has no token budget");
             if let Some(next) = self.queue.pop_front() {
-                self.history.push(anchor);
+                self.push(anchor);
                 return Ok(next);
             }
             let room =
@@ -350,15 +381,34 @@ mod runtime {
                 .min(room)
                 .saturating_sub(1)
                 .min(crate::lfm2::LFM3_VERIFY_MAX_ROWS as usize - 1);
-            let draft = (width > 0)
-                .then(|| {
-                    crate::speculative::prompt_lookup(&self.history, anchor, width, allow_context)
-                        .map(<[u32]>::to_vec)
-                })
-                .flatten()
-                .filter(|draft| !draft.is_empty());
-            self.history.push(anchor);
+            let draft = match &mut self.index {
+                Some(index) => {
+                    index.push(anchor);
+                    index.lookup(width).map(<[u32]>::to_vec)
+                }
+                None => {
+                    let draft = (width > 0)
+                        .then(|| {
+                            crate::speculative::prompt_lookup(
+                                &self.history,
+                                anchor,
+                                width,
+                                allow_context,
+                            )
+                            .map(<[u32]>::to_vec)
+                        })
+                        .flatten();
+                    self.history.push(anchor);
+                    draft
+                }
+            }
+            .filter(|draft| !draft.is_empty());
             let Some(draft) = draft else {
+                if self.certified_steps {
+                    let (id, certified) = model.forward_greedy_certified(anchor)?;
+                    self.certified[usize::from(!certified)] += 1;
+                    return Ok(id);
+                }
                 return greedy(&model.forward(&[anchor])?);
             };
             let mut rows = Vec::with_capacity(draft.len() + 1);
@@ -525,15 +575,57 @@ mod runtime {
         pub fn enable_certified_head(&mut self) -> Result<bool> {
             self.language.enable_certified_head()
         }
+        /// LFM3-CERT-HEAD with the chosen screening copy.
+        pub fn enable_certified_head_kind(
+            &mut self,
+            kind: crate::lfm2::CertScreenKind,
+        ) -> Result<bool> {
+            self.language.enable_certified_head_kind(kind)
+        }
         /// LFM3-CERT-HEAD: one decode step returning the greedy ID of
         /// `forward` and whether the screening head certified it.
         pub fn forward_greedy_certified(&mut self, token: u32) -> Result<(u32, bool)> {
+            let step = self.forward_greedy_checked(token, false)?;
+            Ok((step.id, step.certified))
+        }
+        /// `forward_greedy_certified` with the optional full-head oracle.
+        pub fn forward_greedy_checked(
+            &mut self,
+            token: u32,
+            check: bool,
+        ) -> Result<crate::lfm2::CertifiedStep> {
             let tokens = [token];
             let hidden = self.embedded(&tokens)?;
             match self
                 .language
-                .forward_certified_embedded(&tokens, Some(hidden))
+                .forward_certified_checked(&tokens, Some(hidden), check)
             {
+                Ok(value) => Ok(value),
+                Err(error) => {
+                    self.reset();
+                    Err(error)
+                }
+            }
+        }
+        /// L1: one decode step returning the log probabilities for
+        /// `sampler.distribution(.., history, &[])`; see
+        /// `Lfm2::forward_sampled_embedded`.
+        pub fn forward_sampled_certified(
+            &mut self,
+            token: u32,
+            sampler: &crate::sampling::Sampler,
+            history: &crate::sampling::History,
+            check: bool,
+        ) -> Result<crate::lfm2::SampledStep> {
+            let tokens = [token];
+            let hidden = self.embedded(&tokens)?;
+            match self.language.forward_sampled_embedded(
+                &tokens,
+                Some(hidden),
+                sampler,
+                history,
+                check,
+            ) {
                 Ok(value) => Ok(value),
                 Err(error) => {
                     self.reset();

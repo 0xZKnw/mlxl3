@@ -215,7 +215,7 @@ fn q36_head_lane_indices(input: i32, output: i32, k: usize, cb: Codebook) -> Res
     Ok(Some(indices))
 }
 
-fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
+pub(crate) fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
     Ok(match dtype {
         "F16" => Dtype::Float16,
         "BF16" => Dtype::BFloat16,

@@ -383,6 +383,8 @@ mod native {
         mlp: Mlp,
         draft_head: Option<AffineLinear>,
         draft_ids: Option<Array>,
+        /// Q3b: host copy of `draft_ids` for sampled compact drafts.
+        draft_id_list: Option<Vec<u32>>,
         wiring: Wiring,
         /// Q36-MTP-EVICT-T3B: truncate the verify width by draft confidence.
         evict: bool,
@@ -513,6 +515,7 @@ mod native {
             };
             let draft_metadata = projection_path.join("draft_head_q4.json");
             let mut draft_ids = None;
+            let mut draft_id_list = None;
             let draft_head = if draft_metadata.exists() {
                 #[derive(Deserialize)]
                 #[serde(deny_unknown_fields)]
@@ -557,6 +560,7 @@ mod native {
                 );
                 if let Some(ids) = &metadata.token_ids {
                     draft_ids = Some(Array::from_u32(ids, &[metadata.output])?);
+                    draft_id_list = Some(ids.clone());
                 }
                 let checkpoint = Checkpoint {
                     path: projection_path,
@@ -656,6 +660,7 @@ mod native {
                 mlp,
                 draft_head,
                 draft_ids,
+                draft_id_list,
                 wiring,
                 evict,
             };
@@ -701,6 +706,7 @@ mod native {
         pub(crate) fn use_target_draft_head(&mut self) {
             self.draft_head = None;
             self.draft_ids = None;
+            self.draft_id_list = None;
         }
 
         pub fn snapshot(&self) -> Result<Cache> {
@@ -933,6 +939,86 @@ mod native {
             Ok((proposed, exact.context("missing MTP first cache")?, tops))
         }
 
+        /// Q3-MTP-SAMPLED-DRAFT: `draft_chain` drawing each level from the
+        /// head's law under the target policy (penalties include the earlier
+        /// levels) instead of its argmax; one host transfer per level. Also
+        /// returns each level's draft distribution. Full-vocabulary heads only.
+        #[allow(clippy::type_complexity)]
+        fn draft_chain_sampled(
+            &mut self,
+            target: &Qwen35Moe,
+            hidden: &Array,
+            anchor: u32,
+            width: usize,
+            draw: &mut crate::sampling::Draw<'_>,
+        ) -> Result<(
+            Vec<u32>,
+            Cache,
+            Option<Vec<f32>>,
+            Vec<crate::sampling::Distribution>,
+        )> {
+            ensure!((1..=3).contains(&width), "invalid MTP chain width");
+            ensure!(
+                self.draft_ids.is_some() == self.draft_id_list.is_some(),
+                "compact MTP head without its host token IDs"
+            );
+            let vocab = usize::try_from(self.layout.vocab_size)?;
+            let mut token = Array::from_u32(&[anchor], &[1, 1])?;
+            let mut hidden = hidden.try_clone()?;
+            let mut proposed = Vec::with_capacity(width);
+            let mut drafts = Vec::with_capacity(width);
+            let mut tops = Vec::new();
+            let mut exact = None;
+            if self.wiring.seed {
+                hidden = target.mtp_final_norm(&hidden)?;
+            }
+            for index in 0..width {
+                let mixed = self.mixed_embedding(&hidden, &target.mtp_embedding_ids(&token)?)?;
+                let residual = self.residual(&mixed)?;
+                if index == 0 {
+                    exact = Some(self.snapshot()?);
+                }
+                let normalized = residual.rms_norm(&self.norm, self.layout.rms_norm_eps)?;
+                let log_probs = self.draft_logits(target, &normalized)?.log_probs()?;
+                hidden = if self.wiring.chain {
+                    normalized
+                } else {
+                    residual
+                };
+                let values = match &self.draft_id_list {
+                    // Q3b: compact row → full row, so `choice` is a real ID.
+                    Some(ids) => {
+                        crate::sampling::expand_compact_row(&log_probs.to_f32()?, ids, vocab)?
+                    }
+                    None => log_probs.to_f32()?,
+                };
+                let top_values = self.evict.then(|| values.clone());
+                let (choice, draft) = draw.draw_draft(values, &proposed)?;
+                if let Some(values) = top_values {
+                    tops.push(
+                        *values
+                            .get(choice as usize)
+                            .context("MTP draft outside vocabulary")?,
+                    );
+                }
+                token = Array::from_u32(&[choice], &[1, 1])?;
+                proposed.push(choice);
+                drafts.push(draft);
+            }
+            let tops = self.evict.then_some(tops);
+            Ok((
+                proposed,
+                exact.context("missing MTP first cache")?,
+                tops,
+                drafts,
+            ))
+        }
+
+        /// Q3 is used for this head (flag set; full or compact vocabulary).
+        pub fn samples_drafts(&self) -> bool {
+            crate::sampling::sampled_draft_enabled()
+        }
+
         pub fn forward(
             &mut self,
             target: &Qwen35Moe,
@@ -1108,8 +1194,7 @@ mod native {
                 let logits = target.forward(anchor)?;
                 self.remember(&[anchor]);
                 let next = if let Some(draw) = draw.as_mut() {
-                    let rows = crate::sampling::log_prob_rows(&logits)?;
-                    draw.sample(rows.last().context("missing MTP fallback row")?.to_vec())?
+                    draw.sample_last_row(&logits)?
                 } else {
                     logits
                         .chat_greedy_ids()?
@@ -1132,10 +1217,16 @@ mod native {
             let lookup =
                 crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
             let is_lookup = lookup.is_some();
+            let mut drafts = None;
             let (mut proposals, exact_first_cache, tops) = if let Some(proposals) = lookup {
                 let proposals = proposals.to_vec();
                 head.append_cache(target, &hidden, &[anchor])?;
                 (proposals, head.snapshot()?, None)
+            } else if let Some(draw) = draw.as_mut().filter(|_| head.samples_drafts()) {
+                let (proposals, cache, tops, sampled) =
+                    head.draft_chain_sampled(target, &hidden, anchor, width, draw)?;
+                drafts = Some(sampled);
+                (proposals, cache, tops)
             } else {
                 head.draft_chain(target, &hidden, anchor, width)?
             };
@@ -1151,6 +1242,9 @@ mod native {
                 #[cfg(test)]
                 super::cycle_trace::evict(proposals.len(), &tops, kept);
                 proposals.truncate(kept);
+                if let Some(drafts) = drafts.as_mut() {
+                    drafts.truncate(kept);
+                }
             }
             let width = proposals.len();
             let verification = std::iter::once(anchor)
@@ -1160,9 +1254,12 @@ mod native {
             #[cfg(test)]
             super::cycle_trace::mark("verify_ready");
             let accepted = if let Some(draw) = draw.as_mut() {
-                let rows = crate::sampling::log_prob_rows(&logits)?;
-                ensure!(rows.len() == width + 1, "invalid MTP verification output");
-                draw.speculative_accept(&proposals, |index| Ok(rows[index].to_vec()))?
+                ensure!(width == proposals.len(), "invalid MTP verification width");
+                match &drafts {
+                    Some(drafts) => draw.accept_drafts_logits(&proposals, drafts, &logits),
+                    None => draw.speculative_accept_logits(&proposals, &logits),
+                }
+                .context("invalid MTP verification output")?
             } else {
                 let tokens = logits.chat_greedy_ids()?;
                 #[cfg(test)]

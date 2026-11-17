@@ -1,0 +1,1103 @@
+{
+  "campaign": "lfm3-defaults",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "max_tokens": 160,
+  "status": "passed",
+  "configs": {
+    "base-greedy": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 54.444343405863414,
+          "memory": {
+            "mlx_active_bytes": 2786474892,
+            "mlx_cache_bytes": 162435168,
+            "mlx_peak_bytes": 2790938372,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 8,
+            "process_footprint_bytes": 3623357464,
+            "process_id": 52566,
+            "process_ledger_swapins_logical_bytes": 131072,
+            "process_lifetime_peak_bytes": 3623357464,
+            "process_start_abstime": 12550792211237
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: Light absorption by chlorophyll, water splitting, CO2 fixation, production of glucose and oxygen, and the role of chloroplasts. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convert",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 54.602163997084446,
+          "memory": {
+            "mlx_active_bytes": 2820569996,
+            "mlx_cache_bytes": 245322016,
+            "mlx_peak_bytes": 2849941394,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 8,
+            "process_footprint_bytes": 3747187760,
+            "process_id": 52566,
+            "process_ledger_swapins_logical_bytes": 131072,
+            "process_lifetime_peak_bytes": 3747187760,
+            "process_start_abstime": 12550792211237
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later `if not valeurs: return 0`. In the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop. So we need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is a check for empty list and returns 0. That's fine.\n\nWe must not add anything else",
+          "text_chars": 604
+        }
+      ],
+      "binary": "base",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "expect": {},
+      "mtp": false,
+      "wall_seconds": 7.2
+    },
+    "new-greedy-default": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 64.2834942526412,
+          "memory": {
+            "mlx_active_bytes": 2663027600,
+            "mlx_cache_bytes": 162369628,
+            "mlx_peak_bytes": 2667491080,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3371568032,
+            "process_id": 52568,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3371568032,
+            "process_start_abstime": 12550965723616
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: Light absorption by chlorophyll, water splitting, CO2 fixation, production of glucose and oxygen, and the role of chloroplasts. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convert",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 64.14578331972673,
+          "memory": {
+            "mlx_active_bytes": 2697122704,
+            "mlx_cache_bytes": 245256476,
+            "mlx_peak_bytes": 2726494102,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3495234464,
+            "process_id": 52568,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3495234464,
+            "process_start_abstime": 12550965723616
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later `if not valeurs: return 0`. In the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop. So we need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is a check for empty list and returns 0. That's fine.\n\nWe must not add anything else",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true,
+        "topk_readback_rows": false
+      },
+      "mtp": false,
+      "wall_seconds": 6.3
+    },
+    "new-greedy-default-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 50.49634292542861,
+          "memory": {
+            "mlx_active_bytes": 2663021456,
+            "mlx_cache_bytes": 162410588,
+            "mlx_peak_bytes": 2667480840,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3370093448,
+            "process_id": 52572,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3370093448,
+            "process_start_abstime": 12551117364077
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: Light absorption by chlorophyll, water splitting, CO2 fixation, production of glucose and oxygen, and the role of chloroplasts. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convert",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 50.424134904418466,
+          "memory": {
+            "mlx_active_bytes": 2697116560,
+            "mlx_cache_bytes": 245051676,
+            "mlx_peak_bytes": 2726487958,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3493596064,
+            "process_id": 52572,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3493596064,
+            "process_start_abstime": 12551117364077
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later `if not valeurs: return 0`. In the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop. So we need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is a check for empty list and returns 0. That's fine.\n\nWe must not add anything else",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true,
+        "lfm3_cert_check_mismatches": true
+      },
+      "mtp": false,
+      "wall_seconds": 7.4
+    },
+    "new-greedy-screen-int8": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 60.04344086301684,
+          "memory": {
+            "mlx_active_bytes": 2786416524,
+            "mlx_cache_bytes": 162353248,
+            "mlx_peak_bytes": 2790880004,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3618278400,
+            "process_id": 52574,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3618278400,
+            "process_start_abstime": 12551294215736
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 5,
+            "lfm3_cert_tokens": 154,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: Light absorption by chlorophyll, water splitting, CO2 fixation, production of glucose and oxygen, and the role of chloroplasts. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convert",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 59.50825873616925,
+          "memory": {
+            "mlx_active_bytes": 2820511628,
+            "mlx_cache_bytes": 245240096,
+            "mlx_peak_bytes": 2849883026,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3741912112,
+            "process_id": 52574,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3741944880,
+            "process_start_abstime": 12551294215736
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 1,
+            "lfm3_cert_tokens": 158,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later `if not valeurs: return 0`. In the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop. So we need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is a check for empty list and returns 0. That's fine.\n\nWe must not add anything else",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SCREEN": "int8"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true
+      },
+      "mtp": false,
+      "wall_seconds": 6.4
+    },
+    "new-greedy-cert-off": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "079a0b5b6ecb5572",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 51.073367183945216,
+          "memory": {
+            "mlx_active_bytes": 2523223948,
+            "mlx_cache_bytes": 40116320,
+            "mlx_peak_bytes": 2527421188,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2811775448,
+            "process_id": 52583,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3266071072,
+            "process_start_abstime": 12551447621942
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: Light absorption by chlorophyll, water splitting, CO2 fixation, production of glucose and oxygen, and the role of chloroplasts. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convert",
+          "text_chars": 757
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "8cb775342629fe31",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 47.148202203644345,
+          "memory": {
+            "mlx_active_bytes": 2525058956,
+            "mlx_cache_bytes": 156049696,
+            "mlx_peak_bytes": 2586690450,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2936195568,
+            "process_id": 52583,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3266071072,
+            "process_start_abstime": 12551447621942
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later `if not valeurs: return 0`. In the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop. So we need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is a check for empty list and returns 0. That's fine.\n\nWe must not add anything else",
+          "text_chars": 604
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_HEAD": "0"
+      },
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "expect": {
+        "lfm3_cert_tokens": false,
+        "lfm3_cert_fallbacks": false,
+        "topk_readback_rows": false
+      },
+      "mtp": false,
+      "wall_seconds": 7.4
+    },
+    "new-lfm3preset-default": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "80a783212d83038a",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 50.90732366295081,
+          "memory": {
+            "mlx_active_bytes": 2786413452,
+            "mlx_cache_bytes": 162480224,
+            "mlx_peak_bytes": 2790872836,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3620883504,
+            "process_id": 52588,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3620883504,
+            "process_start_abstime": 12551625118797
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 20,
+            "lfm3_cert_tokens": 139,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain photosynthesis in five sentences. Let's craft a concise but complete explanation: mention plants, chlorophyll, light energy, water and CO2, conversion to glucose and oxygen, etc. Ensure it's five sentences.\n\nWe need to be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus: Sentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convertissent l'énergie lum",
+          "text_chars": 749
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "2e524564aa0197b2",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 54.73283628778619,
+          "memory": {
+            "mlx_active_bytes": 2820508556,
+            "mlx_cache_bytes": 245367072,
+            "mlx_peak_bytes": 2849879954,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3744386144,
+            "process_id": 52588,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3744386144,
+            "process_start_abstime": 12551625118797
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 14,
+            "lfm3_cert_tokens": 145,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "We need to copy exactly the given Python function, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. In the second function `variance`, there is also `total = 0` and then `total += (v - m) ** 2`. We need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is an `if not valeurs: return 0` and then `return total / len(valeurs)`. So we need to change that accordingly",
+          "text_chars": 589
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.1
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true
+      },
+      "mtp": false,
+      "wall_seconds": 7.4
+    },
+    "new-lfm3preset-default-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "2de00a1391d125ff",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 45.20527565559574,
+          "memory": {
+            "mlx_active_bytes": 2786419596,
+            "mlx_cache_bytes": 163180640,
+            "mlx_peak_bytes": 2790878980,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3622980584,
+            "process_id": 52595,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3622980584,
+            "process_start_abstime": 12551801677643
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 14,
+            "lfm3_cert_tokens": 145,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" They want an explanation in five sentences about how photosynthesis works. So we need to produce exactly five sentences (or at least five sentences). The language is French. So we need to explain the process: plants convert light energy into chemical energy, using chlorophyll, CO2 and water, producing glucose and oxygen. The five sentences should cover the main steps: light absorption, water splitting, carbon fixation, production of glucose and oxygen. Also mention chloroplasts, thylakoid membranes, Calvin cycle. Ensure it's five sentences.\n\nWe must be mindful of the instruction: \"You are ChatGPT, a large language model trained by OpenAI.\" Not needed. Just answer.\n\nThus produce five sentences in",
+          "text_chars": 783
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "f0b5cf601b89e419",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 43.82297282920561,
+          "memory": {
+            "mlx_active_bytes": 2820514700,
+            "mlx_cache_bytes": 244789536,
+            "mlx_peak_bytes": 2849886098,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3745401928,
+            "process_id": 52595,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3745401928,
+            "process_start_abstime": 12551801677643
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 18,
+            "lfm3_cert_tokens": 141,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "We need to copy exactly the given Python function, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later there is `if not valeurs: return 0` and `return total / len(valeurs)`. So we need to change all occurrences of `total` to `somme`. Also note that in the second function `variance`, there is `m = moyenne(valeurs)`, then `total = 0` and loop, then `return total / len(valeurs)`. So change those too.\n\nWe must not",
+          "text_chars": 597
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.1
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true,
+        "lfm3_cert_check_mismatches": true
+      },
+      "mtp": false,
+      "wall_seconds": 8.2
+    },
+    "new-desktop-default": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "428eaccb8971936e",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 56.39698297422969,
+          "memory": {
+            "mlx_active_bytes": 2786404236,
+            "mlx_cache_bytes": 162361440,
+            "mlx_peak_bytes": 2790863620,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3620850736,
+            "process_id": 52603,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3620850736,
+            "process_start_abstime": 12551999053321
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 37,
+            "lfm3_cert_tokens": 122,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "We need to explain in five sentences how photosynthesis works. The user asks in French: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" So we need to provide exactly five sentences. The explanation should cover the basic process: plants use sunlight, carbon dioxide, and water to produce glucose and oxygen. Mention chlorophyll, light-dependent reactions, Calvin cycle, etc. But keep it concise and exactly five sentences.\n\nLet's craft:\n\n1. La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convertissent l'énergie lumineuse du soleil en énergie chimique. \n2. Dans les chloroplastes, la chlorophylle absorbe la lumière et excite les électrons, ce qui entraîne la division de l",
+          "text_chars": 734
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "df26d9d3b2f3fd42",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 55.03033900116152,
+          "memory": {
+            "mlx_active_bytes": 2820499340,
+            "mlx_cache_bytes": 245248288,
+            "mlx_peak_bytes": 2849870738,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3746155616,
+            "process_id": 52603,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3746155616,
+            "process_start_abstime": 12551999053321
+          },
+          "counters": {
+            "lfm3_cert_fallbacks": 44,
+            "lfm3_cert_tokens": 115,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. In the second function `variance`, there is also `total = 0` and then `total += (v - m) ** 2`. We need to rename all occurrences of `total` to `somme`. Also note that in `moyenne`, after the loop, there is an `if not valores: return 0` and then `return total / len(valeurs)`. So we need to change that accordingly",
+          "text_chars": 588
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true
+      },
+      "mtp": false,
+      "wall_seconds": 6.8
+    },
+    "new-desktop-default-check": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "aa6cddee89fc5494",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 43.676495572305704,
+          "memory": {
+            "mlx_active_bytes": 2786404236,
+            "mlx_cache_bytes": 162522208,
+            "mlx_peak_bytes": 2790863620,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3623537784,
+            "process_id": 52610,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3623537784,
+            "process_start_abstime": 12552161801619
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 31,
+            "lfm3_cert_tokens": 128,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" (Explain in five sentences how photosynthesis works.) So we need to produce a concise explanation in French, exactly five sentences. Must cover the basics: plants use sunlight, water, CO2, produce glucose and oxygen, occurs in chloroplasts, light-dependent reactions and Calvin cycle, etc. Ensure five sentences. Let's craft:\n\nSentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convertissent l'énergie lumineuse en énergie chimique. Sentence 2: Elles absorbent la lumière du soleil par les pigments chlorophylliques situés dans les chloroplastes. Sentence 3: L'énergie lumineuse excite les électrons",
+          "text_chars": 731
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "516f53c293af178c",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 43.01970312549304,
+          "memory": {
+            "mlx_active_bytes": 2820499340,
+            "mlx_cache_bytes": 249095456,
+            "mlx_peak_bytes": 2849870738,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 3752119440,
+            "process_id": 52610,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3752168592,
+            "process_start_abstime": 12552161801619
+          },
+          "counters": {
+            "lfm3_cert_check_mismatches": 0,
+            "lfm3_cert_fallbacks": 36,
+            "lfm3_cert_tokens": 123,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              1,
+              0
+            ]
+          },
+          "text": "We need to copy exactly the function Python, renaming `total` to `somme`, without adding anything. So we need to modify the code: In both functions, the variable `total` appears. In `moyenne`, there is `total = 0` and then `total += v`. In `variance`, there is `total = 0` and then `total += (v - m) ** 2`. We need to rename those occurrences of `total` to `somme`. But careful: The variable name `total` is used inside the function. We must change all occurrences of `total` to `somme`? The instruction: \"Recopie exactement cette fonction Python en renommant `total` en `somme`, sans rien",
+          "text_chars": 589
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_CHECK": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "expect": {
+        "lfm3_cert_tokens": true,
+        "lfm3_cert_fallbacks": true,
+        "lfm3_cert_check_mismatches": true
+      },
+      "mtp": false,
+      "wall_seconds": 8.5
+    },
+    "new-desktop-cert-sample-off": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "5142f9bbafd54907",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.27271590363572,
+          "memory": {
+            "mlx_active_bytes": 2523220876,
+            "mlx_cache_bytes": 40483936,
+            "mlx_peak_bytes": 2527418116,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2814151104,
+            "process_id": 52616,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3308210840,
+            "process_start_abstime": 12552365621729
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              124,
+              36
+            ]
+          },
+          "text": "We need to explain in five sentences how photosynthesis works. The user asks in French: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" So we need to provide exactly five sentences (or at least five sentences, but likely exactly five). We should cover the basic steps: plants take in light, CO2, water, convert to glucose and oxygen using chlorophyll in chloroplasts. Mention light-dependent reactions and Calvin cycle. Keep it concise but complete.\n\nLet's craft five sentences:\n\n1. La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convertissent l'énergie lumineuse en énergie chimique en utilisant la chlorophylle.\n2. Dans les chloroplastes, la lumière du soleil excite les élect",
+          "text_chars": 739
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "acc9d750bbb5cabf",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.06323560780009,
+          "memory": {
+            "mlx_active_bytes": 2525055884,
+            "mlx_cache_bytes": 155893024,
+            "mlx_peak_bytes": 2586687378,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2938063344,
+            "process_id": 52616,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3308210840,
+            "process_start_abstime": 12552365621729
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              112,
+              48
+            ]
+          },
+          "text": "We need to copy exactly the given Python function, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is a variable `total = 0`. In the second function `variance`, there is also a variable `total = 0`. We need to rename all occurrences of `total` to `somme`? The instruction: \"Recopie exactement cette fonction Python en renommant `total` en `somme`, sans rien ajouter\". So we need to change the variable name `total` to `somme` throughout the code. Also note that in the second function, there is a line",
+          "text_chars": 640
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SAMPLE": "0"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "expect": {
+        "lfm3_cert_tokens": false,
+        "lfm3_cert_fallbacks": false,
+        "topk_readback_rows": true
+      },
+      "mtp": false,
+      "wall_seconds": 7.1
+    },
+    "new-desktop-all-off": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "4c7caad919e52ff7",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.304113385449114,
+          "memory": {
+            "mlx_active_bytes": 2523220876,
+            "mlx_cache_bytes": 40493152,
+            "mlx_peak_bytes": 2527608806,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2810890688,
+            "process_id": 52620,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3305704232,
+            "process_start_abstime": 12552535918951
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "The user asks: \"Explique en cinq phrases comment fonctionne la photosynthèse.\" (Explain in five sentences how photosynthesis works.) So we need to produce exactly five sentences, presumably in French. The answer should be concise but cover the main points: plants use sunlight, water, CO2, produce glucose and oxygen, occurs in chloroplasts, light-dependent reactions and Calvin cycle, etc. Must be five sentences. Let's craft.\n\nSentence 1: La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries convertissent l'énergie lumineuse en énergie chimique. Sentence 2: Dans les chloroplastes, la chlorophylle absorbe la lumière du soleil et excite les électrons des molécules de chlorophyl",
+          "text_chars": 720
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "e558b03423fa5256",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.16512970232043,
+          "memory": {
+            "mlx_active_bytes": 2525055884,
+            "mlx_cache_bytes": 155902240,
+            "mlx_peak_bytes": 2586687378,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_footprint_bytes": 2935048736,
+            "process_id": 52620,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3305704232,
+            "process_start_abstime": 12552535918951
+          },
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "We need to copy exactly the function Python code, renaming `total` to `somme`, without adding anything. So we need to modify the variable name `total` inside both functions to `somme`. But careful: In the first function `moyenne`, there is `total = 0` and then `total += v`. Also later there is `if not valeurs: return 0` and `return total / len(valeurs)`. So we need to change all occurrences of `total` to `somme`. In the second function `variance`, there is also `total = 0` and then `total += (v - m) ** 2`. So we need to change that as well.\n\nWe must not add any extra code or comments.",
+          "text_chars": 591
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_LFM3_CERT_SAMPLE": "0",
+        "MLXL3_TOPK_READBACK": "0"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "expect": {
+        "lfm3_cert_tokens": false,
+        "lfm3_cert_fallbacks": false,
+        "topk_readback_rows": false
+      },
+      "mtp": false,
+      "wall_seconds": 7.0
+    }
+  },
+  "checks": {
+    "base-greedy": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-greedy-default": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-greedy-default-check": {
+      "greedy_hashes_equal_base": true,
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-greedy-screen-int8": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-greedy-cert-off": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-lfm3preset-default": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-lfm3preset-default-check": {
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-desktop-default": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-desktop-default-check": {
+      "check_mismatches": [
+        0,
+        0
+      ],
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-desktop-cert-sample-off": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    },
+    "new-desktop-all-off": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ],
+      "expect_ok": true
+    }
+  },
+  "failures": []
+}

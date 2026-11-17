@@ -145,6 +145,47 @@ pub(crate) fn half_weight(
     Ok(weight)
 }
 
+/// Resident F16 table (current path) or LFM3-EMBED-LAZY row reads.
+fn load_embeddings(
+    checkpoint: &Checkpoint,
+    name: &str,
+    info: &checkpoint::TensorInfo,
+    vocab: i32,
+    dim: i32,
+    lazy: bool,
+) -> Result<Embeddings> {
+    if !lazy {
+        return Ok(Embeddings::Resident(half_weight(
+            checkpoint,
+            name,
+            Some(&[vocab, dim]),
+        )?));
+    }
+    let dtype = crate::linear::checkpoint_dtype(&info.dtype, name)?;
+    ensure!(
+        matches!(dtype, Dtype::Float16 | Dtype::Float32 | Dtype::BFloat16),
+        "{name}: expected floating-point weights"
+    );
+    ensure!(
+        info.shape == [usize::try_from(vocab)?, usize::try_from(dim)?],
+        "{name}: shape {:?}, expected [{vocab}, {dim}]",
+        info.shape
+    );
+    let size = if dtype == Dtype::Float32 { 4u64 } else { 2 };
+    ensure!(
+        info.data_offsets[1].checked_sub(info.data_offsets[0])
+            == Some(u64::try_from(vocab)? * u64::try_from(dim)? * size),
+        "{name}: byte range does not match its shape"
+    );
+    info.source()?;
+    Ok(Embeddings::Lazy {
+        info: Box::new(info.clone()),
+        dtype,
+        rows: u32::try_from(vocab)?,
+        dim,
+    })
+}
+
 enum ProjectionWeights {
     Exl3(Exl3Linear),
     Affine(crate::affine::AffineLinear),
@@ -1318,12 +1359,123 @@ pub struct PrefillStats {
     pub max_block: usize,
 }
 
+/// Largest `top_k` the L1 sampling head certifies.
+pub const CERT_SAMPLE_MAX_K: usize = crate::lfm3_cert_head::SAMPLE_MAX_K;
+
+/// Screening copy of the LFM3-CERT-HEAD.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CertScreenKind {
+    /// One int8 level per weight, one scale per row (default).
+    Int8,
+    /// L2: one int4 level per weight, one F16 scale per 64 weights.
+    Int4,
+}
+
+/// One certified greedy step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CertifiedStep {
+    pub id: u32,
+    pub certified: bool,
+    /// Check oracle only: the screening ID differed from the full head.
+    pub mismatch: bool,
+}
+
+/// One L1 sampling step.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SampledStep {
+    /// Log probabilities for `Sampler::distribution`.
+    pub values: Vec<f32>,
+    pub certified: bool,
+    /// Check oracle only: the full-head row of a certified step.
+    pub reference: Option<Vec<f32>>,
+}
+
+/// LFM3-EMBED-LAZY: the input embedding table, resident in F16 or read
+/// row by row from the checkpoint (dense separate head only).
+enum Embeddings {
+    Resident(Array),
+    Lazy {
+        info: Box<checkpoint::TensorInfo>,
+        dtype: Dtype,
+        rows: u32,
+        dim: i32,
+    },
+}
+
+/// Absolute file offset of embedding row `id`, or None outside the table.
+fn lazy_row_offset(start: u64, row_bytes: u64, id: u32, rows: u32) -> Option<u64> {
+    if id >= rows {
+        return None;
+    }
+    u64::from(id).checked_mul(row_bytes)?.checked_add(start)
+}
+
+impl Embeddings {
+    fn dim(&self) -> i32 {
+        match self {
+            Self::Resident(table) => table.shape()[1],
+            Self::Lazy { dim, .. } => *dim,
+        }
+    }
+
+    /// The resident table (tied heads, which never use the lazy mode).
+    fn table(&self) -> Result<&Array> {
+        match self {
+            Self::Resident(table) => Ok(table),
+            Self::Lazy { .. } => anyhow::bail!("LFM lazy embeddings have no resident table"),
+        }
+    }
+
+    /// F16 rows `[1, tokens, dim]`; same values as `table.take(ids, 0)`.
+    fn take(&self, tokens: &[u32]) -> Result<Array> {
+        let time = i32::try_from(tokens.len())?;
+        match self {
+            Self::Resident(table) => {
+                let ids = Array::from_i32(
+                    &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
+                    &[1, time],
+                )?;
+                table.take(&ids, 0)
+            }
+            Self::Lazy {
+                info,
+                dtype,
+                rows,
+                dim,
+            } => {
+                use std::os::unix::fs::FileExt;
+                let size = match dtype {
+                    Dtype::Float32 => 4usize,
+                    _ => 2,
+                };
+                let row_bytes = usize::try_from(*dim)? * size;
+                let (file, start) = info.source()?;
+                let mut bytes = vec![0u8; row_bytes * tokens.len()];
+                for (&id, row) in tokens.iter().zip(bytes.chunks_exact_mut(row_bytes)) {
+                    let offset = lazy_row_offset(start, row_bytes as u64, id, *rows)
+                        .context("LFM embedding row outside the table")?;
+                    file.read_exact_at(row, offset)?;
+                }
+                Array::from_bytes(&bytes, &[1, time, *dim], *dtype)?.astype(Dtype::Float16)
+            }
+        }
+    }
+}
+
+/// LFM3-EMBED-LAZY gate: `MLXL3_LFM3_EMBED_LAZY=1` with a separate head.
+pub(crate) fn lazy_embeddings_enabled(separate_head: bool, flag: Option<&[u8]>) -> bool {
+    separate_head && flag == Some(b"1")
+}
+
 pub struct Lfm2 {
-    embeddings: Array,
+    embeddings: Embeddings,
+    /// Checkpoint record of the embedding table, kept for mode switches.
+    /// Name and record, boxed to keep the model enum small.
+    embedding_source: Box<(String, checkpoint::TensorInfo)>,
     norm: Array,
     head: Option<Projection>,
     /// LFM3-CERT-HEAD screening copy of `head`, built on request only.
-    certified_head: Option<crate::lfm3_cert_head::CertifiedHead>,
+    certified_head: Option<crate::lfm3_cert_head::Screen>,
     layers: Vec<Layer>,
     vocab_size: i32,
     context_limit: i32,
@@ -1500,11 +1652,12 @@ impl Lfm2 {
             "invalid LFM2 attention index"
         );
         let dim = config.hidden_size;
-        let embeddings = half_weight(
-            checkpoint,
-            &format!("{root}.embed_tokens.weight"),
-            Some(&[config.vocab_size, dim]),
-        )?;
+        let embedding_name = format!("{root}.embed_tokens.weight");
+        let embedding_info = checkpoint
+            .tensors
+            .get(&embedding_name)
+            .with_context(|| format!("missing tensor {embedding_name}"))?
+            .clone();
         let norm = half_weight(
             checkpoint,
             &format!("{root}.embedding_norm.weight"),
@@ -1523,6 +1676,18 @@ impl Lfm2 {
         } else {
             None
         };
+        let lazy_flag = std::env::var_os("MLXL3_LFM3_EMBED_LAZY");
+        let embeddings = load_embeddings(
+            checkpoint,
+            &embedding_name,
+            &embedding_info,
+            config.vocab_size,
+            dim,
+            lazy_embeddings_enabled(
+                head.is_some(),
+                lazy_flag.as_deref().map(std::ffi::OsStr::as_encoded_bytes),
+            ),
+        )?;
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for index in 0..config.num_hidden_layers {
             layers.push(Layer::load(
@@ -1539,6 +1704,7 @@ impl Lfm2 {
             && exact_moe_projection_metadata(checkpoint);
         Ok(Self {
             embeddings,
+            embedding_source: Box::new((embedding_name, embedding_info)),
             norm,
             head,
             certified_head: None,
@@ -1581,12 +1747,29 @@ impl Lfm2 {
             !tokens.is_empty() && tokens.iter().all(|&t| t < self.vocab_size as u32),
             "invalid LFM tokens"
         );
-        let time = i32::try_from(tokens.len())?;
-        let ids = Array::from_i32(
-            &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
-            &[1, time],
+        self.embeddings.take(tokens)
+    }
+
+    /// LFM3-EMBED-LAZY: switches the embedding table between resident F16
+    /// and row reads. Returns false (unchanged) for a tied head.
+    pub fn set_lazy_embeddings(&mut self, checkpoint: &Checkpoint, lazy: bool) -> Result<bool> {
+        if lazy && self.head.is_none() {
+            return Ok(false);
+        }
+        let dim = self.embeddings.dim();
+        self.embeddings = load_embeddings(
+            checkpoint,
+            &self.embedding_source.0,
+            &self.embedding_source.1,
+            self.vocab_size,
+            dim,
+            lazy,
         )?;
-        self.embeddings.take(&ids, 0)
+        Ok(true)
+    }
+
+    pub fn lazy_embeddings(&self) -> bool {
+        matches!(self.embeddings, Embeddings::Lazy { .. })
     }
 
     pub(crate) fn forward_embedded(
@@ -1597,7 +1780,7 @@ impl Lfm2 {
         self.forward_with(tokens, embedded, |model, hidden, time| {
             match &model.head {
                 Some(head) => head.forward(hidden)?,
-                None => hidden.matmul(&model.embeddings.transpose(&[1, 0])?)?,
+                None => hidden.matmul(&model.embeddings.table()?.transpose(&[1, 0])?)?,
             }
             .slice(1, time - 1, time)
         })
@@ -1606,7 +1789,19 @@ impl Lfm2 {
     /// LFM3-CERT-HEAD: builds the int8 screening copy of a dense F16 head.
     /// Returns false (and keeps the normal head) for unsupported heads.
     pub fn enable_certified_head(&mut self) -> Result<bool> {
-        if self.certified_head.is_some() {
+        self.enable_certified_head_kind(CertScreenKind::Int8)
+    }
+
+    /// LFM3-CERT-HEAD with the chosen screening copy (`Int4`: L2, the greedy
+    /// default; `MLXL3_LFM3_CERT_SCREEN=int8` selects `Int8`). A copy of the other
+    /// kind is replaced.
+    pub fn enable_certified_head_kind(&mut self, kind: CertScreenKind) -> Result<bool> {
+        let int4 = kind == CertScreenKind::Int4;
+        if self
+            .certified_head
+            .as_ref()
+            .is_some_and(|screen| screen.is_int4() == int4)
+        {
             return Ok(true);
         }
         let Some(weight) = self.head.as_ref().and_then(Projection::dense_weight) else {
@@ -1618,19 +1813,29 @@ impl Lfm2 {
         {
             return Ok(false);
         }
-        self.certified_head = Some(crate::lfm3_cert_head::CertifiedHead::build(weight)?);
+        self.certified_head = None;
+        self.certified_head = Some(if int4 {
+            crate::lfm3_cert_head::Screen::Int4(crate::lfm3_cert_head::Int4Head::build(weight)?)
+        } else {
+            crate::lfm3_cert_head::Screen::Int8(crate::lfm3_cert_head::CertifiedHead::build(
+                weight,
+            )?)
+        });
         Ok(true)
     }
 
     /// LFM3-CERT-HEAD: one T1 step returning the greedy ID of `select_token`
     /// (`chat_greedy_ids` of the step logits) and whether it was certified
     /// without the full head. Uncertified steps run the normal head, so the
-    /// caches and the returned ID always match `forward_embedded`.
-    pub(crate) fn forward_certified_embedded(
+    /// caches and the returned ID always match `forward_embedded`. With `check`, certified steps also run
+    /// the full head (debug oracle `MLXL3_LFM3_CERT_CHECK=1`), report a
+    /// mismatch and return the full-head ID.
+    pub(crate) fn forward_certified_checked(
         &mut self,
         tokens: &[u32],
         embedded: Option<Array>,
-    ) -> Result<(u32, bool)> {
+        check: bool,
+    ) -> Result<CertifiedStep> {
         ensure!(
             tokens.len() == 1,
             "certified LFM2 head steps take one token"
@@ -1644,6 +1849,14 @@ impl Lfm2 {
                 .head
                 .as_ref()
                 .context("certified head requires a head")?;
+            let full = || -> Result<u32> {
+                head.forward(hidden)?
+                    .slice(1, 0, 1)?
+                    .chat_greedy_ids()?
+                    .into_iter()
+                    .next()
+                    .context("model returned no logits")
+            };
             if let (Some(certified), Some(weight)) = (&model.certified_head, head.dense_weight())
                 && hidden.dtype() == Dtype::Float16
             {
@@ -1651,17 +1864,92 @@ impl Lfm2 {
                 let (id, certified) = certified.greedy(weight, &x)?;
                 if certified {
                     ensure!(id < model.vocab_size as u32, "certified head ID is invalid");
-                    return Ok((id, true));
+                    if check {
+                        let reference = full()?;
+                        return Ok(CertifiedStep {
+                            id: reference,
+                            certified: true,
+                            mismatch: reference != id,
+                        });
+                    }
+                    return Ok(CertifiedStep {
+                        id,
+                        certified: true,
+                        mismatch: false,
+                    });
                 }
             }
-            let id = head
-                .forward(hidden)?
-                .slice(1, 0, 1)?
-                .chat_greedy_ids()?
-                .into_iter()
-                .next()
-                .context("model returned no logits")?;
-            Ok((id, false))
+            Ok(CertifiedStep {
+                id: full()?,
+                certified: false,
+                mismatch: false,
+            })
+        })
+    }
+
+    /// L1 (default for sampled steps, `MLXL3_LFM3_CERT_SAMPLE=0` disables it):
+    /// one T1 step returning the log probabilities `Sampler::distribution`
+    /// receives. Certified steps keep
+    /// `-inf` outside the rows the int8 screen recomputed exactly, which
+    /// leaves the kept set and its values unchanged (see
+    /// `lfm3_cert_head::certified_values`); other steps return the full head
+    /// row of `select_token`. With `check`, certified steps also return that
+    /// full row.
+    pub(crate) fn forward_sampled_embedded(
+        &mut self,
+        tokens: &[u32],
+        embedded: Option<Array>,
+        sampler: &crate::sampling::Sampler,
+        history: &crate::sampling::History,
+        check: bool,
+    ) -> Result<SampledStep> {
+        ensure!(
+            tokens.len() == 1,
+            "certified LFM2 head steps take one token"
+        );
+        ensure!(
+            matches!(
+                self.certified_head,
+                Some(crate::lfm3_cert_head::Screen::Int8(_))
+            ),
+            "certified LFM2 sampling head is not enabled"
+        );
+        self.forward_with(tokens, embedded, |model, hidden, _| {
+            let head = model
+                .head
+                .as_ref()
+                .context("certified head requires a head")?;
+            let full = || -> Result<Vec<f32>> {
+                head.forward(hidden)?.slice(1, 0, 1)?.log_probs()?.to_f32()
+            };
+            let mut values = None;
+            if let (Some(crate::lfm3_cert_head::Screen::Int8(certified)), Some(weight), Some(k)) = (
+                &model.certified_head,
+                head.dense_weight(),
+                sampler.certified_k(crate::lfm3_cert_head::SAMPLE_MAX_K),
+            ) && hidden.dtype() == Dtype::Float16
+            {
+                let x = hidden.reshape(&[1, hidden.shape()[hidden.shape().len() - 1]])?;
+                let rows = certified.sample(weight, &x, k)?;
+                values = crate::lfm3_cert_head::certified_values(
+                    &rows,
+                    usize::try_from(model.vocab_size)?,
+                    sampler,
+                    history,
+                );
+            }
+            Ok(match values {
+                Some(values) => SampledStep {
+                    values,
+                    certified: true,
+                    reference: if check { Some(full()?) } else { None },
+                },
+                None => SampledStep {
+                    values: full()?,
+                    certified: false,
+                    reference: None,
+                },
+            })
         })
     }
 
@@ -1750,10 +2038,7 @@ impl Lfm2 {
             for block in tokens.chunks(8) {
                 let mut hidden = block
                     .iter()
-                    .map(|&token| {
-                        let ids = Array::from_i32(&[token as i32], &[1, 1])?;
-                        self.embeddings.take(&ids, 0)
-                    })
+                    .map(|&token| self.embeddings.take(&[token]))
                     .collect::<Result<Vec<_>>>()?;
                 for layer in &mut self.layers {
                     let mut residuals = Vec::with_capacity(block.len());
@@ -1796,7 +2081,7 @@ impl Lfm2 {
                 .rms_norm(&self.norm, self.eps)?;
             let logits = match &self.head {
                 Some(head) => head.forward(&hidden)?,
-                None => hidden.matmul(&self.embeddings.transpose(&[1, 0])?)?,
+                None => hidden.matmul(&self.embeddings.table()?.transpose(&[1, 0])?)?,
             }
             .slice(1, 0, 1)?;
             Ok((logits, stats))
@@ -1833,7 +2118,7 @@ impl Lfm2 {
             "LFM3 verification needs a prefilled cache with room for {rows} tokens"
         );
         ensure!(
-            hidden.shape() == [1, rows, self.embeddings.shape()[1]],
+            hidden.shape() == [1, rows, self.embeddings.dim()],
             "invalid LFM3 verification embeddings"
         );
         let head = self
@@ -1849,7 +2134,7 @@ impl Lfm2 {
         }
         let hidden = hidden
             .rms_norm(&self.norm, self.eps)?
-            .reshape(&[rows, self.embeddings.shape()[1]])?;
+            .reshape(&[rows, self.embeddings.dim()])?;
         let logits = head.forward_dense_rows_shared(&hidden)?;
         Ok((
             logits,
@@ -2164,6 +2449,147 @@ mod flash_hc_tests {
 #[cfg(test)]
 #[path = "lfm2_prefill_tests.rs"]
 mod prefill_tests;
+
+#[cfg(test)]
+mod lazy_embedding_tests {
+    use super::lfm3_verify_tests::{model, state_bits, tokens};
+    use super::*;
+
+    #[test]
+    fn lazy_row_offsets_cover_the_table_only() {
+        assert_eq!(lazy_row_offset(100, 4096, 0, 3), Some(100));
+        assert_eq!(lazy_row_offset(100, 4096, 2, 3), Some(100 + 2 * 4096));
+        assert_eq!(lazy_row_offset(100, 4096, 3, 3), None);
+        assert_eq!(lazy_row_offset(100, 4096, u32::MAX, u32::MAX), None);
+        assert_eq!(lazy_row_offset(u64::MAX, 1, 1, 2), None);
+        assert_eq!(lazy_row_offset(0, u64::MAX, 2, 3), None);
+        // Exhaustive small domain: offsets are strictly increasing and disjoint.
+        for rows in 0..9u32 {
+            for size in 1..5u64 {
+                let offsets: Vec<_> = (0..rows + 2)
+                    .map(|id| lazy_row_offset(7, size, id, rows))
+                    .collect();
+                for (id, offset) in offsets.iter().enumerate() {
+                    let expected = (id < rows as usize).then(|| 7 + id as u64 * size);
+                    assert_eq!(*offset, expected, "rows={rows} size={size} id={id}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn lazy_embeddings_need_the_flag_and_a_separate_head() {
+        assert!(lazy_embeddings_enabled(true, Some(b"1")));
+        for flag in [None, Some(&b"0"[..]), Some(b""), Some(b"true"), Some(b"1 ")] {
+            assert!(!lazy_embeddings_enabled(true, flag), "{flag:?}");
+        }
+        assert!(!lazy_embeddings_enabled(false, Some(b"1")));
+    }
+
+    fn f16_bits(array: &Array) -> Result<Vec<u16>> {
+        array.eval()?;
+        ensure!(array.dtype() == Dtype::Float16, "expected F16 rows");
+        let bits = array.to_f16_bits()?;
+        ensure!(!bits.is_empty(), "empty rows");
+        Ok(bits)
+    }
+
+    /// Prefill logits, then 16 greedy steps: logits bits and final states.
+    fn trace(
+        lm: &mut Lfm2,
+        prompt: &[u32],
+    ) -> Result<(Vec<Vec<u16>>, Vec<super::lfm3_verify_tests::StateBits>)> {
+        lm.reset();
+        let mut logits = lm.forward(&prompt[..32])?;
+        for &token in &prompt[32..] {
+            logits = lm.forward(&[token])?;
+        }
+        let mut out = vec![f16_bits(&logits)?];
+        for _ in 0..16 {
+            let next = *logits.chat_greedy_ids()?.first().context("no greedy ID")?;
+            logits = lm.forward(&[next])?;
+            out.push(f16_bits(&logits)?);
+        }
+        Ok((out, state_bits(lm)?))
+    }
+
+    /// LFM3-EMBED-LAZY oracle: row bits, prefill/decode logits and caches
+    /// equal the resident table; the shifted-row mutation is detected.
+    #[test]
+    #[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; LFM3-EMBED-LAZY oracle"]
+    fn lazy_embeddings_match_resident() -> Result<()> {
+        let path = std::env::var("MLXL3_LFM3_MODEL").context("set MLXL3_LFM3_MODEL")?;
+        let checkpoint = checkpoint::inspect(Path::new(&path))?;
+        let mut model = model()?;
+        let lm = &mut model.language;
+        ensure!(
+            lm.set_lazy_embeddings(&checkpoint, false)?,
+            "resident switch"
+        );
+        ensure!(!lm.lazy_embeddings(), "resident mode expected");
+        let vocab = lm.vocab_size as u32;
+        let mut ids = vec![0, 1, vocab - 1, vocab - 1, 0, 2, vocab - 2];
+        ids.extend(tokens(256, 91));
+        ids.extend((0..64).map(|i| i * 1999 % vocab));
+        let resident = f16_bits(&lm.embed_tokens(&ids)?)?;
+        let prompt = [&tokens(40, 92)[..], &[0, 1, vocab - 1]].concat();
+        let (resident_logits, resident_states) = trace(lm, &prompt)?;
+
+        ensure!(lm.set_lazy_embeddings(&checkpoint, true)?, "lazy switch");
+        ensure!(lm.lazy_embeddings(), "lazy mode expected");
+        let lazy = lm.embed_tokens(&ids)?;
+        ensure!(
+            lazy.shape() == [1, ids.len() as i32, lm.embeddings.dim()],
+            "lazy shape"
+        );
+        let lazy = f16_bits(&lazy)?;
+        ensure!(lazy.len() == resident.len(), "lazy value count");
+        let differing = lazy.iter().zip(&resident).filter(|(a, b)| a != b).count();
+        ensure!(differing == 0, "{differing} lazy embedding values differ");
+        ensure!(
+            lazy.iter().all(|&b| half::f16::from_bits(b).is_finite()),
+            "non-finite embedding"
+        );
+        let shifted: Vec<u32> = ids.iter().map(|&id| (id + 1) % vocab).collect();
+        let mutated = f16_bits(&lm.embed_tokens(&shifted)?)?;
+        let dim = lm.embeddings.dim() as usize;
+        let caught = mutated
+            .chunks(dim)
+            .zip(resident.chunks(dim))
+            .filter(|(a, b)| a != b)
+            .count();
+        ensure!(
+            caught == ids.len(),
+            "shifted-row mutation caught {caught}/{}",
+            ids.len()
+        );
+        ensure!(
+            lm.embeddings.take(&[vocab]).is_err(),
+            "row past the table accepted"
+        );
+        ensure!(
+            lm.embed_tokens(&[vocab]).is_err(),
+            "token past the vocabulary accepted"
+        );
+        let (lazy_logits, lazy_states) = trace(lm, &prompt)?;
+        ensure!(lazy_logits == resident_logits, "lazy logits differ");
+        ensure!(lazy_states == resident_states, "lazy cache differs");
+        ensure!(
+            lm.set_lazy_embeddings(&checkpoint, false)?,
+            "back to resident"
+        );
+        let (again, _) = trace(lm, &prompt)?;
+        ensure!(again == resident_logits, "resident replay differs");
+        eprintln!(
+            "EMBED_LAZY ids={} values={} steps={} states={} mutation_caught={caught}",
+            ids.len(),
+            lazy.len(),
+            lazy_logits.len(),
+            lazy_states.len()
+        );
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 #[path = "lfm3_verify_tests.rs"]

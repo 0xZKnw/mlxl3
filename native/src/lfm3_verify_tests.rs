@@ -509,3 +509,94 @@ fn prompt_lookup_session_matches_t1_greedy_ids_and_cache() -> Result<()> {
     );
     Ok(())
 }
+
+/// `decode` through the L4+L3 session (whole-context two-ID lookup, steps
+/// without a proposal on the certified head).
+fn decode_v2(
+    model: &mut crate::lfm3::Lfm3,
+    prompt: &[u32],
+    budget: usize,
+    eos: &[u32],
+) -> Result<(Vec<u32>, usize, [usize; 2])> {
+    ensure!(model.enable_certified_head()?, "LFM3 head not supported");
+    model.reset();
+    let mut logits = None;
+    for chunk in prompt.chunks(256) {
+        logits = Some(model.forward(chunk)?);
+    }
+    let mut next = greedy_id(&logits.context("empty prompt")?)?;
+    let mut session = crate::lfm3::PromptLookup::new_v2(prompt);
+    session.use_certified_head();
+    let mut generated = Vec::new();
+    loop {
+        if eos.contains(&next) {
+            break;
+        }
+        generated.push(next);
+        if generated.len() == budget {
+            break;
+        }
+        next = session.advance(model, next, budget - generated.len(), eos, |_| false)?;
+    }
+    Ok((generated, session.blocks, session.certified))
+}
+
+/// L4+L3 session oracle: IDs and final caches equal plain T1 greedy
+/// decoding for every budget, end IDs inside blocks, on an induction prompt
+/// and a small-alphabet prompt (frequent wrong two-ID proposals).
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L4+L3 lookup v2 session oracle"]
+fn lookup_v2_session_matches_t1_greedy_ids_and_cache() -> Result<()> {
+    let mut model = model()?;
+    let span = tokens(48, 77);
+    let induction = [&tokens(30, 78)[..], &span, &tokens(5, 79), &span[..20]].concat();
+    // Common text IDs from a small alphabet: frequent, often wrong two-ID
+    // proposals. (IDs 0..63, control tokens, diverge in the v1 path too:
+    // pre-existing PLD limit recorded in opti.md.)
+    let repeated: Vec<u32> = tokens(40, 5).iter().map(|t| 1000 + t % 64).collect();
+    let mut totals = [0usize; 3];
+    for (name, prompt) in [("induction", induction), ("small_alphabet", repeated)] {
+        let (reference, _) = decode(&mut model, &prompt, 48, &[], false)?;
+        for budget in (1..=12).chain([23, 24, 25, 47, 48]) {
+            let (plain, _) = decode(&mut model, &prompt, budget, &[], false)?;
+            let plain_states = state_bits(&model.language)?;
+            let plain_position = model.language.position();
+            let (lookup, blocks, certified) = decode_v2(&mut model, &prompt, budget, &[])?;
+            ensure!(
+                plain == reference[..budget],
+                "T1 replay is not deterministic"
+            );
+            ensure!(lookup == plain, "{name} budget {budget}: v2 IDs differ");
+            let v2_position = model.language.position();
+            let v2_states = state_bits(&model.language)?;
+            ensure!(
+                v2_position == plain_position && v2_states == plain_states,
+                "{name} budget {budget}: v2 cache differs"
+            );
+            totals[0] += blocks;
+            totals[1] += certified[0];
+            totals[2] += certified[1];
+        }
+        for index in [6usize, 13, 27] {
+            let eos = [reference[index]];
+            let (plain, _) = decode(&mut model, &prompt, 48, &eos, false)?;
+            let plain_states = state_bits(&model.language)?;
+            let (lookup, _, _) = decode_v2(&mut model, &prompt, 48, &eos)?;
+            ensure!(lookup == plain, "{name} end ID {index}: v2 IDs differ");
+            ensure!(
+                state_bits(&model.language)? == plain_states,
+                "{name} end ID {index}: v2 cache differs"
+            );
+        }
+        eprintln!("PLD_V2 {name} ok");
+    }
+    eprintln!(
+        "PLD_V2 blocks={} certified_steps={} certified_fallbacks={}",
+        totals[0], totals[1], totals[2]
+    );
+    ensure!(
+        totals[0] > 0 && totals[1] > 0,
+        "v2 blocks or certified steps never ran"
+    );
+    Ok(())
+}

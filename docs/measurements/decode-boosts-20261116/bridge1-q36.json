@@ -1,0 +1,713 @@
+{
+  "campaign": "q36",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+  "max_tokens": 160,
+  "status": "passed",
+  "configs": {
+    "base-greedy": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "c2acdb09e0a512a3",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 53.82037045170269,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (\"en cinq phrases\")\n   - **Goal:** Explain how photosynthesis works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in plant cells (chloroplasts)\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Involves light-dependent reactions and Calvin cycle (optional for simplicity)\n   - Essential for plant growth and Earth's oxygen supply\n\n3.  **Draft in French (Mental Refinement - aiming for 5 sentences):**\n   La photosynthèse",
+          "text_chars": 635
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "26e744097242cacf",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 51.018725350784166,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function/code snippet.\n   - The only modification requested is to rename `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The code contains two functions: `moyenne` and `variance`.\n   - Both functions use a variable named `total`.\n\n2.  **Identify Target Changes:**\n   - In `moyenne`: `total = 0` -> `somme = 0`, `total += v` -> `somme += v`, `return total / len(valeurs)` -> `return somme / len(v",
+          "text_chars": 557
+        }
+      ],
+      "binary": "base",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 17.0
+    },
+    "new-greedy-default": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "c2acdb09e0a512a3",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 53.689972829574685,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (\"en cinq phrases\")\n   - **Goal:** Explain how photosynthesis works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in plant cells (chloroplasts)\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Involves light-dependent reactions and Calvin cycle (optional for simplicity)\n   - Essential for plant growth and Earth's oxygen supply\n\n3.  **Draft in French (Mental Refinement - aiming for 5 sentences):**\n   La photosynthèse",
+          "text_chars": 635
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "26e744097242cacf",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.50405689931879,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function/code snippet.\n   - The only modification requested is to rename `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The code contains two functions: `moyenne` and `variance`.\n   - Both functions use a variable named `total`.\n\n2.  **Identify Target Changes:**\n   - In `moyenne`: `total = 0` -> `somme = 0`, `total += v` -> `somme += v`, `return total / len(valeurs)` -> `return somme / len(v",
+          "text_chars": 557
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.0,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "mtp": false,
+      "wall_seconds": 12.1
+    },
+    "new-desktop-topk-readback": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "046825e894876469",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 40.25320107018213,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              118,
+              42
+            ]
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis (photosynthèse)\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (en cinq phrases)\n   - **Goal:** Explain how it works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in plants/algae/cyanobacteria\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Takes place in chloroplasts\n   - Involves light-dependent reactions and Calvin cycle (optional for simplicity)\n   - Core equation: 6CO₂ + 6H₂O + light → C₆H₁",
+          "text_chars": 568
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "21fa04c368cdcd36",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.324866772900606,
+          "counters": {
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "topk_readback_rows": [
+              108,
+              52
+            ]
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function/code snippet.\n   - The only modification required is renaming `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The code contains two functions: `moyenne` and `variance`.\n\n2.  **Identify Target Variables:**\n   - In `moyenne`: `total = 0`, `total += v`, `return total / len(valeurs)`\n   - In `variance`: `total = 0`, `total += (v - m) ** 2`, `return total / len(valeurs)`",
+          "text_chars": 539
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_TOPK_READBACK": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": false,
+      "wall_seconds": 12.2
+    },
+    "new-desktop-mtp2": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "cbb146524c6cee1c",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 52.320622524113496,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                7,
+                8,
+                0,
+                0
+              ],
+              [
+                3,
+                2,
+                43,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 96,
+            "mtp_blocks": 63,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              63,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 111
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (\"en cinq phrases\")\n   - **Goal:** Explain how photosynthesis works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in chloroplasts (mainly in plant leaves)\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Involves light-dependent reactions and light-independent reactions (Calvin cycle)\n   - Essential for plant growth and Earth's oxygen supply\n\n3.  **Draft in French (Mental Refinement - aiming for 5 sentences):**\n  ",
+          "text_chars": 633
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "a3edb531293375b2",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 79.10088328354537,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                4,
+                11,
+                0,
+                0
+              ],
+              [
+                0,
+                2,
+                43,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 99,
+            "mtp_blocks": 60,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              60,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 105
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function/code snippet.\n   - The only modification requested is to rename `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The code contains two functions: `moyenne` and `variance`.\n\n2.  **Identify Target Variables:**\n   - In `moyenne`: `total = 0`, `total += v`, `return total / len(valeurs)`\n   - In `variance`: `total = 0`, `total += (v - m) ** 2`, `return total / len(valeurs",
+          "text_chars": 539
+        }
+      ],
+      "binary": "new",
+      "env": {},
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": true,
+      "wall_seconds": 12.1
+    },
+    "new-desktop-mtp2-sampled-draft": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "8438210346f034de",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 71.61149814283417,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                10,
+                10,
+                0,
+                0
+              ],
+              [
+                4,
+                4,
+                39,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 92,
+            "mtp_blocks": 67,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              67,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 114
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (\"en cinq phrases\")\n   - **Goal:** Explain how photosynthesis works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in chloroplasts (mainly in plant leaves)\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Involves light-dependent reactions and Calvin cycle (optional for simplicity)\n   - Essential for plant growth and Earth's oxygen supply\n\n3.  **Draft in French (Mental Translation & Structuring):**\n   Need exactly 5 sentences",
+          "text_chars": 644
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "88446ea0860ddd08",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 82.01992903728593,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                3,
+                9,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                45,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 100,
+            "mtp_blocks": 58,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              59,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 104
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function.\n   - The only modification requested is to rename `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The input contains two functions: `moyenne` and `variance`.\n\n2.  **Identify Target Variables:**\n   - In `moyenne`: `total = 0`, `total += v`, `return total / len(valeurs)`\n   - In `variance`: `total = 0`, `total += (v - m) ** 2`, `return total / len(valeurs)`\n\n",
+          "text_chars": 531
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_MTP_SAMPLED_DRAFT": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": true,
+      "wall_seconds": 11.1
+    },
+    "new-desktop-mtp2-sampled-draft-readback": {
+      "status": "completed",
+      "results": [
+        {
+          "prompt": "prose",
+          "token_hash": "dc309f83c1a7d59c",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 71.26796238396265,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                10,
+                9,
+                0,
+                0
+              ],
+              [
+                6,
+                5,
+                38,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 90,
+            "mtp_blocks": 68,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              69,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 117,
+            "topk_readback_rows": [
+              111,
+              49
+            ]
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Topic:** Photosynthesis\n   - **Language:** French\n   - **Constraint:** Exactly five sentences (\"en cinq phrases\")\n   - **Goal:** Explain how photosynthesis works\n\n2.  **Identify Key Concepts of Photosynthesis:**\n   - Occurs in plant cells (chloroplasts)\n   - Uses sunlight, water, and carbon dioxide\n   - Produces glucose (sugar) and oxygen\n   - Involves light-dependent reactions and Calvin cycle (optional for simplicity)\n   - Essential for plant growth and Earth's oxygen supply\n\n3.  **Draft in French (Mental Translation & Structuring):**\n   Need exactly 5 sentences. Let's",
+          "text_chars": 640
+        },
+        {
+          "prompt": "copy",
+          "token_hash": "01a01d0f70a0d76a",
+          "stop_reason": "max_tokens",
+          "generated_tokens": 160,
+          "decode_tps_indicative": 78.66090933124312,
+          "counters": {
+            "mtp_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                4,
+                12,
+                0,
+                0
+              ],
+              [
+                1,
+                5,
+                40,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_accepted_tokens": 97,
+            "mtp_blocks": 62,
+            "mtp_depth_blocks": [
+              0,
+              0,
+              62,
+              0
+            ],
+            "mtp_lookup_accept_histogram": [
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 108,
+            "topk_readback_rows": [
+              119,
+              41
+            ]
+          },
+          "text": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - The user wants me to copy exactly a given Python function/code snippet.\n   - The only modification required is renaming `total` to `somme`.\n   - The constraint is \"sans rien ajouter\" (without adding anything else).\n   - The code contains two functions: `moyenne` and `variance`.\n   - Both functions use the variable `total`.\n\n2.  **Identify Target Changes:**\n   - In `moyenne`: `total = 0` -> `somme = 0`, `total += v` -> `somme += v`, `return total / len(valeurs)` -> `return somme / len(valeurs",
+          "text_chars": 557
+        }
+      ],
+      "binary": "new",
+      "env": {
+        "MLXL3_MTP_SAMPLED_DRAFT": "1",
+        "MLXL3_TOPK_READBACK": "1"
+      },
+      "sampler": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "mtp": true,
+      "wall_seconds": 11.0
+    }
+  },
+  "checks": {
+    "base-greedy": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-greedy-default": {
+      "greedy_hashes_equal_base": true,
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-topk-readback": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-mtp2": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-mtp2-sampled-draft": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    },
+    "new-desktop-mtp2-sampled-draft-readback": {
+      "stop_reasons": [
+        "max_tokens",
+        "max_tokens"
+      ],
+      "tokens": [
+        160,
+        160
+      ]
+    }
+  },
+  "failures": []
+}

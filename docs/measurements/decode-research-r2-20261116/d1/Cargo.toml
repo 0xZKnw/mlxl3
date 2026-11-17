@@ -1,0 +1,11 @@
+[package]
+name = "sampler_bench"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+mlxl3-native = { path = "/Users/justin/.codex/worktrees/lfm3-prompt-lookup/mix-stq1_0", default-features = false }
+half = "2"
+
+[profile.release]
+opt-level = 3

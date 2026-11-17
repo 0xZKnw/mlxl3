@@ -6,7 +6,10 @@
 use super::Lfm2;
 use super::lfm3_verify_tests::{input, model, state_bits, tokens};
 use crate::array::{Array, Dtype};
-use crate::lfm3_cert_head::{CertifiedHead, Prepared};
+use crate::lfm3_cert_head::{
+    CertifiedHead, Int4Head, Int4Prepared, Prepared, SAMPLE_MAX_K, certified_values,
+};
+use crate::sampling::{History, Sampler};
 use anyhow::{Context, Result, ensure};
 
 fn f16_bits(array: &Array) -> Result<Vec<u16>> {
@@ -438,5 +441,431 @@ fn certified_head_microbenchmark() -> Result<()> {
         times[1][times[1].len() / 2],
         times[0].len()
     );
+    Ok(())
+}
+
+/// Samplers of the L1 oracles: Desktop default and LFM3 presets, a nucleus
+/// with presence penalty, and the largest certified top-k.
+fn samplers() -> Vec<Sampler> {
+    [
+        (0.2, 80, 1., 1.05, 0.),
+        (0.1, 50, 1., 1.1, 0.),
+        (0.7, 20, 0.9, 1., 0.3),
+        (0.8, 256, 1., 1., 0.),
+    ]
+    .into_iter()
+    .map(|(t, k, p, r, q)| Sampler::new(t, k, p, r, q).unwrap())
+    .collect()
+}
+
+/// L1 oracle on real decode states: every candidate logit is bit-identical
+/// to the production head, the unpenalized top-k are candidates, and an
+/// accepted row gives the canonical distribution of the production
+/// `log_probs` row. Mutation: dropping the best candidate is detected.
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L1 sampled certified head oracle"]
+fn sampled_head_matches_full_distribution() -> Result<()> {
+    let mut model = model()?;
+    let lm = &mut model.language;
+    let weight = lm
+        .head
+        .as_ref()
+        .and_then(super::Projection::dense_weight)
+        .context("dense head")?
+        .try_clone()?;
+    let certified = CertifiedHead::build(&weight)?;
+    let samplers = samplers();
+    let vocab = usize::try_from(weight.shape()[0])?;
+    let (mut accepted, mut rejected, mut steps) = (vec![0usize; 4], vec![0usize; 4], 0);
+    let mut overflow = vec![0usize; 4];
+    let (mut candidates, mut mutation_caught, mut mutation_accepted) = (Vec::new(), 0, 0);
+    for (name, prompt) in fixtures() {
+        let states = collect(lm, &prompt, 40)?;
+        let history = History::from_tokens(&prompt[prompt.len().saturating_sub(64)..]);
+        for (hidden, logits) in &states {
+            let x = hidden.reshape(&[1, weight.shape()[1]])?;
+            let reference = f16_bits(logits)?;
+            let full = logits.log_probs()?.to_f32()?;
+            ensure!(full.len() == vocab && reference.len() == vocab, "row size");
+            steps += 1;
+            for (index, sampler) in samplers.iter().enumerate() {
+                let k = sampler.certified_k(SAMPLE_MAX_K).context("certified k")?;
+                let rows = certified.sample(&weight, &x, k)?;
+                ensure!(rows.lse.is_finite(), "{name}: lse not finite");
+                for (&id, &bits) in rows.ids.iter().zip(&rows.logits) {
+                    ensure!(
+                        bits == reference[id as usize],
+                        "{name}: candidate {id} not exact"
+                    );
+                }
+                if rows.overflow {
+                    // More than SAMPLE_CAPACITY candidates: the step must fall back.
+                    ensure!(
+                        certified_values(&rows, vocab, sampler, &history).is_none(),
+                        "{name}: an overflowing row was certified"
+                    );
+                    overflow[index] += 1;
+                    rejected[index] += 1;
+                    continue;
+                }
+                let mut order: Vec<usize> = (0..vocab).collect();
+                order.sort_by(|&a, &b| full[b].total_cmp(&full[a]));
+                let kth = full[order[k - 1]];
+                for &row in order.iter().take_while(|&&row| full[row] > kth) {
+                    ensure!(
+                        rows.ids.contains(&(row as u32)),
+                        "{name}: top row {row} screened out"
+                    );
+                }
+                candidates.push(rows.ids.len());
+                let expected = sampler
+                    .distribution(full.clone(), &history, &[])?
+                    .canonical();
+                match certified_values(&rows, vocab, sampler, &history) {
+                    Some(values) => {
+                        accepted[index] += 1;
+                        for &id in &rows.ids {
+                            ensure!(
+                                values[id as usize].to_bits() == full[id as usize].to_bits(),
+                                "{name}: log probability of {id} differs"
+                            );
+                        }
+                        let got = sampler
+                            .distribution(values.clone(), &history, &[])?
+                            .canonical();
+                        ensure!(got == expected, "{name}: certified distribution differs");
+                        // Mutation: drop the best candidate.
+                        let best = (0..rows.ids.len())
+                            .max_by(|&a, &b| {
+                                half::f16::from_bits(rows.logits[a])
+                                    .to_f32()
+                                    .total_cmp(&half::f16::from_bits(rows.logits[b]).to_f32())
+                            })
+                            .context("best candidate")?;
+                        let mut weak = rows.clone();
+                        weak.ids.remove(best);
+                        weak.logits.remove(best);
+                        if let Some(values) = certified_values(&weak, vocab, sampler, &history) {
+                            mutation_accepted += 1;
+                            let got = sampler.distribution(values, &history, &[])?.canonical();
+                            mutation_caught += usize::from(got != expected);
+                        }
+                    }
+                    None => rejected[index] += 1,
+                }
+            }
+        }
+    }
+    candidates.sort_unstable();
+    eprintln!(
+        "L1_ORACLE steps={steps} accepted={accepted:?} rejected={rejected:?} overflow={overflow:?} \
+         candidates_median={} p90={} max={} mutation_accepted={mutation_accepted} \
+         mutation_caught={mutation_caught}",
+        candidates[candidates.len() / 2],
+        candidates[candidates.len() * 9 / 10],
+        candidates[candidates.len() - 1]
+    );
+    ensure!(
+        accepted.iter().all(|&n| n > 0),
+        "a sampler was never certified"
+    );
+    ensure!(
+        mutation_accepted > 0 && mutation_caught == mutation_accepted,
+        "the dropped-candidate mutation was not detected"
+    );
+    Ok(())
+}
+
+/// Prompt prefill shared by the session oracles; returns the last logits.
+fn prefill(model: &mut crate::lfm3::Lfm3, prompt: &[u32]) -> Result<Array> {
+    model.reset();
+    let mut logits = None;
+    for chunk in prompt.chunks(256) {
+        logits = Some(if chunk.len() == 1 || chunk.len() >= 24 {
+            model.forward(chunk)?
+        } else {
+            let mut last = None;
+            for &token in chunk {
+                last = Some(model.forward(&[token])?);
+            }
+            last.context("chunk")?
+        });
+    }
+    logits.context("prompt")
+}
+
+/// L1 session oracle: with the same seed, sampled decoding through
+/// `forward_sampled_certified` draws the IDs of the full head (both sides in
+/// canonical order) and leaves bit-identical caches; the check oracle of the
+/// bridge reports no mismatch.
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L1 sampled session oracle"]
+fn sampled_decode_matches_full_head_and_cache() -> Result<()> {
+    let mut model = model()?;
+    ensure!(model.enable_certified_head()?, "LFM3 head not supported");
+    let mut total = [0usize; 2];
+    for sampler in &samplers()[..2] {
+        for (name, prompt) in fixtures() {
+            for budget in [1usize, 7, 48] {
+                let mut ids = [Vec::new(), Vec::new()];
+                let mut states = [Vec::new(), Vec::new()];
+                for mode in 0..2 {
+                    let logits = prefill(&mut model, &prompt)?;
+                    let mut random = 0x5eed_u64 + budget as u64;
+                    let mut history = History::default();
+                    let mut next = sampler
+                        .distribution(logits.log_probs()?.to_f32()?, &history, &[])?
+                        .canonical()
+                        .sample(&mut random);
+                    loop {
+                        ids[mode].push(next);
+                        history.push(next);
+                        if ids[mode].len() == budget {
+                            break;
+                        }
+                        let values = if mode == 0 {
+                            model.forward(&[next])?.log_probs()?.to_f32()?
+                        } else {
+                            let step =
+                                model.forward_sampled_certified(next, sampler, &history, true)?;
+                            total[usize::from(!step.certified)] += 1;
+                            if let Some(reference) = step.reference {
+                                ensure!(
+                                    sampler.distribution(reference, &history, &[])?.canonical()
+                                        == sampler
+                                            .distribution(step.values.clone(), &history, &[])?
+                                            .canonical(),
+                                    "{name}: check oracle mismatch"
+                                );
+                            }
+                            step.values
+                        };
+                        next = sampler
+                            .distribution(values, &history, &[])?
+                            .canonical()
+                            .sample(&mut random);
+                    }
+                    states[mode] = state_bits(&model.language)?;
+                }
+                ensure!(ids[0] == ids[1], "{name} budget {budget}: IDs differ");
+                ensure!(
+                    states[0] == states[1] && !states[0].is_empty(),
+                    "{name} budget {budget}: caches differ"
+                );
+            }
+        }
+    }
+    eprintln!("L1_SESSION certified={} fallbacks={}", total[0], total[1]);
+    ensure!(total[0] > 0, "no certified sampled step");
+    Ok(())
+}
+
+/// L2 oracle on real decode states and synthetic inputs: the int4 screen
+/// bounds the production logits, certified IDs are the greedy IDs, zeros and
+/// NaN fall back. Mutation: E x 0.01 violates the bound.
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L2 int4 screen oracle"]
+fn int4_head_matches_bounds_and_greedy_ids() -> Result<()> {
+    let mut model = model()?;
+    let lm = &mut model.language;
+    let weight = lm
+        .head
+        .as_ref()
+        .and_then(super::Projection::dense_weight)
+        .context("dense head")?
+        .try_clone()?;
+    let (rows, dims) = (weight.shape()[0], weight.shape()[1]);
+    let bits = weight.to_f16_bits()?;
+    let started = std::time::Instant::now();
+    let prepared = crate::lfm3_cert_head::prepare_int4_rows(&bits, usize::try_from(dims)?)?;
+    let prepare_seconds = started.elapsed().as_secs_f64();
+    let head = Int4Head::from_prepared(&prepared, rows, dims)?;
+    eprintln!(
+        "L2_ORACLE prepare_seconds={prepare_seconds:.2} retained_bytes={}",
+        head.retained_bytes()?
+    );
+    let mut states = Vec::new();
+    for (_, prompt) in fixtures() {
+        states.extend(collect(lm, &prompt, 40)?);
+    }
+    for seed in 0..6u64 {
+        let x = input(1, dims, 31 + seed)?.astype(Dtype::Float32)?;
+        let x = x
+            .scalar_mul(0.25 * (seed + 1) as f32)?
+            .astype(Dtype::Float16)?;
+        let logits = lm.head.as_ref().context("head")?.forward(&x)?;
+        states.push((x, logits));
+    }
+    let run = |head: &Int4Head, prepared: &Int4Prepared| -> Result<[usize; 4]> {
+        // [steps, certified, wrong IDs, bound violations]
+        let mut stats = [0usize; 4];
+        for (hidden, logits) in &states {
+            let x = hidden.reshape(&[1, dims])?;
+            let reference = f16_bits(logits)?;
+            let mut screened = head.screen(&x)?;
+            let norm = f64::from(screened.pop().context("norm")?.to_f32()?[0]);
+            let upper = screened.remove(0).to_f32()?;
+            for (row, (&bits, &upper)) in reference.iter().zip(&upper).enumerate() {
+                let value = half::f16::from_bits(bits).to_f64();
+                ensure!(
+                    value.is_finite() && upper.is_finite(),
+                    "row {row} not finite"
+                );
+                let error = norm * f64::from(prepared.bound[row]);
+                let approx = f64::from(upper) - error;
+                let half_ulp = f64::from(half::f16::from_f64(value.abs()).to_f32()).max(6.1e-5)
+                    * f64::powi(2.0, -11);
+                if (value - approx).abs() > error + half_ulp + 1e-6 * f64::from(upper).abs() {
+                    stats[3] += 1;
+                }
+            }
+            let (id, ok) = head.greedy(&weight, &x)?;
+            stats[0] += 1;
+            if ok {
+                stats[1] += 1;
+                stats[2] += usize::from(id != greedy(logits)?);
+            }
+        }
+        Ok(stats)
+    };
+    let stats = run(&head, &prepared)?;
+    eprintln!(
+        "L2_ORACLE steps={} certified={} wrong_ids={} bound_violations={}",
+        stats[0], stats[1], stats[2], stats[3]
+    );
+    ensure!(stats[3] == 0, "int4 bound violated");
+    ensure!(stats[2] == 0, "int4 head certified a wrong ID");
+    ensure!(stats[1] > 0, "nothing was certified");
+    let zero = Array::zeros_dtype(&[1, dims], Dtype::Float16)?;
+    ensure!(
+        !head.greedy(&weight, &zero)?.1,
+        "an all-tie step was certified"
+    );
+    let mut values = input(1, dims, 5)?.astype(Dtype::Float32)?.to_f32()?;
+    values[17] = f32::NAN;
+    let nan = Array::from_f32(&values, &[1, dims])?.astype(Dtype::Float16)?;
+    ensure!(!head.greedy(&weight, &nan)?.1, "a NaN step was certified");
+    let mutated = Int4Prepared {
+        q: prepared.q.clone(),
+        scale: prepared.scale.clone(),
+        bound: prepared.bound.iter().map(|b| b * 0.01).collect(),
+    };
+    let weak = Int4Head::from_prepared(&mutated, rows, dims)?;
+    let caught = run(&weak, &mutated)?;
+    eprintln!("L2_ORACLE mutation_e_x0.01 bound_violations={}", caught[3]);
+    ensure!(caught[3] > 0, "the E x 0.01 mutation was not detected");
+    Ok(())
+}
+
+/// L2 session oracle: greedy decoding with the int4 screen emits the T1
+/// greedy IDs and leaves bit-identical caches; the check oracle agrees.
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L2 int4 session oracle"]
+fn int4_decode_matches_t1_greedy_ids_and_cache() -> Result<()> {
+    let mut model = model()?;
+    ensure!(
+        model.enable_certified_head_kind(super::CertScreenKind::Int4)?,
+        "LFM3 head not supported"
+    );
+    let mut total = [0usize; 3];
+    for (name, prompt) in fixtures() {
+        for budget in [1usize, 2, 7, 48] {
+            let mut ids = [Vec::new(), Vec::new()];
+            let mut states = [Vec::new(), Vec::new()];
+            for mode in 0..2 {
+                let logits = prefill(&mut model, &prompt)?;
+                let mut next = greedy(&logits)?;
+                loop {
+                    ids[mode].push(next);
+                    if ids[mode].len() == budget {
+                        break;
+                    }
+                    next = if mode == 0 {
+                        greedy(&model.forward(&[next])?)?
+                    } else {
+                        let step = model.forward_greedy_checked(next, true)?;
+                        total[usize::from(!step.certified)] += 1;
+                        total[2] += usize::from(step.mismatch);
+                        step.id
+                    };
+                }
+                states[mode] = state_bits(&model.language)?;
+            }
+            ensure!(ids[0] == ids[1], "{name} budget {budget}: IDs differ");
+            ensure!(
+                states[0] == states[1] && !states[0].is_empty(),
+                "{name} budget {budget}: caches differ"
+            );
+        }
+    }
+    eprintln!(
+        "L2_SESSION certified={} fallbacks={} check_mismatches={}",
+        total[0], total[1], total[2]
+    );
+    ensure!(total[0] > 0 && total[2] == 0, "int4 session oracle failed");
+    Ok(())
+}
+
+/// Indicative GPU cost of the L1 and L2 heads against the production head
+/// (not a generation benchmark).
+#[test]
+#[ignore = "physical Apple GPU and MLXL3_LFM3_MODEL; L1/L2 microbenchmark"]
+fn boost_heads_microbenchmark() -> Result<()> {
+    let mut model = model()?;
+    let lm = &mut model.language;
+    let weight = lm
+        .head
+        .as_ref()
+        .and_then(super::Projection::dense_weight)
+        .context("dense head")?
+        .try_clone()?;
+    let int8 = CertifiedHead::build(&weight)?;
+    let int4 = Int4Head::build(&weight)?;
+    let states = collect(lm, &fixtures()[0].1, 16)?;
+    let head = lm.head.as_ref().context("head")?;
+    let inputs = states
+        .iter()
+        .map(|(hidden, _)| hidden.reshape(&[1, weight.shape()[1]]))
+        .collect::<Result<Vec<_>>>()?;
+    let labels = [
+        "head_logprobs",
+        "l1_sample_k80",
+        "int8_greedy",
+        "l2_int4_greedy",
+    ];
+    let mut times = vec![Vec::new(); labels.len()];
+    for round in 0..12 {
+        for order in 0..labels.len() {
+            let mode = (round + order) % labels.len();
+            let started = std::time::Instant::now();
+            for (x, (hidden, _)) in inputs.iter().zip(&states) {
+                match mode {
+                    0 => {
+                        head.forward(hidden)?.log_probs()?.to_f32()?;
+                    }
+                    1 => {
+                        int8.sample(&weight, x, 80)?;
+                    }
+                    2 => {
+                        int8.greedy(&weight, x)?;
+                    }
+                    _ => {
+                        int4.greedy(&weight, x)?;
+                    }
+                }
+            }
+            if round >= 2 {
+                times[mode].push(started.elapsed().as_secs_f64() * 1e3 / inputs.len() as f64);
+            }
+        }
+    }
+    for (label, t) in labels.iter().zip(&mut times) {
+        t.sort_by(f64::total_cmp);
+        eprintln!(
+            "BOOST_BENCH {label}_ms_median={:.3} (n={})",
+            t[t.len() / 2],
+            t.len()
+        );
+    }
     Ok(())
 }

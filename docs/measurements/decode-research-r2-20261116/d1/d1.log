@@ -1,0 +1,38 @@
+Mon Nov 16 22:05:23 CET 2026
+22:05  up 10 days, 18:18, 1 user, load averages: 9.72 5.76 4.61
+ -InternalBattery-0 (id=23527523)	100%; charged; 0:00 remaining present: true
+rustc 1.98.1 (48a229cea 2026-09-01)
+run 1
+vocab=128000 bytes->Vec<f32>: median 8.7 us  p10 8.5  p90 10.7
+vocab=128000 distribution+sample (T0.2 k80 rep1.05): median 170.7 us  p10 155.0  p90 194.7
+vocab=128000 distribution+sample (T0.2 k80 rep1.0): median 169.4 us  p10 156.5  p90 196.4
+vocab=128000 convert+distribution+sample: median 179.6 us  p10 163.8  p90 206.2
+sink 294664094
+vocab=248320 bytes->Vec<f32>: median 17.5 us  p10 16.5  p90 23.2
+vocab=248320 distribution+sample (T0.2 k80 rep1.05): median 333.8 us  p10 323.5  p90 364.1
+vocab=248320 distribution+sample (T0.2 k80 rep1.0): median 337.5 us  p10 320.1  p90 375.6
+vocab=248320 convert+distribution+sample: median 351.9 us  p10 340.7  p90 386.4
+sink 399032007
+run 2
+vocab=128000 bytes->Vec<f32>: median 8.6 us  p10 8.5  p90 10.2
+vocab=128000 distribution+sample (T0.2 k80 rep1.05): median 170.6 us  p10 155.3  p90 189.4
+vocab=128000 distribution+sample (T0.2 k80 rep1.0): median 168.9 us  p10 155.7  p90 190.0
+vocab=128000 convert+distribution+sample: median 179.4 us  p10 164.0  p90 199.5
+sink 294664094
+vocab=248320 bytes->Vec<f32>: median 16.9 us  p10 16.4  p90 20.0
+vocab=248320 distribution+sample (T0.2 k80 rep1.05): median 332.1 us  p10 322.8  p90 352.4
+vocab=248320 distribution+sample (T0.2 k80 rep1.0): median 334.7 us  p10 318.8  p90 365.2
+vocab=248320 convert+distribution+sample: median 349.3 us  p10 339.5  p90 372.5
+sink 399032007
+run 3
+vocab=128000 bytes->Vec<f32>: median 9.2 us  p10 8.6  p90 12.7
+vocab=128000 distribution+sample (T0.2 k80 rep1.05): median 173.8 us  p10 158.9  p90 194.9
+vocab=128000 distribution+sample (T0.2 k80 rep1.0): median 174.8 us  p10 158.7  p90 196.3
+vocab=128000 convert+distribution+sample: median 183.3 us  p10 168.1  p90 206.5
+sink 294664094
+vocab=248320 bytes->Vec<f32>: median 17.5 us  p10 16.7  p90 21.6
+vocab=248320 distribution+sample (T0.2 k80 rep1.05): median 341.8 us  p10 325.5  p90 365.4
+vocab=248320 distribution+sample (T0.2 k80 rep1.0): median 345.6 us  p10 323.9  p90 384.3
+vocab=248320 convert+distribution+sample: median 360.3 us  p10 343.0  p90 385.2
+sink 399032007
+22:05  up 10 days, 18:18, 1 user, load averages: 9.10 5.70 4.59
