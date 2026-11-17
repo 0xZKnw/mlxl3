@@ -574,10 +574,25 @@ pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
 /// Original route indices, grouped in chunks of up to four equal expert slots.
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn expert_route_groups(ids: &[u32], capacity: i32) -> Option<[Vec<u32>; 4]> {
-    if ids.len() > 80 || capacity > 512 || !slots_fit(ids, capacity) {
+    let (rows, lens) = expert_route_group_rows::<80>(ids, capacity)?;
+    Some(std::array::from_fn(|width| {
+        rows[width][..lens[width]].to_vec()
+    }))
+}
+
+/// Allocation-free core of `expert_route_groups`: group `w` (chunks of `w + 1`
+/// rows) holds `rows[w][..lens[w]]`. Production uses `MAX = 80`; proofs may use
+/// a smaller `MAX` that still covers their route lists.
+#[cfg(any(feature = "mlx", test, kani))]
+fn expert_route_group_rows<const MAX: usize>(
+    ids: &[u32],
+    capacity: i32,
+) -> Option<([[u32; MAX]; 4], [usize; 4])> {
+    if ids.len() > 80 || ids.len() > MAX || capacity > 512 || !slots_fit(ids, capacity) {
         return None;
     }
-    let mut groups: [Vec<u32>; 4] = std::array::from_fn(|_| Vec::new());
+    let mut rows = [[0u32; MAX]; 4];
+    let mut lens = [0usize; 4];
     for (first, &slot) in ids.iter().enumerate() {
         if ids[..first].contains(&slot) {
             continue;
@@ -589,16 +604,23 @@ pub(crate) fn expert_route_groups(ids: &[u32], capacity: i32) -> Option<[Vec<u32
                 chunk[count] = row as u32;
                 count += 1;
                 if count == 4 {
-                    groups[3].extend_from_slice(&chunk);
+                    for (offset, &row) in chunk.iter().enumerate() {
+                        rows[3][lens[3] + offset] = row;
+                    }
+                    lens[3] += 4;
                     count = 0;
                 }
             }
         }
         if count > 0 {
-            groups[count - 1].extend_from_slice(&chunk[..count]);
+            let width = count - 1;
+            for (offset, &row) in chunk[..count].iter().enumerate() {
+                rows[width][lens[width] + offset] = row;
+            }
+            lens[width] += count;
         }
     }
-    Some(groups)
+    Some((rows, lens))
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
@@ -3594,7 +3616,10 @@ mod grouped_route_tests {
 
 #[cfg(kani)]
 mod grouped_route_verification {
-    use super::{expert_group_chunks, expert_grouping_worthwhile, expert_route_groups};
+    use super::{
+        expert_group_chunks, expert_grouping_worthwhile, expert_route_group_rows,
+        expert_route_groups,
+    };
 
     #[kani::proof]
     fn grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs() {
@@ -3633,36 +3658,45 @@ mod grouped_route_verification {
         kani::cover!(actual.is_none());
     }
 
+    // Bounded so that CBMC finishes: exactly eight rows (shorter route lists are
+    // covered by the grouped_route_tests oracle), each drawing a slot below 4
+    // so mixed group widths, full chunks of four and out-of-capacity slots
+    // stay reachable, and the capacity comes from the values around both limits.
     #[kani::proof]
     #[kani::unwind(9)]
     fn grouped_expert_routes_cover_eight_symbolic_origins_exactly() {
-        let ids: [u32; 8] = kani::any();
-        let count = usize::from(kani::any::<u8>() % 9);
-        let capacity = i32::from(kani::any::<u16>() % 514);
+        let ids: [u32; 8] = std::array::from_fn(|_| kani::any_where(|slot: &u32| *slot < 4));
+        let count = 8;
+        let capacity: i32 =
+            [-1, 0, 1, 3, 4, 512, 513][kani::any_where(|choice: &usize| *choice < 7)];
         let ids = &ids[..count];
         let valid = count > 0
             && (1..=512).contains(&capacity)
             && ids.iter().all(|&slot| slot < capacity as u32);
-        let groups = expert_route_groups(ids, capacity);
+        let groups = expert_route_group_rows::<8>(ids, capacity);
         assert_eq!(groups.is_some(), valid);
         kani::cover!(!valid);
-        if let Some(groups) = groups {
+        if let Some((rows, lens)) = groups {
             let mut seen = [0u8; 8];
-            for (i, rows) in groups.iter().enumerate() {
-                assert_eq!(rows.len() % (i + 1), 0);
-                for chunk in rows.chunks(i + 1) {
-                    for &row in chunk {
-                        assert!((row as usize) < count);
-                        assert_eq!(ids[row as usize], ids[chunk[0] as usize]);
-                        seen[row as usize] += 1;
+            // One fixed-bound pass per group: position `pos` belongs to the chunk
+            // that starts at `pos - pos % width`.
+            for (i, (rows, &len)) in rows.iter().zip(&lens).enumerate() {
+                let width = i + 1;
+                assert!(len <= count && len % width == 0);
+                for pos in 0..count {
+                    if pos < len {
+                        let row = rows[pos] as usize;
+                        assert!(row < count);
+                        assert_eq!(ids[row], ids[rows[pos - pos % width] as usize]);
+                        seen[row] += 1;
                     }
                 }
             }
             for (row, &uses) in seen.iter().enumerate() {
                 assert_eq!(uses, u8::from(row < count));
             }
-            kani::cover!(groups[0].len() == 8);
-            kani::cover!(groups[3].len() == 8);
+            kani::cover!(lens[0] == 1 && lens[2] == 3 && lens[3] == 4);
+            kani::cover!(lens[3] == 8);
         }
     }
 

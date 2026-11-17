@@ -1758,10 +1758,14 @@ fn prefill_spans_group_full_slices_and_keep_tail_and_checkpoint() {
 #[cfg(kani)]
 #[kani::proof]
 fn prefill_span_end_bounds_alignment_and_checkpoint() {
-    let start: usize = kani::any();
-    let len: usize = kani::any();
-    let slice: usize = kani::any();
-    let group: usize = kani::any();
+    // Bounded so that CBMC finishes: positions are 16-bit, the slice comes from
+    // a fixed set (zero, degenerate, odd and the production 256) and the group
+    // is at most 16 (production uses 1..=8). Overflow of the checked arithmetic
+    // is covered by the unit test with `usize::MAX`.
+    let start = usize::from(kani::any::<u16>());
+    let len = usize::from(kani::any::<u16>());
+    let slice = [0, 1, 3, 256][kani::any_where(|choice: &usize| *choice < 4)];
+    let group = kani::any_where(|group: &usize| *group <= 16);
     match prefill_span_end(start, len, slice, group) {
         // The span never exceeds `len`, so checked arithmetic cannot fail.
         None => assert!(slice == 0 || group == 0 || start >= len),

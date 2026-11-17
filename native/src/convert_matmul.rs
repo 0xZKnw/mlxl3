@@ -40,30 +40,55 @@ fn matrix_geometry_rejects_empty_overflowing_or_excessive_arrays() {
     }
 }
 
+// The plan harness keeps full u32 dimensions. The address harness is bounded so
+// that CBMC finishes: dimensions and coordinates are 8-bit, since the address
+// bound follows from `row < m` the same way at every width.
 #[cfg(kani)]
 #[kani::proof]
+#[kani::solver(kissat)]
 fn conversion_matmul_geometry_covers_all_shader_addresses() {
     let m: u32 = kani::any();
     let n: u32 = kani::any();
     let k: u32 = kani::any();
-    let row: u32 = kani::any();
-    let col: u32 = kani::any();
-    let depth: u32 = kani::any();
-    if let Some((left, right, output)) = matrix_plan(m, n, k) {
-        assert!(m > 0 && n > 0 && k > 0);
-        assert!(
-            left <= 64 * 1024 * 1024 && right <= 64 * 1024 * 1024 && output <= 64 * 1024 * 1024
-        );
-        assert_eq!(left as u64, u64::from(m) * u64::from(k));
-        assert_eq!(right as u64, u64::from(k) * u64::from(n));
-        assert_eq!(output as u64, u64::from(m) * u64::from(n));
-        if row < m && col < n && depth < k {
-            assert!(u64::from(row) * u64::from(k) + u64::from(depth) < left as u64);
-            assert!(u64::from(depth) * u64::from(n) + u64::from(col) < right as u64);
-            assert!(u64::from(row) * u64::from(n) + u64::from(col) < output as u64);
+    let left = u64::from(m) * u64::from(k);
+    let right = u64::from(k) * u64::from(n);
+    let output = u64::from(m) * u64::from(n);
+    const LIMIT: u64 = 64 * 1024 * 1024;
+    match matrix_plan(m, n, k) {
+        Some((l, r, o)) => {
+            assert!(m > 0 && n > 0 && k > 0);
+            assert!(left <= LIMIT && right <= LIMIT && output <= LIMIT);
+            assert_eq!(l as u64, left);
+            assert_eq!(r as u64, right);
+            assert_eq!(o as u64, output);
+            kani::cover!(m == 96 && n == 128 && k == 32);
+            kani::cover!(m == 1024 && n == 1024 && k == 65_535);
         }
+        None => {
+            assert!(m == 0 || n == 0 || k == 0 || left > LIMIT || right > LIMIT || output > LIMIT);
+            kani::cover!(m == 1025 && n == 1 && k == 65_535);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn conversion_matmul_addresses_stay_inside_planned_arrays() {
+    let m = u32::from(kani::any::<u8>());
+    let n = u32::from(kani::any::<u8>());
+    let k = u32::from(kani::any::<u8>());
+    let row = u32::from(kani::any::<u8>());
+    let col = u32::from(kani::any::<u8>());
+    let depth = u32::from(kani::any::<u8>());
+    if let Some((left, right, output)) = matrix_plan(m, n, k)
+        && row < m
+        && col < n
+        && depth < k
+    {
+        assert!(u64::from(row) * u64::from(k) + u64::from(depth) < left as u64);
+        assert!(u64::from(depth) * u64::from(n) + u64::from(col) < right as u64);
+        assert!(u64::from(row) * u64::from(n) + u64::from(col) < output as u64);
         kani::cover!(m == 96 && n == 128 && k == 32 && row == 95 && col == 127 && depth == 31);
-        kani::cover!(m == 8 && n == 8 && k == 8_388_608);
     }
 }
 
