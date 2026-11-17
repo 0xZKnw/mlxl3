@@ -555,6 +555,7 @@ def fake_cargo(tmp_path, monkeypatch):
         " time.sleep(30)\n"
         "if name == os.environ.get('FAKE_EMPTY'): sys.exit(0)\n"
         f"if name == {ci.PARSER_HARNESS!r}: print('  - Stub: super :: parse_slot_capacity -> proof_two_byte_capacity')\n"
+        f"if name == {ci.FAILED_FILL_HARNESS!r}: print('  - Stub: super :: slru :: Slru :: clear -> reject_unreachable_slru_clear')\n"
         "if '--tests' in sys.argv and '--lib' not in sys.argv and '--bin' not in sys.argv:\n"
         " print('error: target `mlxl3-hybrid` in package `mlxl3-native` requires the features: `hybrid-dispatch`')\n"
         " sys.exit(101)\n"

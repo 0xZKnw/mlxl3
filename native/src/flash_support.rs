@@ -3047,8 +3047,17 @@ mod verification {
             kani::cover!(bytes != *b"53" && parsed.is_none());
         }
     }
+    fn reject_unreachable_slru_clear(_: &mut super::slru::Slru) {
+        panic!("a cache built without SLRU must never clear an SLRU");
+    }
     #[kani::proof]
     #[kani::unwind(27)]
+    // The cache below has no SLRU, so `invalidate` never calls `Slru::clear`.
+    // CBMC cannot see that through the `Rc<RefCell<_>>` heap object and would
+    // otherwise unroll `clear` for a symbolic slot count until it runs out of
+    // memory. The panicking stub is conservative: success proves it is never
+    // called, so the property below is unchanged.
+    #[kani::stub(super::slru::Slru::clear, reject_unreachable_slru_clear)]
     fn failed_fill_invalidates_ready_keys_without_releasing_pending_slots() {
         let keys: [Option<u32>; 24] = kani::any();
         let pending: [Option<u32>; 24] = kani::any();
@@ -3066,11 +3075,11 @@ mod verification {
             }
         }
         let state = cache.borrow();
-        for i in 0..24 {
-            assert_eq!(state.keys[i], if complete { keys[i] } else { None });
-            assert_eq!(state.prefetched[i], complete && prefetched[i]);
-            assert_eq!(state.pending[i], pending[i]);
-        }
+        // An arbitrary slot stands for every slot.
+        let i: usize = kani::any_where(|&i: &usize| i < 24);
+        assert_eq!(state.keys[i], if complete { keys[i] } else { None });
+        assert_eq!(state.prefetched[i], complete && prefetched[i]);
+        assert_eq!(state.pending[i], pending[i]);
         kani::cover!(complete);
         kani::cover!(!complete);
     }
