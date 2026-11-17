@@ -3665,7 +3665,8 @@ mod grouped_route_verification {
     #[kani::proof]
     #[kani::unwind(9)]
     fn grouped_expert_routes_cover_eight_symbolic_origins_exactly() {
-        let ids: [u32; 8] = std::array::from_fn(|_| kani::any_where(|slot: &u32| *slot < 4));
+        let ids: [u32; 8] = kani::any();
+        kani::assume(ids.iter().all(|&slot| slot < 4));
         let count = 8;
         let capacity: i32 =
             [-1, 0, 1, 3, 4, 512, 513][kani::any_where(|choice: &usize| *choice < 7)];
