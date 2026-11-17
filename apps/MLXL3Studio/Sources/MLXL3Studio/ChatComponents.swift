@@ -390,15 +390,23 @@ private struct ThinkingPlaceholder: View {
                     Circle()
                         .frame(width: 3, height: 3)
                         // Only opacity repeats, never layout (see StreamingIndicator).
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever()) { dot in
-                            dot.opacity(!reduceMotion && shimmer ? 0.25 + Double(index) * 0.28 : 0.9 - Double(index) * 0.25)
-                        }
+                        .animation(dotAnimation) { dot in dot.opacity(dotOpacity(index)) }
                 }
             }
         }
         .foregroundStyle(StudioTheme.thinking)
         .onAppear { shimmer = !reduceMotion }
         .onChange(of: reduceMotion) { _, value in shimmer = !value }
+    }
+
+    // Typed helpers keep this view within the hosted compiler's type-check budget.
+    private var dotAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever()
+    }
+
+    private func dotOpacity(_ index: Int) -> Double {
+        let position = Double(index)
+        return !reduceMotion && shimmer ? 0.25 + position * 0.28 : 0.9 - position * 0.25
     }
 }
 
