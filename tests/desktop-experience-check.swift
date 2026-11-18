@@ -12,6 +12,7 @@ import SwiftUI
                                           userInfo: [NSLocalizedDescriptionKey: label]) }
         }
         func wait(_ label: String, until condition: () -> Bool) async throws {
+            progress("wait: " + label)
             for _ in 0..<300 {
                 if condition() { return }
                 try await Task.sleep(for: .milliseconds(20))
@@ -19,6 +20,7 @@ import SwiftUI
             throw NSError(domain: "DesktopExperienceCheck", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "Deadline: " + label])
         }
+        progress("greetings")
         // Welcome greetings: hour boundaries, reachability of every phrase, one-line length.
         let expectedPools: [(ClosedRange<Int>, [WelcomeGreeting.Phrase])] = [
             (0...4, WelcomeGreeting.night), (5...11, WelcomeGreeting.morning),
@@ -70,13 +72,21 @@ import SwiftUI
         }
         let file = root.appendingPathComponent("pins.json")
         let visual = make(preview: true, file: file)
+        progress("auroraPlayback")
         checkAuroraPlayback()
+        progress("settingsSurfaces")
         try await checkSettingsSurfaces()
+        progress("managerSurfaces")
         try await checkManagerSurfaces(studio: visual)
+        progress("disabledControls")
         try await checkDisabledControls()
+        progress("widgetSizing")
         try await checkWidgetSizing(studio: visual)
+        progress("aurora")
         try await checkAurora()
+        progress("workspaceControls")
         try await checkWorkspaceControls(studio: visual, preferences: prefs)
+        progress("pins and history")
         let a = Conversation(title: "Récent", messages: [ChatMessage(role: .assistant, content: "A")], createdAt: Date(timeIntervalSince1970: 300))
         let b = Conversation(title: "Travail", messages: [ChatMessage(role: .assistant, content: "B")], createdAt: Date(timeIntervalSince1970: 200))
         let c = Conversation(title: "Notes", messages: [ChatMessage(role: .assistant, content: "C")], createdAt: Date(timeIntervalSince1970: 100))
@@ -274,6 +284,7 @@ import SwiftUI
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: output).appendingPathComponent("mtp-panel.png"))
             window.close()
         }
+        progress("done")
         print("Desktop experience checks passed: \(checks) assertions; pin/history migration, width/draft, per-model MTP OFF/ON/reload/startup/failure/Flash integrated head")
     }
 }
@@ -434,6 +445,7 @@ extension DesktopExperienceCheck {
         window.orderBack(nil)
         try await Task.sleep(for: .milliseconds(150))
         func click(_ x: CGFloat, _ y: CGFloat) async throws {
+            progress("click \(Int(x)),\(Int(y))")
             for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
                 let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: bounds.height - y),
                     modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
@@ -602,5 +614,13 @@ extension DesktopExperienceCheck {
         studio.setTheme(.dark)
         studio.showModelManager = false
         print("Management surfaces passed: four production pages, light/dark, compact width, translucent sidebar pixels and actual Back clicks")
+    }
+}
+
+extension DesktopExperienceCheck {
+    /// Unbuffered progress on stderr: run_fixture_check kills the check after 90 s, and
+    /// buffered stdout is lost, so CI otherwise shows no trace of where it stopped.
+    static func progress(_ step: String) {
+        FileHandle.standardError.write(Data("experience: \(step)\n".utf8))
     }
 }
