@@ -24,18 +24,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { shard: core, part: 1, parts: 6 }
-          - { shard: core, part: 2, parts: 6 }
-          - { shard: core, part: 3, parts: 6 }
-          - { shard: core, part: 4, parts: 6 }
-          - { shard: core, part: 5, parts: 6 }
-          - { shard: core, part: 6, parts: 6 }
-          - { shard: flash, part: 1, parts: 3 }
-          - { shard: flash, part: 2, parts: 3 }
-          - { shard: flash, part: 3, parts: 3 }
+          - { shard: core, part: 1, parts: 8 }
+          - { shard: core, part: 2, parts: 8 }
+          - { shard: core, part: 3, parts: 8 }
+          - { shard: core, part: 4, parts: 8 }
+          - { shard: core, part: 5, parts: 8 }
+          - { shard: core, part: 6, parts: 8 }
+          - { shard: core, part: 7, parts: 8 }
+          - { shard: core, part: 8, parts: 8 }
+          - { shard: flash, part: 1, parts: 4 }
+          - { shard: flash, part: 2, parts: 4 }
+          - { shard: flash, part: 3, parts: 4 }
+          - { shard: flash, part: 4, parts: 4 }
           - { shard: speculative, part: 1, parts: 2 }
           - { shard: speculative, part: 2, parts: 2 }
-          - { shard: routes, part: 1, parts: 1 }
+          - { shard: routes, part: 1, parts: 2 }
+          - { shard: routes, part: 2, parts: 2 }
           - { shard: allocator, part: 1, parts: 1 }
     name: kani-contracts (${{ matrix.shard }} ${{ matrix.part }}/${{ matrix.parts }})
     runs-on: ubuntu-22.04
