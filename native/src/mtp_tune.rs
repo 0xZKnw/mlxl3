@@ -221,6 +221,96 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
     Ok(())
 }
 
+/// PRODUCT-TUNE-NEAR-TIE: largest |log p(baseline token) − log p(candidate token)|, after the
+/// shared prefix, for a divergence to count as a near tie (twice the largest tree/chain gap
+/// measured in Q27D-37, 0.047).
+const NEAR_TIE_GAP: f32 = 0.10;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Agreement {
+    Exact,
+    NearTie { index: usize, gap: f32 },
+    Mismatch { index: usize },
+}
+
+impl Agreement {
+    fn tolerated(self) -> bool {
+        !matches!(self, Self::Mismatch { .. })
+    }
+}
+
+/// First position where two greedy outputs differ (a shorter output differs where it stops).
+fn first_divergence(baseline: &[u32], candidate: &[u32]) -> Option<usize> {
+    (baseline != candidate).then(|| {
+        baseline
+            .iter()
+            .zip(candidate)
+            .take_while(|(a, b)| a == b)
+            .count()
+    })
+}
+
+/// `gap(index, baseline token, candidate token)` is evaluated only at the first divergence.
+/// An output that stops (EOS) while the other continues is not a tolerated divergence.
+fn agreement(
+    baseline: &[u32],
+    candidate: &[u32],
+    gap: impl FnOnce(usize, u32, u32) -> Result<f32>,
+) -> Result<Agreement> {
+    let Some(index) = first_divergence(baseline, candidate) else {
+        return Ok(Agreement::Exact);
+    };
+    let (Some(&expected), Some(&other)) = (baseline.get(index), candidate.get(index)) else {
+        return Ok(Agreement::Mismatch { index });
+    };
+    let gap = gap(index, expected, other)?;
+    anyhow::ensure!(gap.is_finite(), "Tune near-tie gap is not finite");
+    Ok(if gap.abs() <= NEAR_TIE_GAP {
+        Agreement::NearTie { index, gap }
+    } else {
+        Agreement::Mismatch { index }
+    })
+}
+
+/// Outside the timed runs: log p(expected) − log p(other) after `prompt` + `prefix`.
+fn divergence_gap(
+    model: &mut NativeChatModel,
+    tokenizer: &ChatTokenizer,
+    prompt: &str,
+    prefix: &[u32],
+    (expected, other): (u32, u32),
+    cancelled: &AtomicBool,
+) -> Result<f32> {
+    let rendered =
+        tokenizer.render_values(&json!([{"role":"user","content":prompt}]), Some(&[]))?;
+    let mut input = tokenizer.encode(&rendered)?;
+    input.extend_from_slice(prefix);
+    let mut cache = None;
+    let (logits, _, _) = prefill_round(
+        model,
+        &input,
+        &[],
+        None,
+        &mut cache,
+        "tune-near-tie",
+        false,
+        cancelled,
+    )?;
+    let width = usize::try_from(*logits.shape().last().context("empty Tune logits")?)?;
+    let values = logits
+        .astype(mlxl3_native::array::Dtype::Float32)?
+        .log_probs()?
+        .to_f32()?;
+    anyhow::ensure!(values.len() >= width && width > 0, "short Tune logits");
+    let row = &values[values.len() - width..];
+    let (expected, other) = (usize::try_from(expected)?, usize::try_from(other)?);
+    anyhow::ensure!(
+        expected < width && other < width,
+        "Tune token outside the vocabulary"
+    );
+    Ok(row[expected] - row[other])
+}
+
 struct Sample {
     tokens: Vec<u32>,
     seconds: f64,
@@ -239,6 +329,7 @@ fn sample(
     budget: usize,
     context: usize,
     cancelled: &AtomicBool,
+    sampling: Option<(mlxl3_native::sampling::Sampler, u64)>,
 ) -> Result<Sample> {
     let rendered =
         tokenizer.render_values(&json!([{"role":"user","content":prompt}]), Some(&[]))?;
@@ -274,7 +365,16 @@ fn sample(
             cancelled,
         )?,
     };
-    let mut next = logits.chat_greedy_ids()?[0];
+    // PRODUCT-DFLASH-SAMPLING: a non-greedy Tune samples like chat, from a fixed seed.
+    let sampler = sampling
+        .map(|(sampler, _)| sampler)
+        .filter(|s| !s.is_greedy());
+    let mut random = sampling.map_or(1, |(_, seed)| seed | 1);
+    let mut history = mlxl3_native::sampling::History::default();
+    let mut next = match &sampler {
+        Some(sampler) => select_token(&logits, &history, sampler, &mut random)?,
+        None => logits.chat_greedy_ids()?[0],
+    };
     if let (Some(session), Draft::DFlash(weights)) = (&mut dflash, &*draft) {
         session.configure(depth, weights.family, &input);
     }
@@ -295,6 +395,7 @@ fn sample(
             break;
         }
         tokens.push(next);
+        history.push(next);
         if tokens.len() == budget {
             break;
         }
@@ -305,19 +406,41 @@ fn sample(
             let Draft::Mtp(head) = draft else {
                 unreachable!()
             };
-            session.advance(target, head, next, context, budget - tokens.len(), |ids| {
-                tokenizer
-                    .tokenizer()
-                    .decode(ids, false)
-                    .is_ok_and(|s| s.contains('\n'))
-            })?
+            let draw = sampler.map(|sampler| mlxl3_native::sampling::Draw {
+                sampler,
+                history: &history,
+                random: &mut random,
+            });
+            session.advance_sampled(
+                target,
+                head,
+                next,
+                context,
+                budget - tokens.len(),
+                |ids| {
+                    tokenizer
+                        .tokenizer()
+                        .decode(ids, false)
+                        .is_ok_and(|s| s.contains('\n'))
+                },
+                draw,
+            )?
         } else if let (Some(session), Draft::DFlash(weights)) = (&mut dflash, &mut *draft) {
             let NativeChatModel::Qwen(target) = model else {
                 bail!("DFlash requires Qwen");
             };
-            session.advance(target, weights, next, context, budget - tokens.len())?
+            let draw = sampler.map(|sampler| mlxl3_native::sampling::Draw {
+                sampler,
+                history: &history,
+                random: &mut random,
+            });
+            session.advance_sampled(target, weights, next, context, budget - tokens.len(), draw)?
         } else {
-            model.forward(next)?.chat_greedy_ids()?[0]
+            let logits = model.forward(next)?;
+            match &sampler {
+                Some(sampler) => select_token(&logits, &history, sampler, &mut random)?,
+                None => logits.chat_greedy_ids()?[0],
+            }
         };
     }
     Ok(Sample {
@@ -336,6 +459,7 @@ fn sample(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn run(
     model: &mut NativeChatModel,
     head: &mut Head,
@@ -344,6 +468,7 @@ pub(super) fn run(
     key: &str,
     context: usize,
     cancelled: &AtomicBool,
+    sampler: mlxl3_native::sampling::Sampler,
 ) -> Result<()> {
     run_modes(
         model,
@@ -353,9 +478,11 @@ pub(super) fn run(
         key,
         context,
         cancelled,
+        sampler,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn run_dflash(
     model: &mut NativeChatModel,
     weights: &mlxl3_native::dflash::DFlashWeights,
@@ -364,6 +491,7 @@ pub(super) fn run_dflash(
     key: &str,
     context: usize,
     cancelled: &AtomicBool,
+    sampler: mlxl3_native::sampling::Sampler,
 ) -> Result<()> {
     run_modes(
         model,
@@ -373,9 +501,11 @@ pub(super) fn run_dflash(
         key,
         context,
         cancelled,
+        sampler,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_modes(
     model: &mut NativeChatModel,
     draft: &mut Draft<'_>,
@@ -384,11 +514,14 @@ fn run_modes(
     key: &str,
     context: usize,
     cancelled: &AtomicBool,
+    sampler: mlxl3_native::sampling::Sampler,
 ) -> Result<()> {
+    // The warmup stays greedy: it checks the verification itself (near ties tolerated).
+    let sampled = !sampler.is_greedy();
     let prompts = tuning_prompts(matches!(draft, Draft::DFlash(_)));
     let prefix = draft.event_prefix();
     let mut completed = 0;
-    let mut warmup_tokens = None;
+    let mut warmup_tokens: Option<Vec<u32>> = None;
     let progress = |depth, phase, completed| {
         emit_event(
             json!({"type":format!("{prefix}_tune_progress"), "request_id":request,
@@ -398,14 +531,21 @@ fn run_modes(
     for depth in 0..=3 {
         progress(depth, "warmup", completed)?;
         let warm = sample(
-            model, draft, tokenizer, prompts[0], depth, 32, context, cancelled,
+            model, draft, tokenizer, prompts[0], depth, 32, context, cancelled, None,
         )?;
         anyhow::ensure!(!warm.tokens.is_empty(), "Tune produced an empty warmup");
         if let Some(baseline) = &warmup_tokens {
-            anyhow::ensure!(
-                &warm.tokens == baseline,
-                "Tune warmup differs from the target"
-            );
+            let agreed = agreement(baseline, &warm.tokens, |index, expected, other| {
+                divergence_gap(
+                    model,
+                    tokenizer,
+                    prompts[0],
+                    &baseline[..index],
+                    (expected, other),
+                    cancelled,
+                )
+            })?;
+            anyhow::ensure!(agreed.tolerated(), "Tune warmup differs from the target");
         } else {
             warmup_tokens = Some(warm.tokens);
         }
@@ -421,21 +561,60 @@ fn run_modes(
         };
         for depth in order {
             progress(depth, "measure", completed)?;
+            // Same seed for every mode of one prompt.
+            let seed = 0x9E37_79B9_7F4A_7C15 ^ (pass as u64 + 1);
             samples[depth].push(sample(
-                model, draft, tokenizer, prompt, depth, 96, context, cancelled,
+                model,
+                draft,
+                tokenizer,
+                prompt,
+                depth,
+                96,
+                context,
+                cancelled,
+                sampled.then_some((sampler, seed)),
             )?);
             completed += 1;
             progress(depth, "measured", completed)?;
+        }
+    }
+    // Pass k of every mode ran prompts[k]; compare each with the baseline run of that prompt.
+    // Sampled outputs are random draws of the same distribution: no token comparison.
+    let mut agreements = vec![vec![Agreement::Exact; prompts.len()]; 4];
+    for depth in (1..=3).filter(|_| !sampled) {
+        for (pass, prompt) in prompts.iter().enumerate() {
+            let baseline = &samples[0][pass].tokens;
+            agreements[depth][pass] = agreement(
+                baseline,
+                &samples[depth][pass].tokens,
+                |index, expected, other| {
+                    divergence_gap(
+                        model,
+                        tokenizer,
+                        prompt,
+                        &baseline[..index],
+                        (expected, other),
+                        cancelled,
+                    )
+                },
+            )?;
         }
     }
     let mut scores = [None; 4];
     let mut rows = Vec::new();
     for depth in 0..=3 {
         let runs = &samples[depth];
-        let parity = runs
+        let parity = agreements[depth].iter().all(|a| a.tolerated());
+        let near_ties = agreements[depth]
             .iter()
-            .zip(&samples[0])
-            .all(|(a, b)| a.tokens == b.tokens);
+            .enumerate()
+            .filter_map(|(pass, a)| match *a {
+                Agreement::NearTie { index, gap } => {
+                    Some(json!({"prompt": pass, "position": index, "gap": gap}))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let enough = runs.iter().all(|s| s.tokens.len() >= 32);
         let tokens = runs
             .iter()
@@ -457,6 +636,7 @@ fn run_modes(
             "accepted_tokens":accepted,"proposed_tokens":proposed,"lookup_blocks":lookup_blocks,"eligible":scores[depth].is_some(),
             "reason":if !parity { Some("target_mismatch") } else if !enough { Some("too_few_tokens") }
                 else if depth > 0 && accepted == 0 { Some("zero_acceptance") } else { None },
+            "near_ties":near_ties, "sampled":sampled,
             "token_hashes":runs.iter().map(|s| token_hash(&s.tokens)).collect::<Vec<_>>() }));
     }
     let best = mlxl3_native::speculative::best_mtp_depth(scores)
@@ -464,7 +644,8 @@ fn run_modes(
     anyhow::ensure!(!cancelled.load(Ordering::Relaxed), "MTP tuning cancelled");
     emit_event(
         json!({"type":format!("{prefix}_tune_complete"),"request_id":request,"tuning_key":key,
-        "best_depth":best,"rows":rows,"noise_margin_percent":3,"sample_tokens":96,"samples":2}),
+        "best_depth":best,"rows":rows,"noise_margin_percent":3,"sample_tokens":96,"samples":2,
+        "sampled":sampled}),
     )
 }
 
@@ -493,12 +674,12 @@ mod tests {
         let cancelled = AtomicBool::new(false);
         let mut draft = Draft::DFlash(&weights);
         let reference = sample(
-            &mut model, &mut draft, &tokenizer, &prompt, 0, 256, 4096, &cancelled,
+            &mut model, &mut draft, &tokenizer, &prompt, 0, 256, 4096, &cancelled, None,
         )?;
         assert!(!reference.tokens.is_empty());
         for mode in 1..=3 {
             let actual = sample(
-                &mut model, &mut draft, &tokenizer, &prompt, mode, 256, 4096, &cancelled,
+                &mut model, &mut draft, &tokenizer, &prompt, mode, 256, 4096, &cancelled, None,
             )?;
             assert_eq!(actual.tokens, reference.tokens);
             if mode == 1 {
@@ -510,6 +691,53 @@ mod tests {
         eprintln!(
             "4 Tune samples: exact nonempty tokens, copy exercised in Auto and absent from fixed modes"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn tune_tolerates_only_near_tie_divergences() -> Result<()> {
+        let never =
+            |_: usize, _: u32, _: u32| -> Result<f32> { bail!("gap read for equal outputs") };
+        assert_eq!(agreement(&[1, 2, 3], &[1, 2, 3], never)?, Agreement::Exact);
+        assert_eq!(first_divergence(&[1, 2, 3], &[1, 2, 3]), None);
+        assert_eq!(first_divergence(&[1, 2, 3], &[1, 9, 3]), Some(1));
+        assert_eq!(first_divergence(&[1, 2, 3], &[1, 2]), Some(2));
+        assert_eq!(first_divergence(&[], &[4]), Some(0));
+        // The gap is read at the first divergence, with the baseline and candidate tokens.
+        let near = agreement(&[1, 2, 3, 4], &[1, 2, 7, 8], |index, expected, other| {
+            assert_eq!((index, expected, other), (2, 3, 7));
+            Ok(0.06)
+        })?;
+        assert_eq!(
+            near,
+            Agreement::NearTie {
+                index: 2,
+                gap: 0.06
+            }
+        );
+        assert!(near.tolerated());
+        for (gap, tolerated) in [
+            (0.0, true),
+            (0.1, true),
+            (-0.04, true),
+            (0.1001, false),
+            (0.5, false),
+            (-0.2, false),
+        ] {
+            let result = agreement(&[5, 6], &[5, 9], |_, _, _| Ok(gap))?;
+            assert_eq!(result.tolerated(), tolerated, "gap {gap}");
+        }
+        // EOS on one side only: no candidate token to weigh, never tolerated.
+        assert_eq!(
+            agreement(&[1, 2, 3], &[1, 2], never)?,
+            Agreement::Mismatch { index: 2 }
+        );
+        assert_eq!(
+            agreement(&[1, 2], &[1, 2, 3], never)?,
+            Agreement::Mismatch { index: 2 }
+        );
+        assert!(agreement(&[1, 2], &[1, 3], |_, _, _| Ok(f32::NAN)).is_err());
+        assert!(agreement(&[1, 2], &[1, 3], |_, _, _| Ok(f32::INFINITY)).is_err());
         Ok(())
     }
 

@@ -513,7 +513,7 @@ private struct WorkspaceHeader: View {
                     MTPToolbarControl()
                 }
                 if studio.dflash2Available && studio.selectedMode != .decision {
-                    MTPTuningToolbarControl(dflash: true)
+                    DFlashToolbarControl()
                 }
                 if studio.selectedMode == .chat || studio.selectedMode == .agent {
                     Button { studio.showInspector.toggle() } label: {

@@ -96,7 +96,7 @@ struct GenerationInspector: View {
                             }
                             .disabled(studio.samplingLocked)
                             if studio.samplingLocked {
-                                let mode = studio.dflash2Applicable ? "DFlash2" : "MTP"
+                                let mode = studio.dflash2Applicable && studio.dflashSamplingSupported != true ? "DFlash2" : "MTP"
                                 Label(
                                     L(
                                         "\(mode) utilise le mode greedy. Désactive \(mode) pour modifier ces paramètres.",
@@ -114,94 +114,8 @@ struct GenerationInspector: View {
                         }
 
                         if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {
-                            SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill", grouped: false) {
-                                Toggle(
-                                    studio.dflash2Available
-                                        ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
-                                        : L(
-                                            "Préférence DFlash2 (inactive pour ce modèle)",
-                                            "DFlash2 preference (inactive for this model)"),
-                                    isOn: Binding(
-                                        get: { studio.dflash2Enabled || studio.dflashDownloading },
-                                        set: { studio.setDFlash2Enabled($0) }
-                                    )
-                                ).font(.system(size: 13))
-                                    .disabled(
-                                        studio.isGenerating
-                                            || (!(studio.dflash2Enabled || studio.dflashDownloading)
-                                                && (!studio.dflash2Available || !studio.engineState.isReady))
-                                    )
-                                if !studio.dflash2Available {
-                                    Text(
-                                        L(
-                                            "Préférence DFlash2 conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
-                                            "DFlash2 preference saved; unavailable for this model. You can turn it off here."
-                                        )
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                }
-                                MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)
-                                if studio.dflashDownloading {
-                                    ProgressView(
-                                        value: studio.dflashDownloadTotal > 0
-                                            ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
-                                    Text(
-                                        L(
-                                            "Téléchargement et préparation du draft…",
-                                            "Downloading and preparing the draft…")
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                    Button(L("Annuler la préparation", "Cancel preparation")) {
-                                        studio.setDFlash2Enabled(false)
-                                    }
-                                    .buttonStyle(GlassPillButtonStyle())
-                                }
-                                if let error = studio.dflashDownloadError {
-                                    Text(error).font(.system(size: 12)).foregroundStyle(.red)
-                                }
-                                if studio.selectedModel?.modelType == "qwen4_exp" {
-                                    DFlashDraftButton(
-                                        title: L("Télécharger le draft compatible", "Download the compatible draft"),
-                                        icon: "arrow.down.circle", action: studio.downloadCompatibleDFlashDraft
-                                    )
-                                    .disabled(
-                                        !studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating
-                                            || studio.dflashDownloading)
-                                    Text(
-                                        L(
-                                            "Draft Flash Next : environ 1,2 Go. Chaque token est vérifié par la cible.",
-                                            "Flash Next draft: about 1.2 GB. The target verifies every token.")
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                } else {
-                                    DFlashDraftButton(
-                                        title: studio.dflashDraftIsQwen38Dense
-                                            ? L("Télécharger le draft Qwen3.8-27B", "Download the Qwen3.8-27B draft")
-                                            : L("Télécharger le draft compatible", "Download the compatible draft"),
-                                        icon: "arrow.down.circle", action: studio.downloadCompatibleDFlashDraft
-                                    )
-                                    .accessibilityIdentifier("dflash.download")
-                                    .disabled(
-                                        !studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating
-                                            || studio.dflashDownloading)
-                                    Text(
-                                        studio.dflashDraftIsQwen38Dense
-                                            ? L(
-                                                "Draft incoai/Qwen3.8-27B-Splash : environ 1 Go, version épinglée et vérifiée. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
-                                                "incoai/Qwen3.8-27B-Splash draft: about 1 GB, pinned and verified. The target verifies every token. Tune selects the best mode on this Mac.")
-                                            : L(
-                                                "Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
-                                                "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."
-                                            )
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                }
-                                DFlashDraftButton(
-                                    title: L("Choisir un draft local…", "Choose a local draft…"),
-                                    icon: "folder", action: studio.chooseDFlashDraft
-                                )
-                                .disabled(
-                                    !studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
+                            SettingCard(title: L("Accélération DFlash2", "DFlash2 acceleration"), icon: "bolt.fill", grouped: false) {
+                                DFlashSettingsContent()
                             }
                             .id("dflash-tuning")
                         }
@@ -610,19 +524,3 @@ private struct RecommendedSamplingMenu: View {
     }
 }
 
-
-/// The DFlash2 draft actions, styled like Tune's "Compare speeds" button.
-private struct DFlashDraftButton: View {
-    let title: String
-    let icon: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 12).frame(height: 32)
-        }
-        .buttonStyle(StudioToolbarStyle())
-    }
-}

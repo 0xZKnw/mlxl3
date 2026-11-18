@@ -10,6 +10,30 @@ extension StudioModel {
         mtpError = state == "error" ? "Fixture error" : nil
     }
 
+    fileprivate func seedDFlashToolbar(_ state: String) {
+        dflashSupported = true
+        dflash2Enabled = state == "on"
+        dflashDownloading = state == "preparing"
+        dflashDownloadError = state == "error" ? "Fixture error" : nil
+    }
+
+    fileprivate func seedDFlashLayout(results: Bool) {
+        dflashSupported = true
+        dflashDownloading = false
+        dflashDownloadError = nil
+        dflash2Enabled = true
+        dflashTuneSupported = true
+        dflashDraftPath = "/fixture/draft"
+        dflashMode = 1
+        dflashTuneRows = results ? [8.8, 21.1, 13.8, 20.4].enumerated().map { depth, rate in
+            MTPTuningRow(depth: depth, decodeTPS: rate, decodeTokens: 100,
+                         decodeSeconds: 100 / rate, acceptedTokens: depth == 0 ? 0 : 50,
+                         proposedTokens: depth == 0 ? 0 : 100, eligible: depth != 1,
+                         reason: depth == 1 ? "target_mismatch" : nil,
+                         tokenHashes: ["fixture-a", "fixture-b"])
+        } : []
+    }
+
     fileprivate func seedMTPLayout(results: Bool) {
         mtpError = nil
         mtpEnabled = true
@@ -60,6 +84,48 @@ extension StudioModel {
                     let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
                     host.cacheDisplay(in: host.bounds, to: bitmap)
                     try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(language.rawValue)-\(state).png"))
+                    window.close()
+                }
+            }
+            for state in ["off", "on", "preparing", "error"] {
+                studio.seedDFlashToolbar(state)
+                let host = NSHostingView(rootView: DFlashToolbarControl().environmentObject(studio)
+                    .studioAppearance(.dark).background(StudioTheme.canvas))
+                let size = host.fittingSize
+                cases += 1
+                if !size.width.isFinite || size.width > 110 || size.height > 30 || size.height <= 0 {
+                    failures.append("\(language.rawValue)-dflash-\(state): DFlash2 toolbar exceeds its compact bounds (\(size))")
+                }
+            }
+            for results in [false, true] {
+                studio.seedDFlashLayout(results: results)
+                for width in [200, 244, 280, 320] {
+                    let view = DFlashSettingsContent().environmentObject(studio)
+                        .frame(width: CGFloat(width), alignment: .leading)
+                        .padding(16).background(StudioTheme.canvas)
+                        .studioAppearance(.dark)
+                        .foregroundStyle(StudioTheme.ink)
+                    let host = NSHostingView(rootView: view)
+                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width + 32, height: 800),
+                        styleMask: .borderless, backing: .buffered, defer: false)
+                    window.isReleasedWhenClosed = false; window.contentView = host
+                    host.frame = NSRect(x: 0, y: 0, width: width + 32, height: 800)
+                    try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded()
+                    let height = host.fittingSize.height - 32
+                    // Switch, state, picker, Tune, the four result rows and the collapsed draft options.
+                    let limit: CGFloat = results ? 560 : 330
+                    cases += 1
+                    let label = "\(language.rawValue)-dflash-\(width)-results\(results)"
+                    print("\(label): height=\(height), limit=\(limit)")
+                    if !height.isFinite || height <= 0 || height > limit {
+                        failures.append(label + ": DFlash2 panel consumed excessive vertical space")
+                    }
+                    if let output = ProcessInfo.processInfo.environment["MLXL3_MTP_LAYOUT_SNAPSHOTS"] {
+                        let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                        host.cacheDisplay(in: host.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(
+                            to: URL(fileURLWithPath: output).appendingPathComponent(label + ".png"))
+                    }
                     window.close()
                 }
             }
@@ -117,6 +183,6 @@ extension StudioModel {
             throw NSError(domain: "MTPPanelLayoutCheck", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: failures.joined(separator: "; ")])
         }
-        print("MTP layout checks passed: \(cases) toolbar and panel cases, FR/EN, 200–320pt, with/without results")
+        print("MTP and DFlash2 layout checks passed: \(cases) toolbar and panel cases, FR/EN, 200–320pt, with/without results")
     }
 }

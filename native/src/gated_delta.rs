@@ -25,8 +25,9 @@ pub fn prepare_qkv(
     let values = value_heads
         .checked_mul(value_dim)
         .context("Gated DeltaNet value width overflow")?;
+    // Q27D-44: batch > 1 = tree paths sharing `conv_state` (state_out is element 0's).
     ensure!(
-        batch == 1
+        (1..=16).contains(&batch)
             && (1..=8).contains(&time)
             && key_heads > 0
             && value_heads > 0
@@ -103,9 +104,9 @@ inline half mlxl3_gdn_conv_silu(
         include_str!("../shaders/gated_delta_prepare.metal"),
         &[qkv, conv_state, conv_weight, q_scale, k_scale],
         &[
-            vec![1, time, key_heads, key_dim],
-            vec![1, time, key_heads, key_dim],
-            vec![1, time, value_heads, value_dim],
+            vec![batch, time, key_heads, key_dim],
+            vec![batch, time, key_heads, key_dim],
+            vec![batch, time, value_heads, value_dim],
             conv_state.shape().to_vec(),
         ],
         &[
@@ -114,7 +115,7 @@ inline half mlxl3_gdn_conv_silu(
             Dtype::Float16,
             Dtype::Float16,
         ],
-        [32, key_heads.max(value_heads), time],
+        [32, key_heads.max(value_heads), time * batch],
         [32, 1, 1],
     )?;
     ensure!(
@@ -260,6 +261,39 @@ enum Retention {
     Tape,
 }
 
+/// Q27D-45: batched tree paths replayed in one thread loop from a single state load
+/// (`MLXL3_GDN_PATH_LOOP=1`); otherwise one thread group column per path.
+fn gdn_path_loop_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_GDN_PATH_LOOP").as_deref() == Ok("1"))
+}
+
+/// Q27D-44: tapes of a batch of tree paths that started from one shared state.
+pub struct BatchedTape {
+    initial: Array,
+    keys: Array,
+    delta: Array,
+    decay: Array,
+    time: i32,
+}
+
+impl BatchedTape {
+    /// The tape of batch element `index` (its padded steps are never replayed).
+    pub fn member(&self, index: i32) -> Result<RecurrentTape> {
+        ensure!(
+            (0..self.keys.shape()[0]).contains(&index),
+            "invalid batched GDN tape member"
+        );
+        Ok(RecurrentTape {
+            initial: self.initial.try_clone()?,
+            keys: self.keys.slice(0, index, index + 1)?,
+            delta: self.delta.slice(0, index, index + 1)?,
+            decay: self.decay.slice(0, index, index + 1)?,
+            time: self.time,
+        })
+    }
+}
+
 pub struct RecurrentTape {
     initial: Array,
     keys: Array,
@@ -326,6 +360,35 @@ pub fn step_with_gates_tape(
     ))
 }
 
+/// Q27D-44: `step_with_gates_tape` for a batch of tree paths from one shared `state`
+/// `[1, Hv, Dv, Dk]`; the final states are not written (a commit replays the tape).
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_gates_tape_shared(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, BatchedTape)> {
+    let (out, _, mut extra) =
+        step_with_gates_core(q, k, v, a, b, a_log, dt_bias, state, Retention::Tape, true)?;
+    let decay = extra.pop().context("missing GDN decay tape")?;
+    let delta = extra.pop().context("missing GDN delta tape")?;
+    Ok((
+        out,
+        BatchedTape {
+            initial: state.try_clone()?,
+            keys: k.try_clone()?,
+            delta,
+            decay,
+            time: q.shape()[1],
+        },
+    ))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn step_with_gates_impl(
     q: &Array,
@@ -337,6 +400,22 @@ fn step_with_gates_impl(
     dt_bias: &Array,
     state: &Array,
     retention: Retention,
+) -> Result<(Array, Array, Vec<Array>)> {
+    step_with_gates_core(q, k, v, a, b, a_log, dt_bias, state, retention, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn step_with_gates_core(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+    retention: Retention,
+    shared_state: bool,
 ) -> Result<(Array, Array, Vec<Array>)> {
     let save_history = matches!(retention, Retention::History);
     let save_tape = matches!(retention, Retention::Tape);
@@ -351,7 +430,9 @@ fn step_with_gates_impl(
     let history_rows = crate::contracts::gdn_history_rows(time)
         .context("fused Gated DeltaNet gates require 1 to 8 tokens")?;
     ensure!(
-        batch == 1 && v_batch == batch && v_time == time,
+        (batch == 1 || (shared_state && batch <= 16 && save_tape))
+            && v_batch == batch
+            && v_time == time,
         "fused Gated DeltaNet gates require 1 to 8 tokens"
     );
     ensure!(
@@ -369,7 +450,13 @@ fn step_with_gates_impl(
             && b.shape() == a.shape()
             && a_log.shape() == [value_heads]
             && dt_bias.shape() == [value_heads]
-            && state.shape() == [batch, value_heads, value_dim, key_dim],
+            && state.shape()
+                == [
+                    if shared_state { 1 } else { batch },
+                    value_heads,
+                    value_dim,
+                    key_dim
+                ],
         "invalid fused Gated DeltaNet gate shapes"
     );
     ensure!(
@@ -383,11 +470,18 @@ fn step_with_gates_impl(
             && state.dtype() == Dtype::Float32,
         "invalid fused Gated DeltaNet gate dtypes"
     );
-    let header = format!(
+    let mut header = format!(
         "#define MLXL3_GDN_FUSED_GATES 1\n#define MLXL3_GDN_SAVE_HISTORY {}\n#define MLXL3_GDN_SAVE_TAPE {}\n#define InT half\n#define StT float\n#define B {batch}\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n",
         u8::from(save_history),
         u8::from(save_tape),
     );
+    let path_loop = shared_state && gdn_path_loop_enabled();
+    if shared_state {
+        header.push_str("#define MLXL3_GDN_SHARED_STATE 1\n#define MLXL3_GDN_SKIP_STATE_OUT 1\n");
+    }
+    if path_loop {
+        header.push_str("#define MLXL3_GDN_PATH_LOOP 1\n");
+    }
     let output_names: &[&str] = if save_tape {
         &["y", "state_out", "delta_tape", "decay_tape"]
     } else if save_history {
@@ -397,7 +491,11 @@ fn step_with_gates_impl(
     };
     let mut output_shapes = vec![
         vec![batch, time, value_heads, value_dim],
-        state.shape().to_vec(),
+        if shared_state {
+            vec![1]
+        } else {
+            state.shape().to_vec()
+        },
     ];
     let mut output_dtypes = vec![Dtype::Float16, Dtype::Float32];
     if save_history {
@@ -411,9 +509,14 @@ fn step_with_gates_impl(
     }
     let mut outputs = array::metal_kernel(
         &format!(
-            "mlxl3_rs_gdn_packed_gates_h{}_tape{}_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}",
+            "mlxl3_rs_gdn_packed_gates_h{}_tape{}{}_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}",
             u8::from(save_history),
-            u8::from(save_tape)
+            u8::from(save_tape),
+            if shared_state {
+                format!("_shared{}_b{batch}", if path_loop { "_loop" } else { "" })
+            } else {
+                String::new()
+            }
         ),
         &["q", "k", "v", "a", "b", "a_log", "dt_bias", "state_in"],
         output_names,
@@ -422,7 +525,15 @@ fn step_with_gates_impl(
         &[q, k, v, a, b, a_log, dt_bias, state],
         &output_shapes,
         &output_dtypes,
-        [32, value_dim / 8, value_heads],
+        [
+            32,
+            value_dim / 8,
+            if path_loop {
+                value_heads
+            } else {
+                value_heads * batch
+            },
+        ],
         [32, 2, 1],
     )?;
     ensure!(

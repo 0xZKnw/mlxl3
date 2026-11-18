@@ -593,6 +593,10 @@ pub const MAX_MTP_WIDTH: usize = 3;
 
 /// Q27D-37: a DFlash2 verification tree. Row 0 is the anchor; rows are in depth order and
 /// every row's parent precedes it, so a row's ancestors are a prefix-closed set.
+/// Q27D-47: (accepted rows from the root, accepted draft tokens, token drawn after them,
+/// summed (KL(p̂ ‖ p), −Σ p̂ log p, −Σ p log p) of the emitted tokens' laws).
+pub type RelaxedAcceptance = (Vec<usize>, usize, u32, (f64, f64, f64));
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DraftTree {
     pub tokens: Vec<u32>,
@@ -665,6 +669,108 @@ impl DraftTree {
                 None => return Some((path.clone(), path.len() - 1, wanted)),
             }
         }
+    }
+
+    /// Q27D-40: exact speculative sampling down the tree. `target(row, extra)` is the target
+    /// law of `row`, `extra` being the tokens of its path below the root (penalty history).
+    /// At each node the children are verified in order by `Distribution::verify_among`;
+    /// returns (accepted rows from the root, accepted draft tokens, token drawn after them).
+    pub fn accept_sampled(
+        &self,
+        target: impl FnMut(usize, &[u32]) -> anyhow::Result<crate::sampling::Distribution>,
+        random: &mut u64,
+    ) -> anyhow::Result<(Vec<usize>, usize, u32)> {
+        let (path, accepted, token, _) = self.accept_sampled_relaxed(target, random, 0.)?;
+        Ok((path, accepted, token))
+    }
+
+    /// Q27D-47: `accept_sampled` where each node's law is first inclined toward its children
+    /// under the divergence budget `relax` (nats per emitted token, 0 = exact). Also returns
+    /// the summed (KL(p̂ ‖ p), −Σ p̂ log p, −Σ p log p) of the emitted tokens' laws.
+    pub fn accept_sampled_relaxed(
+        &self,
+        mut target: impl FnMut(usize, &[u32]) -> anyhow::Result<crate::sampling::Distribution>,
+        random: &mut u64,
+        relax: f64,
+    ) -> anyhow::Result<RelaxedAcceptance> {
+        anyhow::ensure!(self.is_valid(), "invalid verification tree");
+        let mut path = vec![0usize];
+        let mut extra = Vec::new();
+        let mut row = 0usize;
+        let mut terms = (0., 0., 0.);
+        loop {
+            let law = target(row, &extra)?;
+            let children = (row + 1..self.rows())
+                .filter(|&child| self.parents[child] == row)
+                .collect::<Vec<_>>();
+            let candidates = children
+                .iter()
+                .map(|&child| self.tokens[child])
+                .collect::<Vec<_>>();
+            let law = if relax > 0. && !candidates.is_empty() {
+                let (tilted, _) = law.tilted_toward(&candidates, relax)?;
+                let (kl, cross, entropy) = tilted.divergence_terms(&law);
+                terms = (terms.0 + kl, terms.1 + cross, terms.2 + entropy);
+                tilted
+            } else {
+                if relax > 0. {
+                    let (_, cross, entropy) = law.divergence_terms(&law);
+                    terms = (terms.0, terms.1 + cross, terms.2 + entropy);
+                }
+                law
+            };
+            match law.verify_among(&candidates, random)? {
+                crate::sampling::Choice::Candidate(index) => {
+                    row = children[index];
+                    path.push(row);
+                    extra.push(self.tokens[row]);
+                }
+                crate::sampling::Choice::Token(token) => {
+                    let accepted = path.len() - 1;
+                    return Ok((path, accepted, token, terms));
+                }
+            }
+        }
+    }
+
+    /// Q27D-48: expected accepted draft tokens of a sampled tree verification and expected
+    /// summed KL of the emitted tokens' laws, when every node's law (`laws[row]`, built with
+    /// its path history) is inclined toward its children with budget `relax` (0 = exact).
+    pub fn expected_acceptance(
+        &self,
+        laws: &[crate::sampling::Distribution],
+        relax: f64,
+    ) -> anyhow::Result<(f64, f64)> {
+        anyhow::ensure!(
+            self.is_valid() && laws.len() == self.rows(),
+            "invalid tree or laws"
+        );
+        let mut reach = vec![0f64; self.rows()];
+        reach[0] = 1.;
+        let (mut accepted, mut divergence) = (0f64, 0f64);
+        for row in 0..self.rows() {
+            if reach[row] == 0. {
+                continue;
+            }
+            let children = (row + 1..self.rows())
+                .filter(|&child| self.parents[child] == row)
+                .collect::<Vec<_>>();
+            let candidates = children
+                .iter()
+                .map(|&child| self.tokens[child])
+                .collect::<Vec<_>>();
+            let (law, kl) = if relax > 0. && !candidates.is_empty() {
+                laws[row].tilted_toward(&candidates, relax)?
+            } else {
+                (laws[row].clone(), 0.)
+            };
+            divergence += reach[row] * kl;
+            for (&child, &token) in children.iter().zip(&candidates) {
+                reach[child] = reach[row] * law.probability(token);
+                accepted += reach[child];
+            }
+        }
+        Ok((accepted, divergence))
     }
 
     /// Structural invariants: root row, parents before children, depth = parent depth + 1,
@@ -1051,6 +1157,186 @@ mod tests {
         let mut bad = unary.clone();
         bad[5] = f32::NAN;
         assert!(build_selector_tree(0, &candidates, &bad, &edges, 7, 5, 0.6, 1.0).is_none());
+    }
+
+    fn law(pairs: &[(u32, f64)]) -> crate::sampling::Distribution {
+        crate::sampling::Distribution::Weighted {
+            tokens: pairs.iter().map(|&(t, _)| t).collect(),
+            weights: pairs.iter().map(|&(_, w)| w).collect(),
+            total: pairs.iter().map(|&(_, w)| w).sum(),
+        }
+    }
+
+    /// Q27D-40: point laws give the greedy path; a chain gives the chain verification.
+    #[test]
+    fn tree_sampled_acceptance_matches_greedy_and_chain() -> anyhow::Result<()> {
+        let tree = DraftTree {
+            tokens: vec![100, 10, 20, 30, 40, 50],
+            parents: vec![0, 0, 0, 1, 2, 3],
+            depths: vec![0, 1, 1, 2, 2, 3],
+        };
+        for targets in [
+            [20u32, 30, 40, 99, 77, 88],
+            [10, 30, 0, 50, 0, 5],
+            [11, 0, 0, 0, 0, 0],
+        ] {
+            let mut random = 7;
+            let sampled = tree.accept_sampled(
+                |row, _| Ok(crate::sampling::Distribution::Point(targets[row])),
+                &mut random,
+            )?;
+            assert_eq!(Some(sampled), tree.accept_greedy(&targets));
+        }
+        // A chain tree consumes the same draws as `Sampler::accept_with`.
+        let chain = DraftTree {
+            tokens: vec![100, 3, 7, 1],
+            parents: vec![0, 0, 1, 2],
+            depths: vec![0, 1, 2, 3],
+        };
+        let laws = [
+            law(&[(3, 0.6), (7, 0.3), (9, 0.1)]),
+            law(&[(7, 0.5), (2, 0.5)]),
+            law(&[(1, 0.2), (4, 0.8)]),
+            law(&[(5, 0.7), (6, 0.3)]),
+        ];
+        for seed in 1..2000u64 {
+            let (mut a, mut b) = (seed * 0x9E37_79B9, seed * 0x9E37_79B9);
+            let reference = crate::sampling::Sampler::accept_with(
+                &[3, 7, 1],
+                |index, _| Ok(laws[index].clone()),
+                &mut a,
+            )?;
+            let (path, accepted, token) =
+                chain.accept_sampled(|row, _| Ok(laws[row].clone()), &mut b)?;
+            assert_eq!(
+                (accepted, token, path.len(), a),
+                (
+                    reference.accepted_draft_tokens,
+                    reference.target_token,
+                    accepted + 1,
+                    b
+                )
+            );
+        }
+        Ok(())
+    }
+
+    /// Q27D-48: the expected acceptance equals the greedy path for point laws and the mean
+    /// of `accept_sampled_relaxed` for weighted laws, exact or inclined.
+    #[test]
+    fn tree_expected_acceptance_matches_sampling() -> anyhow::Result<()> {
+        let tree = DraftTree {
+            tokens: vec![100, 10, 20, 40, 60],
+            parents: vec![0, 0, 0, 1, 2],
+            depths: vec![0, 1, 1, 2, 2],
+        };
+        let greedy_targets = [10u32, 40, 0, 0, 0];
+        let points = greedy_targets.map(crate::sampling::Distribution::Point);
+        let (expected, kl) = tree.expected_acceptance(&points, 0.01)?;
+        assert_eq!(
+            (expected, kl),
+            (tree.accept_greedy(&greedy_targets).unwrap().1 as f64, 0.)
+        );
+        let laws = [
+            law(&[(10, 0.3), (20, 0.25), (30, 0.45)]),
+            law(&[(40, 0.35), (50, 0.65)]),
+            law(&[(60, 0.8), (70, 0.2)]),
+            law(&[(80, 1.0)]),
+            law(&[(90, 1.0)]),
+        ];
+        for relax in [0., 0.01, 0.05] {
+            let (expected, expected_kl) = tree.expected_acceptance(&laws, relax)?;
+            let blocks = 300_000usize;
+            let mut random = 0xABCD_EF01_2345_6789;
+            let (mut total, mut total_kl) = (0f64, 0f64);
+            let mut squares = 0f64;
+            for _ in 0..blocks {
+                let (_, accepted, _, terms) = tree.accept_sampled_relaxed(
+                    |row, _| Ok(laws[row].clone()),
+                    &mut random,
+                    relax,
+                )?;
+                total += accepted as f64;
+                squares += (accepted * accepted) as f64;
+                total_kl += terms.0;
+            }
+            let mean = total / blocks as f64;
+            let sigma = ((squares / blocks as f64 - mean * mean) / blocks as f64).sqrt();
+            assert!(
+                (mean - expected).abs() <= 4. * sigma,
+                "relax {relax}: {mean} vs {expected}"
+            );
+            assert!(
+                (total_kl / blocks as f64 - expected_kl).abs() <= 1e-3,
+                "relax {relax} KL"
+            );
+            if relax > 0. {
+                assert!(
+                    expected > tree.expected_acceptance(&laws, 0.)?.0,
+                    "inclination did not help"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Q27D-40: the produced sequence follows the target laws: first token ~ root law,
+    /// second token ~ the law of the row reached (fixed seed, 300 000 blocks, 4 sigma).
+    #[test]
+    fn tree_sampled_acceptance_reproduces_the_joint_law() -> anyhow::Result<()> {
+        // root -> {1: 10, 2: 20}; 1 -> {3: 40}; 2 -> {}.
+        let tree = DraftTree {
+            tokens: vec![100, 10, 20, 40],
+            parents: vec![0, 0, 0, 1],
+            depths: vec![0, 1, 1, 2],
+        };
+        let laws = [
+            law(&[(10, 0.3), (20, 0.25), (30, 0.45)]),
+            law(&[(40, 0.35), (50, 0.65)]),
+            law(&[(60, 0.8), (70, 0.2)]),
+            law(&[(80, 1.0)]),
+        ];
+        let blocks = 300_000usize;
+        let mut random = 0xC0FF_EE12_3456_789B;
+        let mut first = std::collections::HashMap::<u32, usize>::new();
+        let mut second = std::collections::HashMap::<(u32, u32), usize>::new();
+        for _ in 0..blocks {
+            let (path, accepted, token) = tree.accept_sampled(
+                |row, extra| {
+                    anyhow::ensure!(extra.len() == tree.depths[row], "path history length");
+                    Ok(laws[row].clone())
+                },
+                &mut random,
+            )?;
+            let sequence = path[1..]
+                .iter()
+                .map(|&row| tree.tokens[row])
+                .chain(std::iter::once(token))
+                .collect::<Vec<_>>();
+            assert_eq!(sequence.len(), accepted + 1);
+            *first.entry(sequence[0]).or_default() += 1;
+            if sequence.len() > 1 {
+                *second.entry((sequence[0], sequence[1])).or_default() += 1;
+            }
+        }
+        let near = |count: usize, total: usize, p: f64| {
+            let observed = count as f64 / total as f64;
+            (observed - p).abs() <= 4. * (p * (1. - p) / total as f64).sqrt().max(1e-9)
+        };
+        for (token, p) in [(10, 0.3), (20, 0.25), (30, 0.45)] {
+            assert!(
+                near(first.get(&token).copied().unwrap_or(0), blocks, p),
+                "first {token}"
+            );
+        }
+        for (parent, child, p) in [(10, 40, 0.35), (10, 50, 0.65), (20, 60, 0.8), (20, 70, 0.2)] {
+            let given = first[&parent];
+            assert!(
+                near(second.get(&(parent, child)).copied().unwrap_or(0), given, p),
+                "{parent} -> {child}"
+            );
+        }
+        Ok(())
     }
 
     #[test]

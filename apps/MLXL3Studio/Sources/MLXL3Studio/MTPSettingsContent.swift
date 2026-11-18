@@ -12,7 +12,7 @@ struct MTPToolbarControl: View {
 
     private var accessibleStatus: String {
         if studio.mtpError != nil { return L("Erreur", "Error") }
-        if studio.mtpDownloading || studio.isTuningMTP { return L("En cours", "In progress") }
+        if studio.mtpDownloading || studio.isTuningMTPDepth { return L("En cours", "In progress") }
         if !studio.mtpRememberedEnabled { return L("Désactivé", "Off") }
         return studio.mtpEnabled ? L("Activé", "On") : L("En attente", "Pending")
     }
@@ -20,7 +20,7 @@ struct MTPToolbarControl: View {
     var body: some View {
         Button { presented.toggle() } label: {
             HStack(spacing: 5) {
-                if studio.mtpDownloading || studio.isTuningMTP {
+                if studio.mtpDownloading || studio.isTuningMTPDepth {
                     ProgressView().controlSize(.mini)
                 }
                 Text("MTP")
@@ -32,11 +32,11 @@ struct MTPToolbarControl: View {
             .padding(.horizontal, 8).frame(height: 30)
         }
         .buttonStyle(WorkspaceControlStyle(selected: presented))
-        .disabled(!studio.mtpAvailable && !studio.isTuningMTP)
+        .disabled(!studio.mtpAvailable && !studio.isTuningMTPDepth)
         .help(L("Accélération MTP · activation mémorisée par modèle", "MTP acceleration · remembered per model"))
         .accessibilityLabel(L("Réglages MTP", "MTP settings"))
         .accessibilityValue(accessibleStatus)
-        .onChange(of: studio.isTuningMTP) { _, active in
+        .onChange(of: studio.isTuningMTPDepth) { _, active in
             if active && !studio.mtpAutoTuneActive { presented = false }
         }
         .popover(isPresented: $presented, arrowEdge: .bottom) {
@@ -64,7 +64,7 @@ struct MTPSettingsContent: View {
     @EnvironmentObject private var studio: StudioModel
 
     private var status: String {
-        if studio.isTuningMTP { return studio.mtpTuneStatus }
+        if studio.isTuningMTPDepth { return studio.mtpTuneStatus }
         if studio.mtpDownloading { return L("Préparation en cours…", "Preparing…") }
         if studio.mtpError != nil { return L("Activation à vérifier", "Activation needs attention") }
         if studio.isGenerating {

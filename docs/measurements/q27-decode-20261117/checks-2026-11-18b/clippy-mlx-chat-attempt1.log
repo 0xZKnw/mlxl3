@@ -1,0 +1,169 @@
+   Compiling mlxl3-native v2.0.18 (/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts)
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:6237:44
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+6237 |                     delivered.push(session.advance(
+     |                                    --------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+6237 |                     delivered.push(session.advance_tree(
+     |                                                   +++++
+
+error: this function has too many arguments (8/7)
+   --> native/src/mtp_tune.rs:457:1
+    |
+457 | / pub(super) fn run(
+458 | |     model: &mut NativeChatModel,
+459 | |     head: &mut Head,
+460 | |     tokenizer: &ChatTokenizer,
+...   |
+465 | |     sampler: mlxl3_native::sampling::Sampler,
+466 | | ) -> Result<()> {
+    | |_______________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this function has too many arguments (8/7)
+   --> native/src/mtp_tune.rs:479:1
+    |
+479 | / pub(super) fn run_dflash(
+480 | |     model: &mut NativeChatModel,
+481 | |     weights: &mlxl3_native::dflash::DFlashWeights,
+482 | |     tokenizer: &ChatTokenizer,
+...   |
+487 | |     sampler: mlxl3_native::sampling::Sampler,
+488 | | ) -> Result<()> {
+    | |_______________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:6259:29
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+6259 |                     session.advance(&mut target, &weights, *delivered.last().unwrap(), 4096, 4)?;
+     |                             ^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+6259 |                     session.advance_tree(&mut target, &weights, *delivered.last().unwrap(), 4096, 4)?;
+     |                                    +++++
+
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:6914:36
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+6914 |                 let next = session.advance(
+     |                            --------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+6914 |                 let next = session.advance_tree(
+     |                                           +++++
+
+error[E0599]: no method named `advance` found for mutable reference `&mut DFlashChat` in the current scope
+    --> native/src/main.rs:7010:51
+     |
+7010 |             actual.push(session.as_mut().unwrap().advance(
+     |                         --------------------------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+7010 |             actual.push(session.as_mut().unwrap().advance_tree(
+     |                                                          +++++
+
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:7031:37
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+7031 |             expected.push(reference.advance(
+     |                           ----------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+7031 |             expected.push(reference.advance_tree(
+     |                                            +++++
+
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:7103:32
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+7103 |             let next = session.advance(
+     |                        --------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+7103 |             let next = session.advance_tree(
+     |                                       +++++
+
+error: could not compile `mlxl3-native` (bin "mlxl3-rs") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:7191:41
+     |
+2513 | struct DFlashChat {
+     | ----------------- method `advance` not found for this struct
+...
+7191 |                     let token = session.advance(
+     |                                 --------^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+7191 |                     let token = session.advance_tree(
+     |                                                +++++
+
+error[E0599]: no method named `advance` found for struct `DFlashChat` in the current scope
+    --> native/src/main.rs:7217:26
+     |
+2513 |   struct DFlashChat {
+     |   ----------------- method `advance` not found for this struct
+...
+7216 | /                     session
+7217 | |                         .advance(&mut model, &weights, first, context, 0)
+     | |_________________________-^^^^^^^
+     |
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `advance`, perhaps you need to implement it:
+             candidate #1: `hyper::body::Buf`
+help: there is a method `advance_tree` with a similar name
+     |
+7217 |                         .advance_tree(&mut model, &weights, first, context, 0)
+     |                                 +++++
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (bin "mlxl3-rs" test) due to 8 previous errors

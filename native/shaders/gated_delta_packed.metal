@@ -7,8 +7,14 @@
         constexpr int partials_per_lane = values_per_lane / 4;
 
         auto n = thread_position_in_grid.z;
+#if MLXL3_GDN_PATH_LOOP
+        // Q27D-45: one thread per (head, value row) replays every batch element (tree path)
+        // from its state slice; each element keeps the exact arithmetic of a lone call.
+        auto hv_idx = n;
+#else
         auto b_idx = n / Hv;
         auto hv_idx = n % Hv;
+#endif
         auto hk_idx = hv_idx / (Hv / Hk);
 
         auto lane = thread_index_in_simdgroup;
@@ -16,25 +22,36 @@
         auto lane_in_row = lane & (lanes_per_row - 1);
         auto row_group = thread_position_in_grid.y;
         auto dv_idx = row_group * rows_per_simdgroup + row_in_simdgroup;
+#if MLXL3_GDN_PATH_LOOP
+        for (uint b_idx = 0u; b_idx < uint(B); ++b_idx) {
+#endif
 
         // q, k: [B, T, Hk, Dk]
 #if MLXL3_GDN_LOCAL_QKV
         auto q_ = q + lane_in_row * values_per_lane;
         auto k_ = k + lane_in_row * values_per_lane;
         auto v_ = v;
+        auto y_ = y;
 #else
         auto q_ = q + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
         auto k_ = k + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
 
         // v, y: [B, T, Hv, Dv]
         auto v_ = v + (b_idx * T * Hv + hv_idx) * Dv;
-        y += (b_idx * T * Hv + hv_idx) * Dv;
+        auto y_ = y + (b_idx * T * Hv + hv_idx) * Dv;
 
 #endif
 
         // state_in, state_out: [B, Hv, Dv, Dk]
+#if MLXL3_GDN_SHARED_STATE
+        // Q27D-44: every batch element (tree path) starts from the same committed state.
+        auto i_state = state_in + (hv_idx * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
+#else
         auto i_state = state_in + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
+#endif
+#if !MLXL3_GDN_SKIP_STATE_OUT
         auto o_state = state_out + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
+#endif
 
 #ifndef MLXL3_GDN_EXTERNAL_STATE
         float state[values_per_lane];
@@ -128,7 +145,7 @@
           out += simd_shuffle_xor(out, 1);
           out += simd_shuffle_xor(out, 2);
           if (lane_in_row == 0) {
-            y[dv_idx] = static_cast<InT>(out);
+            y_[dv_idx] = static_cast<InT>(out);
           }
 
 #if MLXL3_GDN_SAVE_HISTORY
@@ -147,7 +164,7 @@
           q_ += Hk * Dk;
           k_ += Hk * Dk;
           v_ += Hv * Dv;
-          y += Hv * Dv;
+          y_ += Hv * Dv;
 #endif
 #if MLXL3_GDN_FUSED_GATES
           a_ += Hv;
@@ -158,6 +175,11 @@
 #endif
         }
 
+#if MLXL3_GDN_PATH_LOOP
+        }
+#endif
+#if !MLXL3_GDN_SKIP_STATE_OUT
         for (int i = 0; i < values_per_lane; ++i) {
           o_state[i] = static_cast<StT>(state[i]);
         }
+#endif

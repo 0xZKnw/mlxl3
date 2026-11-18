@@ -36,6 +36,15 @@ SAMPLERS = {
     "greedy": {"temperature": 0, "top_k": 1, "repetition_penalty": 1},
     "desktop": {"temperature": 0.2, "top_k": 80, "repetition_penalty": 1.05},
     "qwen": {"temperature": 0.6, "top_k": 20, "repetition_penalty": 1.0},
+    # Desktop's Qwen3.8 presets (SamplingPresets.swift).
+    "qwen38-thinking": {"temperature": 1.0, "top_k": 20, "top_p": 0.95, "repetition_penalty": 1.0},
+    "qwen38-instruct": {
+        "temperature": 0.7,
+        "top_k": 20,
+        "top_p": 0.8,
+        "repetition_penalty": 1.0,
+        "presence_penalty": 1.5,
+    },
 }
 _spec = importlib.util.spec_from_file_location("lfm3_cases", HERE / "check-lfm3-lookup.py")
 _cases = importlib.util.module_from_spec(_spec)

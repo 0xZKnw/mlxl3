@@ -288,9 +288,10 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
-    func tuneMTP(requestID: String, headPath: String, memorySaver: Bool = false) throws {
+    func tuneMTP(requestID: String, headPath: String, memorySaver: Bool = false, sampling: TuneSampling = .greedy) throws {
         guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
-        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath, "memory_saver": memorySaver])
+        var data = try JSONSerialization.data(withJSONObject: (["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath, "memory_saver": memorySaver] as [String: Any])
+            .merging(sampling.fields) { current, _ in current })
         data.append(0x0A)
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
@@ -303,12 +304,26 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
-    func tuneDFlash(requestID: String, draftPath: String, memorySaver: Bool = false) throws {
+    func tuneDFlash(requestID: String, draftPath: String, memorySaver: Bool = false, sampling: TuneSampling = .greedy) throws {
         guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
-        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_dflash", "request_id": requestID,
-            "dflash_draft_path": draftPath, "memory_saver": memorySaver])
+        var data = try JSONSerialization.data(withJSONObject: (["type": "tune_dflash", "request_id": requestID,
+            "dflash_draft_path": draftPath, "memory_saver": memorySaver] as [String: Any]).merging(sampling.fields) { current, _ in current })
         data.append(0x0A)
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    /// The sampling settings a Tune measures with; the engine treats the defaults as greedy.
+    struct TuneSampling: Equatable, Sendable {
+        var temperature: Double
+        var topK: Int
+        var topP: Double
+        var repetitionPenalty: Double
+        var presencePenalty: Double
+        static let greedy = TuneSampling(temperature: 0, topK: 0, topP: 1, repetitionPenalty: 1, presencePenalty: 0)
+        var fields: [String: Any] {
+            ["temperature": temperature, "top_k": topK, "top_p": topP,
+             "repetition_penalty": repetitionPenalty, "presence_penalty": presencePenalty]
+        }
     }
 
     func cancelGeneration() -> Bool {

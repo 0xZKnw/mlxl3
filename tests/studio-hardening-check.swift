@@ -67,7 +67,8 @@ extension UpdateManager {
         }
         func renderTuneToolbar(_ model: StudioModel, _ state: String, dflash: Bool = false) async throws {
             _ = NSApplication.shared
-            let host = NSHostingView(rootView: MTPTuningToolbarControl(dflash: dflash).environmentObject(model)
+            let control = dflash ? AnyView(DFlashToolbarControl()) : AnyView(MTPToolbarControl())
+            let host = NSHostingView(rootView: control.environmentObject(model)
                 .padding(12).background(StudioTheme.sidebar).preferredColorScheme(.dark))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 95),
                                   styleMask: [.borderless], backing: .buffered, defer: false)
@@ -379,7 +380,7 @@ extension UpdateManager {
         try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
         precondition(!flash.showInspector)
         flash.tuneDFlash()
-        precondition(flash.isTuningDFlash && !flash.canSend)
+        precondition(flash.isTuningDFlash && !flash.isTuningMTPDepth && !flash.canSend, "A DFlash2 Tune must not show as an MTP Tune")
         precondition(!flash.showInspector, "DFlash Tune must preserve the conversation")
         try await renderTuneToolbar(flash, "dflash-running", dflash: true)
         for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
@@ -450,7 +451,7 @@ extension UpdateManager {
         precondition(!tuned.showInspector)
         tuned.tuneMTP()
         precondition(!tuned.showInspector, "Header tuning must keep the conversation visible")
-        precondition(tuned.isTuningMTP && tuned.isGenerating)
+        precondition(tuned.isTuningMTP && tuned.isTuningMTPDepth && !tuned.isTuningDFlash && tuned.isGenerating)
         try await renderTuneToolbar(tuned, "running")
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)

@@ -10,6 +10,10 @@ struct MTPTuningRow: Codable, Sendable, Identifiable {
     let eligible: Bool
     let reason: String?
     let tokenHashes: [String]
+    /// Divergences from the baseline accepted as near ties (engine 2.0.19+).
+    var nearTies: [MTPNearTie]? = nil
+    /// Measured with the chat sampling settings instead of greedy decoding (engine 2.0.19+).
+    var sampled: Bool? = nil
     var id: Int { depth }
     var label: String { depth == 0 ? "Baseline" : "MTP\(depth)" }
     var dflashLabel: String { ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, depth))] }
@@ -17,6 +21,7 @@ struct MTPTuningRow: Codable, Sendable, Identifiable {
         case depth, eligible, reason
         case decodeTPS = "decode_tps", decodeTokens = "decode_tokens", decodeSeconds = "decode_seconds"
         case acceptedTokens = "accepted_tokens", proposedTokens = "proposed_tokens", tokenHashes = "token_hashes"
+        case nearTies = "near_ties", sampled
     }
 
     var score: UInt64? {
@@ -31,6 +36,12 @@ struct MTPTuningRow: Codable, Sendable, Identifiable {
         let score = UInt64(scaled)
         return score > 0 ? score : nil
     }
+}
+
+struct MTPNearTie: Codable, Sendable, Equatable {
+    let prompt: Int
+    let position: Int
+    let gap: Double
 }
 
 struct MTPConfigurationKey: Codable, Hashable, Sendable {

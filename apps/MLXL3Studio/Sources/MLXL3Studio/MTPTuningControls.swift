@@ -1,76 +1,10 @@
 import SwiftUI
 
-/// Keep the transcript visible; opening detailed results is an explicit action.
-struct MTPTuningToolbarControl: View {
-    @EnvironmentObject private var studio: StudioModel
-    var dflash = false
-    private var tuning: Bool { dflash ? studio.isTuningDFlash : (studio.isTuningMTP && !studio.isTuningDFlash) }
-    private var progress: Double { dflash ? studio.dflashTuneProgress : studio.mtpTuneProgress }
-    private var status: String { dflash ? studio.dflashTuneStatus : studio.mtpTuneStatus }
-    private var error: String? { dflash ? studio.dflashDownloadError : studio.mtpError }
-    private var rows: [MTPTuningRow] { dflash ? studio.dflashTuneRows : studio.mtpTuneRows }
-    private var canTune: Bool { dflash ? studio.canTuneDFlash : studio.canTuneMTP }
-    private var title: String { dflash ? "Tune DFlash2" : "Tune MTP" }
-    private func tune() { if dflash { studio.tuneDFlash() } else { studio.tuneMTP() } }
-    private func cancel() { if dflash { studio.cancelDFlashTuning() } else { studio.cancelMTPTuning() } }
-
-    var body: some View {
-        if !dflash || studio.selectedModel?.modelType != "qwen4_exp" || studio.dflashTuneSupported {
-            VStack(alignment: .leading, spacing: 3) {
-                Button {
-                    if tuning { cancel() }
-                    else { tune() }
-                } label: {
-                    HStack(spacing: 6) {
-                        if tuning {
-                            ProgressView().progressViewStyle(.circular).controlSize(.mini)
-                                .tint(StudioTheme.accent).frame(width: 12, height: 12)
-                                .accessibilityHidden(true)
-                        } else {
-                            Image(systemName: "slider.horizontal.3")
-                        }
-                        Text(title)
-                        if tuning {
-                            Text("\(Int(progress * 100)) %").monospacedDigit()
-                            Image(systemName: "stop.fill").font(.system(size: 9))
-                        }
-                    }
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 10).frame(height: 30)
-                }
-                .buttonStyle(WorkspaceControlStyle(selected: tuning))
-                .disabled(!tuning && !canTune)
-                .help(tuning
-                      ? status + L(" · Cliquer pour arrêter", " · Click to stop")
-                      : L("Comparer les modes et enregistrer le meilleur réglage", "Compare modes and save the best setting"))
-                .accessibilityLabel(tuning ? L("Arrêter : ", "Stop: ") + title : title)
-                .accessibilityValue(tuning ? status + " · \(Int(progress * 100)) %" : "")
-
-                if tuning {
-                    Text(status)
-                        .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-                        .frame(maxWidth: 180, alignment: .leading).lineLimit(1)
-                } else if let message = error {
-                    Button((dflash ? "DFlash2" : "MTP") + L(" · Détails", " · Details")) { studio.showInspector = true }
-                        .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-                        .help(message)
-                } else if let winner = MTPTuning.winner(rows) {
-                    Button(L("Résultat : ", "Result: ") + (winner == 0 ? "Baseline" : dflash ? ["", "Auto", "2 tokens", "7 tokens"][winner] : "MTP\(winner)") + L(" · Détails", " · Details")) {
-                        studio.showInspector = true
-                    }
-                    .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.accent)
-                }
-            }
-            .fixedSize()
-        }
-    }
-}
-
 struct MTPTuningControls: View {
     @EnvironmentObject private var studio: StudioModel
     var dflash = false
     private var enabled: Bool { dflash ? studio.dflash2Enabled : studio.mtpEnabled }
-    private var tuning: Bool { dflash ? studio.isTuningDFlash : (studio.isTuningMTP && !studio.isTuningDFlash) }
+    private var tuning: Bool { dflash ? studio.isTuningDFlash : studio.isTuningMTPDepth }
     private var rows: [MTPTuningRow] { dflash ? studio.dflashTuneRows : studio.mtpTuneRows }
     private var progress: Double { dflash ? studio.dflashTuneProgress : studio.mtpTuneProgress }
     private var status: String { dflash ? studio.dflashTuneStatus : studio.mtpTuneStatus }
@@ -148,6 +82,11 @@ struct MTPTuningControls: View {
                                             .frame(width: geometry.size.width * max(0, min(1, row.decodeTPS / max(1, maxTPS))))
                                     }
                             }.frame(height: 3)
+                            if let tie = row.nearTies?.first, row.reason == nil {
+                                Text(L("Quasi-égalité acceptée · écart \(String(format: "%.3f", tie.gap))",
+                                       "Near tie accepted · gap \(String(format: "%.3f", tie.gap))"))
+                                    .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).frame(maxWidth: .infinity, alignment: .leading)
+                            }
                             if let reason = row.reason {
                                 Text(reason == "zero_acceptance" ? L("Aucune proposition acceptée", "No proposals accepted")
                                      : reason == "target_mismatch" ? L("Sortie différente de la baseline", "Output differs from baseline")
@@ -158,6 +97,10 @@ struct MTPTuningControls: View {
                     }
                 }
                 .padding(12).background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
+                if rows.contains(where: { $0.sampled == true }) {
+                    Text(L("Mesuré avec tes réglages d’échantillonnage.", "Measured with your sampling settings."))
+                        .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
+                }
                 Text(L("Réglage enregistré : ", "Saved setting: ") + (enabled ? label(depth) : "Baseline"))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(StudioTheme.accent)
                 if winner == 0 {

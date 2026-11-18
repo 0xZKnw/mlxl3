@@ -378,8 +378,44 @@ pub(crate) struct TreePlan {
     path_indices: Vec<Array>,
     /// Position of each row in the concatenation of the path outputs.
     gather: Array,
+    /// Q27D-44: longest path; paths padded to it (last row repeated) form one GDN batch.
+    padded: i32,
+    /// Row of each padded path position, flattened `[paths * padded]`.
+    padded_indices: Array,
+    /// Position of each row in the flattened padded batch output.
+    gather_padded: Array,
+    /// Q27D-44: run the GDN of every path in one batched call.
+    batched_gdn: bool,
     /// Additive attention mask `[1, 1, rows, base + rows]`: the cache and the row's ancestors.
     mask: Array,
+}
+
+/// Q27D-44: one batched GDN call for all tree paths (`MLXL3_DFLASH_TREE_BATCHED_GDN=1`).
+fn tree_batched_gdn_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = TREE_BATCHED_GDN_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_DFLASH_TREE_BATCHED_GDN").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static TREE_BATCHED_GDN_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override of `tree_batched_gdn_enabled`, read when a tree plan is built.
+#[cfg(test)]
+pub(crate) fn with_tree_batched_gdn<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TREE_BATCHED_GDN_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TREE_BATCHED_GDN_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
 }
 
 impl TreePlan {
@@ -398,6 +434,18 @@ impl TreePlan {
             }
         }
         let paths = tree.paths();
+        let padded = paths.iter().map(Vec::len).max().unwrap_or(1);
+        let mut padded_indices = Vec::with_capacity(paths.len() * padded);
+        let mut gather_padded = vec![-1i32; rows];
+        for (index, path) in paths.iter().enumerate() {
+            for position in 0..padded {
+                let row = path[position.min(path.len() - 1)];
+                padded_indices.push(i32::try_from(row)?);
+                if position < path.len() && gather_padded[row] < 0 {
+                    gather_padded[row] = i32::try_from(index * padded + position)?;
+                }
+            }
+        }
         let mut gather = vec![-1i32; rows];
         let mut cursor = 0i32;
         let mut path_indices = Vec::with_capacity(paths.len());
@@ -434,12 +482,17 @@ impl TreePlan {
             }
         }
         let rows = i32::try_from(rows)?;
+        let flat = i32::try_from(padded_indices.len())?;
         Ok(Self {
             rows,
             base,
             depth_spans,
             path_indices,
             gather: Array::from_i32(&gather, &[rows])?,
+            padded: i32::try_from(padded)?,
+            padded_indices: Array::from_i32(&padded_indices, &[flat])?,
+            gather_padded: Array::from_i32(&gather_padded, &[rows])?,
+            batched_gdn: tree_batched_gdn_enabled(),
             mask: Array::from_f32(&mask, &[1, 1, rows, i32::try_from(width)?])?
                 .astype(Dtype::Float16)?,
         })
@@ -2727,6 +2780,20 @@ impl Qwen35Moe {
         result.context("Qwen tree verification failed; its cache was reset")
     }
 
+    /// Q27D-46 (tests): build the lazy tree-verification graph without evaluating it.
+    #[cfg(test)]
+    pub(crate) fn build_tree_graph_for_test(
+        &mut self,
+        tree: &crate::speculative::DraftTree,
+    ) -> Result<Array> {
+        let plan = TreePlan::new(tree, self.offset)?;
+        let mut hidden = self.block_embeddings(&tree.tokens)?;
+        for layer in &mut self.layers {
+            hidden = layer.forward_verification_tree(&hidden, &plan)?;
+        }
+        self.head.forward(&hidden.rms_norm(&self.norm, self.eps)?)
+    }
+
     /// Q27D-37: keep the accepted root path `accepted` (rows, root first) of the pending tree.
     pub fn commit_dflash_tree(
         &mut self,
@@ -3334,6 +3401,59 @@ impl GatedDelta {
                 Dtype::Float32,
             )?,
         };
+        if plan.batched_gdn {
+            let paths = i32::try_from(plan.path_indices.len())?;
+            let padded = plan.padded;
+            let qkv_batch = qkv
+                .take(&plan.padded_indices, 1)?
+                .reshape(&[paths, padded, conv_dims])?;
+            let (q, k, v, _) = gated_delta::prepare_qkv(
+                &qkv_batch,
+                &conv_state,
+                &self.conv_weight,
+                &q_scale,
+                &k_scale,
+                self.key_heads,
+                self.value_heads,
+                self.key_dim,
+                self.value_dim,
+                self.conv_length,
+            )?;
+            let gates = |values: &Array| -> Result<Array> {
+                values
+                    .take(&plan.padded_indices, 1)?
+                    .reshape(&[paths, padded, self.value_heads])
+            };
+            let (out, tape) = gated_delta::step_with_gates_tape_shared(
+                &q,
+                &k,
+                &v,
+                &gates(&a)?,
+                &gates(&b)?,
+                &self.a_log,
+                &self.dt_bias,
+                &recurrent_state,
+            )?;
+            let records = (0..paths)
+                .map(|path| -> Result<(Array, gated_delta::RecurrentTape)> {
+                    let conv_input = Array::concatenate(
+                        &[&conv_state, &qkv_batch.slice(0, path, path + 1)?],
+                        1,
+                    )?;
+                    Ok((conv_input, tape.member(path)?))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            self.verification_conv_input = None;
+            self.verification_recurrent_tape = None;
+            self.verification_tree = Some(records);
+            let out = out
+                .reshape(&[1, paths * padded, self.value_heads, self.value_dim])?
+                .take(&plan.gather_padded, 1)?;
+            let normalized = out.rms_norm(&self.norm, self.eps)?;
+            return self
+                .output
+                .forward(&z.precise_swiglu(&normalized)?.reshape(&[1, rows, values])?);
+        }
         let mut outputs = Vec::with_capacity(plan.path_indices.len());
         let mut records = Vec::with_capacity(plan.path_indices.len());
         for indices in &plan.path_indices {

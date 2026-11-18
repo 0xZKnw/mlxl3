@@ -98,6 +98,7 @@ extension StudioModel {
           for mtpCapability in capabilities {
             for flashCapability in capabilities {
              for samplingCapability in capabilities {
+             for flashSamplingCapability in capabilities {
               let model = StudioModel(
                 conversationFileURL: file, isPreview: true, preferences: preferences)
               model.models = [local("qwen3.6-35b-a3b", type)]
@@ -108,13 +109,15 @@ extension StudioModel {
               if let mtpCapability { ready["mtp_supported"] = mtpCapability }
               if let flashCapability { ready["dflash_supported"] = flashCapability }
               if let samplingCapability { ready["mtp_sampling_supported"] = samplingCapability }
+              if let flashSamplingCapability { ready["dflash_sampling_supported"] = flashSamplingCapability }
               let data = try JSONSerialization.data(withJSONObject: ready)
               try model.samplingFixtureEvent(String(decoding: data, as: UTF8.self))
               model.samplingFixtureIntent(mtp: mtp, dflash: flash)
               let wantsMTP = mtp && (mtpCapability ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(type))
               let wantsFlash = flash && (flashCapability ?? (type == "qwen3_5_moe"))
-              // Only an engine announcing exact speculative sampling unlocks MTP.
-              let locked = (wantsMTP && samplingCapability != true) || wantsFlash
+              // Only an engine announcing exact speculative sampling unlocks MTP or DFlash2.
+              let locked = (wantsMTP && samplingCapability != true)
+                || (wantsFlash && flashSamplingCapability != true)
               try check(
                 model.mtpApplicable == wantsMTP && model.dflash2Applicable == wantsFlash,
                 "Intent/capability mismatch for \(type), \(String(describing: mtpCapability)), \(String(describing: flashCapability))"
@@ -132,6 +135,12 @@ extension StudioModel {
               try check(
                 model.mtpActive == nil && model.dflashActive == nil,
                 "Intent was incorrectly reported as observed engine activity")
+              try check(
+                model.tuneSampling == MLXL3Bridge.TuneSampling(
+                  temperature: model.samplingTemperature, topK: model.samplingTopK, topP: model.samplingTopP,
+                  repetitionPenalty: model.samplingRepetitionPenalty, presencePenalty: model.samplingPresencePenalty),
+                "Tune would measure with other settings than chat")
+             }
              }
             }
           }
@@ -195,20 +204,34 @@ extension StudioModel {
       "RecommendedSamplingMenu()",
       "Button(action: { studio.applySamplingPreset(preset) })",
       ".disabled(studio.isGenerating || studio.samplingLocked)",
-      "let mode = studio.dflash2Applicable ? \"DFlash2\" : \"MTP\"",
+      "let mode = studio.dflash2Applicable && studio.dflashSamplingSupported != true ? \"DFlash2\" : \"MTP\"",
       "if studio.mtpAvailable || studio.mtpRememberedEnabled || studio.mtpDownloading {",
       "if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {",
-      "get: { studio.dflash2Enabled || studio.dflashDownloading }",
-      "set: { studio.setDFlash2Enabled($0) }",
-      "Toggle(studio.dflash2Available",
-      "DFlash2 preference (inactive for this model)",
+      "DFlashSettingsContent()",
       "MTPSettingsContent().id(\"mtp-tuning\")",
-      "MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)",
-      ".disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)",
     ] {
       try check(
         containsWiring(inspectorSource, required), "Missing inspector production wiring: " + required)
     }
+    // The inspector card and the toolbar popover share DFlashSettingsContent.
+    let dflashSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
+      .deletingLastPathComponent().appendingPathComponent("DFlashSettingsContent.swift"), encoding: .utf8)
+    for required in [
+      "get: { studio.dflash2Enabled || studio.dflashDownloading }",
+      "set: { studio.setDFlash2Enabled($0) }",
+      "Preference saved; unavailable for this model",
+      "MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)",
+      ".disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)",
+      "DFlashSettingsContent()",
+    ] {
+      try check(containsWiring(dflashSource, required), "Missing shared DFlash2 production wiring: " + required)
+    }
+    let headerSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
+      .deletingLastPathComponent().appendingPathComponent("StudioView.swift"), encoding: .utf8)
+    try check(containsWiring(headerSource, "MTPToolbarControl()") && containsWiring(headerSource, "DFlashToolbarControl()"),
+      "Header must offer the MTP and DFlash2 settings popovers")
+    try check(!containsWiring(headerSource, "MTPTuningToolbarControl"),
+      "Header must not keep the bare Tune button")
     let mtpSource = try String(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])
       .deletingLastPathComponent().appendingPathComponent("MTPSettingsContent.swift"), encoding: .utf8)
     for required in [
@@ -360,6 +383,37 @@ extension StudioModel {
       "Sampling-capable engine kept MTP greedy")
     try await send(mtp: true, flash: false, greedy: false)
     try await checkInspector(greedy: false)
+    // An engine announcing sampled DFlash2 keeps the user's sampling, for chat and for Tune.
+    setenv("MLXL3_FIXTURE_DFLASH_SAMPLING", "1", 1)
+    defer { unsetenv("MLXL3_FIXTURE_DFLASH_SAMPLING") }
+    try await select("lfm-dense")
+    try await select("dflash-good")
+    model.setDFlash2Enabled(true)
+    try await wait("sampled DFlash ready") { model.dflashActive == true && !model.dflashDownloading }
+    try check(
+      model.dflashSamplingSupported == true && model.dflash2Applicable && !model.samplingLocked,
+      "Sampling-capable engine kept DFlash2 greedy")
+    try await send(mtp: false, flash: true, greedy: false)
+    try await checkInspector(greedy: false)
+    try check(model.canTuneDFlash, "Sampled DFlash2 cannot be tuned")
+    model.tuneDFlash()
+    try await wait("sampled DFlash Tune") { !model.isTuningDFlash }
+    let tuneRequest = try String(contentsOf: requestsURL, encoding: .utf8).split(separator: "\n")
+      .map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+      .compactMap { $0["request"] as? [String: Any] }.last { $0["type"] as? String == "tune_dflash" }!
+    try check(
+      tuneRequest["temperature"] as? Double == 0.73 && tuneRequest["top_k"] as? Int == 37
+        && tuneRequest["repetition_penalty"] as? Double == 1.12
+        && tuneRequest["top_p"] as? Double == model.topP
+        && tuneRequest["presence_penalty"] as? Double == model.presencePenalty,
+      "Tune DFlash2 did not measure with the chat sampling settings")
+    try check(
+      model.dflashTuneRows.count == 4 && model.dflashTuneRows.allSatisfy { $0.sampled == true }
+        && model.dflashTuneRows[1].nearTies == [MTPNearTie(prompt: 0, position: 12, gap: 0.04)],
+      "Sampled rows or near ties were not decoded")
+    model.setDFlash2Enabled(false)
+    model.draft = "after sampled DFlash"
+    try await wait("sampled DFlash OFF") { model.dflashActive == false && model.canSend }
     try check(model.persistNow(), "Could not persist top-p/presence")
     let sampledPersisted = try ConversationStore.load(from: file)!
     try check(
@@ -462,7 +516,7 @@ extension StudioModel {
     presetModel.topK = 21
     try check(offered.allSatisfy { !presetModel.isSamplingPresetActive($0) }, "Edited settings still marked as a preset")
     print(
-      "Speculative sampling checks passed: \(checks) assertions, 648 capability/intent states, sampled MTP, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
+      "Speculative sampling checks passed: \(checks) assertions, 1944 capability/intent states, sampled MTP, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests"
     )
   }
 }

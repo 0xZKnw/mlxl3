@@ -118,6 +118,8 @@ final class StudioModel: ObservableObject {
     private var dflashLegacyModelName: String?
     private var tuneIsDFlash = false
     var isTuningDFlash: Bool { isTuningMTP && tuneIsDFlash }
+    /// An MTP depth Tune; the shared `isTuningMTP` flag is also set while DFlash2 tunes.
+    var isTuningMTPDepth: Bool { isTuningMTP && !tuneIsDFlash }
     var dflashTuneProgress: Double { mtpTuneProgress }
     var dflashTuneStatus: String { mtpTuneStatus }
     @Published private(set) var mtpEnabled = false
@@ -131,6 +133,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpSupported: Bool?
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
+    /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
+    @Published private(set) var dflashSamplingSupported: Bool?
     @Published private(set) var mtpAutoDownloadSupported: Bool?
     @Published private(set) var mtpActive: Bool?
     @Published private(set) var mtpDepth = 1
@@ -355,7 +359,7 @@ final class StudioModel: ObservableObject {
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
             self.dflashSupported = nil
-            self.mtpActive = nil; self.mtpSupported = nil; self.mtpSamplingSupported = nil; self.mtpAutoDownloadSupported = nil
+            self.mtpActive = nil; self.mtpSupported = nil; self.mtpSamplingSupported = nil; self.dflashSamplingSupported = nil; self.mtpAutoDownloadSupported = nil
             self.runtimeIdentity = nil
             self.runtimeQwenProfile = nil
             if self.activeRequestID != nil {
@@ -412,8 +416,15 @@ final class StudioModel: ObservableObject {
     // Saved intent can survive an incompatible model; applicability is not engine activity.
     var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
     var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
-    // DFlash2 stays greedy; MTP samples when the running engine says so.
-    var samplingLocked: Bool { dflash2Applicable || (mtpApplicable && mtpSamplingSupported != true) }
+    // DFlash2 and MTP sample when the running engine says so; otherwise they stay greedy.
+    var samplingLocked: Bool {
+        (dflash2Applicable && dflashSamplingSupported != true) || (mtpApplicable && mtpSamplingSupported != true)
+    }
+    /// What a Tune measures with: the effective chat settings.
+    var tuneSampling: MLXL3Bridge.TuneSampling {
+        .init(temperature: samplingTemperature, topK: samplingTopK, topP: samplingTopP,
+              repetitionPenalty: samplingRepetitionPenalty, presencePenalty: samplingPresencePenalty)
+    }
     var samplingTemperature: Double { samplingLocked ? 0 : temperature }
     var samplingTopK: Int { samplingLocked ? 1 : topK }
     var samplingRepetitionPenalty: Double { samplingLocked ? 1 : repetitionPenalty }
@@ -1115,6 +1126,7 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         mtpSamplingSupported = nil
+        dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
         mtpConfigureSupported = false
         memorySaverSupported = false
@@ -1563,7 +1575,7 @@ final class StudioModel: ObservableObject {
         isTuningMTP = true; mtpTuneProgress = 0; dflashDownloadError = nil
         mtpTuneStatus = L("Préparation du test…", "Preparing test…")
         do { try bridge.tuneDFlash(requestID: request, draftPath: dflashDraftPath,
-                                  memorySaver: memorySaverEnabled && memorySaverSupported) }
+                                  memorySaver: memorySaverEnabled && memorySaverSupported, sampling: tuneSampling) }
         catch { finishMTPTuning(error: error.localizedDescription) }
     }
     func cancelDFlashTuning() { cancelMTPTuning() }
@@ -1754,7 +1766,8 @@ final class StudioModel: ObservableObject {
         isTuningMTP = true; mtpTuneProgress = 0
         if !automatic { mtpError = nil }
         mtpTuneStatus = automatic ? L("Réglage automatique…", "Automatic tuning…") : L("Préparation du test…", "Preparing test…")
-        do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath, memorySaver: memorySaverEnabled && memorySaverSupported) }
+        do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath, memorySaver: memorySaverEnabled && memorySaverSupported,
+                                sampling: tuneSampling) }
         catch { finishMTPTuning(error: error.localizedDescription, outcome: .failed) }
     }
 
@@ -2085,6 +2098,7 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         mtpSamplingSupported = nil
+        dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
         cancelMTPPreparation()
         mtpConfigureSupported = false
@@ -2215,6 +2229,7 @@ final class StudioModel: ObservableObject {
             dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
             mtpSamplingSupported = event.mtpSamplingSupported
+            dflashSamplingSupported = event.dflashSamplingSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
             mtpConfigureSupported = event.mtpConfigureSupported == true
             mtpMaxDepth = min(3, max(1, event.mtpMaxDepth ?? 1))

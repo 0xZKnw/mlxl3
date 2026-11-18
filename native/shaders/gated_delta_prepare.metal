@@ -2,7 +2,13 @@
 
             uint lane = thread_position_in_threadgroup.x;
             uint head = threadgroup_position_in_grid.y;
-            uint time = threadgroup_position_in_grid.z;
+            // Q27D-44: z = batch element (tree path) x time; one element keeps z = time.
+            uint batch = threadgroup_position_in_grid.z / uint(TIME);
+            uint time = threadgroup_position_in_grid.z % uint(TIME);
+            qkv += ulong(batch) * uint(TIME) * uint(CONV_DIMS);
+            q += ulong(batch) * uint(TIME) * uint(KEY_HEADS) * uint(KEY_DIM);
+            k += ulong(batch) * uint(TIME) * uint(KEY_HEADS) * uint(KEY_DIM);
+            v += ulong(batch) * uint(TIME) * uint(VALUE_HEADS) * uint(VALUE_DIM);
 
             if (head < uint(KEY_HEADS)) {
                 half q_values[4];
@@ -55,7 +61,7 @@
                 }
             }
 
-            if (time == 0u) {
+            if (time == 0u && batch == 0u) {
                 if (head < uint(KEY_HEADS)) {
                     for (uint i = 0u; i < 4u; ++i) {
                         uint dim = lane * 4u + i;

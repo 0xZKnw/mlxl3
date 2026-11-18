@@ -566,6 +566,15 @@ impl History {
     }
 }
 
+/// Q27D-40: outcome of `Distribution::verify_among`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Choice {
+    /// The candidate at this index is accepted.
+    Candidate(usize),
+    /// Every candidate was rejected; this token was drawn from the rest.
+    Token(u32),
+}
+
 /// Speculative verdict for one proposal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Verdict {
@@ -732,6 +741,180 @@ impl Distribution {
         self.verify_with(proposal, || xorshift(random))
     }
 
+    /// Q27D-47: this law inclined toward `candidates` under a divergence budget:
+    /// p̂ ∝ p · e^{β·1[t ∈ C]} with β ≥ 0 such that KL(p̂ ‖ p) = `budget` (nats), ratios kept
+    /// inside and outside C. Returns the law and its exact divergence; a point, a set of mass
+    /// 0 or 1, or a zero budget is returned unchanged.
+    pub fn tilted_toward(&self, candidates: &[u32], budget: f64) -> Result<(Self, f64)> {
+        ensure!(
+            budget.is_finite() && budget >= 0.,
+            "invalid divergence budget"
+        );
+        let Self::Weighted {
+            tokens,
+            weights,
+            total,
+        } = self
+        else {
+            return Ok((self.clone(), 0.));
+        };
+        ensure!(
+            total.is_finite() && *total > 0.,
+            "invalid sampling distribution"
+        );
+        let inside: f64 = tokens
+            .iter()
+            .zip(weights)
+            .filter(|(token, _)| candidates.contains(token))
+            .map(|(_, &weight)| weight)
+            .sum();
+        let m = inside / total;
+        if budget == 0. || m <= 0. || m >= 1. {
+            return Ok((self.clone(), 0.));
+        }
+        let divergence = |x: f64| x * (x / m).ln() + (1. - x) * ((1. - x) / (1. - m)).ln();
+        // KL grows on [m, 1) toward ln(1/m); keep some mass outside C.
+        let (mut low, mut high) = (m, 1. - 1e-9);
+        let x = if divergence(high) <= budget {
+            high
+        } else {
+            for _ in 0..100 {
+                let middle = 0.5 * (low + high);
+                if divergence(middle) < budget {
+                    low = middle;
+                } else {
+                    high = middle;
+                }
+            }
+            low
+        };
+        let (scale_in, scale_out) = (x / m, (1. - x) / (1. - m));
+        let weights: Vec<f64> = tokens
+            .iter()
+            .zip(weights)
+            .map(|(token, &weight)| {
+                weight
+                    * if candidates.contains(token) {
+                        scale_in
+                    } else {
+                        scale_out
+                    }
+            })
+            .collect();
+        let total = weights.iter().sum();
+        Ok((
+            Self::Weighted {
+                tokens: tokens.clone(),
+                weights,
+                total,
+            },
+            divergence(x),
+        ))
+    }
+
+    /// Q27D-47: (KL(self ‖ reference), −Σ self · log reference, −Σ reference · log reference)
+    /// in nats, for a law obtained from `reference` by reweighting the same support.
+    pub fn divergence_terms(&self, reference: &Self) -> (f64, f64, f64) {
+        let support = reference.support();
+        let mut terms = (0., 0., 0.);
+        for (token, p) in support {
+            if p <= 0. {
+                continue;
+            }
+            let q = self.probability(token);
+            if q > 0. {
+                terms.0 += q * (q / p).ln();
+            }
+            terms.1 -= q * p.ln();
+            terms.2 -= p * p.ln();
+        }
+        terms
+    }
+
+    /// Q27D-40: exact speculative verification of several deterministic, distinct
+    /// `candidates` (the children of a tree node), tried in order. Candidate `c` is
+    /// accepted with probability mass(c) / remaining mass; a rejected candidate leaves
+    /// the law, which is renormalized; if all are rejected, the token is drawn from the
+    /// rest. By induction `P(c_i) = p(c_i)` and every other token keeps `p(t)`, so the
+    /// produced token follows this distribution exactly. One candidate consumes the
+    /// same draws as `verify`.
+    pub fn verify_among(&self, candidates: &[u32], random: &mut u64) -> Result<Choice> {
+        self.verify_among_with(candidates, || xorshift(random))
+    }
+
+    fn verify_among_with(
+        &self,
+        candidates: &[u32],
+        mut next: impl FnMut() -> u64,
+    ) -> Result<Choice> {
+        ensure!(
+            candidates
+                .iter()
+                .enumerate()
+                .all(|(index, candidate)| !candidates[..index].contains(candidate)),
+            "speculative candidates must be distinct"
+        );
+        let Self::Weighted {
+            tokens, weights, ..
+        } = self
+        else {
+            let Self::Point(token) = self else {
+                unreachable!()
+            };
+            return Ok(candidates
+                .iter()
+                .position(|candidate| candidate == token)
+                .map_or(Choice::Token(*token), Choice::Candidate));
+        };
+        let mut rejected: Vec<u32> = Vec::with_capacity(candidates.len());
+        let mut residual = 0f64;
+        for (index, &candidate) in candidates.iter().enumerate() {
+            let (mut accepted, mut rest) = (0f64, 0f64);
+            for (&token, &weight) in tokens.iter().zip(weights) {
+                if rejected.contains(&token) {
+                    continue;
+                }
+                if token == candidate {
+                    accepted += weight;
+                } else {
+                    rest += weight;
+                }
+            }
+            if rest == 0. {
+                return Ok(Choice::Candidate(index));
+            }
+            if accepted > 0. && unit(next()) * (accepted + rest) < accepted {
+                return Ok(Choice::Candidate(index));
+            }
+            rejected.push(candidate);
+            residual = rest;
+        }
+        if candidates.is_empty() {
+            // A leaf draws like `sample`, from the stored total.
+            let Self::Weighted { total, .. } = self else {
+                unreachable!()
+            };
+            residual = *total;
+        }
+        ensure!(
+            residual.is_finite() && residual > 0.,
+            "invalid sampling distribution"
+        );
+        let mut target = (next() as f64 / u64::MAX as f64) * residual;
+        let mut last = None;
+        for (&token, &weight) in tokens.iter().zip(weights) {
+            if rejected.contains(&token) {
+                continue;
+            }
+            if target <= weight {
+                return Ok(Choice::Token(token));
+            }
+            target -= weight;
+            last = Some(token);
+        }
+        Ok(Choice::Token(last.context("empty residual distribution")?))
+    }
+
     /// `next` yields raw 64-bit draws: the first decides acceptance (top 53
     /// bits as a uniform in [0, 1)), the next one picks the residual token.
     fn verify_with(&self, proposal: u32, mut next: impl FnMut() -> u64) -> Result<Verdict> {
@@ -784,6 +967,189 @@ impl Distribution {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn weighted(pairs: &[(u32, f64)]) -> Distribution {
+        Distribution::Weighted {
+            tokens: pairs.iter().map(|&(token, _)| token).collect(),
+            weights: pairs.iter().map(|&(_, weight)| weight).collect(),
+            total: pairs.iter().map(|&(_, weight)| weight).sum(),
+        }
+    }
+
+    /// Q27D-40: the token produced by `verify_among` follows the target law, for several
+    /// laws, candidate sets and orders (fixed seeds, 400 000 draws, 4-sigma bounds).
+    #[test]
+    fn verify_among_reproduces_the_target_law() -> Result<()> {
+        let laws = [
+            vec![(3, 0.4), (7, 0.25), (1, 0.2), (9, 0.1), (4, 0.05)],
+            vec![(10, 3.0), (11, 1.0), (12, 0.0), (13, 6.0)],
+            vec![(5, 1.0), (6, 1.0)],
+        ];
+        let candidate_sets: [&[u32]; 7] = [
+            &[],
+            &[7],
+            &[9, 3],
+            &[1, 3, 4],
+            &[12, 11],
+            &[13, 10, 11],
+            &[6, 5],
+        ];
+        let draws = 400_000usize;
+        let mut checked = 0;
+        for (law_index, law) in laws.iter().enumerate() {
+            let distribution = weighted(law);
+            let total: f64 = law.iter().map(|&(_, w)| w).sum();
+            for candidates in candidate_sets {
+                if !candidates
+                    .iter()
+                    .all(|c| law.iter().any(|&(token, _)| token == *c))
+                {
+                    continue;
+                }
+                let mut random = 0x5DEE_CE66_D1CE_4E5B
+                    ^ (law_index as u64 + 1)
+                    ^ ((candidates.len() as u64) << 40);
+                let mut counts = std::collections::HashMap::<u32, usize>::new();
+                for _ in 0..draws {
+                    let token = match distribution.verify_among(candidates, &mut random)? {
+                        Choice::Candidate(index) => candidates[index],
+                        Choice::Token(token) => {
+                            ensure!(
+                                !candidates.contains(&token),
+                                "a rejected candidate was drawn"
+                            );
+                            token
+                        }
+                    };
+                    *counts.entry(token).or_default() += 1;
+                }
+                for &(token, weight) in law {
+                    let p = weight / total;
+                    let observed = counts.get(&token).copied().unwrap_or(0) as f64 / draws as f64;
+                    let sigma = (p * (1. - p) / draws as f64).sqrt().max(1e-9);
+                    ensure!(
+                        (observed - p).abs() <= 4. * sigma,
+                        "law {law_index} candidates {candidates:?} token {token}: {observed} vs {p}"
+                    );
+                }
+                checked += 1;
+            }
+        }
+        ensure!(
+            checked == 9,
+            "unexpected number of checked cases: {checked}"
+        );
+        Ok(())
+    }
+
+    /// Q27D-47: the tilt reaches its budget, keeps ratios inside and outside the set, and
+    /// leaves points, empty or full sets and zero budgets unchanged.
+    #[test]
+    fn tilt_meets_the_divergence_budget_and_keeps_ratios() -> Result<()> {
+        let law = weighted(&[(3, 0.4), (7, 0.25), (1, 0.2), (9, 0.1), (4, 0.05)]);
+        for (candidates, budget) in [
+            (&[7u32, 1][..], 0.01),
+            (&[3][..], 0.005),
+            (&[9, 4][..], 0.02),
+        ] {
+            let (tilted, kl) = law.tilted_toward(candidates, budget)?;
+            let (measured, _, _) = tilted.divergence_terms(&law);
+            ensure!(
+                (kl - budget).abs() < 1e-9 && (measured - budget).abs() < 1e-9,
+                "budget {budget}: {kl} {measured}"
+            );
+            let mass = |d: &Distribution| candidates.iter().map(|&c| d.probability(c)).sum::<f64>();
+            ensure!(mass(&tilted) > mass(&law), "the set did not gain mass");
+            let ratio = |d: &Distribution, a, b| d.probability(a) / d.probability(b);
+            if candidates.len() == 2 {
+                ensure!(
+                    (ratio(&tilted, candidates[0], candidates[1])
+                        - ratio(&law, candidates[0], candidates[1]))
+                    .abs()
+                        < 1e-12
+                );
+            }
+            let outside: Vec<u32> = [3u32, 7, 1, 9, 4]
+                .into_iter()
+                .filter(|t| !candidates.contains(t))
+                .collect();
+            ensure!(
+                (ratio(&tilted, outside[0], outside[1]) - ratio(&law, outside[0], outside[1]))
+                    .abs()
+                    < 1e-12
+            );
+        }
+        // A budget above ln(1/m) is capped with mass kept outside the set.
+        let (capped, kl) = law.tilted_toward(&[4], 10.0)?;
+        ensure!(
+            kl <= (1.0f64 / 0.05).ln() + 1e-6 && capped.probability(3) > 0.,
+            "uncapped tilt"
+        );
+        for (candidates, budget) in [
+            (&[3u32, 7, 1, 9, 4][..], 0.01),
+            (&[42][..], 0.01),
+            (&[7][..], 0.0),
+        ] {
+            let (same, kl) = law.tilted_toward(candidates, budget)?;
+            ensure!(same == law && kl == 0., "law changed for {candidates:?}");
+        }
+        let point = Distribution::Point(5);
+        ensure!(point.tilted_toward(&[5, 6], 0.1)? == (Distribution::Point(5), 0.));
+        ensure!(
+            law.tilted_toward(&[7], -1.0).is_err() && law.tilted_toward(&[7], f64::NAN).is_err()
+        );
+        // The token produced by exact verification of the tilted law follows the tilted law.
+        let (tilted, _) = law.tilted_toward(&[7, 1], 0.02)?;
+        let mut random = 0xFEED_F00D_1234_5677u64;
+        let draws = 400_000usize;
+        let mut counts = std::collections::HashMap::<u32, usize>::new();
+        for _ in 0..draws {
+            let token = match tilted.verify_among(&[7, 1], &mut random)? {
+                Choice::Candidate(index) => [7, 1][index],
+                Choice::Token(token) => token,
+            };
+            *counts.entry(token).or_default() += 1;
+        }
+        for token in [3u32, 7, 1, 9, 4] {
+            let p = tilted.probability(token);
+            let observed = counts.get(&token).copied().unwrap_or(0) as f64 / draws as f64;
+            ensure!(
+                (observed - p).abs() <= 4. * (p * (1. - p) / draws as f64).sqrt(),
+                "token {token}"
+            );
+        }
+        Ok(())
+    }
+
+    /// One candidate is exactly the chain verification (same draws, same verdicts).
+    #[test]
+    fn verify_among_with_one_candidate_matches_verify() -> Result<()> {
+        let distribution = weighted(&[(3, 0.4), (7, 0.25), (1, 0.2), (9, 0.1), (4, 0.05)]);
+        for proposal in [3, 7, 4, 42] {
+            let (mut a, mut b) = (0x1234_5678_9ABC_DEF1u64, 0x1234_5678_9ABC_DEF1u64);
+            for _ in 0..10_000 {
+                let chain = distribution.verify(proposal, &mut a)?;
+                let tree = distribution.verify_among(&[proposal], &mut b)?;
+                let same = match (chain, tree) {
+                    (Verdict::Accept, Choice::Candidate(0)) => true,
+                    (Verdict::Reject(x), Choice::Token(y)) => x == y,
+                    _ => false,
+                };
+                ensure!(same && a == b, "proposal {proposal}: {chain:?} vs {tree:?}");
+            }
+        }
+        // Points accept the matching candidate, otherwise return their token.
+        let point = Distribution::Point(8);
+        let mut random = 1;
+        assert_eq!(
+            point.verify_among(&[2, 8], &mut random)?,
+            Choice::Candidate(1)
+        );
+        assert_eq!(point.verify_among(&[2, 5], &mut random)?, Choice::Token(8));
+        assert_eq!(point.verify_among(&[], &mut random)?, Choice::Token(8));
+        assert!(distribution.verify_among(&[3, 3], &mut random).is_err());
+        Ok(())
+    }
 
     /// Same synthetic logits as the golden capture of the previous bridge
     /// sampler (`9eabe8ed` main.rs `sample_values`).

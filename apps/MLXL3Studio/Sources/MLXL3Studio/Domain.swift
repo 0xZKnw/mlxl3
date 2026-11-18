@@ -164,6 +164,7 @@ struct BridgeEvent: Decodable {
     var dflashFamily: String? = nil
     var mtpSupported: Bool? = nil
     var mtpSamplingSupported: Bool? = nil
+    var dflashSamplingSupported: Bool? = nil
     var mtpAutoDownloadSupported: Bool? = nil
     var mtpConfigureSupported: Bool? = nil
     var mtpActive: Bool? = nil
@@ -229,6 +230,7 @@ struct BridgeEvent: Decodable {
         case dflashTuningKey = "dflash_tuning_key", dflashFamily = "dflash_family"
         case mtpSupported = "mtp_supported"
         case mtpSamplingSupported = "mtp_sampling_supported"
+        case dflashSamplingSupported = "dflash_sampling_supported"
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
         case mtpConfigureSupported = "mtp_configure_supported"
         case mtpActive = "mtp_active"

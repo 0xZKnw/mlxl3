@@ -2526,6 +2526,10 @@ struct DFlashChat {
     wide: bool,
     /// Q27D-37: draft nodes of a greedy verification tree (0 keeps the selector chain).
     tree_nodes: usize,
+    /// Q27D-40: sampled blocks are verified as trees too (exact speculative sampling).
+    tree_sampled: bool,
+    /// Q27D-47: divergence budget (nats per emitted token) of the relaxed sampled tree.
+    relax_kl: f64,
 }
 
 #[cfg(all(
@@ -2959,6 +2963,8 @@ impl DFlashChat {
             width_cap: None,
             wide: false,
             tree_nodes: 0,
+            tree_sampled: false,
+            relax_kl: 0.,
         }
     }
 
@@ -2983,6 +2989,9 @@ impl DFlashChat {
         } else {
             0
         };
+        self.tree_sampled = self.tree_nodes > 0
+            && dflash_tree_sampled(std::env::var("MLXL3_DFLASH_TREE_SAMPLED").ok().as_deref());
+        self.relax_kl = dflash_relax_kl(std::env::var("MLXL3_DFLASH_RELAX_KL").ok().as_deref());
         self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
             .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
@@ -3022,6 +3031,8 @@ impl DFlashChat {
         Ok(logits)
     }
 
+    /// Greedy block (tests; production passes the request policy to `advance_sampled`).
+    #[cfg(test)]
     fn advance(
         &mut self,
         target: &mut mlxl3_native::qwen35::Qwen35Moe,
@@ -3073,12 +3084,12 @@ impl DFlashChat {
         });
         let is_copy = copied.is_some();
         if !is_copy
-            && draw.is_none()
+            && (draw.is_none() || self.tree_sampled)
             && self.tree_nodes > 0
             && proposals_count == 7
             && target.supports_tree_verification()?
         {
-            return self.advance_tree(target, draft, anchor, block_started);
+            return self.advance_tree(target, draft, anchor, block_started, draw);
         }
         let proposals = if let Some(tokens) = copied {
             tokens.to_vec()
@@ -3137,12 +3148,27 @@ impl DFlashChat {
         draft: &mlxl3_native::dflash::DFlashWeights,
         anchor: u32,
         block_started: Instant,
+        draw: Option<mlxl3_native::sampling::Draw<'_>>,
     ) -> Result<u32> {
+        // Q27D-38: diagnostic block anatomy, synchronized at each phase only when requested.
+        let profile = std::env::var_os("MLXL3_DFLASH_PROFILE");
+        let mut marks = Vec::with_capacity(5);
+        let mut mark = |sync: bool| -> Result<()> {
+            if profile.is_some() {
+                if sync {
+                    mlxl3_native::array::synchronize()?;
+                }
+                marks.push(block_started.elapsed().as_secs_f64() * 1e3);
+            }
+            Ok(())
+        };
         let input = target.dflash_input(anchor, draft.family.mask())?;
         let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
         let draft_logits = target.dflash_logits(&output.hidden, 7)?;
+        mark(true)?;
         let (candidates, unary, edges) =
             draft.select_lattice(&draft_logits, &output.selector, anchor)?;
+        mark(true)?;
         let tree = mlxl3_native::speculative::build_selector_tree(
             anchor,
             &candidates,
@@ -3154,12 +3180,75 @@ impl DFlashChat {
             DFLASH_TREE_TAU,
         )
         .context("invalid DFlash verification tree")?;
+        mark(false)?;
         let position = target.offset();
         let (target_logits, captured) = target.verify_tree_with_dflash_capture(&tree)?;
-        let target_tokens = target_logits.chat_greedy_ids()?;
-        let (path, accepted, bonus) = tree
-            .accept_greedy(&target_tokens)
-            .context("invalid DFlash tree verification")?;
+        let (path, accepted, bonus) = if let Some(draw) = draw {
+            // Q27D-40: exact speculative sampling down the tree.
+            let rows = mlxl3_native::sampling::log_prob_rows(&target_logits)?;
+            anyhow::ensure!(
+                rows.len() == tree.rows(),
+                "invalid DFlash sampled tree verification output"
+            );
+            let (sampler, history) = (draw.sampler, draw.history);
+            let (path, accepted, bonus, terms) = tree
+                .accept_sampled_relaxed(
+                    |row, extra| sampler.distribution(rows[row].clone(), history, extra),
+                    draw.random,
+                    self.relax_kl,
+                )
+                .context("invalid DFlash sampled tree verification")?;
+            // Q27D-48: expected acceptance and KL for several budgets on this block's laws.
+            if let Some(file) = std::env::var_os("MLXL3_DFLASH_RELAX_CURVE") {
+                use std::io::Write as _;
+                let laws = (0..tree.rows())
+                    .map(|row| {
+                        let mut extra = Vec::new();
+                        let mut node = row;
+                        while node != 0 {
+                            extra.push(tree.tokens[node]);
+                            node = tree.parents[node];
+                        }
+                        extra.reverse();
+                        sampler.distribution(rows[row].clone(), history, &extra)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let kappas = [0., 0.0025, 0.005, 0.01, 0.02, 0.05];
+                let curve = kappas
+                    .iter()
+                    .map(|&kappa| tree.expected_acceptance(&laws, kappa))
+                    .collect::<Result<Vec<_>>>()?;
+                let mut out = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(file)?;
+                writeln!(
+                    out,
+                    "{}",
+                    json!({"kappas": kappas, "expected_accepted": curve.iter().map(|c| c.0).collect::<Vec<_>>(),
+                        "expected_kl": curve.iter().map(|c| c.1).collect::<Vec<_>>(), "rows": tree.rows()})
+                )?;
+            }
+            if let Some(file) = std::env::var_os("MLXL3_DFLASH_RELAX_LOG") {
+                use std::io::Write as _;
+                let mut out = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(file)?;
+                writeln!(
+                    out,
+                    "{}",
+                    json!({"kl": terms.0, "cross_entropy": terms.1, "entropy": terms.2,
+                        "tokens": accepted + 1, "accepted": accepted, "relax_kl": self.relax_kl})
+                )?;
+            }
+            (path, accepted, bonus)
+        } else {
+            let target_tokens = target_logits.chat_greedy_ids()?;
+            tree.accept_greedy(&target_tokens)
+                .context("invalid DFlash tree verification")?
+        };
+        mark(true)?;
         self.proposed += tree.rows() - 1;
         self.accepted += accepted;
         self.blocks += 1;
@@ -3184,6 +3273,23 @@ impl DFlashChat {
         }
         self.pending.extend(tokens);
         self.pending.push_back(bonus);
+        if let Some(file) = &profile {
+            mark(true)?;
+            use std::io::Write as _;
+            let mut out = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(file)?;
+            writeln!(
+                out,
+                "{}",
+                json!({"draft_ms": marks[0], "lattice_ms": marks[1] - marks[0],
+                    "tree_ms": marks[2] - marks[1], "verify_ms": marks[3] - marks[2],
+                    "commit_ms": marks[4] - marks[3], "total_ms": marks[4],
+                    "rows": tree.rows(), "paths": tree.paths().len(), "accepted": accepted,
+                    "position": position})
+            )?;
+        }
         self.block_seconds += block_started.elapsed().as_secs_f64();
         self.pending
             .pop_front()
@@ -3200,6 +3306,28 @@ const DFLASH_TREE_TAU: f32 = 1.0;
 /// Q27D-37: the greedy verification tree is on by default in the wide TensorOps mode of the
 /// 27B (+21 to +25 % on prose, +5 % on code); `MLXL3_DFLASH_TREE=0` keeps the selector chain.
 /// `MLXL3_DFLASH_TREE_NODES` = 7..15 draft nodes (default 11).
+/// Q27D-47: divergence budget of the sampled tree, in nats per emitted token; on by default at
+/// 0.01 (user decision; +4.4 % expected tokens per block, KL 0.0043 per token measured).
+/// `MLXL3_DFLASH_RELAX_KL=0` keeps the exact verification; a value outside [0, 1] keeps the
+/// default.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+const DFLASH_RELAX_KL: f64 = 0.01;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_relax_kl(value: Option<&str>) -> f64 {
+    value
+        .and_then(|text| text.parse::<f64>().ok())
+        .filter(|budget| budget.is_finite() && (0.0..=1.0).contains(budget))
+        .unwrap_or(DFLASH_RELAX_KL)
+}
+
+/// Q27D-40: sampled blocks use the tree too (exact speculative sampling; +11.7 % on prose,
+/// +13.3 % on code with Desktop's Qwen3.8 preset); `MLXL3_DFLASH_TREE_SAMPLED=0` keeps the chain.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_tree_sampled(flag: Option<&str>) -> bool {
+    flag != Some("0")
+}
+
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn dflash_tree_nodes(enabled: Option<&str>, nodes: Option<&str>) -> usize {
     if enabled == Some("0") {
@@ -4876,6 +5004,7 @@ fn native_bridge(
         "mlx_version":env!("MLXL3_MLX_VERSION"),
         "runtime_executable":executable,
         "dflash_supported":dflash_supported, "dflash_family":dflash_family,
+        "dflash_sampling_supported":dflash_supported && matches!(&model, NativeChatModel::Qwen(_)),
         "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
@@ -5035,6 +5164,7 @@ fn native_bridge(
                             &dflash_tuning_key,
                             context_limit,
                             &cancelled,
+                            request.sampler()?,
                         )
                     } else {
                         mlxl3_native::array::synchronize()?;
@@ -5102,6 +5232,7 @@ fn native_bridge(
                         &tuning_key,
                         context_limit,
                         &cancelled,
+                        request.sampler()?,
                     )
                 })();
                 if let Err(error) = release_bridge_idle_state(
@@ -5675,6 +5806,14 @@ mod tests {
 
     #[test]
     fn dflash_tree_setting_is_on_by_default_and_bounded() {
+        assert!(dflash_tree_sampled(None) && dflash_tree_sampled(Some("1")));
+        assert_eq!(dflash_relax_kl(None), 0.01);
+        assert_eq!(dflash_relax_kl(Some("0")), 0.);
+        assert_eq!(dflash_relax_kl(Some("0.02")), 0.02);
+        for bad in ["-0.1", "2", "NaN", "inf", "x"] {
+            assert_eq!(dflash_relax_kl(Some(bad)), 0.01, "{bad}");
+        }
+        assert!(!dflash_tree_sampled(Some("0")));
         assert_eq!(dflash_tree_nodes(None, None), 11);
         assert_eq!(dflash_tree_nodes(Some("0"), Some("11")), 0);
         assert_eq!(dflash_tree_nodes(Some("1"), None), 11);

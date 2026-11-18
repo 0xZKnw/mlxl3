@@ -215,6 +215,8 @@ if model == 'image-import':
 # Engines with exact speculative sampling announce it; older ones stay silent.
 if os.environ.get('MLXL3_FIXTURE_MTP_SAMPLING') == '1':
     capabilities['mtp_sampling_supported'] = mtp_capable
+if os.environ.get('MLXL3_FIXTURE_DFLASH_SAMPLING') == '1':
+    capabilities['dflash_sampling_supported'] = dflash_capable
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and not model.startswith('flash'),
      **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),
@@ -326,6 +328,12 @@ for line in sys.stdin:
                 rows[3]['depth'] = 2
             if model == 'dflash-mismatch':
                 rows[2]['token_hashes'] = ['different', 'tokens']
+            # Engines 2.0.19+: near ties and sampled measurements are reported per row.
+            if model == 'dflash-good':
+                rows[1]['near_ties'] = [{'prompt': 0, 'position': 12, 'gap': 0.04}]
+            if request.get('temperature', 0) > 0:
+                for row in rows:
+                    row['sampled'] = True
             emit(prefix+'_tune_complete', request_id=request['request_id'], tuning_key=tuning_key+(':dflash-v2' if prefix == 'dflash' else ''),
                  best_depth=0 if model in ('mtp-baseline', 'dflash-baseline') else 2, rows=rows)
         continue
