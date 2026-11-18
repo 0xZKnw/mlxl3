@@ -591,6 +591,207 @@ pub fn greedy_accept(proposals: &[u32], target_tokens: &[u32]) -> Option<GreedyA
 /// Widest MTP proposal chain a cycle can verify.
 pub const MAX_MTP_WIDTH: usize = 3;
 
+/// Q27D-37: a DFlash2 verification tree. Row 0 is the anchor; rows are in depth order and
+/// every row's parent precedes it, so a row's ancestors are a prefix-closed set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DraftTree {
+    pub tokens: Vec<u32>,
+    pub parents: Vec<usize>,
+    pub depths: Vec<usize>,
+}
+
+/// Lattice width of the DFlash2 selector (top-16 candidates per position).
+pub const SELECTOR_CANDIDATES: usize = 16;
+
+impl DraftTree {
+    pub fn rows(&self) -> usize {
+        self.tokens.len()
+    }
+
+    /// Root-to-leaf paths as row lists, in row order of their leaves.
+    pub fn paths(&self) -> Vec<Vec<usize>> {
+        let rows = self.rows();
+        let mut has_child = vec![false; rows];
+        for row in 1..rows {
+            has_child[self.parents[row]] = true;
+        }
+        (0..rows)
+            .filter(|&row| !has_child[row])
+            .map(|leaf| {
+                let mut path = vec![leaf];
+                let mut row = leaf;
+                while row != 0 {
+                    row = self.parents[row];
+                    path.push(row);
+                }
+                path.reverse();
+                path
+            })
+            .collect()
+    }
+
+    /// Whether `ancestor` is `row` or one of its ancestors.
+    pub fn is_ancestor(&self, ancestor: usize, row: usize) -> bool {
+        let mut row = row;
+        loop {
+            if row == ancestor {
+                return true;
+            }
+            if row == 0 {
+                return false;
+            }
+            row = self.parents[row];
+        }
+    }
+
+    /// Greedy descent: from the root, follow the child whose token is the target's greedy
+    /// token at the current row. Returns the accepted rows (root first), the number of
+    /// accepted draft tokens and the target's token after the last accepted row.
+    pub fn accept_greedy(&self, target_tokens: &[u32]) -> Option<(Vec<usize>, usize, u32)> {
+        if target_tokens.len() != self.rows() || self.rows() == 0 {
+            return None;
+        }
+        let mut path = vec![0usize];
+        let mut row = 0usize;
+        loop {
+            let wanted = target_tokens[row];
+            let next = (row + 1..self.rows())
+                .find(|&child| self.parents[child] == row && self.tokens[child] == wanted);
+            match next {
+                Some(child) => {
+                    path.push(child);
+                    row = child;
+                }
+                None => return Some((path.clone(), path.len() - 1, wanted)),
+            }
+        }
+    }
+
+    /// Structural invariants: root row, parents before children, depth = parent depth + 1,
+    /// and distinct sibling tokens.
+    pub fn is_valid(&self) -> bool {
+        let rows = self.rows();
+        if rows == 0
+            || self.parents.len() != rows
+            || self.depths.len() != rows
+            || self.depths[0] != 0
+        {
+            return false;
+        }
+        (1..rows).all(|row| {
+            let parent = self.parents[row];
+            parent < row
+                && self.depths[row] == self.depths[parent] + 1
+                && self.depths[row] >= self.depths[row - 1]
+                && !(1..row).any(|other| {
+                    self.parents[other] == parent && self.tokens[other] == self.tokens[row]
+                })
+        })
+    }
+}
+
+/// Q27D-36/37: best-first tree over the DFlash2 selector lattice (TensorFold's scheme). A node
+/// at depth `d` (1-based) holds candidate `c` of position `d - 1`; its children are the 16
+/// candidates of the next position scored by `log_softmax((unary + scale * edge[c]) / tau)`, and
+/// nodes are taken in order of cumulative score until `nodes` draft nodes are chosen.
+/// `edges[(p * 16 + parent) * 16 + child]`; position 0 only has parent index 0 (the anchor).
+#[allow(clippy::too_many_arguments)]
+pub fn build_selector_tree(
+    anchor: u32,
+    candidates: &[u32],
+    unary: &[f32],
+    edges: &[f32],
+    positions: usize,
+    nodes: usize,
+    scale: f32,
+    tau: f32,
+) -> Option<DraftTree> {
+    const C: usize = SELECTOR_CANDIDATES;
+    if positions == 0
+        || nodes == 0
+        || candidates.len() != positions * C
+        || unary.len() != positions * C
+        || edges.len() != positions * C * C
+        || !(tau.is_finite() && tau > 0.0 && scale.is_finite())
+        || !unary.iter().all(|v| v.is_finite())
+    {
+        return None;
+    }
+    let log_softmax = |position: usize, parent: usize| -> Option<[f32; C]> {
+        let mut scores = [0f32; C];
+        for (child, score) in scores.iter_mut().enumerate() {
+            let edge = edges[(position * C + parent) * C + child];
+            if !edge.is_finite() {
+                return None;
+            }
+            *score = (unary[position * C + child] + scale * edge) / tau;
+        }
+        let top = scores.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let total = scores.iter().map(|s| (s - top).exp()).sum::<f32>().ln() + top;
+        for score in &mut scores {
+            *score -= total;
+        }
+        Some(scores)
+    };
+    // Frontier entries: (cumulative score, sequence number, parent row, position, candidate).
+    let mut frontier: Vec<(f32, usize, usize, usize, usize)> = Vec::new();
+    let mut sequence = 0usize;
+    for (child, score) in log_softmax(0, 0)?.into_iter().enumerate() {
+        frontier.push((score, sequence, 0, 0, child));
+        sequence += 1;
+    }
+    let mut tokens = vec![anchor];
+    let mut parents = vec![0usize];
+    let mut depths = vec![0usize];
+    let mut cumulative = vec![0f32];
+    let mut candidate_of = vec![usize::MAX];
+    while tokens.len() <= nodes && !frontier.is_empty() {
+        // Highest score first; earlier insertion breaks ties.
+        let best = (0..frontier.len()).max_by(|&a, &b| {
+            frontier[a]
+                .0
+                .total_cmp(&frontier[b].0)
+                .then(frontier[b].1.cmp(&frontier[a].1))
+        })?;
+        let (score, _, parent, position, child) = frontier.swap_remove(best);
+        let row = tokens.len();
+        tokens.push(candidates[position * C + child]);
+        parents.push(parent);
+        depths.push(position + 1);
+        cumulative.push(score);
+        candidate_of.push(child);
+        if position + 1 < positions {
+            for (next, step) in log_softmax(position + 1, child)?.into_iter().enumerate() {
+                frontier.push((score + step, sequence, row, position + 1, next));
+                sequence += 1;
+            }
+        }
+    }
+    // Reorder rows by depth (stable), keeping parents before children.
+    let mut order: Vec<usize> = (0..tokens.len()).collect();
+    order.sort_by_key(|&row| depths[row]);
+    let mut position_of = vec![0usize; tokens.len()];
+    for (new, &old) in order.iter().enumerate() {
+        position_of[old] = new;
+    }
+    let tree = DraftTree {
+        tokens: order.iter().map(|&old| tokens[old]).collect(),
+        parents: order
+            .iter()
+            .map(|&old| {
+                if old == 0 {
+                    0
+                } else {
+                    position_of[parents[old]]
+                }
+            })
+            .collect(),
+        depths: order.iter().map(|&old| depths[old]).collect(),
+    };
+    let _ = (cumulative, candidate_of);
+    tree.is_valid().then_some(tree)
+}
+
 /// Completed MTP cycles, indexed `[proposal width][accepted prefix]`.
 ///
 /// Width 0 is an ordinary target step: the last token of a budget, or an
@@ -780,6 +981,128 @@ fn dflash_modes_preserve_context_and_output_budgets() {
 
 #[cfg(test)]
 mod tests {
+    use super::{DraftTree, build_selector_tree};
+
+    fn lattice(positions: usize, seed: u32) -> (Vec<u32>, Vec<f32>, Vec<f32>) {
+        let mut state = seed;
+        let mut next = || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 8) as f32 / (1u32 << 24) as f32
+        };
+        let candidates = (0..positions * 16)
+            .map(|i| 1000 + (i % 16) as u32 * 7 + (i / 16) as u32 * 131)
+            .collect();
+        let unary = (0..positions * 16)
+            .map(|i| 10.0 - (i % 16) as f32 * 0.7 + next())
+            .collect();
+        let edges = (0..positions * 256).map(|_| next() * 4.0 - 2.0).collect();
+        (candidates, unary, edges)
+    }
+
+    #[test]
+    fn selector_tree_has_the_requested_nodes_in_depth_order() {
+        for seed in 0..50u32 {
+            for nodes in [1usize, 3, 7, 11, 15] {
+                let (candidates, unary, edges) = lattice(7, seed);
+                let tree = build_selector_tree(7, &candidates, &unary, &edges, 7, nodes, 0.6, 1.0)
+                    .expect("tree");
+                assert!(tree.is_valid());
+                assert_eq!(tree.rows(), nodes + 1);
+                assert_eq!(tree.tokens[0], 7);
+                assert!(tree.depths.iter().all(|&d| d <= 7));
+                let paths = tree.paths();
+                let mut covered = vec![false; tree.rows()];
+                for path in &paths {
+                    assert_eq!(path[0], 0);
+                    for pair in path.windows(2) {
+                        assert_eq!(tree.parents[pair[1]], pair[0]);
+                    }
+                    for &row in path {
+                        covered[row] = true;
+                    }
+                }
+                assert!(covered.iter().all(|&c| c));
+            }
+        }
+    }
+
+    #[test]
+    fn selector_tree_with_one_dominant_candidate_is_a_chain() {
+        let positions = 7;
+        let candidates: Vec<u32> = (0..positions * 16).map(|i| i as u32 + 1).collect();
+        let unary: Vec<f32> = (0..positions * 16)
+            .map(|i| if i % 16 == 3 { 50.0 } else { 0.0 })
+            .collect();
+        let edges = vec![0.0; positions * 256];
+        let tree = build_selector_tree(0, &candidates, &unary, &edges, positions, 7, 0.6, 1.0)
+            .expect("tree");
+        assert_eq!(tree.depths, (0..=7).collect::<Vec<_>>());
+        assert_eq!(tree.parents, vec![0, 0, 1, 2, 3, 4, 5, 6]);
+        let chain: Vec<u32> = (0..positions).map(|p| candidates[p * 16 + 3]).collect();
+        assert_eq!(&tree.tokens[1..], &chain[..]);
+    }
+
+    #[test]
+    fn selector_tree_rejects_invalid_lattices() {
+        let (candidates, unary, edges) = lattice(7, 1);
+        assert!(build_selector_tree(0, &candidates, &unary, &edges, 7, 0, 0.6, 1.0).is_none());
+        assert!(build_selector_tree(0, &candidates[1..], &unary, &edges, 7, 5, 0.6, 1.0).is_none());
+        assert!(build_selector_tree(0, &candidates, &unary, &edges, 7, 5, 0.6, 0.0).is_none());
+        let mut bad = unary.clone();
+        bad[5] = f32::NAN;
+        assert!(build_selector_tree(0, &candidates, &bad, &edges, 7, 5, 0.6, 1.0).is_none());
+    }
+
+    #[test]
+    fn tree_greedy_acceptance_follows_the_target_path() {
+        // root 0 -> {1: a, 2: b}; 1 -> {3: c}; 2 -> {4: d}; 3 -> {5: e}
+        let tree = DraftTree {
+            tokens: vec![100, 10, 20, 30, 40, 50],
+            parents: vec![0, 0, 0, 1, 2, 3],
+            depths: vec![0, 1, 1, 2, 2, 3],
+        };
+        assert!(tree.is_valid());
+        // Target wants b after the root, then d, then 77.
+        let targets = [20, 30, 40, 99, 77, 88];
+        assert_eq!(tree.accept_greedy(&targets), Some((vec![0, 2, 4], 2, 77)));
+        // Target wants a, c, e, then 5.
+        let targets = [10, 30, 0, 50, 0, 5];
+        assert_eq!(tree.accept_greedy(&targets), Some((vec![0, 1, 3, 5], 3, 5)));
+        // Root rejected.
+        let targets = [11, 0, 0, 0, 0, 0];
+        assert_eq!(tree.accept_greedy(&targets), Some((vec![0], 0, 11)));
+        assert_eq!(tree.accept_greedy(&targets[..5]), None);
+        assert_eq!(tree.paths(), vec![vec![0, 2, 4], vec![0, 1, 3, 5]]);
+        assert!(tree.is_ancestor(1, 5) && !tree.is_ancestor(2, 5) && tree.is_ancestor(0, 4));
+    }
+
+    #[test]
+    fn tree_validity_rejects_bad_structures() {
+        let ok = DraftTree {
+            tokens: vec![1, 2, 3],
+            parents: vec![0, 0, 1],
+            depths: vec![0, 1, 2],
+        };
+        assert!(ok.is_valid());
+        let sibling_dup = DraftTree {
+            tokens: vec![1, 2, 2],
+            parents: vec![0, 0, 0],
+            depths: vec![0, 1, 1],
+        };
+        assert!(!sibling_dup.is_valid());
+        let bad_depth = DraftTree {
+            tokens: vec![1, 2, 3],
+            parents: vec![0, 0, 1],
+            depths: vec![0, 1, 1],
+        };
+        assert!(!bad_depth.is_valid());
+        let late_parent = DraftTree {
+            tokens: vec![1, 2, 3],
+            parents: vec![0, 2, 0],
+            depths: vec![0, 2, 1],
+        };
+        assert!(!late_parent.is_valid());
+    }
 
     fn sequence(seed: u64, length: usize, alphabet: u64) -> Vec<u32> {
         let mut state = seed | 1;

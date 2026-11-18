@@ -1,4 +1,4 @@
-constexpr uint Rows = 8;
+constexpr uint Rows = DFLASH_ROWS;
 constexpr uint Hidden = DFLASH_HIDDEN;
 constexpr uint ConvGroups = Hidden / 16;
 constexpr uint Dynamic = 4 * ConvGroups;

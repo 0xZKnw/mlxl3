@@ -1,0 +1,77 @@
+{
+  "chunk_full_ms": 1342.293088,
+  "chunk_glue_ms": 175.429592,
+  "rows": [
+    {
+      "epilogue_ms": 0.511458375,
+      "full_ms": 4.55143225,
+      "glue_share": 0.173609499515235,
+      "input": 5120,
+      "kernel_tflops_estimate": 11.418957657245413,
+      "label": "gdn_inputs",
+      "output": 16384,
+      "prologue_ms": 0.2787135
+    },
+    {
+      "epilogue_ms": 0.13642712499999998,
+      "full_ms": 1.7140625,
+      "glue_share": 0.1486356973564266,
+      "input": 6144,
+      "kernel_tflops_estimate": 11.036949081373642,
+      "label": "gdn_out",
+      "output": 5120,
+      "prologue_ms": 0.11834375
+    },
+    {
+      "epilogue_ms": 0.23854162499999998,
+      "full_ms": 3.245859375,
+      "glue_share": 0.10960760584398391,
+      "input": 5120,
+      "kernel_tflops_estimate": 11.145767584625867,
+      "label": "attn_q",
+      "output": 12288,
+      "prologue_ms": 0.11722925000000001
+    },
+    {
+      "epilogue_ms": 0.046385375000000006,
+      "full_ms": 0.4083385,
+      "glue_share": 0.3649824226713866,
+      "input": 5120,
+      "kernel_tflops_estimate": 10.352227387261095,
+      "label": "attn_k",
+      "output": 1024,
+      "prologue_ms": 0.102651
+    },
+    {
+      "epilogue_ms": 0.130739625,
+      "full_ms": 1.7677968750000002,
+      "glue_share": 0.14229696214391147,
+      "input": 6144,
+      "kernel_tflops_estimate": 10.62237963890724,
+      "label": "attn_o",
+      "output": 5120,
+      "prologue_ms": 0.1208125
+    },
+    {
+      "epilogue_ms": 1.0034480000000001,
+      "full_ms": 10.125229249999999,
+      "glue_share": 0.12709538156876796,
+      "input": 5120,
+      "kernel_tflops_estimate": 10.32635709497839,
+      "label": "mlp_inputs",
+      "output": 34816,
+      "prologue_ms": 0.283421875
+    },
+    {
+      "epilogue_ms": 0.124895875,
+      "full_ms": 4.6913958749999995,
+      "glue_share": 0.09467576641035437,
+      "input": 17408,
+      "kernel_tflops_estimate": 10.7444100068059,
+      "label": "mlp_down",
+      "output": 5120,
+      "prologue_ms": 0.319265625
+    }
+  ],
+  "status": "complete"
+}

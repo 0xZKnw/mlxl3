@@ -2455,6 +2455,8 @@ struct DFlashChat {
     width_cap: Option<usize>,
     /// Q27D-16: TensorOps verification makes wide blocks nearly as cheap as narrow ones.
     wide: bool,
+    /// Q27D-37: draft nodes of a greedy verification tree (0 keeps the selector chain).
+    tree_nodes: usize,
 }
 
 #[cfg(all(
@@ -2887,6 +2889,7 @@ impl DFlashChat {
             lookup_blocks: 0,
             width_cap: None,
             wide: false,
+            tree_nodes: 0,
         }
     }
 
@@ -2903,6 +2906,14 @@ impl DFlashChat {
             mode,
         );
         self.wide = tensor && family == mlxl3_native::dflash::Family::Qwen38Dense && mode == 1;
+        self.tree_nodes = if self.wide {
+            dflash_tree_nodes(
+                std::env::var("MLXL3_DFLASH_TREE").ok().as_deref(),
+                std::env::var("MLXL3_DFLASH_TREE_NODES").ok().as_deref(),
+            )
+        } else {
+            0
+        };
         self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
             .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
@@ -2992,6 +3003,14 @@ impl DFlashChat {
             copy.propose_up_to(anchor, proposals_count, if self.wide { 7 } else { 3 })
         });
         let is_copy = copied.is_some();
+        if !is_copy
+            && draw.is_none()
+            && self.tree_nodes > 0
+            && proposals_count == 7
+            && target.supports_tree_verification()?
+        {
+            return self.advance_tree(target, draft, anchor, block_started);
+        }
         let proposals = if let Some(tokens) = copied {
             tokens.to_vec()
         } else {
@@ -3041,6 +3060,93 @@ impl DFlashChat {
             .pop_front()
             .context("DFlash produced no target token")
     }
+
+    /// Q27D-37: one greedy block verified as a best-first tree over the selector lattice.
+    fn advance_tree(
+        &mut self,
+        target: &mut mlxl3_native::qwen35::Qwen35Moe,
+        draft: &mlxl3_native::dflash::DFlashWeights,
+        anchor: u32,
+        block_started: Instant,
+    ) -> Result<u32> {
+        let input = target.dflash_input(anchor, draft.family.mask())?;
+        let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
+        let draft_logits = target.dflash_logits(&output.hidden, 7)?;
+        let (candidates, unary, edges) =
+            draft.select_lattice(&draft_logits, &output.selector, anchor)?;
+        let tree = mlxl3_native::speculative::build_selector_tree(
+            anchor,
+            &candidates,
+            &unary,
+            &edges,
+            7,
+            self.tree_nodes,
+            DFLASH_TREE_EDGE_SCALE,
+            DFLASH_TREE_TAU,
+        )
+        .context("invalid DFlash verification tree")?;
+        let position = target.offset();
+        let (target_logits, captured) = target.verify_tree_with_dflash_capture(&tree)?;
+        let target_tokens = target_logits.chat_greedy_ids()?;
+        let (path, accepted, bonus) = tree
+            .accept_greedy(&target_tokens)
+            .context("invalid DFlash tree verification")?;
+        self.proposed += tree.rows() - 1;
+        self.accepted += accepted;
+        self.blocks += 1;
+        self.recent.push_back((accepted, 7));
+        if self.recent.len() > 8 {
+            self.recent.pop_front();
+        }
+        target.commit_dflash_tree(&tree, &path)?;
+        let rows = path
+            .iter()
+            .map(|&row| i32::try_from(row))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let rows = mlxl3_native::array::Array::from_i32(&rows, &[i32::try_from(rows.len())?])?;
+        self.cache
+            .append_captured(draft, &captured.take(&rows, 0)?, position)?;
+        let tokens = path[1..]
+            .iter()
+            .map(|&row| tree.tokens[row])
+            .collect::<Vec<_>>();
+        if let Some(copy) = &mut self.copy {
+            copy.record(anchor, &tokens, false);
+        }
+        self.pending.extend(tokens);
+        self.pending.push_back(bonus);
+        self.block_seconds += block_started.elapsed().as_secs_f64();
+        self.pending
+            .pop_front()
+            .context("DFlash tree produced no target token")
+    }
+}
+
+/// Q27D-36/37: selector-tree scoring (TensorFold's weights), fitted offline on the 27B.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+const DFLASH_TREE_EDGE_SCALE: f32 = 0.6;
+#[cfg(all(feature = "mlx", feature = "chat"))]
+const DFLASH_TREE_TAU: f32 = 1.0;
+
+/// Q27D-37: the greedy verification tree is on by default in the wide TensorOps mode of the
+/// 27B (+21 to +25 % on prose, +5 % on code); `MLXL3_DFLASH_TREE=0` keeps the selector chain.
+/// `MLXL3_DFLASH_TREE_NODES` = 7..15 draft nodes (default 11).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_tree_nodes(enabled: Option<&str>, nodes: Option<&str>) -> usize {
+    if enabled == Some("0") {
+        return 0;
+    }
+    nodes
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| (7..=15).contains(value))
+        .unwrap_or(11)
+}
+
+/// PRODUCT-2026-11-18: the bridge offers DFlash2 for the dense Qwen3.8-27B only; the
+/// Qwen3.6-35B-A3B is faster with MTP, so its draft is opt-in with `MLXL3_DFLASH_35B=1`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_family_offered(family: mlxl3_native::dflash::Family, opt_in: Option<&str>) -> bool {
+    family != mlxl3_native::dflash::Family::Qwen36Moe || opt_in == Some("1")
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -4666,7 +4772,10 @@ fn native_bridge(
     let dflash_family = match &model {
         NativeChatModel::Qwen(target) => target.dflash_family(),
         _ => None,
-    };
+    }
+    .filter(|&family| {
+        dflash_family_offered(family, std::env::var("MLXL3_DFLASH_35B").ok().as_deref())
+    });
     let flash_speculative =
         matches!(&model, NativeChatModel::Flash(target) if target.request_memory_limit().is_none());
     let dflash_supported = (dflash_family.is_some()
@@ -5493,6 +5602,31 @@ mod tests {
     fn bridge_token_hash_uses_ordered_token_ids() {
         assert_eq!(token_hash(&[]), "cbf29ce484222325");
         assert_ne!(token_hash(&[1, 2]), token_hash(&[2, 1]));
+    }
+
+    #[test]
+    fn dflash_tree_setting_is_on_by_default_and_bounded() {
+        assert_eq!(dflash_tree_nodes(None, None), 11);
+        assert_eq!(dflash_tree_nodes(Some("0"), Some("11")), 0);
+        assert_eq!(dflash_tree_nodes(Some("1"), None), 11);
+        assert_eq!(dflash_tree_nodes(None, Some("7")), 7);
+        assert_eq!(dflash_tree_nodes(Some("1"), Some("7")), 7);
+        assert_eq!(dflash_tree_nodes(Some("1"), Some("15")), 15);
+        for bad in ["6", "16", "", "x", "-1"] {
+            assert_eq!(dflash_tree_nodes(Some("1"), Some(bad)), 11);
+        }
+    }
+
+    #[test]
+    fn dflash2_is_offered_for_the_dense_27b_and_opt_in_for_the_35b() {
+        use mlxl3_native::dflash::Family;
+        assert!(dflash_family_offered(Family::Qwen38Dense, None));
+        assert!(dflash_family_offered(Family::Qwen38Dense, Some("0")));
+        assert!(!dflash_family_offered(Family::Qwen36Moe, None));
+        for value in ["", "0", "true", "1 ", "01"] {
+            assert!(!dflash_family_offered(Family::Qwen36Moe, Some(value)));
+        }
+        assert!(dflash_family_offered(Family::Qwen36Moe, Some("1")));
     }
 
     #[test]
@@ -6341,6 +6475,236 @@ mod tests {
                     "head_select_ms": head_ms, "verify_ms": verify_ms, "commit_ms": commit_ms,
                     "confidence": confidence, "anchor": anchor, "anchor_index": generated.len() - 1,
                     "chain": proposals, "top_ids": top_ids}));
+                generated.extend(
+                    proposals[..acceptance.accepted_draft_tokens]
+                        .iter()
+                        .copied(),
+                );
+                generated.push(acceptance.target_token);
+                anchor = acceptance.target_token;
+                produced += retained;
+            }
+            eprintln!(
+                "prompt {index}: {produced} tokens, {} blocks so far",
+                blocks.len()
+            );
+            outputs.push(generated);
+        }
+        let report = json!({"status": "complete", "budget": budget, "blocks": blocks,
+            "outputs": outputs});
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+        Ok(())
+    }
+
+    /// Q27D-36: selector lattice of every DFlash2 block (candidates, unary, edges) under the
+    /// production greedy policy, for offline tree simulation. Outputs are unchanged.
+    #[test]
+    #[ignore = "requires MLXL3_DFLASH_TEST_MODEL/DRAFT and Apple GPU; writes MLXL3_DFLASH_PROFILE_REPORT"]
+    fn dflash_selector_lattice_dump() -> Result<()> {
+        let output = std::path::PathBuf::from(std::env::var("MLXL3_DFLASH_PROFILE_REPORT")?);
+        anyhow::ensure!(!output.exists(), "preserve previous profile reports");
+        let (mut model, tokenizer, weights) = q27_dflash_fixture()?;
+        let cancelled = AtomicBool::new(false);
+        let prompts = [
+            "Explique en quelques paragraphes pourquoi le ciel est bleu.",
+            "Write a Rust function that parses an ISO 8601 date like 2026-11-16.",
+            "Write a short story about a lighthouse keeper who finds a message in a bottle.",
+            "Explain step by step how to solve the quadratic equation 3x^2 - 5x - 2 = 0.",
+            "Résume les causes de la Révolution française en cinq points détaillés.",
+            "Write a Python class implementing an LRU cache with tests.",
+            "Describe how a compiler turns source code into machine code.",
+            "Donne une recette de crêpes avec les quantités et les étapes.",
+        ];
+        let budget =
+            std::env::var("MLXL3_DFLASH_PROFILE_TOKENS").map_or(Ok(256usize), |v| v.parse())?;
+        let mask = weights.family.mask();
+        let mut blocks = Vec::new();
+        let mut outputs: Vec<Vec<u32>> = Vec::new();
+        for (index, prompt) in prompts.iter().enumerate() {
+            let tokens = tokenizer.encode(
+                &tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?,
+            )?;
+            model.reset();
+            let (logits, session, _) = prefill_round(
+                &mut model,
+                &tokens,
+                &[],
+                Some(&weights),
+                &mut None,
+                "lattice",
+                false,
+                &cancelled,
+            )?;
+            let mut session = session.context("missing DFlash session")?;
+            let NativeChatModel::Qwen(target) = &mut model else {
+                bail!("requires a Qwen target")
+            };
+            let mut anchor = logits.chat_greedy_ids()?[0];
+            let mut generated = vec![anchor];
+            let mut produced = 1usize;
+            while produced + 1 < budget {
+                let k = 7usize.min(budget - produced - 1);
+                let input = target.dflash_input(anchor, mask)?;
+                let draft = weights.forward_hidden(&input, &session.cache, target.offset())?;
+                let draft_logits = target.dflash_logits(&draft.hidden, k)?;
+                let proposals = weights.select_greedy(&draft_logits, &draft.selector, anchor)?;
+                let (candidates, unary, edges) =
+                    weights.select_lattice(&draft_logits, &draft.selector, anchor)?;
+                anyhow::ensure!(
+                    candidates.len() == k * 16
+                        && unary.len() == k * 16
+                        && edges.len() == k * 256
+                        && unary.iter().chain(&edges).all(|v| v.is_finite()),
+                    "invalid selector lattice"
+                );
+                let verify = std::iter::once(anchor)
+                    .chain(proposals.iter().copied())
+                    .collect::<Vec<_>>();
+                let position = target.offset();
+                let (target_logits, captured) =
+                    target.verify_tokens_exact_with_dflash_capture(&verify)?;
+                let target_tokens = target_logits.chat_greedy_ids()?;
+                let acceptance =
+                    mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
+                        .context("invalid DFlash target verification")?;
+                let retained = acceptance.accepted_draft_tokens + 1;
+                target.commit_dflash_verification(retained, verify.len())?;
+                session.cache.append_captured(
+                    &weights,
+                    &captured.slice(0, 0, i32::try_from(retained)?)?,
+                    position,
+                )?;
+                session.cache.eval()?;
+                blocks.push(json!({"prompt": index, "anchor": anchor,
+                    "anchor_index": generated.len() - 1, "proposals": k,
+                    "accepted": acceptance.accepted_draft_tokens, "chain": proposals,
+                    "candidates": candidates, "unary": unary, "edges": edges}));
+                generated.extend(
+                    proposals[..acceptance.accepted_draft_tokens]
+                        .iter()
+                        .copied(),
+                );
+                generated.push(acceptance.target_token);
+                anchor = acceptance.target_token;
+                produced += retained;
+            }
+            eprintln!(
+                "prompt {index}: {produced} tokens, {} blocks so far",
+                blocks.len()
+            );
+            outputs.push(generated);
+        }
+        let report = json!({"status": "complete", "budget": budget, "edge_scale": 0.25,
+            "blocks": blocks, "outputs": outputs});
+        std::fs::write(&output, serde_json::to_vec(&report)?)?;
+        Ok(())
+    }
+
+    /// Q27D-34: what a 16-row mask block (anchor + 15 masks) would add over the 8-row block.
+    /// Generation follows the production policy (selector chain of at most 7, greedy target),
+    /// so outputs are unchanged; each block also records the per-position argmax of the draft
+    /// at 8 and at 16 rows for offline scoring against the recorded greedy output.
+    #[test]
+    #[ignore = "requires MLXL3_DFLASH_TEST_MODEL/DRAFT and Apple GPU; writes MLXL3_DFLASH_PROFILE_REPORT"]
+    fn dflash_block16_depth_accuracy() -> Result<()> {
+        let output = std::path::PathBuf::from(std::env::var("MLXL3_DFLASH_PROFILE_REPORT")?);
+        anyhow::ensure!(!output.exists(), "preserve previous profile reports");
+        let (mut model, tokenizer, weights) = q27_dflash_fixture()?;
+        let cancelled = AtomicBool::new(false);
+        let prompts = [
+            "Explique en quelques paragraphes pourquoi le ciel est bleu.",
+            "Write a Rust function that parses an ISO 8601 date like 2026-11-16.",
+            "Write a short story about a lighthouse keeper who finds a message in a bottle.",
+            "Explain step by step how to solve the quadratic equation 3x^2 - 5x - 2 = 0.",
+            "Résume les causes de la Révolution française en cinq points détaillés.",
+            "Write a Python class implementing an LRU cache with tests.",
+            "Describe how a compiler turns source code into machine code.",
+            "Donne une recette de crêpes avec les quantités et les étapes.",
+        ];
+        let budget =
+            std::env::var("MLXL3_DFLASH_PROFILE_TOKENS").map_or(Ok(256usize), |v| v.parse())?;
+        let vocab = 248_320usize;
+        let mask = weights.family.mask();
+        let mut blocks = Vec::new();
+        let mut outputs: Vec<Vec<u32>> = Vec::new();
+        for (index, prompt) in prompts.iter().enumerate() {
+            let tokens = tokenizer.encode(
+                &tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?,
+            )?;
+            model.reset();
+            let (logits, session, _) = prefill_round(
+                &mut model,
+                &tokens,
+                &[],
+                Some(&weights),
+                &mut None,
+                "block16",
+                false,
+                &cancelled,
+            )?;
+            let mut session = session.context("missing DFlash session")?;
+            let NativeChatModel::Qwen(target) = &mut model else {
+                bail!("requires a Qwen target")
+            };
+            let mut anchor = logits.chat_greedy_ids()?[0];
+            let mut generated = vec![anchor];
+            let mut produced = 1usize;
+            while produced + 1 < budget {
+                let k = 7usize.min(budget - produced - 1);
+                let input = target.dflash_input(anchor, mask)?;
+                let draft = weights.forward_hidden(&input, &session.cache, target.offset())?;
+                let draft_logits = target.dflash_logits(&draft.hidden, k)?;
+                let proposals = weights.select_greedy(&draft_logits, &draft.selector, anchor)?;
+                let marginal8 = draft_logits.chat_greedy_ids()?;
+                let input16 = target.dflash_input_rows(anchor, mask, 16)?;
+                let draft16 = weights.forward_hidden(&input16, &session.cache, target.offset())?;
+                let rows16 = target
+                    .dflash_logits(&draft16.hidden, 15)?
+                    .log_probs()?
+                    .to_f32()?;
+                anyhow::ensure!(
+                    rows16.len() == 15 * vocab && marginal8.len() == k && proposals.len() == k,
+                    "short draft rows"
+                );
+                let (marginal16, confidence16): (Vec<u32>, Vec<f32>) = rows16
+                    .chunks(vocab)
+                    .map(|row| {
+                        let (best, top) = row.iter().enumerate().fold(
+                            (0usize, f32::NEG_INFINITY),
+                            |acc, (i, &v)| {
+                                if v > acc.1 { (i, v) } else { acc }
+                            },
+                        );
+                        (best as u32, top)
+                    })
+                    .unzip();
+                anyhow::ensure!(
+                    confidence16.iter().all(|v| v.is_finite()),
+                    "non-finite draft row"
+                );
+                let verify = std::iter::once(anchor)
+                    .chain(proposals.iter().copied())
+                    .collect::<Vec<_>>();
+                let position = target.offset();
+                let (target_logits, captured) =
+                    target.verify_tokens_exact_with_dflash_capture(&verify)?;
+                let target_tokens = target_logits.chat_greedy_ids()?;
+                let acceptance =
+                    mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
+                        .context("invalid DFlash target verification")?;
+                let retained = acceptance.accepted_draft_tokens + 1;
+                target.commit_dflash_verification(retained, verify.len())?;
+                session.cache.append_captured(
+                    &weights,
+                    &captured.slice(0, 0, i32::try_from(retained)?)?,
+                    position,
+                )?;
+                session.cache.eval()?;
+                blocks.push(json!({"prompt": index, "anchor": anchor,
+                    "anchor_index": generated.len() - 1, "proposals": k,
+                    "accepted": acceptance.accepted_draft_tokens, "chain": proposals,
+                    "marginal8": marginal8, "marginal16": marginal16,
+                    "confidence16": confidence16}));
                 generated.extend(
                     proposals[..acceptance.accepted_draft_tokens]
                         .iter()

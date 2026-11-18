@@ -368,6 +368,84 @@ impl Mlp {
     }
 }
 
+/// Q27D-37: what every layer of one tree verification shares.
+pub(crate) struct TreePlan {
+    rows: i32,
+    base: i32,
+    /// `(depth, first row, end row)` for each depth, rows being in depth order.
+    depth_spans: Vec<(i32, i32, i32)>,
+    /// Row indices of each root-to-leaf path.
+    path_indices: Vec<Array>,
+    /// Position of each row in the concatenation of the path outputs.
+    gather: Array,
+    /// Additive attention mask `[1, 1, rows, base + rows]`: the cache and the row's ancestors.
+    mask: Array,
+}
+
+impl TreePlan {
+    fn new(tree: &crate::speculative::DraftTree, base: i32) -> Result<Self> {
+        let rows = tree.rows();
+        ensure!(
+            tree.is_valid() && (2..=16).contains(&rows),
+            "invalid verification tree"
+        );
+        let mut depth_spans: Vec<(i32, i32, i32)> = Vec::new();
+        for (row, &depth) in tree.depths.iter().enumerate() {
+            let (depth, row) = (i32::try_from(depth)?, i32::try_from(row)?);
+            match depth_spans.last_mut() {
+                Some(span) if span.0 == depth => span.2 = row + 1,
+                _ => depth_spans.push((depth, row, row + 1)),
+            }
+        }
+        let paths = tree.paths();
+        let mut gather = vec![-1i32; rows];
+        let mut cursor = 0i32;
+        let mut path_indices = Vec::with_capacity(paths.len());
+        for path in &paths {
+            ensure!(
+                path.len() <= 8,
+                "tree path longer than the GDN verification kernels"
+            );
+            for &row in path {
+                if gather[row] < 0 {
+                    gather[row] = cursor;
+                }
+                cursor += 1;
+            }
+            let indices = path
+                .iter()
+                .map(|&row| i32::try_from(row))
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            path_indices.push(Array::from_i32(&indices, &[i32::try_from(path.len())?])?);
+        }
+        ensure!(
+            gather.iter().all(|&index| index >= 0),
+            "tree rows not covered by paths"
+        );
+        let width = usize::try_from(base)? + rows;
+        let mut mask = vec![f32::NEG_INFINITY; rows * width];
+        for row in 0..rows {
+            let line = &mut mask[row * width..(row + 1) * width];
+            line[..usize::try_from(base)?].fill(0.0);
+            for column in 0..rows {
+                if tree.is_ancestor(column, row) {
+                    line[usize::try_from(base)? + column] = 0.0;
+                }
+            }
+        }
+        let rows = i32::try_from(rows)?;
+        Ok(Self {
+            rows,
+            base,
+            depth_spans,
+            path_indices,
+            gather: Array::from_i32(&gather, &[rows])?,
+            mask: Array::from_f32(&mask, &[1, 1, rows, i32::try_from(width)?])?
+                .astype(Dtype::Float16)?,
+        })
+    }
+}
+
 pub struct GatedDelta {
     inputs: ProjectionBundle,
     b: Projection,
@@ -381,6 +459,9 @@ pub struct GatedDelta {
     recurrent_state: Option<Array>,
     verification_conv_input: Option<Array>,
     verification_recurrent_tape: Option<gated_delta::RecurrentTape>,
+    /// Q27D-37: per root-to-leaf path of a pending tree verification, the convolution input
+    /// (committed history followed by the path rows) and the recurrent tape.
+    verification_tree: Option<Vec<(Array, gated_delta::RecurrentTape)>>,
     hidden: i32,
     key_heads: i32,
     value_heads: i32,
@@ -814,6 +895,130 @@ impl Attention {
         )?)
     }
 
+    /// Q27D-37: attention of a verification tree. Each row keeps the projections of the block
+    /// path, takes RoPE at the position of its depth, and attends to the whole cache plus its
+    /// ancestors in the tree (additive mask). The K/V of every row are written in place after
+    /// the cache; the commit compacts the accepted path.
+    fn forward_verification_tree(&mut self, x: &Array, plan: &TreePlan) -> Result<Array> {
+        let rows = plan.rows;
+        ensure!(
+            x.shape() == [1, rows, x.shape()[2]] && self.kv_inplace && kv_inplace_enabled(),
+            "tree verification requires the in-place dense attention"
+        );
+        let base = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+        ensure!(
+            base == plan.base,
+            "attention cache does not match the tree plan"
+        );
+        let qkv = self.qkv.forward(x)?;
+        let q_gate = qkv[0].reshape(&[1, rows, self.heads, self.head_dim * 2])?;
+        let q = q_gate
+            .slice(3, 0, self.head_dim)?
+            .rms_norm(&self.q_norm, self.eps)?
+            .transpose(&[0, 2, 1, 3])?;
+        let gate = q_gate
+            .slice(3, self.head_dim, self.head_dim * 2)?
+            .reshape(&[1, rows, self.heads * self.head_dim])?;
+        let k = qkv[1]
+            .reshape(&[1, rows, self.kv_heads, self.head_dim])?
+            .rms_norm(&self.k_norm, self.eps)?
+            .transpose(&[0, 2, 1, 3])?;
+        let v = qkv[2]
+            .reshape(&[1, rows, self.kv_heads, self.head_dim])?
+            .transpose(&[0, 2, 1, 3])?;
+        // Rows are in depth order: one RoPE call per depth, rows as a batch of one position.
+        let rope_by_depth = |value: &Array| -> Result<Array> {
+            let parts = plan
+                .depth_spans
+                .iter()
+                .map(|&(depth, start, end)| {
+                    value
+                        .slice(2, start, end)?
+                        .transpose(&[2, 1, 0, 3])?
+                        .rope(self.rope_dims, self.theta, base + depth)?
+                        .transpose(&[2, 1, 0, 3])
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Array::concatenate(&parts.iter().collect::<Vec<_>>(), 2)
+        };
+        let q = rope_by_depth(&q)?;
+        let k = rope_by_depth(&k)?;
+        self.kv_append(k, v)?;
+        self.verification_base = Some(base);
+        let attended = Array::sdpa_mask(
+            &q,
+            self.keys.as_ref().context("missing attention keys")?,
+            self.values.as_ref().context("missing attention values")?,
+            (self.head_dim as f32).powf(-0.5),
+            &plan.mask,
+        )?
+        .transpose(&[0, 2, 1, 3])?
+        .reshape(&[1, rows, self.heads * self.head_dim])?
+        .mul(&gate.sigmoid()?)?;
+        self.output.forward(&attended)
+    }
+
+    /// Q27D-37, first half of the commit: the accepted rows' K/V gathered from the block
+    /// (`None` when the accepted rows already form the block prefix).
+    fn tree_commit_gather(&mut self, accepted: &[usize]) -> Result<Option<(Array, Array)>> {
+        let base = *self
+            .verification_base
+            .as_ref()
+            .context("attention has no pending tree verification")?;
+        ensure!(
+            !accepted.is_empty() && accepted[0] == 0,
+            "invalid attention tree commit"
+        );
+        if accepted
+            .iter()
+            .enumerate()
+            .all(|(index, &row)| index == row)
+        {
+            return Ok(None);
+        }
+        let indices = accepted
+            .iter()
+            .map(|&row| i32::try_from(row).map(|row| base + row))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let indices = Array::from_i32(&indices, &[i32::try_from(accepted.len())?])?;
+        let (keys, values) = self.states()?;
+        Ok(Some((keys.take(&indices, 2)?, values.take(&indices, 2)?)))
+    }
+
+    /// Q27D-37, second half: keep the accepted rows at `base..base + rows`; `kept` must be
+    /// evaluated so the buffer can be updated in place.
+    fn tree_commit_finish(&mut self, rows: i32, kept: Option<(Array, Array)>) -> Result<()> {
+        let base = self
+            .verification_base
+            .take()
+            .context("attention has no pending tree verification")?;
+        let end = base + rows;
+        let (keys, values) = (
+            self.keys
+                .take()
+                .context("missing verified attention keys")?,
+            self.values
+                .take()
+                .context("missing verified attention values")?,
+        );
+        let Some((kept_keys, kept_values)) = kept else {
+            self.keys = Some(keys.slice(2, 0, end)?);
+            self.values = Some(values.slice(2, 0, end)?);
+            return Ok(());
+        };
+        drop((keys, values));
+        let (buffer_keys, buffer_values) = self
+            .kv_buffer
+            .take()
+            .context("tree verification requires the in-place attention buffer")?;
+        let buffer_keys = buffer_keys.slice_update(&kept_keys, &[0, 0, base, 0])?;
+        let buffer_values = buffer_values.slice_update(&kept_values, &[0, 0, base, 0])?;
+        self.keys = Some(buffer_keys.slice(2, 0, end)?);
+        self.values = Some(buffer_values.slice(2, 0, end)?);
+        self.kv_buffer = Some((buffer_keys, buffer_values));
+        Ok(())
+    }
+
     fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
         let base = self
             .verification_base
@@ -1238,6 +1443,31 @@ impl Layer {
             Self::Linear(layer) => layer.commit_verification_prefix(retained, total),
             Self::Attention(layer) => layer.commit_verification_prefix(retained, total),
         }
+    }
+
+    /// Q27D-37: one layer of a tree verification (rows are tree nodes).
+    fn forward_verification_tree(&mut self, x: &Array, plan: &TreePlan) -> Result<Array> {
+        let rows = plan.rows;
+        let (input_norm, post_norm, eps, hidden) = match self {
+            Self::Linear(layer) => (&layer.input_norm, &layer.post_norm, layer.eps, layer.hidden),
+            Self::Attention(layer) => {
+                (&layer.input_norm, &layer.post_norm, layer.eps, layer.hidden)
+            }
+        };
+        ensure!(x.shape() == [1, rows, hidden], "invalid Qwen tree input");
+        let normalized = x.rms_norm(input_norm, eps)?;
+        let post_norm = post_norm.try_clone()?;
+        let attention = match self {
+            Self::Linear(layer) => layer
+                .attention
+                .forward_verification_tree(&normalized, plan)?,
+            Self::Attention(layer) => layer
+                .attention
+                .forward_verification_tree(&normalized, plan)?,
+        };
+        let (residual, post) = post_attention_norm(x, &attention, &post_norm, eps)?;
+        let mlp = self.mlp().forward(&post.reshape(&[rows, hidden])?)?;
+        residual.add(&mlp.reshape(&[1, rows, hidden])?)
     }
 
     fn reset(&mut self) {
@@ -1880,18 +2110,33 @@ impl Qwen35Moe {
             anchor < self.vocab as u32 && mask < self.vocab as u32,
             "DFlash input token is outside vocabulary"
         );
-        let mut tokens = [mask as i32; 8];
+        self.dflash_input_rows(anchor, mask, 8)
+    }
+
+    /// Q27D-34: anchor followed by `rows - 1` mask tokens (8 in production, 16 in the depth
+    /// experiment).
+    pub fn dflash_input_rows(&self, anchor: u32, mask: u32, rows: usize) -> Result<Array> {
+        ensure!(
+            anchor < self.vocab as u32 && mask < self.vocab as u32 && matches!(rows, 8 | 16),
+            "DFlash input token is outside vocabulary"
+        );
+        let mut tokens = vec![mask as i32; rows];
         tokens[0] = anchor as i32;
+        let rows = i32::try_from(rows)?;
         self.embeddings
-            .take(&Array::from_i32(&tokens, &[1, 8])?, 0)?
-            .reshape(&[8, self.embeddings.shape()[1]])?
+            .take(&Array::from_i32(&tokens, &[1, rows])?, 0)?
+            .reshape(&[rows, self.embeddings.shape()[1]])?
             .astype(Dtype::BFloat16)
     }
 
     pub fn dflash_logits(&self, hidden: &Array, positions: usize) -> Result<Array> {
         ensure!(
-            hidden.shape() == [8, self.embeddings.shape()[1]] && (1..=7).contains(&positions),
-            "DFlash head expects eight hidden rows"
+            hidden.shape().len() == 2
+                && matches!(hidden.shape()[0], 8 | 16)
+                && hidden.shape()[1] == self.embeddings.shape()[1]
+                && positions >= 1
+                && positions < hidden.shape()[0] as usize,
+            "DFlash head expects eight or sixteen hidden rows"
         );
         let end = i32::try_from(positions)? + 1;
         self.head
@@ -2417,6 +2662,124 @@ impl Qwen35Moe {
         Ok(())
     }
 
+    /// Q27D-37: whether tree verification is available (dense 27B in TensorOps block mode).
+    pub fn supports_tree_verification(&self) -> Result<bool> {
+        Ok(self.dense_block && kv_inplace_enabled() && self.block_verification(8)?)
+    }
+
+    /// Q27D-37: verify a DFlash2 tree; returns the logits of every row and the captured
+    /// target features of every row. The committed state is untouched until
+    /// [`Self::commit_dflash_tree`].
+    pub fn verify_tree_with_dflash_capture(
+        &mut self,
+        tree: &crate::speculative::DraftTree,
+    ) -> Result<(Array, Array)> {
+        let result: Result<(Array, Array)> = (|| {
+            ensure!(
+                self.supports_tree_verification()?,
+                "tree verification is unavailable"
+            );
+            ensure!(
+                tree.tokens.iter().all(|&token| token < self.vocab as u32),
+                "tree token outside vocabulary"
+            );
+            let rows = i32::try_from(tree.rows())?;
+            ensure!(
+                self.offset + rows <= self.context_limit,
+                "Qwen context is full"
+            );
+            let plan = TreePlan::new(tree, self.offset)?;
+            let family = self.dflash_family().context("unsupported DFlash target")?;
+            let capture_layers = family.captures();
+            let mut hidden = self.block_embeddings(&tree.tokens)?;
+            let mut captured = Vec::with_capacity(capture_layers.len());
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
+                hidden = layer.forward_verification_tree(&hidden, &plan)?;
+                if crate::contracts::pipeline_layer(
+                    index,
+                    layer_count,
+                    self.pipeline,
+                    self.pipeline_stride,
+                ) {
+                    Array::async_eval_all(&[&hidden])?;
+                }
+                if capture_layers.contains(&index) {
+                    captured.push(hidden.try_clone()?);
+                }
+            }
+            ensure!(
+                captured.len() == capture_layers.len(),
+                "Qwen model is missing DFlash capture layers"
+            );
+            let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
+                .reshape(&[rows, family.target_hidden() as i32])?
+                .astype(Dtype::BFloat16)?;
+            let output = self.head.forward(&hidden.rms_norm(&self.norm, self.eps)?)?;
+            output.eval()?;
+            capture.eval()?;
+            self.offset += rows;
+            Ok((output, capture))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen tree verification failed; its cache was reset")
+    }
+
+    /// Q27D-37: keep the accepted root path `accepted` (rows, root first) of the pending tree.
+    pub fn commit_dflash_tree(
+        &mut self,
+        tree: &crate::speculative::DraftTree,
+        accepted: &[usize],
+    ) -> Result<()> {
+        let result: Result<()> = (|| {
+            let paths = tree.paths();
+            let path = paths
+                .iter()
+                .position(|path| path.starts_with(accepted))
+                .context("accepted rows are not a root path of the tree")?;
+            let retained = i32::try_from(accepted.len())?;
+            let rows = i32::try_from(tree.rows())?;
+            ensure!(retained >= 1 && retained <= rows, "invalid tree commit");
+            let mut gathered = Vec::new();
+            for layer in &mut self.layers {
+                if let Layer::Attention(layer) = layer {
+                    gathered.push(layer.attention.tree_commit_gather(accepted)?);
+                }
+            }
+            let pending = gathered
+                .iter()
+                .flatten()
+                .flat_map(|(keys, values)| [keys, values])
+                .collect::<Vec<_>>();
+            if !pending.is_empty() {
+                Array::async_eval_all(&pending)?;
+                for value in &pending {
+                    value.eval()?;
+                }
+            }
+            let mut gathered = gathered.into_iter();
+            for layer in &mut self.layers {
+                match layer {
+                    Layer::Attention(layer) => layer.attention.tree_commit_finish(
+                        retained,
+                        gathered.next().context("missing gathered attention rows")?,
+                    )?,
+                    Layer::Linear(layer) => {
+                        layer.attention.commit_verification_tree(path, retained)?
+                    }
+                }
+            }
+            self.offset -= rows - retained;
+            Ok(())
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("DFlash tree commit failed; model state was reset")
+    }
+
     pub fn snapshot(&self) -> Result<QwenSnapshot> {
         Ok(QwenSnapshot {
             offset: self.offset,
@@ -2760,6 +3123,7 @@ impl GatedDelta {
             recurrent_state: None,
             verification_conv_input: None,
             verification_recurrent_tape: None,
+            verification_tree: None,
             hidden,
             key_heads,
             value_heads,
@@ -2789,6 +3153,7 @@ impl GatedDelta {
         self.recurrent_state = recurrent;
         self.verification_conv_input = None;
         self.verification_recurrent_tape = None;
+        self.verification_tree = None;
         Ok(())
     }
 
@@ -2936,6 +3301,96 @@ impl GatedDelta {
             .forward(&z.precise_swiglu(&normalized)?.reshape(&[1, time, values])?)
     }
 
+    /// Q27D-37: GDN mixer of a verification tree. Convolution and recurrence run once per
+    /// root-to-leaf path from the committed state (left untouched) with the chain kernels; each
+    /// row takes its output from the first path that contains it.
+    fn forward_verification_tree(&mut self, x: &Array, plan: &TreePlan) -> Result<Array> {
+        let rows = plan.rows;
+        ensure!(
+            x.shape() == [1, rows, self.hidden],
+            "invalid Qwen tree verification GDN input"
+        );
+        let keys = self.key_heads * self.key_dim;
+        let values = self.value_heads * self.value_dim;
+        let conv_dims = 2 * keys + values;
+        let inputs = self.inputs.forward(x)?;
+        let qkv = inputs[0].try_clone()?;
+        let z = inputs[1].reshape(&[1, rows, self.value_heads, self.value_dim])?;
+        let (b, a) = (self.b.forward(x)?, self.a.forward(x)?);
+        let q_scale =
+            Array::from_f16_bits(&[f16::from_f32(1.0 / self.key_dim as f32).to_bits()], &[])?;
+        let k_scale = Array::from_f16_bits(
+            &[f16::from_f32(1.0 / (self.key_dim as f32).sqrt()).to_bits()],
+            &[],
+        )?;
+        let conv_state = match &self.conv_state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
+        };
+        let recurrent_state = match &self.recurrent_state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(
+                &[1, self.value_heads, self.value_dim, self.key_dim],
+                Dtype::Float32,
+            )?,
+        };
+        let mut outputs = Vec::with_capacity(plan.path_indices.len());
+        let mut records = Vec::with_capacity(plan.path_indices.len());
+        for indices in &plan.path_indices {
+            let qkv_path = qkv.take(indices, 1)?;
+            let (q, k, v, _) = gated_delta::prepare_qkv(
+                &qkv_path,
+                &conv_state,
+                &self.conv_weight,
+                &q_scale,
+                &k_scale,
+                self.key_heads,
+                self.value_heads,
+                self.key_dim,
+                self.value_dim,
+                self.conv_length,
+            )?;
+            let conv_input = Array::concatenate(&[&conv_state, &qkv_path], 1)?;
+            let (out, _, tape) = gated_delta::step_with_gates_tape(
+                &q,
+                &k,
+                &v,
+                &a.take(indices, 1)?,
+                &b.take(indices, 1)?,
+                &self.a_log,
+                &self.dt_bias,
+                &recurrent_state,
+            )?;
+            outputs.push(out);
+            records.push((conv_input, tape));
+        }
+        self.verification_conv_input = None;
+        self.verification_recurrent_tape = None;
+        self.verification_tree = Some(records);
+        let out =
+            Array::concatenate(&outputs.iter().collect::<Vec<_>>(), 1)?.take(&plan.gather, 1)?;
+        let normalized = out.rms_norm(&self.norm, self.eps)?;
+        self.output
+            .forward(&z.precise_swiglu(&normalized)?.reshape(&[1, rows, values])?)
+    }
+
+    /// Q27D-37: commit the first `retained` rows of tree path `path`.
+    fn commit_verification_tree(&mut self, path: usize, retained: i32) -> Result<()> {
+        let mut records = self
+            .verification_tree
+            .take()
+            .context("GDN has no pending tree verification")?;
+        ensure!(path < records.len(), "invalid GDN tree path");
+        let (conv_input, tape) = records.swap_remove(path);
+        ensure!(
+            retained > 0 && retained + self.conv_length - 1 <= conv_input.shape()[1],
+            "invalid GDN tree commit"
+        );
+        self.conv_state = Some(conv_input.slice(1, retained, retained + self.conv_length - 1)?);
+        self.recurrent_state = Some(tape.replay(retained)?);
+        Ok(())
+    }
+
     fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
         ensure!(
             retained > 0 && retained <= total && total <= 8,
@@ -3046,6 +3501,7 @@ impl GatedDelta {
         self.recurrent_state = None;
         self.verification_conv_input = None;
         self.verification_recurrent_tape = None;
+        self.verification_tree = None;
     }
 }
 

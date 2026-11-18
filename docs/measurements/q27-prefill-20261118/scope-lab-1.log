@@ -1,0 +1,28 @@
+
+running 1 test
+test linear::q27_kernel_lab::q27_prefill_scope_lab ... Error: MLX: [metal::Device] Unable to build metal library from source
+In file included from mlx/backend/metal/kernels/utils.h:470:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MetalPerformancePrimitives.h:10:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MPPTensorOpsMatMul2d.h:411:
+/System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/__impl/MPPTensorOpsMatMul2dImpl.h:5363:3: error: static_assert failed due to requirement '__tensor_ops_detail::__is_same_v<metal::execution_simdgroups<2>, metal::execution_simdgroups<1>>' "Input cooperative tensors require a single SIMD group"
+  static_assert(__tensor_ops_detail::__is_same_v<scope, metal::execution_simdgroup>,
+  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MPPTensorOpsMatMul2d.h:511:31: note: in instantiation of function template specialization 'mpp::tensor_ops::__mutmul2d_detail::__get_right_input_cooperative_tensor<{128, 32, 16, false, false, false, 1}, metal::execution_simdgroups<2>, half, half, float, int>' requested here
+    return __mutmul2d_detail::__get_right_input_cooperative_tensor<
+                              ^
+mlx/backend/metal/kernels/utils.h:503:24: note: in instantiation of function template specialization 'mpp::tensor_ops::matmul2d<{128, 32, 16, false, false, false, 1}, metal::execution_simdgroups<2>>::get_right_input_cooperative_tensor<half, half, float, int, void>' requested here
+auto right = operation.get_right_input_cooperative_tensor<half, half, float>();
+                       ^
+In file included from mlx/backend/metal/kernels/utils.h:470:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MetalPerformancePrimitives.h:10:
+In file included from /System/Library/Frameworks/MetalPerformancePrimitives.framework/Headers/MPPTensorOpsMatMul2d.h:411:
+/System/Library/Frameworks/MetalPerformancePrimitiv
+FAILED
+
+failures:
+
+failures:
+    linear::q27_kernel_lab::q27_prefill_scope_lab
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 819 filtered out; finished in 0.26s
+

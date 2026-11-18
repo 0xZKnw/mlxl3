@@ -1,0 +1,263 @@
+{
+  "status": "passed",
+  "arms": {
+    "OLD": {}
+  },
+  "order": [
+    "OLD"
+  ],
+  "modes": [
+    "ar",
+    "dflash:1"
+  ],
+  "sampler": "greedy",
+  "sampled": false,
+  "tokens": 128,
+  "repeats": 2,
+  "context": 4096,
+  "cases": [
+    "fr",
+    "code"
+  ],
+  "engine": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Engines/engine-v2.0.14-94e320a1335bc4ededd39c1ca00dea1227e73395cc87c313200457093515f315/mlxl3",
+  "engine_sha256": "b832cc7ce829bf05618fd1e282da27f75f2dc83bc4b85753590d247be38acc5a",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+  "mtp_head": null,
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+  "before": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t79%; discharging; 2:21 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      2.3515625,
+      3.09912109375,
+      3.34033203125
+    ]
+  },
+  "passes": [
+    {
+      "arm": "OLD",
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t79%; discharging; 2:21 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "load": [
+          2.2431640625,
+          3.06396484375,
+          3.326171875
+        ]
+      },
+      "status": "complete",
+      "results": {
+        "ar": {
+          "fr": [
+            {
+              "token_hash": "09b264731018cbc1",
+              "generated_tokens": 128,
+              "decode_tps": 55.68848970523921,
+              "decode_seconds": 2.280543083,
+              "prefill_seconds": 0.317383334,
+              "prompt_tokens": 22,
+              "mlx_active_bytes": 12146659896,
+              "mlx_peak_bytes": 12163093218,
+              "process_footprint_bytes": 12641799120,
+              "dflash_block_seconds": 0.0
+            },
+            {
+              "token_hash": "09b264731018cbc1",
+              "generated_tokens": 128,
+              "decode_tps": 58.29208771098995,
+              "decode_seconds": 2.178683334,
+              "prefill_seconds": 0.309225833,
+              "prompt_tokens": 22,
+              "mlx_active_bytes": 12146659896,
+              "mlx_peak_bytes": 12163051234,
+              "process_footprint_bytes": 12641848272,
+              "dflash_block_seconds": 0.0
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "db43c6477ae11df0",
+              "generated_tokens": 128,
+              "decode_tps": 58.32093566093755,
+              "decode_seconds": 2.177605667,
+              "prefill_seconds": 0.169278917,
+              "prompt_tokens": 37,
+              "mlx_active_bytes": 12146987576,
+              "mlx_peak_bytes": 12247955968,
+              "process_footprint_bytes": 12649221072,
+              "dflash_block_seconds": 0.0
+            },
+            {
+              "token_hash": "db43c6477ae11df0",
+              "generated_tokens": 128,
+              "decode_tps": 58.22466686865736,
+              "decode_seconds": 2.181206125,
+              "prefill_seconds": 0.169803166,
+              "prompt_tokens": 37,
+              "mlx_active_bytes": 12146987576,
+              "mlx_peak_bytes": 12247955968,
+              "process_footprint_bytes": 12649319400,
+              "dflash_block_seconds": 0.0
+            }
+          ]
+        },
+        "dflash:1": {
+          "fr": [
+            {
+              "token_hash": "09b264731018cbc1",
+              "generated_tokens": 128,
+              "decode_tps": 63.97423167112736,
+              "decode_seconds": 1.9851742909999999,
+              "prefill_seconds": 0.318025458,
+              "prompt_tokens": 22,
+              "mlx_active_bytes": 12629458514,
+              "mlx_peak_bytes": 12729107712,
+              "process_footprint_bytes": 13299289424,
+              "dflash_proposed_tokens": 139,
+              "dflash_accepted_tokens": 91,
+              "dflash_blocks": 35,
+              "dflash_block_seconds": 1.9654565829999997
+            },
+            {
+              "token_hash": "09b264731018cbc1",
+              "generated_tokens": 128,
+              "decode_tps": 66.06552528511622,
+              "decode_seconds": 1.922333917,
+              "prefill_seconds": 0.347667959,
+              "prompt_tokens": 22,
+              "mlx_active_bytes": 12629458514,
+              "mlx_peak_bytes": 12729106688,
+              "process_footprint_bytes": 13299584336,
+              "dflash_proposed_tokens": 139,
+              "dflash_accepted_tokens": 91,
+              "dflash_blocks": 35,
+              "dflash_block_seconds": 1.9050671220000004
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "db43c6477ae11df0",
+              "generated_tokens": 128,
+              "decode_tps": 71.06863656429589,
+              "decode_seconds": 1.787004875,
+              "prefill_seconds": 0.171479833,
+              "prompt_tokens": 37,
+              "mlx_active_bytes": 12630224346,
+              "mlx_peak_bytes": 12733610120,
+              "process_footprint_bytes": 13316607312,
+              "dflash_proposed_tokens": 133,
+              "dflash_accepted_tokens": 95,
+              "dflash_blocks": 32,
+              "dflash_block_seconds": 1.7863424150000002
+            },
+            {
+              "token_hash": "db43c6477ae11df0",
+              "generated_tokens": 128,
+              "decode_tps": 71.21708476509603,
+              "decode_seconds": 1.7832799590000001,
+              "prefill_seconds": 0.170607792,
+              "prompt_tokens": 37,
+              "mlx_active_bytes": 12630224346,
+              "mlx_peak_bytes": 12733610120,
+              "process_footprint_bytes": 13317459280,
+              "dflash_proposed_tokens": 133,
+              "dflash_accepted_tokens": 95,
+              "dflash_blocks": 32,
+              "dflash_block_seconds": 1.782753877
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "distinct_hashes": {
+    "fr": 1,
+    "code": 1
+  },
+  "summary": {
+    "ar/fr": {
+      "decode_tps": {
+        "OLD": 56.990288708114576
+      },
+      "pass_means": [
+        56.990288708114576
+      ],
+      "gain_percent_vs_first": {
+        "OLD": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "OLD": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "ar/code": {
+      "decode_tps": {
+        "OLD": 58.27280126479745
+      },
+      "pass_means": [
+        58.27280126479745
+      ],
+      "gain_percent_vs_first": {
+        "OLD": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "OLD": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "dflash:1/fr": {
+      "decode_tps": {
+        "OLD": 65.0198784781218
+      },
+      "pass_means": [
+        65.0198784781218
+      ],
+      "gain_percent_vs_first": {
+        "OLD": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "OLD": {
+          "dflash_proposed_tokens": 139,
+          "dflash_accepted_tokens": 91,
+          "dflash_blocks": 35,
+          "dflash_block_seconds": 1.9654565829999997
+        }
+      }
+    },
+    "dflash:1/code": {
+      "decode_tps": {
+        "OLD": 71.14286066469596
+      },
+      "pass_means": [
+        71.14286066469596
+      ],
+      "gain_percent_vs_first": {
+        "OLD": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "OLD": {
+          "dflash_proposed_tokens": 133,
+          "dflash_accepted_tokens": 95,
+          "dflash_blocks": 32,
+          "dflash_block_seconds": 1.7863424150000002
+        }
+      }
+    }
+  },
+  "problems": [],
+  "after": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t78%; discharging; 2:11 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      2.21728515625,
+      2.99267578125,
+      3.29296875
+    ]
+  }
+}

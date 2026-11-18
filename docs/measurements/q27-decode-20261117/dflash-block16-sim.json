@@ -1,0 +1,115 @@
+{
+  "status": "complete",
+  "profile": "docs/measurements/q27-decode-20261117/dflash-block16.json",
+  "blocks": 529,
+  "note": "production block boundaries; target = recorded greedy output",
+  "tokens_per_block": {
+    "selector_chain_7": 3.68241965973535,
+    "marginal_8rows_7": 3.389413988657845,
+    "marginal_16rows_first7": 3.3591682419659734,
+    "marginal_16rows_15": 3.5860113421550093,
+    "selector7_then_16rows": 3.9981096408317582
+  },
+  "first7_identical_share": 0.3818525519848771,
+  "blocks_accepting_all_7": 73,
+  "survival_16rows": [
+    {
+      "depth": 1,
+      "reached": 529,
+      "accepted": 426
+    },
+    {
+      "depth": 2,
+      "reached": 426,
+      "accepted": 293
+    },
+    {
+      "depth": 3,
+      "reached": 293,
+      "accepted": 197
+    },
+    {
+      "depth": 4,
+      "reached": 197,
+      "accepted": 132
+    },
+    {
+      "depth": 5,
+      "reached": 132,
+      "accepted": 88
+    },
+    {
+      "depth": 6,
+      "reached": 88,
+      "accepted": 62
+    },
+    {
+      "depth": 7,
+      "reached": 62,
+      "accepted": 50
+    },
+    {
+      "depth": 8,
+      "reached": 50,
+      "accepted": 38
+    },
+    {
+      "depth": 9,
+      "reached": 38,
+      "accepted": 28
+    },
+    {
+      "depth": 10,
+      "reached": 28,
+      "accepted": 20
+    },
+    {
+      "depth": 11,
+      "reached": 20,
+      "accepted": 17
+    },
+    {
+      "depth": 12,
+      "reached": 17,
+      "accepted": 10
+    },
+    {
+      "depth": 13,
+      "reached": 10,
+      "accepted": 4
+    },
+    {
+      "depth": 14,
+      "reached": 4,
+      "accepted": 2
+    },
+    {
+      "depth": 15,
+      "reached": 2,
+      "accepted": 1
+    }
+  ],
+  "cost_ms": {
+    "rows8": 178.0,
+    "rows16": 203.0
+  },
+  "tokens_per_second": {
+    "always_8": 20.687750897389606,
+    "always_16": 19.695121383407674,
+    "oracle_choice": 22.05721317801162,
+    "adaptive_held_out": [
+      {
+        "threshold": -0.640625,
+        "wide_share": 0.12301587301587301,
+        "tokens_per_second": 23.339396462930903,
+        "baseline_tokens_per_second": 21.80310326377742
+      },
+      {
+        "threshold": -0.875,
+        "wide_share": 0.039711191335740074,
+        "tokens_per_second": 19.9269881607874,
+        "baseline_tokens_per_second": 19.673062101975418
+      }
+    ]
+  }
+}

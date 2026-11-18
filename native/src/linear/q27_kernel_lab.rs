@@ -2001,3 +2001,1243 @@ fn q27_qmv_fused_glue_lab() -> Result<()> {
     ensure!(identical_all, "fused QMV glue diverged from the MLX chains");
     Ok(())
 }
+
+/// Q27P-01: prefill projections of the 27B at 256 rows (the production chunk) on the M5
+/// TensorOps kernel: time, effective TFLOPS and decoded weights per second (diagnostic).
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_projection_lab() -> Result<()> {
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    // (label, module, calls per 256-token chunk of the 64-layer model)
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 16),
+        ("attn_v", single(&format!("{attn}.self_attn.v_proj"))?, 16),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let mut chunk_ms = 0.0;
+    for (label, module, calls) in &modules {
+        let (input, cols, ..) = module.dims();
+        for m in [256i32, 512] {
+            let x = rows_input(m, input, 91 + m as u32)?;
+            let out = module.tensor(&x)?;
+            let values = out.astype(Dtype::Float32)?.to_f32()?;
+            let finite =
+                values.len() == (m * cols) as usize && values.iter().all(|v| v.is_finite());
+            let ms = time_calls_n(8, || module.tensor(&x))?;
+            let macs = f64::from(m) * f64::from(input) * f64::from(cols);
+            if m == 256 {
+                chunk_ms += ms * f64::from(*calls);
+            }
+            let row = serde_json::json!({"label": label, "m": m, "input": input, "output": cols, "ms": ms,
+                "tflops": 2.0 * macs / (ms * 1e-3) / 1e12,
+                "weights_g_per_s": f64::from(input) * f64::from(cols) / (ms * 1e-3) / 1e9,
+                "calls_per_chunk": calls, "finite": finite});
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["projections_ms_per_256_chunk"] = chunk_ms.into();
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    Ok(())
+}
+
+/// Q27P-02: prefill kernel with one decoded weight tile shared by 2/4/8 row blocks must match
+/// the stock prefill kernel bit for bit; then time at 256 rows.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_shared_lab() -> Result<()> {
+    use super::with_dense_prefill_shared;
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+        ),
+        ("gdn_out", single(&format!("{gdn}.linear_attn.out_proj"))?),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?),
+        ("head", single("lm_head")?),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let (mut identical_all, mut compared) = (true, 0usize);
+    for (label, module) in &modules {
+        let (input, cols, ..) = module.dims();
+        let sizes: &[i32] = if *label == "head" {
+            &[24, 73]
+        } else {
+            &[24, 73, 128, 200, 256, 512]
+        };
+        for &m in sizes {
+            let x = rows_input(m, input, 131 + m as u32)?;
+            let stock_bits = with_dense_prefill_shared(0, || module.tensor(&x))?.to_f16_bits()?;
+            ensure!(
+                stock_bits.len() == (m * cols) as usize,
+                "short stock output"
+            );
+            let finite = stock_bits
+                .iter()
+                .all(|&v| half::f16::from_bits(v).is_finite());
+            let mut row = serde_json::json!({"label": label, "m": m, "values": stock_bits.len(), "finite": finite});
+            for g in [2, 4, 8] {
+                let bits = with_dense_prefill_shared(g, || module.tensor(&x))?.to_f16_bits()?;
+                let differing = bits.iter().zip(&stock_bits).filter(|(a, b)| a != b).count()
+                    + bits.len().abs_diff(stock_bits.len());
+                identical_all &= differing == 0 && finite;
+                compared += bits.len();
+                row[format!("g{g}_differing")] = differing.into();
+            }
+            if m == 256 {
+                let mut times = serde_json::Map::new();
+                for g in [0, 2, 4, 8, 0] {
+                    let t = with_dense_prefill_shared(g, || time_calls_n(8, || module.tensor(&x)))?;
+                    times
+                        .entry(format!("g{g}_ms"))
+                        .or_insert(serde_json::json!([]))
+                        .as_array_mut()
+                        .context("times")?
+                        .push(t.into());
+                }
+                row["times"] = serde_json::Value::Object(times);
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["values_compared"] = compared.into();
+    report["status"] = if identical_all {
+        "complete"
+    } else {
+        "divergent"
+    }
+    .into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    ensure!(
+        identical_all,
+        "shared prefill kernel diverged from the stock kernel"
+    );
+    Ok(())
+}
+
+/// Q27P-03: 32-deep shared prefill kernel (not bit-exact): deviation from the stock kernel and
+/// time at 256 rows, against the bit-exact shared kernel at depth 16.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_depth_lab() -> Result<()> {
+    use super::{with_dense_prefill_depth, with_dense_prefill_shared};
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let (mut exact_ms, mut deep_ms) = (0.0, 0.0);
+    for (label, module, calls) in &modules {
+        let (input, cols, ..) = module.dims();
+        for m in [73i32, 256] {
+            let x = rows_input(m, input, 151 + m as u32)?;
+            let stock = with_dense_prefill_shared(0, || module.tensor(&x))?
+                .astype(Dtype::Float32)?
+                .to_f32()?;
+            let deep = with_dense_prefill_shared(4, || {
+                with_dense_prefill_depth(32, || module.tensor(&x))
+            })?
+            .astype(Dtype::Float32)?
+            .to_f32()?;
+            ensure!(
+                stock.len() == (m * cols) as usize && deep.len() == stock.len(),
+                "short outputs"
+            );
+            let finite = deep.iter().all(|v| v.is_finite());
+            let differing = stock
+                .iter()
+                .zip(&deep)
+                .filter(|(a, b)| a.to_bits() != b.to_bits())
+                .count();
+            let max_abs = stock
+                .iter()
+                .zip(&deep)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0f32, f32::max);
+            let scale = stock.iter().map(|v| v.abs()).fold(0f32, f32::max);
+            let mut row = serde_json::json!({"label": label, "m": m, "values": stock.len(), "finite": finite,
+                "differing_fraction": differing as f64 / stock.len() as f64, "max_abs": max_abs, "max_stock": scale});
+            if m == 256 {
+                let mut samples = [Vec::new(), Vec::new()];
+                for depth in [16, 32, 32, 16] {
+                    let t = with_dense_prefill_shared(4, || {
+                        with_dense_prefill_depth(depth, || time_calls_n(8, || module.tensor(&x)))
+                    })?;
+                    samples[usize::from(depth == 32)].push(t);
+                }
+                let mean = |v: &Vec<f64>| v.iter().sum::<f64>() / v.len() as f64;
+                exact_ms += mean(&samples[0]) * f64::from(*calls);
+                deep_ms += mean(&samples[1]) * f64::from(*calls);
+                row["depth16_ms"] = samples[0].clone().into();
+                row["depth32_ms"] = samples[1].clone().into();
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["chunk_ms_depth16"] = exact_ms.into();
+    report["chunk_ms_depth32"] = deep_ms.into();
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    Ok(())
+}
+
+/// Q27P-04: tile shapes of the shared prefill kernel; outputs must match the stock kernel bit
+/// for bit, then time at 256 rows.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_tile_lab() -> Result<()> {
+    use super::{with_dense_prefill_shared, with_prefill_tile};
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+    ];
+    let shapes = [(64, 32), (32, 64), (64, 64), (32, 32)];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let mut chunk = [0f64; 4];
+    let mut identical_all = true;
+    for (label, module, calls) in &modules {
+        let (input, ..) = module.dims();
+        for m in [73i32, 256] {
+            let x = rows_input(m, input, 171 + m as u32)?;
+            let stock = with_dense_prefill_shared(0, || module.tensor(&x))?.to_f16_bits()?;
+            let mut row = serde_json::json!({"label": label, "m": m, "values": stock.len()});
+            for (index, &shape) in shapes.iter().enumerate() {
+                let bits = with_dense_prefill_shared(4, || {
+                    with_prefill_tile(shape, || module.tensor(&x))
+                })?
+                .to_f16_bits()?;
+                let differing = bits.iter().zip(&stock).filter(|(a, b)| a != b).count()
+                    + bits.len().abs_diff(stock.len());
+                identical_all &= differing == 0;
+                row[format!("{}x{}_differing", shape.0, shape.1)] = differing.into();
+                if m == 256 {
+                    let a = with_dense_prefill_shared(4, || {
+                        with_prefill_tile(shape, || time_calls_n(8, || module.tensor(&x)))
+                    })?;
+                    let b = with_dense_prefill_shared(4, || {
+                        with_prefill_tile(shape, || time_calls_n(8, || module.tensor(&x)))
+                    })?;
+                    let ms = (a + b) / 2.0;
+                    chunk[index] += ms * f64::from(*calls);
+                    row[format!("{}x{}_ms", shape.0, shape.1)] = ms.into();
+                }
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    for (index, shape) in shapes.iter().enumerate() {
+        report[format!("chunk_ms_{}x{}", shape.0, shape.1)] = chunk[index].into();
+    }
+    report["status"] = if identical_all {
+        "complete"
+    } else {
+        "divergent"
+    }
+    .into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    Ok(())
+}
+
+/// Q27P-05: light tiles for the shared prefill kernel (16-row blocks keep 16 FP32 accumulators
+/// per lane instead of 64), with 8 or 16 row blocks per decoded tile and 16- or 32-deep
+/// operations. Outputs must match the stock kernel bit for bit; then time at 256 rows.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_light_lab() -> Result<()> {
+    use super::{with_dense_prefill_depth, with_dense_prefill_shared, with_prefill_tile};
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+    ];
+    // (rows per threadgroup share, depth, (BM, BN)); the first entry is the current default.
+    let configs: [(i32, i32, (i32, i32)); 7] = [
+        (4, 16, (64, 32)),
+        (16, 16, (16, 32)),
+        (16, 32, (16, 32)),
+        (8, 32, (16, 32)),
+        (8, 32, (32, 32)),
+        (8, 16, (32, 32)),
+        (16, 32, (16, 64)),
+    ];
+    let label_of = |c: &(i32, i32, (i32, i32))| format!("g{}_d{}_{}x{}", c.0, c.1, c.2.0, c.2.1);
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let mut chunk = vec![0f64; configs.len()];
+    let mut identical_all = true;
+    for (label, module, calls) in &modules {
+        let (input, ..) = module.dims();
+        for m in [24i32, 73, 256] {
+            let x = rows_input(m, input, 191 + m as u32)?;
+            let stock = with_dense_prefill_shared(0, || module.tensor(&x))?.to_f16_bits()?;
+            let mut row = serde_json::json!({"label": label, "m": m, "values": stock.len()});
+            for (index, config) in configs.iter().enumerate() {
+                let run = || {
+                    with_dense_prefill_shared(config.0, || {
+                        with_dense_prefill_depth(config.1, || {
+                            with_prefill_tile(config.2, || module.tensor(&x))
+                        })
+                    })
+                };
+                let bits = run()?.to_f16_bits()?;
+                let differing = bits.iter().zip(&stock).filter(|(a, b)| a != b).count()
+                    + bits.len().abs_diff(stock.len());
+                identical_all &= differing == 0;
+                row[format!("{}_differing", label_of(config))] = differing.into();
+                if m == 256 {
+                    let time = || {
+                        with_dense_prefill_shared(config.0, || {
+                            with_dense_prefill_depth(config.1, || {
+                                with_prefill_tile(config.2, || {
+                                    time_calls_n(8, || module.tensor(&x))
+                                })
+                            })
+                        })
+                    };
+                    let ms = (time()? + time()?) / 2.0;
+                    chunk[index] += ms * f64::from(*calls);
+                    row[format!("{}_ms", label_of(config))] = ms.into();
+                }
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    for (index, config) in configs.iter().enumerate() {
+        report[format!("chunk_ms_{}", label_of(config))] = chunk[index].into();
+    }
+    report["status"] = if identical_all {
+        "complete"
+    } else {
+        "divergent"
+    }
+    .into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    Ok(())
+}
+
+/// Q27P-06: raw `matmul2d` throughput by orientation over a projection-like K sweep (no decode,
+/// no weight loads): prefill orientation (activations left from memory, weights right in
+/// registers) against the transposed one (weights left in registers, activations right).
+#[test]
+#[ignore = "M5 TensorOps; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_tensor_op_orientation_lab() -> Result<()> {
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    ensure!(array::supports_exl3_tensor_ops()?, "requires M5 TensorOps");
+    let prefill = r#"
+uint lane = thread_index_in_simdgroup;
+uint group = threadgroup_position_in_grid.x;
+device half* activation = const_cast<device half*>(x);
+constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
+    OP_M, OP_N, OP_K, false, false, false,
+    tensor_ops::matmul2d_descriptor::mode::multiply_accumulate);
+tensor_ops::matmul2d<descriptor, execution_simdgroup> operation;
+auto right = operation.get_right_input_cooperative_tensor<half, half, float>();
+for (ushort i = 0; i < right.get_capacity(); ++i) {
+    if (right.is_valid_element(i)) right[i] = half(float(lane * 7u + i) * 1e-3f);
+}
+using right_type = tensor_ops::matmul2d<descriptor, execution_simdgroup>
+    ::cooperative_tensor_right_input_t<half, half, float>;
+auto acc = operation.get_destination_cooperative_tensor<
+    tensor<device half, dextents<int, 2>, tensor_inline>, right_type, float>();
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) acc[i] = 0.0f;
+}
+for (uint depth = 0u; depth < OP_INPUT; depth += OP_K) {
+    auto left = tensor(activation + depth, dextents<int, 2>{int(OP_K), int(OP_M)},
+        array<int, 2>{1, int(OP_INPUT)});
+    operation.run(left, right, acc);
+}
+float total = 0.0f;
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) total += acc[i];
+}
+out[group * 32u + lane] = total;
+"#;
+    let transposed = r#"
+uint lane = thread_index_in_simdgroup;
+uint group = threadgroup_position_in_grid.x;
+device half* activation = const_cast<device half*>(x);
+constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
+    OP_M, OP_N, OP_K, false, true, false,
+    tensor_ops::matmul2d_descriptor::mode::multiply_accumulate);
+tensor_ops::matmul2d<descriptor, execution_simdgroup> operation;
+using left_type = tensor_ops::matmul2d<descriptor, execution_simdgroup>
+    ::cooperative_tensor_left_input_t<half, half, float>;
+auto left = operation.get_left_input_cooperative_tensor<half, half, float>();
+for (ushort i = 0; i < left.get_capacity(); ++i) {
+    if (left.is_valid_element(i)) left[i] = half(float(lane * 7u + i) * 1e-3f);
+}
+auto acc = operation.get_destination_cooperative_tensor<
+    left_type, tensor<device half, dextents<int, 2>, tensor_inline>, float>();
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) acc[i] = 0.0f;
+}
+for (uint depth = 0u; depth < OP_INPUT; depth += OP_K) {
+    auto right = tensor(activation + depth, dextents<int, 2>{int(OP_K), int(OP_N)},
+        array<int, 2>{1, int(OP_INPUT)});
+    operation.run(left, right, acc);
+}
+float total = 0.0f;
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) total += acc[i];
+}
+out[group * 32u + lane] = total;
+"#;
+    let (groups, input) = (2048i32, 5120u32);
+    let mut report =
+        serde_json::json!({"status": "running", "groups": groups, "input": input, "rows": []});
+    // (orientation, M, N, K): prefill = (rows, columns, depth); transposed = (columns, rows, depth).
+    let cases: [(&str, u32, u32, u32); 11] = [
+        ("prefill", 64, 32, 16),
+        ("prefill", 64, 32, 32),
+        ("prefill", 32, 32, 32),
+        ("prefill", 32, 32, 16),
+        ("prefill", 16, 32, 32),
+        ("prefill", 32, 64, 32),
+        ("transposed", 32, 16, 32),
+        ("transposed", 32, 32, 32),
+        ("transposed", 32, 64, 32),
+        ("transposed", 64, 32, 32),
+        ("transposed", 64, 64, 32),
+    ];
+    for (orientation, m, n, k) in cases {
+        let rows = if orientation == "prefill" { m } else { n };
+        let x = Array::from_f32(
+            &(0..rows * input)
+                .map(|i| ((i % 251) as f32) * 1e-3)
+                .collect::<Vec<_>>(),
+            &[i32::try_from(rows * input)?],
+        )?
+        .astype(Dtype::Float16)?;
+        x.eval()?;
+        let header = format!(
+            "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n#define OP_M {m}u\n#define OP_N {n}u\n#define OP_K {k}u\n#define OP_INPUT {input}u\n"
+        );
+        let name = format!("q27lab_op_orientation_{orientation}_m{m}_n{n}_k{k}");
+        let source = if orientation == "prefill" {
+            prefill
+        } else {
+            transposed
+        };
+        let call = || -> Result<Array> {
+            Ok(array::metal_kernel(
+                &name,
+                &["x"],
+                &["out"],
+                &header,
+                source,
+                &[&x],
+                &[vec![groups * 32]],
+                &[Dtype::Float32],
+                [groups * 32, 1, 1],
+                [32, 1, 1],
+            )?
+            .remove(0))
+        };
+        let values = call()?.to_f32()?;
+        let finite = values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.0);
+        let elapsed = (time_calls(call)? + time_calls(call)?) / 2.0;
+        let macs = f64::from(groups) * f64::from(input) * f64::from(m * n);
+        let row = serde_json::json!({"orientation": orientation, "m": m, "n": n, "k": k, "ms": elapsed,
+            "tflops": 2.0 * macs / (elapsed * 1e-3) / 1e12, "finite_nonzero": finite});
+        println!("{row}");
+        report["rows"].as_array_mut().context("rows")?.push(row);
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
+/// Q27P-07: window-decode prefill kernel with the weight tile read by the unit from threadgroup
+/// memory; outputs must match the stock prefill kernel bit for bit, then time at 256 rows.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_window_lab() -> Result<()> {
+    use super::{
+        with_dense_prefill_shared, with_dense_prefill_step_tiles, with_dense_prefill_window,
+    };
+    // Q27P-07b: with MLXL3_Q27_LAB_STEP_TILES the three window columns are 2, 4 and 8 depth
+    // tiles per barrier at group 4 instead of groups 2, 4 and 8 at one tile.
+    let steps_lab = std::env::var("MLXL3_Q27_LAB_STEP_TILES").is_ok();
+    let variant = |slot: i32| if steps_lab { (4, slot) } else { (slot, 1) };
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+        ("head", single("lm_head")?, 0),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let (mut identical_all, mut compared) = (true, 0usize);
+    let mut chunk = [0f64; 4];
+    for (label, module, calls) in &modules {
+        let (input, cols, ..) = module.dims();
+        let sizes: &[i32] = if *label == "head" {
+            &[24, 73]
+        } else {
+            &[24, 73, 128, 200, 256, 512]
+        };
+        for &m in sizes {
+            let x = rows_input(m, input, 211 + m as u32)?;
+            let stock = with_dense_prefill_shared(0, || module.tensor(&x))?.to_f16_bits()?;
+            ensure!(stock.len() == (m * cols) as usize, "short stock output");
+            let finite = stock.iter().all(|&v| half::f16::from_bits(v).is_finite());
+            let mut row = serde_json::json!({"label": label, "m": m, "values": stock.len(), "finite": finite});
+            for g in [2, 4, 8] {
+                let (rows, tiles) = variant(g);
+                let bits = with_dense_prefill_shared(rows, || {
+                    with_dense_prefill_step_tiles(tiles, || {
+                        with_dense_prefill_window(true, || module.tensor(&x))
+                    })
+                })?
+                .to_f16_bits()?;
+                let differing = bits.iter().zip(&stock).filter(|(a, b)| a != b).count()
+                    + bits.len().abs_diff(stock.len());
+                identical_all &= differing == 0 && finite;
+                compared += bits.len();
+                row[format!("w{g}_differing")] = differing.into();
+            }
+            if m == 256 {
+                // shared g4 (current default), then window g2 / g4 / g8, two alternated series.
+                let mut times = [0f64; 4];
+                for _ in 0..2 {
+                    times[0] += with_dense_prefill_shared(4, || {
+                        with_dense_prefill_window(false, || time_calls_n(8, || module.tensor(&x)))
+                    })? / 2.0;
+                    for (slot, g) in [(1usize, 2), (2, 4), (3, 8)] {
+                        let (rows, tiles) = variant(g);
+                        times[slot] += with_dense_prefill_shared(rows, || {
+                            with_dense_prefill_step_tiles(tiles, || {
+                                with_dense_prefill_window(true, || {
+                                    time_calls_n(8, || module.tensor(&x))
+                                })
+                            })
+                        })? / 2.0;
+                    }
+                }
+                for (slot, t) in times.iter().enumerate() {
+                    chunk[slot] += t * f64::from(*calls);
+                }
+                row["shared4_ms"] = times[0].into();
+                row["window2_ms"] = times[1].into();
+                row["window4_ms"] = times[2].into();
+                row["window8_ms"] = times[3].into();
+                row["window4_tflops"] = (2.0 * f64::from(m) * f64::from(input) * f64::from(cols)
+                    / (times[2] * 1e-3)
+                    / 1e12)
+                    .into();
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["chunk_ms"] = serde_json::json!({"shared4": chunk[0], "window2": chunk[1], "window4": chunk[2], "window8": chunk[3]});
+    report["step_tiles_lab"] = steps_lab.into();
+    report["values_compared"] = compared.into();
+    report["status"] = if identical_all {
+        "complete"
+    } else {
+        "divergent"
+    }
+    .into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    ensure!(
+        identical_all,
+        "window prefill kernel diverged from the stock kernel"
+    );
+    Ok(())
+}
+
+/// Q27P-08: share of the MLX prologue and epilogue chains in a 256-row prefill projection.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_glue_lab() -> Result<()> {
+    use super::with_dense_prefill_shared;
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+    ];
+    let m = 256i32;
+    let scale = Some(1.0 / 128.0f32.sqrt());
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let (mut full_chunk, mut glue_chunk) = (0.0, 0.0);
+    for (label, module, calls) in &modules {
+        let (input, cols, ..) = module.dims();
+        let x = rows_input(m, input, 231)?;
+        // (suh, svh, width) per member, as `qmm_tensor` receives them.
+        let members: Vec<(Array, Array, i32)> = match module {
+            Module::Single(l) => vec![(l.suh.try_clone()?, l.svh.try_clone()?, l.cols)],
+            Module::Group(g) => {
+                let mut out = Vec::new();
+                let mut cursor = 0;
+                for (index, &width) in g.widths.iter().enumerate() {
+                    out.push((
+                        g.suh
+                            .slice(0, index as i32, index as i32 + 1)?
+                            .reshape(&[g.rows])?,
+                        g.svh.slice(0, cursor, cursor + width)?,
+                        width,
+                    ));
+                    cursor += width;
+                }
+                out
+            }
+        };
+        let raws = members
+            .iter()
+            .map(|(_, _, width)| rows_input(m, *width, 233))
+            .collect::<Result<Vec<_>>>()?;
+        let full = with_dense_prefill_shared(4, || time_calls_n(8, || module.tensor(&x)))?;
+        let prologue = time_calls_n(8, || {
+            let parts = members
+                .iter()
+                .map(|(suh, _, _)| {
+                    x.astype(Dtype::Float16)?
+                        .reshape(&[m, input])?
+                        .mul(&suh.astype(Dtype::Float16)?)?
+                        .reshape(&[m, input / 128, 128])?
+                        .hadamard_transform(scale)?
+                        .reshape(&[m, input])
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Array::concatenate(&parts.iter().collect::<Vec<_>>(), 1)
+        })?;
+        let epilogue = time_calls_n(8, || {
+            let parts = members
+                .iter()
+                .zip(&raws)
+                .map(|((_, svh, width), raw)| {
+                    raw.slice(0, 0, m)?
+                        .reshape(&[m, width / 128, 128])?
+                        .hadamard_transform(scale)?
+                        .reshape(&[m, *width])?
+                        .mul(&svh.astype(Dtype::Float16)?)?
+                        .astype(x.dtype())
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Array::concatenate(&parts.iter().collect::<Vec<_>>(), 1)
+        })?;
+        full_chunk += full * f64::from(*calls);
+        glue_chunk += (prologue + epilogue) * f64::from(*calls);
+        let kernel = full - prologue - epilogue;
+        let row = serde_json::json!({"label": label, "input": input, "output": cols, "full_ms": full,
+            "prologue_ms": prologue, "epilogue_ms": epilogue, "glue_share": (prologue + epilogue) / full,
+            "kernel_tflops_estimate": 2.0 * f64::from(m) * f64::from(input) * f64::from(cols) / (kernel * 1e-3) / 1e12});
+        println!("{row}");
+        report["rows"].as_array_mut().context("rows")?.push(row);
+    }
+    report["chunk_full_ms"] = full_chunk.into();
+    report["chunk_glue_ms"] = glue_chunk.into();
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    Ok(())
+}
+
+/// Q27P-09: which structural element of the prefill kernel costs throughput (no decode):
+/// simdgroups per threadgroup, distinct activation rows, a barrier per step, and a right
+/// operand in threadgroup memory instead of cooperative registers.
+#[test]
+#[ignore = "M5 TensorOps; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_tensor_op_structure_lab() -> Result<()> {
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    ensure!(array::supports_exl3_tensor_ops()?, "requires M5 TensorOps");
+    let source = r#"
+uint lane = thread_index_in_simdgroup;
+uint simdgroup = simdgroup_index_in_threadgroup;
+uint group = threadgroup_position_in_grid.x;
+uint row_block = (group * OP_SG + simdgroup) % (OP_ROWS / OP_M);
+device half* activation = const_cast<device half*>(x);
+constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
+    OP_M, OP_N, OP_K, false, false, false,
+    tensor_ops::matmul2d_descriptor::mode::multiply_accumulate);
+tensor_ops::matmul2d<descriptor, execution_simdgroup> operation;
+using left_type = tensor<device half, dextents<int, 2>, tensor_inline>;
+#if OP_TG_RIGHT
+threadgroup half tile[OP_K * OP_N];
+for (uint e = thread_index_in_threadgroup; e < OP_K * OP_N; e += 32u * OP_SG) {
+    tile[e] = half(float(e % 97u) * 1e-3f);
+}
+threadgroup_barrier(mem_flags::mem_threadgroup);
+using right_type = tensor<threadgroup half, dextents<int, 2>, tensor_inline>;
+auto right = tensor(tile, dextents<int, 2>{int(OP_N), int(OP_K)}, array<int, 2>{1, int(OP_N)});
+#else
+auto right = operation.get_right_input_cooperative_tensor<half, half, float>();
+for (ushort i = 0; i < right.get_capacity(); ++i) {
+    if (right.is_valid_element(i)) right[i] = half(float(lane * 7u + i) * 1e-3f);
+}
+using right_type = tensor_ops::matmul2d<descriptor, execution_simdgroup>
+    ::cooperative_tensor_right_input_t<half, half, float>;
+#endif
+auto acc = operation.get_destination_cooperative_tensor<left_type, right_type, float>();
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) acc[i] = 0.0f;
+}
+for (uint depth = 0u; depth < OP_INPUT; depth += OP_K) {
+#if OP_BARRIER
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+#endif
+    auto left = tensor(activation + ulong(row_block * OP_M) * OP_INPUT + depth,
+        dextents<int, 2>{int(OP_K), int(OP_M)}, array<int, 2>{1, int(OP_INPUT)});
+    operation.run(left, right, acc);
+}
+float total = 0.0f;
+for (ushort i = 0; i < acc.get_capacity(); ++i) {
+    if (acc.is_valid_element(i)) total += acc[i];
+}
+out[(group * OP_SG + simdgroup) * 32u + lane] = total;
+"#;
+    let (m, n, k, input, simdgroups) = (64u32, 32u32, 16u32, 5120u32, 2048i32);
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    // (simdgroups per threadgroup, distinct rows, barrier, threadgroup right)
+    let cases: [(i32, u32, u8, u8); 9] = [
+        (1, 64, 0, 0),
+        (1, 256, 0, 0),
+        (1, 1024, 0, 0),
+        (4, 64, 0, 0),
+        (4, 256, 0, 0),
+        (4, 256, 1, 0),
+        (4, 256, 0, 1),
+        (4, 256, 1, 1),
+        (1, 256, 0, 1),
+    ];
+    for (sg, rows, barrier, tg_right) in cases {
+        let x = Array::from_f32(
+            &(0..rows * input)
+                .map(|i| ((i % 251) as f32) * 1e-3)
+                .collect::<Vec<_>>(),
+            &[i32::try_from(rows * input)?],
+        )?
+        .astype(Dtype::Float16)?;
+        x.eval()?;
+        let header = format!(
+            "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n#define OP_M {m}u\n#define OP_N {n}u\n#define OP_K {k}u\n#define OP_INPUT {input}u\n#define OP_SG {sg}u\n#define OP_ROWS {rows}u\n#define OP_BARRIER {barrier}\n#define OP_TG_RIGHT {tg_right}\n"
+        );
+        let name = format!("q27lab_op_structure_sg{sg}_r{rows}_b{barrier}_t{tg_right}");
+        let call = || -> Result<Array> {
+            Ok(array::metal_kernel(
+                &name,
+                &["x"],
+                &["out"],
+                &header,
+                source,
+                &[&x],
+                &[vec![simdgroups * 32]],
+                &[Dtype::Float32],
+                [simdgroups * 32, 1, 1],
+                [32 * sg, 1, 1],
+            )?
+            .remove(0))
+        };
+        let values = call()?.to_f32()?;
+        let finite = values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.0);
+        let elapsed = (time_calls(call)? + time_calls(call)?) / 2.0;
+        let macs = f64::from(simdgroups) * f64::from(input) * f64::from(m * n);
+        let row = serde_json::json!({"simdgroups_per_group": sg, "rows": rows, "barrier": barrier, "threadgroup_right": tg_right,
+            "ms": elapsed, "tflops": 2.0 * macs / (elapsed * 1e-3) / 1e12, "finite_nonzero": finite});
+        println!("{row}");
+        report["rows"].as_array_mut().context("rows")?.push(row);
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
+/// Q27P-11: fused prologue/epilogue on the prefill TensorOps path must reproduce the MLX
+/// chains bit for bit (same shared kernel on both sides); then time at 256 rows.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_fused_glue_lab() -> Result<()> {
+    use super::{with_dense_prefill_fused, with_dense_prefill_shared};
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let attn = "model.language_model.layers.11";
+    let single = |name: &str| -> Result<Module> {
+        Ok(Module::Single(Exl3Linear::from_checkpoint(
+            &checkpoint,
+            name,
+        )?))
+    };
+    let group = |names: &[String]| -> Result<Module> {
+        Ok(Module::Group(Exl3Group::new(
+            names
+                .iter()
+                .map(|n| Exl3Linear::from_checkpoint(&checkpoint, n))
+                .collect::<Result<Vec<_>>>()?,
+        )?))
+    };
+    let modules = [
+        (
+            "gdn_inputs",
+            group(&[
+                format!("{gdn}.linear_attn.in_proj_qkv"),
+                format!("{gdn}.linear_attn.in_proj_z"),
+            ])?,
+            48,
+        ),
+        (
+            "gdn_out",
+            single(&format!("{gdn}.linear_attn.out_proj"))?,
+            48,
+        ),
+        ("attn_q", single(&format!("{attn}.self_attn.q_proj"))?, 16),
+        ("attn_k", single(&format!("{attn}.self_attn.k_proj"))?, 32),
+        ("attn_o", single(&format!("{attn}.self_attn.o_proj"))?, 16),
+        (
+            "mlp_inputs",
+            group(&[format!("{gdn}.mlp.gate_proj"), format!("{gdn}.mlp.up_proj")])?,
+            64,
+        ),
+        ("mlp_down", single(&format!("{gdn}.mlp.down_proj"))?, 64),
+        ("head", single("lm_head")?, 0),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    let (mut identical_all, mut compared) = (true, 0usize);
+    let mut chunk = [0f64; 2];
+    for (label, module, calls) in &modules {
+        let (input, cols, ..) = module.dims();
+        let sizes: &[i32] = if *label == "head" {
+            &[24, 73]
+        } else {
+            &[24, 73, 128, 200, 256, 512]
+        };
+        for &m in sizes {
+            let mut row = serde_json::json!({"label": label, "m": m});
+            for dtype in [Dtype::Float16, Dtype::BFloat16] {
+                let x = rows_input(m, input, 271 + m as u32)?.astype(dtype)?;
+                x.eval()?;
+                let run = |fused: bool| {
+                    with_dense_prefill_shared(4, || {
+                        with_dense_prefill_fused(fused, || module.tensor(&x))
+                    })
+                };
+                let (stock, fused) = (run(false)?, run(true)?);
+                let (a, b) = (
+                    stock.astype(Dtype::Float32)?.to_f32()?,
+                    fused.astype(Dtype::Float32)?.to_f32()?,
+                );
+                let differing = a
+                    .iter()
+                    .zip(&b)
+                    .filter(|(p, q)| p.to_bits() != q.to_bits())
+                    .count()
+                    + a.len().abs_diff(b.len());
+                let ok = stock.dtype() == fused.dtype()
+                    && stock.shape() == fused.shape()
+                    && a.len() == (m * cols) as usize
+                    && a.iter().all(|v| v.is_finite())
+                    && differing == 0;
+                identical_all &= ok;
+                compared += a.len();
+                row[format!("{dtype:?}_differing")] = differing.into();
+                if m == 256 && dtype == Dtype::Float16 {
+                    let mut times = [0f64; 2];
+                    for _ in 0..2 {
+                        times[0] += with_dense_prefill_shared(4, || {
+                            with_dense_prefill_fused(false, || {
+                                time_calls_n(8, || module.tensor(&x))
+                            })
+                        })? / 2.0;
+                        times[1] += with_dense_prefill_shared(4, || {
+                            with_dense_prefill_fused(true, || time_calls_n(8, || module.tensor(&x)))
+                        })? / 2.0;
+                    }
+                    chunk[0] += times[0] * f64::from(*calls);
+                    chunk[1] += times[1] * f64::from(*calls);
+                    row["mlx_ms"] = times[0].into();
+                    row["fused_ms"] = times[1].into();
+                }
+            }
+            println!("{row}");
+            report["rows"].as_array_mut().context("rows")?.push(row);
+        }
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["chunk_ms"] = serde_json::json!({"mlx": chunk[0], "fused": chunk[1]});
+    report["values_compared"] = compared.into();
+    report["status"] = if identical_all {
+        "complete"
+    } else {
+        "divergent"
+    }
+    .into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    println!("{report}");
+    ensure!(
+        identical_all,
+        "fused prefill glue diverged from the MLX chains"
+    );
+    Ok(())
+}
+
+/// Q27P-12: what the window prefill kernel costs without its per-step decode (ablation with
+/// wrong outputs), fused glue on both sides, against the estimate at the unit's ceiling.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_KERNEL_LAB; run alone"]
+fn q27_prefill_decode_ablation_lab() -> Result<()> {
+    use super::{
+        with_dense_prefill_fused, with_dense_prefill_shared, with_dense_prefill_step_tiles,
+        with_dense_prefill_window, with_prefill_skip_decode,
+    };
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_KERNEL_LAB")?);
+    ensure!(!output.exists(), "preserve previous kernel lab reports");
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_TEST_MODEL",
+    )?))?;
+    let gdn = "model.language_model.layers.10";
+    let modules = [
+        (
+            "mlp_inputs",
+            Module::Group(Exl3Group::new(vec![
+                Exl3Linear::from_checkpoint(&checkpoint, &format!("{gdn}.mlp.gate_proj"))?,
+                Exl3Linear::from_checkpoint(&checkpoint, &format!("{gdn}.mlp.up_proj"))?,
+            ])?),
+        ),
+        (
+            "mlp_down",
+            Module::Single(Exl3Linear::from_checkpoint(
+                &checkpoint,
+                &format!("{gdn}.mlp.down_proj"),
+            )?),
+        ),
+        (
+            "gdn_out",
+            Module::Single(Exl3Linear::from_checkpoint(
+                &checkpoint,
+                &format!("{gdn}.linear_attn.out_proj"),
+            )?),
+        ),
+    ];
+    let mut report = serde_json::json!({"status": "running", "rows": []});
+    for (label, module) in &modules {
+        let (input, cols, ..) = module.dims();
+        let x = rows_input(256, input, 291)?;
+        let base = |tiles: i32, skip: bool| -> Result<f64> {
+            with_dense_prefill_fused(true, || {
+                with_dense_prefill_shared(4, || {
+                    with_dense_prefill_window(true, || {
+                        with_dense_prefill_step_tiles(tiles, || {
+                            if skip {
+                                with_prefill_skip_decode(|| time_calls_n(8, || module.tensor(&x)))
+                            } else {
+                                time_calls_n(8, || module.tensor(&x))
+                            }
+                        })
+                    })
+                })
+            })
+        };
+        let mut row = serde_json::json!({"label": label,
+            "ceiling_ms_at_15_5_tflops": 2.0 * 256.0 * f64::from(input) * f64::from(cols) / 15.5e12 * 1e3});
+        for tiles in [1, 4] {
+            let (full, skipped) = (
+                (base(tiles, false)? + base(tiles, false)?) / 2.0,
+                (base(tiles, true)? + base(tiles, true)?) / 2.0,
+            );
+            row[format!("t{tiles}_ms")] = full.into();
+            row[format!("t{tiles}_nodecode_ms")] = skipped.into();
+        }
+        println!("{row}");
+        report["rows"].as_array_mut().context("rows")?.push(row);
+    }
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}

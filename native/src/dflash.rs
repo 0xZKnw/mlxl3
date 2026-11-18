@@ -796,7 +796,9 @@ impl DFlashWeights {
         use crate::array::Dtype;
 
         ensure!(
-            input.shape() == [8, self.family.hidden() as i32]
+            input.shape().len() == 2
+                && matches!(input.shape()[0], 8 | 16)
+                && input.shape()[1] == self.family.hidden() as i32
                 && input.dtype() == Dtype::BFloat16
                 && (cache.layers.is_empty() || cache.layers.len() == self.layers.len())
                 && position >= 0,
@@ -903,12 +905,18 @@ impl DFlashWeights {
         }
     }
 
-    pub fn select_greedy(
+    /// Selector lattice (stages 1-2): candidates [p, 16], unary [p, 16], edges [p, 16, 16].
+    fn lattice(
         &self,
         logits: &crate::array::Array,
         selector: &crate::array::Array,
         anchor: u32,
-    ) -> Result<Vec<u32>> {
+    ) -> Result<(
+        crate::array::Array,
+        crate::array::Array,
+        crate::array::Array,
+        String,
+    )> {
         use crate::array::{self, Array, Dtype};
 
         ensure!(
@@ -985,6 +993,35 @@ impl DFlashWeights {
         let edges = scored.pop().expect("three selector outputs");
         let unary = scored.pop().expect("three selector outputs");
         let candidates = scored.pop().expect("three selector outputs");
+        Ok((candidates, unary, edges, stage(3)))
+    }
+
+    /// Q27D-36: the selector lattice read back (candidates, unary, edges) for offline trees.
+    pub fn select_lattice(
+        &self,
+        logits: &crate::array::Array,
+        selector: &crate::array::Array,
+        anchor: u32,
+    ) -> Result<(Vec<u32>, Vec<f32>, Vec<f32>)> {
+        let (candidates, unary, edges, _) = self.lattice(logits, selector, anchor)?;
+        Ok((
+            candidates.to_u32()?,
+            unary.astype(crate::array::Dtype::Float32)?.to_f32()?,
+            edges.to_f32()?,
+        ))
+    }
+
+    pub fn select_greedy(
+        &self,
+        logits: &crate::array::Array,
+        selector: &crate::array::Array,
+        anchor: u32,
+    ) -> Result<Vec<u32>> {
+        use crate::array::{self, Dtype};
+
+        let positions = logits.shape()[0];
+        let edge = edge_scale()?;
+        let (candidates, unary, edges, header) = self.lattice(logits, selector, anchor)?;
         let tokens = array::metal_kernel(
             &format!(
                 "mlxl3_dflash_select_greedy_p{positions}_v2_e{}",
@@ -992,7 +1029,7 @@ impl DFlashWeights {
             ),
             &["candidates", "unary", "edges"],
             &["tokens"],
-            &stage(3),
+            &header,
             include_str!("../shaders/dflash_select.metal"),
             &[&candidates, &unary, &edges],
             &[vec![positions]],
@@ -1071,27 +1108,31 @@ fn attention(
     use crate::array::{Array, Dtype};
 
     ensure!(
-        qkv.shape() == [8, QKV as i32]
+        qkv.shape().len() == 2
+            && matches!(qkv.shape()[0], 8 | 16)
+            && qkv.shape()[1] == QKV as i32
             && qkv.dtype() == Dtype::BFloat16
             && query_norm.shape() == [128]
             && key_norm.shape() == [128],
         "invalid DFlash attention input"
     );
+    // Q27D-34: the mask block is 8 rows in production, 16 in the depth experiment.
+    let rows = qkv.shape()[0];
     let query = qkv
         .slice(1, 0, 4096)?
-        .reshape(&[1, 8, 32, 128])?
+        .reshape(&[1, rows, 32, 128])?
         .rms_norm(query_norm, 1e-6)?
         .transpose(&[0, 2, 1, 3])?
         .rope(128, 10_000_000.0, position)?;
     let current_keys = qkv
         .slice(1, 4096, 5120)?
-        .reshape(&[1, 8, 8, 128])?
+        .reshape(&[1, rows, 8, 128])?
         .rms_norm(key_norm, 1e-6)?
         .transpose(&[0, 2, 1, 3])?
         .rope(128, 10_000_000.0, position)?;
     let current_values = qkv
         .slice(1, 5120, 6144)?
-        .reshape(&[1, 8, 8, 128])?
+        .reshape(&[1, rows, 8, 128])?
         .transpose(&[0, 2, 1, 3])?;
     let (keys, values, past) = match cache {
         Some(cache) => {
@@ -1120,9 +1161,9 @@ fn attention(
     let attended = if past == 0 {
         Array::sdpa(&query, &keys, &values, 128.0_f32.powf(-0.5), false)?
     } else {
-        let total = past + 8;
-        let mut mask = vec![f32::NEG_INFINITY; 8 * total as usize];
-        for row in 0..8 {
+        let total = past + rows;
+        let mut mask = vec![f32::NEG_INFINITY; (rows * total) as usize];
+        for row in 0..rows {
             let begin = (past + row + 1 - CONTEXT_WINDOW as i32).max(0);
             for column in begin..past {
                 mask[row as usize * total as usize + column as usize] = 0.0;
@@ -1131,12 +1172,12 @@ fn attention(
                 mask[row as usize * total as usize + column as usize] = 0.0;
             }
         }
-        let mask = Array::from_f32(&mask, &[1, 1, 8, total])?.astype(Dtype::BFloat16)?;
+        let mask = Array::from_f32(&mask, &[1, 1, rows, total])?.astype(Dtype::BFloat16)?;
         Array::sdpa_mask(&query, &keys, &values, 128.0_f32.powf(-0.5), &mask)?
     };
     attended
         .transpose(&[0, 2, 1, 3])?
-        .reshape(&[8, ATTENTION as i32])?
+        .reshape(&[rows, ATTENTION as i32])?
         .astype(Dtype::BFloat16)
 }
 
@@ -1153,9 +1194,9 @@ pub fn convolution(
 
     ensure!(
         input.shape().len() == 2
-            && input.shape()[0] == 8
+            && matches!(input.shape()[0], 8 | 16)
             && valid_convolution_hidden(input.shape()[1])
-            && dynamic.shape() == [8, 4 * input.shape()[1] / 16]
+            && dynamic.shape() == [input.shape()[0], 4 * input.shape()[1] / 16]
             && base.shape() == [4, input.shape()[1]]
             && residual.shape() == input.shape()
             && [input, dynamic, base, residual]
@@ -1167,23 +1208,29 @@ pub fn convolution(
         groups > 0 && groups <= 64,
         "invalid DFlash convolution grid"
     );
+    let rows = input.shape()[0];
     let header = format!(
-        "#define DFLASH_HIDDEN {}\n#define DFLASH_GROUPS {groups}\n#define DFLASH_FINISH {}\n",
+        "#define DFLASH_HIDDEN {}\n#define DFLASH_GROUPS {groups}\n#define DFLASH_FINISH {}\n#define DFLASH_ROWS {rows}\n",
         input.shape()[1],
         if finish { "true" } else { "false" }
     );
     Ok(array::metal_kernel(
         &format!(
-            "mlxl3_dflash_conv_h{}_{}_g{groups}",
+            "mlxl3_dflash_conv_h{}_{}_g{groups}{}",
             input.shape()[1],
-            u8::from(finish)
+            u8::from(finish),
+            if rows == 8 {
+                String::new()
+            } else {
+                format!("_r{rows}")
+            }
         ),
         &["input", "dynamic", "base", "residual"],
         &["output"],
         &header,
         include_str!("../shaders/dflash_conv.metal"),
         &[input, dynamic, base, residual],
-        &[vec![8, input.shape()[1]]],
+        &[vec![rows, input.shape()[1]]],
         &[Dtype::BFloat16],
         [
             groups
@@ -1272,6 +1319,12 @@ impl Q4Projection {
     ) -> Result<crate::array::Array> {
         use crate::array::{self, Dtype};
 
+        // Q27D-34: Q4 rows are independent; a 16-row block is two 8-row products.
+        if input.shape() == [16, self.input] {
+            let first = self.forward_range(&input.slice(0, 0, 8)?, kernel, groups, begin, end)?;
+            let second = self.forward_range(&input.slice(0, 8, 16)?, kernel, groups, begin, end)?;
+            return crate::array::Array::concatenate(&[&first, &second], 0);
+        }
         ensure!(
             input.shape() == [8, self.input] && input.dtype() == Dtype::BFloat16,
             "DFlash Q4 decode expects BF16 [8,input]"

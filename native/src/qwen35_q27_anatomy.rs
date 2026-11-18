@@ -909,3 +909,295 @@ fn q27_tensor_verify_quality() -> Result<()> {
     std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
     Ok(())
 }
+
+/// Q27P-03: quality of a prefill variant. Prefill 1 024 tokens in 256-token chunks with the
+/// shared prefill kernel at depth 16 (bit-exact control) or 32 (candidate), then score the next
+/// tokens with exact 8-row verification: any difference comes from the prefilled states.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_PREFILL_QUALITY; run alone"]
+fn q27_prefill_depth_quality() -> Result<()> {
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_PREFILL_QUALITY")?);
+    ensure!(!output.exists(), "preserve previous quality reports");
+    let path = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_TEST_MODEL")?);
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let mut model = Qwen35Moe::load(&path)?;
+    let texts = [
+        (
+            "french",
+            std::fs::read_to_string("docs/measurements/lfm3-pld-20261116/long.txt")?,
+        ),
+        (
+            "code",
+            std::fs::read_to_string("native/src/speculative.rs")?,
+        ),
+    ];
+    let mut report = serde_json::json!({"status": "running", "texts": []});
+    for (label, text) in &texts {
+        let ids = tokenizer.encode(text)?;
+        let prefix = 1024usize;
+        ensure!(ids.len() > prefix + 512, "text too short: {}", ids.len());
+        let ids = &ids[..prefix + 512 + 1];
+        let run = |model: &mut Qwen35Moe, shared: i32, depth: i32| -> Result<Vec<Vec<f32>>> {
+            crate::linear::with_dense_tensor_rows(None, || {
+                crate::linear::with_dense_prefill_shared(shared, || {
+                    crate::linear::with_dense_prefill_depth(depth, || -> Result<()> {
+                        model.reset();
+                        for chunk in ids[..prefix].chunks(256) {
+                            model.forward_tokens(chunk)?;
+                        }
+                        Ok(())
+                    })?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
+                let mut rows = Vec::new();
+                let mut position = prefix;
+                while position + 8 <= prefix + 512 {
+                    let logits = model.verify_tokens_exact(&ids[position..position + 8])?;
+                    let values = logits.log_probs()?.astype(Dtype::Float32)?.to_f32()?;
+                    ensure!(
+                        values.len() == 8 * 248320
+                            && values
+                                .iter()
+                                .all(|v| v.is_finite() || *v == f32::NEG_INFINITY),
+                        "bad verification rows"
+                    );
+                    rows.extend(values.chunks(248320).map(<[f32]>::to_vec));
+                    position += 8;
+                }
+                Ok(rows)
+            })
+        };
+        let stock = run(&mut model, 0, 16)?;
+        let control = run(&mut model, 2, 16)?;
+        let candidate = run(&mut model, 2, 32)?;
+        let identical_control = stock
+            .iter()
+            .zip(&control)
+            .all(|(a, b)| a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits()));
+        let argmax = |row: &[f32]| {
+            row.iter()
+                .enumerate()
+                .fold(
+                    (0, f32::NEG_INFINITY),
+                    |a, (i, &v)| if v > a.1 { (i, v) } else { a },
+                )
+                .0
+        };
+        let (mut kl_sum, mut kl_max, mut disagree, mut nll_stock, mut nll_candidate) =
+            (0f64, 0f64, 0usize, 0f64, 0f64);
+        for (index, (p, q)) in stock.iter().zip(&candidate).enumerate() {
+            if argmax(p) != argmax(q) {
+                disagree += 1;
+            }
+            let kl: f64 = p
+                .iter()
+                .zip(q)
+                .map(|(&lp, &lq)| {
+                    let pp = (lp as f64).exp();
+                    if pp > 0.0 {
+                        pp * (lp as f64 - lq as f64)
+                    } else {
+                        0.0
+                    }
+                })
+                .sum();
+            kl_sum += kl;
+            kl_max = kl_max.max(kl);
+            let next = ids[prefix + index + 1] as usize;
+            nll_stock -= p[next] as f64;
+            nll_candidate -= q[next] as f64;
+        }
+        let n = stock.len() as f64;
+        let row = serde_json::json!({"text": label, "rows": stock.len(), "control_bit_identical": identical_control,
+            "kl_mean": kl_sum / n, "kl_max": kl_max, "argmax_disagreements": disagree,
+            "perplexity_stock": (nll_stock / n).exp(), "perplexity_depth32": (nll_candidate / n).exp()});
+        println!("{row}");
+        report["texts"].as_array_mut().context("texts")?.push(row);
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
+/// Q27D-37 oracle: tree verification against path-only verification and the production chain,
+/// then tree commits (prefix and non-prefix paths) against chain commits, one AR step after.
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_TREE_ORACLE; run alone"]
+fn q27_tree_verify_matches_paths() -> Result<()> {
+    use crate::speculative::DraftTree;
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_TREE_ORACLE")?);
+    ensure!(!output.exists(), "preserve previous oracle reports");
+    let path = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_TEST_MODEL")?);
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let mut model = Qwen35Moe::load(&path)?;
+    let text = std::fs::read_to_string("docs/measurements/lfm3-pld-20261116/long.txt")?;
+    let ids = tokenizer.encode(&text)?;
+    ensure!(ids.len() > 700, "text too short");
+    let vocab = 248_320usize;
+    let argmax = |row: &[f32]| {
+        row.iter()
+            .enumerate()
+            .fold((0usize, f32::NEG_INFINITY), |a, (i, &v)| {
+                if v > a.1 { (i, v) } else { a }
+            })
+            .0
+    };
+    let rows_of = |logits: &Array| -> Result<Vec<Vec<f32>>> {
+        let values = logits.log_probs()?.astype(Dtype::Float32)?.to_f32()?;
+        ensure!(
+            values.len() % vocab == 0
+                && values
+                    .iter()
+                    .all(|v| v.is_finite() || *v == f32::NEG_INFINITY),
+            "bad logits"
+        );
+        Ok(values.chunks(vocab).map(<[f32]>::to_vec).collect())
+    };
+    // (differing words, max |Δ log p|, argmax changes, mean KL(reference ‖ candidate)).
+    let compare = |a: &[Vec<f32>], b: &[Vec<f32>]| -> (usize, f32, usize, f64) {
+        let mut differing = 0usize;
+        let mut max = 0f32;
+        let mut argmax_changes = 0usize;
+        let mut kl = 0f64;
+        for (x, y) in a.iter().zip(b) {
+            for (&p, &q) in x.iter().zip(y) {
+                differing += usize::from(p.to_bits() != q.to_bits());
+                if p.is_finite() && q.is_finite() {
+                    max = max.max((p - q).abs());
+                }
+                let reference = f64::from(q).exp();
+                if reference > 0.0 {
+                    kl += reference * (f64::from(q) - f64::from(p));
+                }
+            }
+            argmax_changes += usize::from(argmax(x) != argmax(y));
+        }
+        (differing, max, argmax_changes, kl / a.len().max(1) as f64)
+    };
+    let mut report = serde_json::json!({"status": "running", "cases": []});
+    let mut worst = (0f32, 0usize);
+    crate::linear::with_dense_tensor_rows(Some(3), || -> Result<()> {
+        for prefix in [299usize, 640] {
+            model.reset();
+            for chunk in ids[..prefix].chunks(256) {
+                model.forward_tokens(chunk)?;
+            }
+            let snapshot = model.snapshot()?;
+            let t = |offset: usize| ids[prefix + offset];
+            // Alternatives distinct from the main tokens (siblings must differ).
+            let alt = |offset: usize| {
+                let token = ids[prefix + 200 + offset];
+                if (0..8).any(|o| ids[prefix + o] == token) {
+                    (token + 7 + offset as u32) % 200_000 + 1000
+                } else {
+                    token
+                }
+            };
+            // 12 rows: main chain 0-1-3-6-8-9-10-11, branch 0-2-4-7, side 1-5.
+            let tree = DraftTree {
+                tokens: vec![
+                    ids[prefix - 1],
+                    t(0),
+                    alt(0),
+                    t(1),
+                    alt(1),
+                    alt(2),
+                    t(2),
+                    alt(3),
+                    t(3),
+                    t(4),
+                    t(5),
+                    t(6),
+                ],
+                parents: vec![0, 0, 0, 1, 2, 1, 3, 4, 6, 8, 9, 10],
+                depths: vec![0, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 7],
+            };
+            ensure!(tree.is_valid(), "oracle tree is invalid");
+            let (tree_logits, tree_capture) = model.verify_tree_with_dflash_capture(&tree)?;
+            let tree_rows = rows_of(&tree_logits)?;
+            let tree_capture = tree_capture.astype(Dtype::Float32)?.to_f32()?;
+            ensure!(tree_rows.len() == tree.rows(), "short tree logits");
+            model.restore(snapshot.clone())?;
+            for path in tree.paths() {
+                let tokens = path.iter().map(|&row| tree.tokens[row]).collect::<Vec<_>>();
+                let chain = DraftTree {
+                    tokens: tokens.clone(),
+                    parents: (0..tokens.len()).map(|i| i.saturating_sub(1)).collect(),
+                    depths: (0..tokens.len()).collect(),
+                };
+                let (chain_logits, chain_capture) =
+                    model.verify_tree_with_dflash_capture(&chain)?;
+                let chain_rows = rows_of(&chain_logits)?;
+                model.restore(snapshot.clone())?;
+                let (block_logits, _) = model.verify_tokens_exact_with_dflash_capture(&tokens)?;
+                let block_rows = rows_of(&block_logits)?;
+                model.restore(snapshot.clone())?;
+                let in_tree = path
+                    .iter()
+                    .map(|&row| tree_rows[row].clone())
+                    .collect::<Vec<_>>();
+                let (d1, m1, a1, k1) = compare(&in_tree, &chain_rows);
+                let (d2, m2, a2, k2) = compare(&chain_rows, &block_rows);
+                let chain_capture = chain_capture.astype(Dtype::Float32)?.to_f32()?;
+                let width = chain_capture.len() / tokens.len();
+                let capture_differing = path
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &row)| {
+                        tree_capture[row * width..(row + 1) * width]
+                            .iter()
+                            .zip(&chain_capture[i * width..(i + 1) * width])
+                            .filter(|(p, q)| p.to_bits() != q.to_bits())
+                            .count()
+                    })
+                    .sum::<usize>();
+                worst = (worst.0.max(m1).max(m2), worst.1 + a1 + a2);
+                let case = serde_json::json!({"prefix": prefix, "path": path, "kind": "logits",
+                    "tree_vs_path_differing": d1, "tree_vs_path_max": m1, "tree_vs_path_argmax_changes": a1, "tree_vs_path_kl": k1, "path_vs_production_chain_kl": k2,
+                    "path_vs_production_chain_differing": d2, "path_vs_production_chain_max": m2,
+                    "path_vs_production_chain_argmax_changes": a2, "capture_tree_vs_path_differing": capture_differing});
+                println!("{case}");
+                report["cases"].as_array_mut().context("cases")?.push(case);
+            }
+            // Commit oracle: accept a prefix of a path, then one AR step, against the chain.
+            for accepted in [
+                vec![0usize, 1, 3],
+                vec![0, 2, 4],
+                vec![0, 1, 5],
+                vec![0usize, 1, 3, 6, 8, 9, 10, 11],
+                vec![0],
+            ] {
+                model.restore(snapshot.clone())?;
+                model.verify_tree_with_dflash_capture(&tree)?;
+                model.commit_dflash_tree(&tree, &accepted)?;
+                let next = ids[prefix + 400];
+                let after_tree = rows_of(&model.forward_tokens(&[next])?)?;
+                let offset_tree = model.offset;
+                model.restore(snapshot.clone())?;
+                let full = tree
+                    .paths()
+                    .into_iter()
+                    .find(|p| p.starts_with(&accepted))
+                    .context("path")?;
+                let tokens = full.iter().map(|&row| tree.tokens[row]).collect::<Vec<_>>();
+                model.verify_tokens_exact_with_dflash_capture(&tokens)?;
+                model.commit_dflash_verification(accepted.len(), tokens.len())?;
+                let after_chain = rows_of(&model.forward_tokens(&[next])?)?;
+                ensure!(model.offset == offset_tree, "offsets differ after commit");
+                let (d, m, a, k) = compare(&after_tree, &after_chain);
+                worst = (worst.0.max(m), worst.1 + a);
+                let case = serde_json::json!({"prefix": prefix, "accepted": accepted, "kind": "commit",
+                    "next_step_differing": d, "next_step_max": m, "next_step_argmax_changes": a, "next_step_kl": k, "offset": offset_tree});
+                println!("{case}");
+                report["cases"].as_array_mut().context("cases")?.push(case);
+            }
+        }
+        Ok(())
+    })?;
+    report["max_abs_log_prob_difference"] = worst.0.into();
+    report["argmax_changes"] = worst.1.into();
+    report["status"] = "complete".into();
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}

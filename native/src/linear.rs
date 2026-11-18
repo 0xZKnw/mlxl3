@@ -1551,7 +1551,8 @@ pub(crate) fn glue_epilogue(
             && matrix_rows >= 1
             && padded_rows >= matrix_rows
             && partials.shape() == expected.as_slice()
-            && partials.dtype() == Dtype::Float32,
+            && (partials.dtype() == Dtype::Float32
+                || (partials.dtype() == Dtype::Float16 && splits == 1)),
         "invalid fused epilogue geometry"
     );
     let out_type = lane_metal_type(output)?;
@@ -1571,8 +1572,13 @@ pub(crate) fn glue_epilogue(
     );
     Ok(array::metal_kernel(
         &format!(
-            "mlxl3_rs_glue_epilogue_{output_dims}_{out_type}_r{}",
-            u8::from(row_major)
+            "mlxl3_rs_glue_epilogue_{output_dims}_{out_type}_r{}{}",
+            u8::from(row_major),
+            if partials.dtype() == Dtype::Float16 {
+                "_h"
+            } else {
+                ""
+            }
         ),
         &["partials", "svh"],
         &["y"],
@@ -1881,7 +1887,12 @@ fn qmm_tensor(
         array::supports_exl3_tensor_ops()?,
         "TensorOps QMM requires Apple M5 and macOS 26.3 or newer"
     );
-    let block_columns = 32;
+    // Q27P-04 lab: tile shape of the shared prefill kernel (tests only).
+    #[cfg(test)]
+    let tile = PREFILL_TILE_TEST.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let tile: Option<(i32, i32)> = None;
+    let block_columns = tile.map_or(32, |(_, columns)| columns);
     let block_depth = 16;
     ensure!(
         input_dims % block_depth == 0
@@ -1907,7 +1918,9 @@ fn qmm_tensor(
     let enabled = *DENSE_PREFILL_M64
         .get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_M64").as_deref() != Ok("0"));
     // Q27D-15: one 16-row tile below the production threshold (verification rows).
-    let block_rows = if matrix_rows <= 16 {
+    let block_rows = if let Some((rows, _)) = tile {
+        rows
+    } else if matrix_rows <= 16 {
         16
     } else {
         crate::contracts::dense_qmm_block_rows(
@@ -1918,23 +1931,57 @@ fn qmm_tensor(
         )
     };
     let padded_rows = ((matrix_rows + block_rows - 1) / block_rows) * block_rows;
-    let xhat = x
-        .astype(Dtype::Float16)?
-        .reshape(&[matrix_rows, input_dims])?
-        .mul(&suh.astype(Dtype::Float16)?)?
-        .reshape(&[matrix_rows, input_dims / 128, 128])?
-        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-        .reshape(&[matrix_rows, input_dims])?;
-    let xhat = if matrix_rows == padded_rows {
-        xhat
+    // Q27P-11: one dispatch for the prologue and one for the epilogue (same values).
+    let fused = dense_prefill_fused()
+        && matrix_rows > 16
+        && input_dims % 128 == 0
+        && output_dims % 128 == 0
+        && matches!(x.dtype(), Dtype::Float16 | Dtype::BFloat16 | Dtype::Float32);
+    let finish = |raw: Array| -> Result<Array> {
+        let output = if fused {
+            glue_epilogue(
+                &raw.reshape(&[1, padded_rows, output_dims])?,
+                svh,
+                1,
+                matrix_rows,
+                padded_rows,
+                output_dims,
+                x.dtype(),
+                false,
+            )?
+        } else {
+            raw.slice(0, 0, matrix_rows)?
+                .reshape(&[matrix_rows, output_dims / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[matrix_rows, output_dims])?
+                .mul(&svh.astype(Dtype::Float16)?)?
+                .astype(x.dtype())?
+        };
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().context("empty QMM input shape")? = output_dims;
+        output.reshape(&shape)
+    };
+    let xhat = if fused {
+        glue_prologue(x, suh, matrix_rows, padded_rows, input_dims, false, 1)?
     } else {
-        Array::concatenate(
-            &[
-                &xhat,
-                &Array::zeros_dtype(&[padded_rows - matrix_rows, input_dims], Dtype::Float16)?,
-            ],
-            0,
-        )?
+        let xhat = x
+            .astype(Dtype::Float16)?
+            .reshape(&[matrix_rows, input_dims])?
+            .mul(&suh.astype(Dtype::Float16)?)?
+            .reshape(&[matrix_rows, input_dims / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[matrix_rows, input_dims])?;
+        if matrix_rows == padded_rows {
+            xhat
+        } else {
+            Array::concatenate(
+                &[
+                    &xhat,
+                    &Array::zeros_dtype(&[padded_rows - matrix_rows, input_dims], Dtype::Float16)?,
+                ],
+                0,
+            )?
+        }
     };
     let inverse = codec::permutation_inverse()
         .map(|value| value.to_string())
@@ -1945,6 +1992,69 @@ fn qmm_tensor(
         k * 8,
     );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+    let row_blocks = padded_rows / block_rows;
+    if let Some(group) = dense_prefill_shared_group(row_blocks) {
+        // Q27P-03 (opt-in, no gain): 32-deep operations.
+        let depth = dense_prefill_depth(input_dims);
+        // Q27P-07: window decode and a threadgroup-memory right operand (same operations).
+        let window = depth == 16 && k != 7 && dense_prefill_window();
+        let header = if depth == 32 {
+            header.replace("#define BK 16u\n", "#define BK 32u\n")
+        } else {
+            header
+        };
+        let step_tiles = if window {
+            dense_prefill_step_tiles()
+        } else {
+            1
+        };
+        #[cfg(test)]
+        let skip_decode = window && PREFILL_SKIP_DECODE_TEST.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let skip_decode = false;
+        let header = format!(
+            "{header}#define STEP_TILES {step_tiles}u\n{}",
+            if skip_decode {
+                "#define LAB_SKIP_DECODE 1\n"
+            } else {
+                ""
+            }
+        );
+        let raw = array::metal_kernel(
+            &format!(
+                "mlxl3_rs_qmm_tensor_{}_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}_bn{block_columns}_g{group}_d{depth}_t{step_tiles}",
+                if skip_decode {
+                    "window_nodecode"
+                } else if window {
+                    "window"
+                } else {
+                    "shared"
+                },
+                cb as u32
+            ),
+            &["xhat", "trellis"],
+            &["yhat"],
+            &format!("{header}#define ROW_GROUP {group}u\n"),
+            if window {
+                include_str!("../shaders/_qmm_tensor_window_kernel.metal")
+            } else {
+                include_str!("../shaders/_qmm_tensor_shared_kernel.metal")
+            },
+            &[&xhat, &words],
+            &[vec![padded_rows, output_dims]],
+            &[Dtype::Float16],
+            [
+                (output_dims / block_columns)
+                    .checked_mul(32 * group)
+                    .context("QMM grid overflow")?,
+                (row_blocks + group - 1) / group,
+                1,
+            ],
+            [32 * group, 1, 1],
+        )?
+        .remove(0);
+        return finish(raw);
+    }
     let raw = array::metal_kernel(
             &format!(
                 "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}",
@@ -1966,17 +2076,209 @@ fn qmm_tensor(
             ],
             [32, 1, 1],
         )?
-        .remove(0)
-        .slice(0, 0, matrix_rows)?;
-    let output = raw
-        .reshape(&[matrix_rows, output_dims / 128, 128])?
-        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-        .reshape(&[matrix_rows, output_dims])?
-        .mul(&svh.astype(Dtype::Float16)?)?
-        .astype(x.dtype())?;
-    let mut shape = x.shape().to_vec();
-    *shape.last_mut().context("empty QMM input shape")? = output_dims;
-    output.reshape(&shape)
+        .remove(0);
+    finish(raw)
+}
+
+/// Q27P-11: `MLXL3_DENSE_PREFILL_FUSED=1` fuses the prologue and the epilogue of the prefill
+/// TensorOps product (same values bit for bit as the MLX chains).
+fn dense_prefill_fused() -> bool {
+    #[cfg(test)]
+    if let Some(value) = DENSE_PREFILL_FUSED_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_FUSED").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_PREFILL_FUSED_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_dense_prefill_fused<T>(value: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_PREFILL_FUSED_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_PREFILL_FUSED_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// Q27P-02: up to `MLXL3_DENSE_PREFILL_SHARED` = 2, 4 (default) or 8 row blocks share each
+/// decoded weight tile in the prefill TensorOps kernel (same operations per row block, so the
+/// same values bit for bit); `0` keeps one row block per threadgroup.
+fn dense_prefill_shared_group(row_blocks: i32) -> Option<i32> {
+    let limit = {
+        #[cfg(test)]
+        let setting = DENSE_PREFILL_SHARED_TEST.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let setting: Option<i32> = None;
+        static VALUE: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+        match setting {
+            Some(value) => value,
+            None => *VALUE.get_or_init(|| {
+                match std::env::var("MLXL3_DENSE_PREFILL_SHARED").as_deref() {
+                    Ok("0") => 0,
+                    Ok("2") => 2,
+                    Ok("8") => 8,
+                    Ok("16") => 16,
+                    _ => 4,
+                }
+            }),
+        }
+    };
+    (limit >= 2 && row_blocks >= 2).then(|| {
+        let mut group = 2;
+        while group < limit && group < row_blocks {
+            group *= 2;
+        }
+        group
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn with_prefill_tile<T>(value: (i32, i32), run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<(i32, i32)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            PREFILL_TILE_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(PREFILL_TILE_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+#[cfg(test)]
+thread_local! {
+    static PREFILL_TILE_TEST: std::cell::Cell<Option<(i32, i32)>> = const { std::cell::Cell::new(None) };
+    static DENSE_PREFILL_SHARED_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+    static DENSE_PREFILL_DEPTH_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+}
+
+/// Q27P-07: `MLXL3_DENSE_PREFILL_WINDOW=1` selects the window-decode prefill kernel whose right
+/// operand is read from threadgroup memory (same operations as the shared kernel).
+fn dense_prefill_window() -> bool {
+    #[cfg(test)]
+    if let Some(value) = DENSE_PREFILL_WINDOW_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_WINDOW").as_deref() == Ok("1"))
+}
+
+/// Q27P-07b: depth tiles decoded per threadgroup barrier in the window prefill kernel
+/// (`MLXL3_DENSE_PREFILL_STEP_TILES` = 1, 2, 4 or 8; same operations in the same order).
+fn dense_prefill_step_tiles() -> i32 {
+    #[cfg(test)]
+    if let Some(value) = DENSE_PREFILL_STEP_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(
+        || match std::env::var("MLXL3_DENSE_PREFILL_STEP_TILES").as_deref() {
+            Ok("2") => 2,
+            Ok("4") => 4,
+            Ok("8") => 8,
+            _ => 1,
+        },
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn with_dense_prefill_step_tiles<T>(value: i32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_PREFILL_STEP_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_PREFILL_STEP_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+#[cfg(test)]
+pub(crate) fn with_prefill_skip_decode<T>(run: impl FnOnce() -> T) -> T {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            PREFILL_SKIP_DECODE_TEST.with(|flag| flag.set(false));
+        }
+    }
+    PREFILL_SKIP_DECODE_TEST.with(|flag| flag.set(true));
+    let _restore = Restore;
+    run()
+}
+
+#[cfg(test)]
+thread_local! {
+    static PREFILL_SKIP_DECODE_TEST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static DENSE_PREFILL_STEP_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+    static DENSE_PREFILL_WINDOW_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_dense_prefill_window<T>(value: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_PREFILL_WINDOW_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_PREFILL_WINDOW_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// Q27P-03: `MLXL3_DENSE_PREFILL_DEPTH=32` uses 32-deep TensorOps operations in the shared
+/// prefill kernel (not bit-exact: the unit's accumulation order changes). Default 16.
+fn dense_prefill_depth(input_dims: i32) -> i32 {
+    #[cfg(test)]
+    let setting = DENSE_PREFILL_DEPTH_TEST.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let setting: Option<i32> = None;
+    static VALUE: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+    let depth = match setting {
+        Some(value) => value,
+        None => *VALUE.get_or_init(|| {
+            if std::env::var("MLXL3_DENSE_PREFILL_DEPTH").as_deref() == Ok("32") {
+                32
+            } else {
+                16
+            }
+        }),
+    };
+    if depth == 32 && input_dims % 32 == 0 {
+        32
+    } else {
+        16
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn with_dense_prefill_depth<T>(value: i32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_PREFILL_DEPTH_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_PREFILL_DEPTH_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+#[cfg(test)]
+pub(crate) fn with_dense_prefill_shared<T>(value: i32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_PREFILL_SHARED_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_PREFILL_SHARED_TEST.with(|flag| flag.replace(Some(value))));
+    run()
 }
 
 /// Ragged projections with independent input scales, packed once at load time.
