@@ -328,12 +328,15 @@ for line in sys.stdin:
                 rows[3]['depth'] = 2
             if model == 'dflash-mismatch':
                 rows[2]['token_hashes'] = ['different', 'tokens']
-            # Engines 2.0.19+: near ties and sampled measurements are reported per row.
+            # Engines 2.0.19+: near ties and sampled measurements are reported per row, and
+            # such rows carry their own token hashes (a tolerated divergence, random draws).
             if model == 'dflash-good':
                 rows[1]['near_ties'] = [{'prompt': 0, 'position': 12, 'gap': 0.04}]
+                rows[1]['token_hashes'] = ['prompt-a-tie', 'prompt-b']
             if request.get('temperature', 0) > 0:
                 for row in rows:
                     row['sampled'] = True
+                    row['token_hashes'] = [f'sampled-{row["depth"]}-a', f'sampled-{row["depth"]}-b']
             emit(prefix+'_tune_complete', request_id=request['request_id'], tuning_key=tuning_key+(':dflash-v2' if prefix == 'dflash' else ''),
                  best_depth=0 if model in ('mtp-baseline', 'dflash-baseline') else 2, rows=rows)
         continue

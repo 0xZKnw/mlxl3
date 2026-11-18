@@ -72,7 +72,12 @@ struct DFlashSettingsContent: View {
     private var status: String {
         if studio.isTuningDFlash { return studio.dflashTuneStatus }
         if studio.dflashDownloading { return L("Préparation du draft…", "Preparing the draft…") }
-        if studio.dflashDownloadError != nil { return L("Activation à vérifier", "Activation needs attention") }
+        if studio.dflashDownloadError != nil {
+            // A Tune error leaves an active draft untouched.
+            return studio.dflash2Enabled && studio.dflashActive == true
+                ? L("Actif · dernier Tune à vérifier", "Active · last Tune needs attention")
+                : L("Activation à vérifier", "Activation needs attention")
+        }
         if !studio.dflash2Available {
             return studio.dflash2Enabled
                 ? L("Préférence conservée ; indisponible pour ce modèle", "Preference saved; unavailable for this model")
@@ -110,7 +115,7 @@ struct DFlashSettingsContent: View {
             }
             if let error = studio.dflashDownloadError {
                 Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
-                if !flashNext {
+                if !flashNext && !(studio.dflash2Enabled && studio.dflashActive == true) {
                     Button(L("Réessayer l’activation", "Retry activation")) { studio.setDFlash2Enabled(true) }
                         .disabled(studio.isGenerating || studio.dflashDownloading || !studio.dflash2Available || !studio.engineState.isReady)
                 }

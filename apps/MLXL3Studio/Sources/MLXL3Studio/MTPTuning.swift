@@ -79,7 +79,11 @@ enum MTPTuning {
         var best = 0
         var fastest = base
         for row in rows.sorted(by: { $0.depth < $1.depth }) where row.depth > 0 {
-            guard row.tokenHashes == baseline.tokenHashes, let score = row.score else { continue }
+            // Engines 2.0.19+ flag the rows whose tokens differ by design: a sampled measurement
+            // (random draws) or a divergence they verified as a near tie. Others must match.
+            let divergenceAllowed = row.sampled == true || !(row.nearTies ?? []).isEmpty
+            guard row.tokenHashes == baseline.tokenHashes || divergenceAllowed,
+                  let score = row.score else { continue }
             let candidate = score.multipliedFullWidth(by: 100)
             let threshold = base.multipliedFullWidth(by: 103)
             if score > fastest && (candidate.high > threshold.high

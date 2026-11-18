@@ -33,6 +33,26 @@ import Foundation
                     row(3, -1), row(3, 0), row(3, Double(UInt64.max))] {
             precondition(MTPTuning.winner(Array(valid.prefix(3)) + [bad]) == 2)
         }
+        // Engines 2.0.19+: a tolerated near tie or a sampled measurement has other token hashes
+        // by construction; only these flagged rows may differ from the baseline.
+        var tie = row(1, 90, hashes: ["a-tie", "b"])
+        tie.nearTies = [MTPNearTie(prompt: 0, position: 12, gap: 0.04)]
+        precondition(MTPTuning.winner([row(0, 50), tie, row(2, 75), row(3, 70)]) == 1, "Near tie rejected")
+        var emptyTie = row(1, 90, hashes: ["a-tie", "b"])
+        emptyTie.nearTies = []
+        precondition(MTPTuning.winner([row(0, 50), emptyTie, row(2, 75), row(3, 70)]) == 2, "Empty tie list accepted")
+        let sampled = [50.0, 60.0, 80.0, 70.0].enumerated().map { depth, rate -> MTPTuningRow in
+            var value = row(depth, rate, hashes: ["s\(depth)a", "s\(depth)b"])
+            value.sampled = true
+            return value
+        }
+        precondition(MTPTuning.winner(sampled) == 2, "Sampled Tune rejected")
+        var unflagged = sampled
+        unflagged[2].sampled = nil
+        precondition(MTPTuning.winner(unflagged) == 3, "Unflagged divergent row accepted")
+        var ineligible = sampled
+        ineligible[2] = { var r = row(2, 80, eligible: false, hashes: ["x", "y"]); r.sampled = true; return r }()
+        precondition(MTPTuning.winner(ineligible) == 3, "Ineligible sampled row accepted")
         precondition(MTPTuning.winner(Array(valid.prefix(3))) == nil)
         precondition(MTPTuning.winner([valid[0], valid[1], valid[2], valid[2]]) == nil)
         precondition(MTPTuning.winner([row(0, 0)] + Array(valid.suffix(3))) == nil)

@@ -383,6 +383,14 @@ extension StudioModel {
       "Sampling-capable engine kept MTP greedy")
     try await send(mtp: true, flash: false, greedy: false)
     try await checkInspector(greedy: false)
+    // A sampled MTP Tune reports rows whose tokens differ from the baseline by design.
+    try check(model.canTuneMTP, "Sampled MTP cannot be tuned")
+    model.tuneMTP()
+    try await wait("sampled MTP Tune") { !model.isTuningMTP }
+    try check(
+      model.mtpError == nil && model.mtpDepth == 2 && model.mtpTuneRows.count == 4
+        && model.mtpTuneRows.allSatisfy { $0.sampled == true },
+      "Sampled MTP Tune was rejected: \(model.mtpError ?? "no error"), depth \(model.mtpDepth)")
     // An engine announcing sampled DFlash2 keeps the user's sampling, for chat and for Tune.
     setenv("MLXL3_FIXTURE_DFLASH_SAMPLING", "1", 1)
     defer { unsetenv("MLXL3_FIXTURE_DFLASH_SAMPLING") }
@@ -398,6 +406,8 @@ extension StudioModel {
     try check(model.canTuneDFlash, "Sampled DFlash2 cannot be tuned")
     model.tuneDFlash()
     try await wait("sampled DFlash Tune") { !model.isTuningDFlash }
+    try check(model.dflashDownloadError == nil && model.dflashMode == 2,
+      "Sampled DFlash2 Tune was rejected: \(model.dflashDownloadError ?? "no error"), mode \(model.dflashMode)")
     let tuneRequest = try String(contentsOf: requestsURL, encoding: .utf8).split(separator: "\n")
       .map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
       .compactMap { $0["request"] as? [String: Any] }.last { $0["type"] as? String == "tune_dflash" }!
