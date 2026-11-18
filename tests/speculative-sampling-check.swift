@@ -380,7 +380,12 @@ extension StudioModel {
       "Legacy snapshot did not decode with neutral top-p/presence")
     // Recommended settings: exactly the catalog (with its alternative
     // quantizations) and the values published on each official model card.
+    // Decision models (d1) answer in one pass and never sample, so they carry no preset.
+    let decisionCatalog = Set(ModelLibrary.decisionModels.map(\.id))
     let catalog = Set(ModelLibrary.recommendedModels.flatMap { [$0.id] + $0.choices.map(\.id) })
+      .subtracting(decisionCatalog)
+    try check(!decisionCatalog.isEmpty && decisionCatalog.isDisjoint(with: SamplingPresets.byRepository.keys),
+      "Decision models must not get sampling presets")
     try check(catalog == Set(SamplingPresets.byRepository.keys), "Presets do not cover exactly the catalog")
     func values(_ preset: SamplingPreset) -> [Double] {
       [preset.temperature, Double(preset.topK), preset.topP, preset.repetitionPenalty, preset.presencePenalty]
