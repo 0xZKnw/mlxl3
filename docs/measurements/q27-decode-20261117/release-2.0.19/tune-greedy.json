@@ -1,0 +1,101 @@
+{
+  "status": "passed",
+  "engine": "build/engine-v2.0.19-check/mlxl3",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "sampler": "greedy",
+  "sampling": null,
+  "ready": {
+    "dflash_supported": true,
+    "dflash_family": "qwen38_dense",
+    "dflash_tune_supported": true,
+    "dflash_sampling_supported": true,
+    "runtime_commit": "2d74600037a8"
+  },
+  "complete": {
+    "best_depth": 1,
+    "noise_margin_percent": 3,
+    "request_id": "tune",
+    "rows": [
+      {
+        "accepted_tokens": 0,
+        "decode_seconds": 19.469572875,
+        "decode_tokens": 190,
+        "decode_tps": 9.758817063931096,
+        "depth": 0,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "near_ties": [],
+        "proposed_tokens": 0,
+        "reason": null,
+        "sampled": false,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "f0daac522121a027"
+        ]
+      },
+      {
+        "accepted_tokens": 143,
+        "decode_seconds": 8.105193832,
+        "decode_tokens": 190,
+        "decode_tps": 23.441758943489262,
+        "depth": 1,
+        "eligible": true,
+        "lookup_blocks": 2,
+        "near_ties": [
+          {
+            "gap": 0.0,
+            "position": 66,
+            "prompt": 0
+          }
+        ],
+        "proposed_tokens": 473,
+        "reason": null,
+        "sampled": false,
+        "token_hashes": [
+          "3535d56ebee75bf6",
+          "f0daac522121a027"
+        ]
+      },
+      {
+        "accepted_tokens": 112,
+        "decode_seconds": 12.227239874999999,
+        "decode_tokens": 190,
+        "decode_tps": 15.539075207682552,
+        "depth": 2,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "near_ties": [],
+        "proposed_tokens": 155,
+        "reason": null,
+        "sampled": false,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "f0daac522121a027"
+        ]
+      },
+      {
+        "accepted_tokens": 139,
+        "decode_seconds": 8.376268084,
+        "decode_tokens": 190,
+        "decode_tps": 22.683132642677727,
+        "depth": 3,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "near_ties": [],
+        "proposed_tokens": 347,
+        "reason": null,
+        "sampled": false,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "f0daac522121a027"
+        ]
+      }
+    ],
+    "sample_tokens": 96,
+    "sampled": false,
+    "samples": 2,
+    "tuning_key": "0ecfe80cf1bcb3e2:2.0.19:2d74600037a8:release:0.32.2:Apple M5:4096:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=1:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=1:cap=3",
+    "type": "dflash_tune_complete"
+  },
+  "seconds": 65.42327020900001
+}

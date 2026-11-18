@@ -1,0 +1,132 @@
+{
+  "status": "passed",
+  "arms": {
+    "default": {}
+  },
+  "order": [
+    "default"
+  ],
+  "modes": [
+    "ar"
+  ],
+  "sampler": "greedy",
+  "sampled": false,
+  "tokens": 128,
+  "repeats": 1,
+  "context": 4096,
+  "cases": [
+    "fr",
+    "code"
+  ],
+  "engine": "build/engine-v2.0.19-check/mlxl3",
+  "engine_sha256": "127c6691e727fd7e5379dca21dd42ec81f10dbf0bdbaa9d79ae6a9f16c2f783a",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "mtp_head": null,
+  "dflash_draft": null,
+  "before": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t68%; discharging; 7:04 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      2.1181640625,
+      2.5234375,
+      2.86376953125
+    ]
+  },
+  "passes": [
+    {
+      "arm": "default",
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t68%; discharging; 7:04 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "load": [
+          2.1181640625,
+          2.5234375,
+          2.86376953125
+        ]
+      },
+      "status": "complete",
+      "results": {
+        "ar": {
+          "fr": [
+            {
+              "token_hash": "f9c0b6221cabd6df",
+              "generated_tokens": 128,
+              "decode_tps": 66.46979858055232,
+              "decode_seconds": 1.910642167,
+              "prefill_seconds": 0.047125166,
+              "prompt_tokens": 24,
+              "mlx_active_bytes": 2668203920,
+              "mlx_peak_bytes": 2672448120,
+              "process_footprint_bytes": 3307391832,
+              "dflash_block_seconds": 0.0
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "b901cb09a3ff1e85",
+              "generated_tokens": 128,
+              "decode_tps": 66.38391648380599,
+              "decode_seconds": 1.913114,
+              "prefill_seconds": 0.04728725,
+              "prompt_tokens": 32,
+              "mlx_active_bytes": 2670251920,
+              "mlx_peak_bytes": 2674496152,
+              "process_footprint_bytes": 3307375448,
+              "dflash_block_seconds": 0.0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "distinct_hashes": {
+    "fr": 1,
+    "code": 1
+  },
+  "summary": {
+    "ar/fr": {
+      "decode_tps": {
+        "default": 66.46979858055232
+      },
+      "pass_means": [
+        66.46979858055232
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "ar/code": {
+      "decode_tps": {
+        "default": 66.38391648380599
+      },
+      "pass_means": [
+        66.38391648380599
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    }
+  },
+  "problems": [],
+  "after": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23527523)\t68%; discharging; 7:04 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      1.9482421875,
+      2.4814453125,
+      2.8466796875
+    ]
+  }
+}
