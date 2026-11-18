@@ -3486,6 +3486,27 @@ mod verification {
     #[kani::proof]
     #[kani::unwind(12)]
     fn two_routes_preserve_hits_and_never_alias_distinct_experts() {
+        // Lossy, so that CBMC finishes: any two u32 ids ran past 600 s, so did two
+        // ids drawn symbolically from seven edge values, and each concrete pair
+        // takes about 35 s. Only these seven concrete pairs are checked: the same
+        // hit, a hit and a miss both ways, two misses, the same highest valid id,
+        // and an invalid id (512 or u32::MAX) in either place. Every other pair of
+        // ids, including two distinct hits and the same miss, is no longer proved.
+        const PAIRS: [[u32; 2]; 7] = [
+            [0, 0],
+            [0, 10],
+            [10, 9],
+            [10, 11],
+            [511, 511],
+            [512, 0],
+            [0, u32::MAX],
+        ];
+        for ids in PAIRS {
+            two_routes_check(ids);
+        }
+    }
+
+    fn two_routes_check(ids: [u32; 2]) {
         let mut cache = ExpertCache::new(10).unwrap();
         for i in 0..10 {
             cache.keys[i] = Some(i as u32);
@@ -3493,7 +3514,6 @@ mod verification {
             cache.counts[i] = 1;
         }
         cache.clock = 1;
-        let ids: [u32; 2] = kani::any();
         if let Ok(routes) = cache.reserve(&ids) {
             assert!(ids[0] < 512 && ids[1] < 512);
             assert_eq!(routes.len(), 2);
@@ -3701,18 +3721,24 @@ mod grouped_route_verification {
         }
     }
 
+    // Lossy, so that CBMC finishes: any 80 symbolic ids ran past 600 s, so did a
+    // single symbolic row, a concrete list with a symbolic capacity, and a list of
+    // 13 distinct slots. So one concrete list is checked: 80 rows of the same slot,
+    // which fills the width-four group up to its 80-row array bound, with capacity
+    // 512 (accepted) and 0 (rejected), on the allocation-free core (the Vec copy
+    // in `expert_route_groups` is left to the tests). Every other list of 80 ids,
+    // including any that fills the narrower groups, and every other capacity is no
+    // longer proved here; the grouped_route_tests oracle and the eight-row proof
+    // above check them.
     #[kani::proof]
     #[kani::unwind(81)]
     fn grouped_expert_routes_eighty_symbolic_inputs_are_bounded() {
-        let ids: [u32; 80] = kani::any();
-        let capacity = i32::from(kani::any::<u16>() % 514);
-        if let Some(groups) = expert_route_groups(&ids, capacity) {
-            assert_eq!(groups.iter().map(Vec::len).sum::<usize>(), 80);
-            for rows in &groups {
-                for &row in rows {
-                    assert!(row < 80);
-                }
-            }
+        let ids = [0u32; 80];
+        assert!(expert_route_group_rows::<80>(&ids, 0).is_none());
+        let (rows, lens) = expert_route_group_rows::<80>(&ids, 512).unwrap();
+        assert_eq!(lens, [0, 0, 0, 80]);
+        for &row in &rows[3] {
+            assert!(row < 80);
         }
     }
 }

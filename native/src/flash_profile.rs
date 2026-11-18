@@ -209,25 +209,40 @@ pub(crate) fn start(fenced: bool) -> Result<()> {
 pub(crate) fn span(name: &str) -> Option<Span> {
     TRACE.with_borrow_mut(|trace| {
         let trace = trace.as_mut()?;
-        let index = trace.events.len();
-        trace.events.push(Event {
-            name: name.into(),
-            parent: trace.stack.last().copied(),
-            start_ns: trace
-                .epoch
-                .elapsed()
-                .as_nanos()
-                .try_into()
-                .expect("profile duration fits u64"),
-            end_ns: 0,
-            data: Value::Null,
-            allocation_requests: 0,
-            allocation_requested_bytes: 0,
-            allocation_api_ns: 0,
-        });
-        trace.stack.push(index);
-        Some(Span(index))
+        let start_ns = trace
+            .epoch
+            .elapsed()
+            .as_nanos()
+            .try_into()
+            .expect("profile duration fits u64");
+        Some(Span(open_event(
+            &mut trace.stack,
+            &mut trace.events,
+            name,
+            start_ns,
+        )))
     })
+}
+// The span stack logic, free of the thread-local trace, so Kani can verify it: the
+// trace's lazy destructor registration (`pthread_key_create`) is unsupported by Kani.
+fn open_event(stack: &mut Vec<usize>, events: &mut Vec<Event>, name: &str, start_ns: u64) -> usize {
+    let index = events.len();
+    events.push(Event {
+        name: name.into(),
+        parent: stack.last().copied(),
+        start_ns,
+        end_ns: 0,
+        data: Value::Null,
+        allocation_requests: 0,
+        allocation_requested_bytes: 0,
+        allocation_api_ns: 0,
+    });
+    stack.push(index);
+    index
+}
+fn close_event(stack: &mut Vec<usize>, events: &mut [Event], index: usize, end_ns: u64) {
+    assert_eq!(stack.pop(), Some(index), "profile spans must be nested");
+    events[index].end_ns = end_ns;
 }
 pub(crate) fn active() -> bool {
     TRACE.with_borrow(Option::is_some)
@@ -237,14 +252,17 @@ pub(crate) fn active() -> bool {
 pub(crate) fn native_allocation(bytes: u64, api_ns: u64) {
     TRACE.with_borrow_mut(|trace| {
         let Some(trace) = trace.as_mut() else { return };
-        let Some(&index) = trace.stack.last() else {
-            return;
-        };
-        let event = &mut trace.events[index];
-        event.allocation_requests = event.allocation_requests.saturating_add(1);
-        event.allocation_requested_bytes = event.allocation_requested_bytes.saturating_add(bytes);
-        event.allocation_api_ns = event.allocation_api_ns.saturating_add(api_ns);
+        record_allocation(&trace.stack, &mut trace.events, bytes, api_ns);
     });
+}
+fn record_allocation(stack: &[usize], events: &mut [Event], bytes: u64, api_ns: u64) {
+    let Some(&index) = stack.last() else {
+        return;
+    };
+    let event = &mut events[index];
+    event.allocation_requests = event.allocation_requests.saturating_add(1);
+    event.allocation_requested_bytes = event.allocation_requested_bytes.saturating_add(bytes);
+    event.allocation_api_ns = event.allocation_api_ns.saturating_add(api_ns);
 }
 
 #[test]
@@ -305,16 +323,19 @@ fn native_allocation_attributes_two_symbolic_requests_exclusively() {
     let outer_ns: u64 = kani::any();
     let inner_bytes: u64 = kani::any();
     let inner_ns: u64 = kani::any();
-    start(false).unwrap();
-    {
-        let _outer = span("outer").unwrap();
-        native_allocation(outer_bytes, outer_ns);
-        {
-            let _inner = span("inner").unwrap();
-            native_allocation(inner_bytes, inner_ns);
-        }
-    }
-    let events = finish().unwrap();
+    // The span and allocation logic of `span`, `Span::drop` and `native_allocation`,
+    // without the thread-local trace (its destructor registration is unsupported).
+    let mut stack = Vec::new();
+    let mut events = Vec::new();
+    record_allocation(&stack, &mut events, outer_bytes, outer_ns);
+    let outer = open_event(&mut stack, &mut events, "outer", 0);
+    record_allocation(&stack, &mut events, outer_bytes, outer_ns);
+    let inner = open_event(&mut stack, &mut events, "inner", 0);
+    record_allocation(&stack, &mut events, inner_bytes, inner_ns);
+    close_event(&mut stack, &mut events, inner, 0);
+    close_event(&mut stack, &mut events, outer, 0);
+    assert!(stack.is_empty());
+    assert_eq!(events[1].parent, Some(0));
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].allocation_requests, 1);
     assert_eq!(events[0].allocation_requested_bytes, outer_bytes);
@@ -324,6 +345,9 @@ fn native_allocation_attributes_two_symbolic_requests_exclusively() {
     assert_eq!(events[1].allocation_api_ns, inner_ns);
     kani::cover!(outer_bytes == 0 && inner_bytes == u64::MAX);
     kani::cover!(outer_ns == u64::MAX && inner_ns == 0);
+    // Every event's `data` is `Value::Null`; skip its map drop glue, which CBMC
+    // would otherwise unwind although no property depends on it.
+    std::mem::forget(events);
 }
 
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -368,17 +392,13 @@ impl Drop for Span {
     fn drop(&mut self) {
         TRACE.with_borrow_mut(|trace| {
             let trace = trace.as_mut().expect("active span");
-            assert_eq!(
-                trace.stack.pop(),
-                Some(self.0),
-                "profile spans must be nested"
-            );
-            trace.events[self.0].end_ns = trace
+            let end_ns = trace
                 .epoch
                 .elapsed()
                 .as_nanos()
                 .try_into()
                 .expect("profile duration fits u64");
+            close_event(&mut trace.stack, &mut trace.events, self.0, end_ns);
         });
     }
 }
