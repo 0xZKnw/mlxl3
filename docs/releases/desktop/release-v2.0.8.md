@@ -46,7 +46,24 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings �
 
 ## Verification and limits
 
-VERIFICATION_PLACEHOLDER
+- **In the release build of the app** (a copy with its own bundle identifier, registry and models folder, so nothing touched an existing library):
+  - with no decision model, the Decision page showed the two recommended d1 models; clicking d1 opened its Hugging Face page at revision `0e99f8d8` (2.73 GB, `lfm3_vl` supported);
+  - **Download** fetched the model; its `model.safetensors` and `calibration.json` are byte-identical to the validated export;
+  - **My library** labelled it **Decision**; **Open in Decision** switched modes, loaded it and showed **Loaded**;
+  - **Decide** on the support ticket example: refund yes 99.7%, billing 69.8%, urgency medium 62.6%, 123 tokens read, 0 generated, 1,631 ms. These match the engine command line with calibration (and differ from a folder without `calibration.json`: billing 77.7%);
+  - the Chat mode showed **Choose a model**: the d1 model, although the only one in the library, was neither selected nor loaded.
+- **Decision mode check** `tests/decision-studio-check.swift`: 78 checks (55 before) against a fake engine, now also covering JSON detection, the JSON state sent as written (key order, number spelling, one bridge line), the three examples, 2.0.7 drafts, question naming, the pinned recommended revisions and decision-model routing.
+- **Engine.** See the [engine 2.0.17 notes](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.17): both repositories downloaded with the engine give files identical to the validated exports and decisions identical to them, text and audio.
+- **Release DMG:**
+  - `hdiutil verify` reported a valid checksum;
+  - after mounting, the app passed `codesign --verify --deep --strict` and reports 2.0.8 / 61;
+  - its `build-info.json` names source `6f8e4b3d2ee6`, with no uncommitted changes, and engine 2.0.17;
+  - the bundled `mlxl3` is **byte-identical** to the published engine 2.0.17 binary (SHA-256 `7c6aefb8…9ec2`).
+- **Not verified:**
+  - the d1-Omni download inside the app (it was downloaded and checked with the engine command line only);
+  - the full `scripts/check-desktop.sh` suite: only the Decision check ran locally, because a pre-existing deprecation warning in `VoiceController.swift` fails `-warnings-as-errors` with the local macOS 27 SDK;
+  - hosted CI on this commit had not completed when this was written;
+  - SwiftUI behavior has no formal proof.
 
 ## Windows
 
@@ -54,7 +71,10 @@ The Windows installer is built and attached by the `windows-desktop` workflow af
 
 ## Source and download
 
-SOURCE_PLACEHOLDER
+- Compiled source `6f8e4b3d2ee604c3cb2fffa60c65dba7c6ee07f1`.
+- `MLXL3-Desktop-v2.0.8-b61-Apple-Silicon.dmg` · **253,757,185 bytes**, SHA-256 `a5b6a5c98bc83ccce3061dc49c22eb70a76983c3ac998f096e4470564c4b42c5`.
+- `MLXL3-Desktop-v2.0.8-b61-Apple-Silicon.dmg.sha256` · 109 bytes, SHA-256 `11cae8ae8b8240326dd20462567fe4ed4ccbcb0741a485e4aea188edec22a208`.
+- Bundled engine 2.0.17 (`mlxl3` SHA-256 `7c6aefb85f45bd19a12ba12e1cb2f86636682f4da3a22148763bbf07239f9ec2`). The Swift app was built with the Command Line Tools macOS 26.5 SDK.
 
 ## Acknowledgements
 
