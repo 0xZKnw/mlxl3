@@ -4,6 +4,7 @@
 import json
 import os
 import signal
+import socketserver
 import sys
 import threading
 import time
@@ -57,7 +58,15 @@ if command == "serve":
         def log_message(self, *_):
             pass
 
-    server = HTTPServer((host, port), Handler)
+    class FixtureServer(HTTPServer):
+        def server_bind(self):
+            # HTTPServer.server_bind resolves socket.getfqdn(host); for 0.0.0.0 that is a
+            # reverse lookup of the machine name, which outlasts the 8 s readiness wait
+            # on hosted macOS runners. The fixture never uses server_name.
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
+
+    server = FixtureServer((host, port), Handler)
     emit("ready", port=port, model=model, host=host, context=context)
     server.serve_forever()
 elif command == "bridge":
