@@ -85,6 +85,8 @@ final class StudioModel: ObservableObject {
     }
     @Published var showInspector = false
     @Published var showModelManager = false
+    /// Set to open the model manager on its Hugging Face page (a recommended model's details).
+    @Published var modelManagerShowsHub = false
     @Published var showAppSettings = false
     @Published var appSettingsPage: SettingsPage = .general
     @Published private(set) var modelInstallState: ModelInstallState = .idle
@@ -370,6 +372,30 @@ final class StudioModel: ObservableObject {
 
     var selectedModel: LocalModel? {
         models.first { $0.name == selectedModelName }
+    }
+
+    /// Library models the chat engine can load: decision models only run in the Decision mode.
+    var chatModels: [LocalModel] { models.filter { !decision.isDecisionModel($0) } }
+
+    func isDecisionModel(_ model: LocalModel) -> Bool { decision.isDecisionModel(model) }
+
+    /// Opens a decision model from the library in the Decision mode and loads it.
+    func openInDecision(_ model: LocalModel) {
+        guard isDecisionModel(model) else { return }
+        showModelManager = false
+        if selectedMode != .decision { selectMode(.decision) }
+        guard selectedMode == .decision else { return }
+        decision.refresh(registered: models)
+        if let entry = decision.models.first(where: { !$0.custom && $0.name == model.name }) {
+            decision.open(path: entry.path)
+        }
+    }
+
+    /// Shows a recommended model's Hugging Face details, ready to download.
+    func openRecommendedModel(_ model: RecommendedHubModel) {
+        modelLibrary.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
+        modelManagerShowsHub = true
+        openModelManager()
     }
 
     var dflash2Available: Bool {
@@ -898,8 +924,11 @@ final class StudioModel: ObservableObject {
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
             switch result {
-            case let .success(models):
-                self.models = models
+            case let .success(all):
+                self.models = all
+                // Decision models stay out of the chat selection and its automatic loading.
+                self.decision.refresh(registered: all)
+                let models = self.chatModels
                 guard !models.isEmpty else {
                     self.ejectModel()
                     self.selectedModelName = nil
@@ -1049,6 +1078,10 @@ final class StudioModel: ObservableObject {
 
     func selectModel(_ name: String) {
         guard !quantizer.converting, !isGenerating || mtpAutoTuneActive, !localServer.active, modeTransition == nil else { return }
+        if let model = models.first(where: { $0.name == name }), isDecisionModel(model) {
+            openInDecision(model)
+            return
+        }
         if name == selectedModelName, bridge.isRunning {
             switch engineState {
             case .loading, .ready, .generating: return

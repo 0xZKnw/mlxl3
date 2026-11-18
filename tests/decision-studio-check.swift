@@ -81,6 +81,34 @@ import Foundation
     draft.questions = example.questions
     check(throwsMessage { _ = try draft.request() } != nil, "a request needs a state or media")
 
+    // JSON states are detected and sent as written, keys in their order, on one bridge line.
+    check(DecisionDraft.looksLikeJSON("  {\"b\": 1, \"a\": 2}\n"), "an object reads as JSON")
+    check(DecisionDraft.looksLikeJSON("[1, 2]"), "an array reads as JSON")
+    check(!DecisionDraft.looksLikeJSON("{not json"), "broken JSON stays text")
+    check(!DecisionDraft.looksLikeJSON("42") && !DecisionDraft.looksLikeJSON("\"quoted\""), "scalars stay text")
+    check(!DecisionDraft.looksLikeJSON("I was charged {twice}"), "prose stays text")
+    draft = example
+    draft.stateIsJSON = true
+    draft.state = "{\n  \"zeta\": \"line\",\r\n  \"alpha\": [1, 2.50]\n}"
+    let ordered = String(decoding: try draft.request(), as: UTF8.self)
+    check(!ordered.contains("\n") && !ordered.contains("\r"), "a JSON state keeps the request on one line")
+    check(ordered.range(of: "\"zeta\"")!.lowerBound < ordered.range(of: "\"alpha\"")!.lowerBound, "JSON state keys keep their order")
+    check(ordered.contains("2.50"), "JSON state numbers keep their spelling")
+    let spliced = try JSONSerialization.jsonObject(with: Data(ordered.utf8)) as! [String: Any]
+    check((spliced["state"] as? [String: Any])?["zeta"] as? String == "line", "the spliced state is valid JSON")
+    for (title, sample) in DecisionDraft.examples {
+      let body = try JSONSerialization.jsonObject(with: try sample.request()) as! [String: Any]
+      check((body["questions"] as? [String: Any])?.count == sample.questions.count, "example \(title) builds a request")
+      check(sample.stateIsJSON == DecisionDraft.looksLikeJSON(sample.state), "example \(title) has the detected state kind")
+    }
+
+    // Recommended d1 downloads are pinned and grouped apart from chat models.
+    check(ModelLibrary.decisionModels.map(\.id) == ["0xzknw/d1-2B-EXL3-8bpw", "0xzknw/d1-Omni-2B-EXL3-8bpw"], "both d1 exports are recommended")
+    check(ModelLibrary.decisionModels.allSatisfy { $0.revision.count == 40 && $0.revision.allSatisfy(\.isHexDigit) },
+      "recommended d1 revisions are pinned commits")
+    check(ModelLibrary.recommendedFamilies.first { $0.id == "Decision" }?.models.map(\.id) == ModelLibrary.decisionModels.map(\.id),
+      "the Decision family lists them")
+
     // Discovery: only folders recording d1_attention with an EXL3 descriptor.
     func modelFolder(_ name: String, d1: Bool, type: String = "lfm3_vl") throws -> URL {
       let folder = root.appending(path: name)
@@ -111,10 +139,26 @@ import Foundation
       sizeBytes: 1, modules: 142, addedAt: "", size: "1 B")
     studio.refresh(registered: [registered, registeredChat])
     check(studio.models.map(\.name) == ["registered-d1"], "registered decision models are listed, chat models are not")
+    check(studio.isDecisionModel(registered) && !studio.isDecisionModel(registeredChat), "the chat side can tell decision models apart")
+    let renamed = LocalModel(name: "same-folder", path: d1.path + "-elsewhere", modelType: "lfm3_vl", format: "EXL3", bits: 8,
+      sizeBytes: 1, modules: 142, addedAt: "", size: "1 B")
+    check(!studio.isDecisionModel(renamed), "only registered decision paths count")
+    var growing = DecisionDraft()
+    growing.questions = [DecisionQuestion(name: "q2", kind: .noul, instructions: "x")]
+    studio.draft = growing
+    studio.addQuestion(.choice)
+    check(studio.draft.questions.map(\.name) == ["q2", "q3"] && studio.draft.questions[1].options.count == 2,
+      "added questions get a free name and two options")
+    studio.addQuestion(.text)
+    check(studio.draft.questions.last?.name == "q4" && studio.draft.questions.last?.options.isEmpty == true, "reads take no options")
     check(studio.addFolder(omni, registered: [registered]), "an Omni folder is added")
     check(studio.models.count == 2 && studio.selectedPath == omni.path, "the added folder is selected")
     check(prefs.stringArray(forKey: "decision.folders") == [omni.path], "added folders persist")
+    var legacy = example
+    legacy.stateIsJSON = true  // a 2.0.7 draft switched to JSON over plain text
+    prefs.set(try JSONEncoder().encode(legacy), forKey: "decision.draft")
     let reopened = DecisionStudio(preferences: prefs)
+    check(!reopened.draft.stateIsJSON && (try? reopened.draft.request()) != nil, "a saved draft gets the detected state kind")
     reopened.refresh(registered: [])
     check(reopened.models.map(\.path) == [omni.path] && reopened.selectedPath == omni.path, "folders and choice survive a restart")
 

@@ -64,3 +64,4 @@ These reports are historical: check their dates, revisions, and limitations befo
 - [release-v2.0.5](release-v2.0.5.md)
 - [release-v2.0.6](release-v2.0.6.md)
 - [release-v2.0.7](release-v2.0.7.md)
+- [release-v2.0.8](release-v2.0.8.md)

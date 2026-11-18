@@ -159,6 +159,49 @@ struct DecisionDraft: Codable, Hashable, Sendable {
         options: [DecisionOption(name: "low"), DecisionOption(name: "medium"), DecisionOption(name: "high")]),
     ])
 
+  /// Reads from the state: a vendor, an amount and a date.
+  static let invoice = DecisionDraft(
+    state: "Invoice 2026-118 from ACME SA, issued on 3 April 2026. Total due: 1,234.50 EUR within 30 days.",
+    questions: [
+      DecisionQuestion(name: "vendor", kind: .text, instructions: "Who issued the invoice?"),
+      DecisionQuestion(name: "total", kind: .number, instructions: "What is the total due?", unit: "EUR"),
+      DecisionQuestion(name: "issued", kind: .date, instructions: "When was the invoice issued?"),
+    ])
+
+  /// A JSON state, read as JSON.
+  static let order = DecisionDraft(
+    state: """
+      {
+        "customer": "Lena",
+        "items": [{"name": "kettle", "price": 39}, {"name": "mug", "price": 8}],
+        "note": "Please deliver after 6 pm, nobody is home before."
+      }
+      """,
+    stateIsJSON: true,
+    questions: [
+      DecisionQuestion(name: "timing", kind: .noul, instructions: "Does the customer set a delivery time constraint?"),
+      DecisionQuestion(
+        name: "size", kind: .choice, instructions: "How large is the order?",
+        options: [
+          DecisionOption(name: "small", detail: "Under 50"), DecisionOption(name: "large", detail: "50 or more"),
+        ]),
+    ])
+
+  static var examples: [(String, DecisionDraft)] {
+    [
+      (L("Ticket de support", "Support ticket"), example),
+      (L("Facture (lectures)", "Invoice (reads)"), invoice),
+      (L("Commande en JSON", "Order as JSON"), order),
+    ]
+  }
+
+  /// A state that starts like a JSON object or array and parses is sent as JSON, anything else as text.
+  static func looksLikeJSON(_ text: String) -> Bool {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let first = trimmed.first, first == "{" || first == "[" else { return false }
+    return (try? JSONSerialization.jsonObject(with: Data(trimmed.utf8))) != nil
+  }
+
   /// The bridge request `{"state", "questions", "media"}`, with local paths.
   func request() throws -> Data {
     guard !questions.isEmpty else { throw DecisionDraftError(L("Ajoutez au moins une question.", "Add at least one question.")) }
@@ -174,17 +217,20 @@ struct DecisionDraft: Codable, Hashable, Sendable {
     guard !trimmed.isEmpty || !media.isEmpty else {
       throw DecisionDraftError(L("Donnez un état (texte) ou un média.", "Give a state (text) or a media item."))
     }
-    var stateValue: Any = NSNull()
+    var stateText = "null"
     if !trimmed.isEmpty {
       if stateIsJSON {
-        do {
-          stateValue = try JSONSerialization.jsonObject(with: Data(state.utf8), options: [.fragmentsAllowed])
-        } catch { throw DecisionDraftError(L("L’état n’est pas du JSON valide.", "The state is not valid JSON.")) }
+        guard (try? JSONSerialization.jsonObject(with: Data(trimmed.utf8), options: [.fragmentsAllowed])) != nil else {
+          throw DecisionDraftError(L("L’état n’est pas du JSON valide.", "The state is not valid JSON."))
+        }
+        // The text as written: d1 reads object keys in their order, which JSONSerialization loses.
+        // Valid JSON holds no raw line breaks inside strings, so joining lines keeps one bridge line.
+        stateText = trimmed.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ")
       } else {
-        stateValue = state
+        stateText = try DecisionJSON.encode(state)
       }
     }
-    var text = "{\"state\":" + (try DecisionJSON.encode(stateValue))
+    var text = "{\"state\":" + stateText
     text += ",\"questions\":{"
     for (index, question) in questions.enumerated() {
       if index > 0 { text += "," }
@@ -367,6 +413,9 @@ final class DecisionStudio: ObservableObject {
     if let data = preferences.data(forKey: Self.draftKey),
       let saved = try? JSONDecoder().decode(DecisionDraft.self, from: data)
     {
+      var saved = saved
+      // 2.0.7 had a Text/JSON switch; the kind is now detected from the text.
+      saved.stateIsJSON = DecisionDraft.looksLikeJSON(saved.state)
       draft = saved
     } else {
       draft = .example
@@ -383,9 +432,21 @@ final class DecisionStudio: ObservableObject {
 
   // MARK: models
 
+  /// Paths of the registered library models that are decision models: the chat side skips them.
+  @Published private(set) var registeredPaths: Set<String> = []
+
+  func isDecisionModel(_ model: LocalModel) -> Bool { registeredPaths.contains(model.path) }
+
   /// Decision models among the registered ones, plus folders the user added.
   func refresh(registered: [LocalModel]) {
-    var found = registered.compactMap { DecisionModelEntry.inspect(path: $0.path, name: $0.name, custom: false) }
+    var found: [DecisionModelEntry] = []
+    var paths: Set<String> = []
+    for model in registered {
+      guard let entry = DecisionModelEntry.inspect(path: model.path, name: model.name, custom: false) else { continue }
+      found.append(entry)
+      paths.insert(model.path)
+    }
+    if registeredPaths != paths { registeredPaths = paths }
     for path in preferences.stringArray(forKey: Self.foldersKey) ?? [] where !found.contains(where: { $0.path == path }) {
       if let entry = DecisionModelEntry.inspect(path: path, custom: true) { found.append(entry) }
     }
@@ -414,6 +475,23 @@ final class DecisionStudio: ObservableObject {
     preferences.set((preferences.stringArray(forKey: Self.foldersKey) ?? []).filter { $0 != entry.path }, forKey: Self.foldersKey)
     if selectedPath == entry.path { selectedPath = nil }
     refresh(registered: registered)
+  }
+
+  /// Selects a model and loads it now (the Load button, or a model opened from the library).
+  func open(path: String) {
+    if selectedPath != path { selectedPath = path }
+    loadSelected()
+  }
+
+  func loadSelected() {
+    guard selectedPath != nil, !server.active else { return }
+    error = nil
+    Task {
+      do { try await load() } catch {
+        if case .failed = state { return }  // shown beside the model
+        self.error = error.localizedDescription
+      }
+    }
   }
 
   // MARK: engine
@@ -710,6 +788,20 @@ final class DecisionStudio: ObservableObject {
 
   // MARK: media
 
+  func addQuestion(_ kind: DecisionQuestionKind) {
+    let names = Set(draft.questions.map(\.name))
+    var index = draft.questions.count + 1
+    while names.contains("q\(index)") { index += 1 }
+    var question = DecisionQuestion(name: "q\(index)", kind: kind, instructions: "")
+    if kind.usesOptions { question.options = [DecisionOption(name: "a"), DecisionOption(name: "b")] }
+    draft.questions.append(question)
+  }
+
+  func clearOutcome() {
+    outcome = nil
+    error = nil
+  }
+
   func importMedia(_ urls: [URL], spokenFor question: UUID? = nil) {
     for url in urls {
       let scoped = url.startAccessingSecurityScopedResource()
@@ -828,6 +920,23 @@ final class DecisionStudio: ObservableObject {
 
 // MARK: - Views
 
+/// A toolbar-styled button, as in the generation settings.
+private struct DecisionButton: View {
+  let title: String
+  let icon: String
+  var prominent = false
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Label(title, systemImage: icon)
+        .font(.system(size: 12, weight: .medium))
+        .padding(.horizontal, 12).frame(height: 32)
+    }
+    .buttonStyle(StudioToolbarStyle(materialOpacity: prominent ? 1 : 0.8))
+  }
+}
+
 struct DecisionWorkspaceView: View {
   @EnvironmentObject private var studio: StudioModel
   @ObservedObject var decision: DecisionStudio
@@ -835,35 +944,86 @@ struct DecisionWorkspaceView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        HStack(alignment: .firstTextBaseline) {
-          Label(L("Décision", "Decision"), systemImage: "checklist.checked").font(.system(size: 32, design: .serif))
-          Spacer()
-          Picker("", selection: $tab) {
-            Text("Playground").tag("playground")
-            Text("Server").tag("server")
+      VStack(alignment: .leading, spacing: 18) {
+        HStack(alignment: .center, spacing: 16) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(L("Décision", "Decision")).font(.system(size: 30, design: .serif))
+            Text(
+              L(
+                "Réponses typées et calibrées en une passe, sans texte généré.",
+                "Typed, calibrated answers in one pass, with no generated text.")
+            ).font(.system(size: 13)).foregroundStyle(StudioTheme.secondary)
           }
-          .pickerStyle(.segmented).frame(width: 220).labelsHidden()
-          .accessibilityIdentifier("decision.tab")
+          Spacer()
+          if !decision.models.isEmpty {
+            Picker("", selection: $tab) {
+              Text("Playground").tag("playground")
+              Text("Server").tag("server")
+            }
+            .pickerStyle(.segmented).frame(width: 200).labelsHidden()
+            .accessibilityIdentifier("decision.tab")
+          }
         }
-        Text(
-          L(
-            "Modèles de décision Liquid d1 : réponses typées et calibrées en une seule passe, sans génération de texte.",
-            "Liquid d1 decision models: typed, calibrated answers in one forward pass, with no generated text.")
-        ).foregroundStyle(StudioTheme.secondary)
-        DecisionModelBar(decision: decision)
-        if tab == "server" {
-          DecisionServerView(decision: decision, server: decision.server)
+        if decision.models.isEmpty {
+          DecisionEmptyView(decision: decision)
         } else {
-          DecisionPlaygroundView(decision: decision)
+          DecisionModelBar(decision: decision)
+          if tab == "server" {
+            DecisionServerView(decision: decision, server: decision.server)
+          } else {
+            DecisionPlaygroundView(decision: decision)
+          }
         }
         if let error = decision.error {
-          Text(error).foregroundStyle(.red).textSelection(.enabled).accessibilityIdentifier("decision.error")
+          Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled)
+            .accessibilityIdentifier("decision.error")
         }
       }
-      .padding(36).frame(maxWidth: 980, alignment: .leading).frame(maxWidth: .infinity)
+      .padding(36).frame(maxWidth: 900, alignment: .leading).frame(maxWidth: .infinity)
     }
     .onAppear { decision.refresh(registered: studio.models) }
+    .onChange(of: studio.models) { decision.refresh(registered: studio.models) }
+  }
+}
+
+/// No decision model yet: download one of the recommended d1 exports, or add a folder.
+private struct DecisionEmptyView: View {
+  @EnvironmentObject private var studio: StudioModel
+  @ObservedObject var decision: DecisionStudio
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      Text(L("Aucun modèle de décision", "No decision model yet")).font(.system(size: 17, weight: .semibold))
+      Text(
+        L(
+          "Téléchargez d1 depuis les modèles recommandés : il apparaîtra ici, prêt à charger.",
+          "Download d1 from the recommended models: it will show up here, ready to load.")
+      ).foregroundStyle(StudioTheme.secondary)
+      HStack(spacing: 12) {
+        ForEach(ModelLibrary.decisionModels) { model in
+          Button { studio.openRecommendedModel(model) } label: {
+            VStack(alignment: .leading, spacing: 6) {
+              Image(systemName: model.symbol).font(.system(size: 20, weight: .light)).foregroundStyle(StudioTheme.accent)
+              Text(model.title).font(.system(size: 20, design: .serif))
+              Text(model.parameters).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+              Label(L("Télécharger", "Download"), systemImage: "arrow.down.circle").font(.system(size: 12, weight: .medium))
+                .padding(.top, 4)
+            }
+            .padding(16).frame(width: 210, alignment: .leading)
+            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+            .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
+          }
+          .buttonStyle(StudioControlStyle(cornerRadius: 14)).help(model.id)
+          .accessibilityIdentifier("decision.download." + model.title)
+        }
+      }
+      Button(L("Ou ajouter un dossier EXL3 déjà sur ce Mac…", "Or add an EXL3 folder already on this Mac…")) {
+        DecisionModelBar.chooseFolder(decision: decision, registered: studio.models)
+      }
+      .buttonStyle(.link).font(.system(size: 12))
+    }
+    .padding(22).frame(maxWidth: .infinity, alignment: .leading)
+    .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 16))
   }
 }
 
@@ -871,48 +1031,80 @@ private struct DecisionModelBar: View {
   @EnvironmentObject private var studio: StudioModel
   @ObservedObject var decision: DecisionStudio
 
+  static func chooseFolder(decision: DecisionStudio, registered: [LocalModel]) {
+    let panel = NSOpenPanel()
+    panel.canChooseDirectories = true
+    panel.canChooseFiles = false
+    panel.prompt = L("Ajouter", "Add")
+    if panel.runModal() == .OK, let url = panel.url { decision.addFolder(url, registered: registered) }
+  }
+
+  private func inputs(_ model: DecisionModelEntry) -> String {
+    model.audio ? L("texte, images, audio", "text, pictures, audio") : L("texte, images", "text, pictures")
+  }
+
   var body: some View {
-    GroupBox {
-      HStack(spacing: 12) {
-        if decision.models.isEmpty {
-          Text(
-            L(
-              "Aucun modèle de décision. Ajoutez le dossier d’un export EXL3 de d1-2B ou d1-Omni-2B.",
-              "No decision model. Add the folder of a d1-2B or d1-Omni-2B EXL3 export.")
-          ).foregroundStyle(StudioTheme.secondary)
-        } else {
-          Picker(L("Modèle", "Model"), selection: $decision.selectedPath) {
-            ForEach(decision.models) { model in
-              Text(model.name + (model.audio ? " · " + L("texte, images, audio", "text, pictures, audio") : " · " + L("texte, images", "text, pictures")))
-                .tag(Optional(model.path))
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 10) {
+        Menu {
+          ForEach(decision.models) { model in
+            Button { decision.selectedPath = model.path } label: {
+              if model.path == decision.selectedPath {
+                Label(model.name + " · " + inputs(model), systemImage: "checkmark")
+              } else {
+                Text(model.name + " · " + inputs(model))
+              }
             }
           }
-          .frame(maxWidth: 460).accessibilityIdentifier("decision.model")
+          Divider()
+          Button(L("Télécharger d’autres modèles d1…", "Download more d1 models…")) {
+            if let first = ModelLibrary.decisionModels.first { studio.openRecommendedModel(first) }
+          }
+          Button(L("Ajouter un dossier…", "Add folder…")) { Self.chooseFolder(decision: decision, registered: studio.models) }
+          if let model = decision.selectedModel, model.custom {
+            Button(L("Retirer ce dossier de la liste", "Remove this folder from the list")) {
+              decision.removeFolder(model, registered: studio.models)
+            }
+          }
+        } label: {
+          HStack(spacing: 8) {
+            Image(systemName: decision.selectedModel?.audio == true ? "waveform" : "photo")
+              .foregroundStyle(StudioTheme.accent)
+            Text(decision.selectedModel?.name ?? L("Choisir un modèle", "Choose a model"))
+              .font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.middle)
+            if let model = decision.selectedModel {
+              Text(inputs(model)).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+            }
+            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
+          }
+          .padding(.horizontal, 12).frame(height: 32)
+        }
+        .menuStyle(.button).buttonStyle(StudioToolbarStyle()).menuIndicator(.hidden).fixedSize()
+        .disabled(decision.running || decision.server.active)
+        .accessibilityIdentifier("decision.model")
+        switch decision.state {
+        case .loading:
+          ProgressView().controlSize(.small)
+          Text(L("Chargement…", "Loading…")).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+        case .ready:
+          Label(L("Chargé", "Loaded"), systemImage: "checkmark.circle.fill").font(.system(size: 12))
+            .foregroundStyle(StudioTheme.secondary)
+          Button { decision.unload() } label: { Image(systemName: "eject").frame(width: 28, height: 28) }
+            .buttonStyle(RoundGlassButtonStyle()).disabled(decision.running)
+            .help(L("Décharger le modèle et libérer la mémoire", "Unload the model and free memory"))
+            .accessibilityIdentifier("decision.unload")
+        case .idle, .failed:
+          if !decision.server.active {
+            DecisionButton(title: L("Charger", "Load"), icon: "arrow.down.circle") { decision.loadSelected() }
+              .disabled(decision.selectedPath == nil)
+              .accessibilityIdentifier("decision.load")
+          }
         }
         Spacer()
-        switch decision.state {
-        case .loading: ProgressView().controlSize(.small)
-        case .ready: Label(L("Chargé", "Loaded"), systemImage: "checkmark.circle").foregroundStyle(StudioTheme.secondary)
-        default: EmptyView()
-        }
-        if decision.active {
-          Button(L("Décharger", "Unload")) { decision.unload() }
-        }
-        Button(L("Ajouter un dossier…", "Add folder…")) {
-          let panel = NSOpenPanel()
-          panel.canChooseDirectories = true
-          panel.canChooseFiles = false
-          panel.prompt = L("Ajouter", "Add")
-          if panel.runModal() == .OK, let url = panel.url { decision.addFolder(url, registered: studio.models) }
-        }
-        if let model = decision.selectedModel, model.custom {
-          Button { decision.removeFolder(model, registered: studio.models) } label: { Image(systemName: "minus.circle") }
-            .buttonStyle(.borderless).help(L("Retirer ce dossier de la liste", "Remove this folder from the list"))
-        }
-      }.padding(8)
-    }
-    if case let .failed(message) = decision.state {
-      Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+      }
+      if case let .failed(message) = decision.state {
+        Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled).lineLimit(6)
+      }
     }
   }
 }
@@ -923,63 +1115,75 @@ private struct DecisionPlaygroundView: View {
   @State private var importing = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 18) {
-      GroupBox(L("État", "State")) {
-        VStack(alignment: .leading, spacing: 10) {
-          HStack {
-            Picker("", selection: $decision.draft.stateIsJSON) {
-              Text(L("Texte", "Text")).tag(false)
-              Text("JSON").tag(true)
-            }.pickerStyle(.segmented).frame(width: 160).labelsHidden()
-            Spacer()
-            Button(L("Exemple", "Example")) { decision.draft = .example }
+    VStack(alignment: .leading, spacing: 16) {
+      section(L("Entrée", "Input")) {
+        Menu(L("Exemples", "Examples")) {
+          ForEach(DecisionDraft.examples, id: \.0) { title, draft in
+            Button(title) { decision.draft = draft; decision.clearOutcome() }
           }
+        }
+        .menuStyle(.borderlessButton).fixedSize().font(.system(size: 12))
+      } content: {
+        ZStack(alignment: .topLeading) {
           TextEditor(text: $decision.draft.state)
             .font(.system(size: 13, design: decision.draft.stateIsJSON ? .monospaced : .default))
-            .frame(minHeight: 110)
+            .frame(minHeight: 96)
             .scrollContentBackground(.hidden)
-            .padding(6)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
             .accessibilityIdentifier("decision.state")
-          mediaRow
-        }.padding(6)
-      }
-      GroupBox(L("Questions", "Questions")) {
-        VStack(alignment: .leading, spacing: 12) {
-          ForEach($decision.draft.questions) { $question in
-            DecisionQuestionEditor(
-              question: $question, decision: decision,
-              importSpoken: { importingFor = question.id; importing = true },
-              remove: { decision.draft.questions.removeAll { $0.id == question.id } })
-            Divider()
+          if decision.draft.state.isEmpty {
+            Text(
+              L(
+                "Texte ou JSON sur lequel décider (facultatif avec une image ou un son)",
+                "Text or JSON to decide about (optional with a picture or a sound)")
+            )
+            .foregroundStyle(StudioTheme.quiet).padding(.horizontal, 5).allowsHitTesting(false)
           }
-          Menu(L("Ajouter une question", "Add a question")) {
-            ForEach(DecisionQuestionKind.allCases) { kind in
-              Button(kind.title) {
-                let index = decision.draft.questions.count + 1
-                var question = DecisionQuestion(name: "q\(index)", kind: kind, instructions: "")
-                if kind.usesOptions { question.options = [DecisionOption(name: "a"), DecisionOption(name: "b")] }
-                decision.draft.questions.append(question)
-              }
-            }
-          }.fixedSize()
-        }.padding(6)
+        }
+        .padding(8)
+        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+        .onChange(of: decision.draft.state) { decision.draft.stateIsJSON = DecisionDraft.looksLikeJSON(decision.draft.state) }
+        mediaRow
       }
-      HStack {
+      section(L("Questions", "Questions")) {
+        Menu {
+          ForEach(DecisionQuestionKind.allCases) { kind in
+            Button(kind.title) { decision.addQuestion(kind) }
+          }
+        } label: {
+          Label(L("Ajouter", "Add"), systemImage: "plus")
+        }
+        .menuStyle(.borderlessButton).fixedSize().font(.system(size: 12))
+        .accessibilityIdentifier("decision.addQuestion")
+      } content: {
+        ForEach($decision.draft.questions) { $question in
+          DecisionQuestionEditor(
+            question: $question, decision: decision,
+            importSpoken: { importingFor = question.id; importing = true },
+            remove: { decision.draft.questions.removeAll { $0.id == question.id } })
+        }
+        if decision.draft.questions.isEmpty {
+          Text(L("Ajoutez une question pour commencer.", "Add a question to start."))
+            .font(.callout).foregroundStyle(StudioTheme.quiet)
+        }
+      }
+      HStack(spacing: 12) {
         Button {
           decision.run()
         } label: {
-          Label(L("Décider", "Decide"), systemImage: "play.fill").frame(minWidth: 120)
+          Label(L("Décider", "Decide"), systemImage: "play.fill")
+            .font(.system(size: 13, weight: .semibold))
+            .padding(.horizontal, 18).frame(height: 34)
         }
-        .buttonStyle(.borderedProminent).controlSize(.large)
+        .buttonStyle(PrimaryGlassButtonStyle())
         .disabled(decision.running || decision.selectedPath == nil || decision.server.active)
         .keyboardShortcut(.return, modifiers: .command)
         .accessibilityIdentifier("decision.run")
         if decision.running { ProgressView().controlSize(.small) }
-        if decision.server.active {
-          Text(L("Le serveur de décision utilise le modèle.", "The decision server is using the model."))
-            .font(.caption).foregroundStyle(StudioTheme.quiet)
-        }
+        Text(
+          decision.server.active
+            ? L("Le serveur de décision utilise le modèle.", "The decision server is using the model.")
+            : L("⌘↩ · le modèle se charge au besoin", "⌘↩ · loads the model if needed")
+        ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
       }
       if let outcome = decision.outcome {
         DecisionResultsView(outcome: outcome, draft: decision.draft)
@@ -994,39 +1198,53 @@ private struct DecisionPlaygroundView: View {
     }
   }
 
-  private var mediaRow: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      if !decision.draft.media.isEmpty {
-        ScrollView(.horizontal, showsIndicators: false) {
-          HStack(spacing: 10) {
-            ForEach(decision.draft.media) { item in
-              HStack(spacing: 6) {
-                if item.kind == .image, let image = NSImage(contentsOfFile: item.path) {
-                  Image(nsImage: image).resizable().scaledToFill().frame(width: 34, height: 34)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                } else {
-                  Image(systemName: "waveform").frame(width: 34, height: 34)
-                }
-                Text(item.label).font(.caption).lineLimit(1).frame(maxWidth: 140)
-                Button { decision.draft.media.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark") }
-                  .buttonStyle(.borderless)
-              }
-              .padding(6).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-            }
-          }
-        }
+  private func section<Accessory: View, Content: View>(
+    _ title: String, @ViewBuilder accessory: () -> Accessory, @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        Text(title.uppercased()).font(.system(size: 12, weight: .medium)).tracking(1.2).foregroundStyle(StudioTheme.quiet)
+        Spacer()
+        accessory()
       }
-      HStack(spacing: 10) {
-        Button { importingFor = nil; importing = true } label: {
-          Label(L("Image ou audio…", "Picture or audio…"), systemImage: "paperclip")
+      content()
+    }
+  }
+
+  private var mediaRow: some View {
+    HStack(spacing: 8) {
+      ForEach(decision.draft.media) { item in
+        HStack(spacing: 6) {
+          if item.kind == .image, let image = NSImage(contentsOfFile: item.path) {
+            Image(nsImage: image).resizable().scaledToFill().frame(width: 26, height: 26)
+              .clipShape(RoundedRectangle(cornerRadius: 5))
+          } else {
+            Image(systemName: "waveform").frame(width: 26, height: 26)
+          }
+          Text(item.label).font(.caption).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
+          Button { decision.draft.media.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark") }
+            .buttonStyle(.borderless).help(L("Retirer", "Remove"))
         }
-        Button { decision.toggleRecording() } label: {
-          Label(
-            decision.recordingTarget == DecisionStudio.stateTarget ? L("Arrêter", "Stop") : L("Enregistrer", "Record"),
-            systemImage: decision.recordingTarget == DecisionStudio.stateTarget ? "stop.circle.fill" : "mic")
-        }
-        Text(L("Images PNG, JPEG, WebP… · audio jusqu’à 5 min (pas de vidéo)", "PNG, JPEG, WebP… pictures · audio up to 5 min (no video)"))
-          .font(.caption).foregroundStyle(StudioTheme.quiet)
+        .padding(5).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
+      }
+      Button { importingFor = nil; importing = true } label: {
+        Label(L("Image ou son", "Picture or sound"), systemImage: "paperclip").font(.system(size: 12))
+      }
+      .buttonStyle(.borderless)
+      .help(L("PNG, JPEG, WebP… ou un clip audio de 5 min au plus (pas de vidéo). Glisser-déposer aussi.",
+              "PNG, JPEG, WebP… or an audio clip up to 5 min (no video). Drag and drop works too."))
+      .accessibilityIdentifier("decision.attach")
+      Button { decision.toggleRecording() } label: {
+        Label(
+          decision.recordingTarget == DecisionStudio.stateTarget ? L("Arrêter", "Stop") : L("Enregistrer", "Record"),
+          systemImage: decision.recordingTarget == DecisionStudio.stateTarget ? "stop.circle.fill" : "mic"
+        ).font(.system(size: 12))
+      }
+      .buttonStyle(.borderless)
+      Spacer()
+      if decision.draft.stateIsJSON {
+        Text("JSON").font(.system(size: 11, weight: .medium)).tracking(1).foregroundStyle(StudioTheme.quiet)
+          .help(L("L’état est lu comme du JSON.", "The state is read as JSON."))
       }
     }
     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
@@ -1049,23 +1267,21 @@ private struct DecisionQuestionEditor: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      HStack(spacing: 10) {
-        TextField(L("nom", "name"), text: $question.name).frame(width: 130).font(.system(.body, design: .monospaced))
+      HStack(spacing: 8) {
+        TextField(L("nom", "name"), text: $question.name)
+          .font(.system(size: 12, design: .monospaced)).frame(width: 110)
+          .help(L("Nom de la réponse dans le JSON", "Name of the answer in the JSON"))
         Picker("", selection: $question.kind) {
           ForEach(DecisionQuestionKind.allCases) { Text($0.title).tag($0) }
-        }.labelsHidden().frame(width: 170)
-        Spacer()
-        Button(action: remove) { Image(systemName: "trash") }.buttonStyle(.borderless)
-          .help(L("Supprimer la question", "Delete the question"))
-      }
-      HStack(spacing: 8) {
+        }.labelsHidden().fixedSize()
         if let spoken = question.spokenPath {
-          Label(L("Question parlée", "Spoken question") + " · " + URL(fileURLWithPath: spoken).lastPathComponent, systemImage: "waveform")
-            .font(.callout)
-          Button(L("Écrire à la place", "Type instead")) { question.spokenPath = nil }
+          Label(URL(fileURLWithPath: spoken).lastPathComponent, systemImage: "waveform").font(.callout).lineLimit(1)
+          Button(L("Écrire", "Type")) { question.spokenPath = nil }.buttonStyle(.borderless)
           Spacer()
         } else {
-          TextField(L("Consigne, ex. « Le client demande-t-il un remboursement ? »", "Instructions, e.g. “Is the customer asking for a refund?”"), text: $question.instructions)
+          TextField(
+            L("Question, ex. « Le client demande-t-il un remboursement ? »", "Question, e.g. “Is the customer asking for a refund?”"),
+            text: $question.instructions)
         }
         Menu {
           Button(L("Fichier audio…", "Audio file…"), action: importSpoken)
@@ -1075,19 +1291,30 @@ private struct DecisionQuestionEditor: View {
         } label: {
           Image(systemName: decision.recordingTarget == question.id ? "stop.circle.fill" : "mic")
         }
-        .menuStyle(.borderlessButton).fixedSize()
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .help(L("Poser la question à voix haute (d1-Omni)", "Ask the question aloud (d1-Omni)"))
+        Button(action: remove) { Image(systemName: "xmark") }.buttonStyle(.borderless)
+          .help(L("Supprimer la question", "Delete the question"))
       }
-      switch question.kind {
-      case .noul:
-        HStack {
-          TextField(L("Oui signifie… (facultatif)", "Yes means… (optional)"), text: $question.yesMeans)
-          TextField(L("Non signifie… (facultatif)", "No means… (optional)"), text: $question.noMeans)
-        }
-      case .choice, .multiple, .score:
+      details
+    }
+    .textFieldStyle(.roundedBorder)
+    .padding(10)
+    .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+  }
+
+  @ViewBuilder private var details: some View {
+    switch question.kind {
+    case .noul:
+      HStack {
+        TextField(L("Oui signifie… (facultatif)", "Yes means… (optional)"), text: $question.yesMeans)
+        TextField(L("Non signifie… (facultatif)", "No means… (optional)"), text: $question.noMeans)
+      }
+    case .choice, .multiple, .score:
+      VStack(alignment: .leading, spacing: 6) {
         ForEach($question.options) { $option in
           HStack {
-            TextField(question.kind == .score ? L("niveau", "level") : L("option", "option"), text: $option.name).frame(width: 160)
+            TextField(question.kind == .score ? L("niveau", "level") : L("option", "option"), text: $option.name).frame(width: 150)
             if question.kind != .score {
               TextField(L("description (facultatif)", "description (optional)"), text: $option.detail)
             }
@@ -1095,25 +1322,27 @@ private struct DecisionQuestionEditor: View {
               .buttonStyle(.borderless)
           }
         }
-        Button(question.kind == .score ? L("Ajouter un niveau (du plus bas au plus haut)", "Add a level (lowest first)") : L("Ajouter une option", "Add an option")) {
+        Button {
           question.options.append(DecisionOption(name: ""))
+        } label: {
+          Label(question.kind == .score ? L("Niveau (du plus bas au plus haut)", "Level (lowest first)") : L("Option", "Option"),
+                systemImage: "plus").font(.system(size: 12))
         }.buttonStyle(.borderless)
-      case .number:
-        TextField(L("Unité (facultatif)", "Unit (optional)"), text: $question.unit).frame(width: 200)
-      case .estimate:
-        HStack {
-          TextField(L("min", "low"), text: $question.low).frame(width: 80)
-          TextField(L("max", "high"), text: $question.high).frame(width: 80)
-          TextField(L("pas (vide : 128 valeurs)", "step (empty: 128 values)"), text: $question.step).frame(width: 190)
-          TextField(L("unité", "unit"), text: $question.unit).frame(width: 90)
-        }
-      case .boxes:
-        TextField(L("Au plus (1–16, facultatif)", "At most (1–16, optional)"), text: $question.maxBoxes).frame(width: 200)
-      case .text, .date, .box:
-        EmptyView()
       }
+    case .number:
+      TextField(L("Unité (facultatif)", "Unit (optional)"), text: $question.unit).frame(width: 200)
+    case .estimate:
+      HStack {
+        TextField(L("min", "low"), text: $question.low).frame(width: 80)
+        TextField(L("max", "high"), text: $question.high).frame(width: 80)
+        TextField(L("pas (vide : 128 valeurs)", "step (empty: 128 values)"), text: $question.step).frame(width: 190)
+        TextField(L("unité", "unit"), text: $question.unit).frame(width: 90)
+      }
+    case .boxes:
+      TextField(L("Au plus (1–16, facultatif)", "At most (1–16, optional)"), text: $question.maxBoxes).frame(width: 200)
+    case .text, .date, .box:
+      EmptyView()
     }
-    .textFieldStyle(.roundedBorder)
   }
 }
 

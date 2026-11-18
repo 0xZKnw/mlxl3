@@ -117,11 +117,17 @@ final class ModelLibrary: ObservableObject {
         ]),
         .init(id: "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw", title: "LFM2.5", parameters: "24B · A2B", quantization: "4 bpw · v2", symbol: "waveform.path", revision: "649b501fcc29910453eea313a763b7f7a12f4b41", preferredVariant: nil),
       ]),
+      .init(id: "Decision", models: decisionModels),
       .init(id: "Qwen", models: [
         .init(id: "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", title: "Qwen3.6", parameters: "35B · A3B", quantization: "2.49 bpw", symbol: "sparkles", revision: "91a4efc46c1fece6426ece167f127d29d075f392", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-27B-exl3", title: "Qwen3.8", parameters: "27B", quantization: "2.00 bpw", symbol: "square.stack.3d.up", revision: "e5e1f4b37c77641e465e24adf5f44d01bdd48de2", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-Flash-Next-exl3", title: "Qwen3.8", parameters: "Flash Next", quantization: "2.05 bpw · SSD", symbol: "bolt", revision: "65c895314393431c09050b2e04e250836b3a6eb4", preferredVariant: nil),
       ]),
+    ]
+    /// Liquid d1 decision models: they load in the Decision mode, not in Chat.
+    static let decisionModels: [RecommendedHubModel] = [
+        .init(id: "0xzknw/d1-2B-EXL3-8bpw", title: "d1", parameters: "2B · Decision · Vision", quantization: "8 bpw", symbol: "checklist.checked", revision: "0e99f8d8d54789a7dd022814e8844bdf14960d06", preferredVariant: ""),
+        .init(id: "0xzknw/d1-Omni-2B-EXL3-8bpw", title: "d1-Omni", parameters: "2B · Decision · Vision · Audio", quantization: "8 bpw", symbol: "waveform", revision: "54ded3cfde24661248600f19e713e15f935144c9", preferredVariant: ""),
     ]
     static var recommendedModels: [RecommendedHubModel] { recommendedFamilies.flatMap(\.models) }
 
@@ -254,7 +260,10 @@ final class ModelLibrary: ObservableObject {
                 downloadProgress.update(completed: downloadProgress.total, total: downloadProgress.total,
                                         at: ProcessInfo.processInfo.systemUptime)
                 downloadStatus = .complete
-                downloadMessage = L("\(model.name) ajouté à la bibliothèque.", "\(model.name) added to your library.")
+                let decision = DecisionModelEntry.inspect(path: model.path, custom: false) != nil
+                downloadMessage = decision
+                    ? L("\(model.name) ajouté. Chargez-le dans le mode Décision.", "\(model.name) added. Load it in the Decision mode.")
+                    : L("\(model.name) ajouté à la bibliothèque.", "\(model.name) added to your library.")
                 studio.refreshModels(autoLoad: false)
             } catch is CancellationError {
                 downloadStatus = .paused
