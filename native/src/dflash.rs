@@ -594,7 +594,11 @@ impl DFlashCache {
             };
             let hidden = weights
                 .context_projection
-                .forward(&block, Q4Kernel::N128Pipelined, 16)?
+                .forward(
+                    &block,
+                    Q4Kernel::N128Pipelined,
+                    weights.q4_groups(16, &weights.context_projection),
+                )?
                 .rms_norm(&weights.hidden_norm, 1e-6)?;
             for (index, layer) in weights.layers.iter().enumerate() {
                 let kv =
@@ -801,10 +805,11 @@ impl DFlashWeights {
         let mut hidden = input.try_clone()?;
         for (index, weights) in self.layers.iter().enumerate() {
             let normalized = hidden.rms_norm(&weights.input_norm, 1e-6)?;
-            let dynamic =
-                weights
-                    .attention_dynamic
-                    .forward(&normalized, Q4Kernel::N128Pipelined, 4)?;
+            let dynamic = weights.attention_dynamic.forward(
+                &normalized,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(4, &weights.attention_dynamic),
+            )?;
             let convolved = convolution(
                 &normalized,
                 &dynamic,
@@ -813,9 +818,11 @@ impl DFlashWeights {
                 false,
                 24,
             )?;
-            let qkv = weights
-                .qkv
-                .forward(&convolved, Q4Kernel::N128Pipelined, 48)?;
+            let qkv = weights.qkv.forward(
+                &convolved,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(48, &weights.qkv),
+            )?;
             let attended = attention(
                 &qkv,
                 &weights.query_norm,
@@ -823,10 +830,11 @@ impl DFlashWeights {
                 cache.layers.get(index).and_then(Option::as_ref),
                 position,
             )?;
-            let projected =
-                weights
-                    .attention_output
-                    .forward(&attended, Q4Kernel::N128Pipelined, 16)?;
+            let projected = weights.attention_output.forward(
+                &attended,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(16, &weights.attention_output),
+            )?;
             let residual = convolution(
                 &projected,
                 &dynamic,
@@ -836,9 +844,11 @@ impl DFlashWeights {
                 24,
             )?;
             let normalized = residual.rms_norm(&weights.post_attention_norm, 1e-6)?;
-            let dynamic = weights
-                .mlp_dynamic
-                .forward(&normalized, Q4Kernel::N128Pipelined, 4)?;
+            let dynamic = weights.mlp_dynamic.forward(
+                &normalized,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(4, &weights.mlp_dynamic),
+            )?;
             let convolved = convolution(
                 &normalized,
                 &dynamic,
@@ -847,16 +857,22 @@ impl DFlashWeights {
                 false,
                 24,
             )?;
-            let gate = weights
-                .gate
-                .forward(&convolved, Q4Kernel::N128Pipelined, 48)?;
-            let up = weights
-                .up
-                .forward(&convolved, Q4Kernel::N128Pipelined, 48)?;
+            let gate = weights.gate.forward(
+                &convolved,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(48, &weights.gate),
+            )?;
+            let up = weights.up.forward(
+                &convolved,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(48, &weights.up),
+            )?;
             let intermediate = gate.swiglu(&up)?;
-            let projected = weights
-                .down
-                .forward(&intermediate, Q4Kernel::N128Pipelined, 16)?;
+            let projected = weights.down.forward(
+                &intermediate,
+                Q4Kernel::N128Pipelined,
+                self.q4_groups(16, &weights.down),
+            )?;
             hidden = convolution(
                 &projected,
                 &dynamic,
@@ -871,6 +887,20 @@ impl DFlashWeights {
             .selector_projection
             .forward(&hidden, Q4Kernel::N128Pipelined, 2)?;
         Ok(DFlashOutput { hidden, selector })
+    }
+
+    /// Q27D-20: the dense 27B draft is 2.5x wider than the 35B one these counts were tuned
+    /// for; give every 128-column tile its own threadgroup (same per-tile arithmetic, so the
+    /// draft outputs are unchanged). `MLXL3_DFLASH_Q4_GROUPS=tuned` keeps the 35B counts.
+    fn q4_groups(&self, tuned: i32, projection: &Q4Projection) -> i32 {
+        static WIDE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let wide =
+            *WIDE.get_or_init(|| std::env::var("MLXL3_DFLASH_Q4_GROUPS").as_deref() != Ok("tuned"));
+        if wide && self.family == Family::Qwen38Dense {
+            (projection.output / 128).max(tuned)
+        } else {
+            tuned
+        }
     }
 
     pub fn select_greedy(
@@ -890,18 +920,22 @@ impl DFlashWeights {
             "invalid DFlash selector input"
         );
         let positions = logits.shape()[0];
+        let edge = edge_scale()?;
         let logits = logits.astype(Dtype::BFloat16)?;
         let selector = selector
             .slice(0, 1, positions + 1)?
             .astype(Dtype::BFloat16)?;
         let header = format!(
-            "#define DFLASH_VOCABULARY {}u\n#define DFLASH_POSITIONS {positions}u\n#define DFLASH_EDGE_SCALE 0.25f\n{}",
+            "#define DFLASH_VOCABULARY {}u\n#define DFLASH_POSITIONS {positions}u\n#define DFLASH_EDGE_SCALE {edge:?}f\n{}",
             VOCABULARY,
             include_str!("../shaders/dflash_select.h")
         );
         let stage = |value| format!("#define DFLASH_STAGE {value}\n{header}");
         let mut partial = array::metal_kernel(
-            &format!("mlxl3_dflash_select_top16_p{positions}_v2"),
+            &format!(
+                "mlxl3_dflash_select_top16_p{positions}_v2_e{}",
+                edge.to_bits()
+            ),
             &["logits"],
             &["partial_ids", "partial_values"],
             &stage(1),
@@ -916,7 +950,10 @@ impl DFlashWeights {
         let partial_ids = partial.pop().expect("two selector outputs");
         let anchor = Array::from_u32(&[anchor], &[1])?;
         let mut scored = array::metal_kernel(
-            &format!("mlxl3_dflash_select_edges_p{positions}_v2"),
+            &format!(
+                "mlxl3_dflash_select_edges_p{positions}_v2_e{}",
+                edge.to_bits()
+            ),
             &[
                 "partial_ids",
                 "partial_values",
@@ -949,7 +986,10 @@ impl DFlashWeights {
         let unary = scored.pop().expect("three selector outputs");
         let candidates = scored.pop().expect("three selector outputs");
         let tokens = array::metal_kernel(
-            &format!("mlxl3_dflash_select_greedy_p{positions}_v2"),
+            &format!(
+                "mlxl3_dflash_select_greedy_p{positions}_v2_e{}",
+                edge.to_bits()
+            ),
             &["candidates", "unary", "edges"],
             &["tokens"],
             &stage(3),
@@ -1005,6 +1045,19 @@ impl DFlashWeights {
         .remove(0)
         .to_u32()
     }
+}
+
+/// Q27D-14: selector transition weight (`MLXL3_DFLASH_EDGE_SCALE`, default 0.25, PERF-79).
+#[cfg(feature = "mlx")]
+fn edge_scale() -> Result<f32> {
+    static SCALE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
+    SCALE
+        .get_or_init(|| {
+            crate::contracts::dflash_edge_scale(
+                std::env::var("MLXL3_DFLASH_EDGE_SCALE").ok().as_deref(),
+            )
+        })
+        .context("MLXL3_DFLASH_EDGE_SCALE must be a finite number in [0, 4]")
 }
 
 #[cfg(feature = "mlx")]
@@ -1795,6 +1848,111 @@ mod tests {
             samples[samples.len() / 10],
             samples[samples.len() * 9 / 10]
         );
+        Ok(())
+    }
+
+    /// Q27D-29: time of each Q4 projection of the 27B draft at 8 rows against its bytes, plus
+    /// the whole draft network with an empty and a 1 024-position context (diagnostic only).
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "physical M5 GPU and MLXL3_DFLASH_TEST_DRAFT; writes MLXL3_DFLASH_LAB_REPORT; run alone"]
+    fn q27_draft_component_lab() -> Result<()> {
+        use crate::array::{self, Array, Dtype};
+        use std::time::Instant;
+
+        let output = std::path::PathBuf::from(std::env::var("MLXL3_DFLASH_LAB_REPORT")?);
+        ensure!(!output.exists(), "preserve previous lab reports");
+        let package = inspect(std::env::var("MLXL3_DFLASH_TEST_DRAFT")?)?;
+        let weights = DFlashWeights::load(&package)?;
+        ensure!(
+            weights.family == Family::Qwen38Dense,
+            "expects the 27B draft"
+        );
+        let rows = |width: i32, seed: u32| -> Result<Array> {
+            let values = (0..8 * width as u32)
+                .map(|i| {
+                    ((i.wrapping_mul(2654435761).wrapping_add(seed) >> 16) % 2001) as f32 / 1000.0
+                        - 1.0
+                })
+                .collect::<Vec<_>>();
+            Array::from_f32(&values, &[8, width])?.astype(Dtype::BFloat16)
+        };
+        let time = |call: &mut dyn FnMut() -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for round in 0..7 {
+                array::synchronize()?;
+                let start = Instant::now();
+                let outputs = (0..8).map(|_| call()).collect::<Result<Vec<_>>>()?;
+                Array::async_eval_all(&outputs.iter().collect::<Vec<_>>())?;
+                array::synchronize()?;
+                if round >= 2 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / 8.0);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let layer = &weights.layers[2];
+        let projections: [(&str, &Q4Projection, i32, i32); 9] = [
+            ("attention_dynamic", &layer.attention_dynamic, 4, 1),
+            ("qkv", &layer.qkv, 48, 1),
+            ("attention_output", &layer.attention_output, 16, 1),
+            ("mlp_dynamic", &layer.mlp_dynamic, 4, 1),
+            ("gate", &layer.gate, 48, 1),
+            ("up", &layer.up, 48, 1),
+            ("down", &layer.down, 16, 1),
+            ("selector", &weights.selector_projection, 2, 0),
+            ("context", &weights.context_projection, 16, 0),
+        ];
+        let mut report = serde_json::json!({"status": "running", "projections": [], "layers": weights.layers.len()});
+        let mut per_layer = 0.0;
+        for (name, projection, tuned, in_layer) in projections {
+            let x = rows(projection.input, 7)?;
+            let groups = weights.q4_groups(tuned, projection);
+            let bytes =
+                f64::from(projection.input) * f64::from(projection.output) * (0.5 + 4.0 / 64.0);
+            let out = projection.forward(&x, Q4Kernel::N128Pipelined, groups)?;
+            out.eval()?;
+            let finite = out
+                .to_bytes()?
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .all(|b| u16::from_ne_bytes(*b) & 0x7f80 != 0x7f80);
+            let ms = time(&mut || projection.forward(&x, Q4Kernel::N128Pipelined, groups))?;
+            if in_layer == 1 {
+                per_layer += ms;
+            }
+            let row = serde_json::json!({"name": name, "input": projection.input, "output": projection.output,
+                "groups": groups, "ms": ms, "gb_per_s": bytes / (ms * 1e-3) / 1e9, "mb": bytes / 1e6, "finite": finite});
+            println!("{row}");
+            report["projections"]
+                .as_array_mut()
+                .context("rows")?
+                .push(row);
+        }
+        let hidden = rows(weights.family.hidden() as i32, 3)?;
+        let empty = DFlashCache::default();
+        let mut cache = DFlashCache::default();
+        let captured = Array::from_f32(
+            &(0..1024 * weights.family.target_hidden() as u32)
+                .map(|i| ((i.wrapping_mul(40503) >> 8) % 2001) as f32 / 4000.0 - 0.25)
+                .collect::<Vec<_>>(),
+            &[1024, weights.family.target_hidden() as i32],
+        )?
+        .astype(Dtype::BFloat16)?;
+        cache.append_captured(&weights, &captured, 0)?;
+        cache.eval()?;
+        let full_empty = time(&mut || Ok(weights.forward_hidden(&hidden, &empty, 0)?.selector))?;
+        let full_context =
+            time(&mut || Ok(weights.forward_hidden(&hidden, &cache, 1024)?.selector))?;
+        report["q4_per_layer_ms"] = per_layer.into();
+        report["q4_network_ms"] = (per_layer * weights.layers.len() as f64).into();
+        report["forward_empty_ms"] = full_empty.into();
+        report["forward_context1024_ms"] = full_context.into();
+        report["status"] = "complete".into();
+        println!("{report}");
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
         Ok(())
     }
 

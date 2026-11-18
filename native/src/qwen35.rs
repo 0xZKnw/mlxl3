@@ -688,6 +688,17 @@ impl Attention {
         );
         self.verification_base =
             retain_history.then(|| self.keys.as_ref().map_or(0, |keys| keys.shape()[2]));
+        // Q27D-18 (not bit-exact, TensorOps mode only): one causal attention call for the block
+        // reads the cached K/V once instead of once per verified row.
+        if self.kv_inplace
+            && kv_inplace_enabled()
+            && crate::linear::dense_tensor_rows_threshold()?.is_some_and(|first| time >= first)
+        {
+            let base = self.verification_base;
+            let output = self.forward(x)?;
+            self.verification_base = base;
+            return Ok(output);
+        }
         let qkv = self.qkv.forward(x)?;
         if self.kv_inplace && kv_inplace_enabled() {
             return self.forward_verification_inplace(&qkv, time);
@@ -1194,6 +1205,34 @@ impl Layer {
         }
     }
 
+    /// Q27D-21 (TensorOps mode only, not bit-exact): one `[1, M, H]` activation for the
+    /// whole verification block instead of one array per row.
+    fn forward_verification_block(&mut self, x: &Array, retain_history: bool) -> Result<Array> {
+        let time = *x.shape().get(1).context("Qwen block must have time")?;
+        let (input_norm, post_norm, eps, hidden) = match self {
+            Self::Linear(layer) => (&layer.input_norm, &layer.post_norm, layer.eps, layer.hidden),
+            Self::Attention(layer) => {
+                (&layer.input_norm, &layer.post_norm, layer.eps, layer.hidden)
+            }
+        };
+        ensure!(x.shape() == [1, time, hidden], "invalid Qwen block input");
+        let normalized = x.rms_norm(input_norm, eps)?;
+        let post_norm = post_norm.try_clone()?;
+        let attention = match self {
+            Self::Linear(layer) if retain_history => {
+                layer.attention.forward_verification_dflash(&normalized)?
+            }
+            Self::Linear(layer) => layer.attention.forward_verification(&normalized)?,
+            Self::Attention(layer) if retain_history => {
+                layer.attention.forward_verification_dflash(&normalized)?
+            }
+            Self::Attention(layer) => layer.attention.forward_verification(&normalized)?,
+        };
+        let (residual, post) = post_attention_norm(x, &attention, &post_norm, eps)?;
+        let mlp = self.mlp().forward(&post.reshape(&[time, hidden])?)?;
+        residual.add(&mlp.reshape(&[1, time, hidden])?)
+    }
+
     fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
         match self {
             Self::Linear(layer) => layer.commit_verification_prefix(retained, total),
@@ -1256,6 +1295,8 @@ impl Layer {
 
 pub struct Qwen35Moe {
     final_moe_row: bool,
+    /// Q27D-21: dense 27B verification blocks may run as one activation in TensorOps mode.
+    dense_block: bool,
     embeddings: crate::embedding::Embedding,
     norm: Array,
     head: Projection,
@@ -1450,6 +1491,7 @@ impl Qwen35Moe {
             && crate::array::supports_exl3_tensor_ops()?;
         Ok(Self {
             final_moe_row,
+            dense_block: kv_inplace,
             embeddings,
             norm,
             head,
@@ -1975,6 +2017,48 @@ impl Qwen35Moe {
         Ok((normalized, capture))
     }
 
+    /// Q27D-21: TensorOps mode (not bit-exact) runs verification blocks as one activation.
+    fn block_verification(&self, rows: usize) -> Result<bool> {
+        Ok(self.dense_block
+            && crate::linear::dense_tensor_block_enabled()
+            && rows >= 2
+            && crate::linear::dense_tensor_rows_threshold()?
+                .is_some_and(|first| rows as i32 >= first))
+    }
+
+    /// Returns the last-layer hidden `[1, M, H]` and the captured layer outputs.
+    fn run_hidden_block(
+        &mut self,
+        hidden: Array,
+        retain_history: bool,
+        capture: &[usize],
+    ) -> Result<(Array, Vec<Array>)> {
+        let mut hidden = hidden;
+        let mut captured = Vec::with_capacity(capture.len());
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
+            hidden = layer.forward_verification_block(&hidden, retain_history)?;
+            if crate::contracts::pipeline_layer(
+                index,
+                layer_count,
+                self.pipeline,
+                self.pipeline_stride,
+            ) {
+                Array::async_eval_all(&[&hidden])?;
+            }
+            if capture.contains(&index) {
+                captured.push(hidden.try_clone()?);
+            }
+        }
+        Ok((hidden, captured))
+    }
+
+    fn block_embeddings(&self, tokens: &[u32]) -> Result<Array> {
+        let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
+        self.embeddings
+            .take(&Array::from_i32(&ids, &[1, i32::try_from(ids.len())?])?, 0)
+    }
+
     fn run_hidden_tokens_layer_major(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
             !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
@@ -1985,6 +2069,11 @@ impl Qwen35Moe {
             self.offset + time <= self.context_limit,
             "Qwen context is full"
         );
+        if self.block_verification(tokens.len())? {
+            let embedded = self.block_embeddings(tokens)?;
+            let (hidden, _) = self.run_hidden_block(embedded, false, &[])?;
+            return hidden.rms_norm(&self.norm, self.eps);
+        }
         let mut hidden = tokens
             .iter()
             .map(|&token| {
@@ -2021,6 +2110,19 @@ impl Qwen35Moe {
             self.offset + time <= self.context_limit,
             "Qwen context is full"
         );
+        if self.block_verification(tokens.len())? {
+            let family = self.dflash_family().context("unsupported DFlash target")?;
+            let embedded = self.block_embeddings(tokens)?;
+            let (hidden, captured) = self.run_hidden_block(embedded, true, family.captures())?;
+            ensure!(
+                captured.len() == family.captures().len(),
+                "Qwen model is missing DFlash capture layers"
+            );
+            let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
+                .reshape(&[time, family.target_hidden() as i32])?
+                .astype(Dtype::BFloat16)?;
+            return Ok((hidden.rms_norm(&self.norm, self.eps)?, capture));
+        }
         let mut hidden = tokens
             .iter()
             .map(|&token| {
@@ -2232,6 +2334,14 @@ impl Qwen35Moe {
                 time <= self.context_limit - self.offset,
                 "MTP verification exceeds context"
             );
+            if self.block_verification(tokens.len())? {
+                let embedded = self.mtp_embeddings(tokens)?;
+                let (raw, _) = self.run_hidden_block(embedded, true, &[])?;
+                let logits = self.head.forward(&raw.rms_norm(&self.norm, self.eps)?)?;
+                logits.eval()?;
+                self.offset += time;
+                return Ok((logits, raw));
+            }
             let mut values = tokens
                 .iter()
                 .map(|&t| self.mtp_embeddings(&[t]))
@@ -2770,7 +2880,12 @@ impl GatedDelta {
         let inputs = self.inputs.forward(x)?;
         let qkv = inputs[0].try_clone()?;
         let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
-        let (b, a) = if retain_history && time > 1 {
+        // Q27D-21: TensorOps mode (dense 27B, not bit-exact) projects a/b for the whole block.
+        let block = self.hidden == 5120
+            && self.value_heads == 48
+            && crate::linear::dense_tensor_block_enabled()
+            && crate::linear::dense_tensor_rows_threshold()?.is_some_and(|first| time >= first);
+        let (b, a) = if retain_history && time > 1 && !block {
             let project = |projection: &Projection| -> Result<Array> {
                 let rows = (0..time)
                     .map(|row| projection.forward(&x.slice(1, row, row + 1)?))

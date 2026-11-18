@@ -1369,6 +1369,10 @@ fn codec_loop() -> Result<()> {
 }
 
 fn main() -> std::process::ExitCode {
+    // Q27D-23: TensorOps verification for the dense Qwen3.8-27B on M5 (not bit-exact, quality
+    // measured in Q27D-16/18); `MLXL3_DENSE_TENSOR_ROWS=0` restores the exact kernels.
+    #[cfg(feature = "mlx")]
+    mlxl3_native::linear::set_dense_tensor_product_default(3);
     if let Err(error) = run(Cli::parse()) {
         eprintln!("Error: {error:#}");
         std::process::ExitCode::from(2)
@@ -2449,6 +2453,8 @@ struct DFlashChat {
     copy: Option<mlxl3_native::speculative::DFlashCopy>,
     lookup_blocks: usize,
     width_cap: Option<usize>,
+    /// Q27D-16: TensorOps verification makes wide blocks nearly as cheap as narrow ones.
+    wide: bool,
 }
 
 #[cfg(all(
@@ -2880,16 +2886,23 @@ impl DFlashChat {
             copy: None,
             lookup_blocks: 0,
             width_cap: None,
+            wide: false,
         }
     }
 
     fn configure(&mut self, mode: usize, family: mlxl3_native::dflash::Family, prompt: &[u32]) {
         self.mode = mode;
+        // Q27D-16: with TensorOps verification wide blocks are cheap again; keep the policy.
+        let tensor = mlxl3_native::linear::dense_tensor_rows_threshold()
+            .ok()
+            .flatten()
+            .is_some_and(|first| first <= 8);
         self.width_cap = mlxl3_native::speculative::dflash_width_cap(
             family == mlxl3_native::dflash::Family::Qwen38Dense,
-            mlxl3_native::linear::dense_shared_enabled(),
+            mlxl3_native::linear::dense_shared_enabled() && !tensor,
             mode,
         );
+        self.wide = tensor && family == mlxl3_native::dflash::Family::Qwen38Dense && mode == 1;
         self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
             .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
@@ -2902,7 +2915,7 @@ impl DFlashChat {
                 (accepted + a, proposed + p)
             });
         mlxl3_native::speculative::dflash_proposals(
-            self.mode,
+            if self.wide { 3 } else { self.mode },
             context_remaining,
             output_remaining,
             self.recent.len(),
@@ -2975,10 +2988,9 @@ impl DFlashChat {
                 .context("model returned no logits");
         }
         let block_started = Instant::now();
-        let copied = self
-            .copy
-            .as_ref()
-            .and_then(|copy| copy.propose(anchor, proposals_count));
+        let copied = self.copy.as_ref().and_then(|copy| {
+            copy.propose_up_to(anchor, proposals_count, if self.wide { 7 } else { 3 })
+        });
         let is_copy = copied.is_some();
         let proposals = if let Some(tokens) = copied {
             tokens.to_vec()
@@ -3033,8 +3045,14 @@ impl DFlashChat {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn dflash_context_copy_enabled(family: Option<mlxl3_native::dflash::Family>) -> bool {
-    family == Some(mlxl3_native::dflash::Family::Qwen36Moe)
-        && std::env::var("MLXL3_DFLASH_CONTEXT_COPY").as_deref() == Ok("1")
+    // Q27D-23: on by default for the dense 27B (+9 % on copies, outputs unchanged);
+    // the 35B stays opt-in. `MLXL3_DFLASH_CONTEXT_COPY=0` turns it off, `1` turns it on.
+    let setting = std::env::var("MLXL3_DFLASH_CONTEXT_COPY");
+    match family {
+        Some(mlxl3_native::dflash::Family::Qwen38Dense) => setting.as_deref() != Ok("0"),
+        Some(mlxl3_native::dflash::Family::Qwen36Moe) => setting.as_deref() == Ok("1"),
+        _ => false,
+    }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -5492,9 +5510,14 @@ mod tests {
             "model:runtime:dflash-v4:copy=0:cap=3"
         );
         assert!(!dflash_context_copy_enabled(None));
-        assert!(!dflash_context_copy_enabled(Some(
-            mlxl3_native::dflash::Family::Qwen38Dense
-        )));
+        if std::env::var_os("MLXL3_DFLASH_CONTEXT_COPY").is_none() {
+            assert!(dflash_context_copy_enabled(Some(
+                mlxl3_native::dflash::Family::Qwen38Dense
+            )));
+            assert!(!dflash_context_copy_enabled(Some(
+                mlxl3_native::dflash::Family::Qwen36Moe
+            )));
+        }
     }
 
     #[test]
@@ -6212,9 +6235,11 @@ mod tests {
             "Describe how a compiler turns source code into machine code.",
             "Donne une recette de crêpes avec les quantités et les étapes.",
         ];
-        let budget = 128usize;
+        let budget =
+            std::env::var("MLXL3_DFLASH_PROFILE_TOKENS").map_or(Ok(128usize), |v| v.parse())?;
         let vocab = 248_320usize;
         let mut blocks = Vec::new();
+        let mut outputs: Vec<Vec<u32>> = Vec::new();
         for (index, prompt) in prompts.iter().enumerate() {
             let tokens = tokenizer.encode(
                 &tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?,
@@ -6235,6 +6260,7 @@ mod tests {
                 bail!("requires a Qwen target")
             };
             let mut anchor = logits.chat_greedy_ids()?[0];
+            let mut generated = vec![anchor];
             let mut produced = 1usize;
             while produced + 1 < budget {
                 let k = 7usize.min(budget - produced - 1);
@@ -6257,6 +6283,19 @@ mod tests {
                     "short draft rows"
                 );
                 let mut confidence = Vec::with_capacity(k);
+                // Q27D-32: draft top-4 ids per position for offline tree simulation.
+                let top_ids = rows
+                    .chunks(vocab)
+                    .map(|row| {
+                        let mut order: Vec<u32> = (0..vocab as u32).collect();
+                        order.select_nth_unstable_by(3, |&a, &b| {
+                            row[b as usize].total_cmp(&row[a as usize])
+                        });
+                        let mut top = order[..4].to_vec();
+                        top.sort_by(|&a, &b| row[b as usize].total_cmp(&row[a as usize]));
+                        top
+                    })
+                    .collect::<Vec<_>>();
                 for (row, &token) in rows.chunks(vocab).zip(&proposals) {
                     let (best, top) =
                         row.iter()
@@ -6300,7 +6339,14 @@ mod tests {
                 blocks.push(json!({"prompt": index, "offset": position, "proposals": k,
                     "accepted": acceptance.accepted_draft_tokens, "draft_ms": draft_ms,
                     "head_select_ms": head_ms, "verify_ms": verify_ms, "commit_ms": commit_ms,
-                    "confidence": confidence}));
+                    "confidence": confidence, "anchor": anchor, "anchor_index": generated.len() - 1,
+                    "chain": proposals, "top_ids": top_ids}));
+                generated.extend(
+                    proposals[..acceptance.accepted_draft_tokens]
+                        .iter()
+                        .copied(),
+                );
+                generated.push(acceptance.target_token);
                 anchor = acceptance.target_token;
                 produced += retained;
             }
@@ -6308,8 +6354,10 @@ mod tests {
                 "prompt {index}: {produced} tokens, {} blocks so far",
                 blocks.len()
             );
+            outputs.push(generated);
         }
-        let report = json!({"status": "complete", "budget": budget, "blocks": blocks});
+        let report = json!({"status": "complete", "budget": budget, "blocks": blocks,
+            "outputs": outputs});
         std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
         Ok(())
     }

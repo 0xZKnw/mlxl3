@@ -2878,6 +2878,7 @@ pub(crate) fn exl3_lane_order(
 
 /// `MLXL3_DENSE_SHARED_VERIFY`: absent or `1` enables the shared-decode verify layouts;
 /// any other value keeps the stock layouts (Q27D-2026-11-17-04).
+#[cfg(any(feature = "mlx", test, kani))]
 pub fn dense_shared_verify_enabled(value: Option<&str>) -> bool {
     value.is_none_or(|value| value == "1")
 }
@@ -2964,7 +2965,101 @@ fn dense_shared_layouts_partition_every_row_once() {
     }
 }
 
+/// `MLXL3_DENSE_TENSOR_ROWS` (Q27D-16, not bit-exact): absent, `0` or `off` keeps the QMV
+/// kernels; an integer 2..=16 sends verification products of at least that many rows to the
+/// M5 TensorOps kernel. Anything else is rejected.
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn dense_tensor_rows_setting(value: Option<&str>) -> Option<Option<i32>> {
+    match value {
+        None | Some("0") | Some("off") => Some(None),
+        Some(text) => text
+            .parse::<i32>()
+            .ok()
+            .filter(|rows| (2..=16).contains(rows))
+            .map(Some),
+    }
+}
+
+/// K splits for the lane TensorOps kernel: about 1024 simdgroups, at most 8, never empty.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn tensor_lane_splits(groups: i32, tiles_k: i32) -> i32 {
+    // Q27D-17 lab 8: about 512 simdgroups beat 1024 with the 32x32 shape.
+    tensor_lane_splits_for(groups, tiles_k, 512, 8)
+}
+
+/// Splits aiming at `target` simdgroups, at most `limit`, never more than the K tiles.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn tensor_lane_splits_for(groups: i32, tiles_k: i32, target: i32, limit: i32) -> i32 {
+    if groups <= 0 || tiles_k <= 0 || target <= 0 || limit <= 0 {
+        return 1;
+    }
+    let wanted = (target + groups - 1) / groups;
+    wanted.clamp(1, limit).min(tiles_k)
+}
+
+#[test]
+fn tensor_lane_splits_stay_bounded() {
+    assert_eq!(tensor_lane_splits(1088, 320), 1);
+    assert_eq!(tensor_lane_splits(160, 1088), 4);
+    assert_eq!(tensor_lane_splits(7760, 320), 1);
+    assert_eq!(tensor_lane_splits(1, 3), 3);
+    assert_eq!(tensor_lane_splits_for(160, 1088, 1024, 8), 7);
+    assert_eq!(tensor_lane_splits(0, 3), 1);
+    for groups in 1..200 {
+        let splits = tensor_lane_splits(groups, 320);
+        assert!((1..=8).contains(&splits));
+    }
+}
+
+/// Small-row TensorOps dispatch: eligible projection, threshold set, rows in `[threshold, 24)`.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_tensor_rows(rows: i32, eligible: bool, threshold: Option<i32>) -> bool {
+    eligible && threshold.is_some_and(|first| rows >= first && rows < 24)
+}
+
+#[test]
+fn dense_tensor_rows_is_opt_in_and_bounded() {
+    assert_eq!(dense_tensor_rows_setting(None), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("off")), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("0")), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("5")), Some(Some(5)));
+    for bad in ["1", "17", "-3", "x", ""] {
+        assert_eq!(dense_tensor_rows_setting(Some(bad)), None, "{bad}");
+    }
+    for rows in -1..=30 {
+        assert_eq!(
+            dense_tensor_rows(rows, true, Some(5)),
+            (5..24).contains(&rows)
+        );
+        assert!(!dense_tensor_rows(rows, false, Some(5)));
+        assert!(!dense_tensor_rows(rows, true, None));
+    }
+}
+
+/// DFlash2 selector transition weight: absent keeps PERF-79's 0.25; values are finite in [0, 4].
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn dflash_edge_scale(value: Option<&str>) -> Option<f32> {
+    match value {
+        None => Some(0.25),
+        Some(text) => text
+            .parse::<f32>()
+            .ok()
+            .filter(|scale| scale.is_finite() && (0.0..=4.0).contains(scale)),
+    }
+}
+
+#[test]
+fn dflash_edge_scale_is_bounded() {
+    assert_eq!(dflash_edge_scale(None), Some(0.25));
+    assert_eq!(dflash_edge_scale(Some("1")), Some(1.0));
+    assert_eq!(dflash_edge_scale(Some("0.5")), Some(0.5));
+    for bad in ["", "x", "nan", "inf", "-0.1", "4.5"] {
+        assert_eq!(dflash_edge_scale(Some(bad)), None, "{bad}");
+    }
+}
+
 /// `MLXL3_QWEN_KV_INPLACE`: absent or `1` keeps dense attention K/V in place (Q27D-11).
+#[cfg(any(feature = "mlx", test, kani))]
 pub fn qwen_kv_inplace_enabled(value: Option<&str>) -> bool {
     value.is_none_or(|value| value == "1")
 }

@@ -790,3 +790,122 @@ fn q27_kv_inplace_matches_concatenation() -> Result<()> {
     ensure!(compared == 45, "incomplete comparison");
     Ok(())
 }
+
+/// Q27D-16 (not bit-exact): teacher-forced quality of TensorOps verification against the
+/// exact QMV path on real text, eight rows per verification pass.
+#[cfg(feature = "chat")]
+#[test]
+#[ignore = "physical Qwen27 GPU; writes MLXL3_Q27_TENSOR_QUALITY; run alone"]
+fn q27_tensor_verify_quality() -> Result<()> {
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_Q27_TENSOR_QUALITY")?);
+    ensure!(!output.exists(), "preserve previous quality reports");
+    let path = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_TEST_MODEL")?);
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let mut model = Qwen35Moe::load(&path)?;
+    let threshold: i32 =
+        std::env::var("MLXL3_Q27_TENSOR_THRESHOLD").map_or(Ok(5), |v| v.parse())?;
+    let texts = [
+        (
+            "french",
+            std::fs::read_to_string("docs/measurements/lfm3-pld-20261116/long.txt")?,
+        ),
+        (
+            "code",
+            std::fs::read_to_string("native/src/speculative.rs")?
+                .chars()
+                .take(8000)
+                .collect(),
+        ),
+    ];
+    let mut report = serde_json::json!({"status": "running", "threshold": threshold, "texts": []});
+    let mut totals = (0usize, 0usize, 0f64, 0f64, 0f64, 0f64);
+    for (label, text) in &texts {
+        let ids = tokenizer.encode(text)?;
+        ensure!(ids.len() > 600, "text too short");
+        let ids = &ids[..ids.len().min(1600)];
+        let prefix = 64usize;
+        let run = |model: &mut Qwen35Moe, tensor: Option<i32>| -> Result<Vec<Vec<f32>>> {
+            crate::linear::with_dense_tensor_rows(tensor, || {
+                model.reset();
+                let mut rows = Vec::new();
+                model.forward_tokens(&ids[..prefix])?;
+                let mut position = prefix;
+                while position + 8 <= ids.len() {
+                    let logits = model.verify_tokens_exact(&ids[position..position + 8])?;
+                    let values = logits.log_probs()?.astype(Dtype::Float32)?.to_f32()?;
+                    ensure!(values.len() == 8 * 248320, "short verification rows");
+                    rows.extend(values.chunks(248320).map(<[f32]>::to_vec));
+                    position += 8;
+                }
+                Ok(rows)
+            })
+        };
+        let exact = run(&mut model, None)?;
+        let tensor = run(&mut model, Some(threshold))?;
+        ensure!(
+            exact.len() == tensor.len() && !exact.is_empty(),
+            "row count mismatch"
+        );
+        let (mut kl_sum, mut kl_max, mut disagree, mut nll_exact, mut nll_tensor) =
+            (0f64, 0f64, 0usize, 0f64, 0f64);
+        let mut scored = 0usize;
+        for (index, (p, q)) in exact.iter().zip(&tensor).enumerate() {
+            let argmax = |row: &[f32]| {
+                row.iter()
+                    .enumerate()
+                    .fold(
+                        (0, f32::NEG_INFINITY),
+                        |a, (i, &v)| if v > a.1 { (i, v) } else { a },
+                    )
+                    .0
+            };
+            if argmax(p) != argmax(q) {
+                disagree += 1;
+            }
+            let kl: f64 = p
+                .iter()
+                .zip(q)
+                .map(|(&lp, &lq)| {
+                    let pp = (lp as f64).exp();
+                    if pp > 0.0 {
+                        pp * (lp as f64 - lq as f64)
+                    } else {
+                        0.0
+                    }
+                })
+                .sum();
+            kl_sum += kl;
+            kl_max = kl_max.max(kl);
+            let next = prefix + index + 1;
+            if next < ids.len() {
+                nll_exact -= p[ids[next] as usize] as f64;
+                nll_tensor -= q[ids[next] as usize] as f64;
+                scored += 1;
+            }
+        }
+        let positions = exact.len();
+        let row = serde_json::json!({
+            "text": label, "positions": positions, "scored": scored,
+            "mean_kl": kl_sum / positions as f64, "max_kl": kl_max,
+            "argmax_disagreements": disagree,
+            "perplexity_exact": (nll_exact / scored as f64).exp(),
+            "perplexity_tensor": (nll_tensor / scored as f64).exp(),
+        });
+        println!("{row}");
+        totals = (
+            totals.0 + positions,
+            totals.1 + disagree,
+            totals.2 + kl_sum,
+            totals.3.max(kl_max),
+            totals.4 + nll_exact,
+            totals.5 + nll_tensor,
+        );
+        report["texts"].as_array_mut().context("texts")?.push(row);
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    }
+    report["status"] = "complete".into();
+    report["all"] = serde_json::json!({"positions": totals.0, "argmax_disagreements": totals.1,
+        "mean_kl": totals.2 / totals.0 as f64, "max_kl": totals.3});
+    std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}

@@ -1,0 +1,15 @@
+blocks 253  AR step 105.9 ms  draft network 19.2 ms; per k: k=1 0.230 step, k=2 0.238 step, k=3 0.259 step, k=4 0.275 step
+  draft_ms: median 19.2 ms
+  head_select_ms: median 16.2 ms
+  verify_ms: median 361.1 ms
+  commit_ms: median 4.4 ms
+  survival by position: [0.806, 0.597, 0.447, 0.356, 0.269, 0.213, 0.17]
+fixed k=1: 1.290 tokens/step
+fixed k=2: 1.367 tokens/step
+fixed k=3: 1.384 tokens/step
+fixed k=4: 1.067 tokens/step
+per-position band p>=0.80: held-out 1.404 vs best fixed k=3 1.394 (+0.7%)
+per-position band p>=0.70: held-out 1.402 vs best fixed k=3 1.376 (+1.9%)
+cumulative band p>=0.50: held-out 1.445 vs best fixed k=3 1.394 (+3.7%)
+cumulative band p>=0.30: held-out 1.386 vs best fixed k=3 1.376 (+0.7%)
+oracle (verify exactly accepted, width 1..4): 1.538 tokens/step

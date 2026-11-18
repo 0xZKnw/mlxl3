@@ -113,6 +113,65 @@ pub(crate) fn with_lane_order_test<T>(enabled: bool, run: impl FnOnce() -> T) ->
     run()
 }
 
+/// Q27D-23: threshold the engine binary applies when `MLXL3_DENSE_TENSOR_ROWS` is absent
+/// (0 = exact kernels). The library and its tests keep the exact default.
+static DENSE_TENSOR_PRODUCT_DEFAULT: std::sync::atomic::AtomicI32 =
+    std::sync::atomic::AtomicI32::new(0);
+
+/// Called once by the engine binary before any model loads.
+pub fn set_dense_tensor_product_default(rows: i32) {
+    if (2..=16).contains(&rows) {
+        DENSE_TENSOR_PRODUCT_DEFAULT.store(rows, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Q27D-16 (not bit-exact): first verification width sent to the M5 TensorOps kernel.
+pub fn dense_tensor_rows_threshold() -> Result<Option<i32>> {
+    #[cfg(test)]
+    if let Some(value) = DENSE_TENSOR_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return Ok(value);
+    }
+    // Resolved once: this runs for every projection, so no per-call OS capability query.
+    static SETTING: std::sync::OnceLock<Option<Option<i32>>> = std::sync::OnceLock::new();
+    let setting = *SETTING.get_or_init(|| {
+        let value = std::env::var("MLXL3_DENSE_TENSOR_ROWS").ok();
+        let fallback = DENSE_TENSOR_PRODUCT_DEFAULT.load(std::sync::atomic::Ordering::Relaxed);
+        if value.is_none() && fallback > 0 {
+            return Some(Some(fallback)).map(|t: Option<i32>| {
+                t.filter(|_| array::supports_exl3_tensor_ops().unwrap_or(false))
+            });
+        }
+        crate::contracts::dense_tensor_rows_setting(value.as_deref()).map(|threshold| {
+            threshold.filter(|_| array::supports_exl3_tensor_ops().unwrap_or(false))
+        })
+    });
+    setting.context("MLXL3_DENSE_TENSOR_ROWS must be 0, off or an integer in 2..=16")
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_TENSOR_TEST_OVERRIDE: std::cell::Cell<Option<Option<i32>>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override of the TensorOps verification threshold.
+#[cfg(test)]
+pub(crate) fn with_dense_tensor_rows<T>(threshold: Option<i32>, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<Option<i32>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_TENSOR_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_TENSOR_TEST_OVERRIDE.with(|flag| flag.replace(Some(threshold))));
+    run()
+}
+
+/// Q27D-21: whole-block verification in TensorOps mode; `MLXL3_DENSE_TENSOR_BLOCK=0` disables it.
+pub fn dense_tensor_block_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_DENSE_TENSOR_BLOCK").as_deref() != Ok("0"))
+}
+
 /// Q27D-04 rollback switch for the shared-decode verification layouts.
 pub fn dense_shared_enabled() -> bool {
     #[cfg(test)]
@@ -174,6 +233,42 @@ fn lane_order_indices(
     Ok(Some(indices))
 }
 
+fn lane_order_selected(indices: Option<&Array>, matrix_rows: i32) -> bool {
+    indices.is_some()
+        && lane_order_enabled()
+        && (matches!(matrix_rows, 1 | 2)
+            || crate::contracts::dense_shared_rows(matrix_rows, true, dense_shared_enabled()))
+}
+
+/// Q27D-33: fused QMV prologue/epilogue for the exact paths, opt-in (`MLXL3_QMV_FUSED_GLUE=1`):
+/// same values bit for bit, no bridge gain established. F16, BF16 and F32 activations only.
+fn qmv_fused_glue(dtype: Dtype) -> bool {
+    let supported = matches!(dtype, Dtype::Float16 | Dtype::BFloat16 | Dtype::Float32);
+    #[cfg(test)]
+    if let Some(enabled) = QMV_FUSED_GLUE_TEST.with(std::cell::Cell::get) {
+        return enabled && supported;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    supported && *VALUE.get_or_init(|| std::env::var("MLXL3_QMV_FUSED_GLUE").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static QMV_FUSED_GLUE_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_qmv_fused_glue<T>(value: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            QMV_FUSED_GLUE_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(QMV_FUSED_GLUE_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
 fn lane_order_input(
     xhat: Array,
     indices: Option<&Array>,
@@ -181,11 +276,7 @@ fn lane_order_input(
     groups: i32,
     input: i32,
 ) -> Result<(Array, bool)> {
-    if let Some(indices) = indices.filter(|_| {
-        lane_order_enabled()
-            && (matches!(matrix_rows, 1 | 2)
-                || crate::contracts::dense_shared_rows(matrix_rows, true, dense_shared_enabled()))
-    }) {
+    if let Some(indices) = indices.filter(|_| lane_order_selected(indices, matrix_rows)) {
         let shape = xhat.shape().to_vec();
         let value = xhat
             .reshape(&[matrix_rows, groups, input])?
@@ -700,6 +791,32 @@ impl Exl3Linear {
             *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
             return Array::concatenate(&batches.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
+        if crate::contracts::dense_tensor_rows(
+            matrix_rows,
+            self.shared_rows_ready(),
+            dense_tensor_rows_threshold()?,
+        ) {
+            if let Some(indices) = self.lane_indices.as_ref().filter(|_| tensor_lane_enabled()) {
+                let output = qmm_tensor_lane(
+                    x,
+                    &self.trellis,
+                    &self.suh,
+                    &self.svh,
+                    indices,
+                    self.rows,
+                    self.cols,
+                    self.k,
+                    self.cb,
+                    self.cols / 16,
+                    0,
+                )?;
+                return match &self.bias {
+                    Some(bias) => output.add(bias),
+                    None => Ok(output),
+                };
+            }
+            return self.forward_qmm_tensor(x);
+        }
         if matrix_rows > 1 {
             if let Some((first, _)) = crate::contracts::dense_shared_chunks(
                 matrix_rows,
@@ -727,15 +844,23 @@ impl Exl3Linear {
             *shape.last_mut().context("empty EXL3 batch shape")? = self.cols;
             return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
-        let xhat = x
-            .astype(Dtype::Float16)?
-            .reshape(&[1, self.rows])?
-            .mul(&self.suh.astype(Dtype::Float16)?)?
-            .reshape(&[1, self.rows / 128, 128])?
-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-            .reshape(&[self.rows])?;
-        let (xhat, lane_order) =
-            lane_order_input(xhat, self.lane_indices.as_ref(), 1, 1, self.rows)?;
+        let fused = self.fused_glue(x.dtype());
+        let (xhat, lane_order) = if fused {
+            let lane = lane_order_selected(self.lane_indices.as_ref(), 1);
+            (
+                glue_prologue(x, &self.suh, 1, 1, self.rows, lane, 1)?.reshape(&[self.rows])?,
+                lane,
+            )
+        } else {
+            let xhat = x
+                .astype(Dtype::Float16)?
+                .reshape(&[1, self.rows])?
+                .mul(&self.suh.astype(Dtype::Float16)?)?
+                .reshape(&[1, self.rows / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[self.rows])?;
+            lane_order_input(xhat, self.lane_indices.as_ref(), 1, 1, self.rows)?
+        };
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
         let mut header = codebook_header(self.cb)
@@ -831,6 +956,25 @@ impl Exl3Linear {
             if let Some(output) = self.try_dense_epilogue(x, &partials, 1, splits)? {
                 return Ok(output);
             }
+            if fused {
+                let mut shape = x.shape().to_vec();
+                *shape.last_mut().context("empty input shape")? = self.cols;
+                let y = glue_epilogue(
+                    &partials.reshape(&[splits, 1, self.cols])?,
+                    &self.svh,
+                    splits,
+                    1,
+                    1,
+                    self.cols,
+                    x.dtype(),
+                    false,
+                )?
+                .reshape(&shape)?;
+                return match &self.bias {
+                    Some(bias) => y.add(bias),
+                    None => Ok(y),
+                };
+            }
             if splits == 1 {
                 partials.reshape(&[self.cols])?
             } else {
@@ -850,6 +994,15 @@ impl Exl3Linear {
             Some(bias) => y.add(bias),
             None => Ok(y),
         }
+    }
+
+    /// Q27D-33: exact QMV paths that may use the fused prologue/epilogue.
+    fn fused_glue(&self, dtype: Dtype) -> bool {
+        self.k != 7
+            && !self.reference_accumulation
+            && !self.mtp_hidden_batch
+            && !self.flash_batch
+            && qmv_fused_glue(dtype)
     }
 
     /// Q36-HEAD-LANE-P24: H2 (three rows) and F3 (four rows) read the head input in lane order.
@@ -873,15 +1026,6 @@ impl Exl3Linear {
             self.k != 7 && (2..24).contains(&matrix_rows),
             "batch QMV requires 2 to 23 rows"
         );
-        let xhat = x
-            .astype(Dtype::Float16)?
-            .reshape(&[matrix_rows, self.rows])?
-            .mul(&self.suh.astype(Dtype::Float16)?)?
-            .reshape(&[matrix_rows, self.rows / 128, 128])?
-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-            .reshape(&[matrix_rows, self.rows])?;
-        let (xhat, lane_order) =
-            lane_order_input(xhat, self.lane_indices.as_ref(), matrix_rows, 1, self.rows)?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
         // The released MTP FC uses Pony's four-row GEMM: two groups and two splits.
@@ -891,6 +1035,21 @@ impl Exl3Linear {
             self.splits(input_tiles, output_tiles)
         };
         let head_lane = self.q36_head_lane_layout(matrix_rows, splits);
+        let fused = head_lane.is_none() && self.fused_glue(x.dtype());
+        let (xhat, lane_order) = if fused {
+            let lane = lane_order_selected(self.lane_indices.as_ref(), matrix_rows);
+            let xhat = glue_prologue(x, &self.suh, matrix_rows, matrix_rows, self.rows, lane, 1)?;
+            (xhat, lane)
+        } else {
+            let xhat = x
+                .astype(Dtype::Float16)?
+                .reshape(&[matrix_rows, self.rows])?
+                .mul(&self.suh.astype(Dtype::Float16)?)?
+                .reshape(&[matrix_rows, self.rows / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[matrix_rows, self.rows])?;
+            lane_order_input(xhat, self.lane_indices.as_ref(), matrix_rows, 1, self.rows)?
+        };
         let (xhat, lane_order) = match (head_lane, &self.head_lane_indices) {
             (Some(_), Some(indices)) => (xhat.take(indices, 1)?, true),
             _ => (xhat, lane_order),
@@ -1017,6 +1176,25 @@ impl Exl3Linear {
         if let Some(output) = self.try_dense_epilogue(x, &partials, matrix_rows, splits)? {
             return Ok(output);
         }
+        if fused {
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty input shape")? = self.cols;
+            let y = glue_epilogue(
+                &partials,
+                &self.svh,
+                splits,
+                matrix_rows,
+                matrix_rows,
+                self.cols,
+                x.dtype(),
+                true,
+            )?
+            .reshape(&shape)?;
+            return match &self.bias {
+                Some(bias) => y.add(bias),
+                None => Ok(y),
+            };
+        }
         let output = if splits == 1 {
             partials.reshape(&[matrix_rows, self.cols])?
         } else {
@@ -1057,6 +1235,635 @@ impl Exl3Linear {
     }
 }
 
+/// Q27D-17 (not bit-exact): TensorOps product with the weights on the left, decoded four
+/// codewords per trellis window in QMV lane order; activations permuted by `lane_indices`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn qmm_tensor_lane(
+    x: &Array,
+    trellis: &Array,
+    suh: &Array,
+    svh: &Array,
+    lane_indices: &Array,
+    input_dims: i32,
+    output_dims: i32,
+    k: usize,
+    cb: Codebook,
+    weight_tiles_n: i32,
+    weight_tile_offset: i32,
+) -> Result<Array> {
+    ensure!(
+        array::supports_exl3_tensor_ops()?,
+        "TensorOps QMM requires Apple M5 and macOS 26.3 or newer"
+    );
+    ensure!(
+        (1..=8).contains(&k)
+            && k != 7
+            && input_dims % 16 == 0
+            && output_dims % 32 == 0
+            && weight_tile_offset >= 0
+            && weight_tile_offset + output_dims / 16 <= weight_tiles_n
+            && lane_indices.shape() == [input_dims],
+        "lane TensorOps QMM dimensions are not tiled"
+    );
+    let elements = x
+        .shape()
+        .iter()
+        .try_fold(1i64, |count, &dimension| {
+            count.checked_mul(i64::from(dimension))
+        })
+        .context("QMM input size overflow")?;
+    ensure!(
+        x.shape().last() == Some(&input_dims) && elements % i64::from(input_dims) == 0,
+        "invalid lane TensorOps QMM input"
+    );
+    let matrix_rows = i32::try_from(elements / i64::from(input_dims))?;
+    ensure!(matrix_rows >= 1, "TensorOps QMM requires rows");
+    let tokens = tensor_lane_tokens(matrix_rows);
+    let padded_rows = (matrix_rows + tokens - 1) / tokens * tokens;
+    let fused = tensor_lane_fused();
+    let xhat = if fused {
+        lane_prologue_fused(x, suh, matrix_rows, padded_rows, input_dims)?
+    } else {
+        lane_prologue(x, suh, lane_indices, matrix_rows, padded_rows, input_dims)?
+    };
+    let (lane_cols, lane_depth) = tensor_lane_shape();
+    let (lane_cols, lane_depth) = if output_dims % lane_cols == 0 && input_dims % lane_depth == 0 {
+        (lane_cols, lane_depth)
+    } else {
+        (32, 16)
+    };
+    let groups = output_dims / lane_cols;
+    let splits = match tensor_lane_target() {
+        Some((target, limit)) => {
+            crate::contracts::tensor_lane_splits_for(groups, input_dims / lane_depth, target, limit)
+        }
+        None => crate::contracts::tensor_lane_splits(groups, input_dims / lane_depth),
+    };
+    let buffers = tensor_lane_buffers();
+    let header = format!(
+        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n{}#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input_dims}u\n#define OUTPUT_DIMS {output_dims}u\n#define TILES_N {weight_tiles_n}u\n#define WEIGHT_TILE_OFFSET {weight_tile_offset}u\n#define N_SPLITS {splits}u\n#define PADDED_ROWS {padded_rows}u\n#define LANE_COLS {lane_cols}u\n#define LANE_DEPTH {lane_depth}u\n#define LANE_TOKENS {tokens}u\n#define LANE_BUFFERS {buffers}\n",
+        codebook_header(cb),
+        k * 8,
+    );
+    let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+    let partials = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_qmm_tensor_lane_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_p{padded_rows}_k{splits}_c{lane_cols}_d{lane_depth}_t{tokens}{}{}",
+            cb as u32,
+            if buffers == 2 { "_b2" } else { "" },
+            tensor_lane_source_tag()
+        ),
+        &["xhat", "trellis"],
+        &["partials"],
+        &header,
+        &tensor_lane_source(),
+        &[&xhat, &words],
+        &[vec![splits, padded_rows, output_dims]],
+        &[Dtype::Float32],
+        [groups.checked_mul(32).context("QMM grid overflow")?, padded_rows / tokens, splits],
+        [32, 1, 1],
+    )?
+    .remove(0);
+    let output = if fused {
+        lane_epilogue_fused(
+            &partials,
+            svh,
+            splits,
+            matrix_rows,
+            padded_rows,
+            output_dims,
+            x.dtype(),
+        )?
+    } else {
+        lane_epilogue(
+            &partials,
+            svh,
+            splits,
+            matrix_rows,
+            padded_rows,
+            output_dims,
+        )?
+        .astype(x.dtype())?
+    };
+    let mut shape = x.shape().to_vec();
+    *shape.last_mut().context("empty QMM input shape")? = output_dims;
+    output.reshape(&shape)
+}
+
+/// Q27D-31: fused lane prologue/epilogue (`MLXL3_TENSOR_LANE_FUSED=0` restores the MLX chains).
+fn tensor_lane_fused() -> bool {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_FUSED_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_TENSOR_LANE_FUSED").as_deref() != Ok("0"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_FUSED_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_fused<T>(value: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_FUSED_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_FUSED_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// MLX 0.32.2 `hadamard_transform` of 128 F16 values held in threadgroup memory by eight
+/// threads (radix 16 then radix 8, F32 butterflies, F16 between stages), as in
+/// `flash_dense_epilogue.metal`. The caller applies the final scale.
+const LANE_HADAMARD_HEADER: &str = r#"
+inline void mlxl3_hadamard128_mlx(threadgroup half* buf, short i) {
+    float x[16];
+    #pragma clang loop unroll(full)
+    for (short r = 0; r < 16; ++r) x[r] = float(buf[i * 16 + r]);
+    short h = 1;
+    #pragma clang loop unroll(full)
+    for (short stage = 0; stage < 4; ++stage) {
+        #pragma clang loop unroll(full)
+        for (short pair = 0; pair < 8; ++pair) {
+            short k = pair & (h - 1);
+            short j = ((pair - k) << 1) + k;
+            float a = x[j], b = x[j + h];
+            x[j] = a + b;
+            x[j + h] = a - b;
+        }
+        h <<= 1;
+    }
+    #pragma clang loop unroll(full)
+    for (short r = 0; r < 16; ++r) buf[i * 16 + r] = half(x[r]);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    #pragma clang loop unroll(full)
+    for (short t = 0; t < 2; ++t) {
+        short index = i + t * 8;
+        #pragma clang loop unroll(full)
+        for (short r = 0; r < 8; ++r) x[r] = float(buf[index + 16 * r]);
+        h = 1;
+        #pragma clang loop unroll(full)
+        for (short stage = 0; stage < 3; ++stage) {
+            #pragma clang loop unroll(full)
+            for (short pair = 0; pair < 4; ++pair) {
+                short k = pair & (h - 1);
+                short j = ((pair - k) << 1) + k;
+                float a = x[j], b = x[j + h];
+                x[j] = a + b;
+                x[j + h] = a - b;
+            }
+            h <<= 1;
+        }
+        #pragma clang loop unroll(full)
+        for (short r = 0; r < 8; ++r) buf[index + 16 * r] = half(x[r]);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+}
+"#;
+
+fn lane_metal_type(dtype: Dtype) -> Result<&'static str> {
+    Ok(match dtype {
+        Dtype::Float16 => "half",
+        Dtype::BFloat16 => "bfloat16_t",
+        Dtype::Float32 => "float",
+        other => anyhow::bail!("lane TensorOps glue does not support {other:?}"),
+    })
+}
+
+/// Q27D-31: one dispatch for `lane_prologue` (same values bit for bit).
+pub(crate) fn lane_prologue_fused(
+    x: &Array,
+    suh: &Array,
+    matrix_rows: i32,
+    padded_rows: i32,
+    input_dims: i32,
+) -> Result<Array> {
+    glue_prologue(x, suh, matrix_rows, padded_rows, input_dims, true, 1)
+}
+
+/// Q27D-31/33: fused `astype(F16) * suh -> Hadamard-128 -> [lane order] -> zero rows`.
+/// With `groups` > 1, `suh` is `[groups, input]` and the output rows are `row * groups + g`
+/// (the grouped QMV layout `[rows, groups, input]`).
+pub(crate) fn glue_prologue(
+    x: &Array,
+    suh: &Array,
+    matrix_rows: i32,
+    padded_rows: i32,
+    input_dims: i32,
+    lane_order: bool,
+    groups: i32,
+) -> Result<Array> {
+    let suh_elements = suh.shape().iter().map(|&d| i64::from(d)).product::<i64>();
+    ensure!(
+        input_dims % 128 == 0
+            && matrix_rows >= 1
+            && padded_rows >= matrix_rows
+            && (1..=8).contains(&groups)
+            && (groups == 1 || padded_rows == matrix_rows)
+            && suh_elements == i64::from(groups) * i64::from(input_dims),
+        "invalid fused prologue geometry"
+    );
+    lane_metal_type(x.dtype())?;
+    let suh = if suh.dtype() == Dtype::Float16 {
+        suh.try_clone()?
+    } else {
+        suh.astype(Dtype::Float16)?
+    };
+    let x = x.reshape(&[matrix_rows, input_dims])?;
+    let header = format!(
+        "{LANE_HADAMARD_HEADER}#define INPUT_DIMS {input_dims}u\n#define SCALE_BITS {}u\n#define LANE_ORDER {}\n#define GROUPS {groups}u\n",
+        (1.0 / 128.0f32.sqrt()).to_bits(),
+        u8::from(lane_order)
+    );
+    Ok(array::metal_kernel(
+        &format!(
+            "mlxl3_rs_glue_prologue_{input_dims}_{:?}_l{}_g{groups}",
+            x.dtype(),
+            u8::from(lane_order)
+        ),
+        &["x", "suh"],
+        &["xhat"],
+        &header,
+        include_str!("../shaders/_lane_prologue.metal"),
+        &[&x, &suh],
+        &[vec![padded_rows * groups, input_dims]],
+        &[Dtype::Float16],
+        [
+            (input_dims / 128)
+                .checked_mul(8)
+                .context("prologue grid overflow")?,
+            padded_rows * groups,
+            1,
+        ],
+        [8, 1, 1],
+    )?
+    .remove(0))
+}
+
+/// Q27D-31: one dispatch for `lane_epilogue` followed by the output conversion.
+pub(crate) fn lane_epilogue_fused(
+    partials: &Array,
+    svh: &Array,
+    splits: i32,
+    matrix_rows: i32,
+    padded_rows: i32,
+    output_dims: i32,
+    output: Dtype,
+) -> Result<Array> {
+    glue_epilogue(
+        partials,
+        svh,
+        splits,
+        matrix_rows,
+        padded_rows,
+        output_dims,
+        output,
+        false,
+    )
+}
+
+/// Q27D-31/33: fused `sum(splits) -> F16 -> Hadamard-128 -> * svh -> astype(output)`; the
+/// partials are `[splits, padded, out]` (lane kernel) or `[rows, splits, out]` (`row_major`).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn glue_epilogue(
+    partials: &Array,
+    svh: &Array,
+    splits: i32,
+    matrix_rows: i32,
+    padded_rows: i32,
+    output_dims: i32,
+    output: Dtype,
+    row_major: bool,
+) -> Result<Array> {
+    let expected = if row_major {
+        vec![matrix_rows, splits, output_dims]
+    } else {
+        vec![splits, padded_rows, output_dims]
+    };
+    ensure!(
+        output_dims % 128 == 0
+            && (1..=64).contains(&splits)
+            && matrix_rows >= 1
+            && padded_rows >= matrix_rows
+            && partials.shape() == expected.as_slice()
+            && partials.dtype() == Dtype::Float32,
+        "invalid fused epilogue geometry"
+    );
+    let out_type = lane_metal_type(output)?;
+    let svh = if svh.dtype() == Dtype::Float16 {
+        svh.try_clone()?
+    } else {
+        svh.astype(Dtype::Float16)?
+    };
+    let offset = if row_major {
+        "#define SPLIT_AXIS 1\n#define PARTIAL_OFFSET(s, row) ((ulong(row) * splits + ulong(s)) * OUTPUT_DIMS)"
+    } else {
+        "#define SPLIT_AXIS 0\n#define PARTIAL_OFFSET(s, row) ((ulong(s) * padded_rows + ulong(row)) * OUTPUT_DIMS)"
+    };
+    let header = format!(
+        "{LANE_HADAMARD_HEADER}#define OUTPUT_DIMS {output_dims}u\n#define OUT_T {out_type}\n#define SCALE_BITS {}u\n{offset}\n",
+        (1.0 / 128.0f32.sqrt()).to_bits()
+    );
+    Ok(array::metal_kernel(
+        &format!(
+            "mlxl3_rs_glue_epilogue_{output_dims}_{out_type}_r{}",
+            u8::from(row_major)
+        ),
+        &["partials", "svh"],
+        &["y"],
+        &header,
+        include_str!("../shaders/_lane_epilogue.metal"),
+        &[partials, &svh],
+        &[vec![matrix_rows, output_dims]],
+        &[output],
+        [
+            (output_dims / 128)
+                .checked_mul(8)
+                .context("epilogue grid overflow")?,
+            matrix_rows,
+            1,
+        ],
+        [8, 1, 1],
+    )?
+    .remove(0))
+}
+
+/// Lane TensorOps prologue: F16, input signs, Hadamard-128, lane order, zero rows to the tile.
+pub(crate) fn lane_prologue(
+    x: &Array,
+    suh: &Array,
+    lane_indices: &Array,
+    matrix_rows: i32,
+    padded_rows: i32,
+    input_dims: i32,
+) -> Result<Array> {
+    let xhat = x
+        .astype(Dtype::Float16)?
+        .reshape(&[matrix_rows, input_dims])?
+        .mul(&suh.astype(Dtype::Float16)?)?
+        .reshape(&[matrix_rows, input_dims / 128, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[matrix_rows, input_dims])?
+        .take(lane_indices, 1)?;
+    if matrix_rows == padded_rows {
+        Ok(xhat)
+    } else {
+        Array::concatenate(
+            &[
+                &xhat,
+                &Array::zeros_dtype(&[padded_rows - matrix_rows, input_dims], Dtype::Float16)?,
+            ],
+            0,
+        )
+    }
+}
+
+/// Lane TensorOps epilogue: sum of the K splits, F16, Hadamard-128 and output signs (F16).
+pub(crate) fn lane_epilogue(
+    partials: &Array,
+    svh: &Array,
+    splits: i32,
+    matrix_rows: i32,
+    padded_rows: i32,
+    output_dims: i32,
+) -> Result<Array> {
+    let raw = if splits == 1 {
+        partials.reshape(&[padded_rows, output_dims])?
+    } else {
+        partials.sum(0, false)?
+    }
+    .slice(0, 0, matrix_rows)?;
+    raw.astype(Dtype::Float16)?
+        .reshape(&[matrix_rows, output_dims / 128, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[matrix_rows, output_dims])?
+        .mul(&svh.astype(Dtype::Float16)?)
+}
+
+/// Q27D-17 tuning: `MLXL3_TENSOR_LANE_SPLITS=target,limit` (simdgroups aimed at, split cap).
+fn tensor_lane_target() -> Option<(i32, i32)> {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_TARGET_TEST.with(std::cell::Cell::get) {
+        return Some(value);
+    }
+    static VALUE: std::sync::OnceLock<Option<(i32, i32)>> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| {
+        let text = std::env::var("MLXL3_TENSOR_LANE_SPLITS").ok()?;
+        let (target, limit) = text.split_once(',')?;
+        let (target, limit) = (target.parse().ok()?, limit.parse().ok()?);
+        ((1..=1 << 20).contains(&target) && (1..=64).contains(&limit)).then_some((target, limit))
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_TARGET_TEST: std::cell::Cell<Option<(i32, i32)>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_target<T>(value: (i32, i32), run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<(i32, i32)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_TARGET_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_TARGET_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// Lane kernel source; tests may apply ablation edits (timing attribution only).
+fn tensor_lane_source() -> String {
+    let source = include_str!("../shaders/_qmm_tensor_lane_kernel.metal").to_owned();
+    #[cfg(test)]
+    {
+        let edit = TENSOR_LANE_EDIT_TEST.with(|cell| cell.borrow().clone());
+        if let Some(edit) = edit {
+            return lane_ablation(&source, &edit);
+        }
+    }
+    source
+}
+
+fn tensor_lane_source_tag() -> String {
+    #[cfg(test)]
+    if let Some(edit) = TENSOR_LANE_EDIT_TEST.with(|cell| cell.borrow().clone()) {
+        return format!("_lab_{}", edit.replace('+', "_"));
+    }
+    String::new()
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_EDIT_TEST: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_edit<T>(edit: &str, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<String>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_EDIT_TEST.with(|cell| *cell.borrow_mut() = self.0.take());
+        }
+    }
+    let _restore =
+        Restore(TENSOR_LANE_EDIT_TEST.with(|cell| cell.borrow_mut().replace(edit.to_owned())));
+    run()
+}
+
+/// Ablations of the lane kernel: outputs are wrong by design.
+#[cfg(test)]
+fn lane_ablation(source: &str, edit: &str) -> String {
+    let mut text = source.to_owned();
+    for part in edit.split('+') {
+        match part {
+            "nodecode" => {
+                for i in 0..4 {
+                    text = text.replace(
+                        &format!("left[base + {i}u] = half(mlxl3_decode_codeword(cw{i}, 0));"),
+                        &format!("left[base + {i}u] = as_type<half>(ushort(cw{i} & 0x3bffu));"),
+                    );
+                }
+            }
+            "noload" => {
+                text = text.replace(
+                    "ulong merged = (ulong(words[word0[group]]) << 32) | ulong(words[word1[group]]);",
+                    "ulong merged = ulong((tile_k * 2654435761u) ^ (lane * 40503u) ^ (ntile * 977u) ^ (group * 7919u)) << 13;",
+                );
+            }
+            "norun" => {
+                // Keep the decoded operand live through the accumulator so nothing is elided.
+                text = text.replace(
+                    "    operation.run(left, right, accumulator);",
+                    "    for (ushort e = 0; e < accumulator.get_capacity(); ++e) if (accumulator.is_valid_element(e)) accumulator[e] += float(left[e % ELEMENTS]);",
+                );
+            }
+            "norightload" => {
+                text = text.replace(
+                    "        activation + ulong(token_block * LANE_TOKENS) * INPUT_DIMS + step * LANE_DEPTH,",
+                    "        activation + ulong(token_block * LANE_TOKENS) * INPUT_DIMS,",
+                );
+            }
+            _ => {}
+        }
+    }
+    text
+}
+
+/// Q27D-28: `MLXL3_TENSOR_LANE_BUFFERS=2` double-buffers the decoded left operand (same values).
+fn tensor_lane_buffers() -> i32 {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_BUFFERS_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(
+        || match std::env::var("MLXL3_TENSOR_LANE_BUFFERS").as_deref() {
+            Ok("2") => 2,
+            _ => 1,
+        },
+    )
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_BUFFERS_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_buffers<T>(value: i32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_BUFFERS_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_BUFFERS_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// Q27D-22: token tile of the lane kernel: `MLXL3_TENSOR_LANE_TOKENS` = 16 (default) or 8,
+/// 8 only applies to blocks of at most eight rows.
+fn tensor_lane_tokens(rows: i32) -> i32 {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_TOKENS_TEST.with(std::cell::Cell::get) {
+        return if rows <= 8 { value } else { 16 };
+    }
+    static VALUE: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+    let tokens =
+        *VALUE.get_or_init(
+            || match std::env::var("MLXL3_TENSOR_LANE_TOKENS").as_deref() {
+                Ok("8") => 8,
+                _ => 16,
+            },
+        );
+    if rows <= 8 { tokens } else { 16 }
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_TOKENS_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_tokens<T>(value: i32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_TOKENS_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_TOKENS_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// Q27D-17 tuning: `MLXL3_TENSOR_LANE_SHAPE` = `32x32` (default), `32x16` or `64x16`.
+fn tensor_lane_shape() -> (i32, i32) {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_SHAPE_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<(i32, i32)> = std::sync::OnceLock::new();
+    // Q27D-17 lab 8: 32 columns x 32 inputs per operation was the fastest shape.
+    *VALUE.get_or_init(
+        || match std::env::var("MLXL3_TENSOR_LANE_SHAPE").as_deref() {
+            Ok("32x16") => (32, 16),
+            Ok("64x16") => (64, 16),
+            Ok("32x64") => (32, 64),
+            Ok("64x32") => (64, 32),
+            _ => (32, 32),
+        },
+    )
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_SHAPE_TEST: std::cell::Cell<Option<(i32, i32)>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_shape<T>(value: (i32, i32), run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<(i32, i32)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_SHAPE_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_SHAPE_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
+/// `MLXL3_DENSE_TENSOR_KERNEL`: `lane` (default) uses `qmm_tensor_lane` when lane indices exist.
+fn tensor_lane_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_DENSE_TENSOR_KERNEL").as_deref() != Ok("stock"))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn qmm_tensor(
     x: &Array,
@@ -1095,16 +1902,21 @@ fn qmm_tensor(
         "invalid TensorOps QMM input"
     );
     let matrix_rows = i32::try_from(elements / i64::from(input_dims))?;
-    ensure!(matrix_rows >= 24, "TensorOps QMM requires at least 24 rows");
+    ensure!(matrix_rows >= 1, "TensorOps QMM requires rows");
     static DENSE_PREFILL_M64: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let enabled = *DENSE_PREFILL_M64
         .get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_M64").as_deref() != Ok("0"));
-    let block_rows = crate::contracts::dense_qmm_block_rows(
-        matrix_rows,
-        input_dims,
-        output_dims,
-        enabled && cb == Codebook::Mul1,
-    );
+    // Q27D-15: one 16-row tile below the production threshold (verification rows).
+    let block_rows = if matrix_rows <= 16 {
+        16
+    } else {
+        crate::contracts::dense_qmm_block_rows(
+            matrix_rows,
+            input_dims,
+            output_dims,
+            enabled && cb == Codebook::Mul1,
+        )
+    };
     let padded_rows = ((matrix_rows + block_rows - 1) / block_rows) * block_rows;
     let xhat = x
         .astype(Dtype::Float16)?
@@ -1277,7 +2089,13 @@ impl Exl3Group {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
-        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?)
+            || crate::contracts::dense_tensor_rows(
+                matrix_rows,
+                self.shared_rows_ready(),
+                dense_tensor_rows_threshold()?,
+            )
+        {
             if self.lfm3_prefill
                 && matrix_rows <= 256
                 && x.shape() == [1, matrix_rows, self.rows]
@@ -1290,7 +2108,38 @@ impl Exl3Group {
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
             let mut outputs = Vec::with_capacity(self.widths.len());
+            let lane = self
+                .lane_indices
+                .as_ref()
+                .filter(|_| matrix_rows < 24 && tensor_lane_enabled());
             for (index, (width, bias)) in self.widths.iter().zip(&self.biases).enumerate() {
+                let suh = self
+                    .suh
+                    .slice(0, index as i32, index as i32 + 1)?
+                    .reshape(&[self.rows])?;
+                let svh = self.svh.slice(0, scale_cursor, scale_cursor + width)?;
+                if let Some(indices) = lane {
+                    let output = qmm_tensor_lane(
+                        x,
+                        &self.trellis,
+                        &suh,
+                        &svh,
+                        indices,
+                        self.rows,
+                        *width,
+                        self.k,
+                        self.cb,
+                        self.cols / 16,
+                        tile_cursor,
+                    )?;
+                    outputs.push(match bias {
+                        Some(value) => output.add(value)?,
+                        None => output,
+                    });
+                    tile_cursor += width / 16;
+                    scale_cursor += width;
+                    continue;
+                }
                 let output = qmm_tensor(
                     x,
                     &self.trellis,
@@ -1361,15 +2210,23 @@ impl Exl3Group {
             return self.forward_qmv_batch(x, matrix_rows);
         }
         let groups = i32::try_from(self.widths.len())?;
-        let xhat = x
-            .astype(Dtype::Float16)?
-            .reshape(&[1, self.rows])?
-            .mul(&self.suh.astype(Dtype::Float16)?)?
-            .reshape(&[groups, self.rows / 128, 128])?
-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-            .reshape(&[-1])?;
-        let (xhat, lane_order) =
-            lane_order_input(xhat, self.lane_indices.as_ref(), 1, groups, self.rows)?;
+        let fused = qmv_fused_glue(x.dtype()) && groups <= 8;
+        let (xhat, lane_order) = if fused {
+            let lane = lane_order_selected(self.lane_indices.as_ref(), 1);
+            (
+                glue_prologue(x, &self.suh, 1, 1, self.rows, lane, groups)?.reshape(&[-1])?,
+                lane,
+            )
+        } else {
+            let xhat = x
+                .astype(Dtype::Float16)?
+                .reshape(&[1, self.rows])?
+                .mul(&self.suh.astype(Dtype::Float16)?)?
+                .reshape(&[groups, self.rows / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[-1])?;
+            lane_order_input(xhat, self.lane_indices.as_ref(), 1, groups, self.rows)?
+        };
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
         let nt = if dense_decode_nt4_enabled()
@@ -1422,18 +2279,31 @@ impl Exl3Group {
             [self.simdgroups * 32, 1, 1],
         )?
         .remove(0);
-        let yhat = if splits == 1 {
-            partials.reshape(&[self.cols])?
-        } else {
-            partials.sum(0, false)?
-        };
-        let output = yhat
-            .astype(Dtype::Float16)?
-            .reshape(&[1, self.cols / 128, 128])?
-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        let output = if fused {
+            glue_epilogue(
+                &partials.reshape(&[splits, 1, self.cols])?,
+                &self.svh,
+                splits,
+                1,
+                1,
+                self.cols,
+                x.dtype(),
+                false,
+            )?
             .reshape(&[self.cols])?
-            .mul(&self.svh.astype(Dtype::Float16)?)?
-            .astype(x.dtype())?;
+        } else {
+            let yhat = if splits == 1 {
+                partials.reshape(&[self.cols])?
+            } else {
+                partials.sum(0, false)?
+            };
+            yhat.astype(Dtype::Float16)?
+                .reshape(&[1, self.cols / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[self.cols])?
+                .mul(&self.svh.astype(Dtype::Float16)?)?
+                .astype(x.dtype())?
+        };
         let mut begin = 0;
         let mut outputs = Vec::new();
         for (width, bias) in self.widths.iter().zip(&self.biases) {
@@ -1478,6 +2348,20 @@ impl Exl3Group {
             )?
             .remove(0);
             return Ok((out, true));
+        }
+        if qmv_fused_glue(x.dtype()) && groups <= 8 {
+            let lane = lane_order_selected(self.lane_indices.as_ref(), matrix_rows);
+            let xhat = glue_prologue(
+                x,
+                &self.suh,
+                matrix_rows,
+                matrix_rows,
+                self.rows,
+                lane,
+                groups,
+            )?
+            .reshape(&[-1])?;
+            return Ok((xhat, lane));
         }
         let xhat = x
             .astype(Dtype::Float16)?
@@ -1587,18 +2471,30 @@ impl Exl3Group {
             [self.simdgroups * 32, 1, 1],
         )?
         .remove(0);
-        let yhat = if splits == 1 {
-            partials.reshape(&[matrix_rows, self.cols])?
+        let output = if qmv_fused_glue(x.dtype()) && groups <= 8 {
+            glue_epilogue(
+                &partials,
+                &self.svh,
+                splits,
+                matrix_rows,
+                matrix_rows,
+                self.cols,
+                x.dtype(),
+                true,
+            )?
         } else {
-            partials.sum(1, false)?
+            let yhat = if splits == 1 {
+                partials.reshape(&[matrix_rows, self.cols])?
+            } else {
+                partials.sum(1, false)?
+            };
+            yhat.astype(Dtype::Float16)?
+                .reshape(&[matrix_rows, self.cols / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[matrix_rows, self.cols])?
+                .mul(&self.svh.astype(Dtype::Float16)?)?
+                .astype(x.dtype())?
         };
-        let output = yhat
-            .astype(Dtype::Float16)?
-            .reshape(&[matrix_rows, self.cols / 128, 128])?
-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
-            .reshape(&[matrix_rows, self.cols])?
-            .mul(&self.svh.astype(Dtype::Float16)?)?
-            .astype(x.dtype())?;
         let mut begin = 0;
         let mut outputs = Vec::with_capacity(self.widths.len());
         for (width, bias) in self.widths.iter().zip(&self.biases) {

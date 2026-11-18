@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import statistics
@@ -36,11 +37,17 @@ SAMPLERS = {
     "desktop": {"temperature": 0.2, "top_k": 80, "repetition_penalty": 1.05},
     "qwen": {"temperature": 0.6, "top_k": 20, "repetition_penalty": 1.0},
 }
+_spec = importlib.util.spec_from_file_location("lfm3_cases", HERE / "check-lfm3-lookup.py")
+_cases = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_cases)
 CASES = {
     "fr": "Explique en quelques paragraphes pourquoi le ciel est bleu.",
     "code": "Write a Rust function that parses an ISO 8601 date like 2026-11-16.",
     "story": "Write a short story about a lighthouse keeper who finds a message in a bottle.",
     "math": "Explain step by step how to solve the quadratic equation 3x^2 - 5x - 2 = 0.",
+    "copy": f"Recopie exactement le texte suivant, sans rien changer :\n\n{_cases.PASSAGE}",
+    "edit": "Rename the variable `users` to `people` everywhere and return the complete "
+    f"code only:\n\n```python\n{_cases.CODE}```",
 }
 COUNTERS = (
     "mtp_proposed_tokens",
@@ -256,6 +263,11 @@ def main():
     parser.add_argument("--context", type=int, default=4096)
     parser.add_argument("--timeout", type=positive_seconds, default=600.0)
     parser.add_argument("--settle", type=float, default=2.0)
+    parser.add_argument(
+        "--no-parity",
+        action="store_true",
+        help="record greedy hashes without requiring one per case (non-exact arms)",
+    )
     args = parser.parse_args()
     arms = dict(parse_arm(item) for item in args.arm)
     if len(arms) != len(args.arm):
@@ -327,7 +339,8 @@ def main():
                 for rows in item["results"].values()
                 for run in rows[case]
             }
-            if not sampled and len(hashes) != 1:
+            report.setdefault("distinct_hashes", {})[case] = len(hashes)
+            if not sampled and not args.no_parity and len(hashes) != 1:
                 problems.append(f"{case}: {len(hashes)} greedy token hashes across arms/modes")
         for label in report["passes"][0]["results"]:
             for case in args.case_names:
