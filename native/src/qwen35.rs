@@ -318,14 +318,20 @@ impl Mlp {
         );
         let Self::Moe(mlp) = self else {
             if let Self::Dense(mlp) = self
-                && crate::contracts::dense_mlp_batch(
+                && (crate::contracts::dense_mlp_batch(
                     values.len(),
                     hidden,
                     matches!(mlp.inputs, ProjectionBundle::Grouped(_)),
                     mlp.down.is_exl3(),
                     dense_mlp_batch_enabled() && crate::array::is_m5_gpu()?,
                     dense_mlp_batch_enabled(),
-                )
+                ) || crate::contracts::dense_mlp_shared_batch(
+                    values.len(),
+                    hidden,
+                    matches!(&mlp.inputs, ProjectionBundle::Grouped(group) if group.shared_rows_ready())
+                        && mlp.down.shared_rows_ready(),
+                    dense_mlp_batch_enabled() && crate::linear::dense_shared_enabled(),
+                ))
             {
                 let rows = i32::try_from(values.len())?;
                 let batch = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?
@@ -409,9 +415,100 @@ pub struct Attention {
     keys: Option<Array>,
     values: Option<Array>,
     verification_base: Option<i32>,
+    /// Q27D-11: capacity K/V buffers; `keys`/`values` are then their `[0, len)` views.
+    kv_buffer: Option<(Array, Array)>,
+    kv_inplace: bool,
+}
+
+/// Q27D-11 rollback switch: absent or `1` keeps the dense K/V in place, anything else concatenates.
+fn kv_inplace_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = KV_INPLACE_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        crate::contracts::qwen_kv_inplace_enabled(
+            std::env::var_os("MLXL3_QWEN_KV_INPLACE")
+                .as_deref()
+                .map(|value| value.to_str().unwrap_or("")),
+        )
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static KV_INPLACE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override, read at each append (the per-layer eligibility stays fixed at load).
+#[cfg(test)]
+pub(crate) fn with_kv_inplace<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            KV_INPLACE_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(KV_INPLACE_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
 }
 
 impl Attention {
+    /// Appends `[1, kv_heads, t, head_dim]` keys/values after the cached prefix.
+    fn kv_append(&mut self, k: Array, v: Array) -> Result<()> {
+        let len = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+        let time = k.shape()[2];
+        if !(self.kv_inplace && kv_inplace_enabled()) {
+            self.kv_buffer = None;
+            let keys = match &self.keys {
+                Some(previous) => Array::concatenate(&[previous, &k], 2)?,
+                None => k,
+            };
+            let values = match &self.values {
+                Some(previous) => Array::concatenate(&[previous, &v], 2)?,
+                None => v,
+            };
+            self.keys = Some(keys);
+            self.values = Some(values);
+            return Ok(());
+        }
+        let end = crate::contracts::qwen_kv_end(len, time).context("attention cache overflow")?;
+        if self
+            .kv_buffer
+            .as_ref()
+            .is_none_or(|(buffer, _)| buffer.shape()[2] < end)
+        {
+            let capacity =
+                crate::contracts::qwen_kv_capacity(end).context("attention cache overflow")?;
+            let shape = [1, self.kv_heads, capacity, self.head_dim];
+            let (mut keys, mut values) = (
+                Array::zeros_dtype(&shape, k.dtype())?,
+                Array::zeros_dtype(&shape, v.dtype())?,
+            );
+            // One growth copy of the cached prefix; the previous buffer is released.
+            if let (Some(prefix_keys), Some(prefix_values)) = (self.keys.take(), self.values.take())
+            {
+                keys = keys.slice_update(&prefix_keys, &[0, 0, 0, 0])?;
+                values = values.slice_update(&prefix_values, &[0, 0, 0, 0])?;
+            }
+            self.kv_buffer = Some((keys, values));
+        }
+        // Drop the prefix views first so MLX can update the buffers in place.
+        self.keys = None;
+        self.values = None;
+        let (buffer_keys, buffer_values) =
+            self.kv_buffer.take().context("missing attention buffer")?;
+        let keys = buffer_keys.slice_update(&k, &[0, 0, len, 0])?;
+        drop(buffer_keys);
+        let values = buffer_values.slice_update(&v, &[0, 0, len, 0])?;
+        drop(buffer_values);
+        self.keys = Some(keys.slice(2, 0, end)?);
+        self.values = Some(values.slice(2, 0, end)?);
+        self.kv_buffer = Some((keys, values));
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn load(
         checkpoint: &Checkpoint,
@@ -466,6 +563,8 @@ impl Attention {
             keys: None,
             values: None,
             verification_base: None,
+            kv_buffer: None,
+            kv_inplace: false,
         })
     }
 
@@ -489,6 +588,7 @@ impl Attention {
         self.keys = keys;
         self.values = values;
         self.verification_base = None;
+        self.kv_buffer = None;
         Ok(())
     }
 
@@ -521,26 +621,17 @@ impl Attention {
         let offset = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
         let q = q.rope(self.rope_dims, self.theta, offset)?;
         let k = k.rope(self.rope_dims, self.theta, offset)?;
-        let keys = match &self.keys {
-            Some(previous) => Array::concatenate(&[previous, &k], 2)?,
-            None => k,
-        };
-        let values = match &self.values {
-            Some(previous) => Array::concatenate(&[previous, &v], 2)?,
-            None => v,
-        };
+        self.kv_append(k, v)?;
         let attended = Array::sdpa(
             &q,
-            &keys,
-            &values,
+            self.keys.as_ref().context("missing attention keys")?,
+            self.values.as_ref().context("missing attention values")?,
             (self.head_dim as f32).powf(-0.5),
             time > 1,
         )?
         .transpose(&[0, 2, 1, 3])?
         .reshape(&[1, time, self.heads * self.head_dim])?
         .mul(&gate.sigmoid()?)?;
-        self.keys = Some(keys);
-        self.values = Some(values);
         self.output.forward(&attended)
     }
 
@@ -573,16 +664,7 @@ impl Attention {
         let v = v
             .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
-        let keys = match &self.keys {
-            Some(previous) => Array::concatenate(&[previous, &k], 2)?,
-            None => k,
-        };
-        let values = match &self.values {
-            Some(previous) => Array::concatenate(&[previous, &v], 2)?,
-            None => v,
-        };
-        self.keys = Some(keys);
-        self.values = Some(values);
+        self.kv_append(k, v)?;
         self.verification_base = None;
         Ok(())
     }
@@ -607,6 +689,9 @@ impl Attention {
         self.verification_base =
             retain_history.then(|| self.keys.as_ref().map_or(0, |keys| keys.shape()[2]));
         let qkv = self.qkv.forward(x)?;
+        if self.kv_inplace && kv_inplace_enabled() {
+            return self.forward_verification_inplace(&qkv, time);
+        }
         let mut attended = Vec::with_capacity(time as usize);
         for row in 0..time {
             let q_gate =
@@ -655,6 +740,69 @@ impl Attention {
         )?)
     }
 
+    /// Q27D-11 / D15: every row keeps single-row Q/K arithmetic, the block's K/V are
+    /// written once, and row `r` attends to the causal prefix view `[0, base + r + 1)`.
+    fn forward_verification_inplace(&mut self, qkv: &[Array], time: i32) -> Result<Array> {
+        let base = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+        let mut queries = Vec::with_capacity(time as usize);
+        let mut gates = Vec::with_capacity(time as usize);
+        let mut keys = Vec::with_capacity(time as usize);
+        let mut values = Vec::with_capacity(time as usize);
+        for row in 0..time {
+            let q_gate =
+                qkv[0]
+                    .slice(1, row, row + 1)?
+                    .reshape(&[1, 1, self.heads, self.head_dim * 2])?;
+            let q = q_gate
+                .slice(3, 0, self.head_dim)?
+                .rms_norm(&self.q_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?;
+            gates.push(
+                q_gate
+                    .slice(3, self.head_dim, self.head_dim * 2)?
+                    .reshape(&[1, 1, self.heads * self.head_dim])?,
+            );
+            let k = qkv[1]
+                .slice(1, row, row + 1)?
+                .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+                .rms_norm(&self.k_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?;
+            values.push(
+                qkv[2]
+                    .slice(1, row, row + 1)?
+                    .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+                    .transpose(&[0, 2, 1, 3])?,
+            );
+            queries.push(q.rope(self.rope_dims, self.theta, base + row)?);
+            keys.push(k.rope(self.rope_dims, self.theta, base + row)?);
+        }
+        let block_keys = Array::concatenate(&keys.iter().collect::<Vec<_>>(), 2)?;
+        let block_values = Array::concatenate(&values.iter().collect::<Vec<_>>(), 2)?;
+        drop((keys, values));
+        self.kv_append(block_keys, block_values)?;
+        let (cached_keys, cached_values) = self.states()?;
+        let mut attended = Vec::with_capacity(time as usize);
+        for (row, (q, gate)) in queries.iter().zip(&gates).enumerate() {
+            let end = base + row as i32 + 1;
+            attended.push(
+                Array::sdpa(
+                    q,
+                    &cached_keys.slice(2, 0, end)?,
+                    &cached_values.slice(2, 0, end)?,
+                    (self.head_dim as f32).powf(-0.5),
+                    false,
+                )?
+                .transpose(&[0, 2, 1, 3])?
+                .reshape(&[1, 1, self.heads * self.head_dim])?
+                .mul(&gate.sigmoid()?)?,
+            );
+        }
+        self.output.forward(&Array::concatenate(
+            &attended.iter().collect::<Vec<_>>(),
+            1,
+        )?)
+    }
+
     fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
         let base = self
             .verification_base
@@ -693,6 +841,7 @@ impl Attention {
         self.keys = None;
         self.values = None;
         self.verification_base = None;
+        self.kv_buffer = None;
     }
 }
 
@@ -1279,9 +1428,13 @@ impl Qwen35Moe {
                 .ok()
                 .map(|value| value == "1"),
         );
+        // Q27D-11: only the dense 27B was measured and qualified with in-place K/V.
+        let kv_inplace =
+            mtp_layout.managed_head(layers.len()) == Some(crate::mtp::ManagedHead::Qwen38Dense);
         for layer in &mut layers {
-            if let Layer::Linear(layer) = layer {
-                layer.replay_enabled = replay_enabled;
+            match layer {
+                Layer::Linear(layer) => layer.replay_enabled = replay_enabled,
+                Layer::Attention(layer) => layer.attention.kv_inplace = kv_inplace,
             }
         }
         let mtp_projection_source =
@@ -6439,3 +6592,7 @@ mod memory_feature_tests {
 #[cfg(all(test, feature = "chat"))]
 #[path = "qwen35_head_lane.rs"]
 mod head_lane;
+
+#[cfg(test)]
+#[path = "qwen35_q27_anatomy.rs"]
+mod q27_anatomy;

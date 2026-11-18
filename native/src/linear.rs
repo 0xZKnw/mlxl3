@@ -113,6 +113,40 @@ pub(crate) fn with_lane_order_test<T>(enabled: bool, run: impl FnOnce() -> T) ->
     run()
 }
 
+/// Q27D-04 rollback switch for the shared-decode verification layouts.
+pub fn dense_shared_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = DENSE_SHARED_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        crate::contracts::dense_shared_verify_enabled(
+            std::env::var_os("MLXL3_DENSE_SHARED_VERIFY")
+                .as_deref()
+                .map(|value| value.to_str().unwrap_or("")),
+        )
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_SHARED_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override: stock and shared layouts on the same loaded weights.
+#[cfg(test)]
+pub(crate) fn with_dense_shared_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_SHARED_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_SHARED_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
 fn lane_order_indices(
     input: i32,
     output: i32,
@@ -147,8 +181,11 @@ fn lane_order_input(
     groups: i32,
     input: i32,
 ) -> Result<(Array, bool)> {
-    if let Some(indices) = indices.filter(|_| lane_order_enabled() && matches!(matrix_rows, 1 | 2))
-    {
+    if let Some(indices) = indices.filter(|_| {
+        lane_order_enabled()
+            && (matches!(matrix_rows, 1 | 2)
+                || crate::contracts::dense_shared_rows(matrix_rows, true, dense_shared_enabled()))
+    }) {
         let shape = xhat.shape().to_vec();
         let value = xhat
             .reshape(&[matrix_rows, groups, input])?
@@ -514,6 +551,16 @@ impl Exl3Linear {
         self.lfm3_prefill[1]
     }
 
+    /// Lane-ordered stock projection: eligible for the shared-decode verify layouts.
+    pub(crate) fn shared_rows_ready(&self) -> bool {
+        self.lane_indices.is_some()
+            && lane_order_enabled()
+            && self.head_lane_indices.is_none()
+            && !self.reference_accumulation
+            && !self.mtp_hidden_batch
+            && self.k != 7
+    }
+
     pub fn input_dims(&self) -> i32 {
         self.rows
     }
@@ -654,6 +701,21 @@ impl Exl3Linear {
             return Array::concatenate(&batches.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
         if matrix_rows > 1 {
+            if let Some((first, _)) = crate::contracts::dense_shared_chunks(
+                matrix_rows,
+                self.shared_rows_ready(),
+                dense_shared_enabled(),
+            ) {
+                let matrix = x.reshape(&[matrix_rows, self.rows])?;
+                let head = self.forward_qmv_batch(&matrix.slice(0, 0, first)?, first)?;
+                let tail = self.forward_qmv_batch(
+                    &matrix.slice(0, first, matrix_rows)?,
+                    matrix_rows - first,
+                )?;
+                let mut shape = x.shape().to_vec();
+                *shape.last_mut().context("empty EXL3 batch shape")? = self.cols;
+                return Array::concatenate(&[&head, &tail], 0)?.reshape(&shape);
+            }
             if self.k != 7 {
                 return self.forward_qmv_batch(x, matrix_rows);
             }
@@ -833,6 +895,10 @@ impl Exl3Linear {
             (Some(_), Some(indices)) => (xhat.take(indices, 1)?, true),
             _ => (xhat, lane_order),
         };
+        // Q27D-04: the lane-ordered rows of one verify block share each decoded tile.
+        let shared = lane_order
+            && self.shared_rows_ready()
+            && crate::contracts::dense_shared_rows(matrix_rows, true, dense_shared_enabled());
         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
         let mut nt = if use_nt4 {
             4
@@ -864,6 +930,9 @@ impl Exl3Linear {
         } else if let Some((mb, groups, head_nt)) = head_lane {
             nt = head_nt;
             (mb, groups)
+        } else if shared {
+            nt = 1;
+            (matrix_rows, 1)
         } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
                 .context("invalid batch QMV rows")?
@@ -920,7 +989,13 @@ impl Exl3Linear {
                 self.simdgroups,
                 splits,
                 // MLX caches libraries by name; the lane header must not reuse a stock one.
-                if head_lane.is_some() { "_q36lane" } else { "" }
+                if head_lane.is_some() {
+                    "_q36lane"
+                } else if shared {
+                    "_shared"
+                } else {
+                    ""
+                }
             ),
             &["xhat", "trellis", "svh"],
             &["yhat"],
@@ -1185,6 +1260,11 @@ impl Exl3Group {
         })
     }
 
+    /// Lane-ordered stock group: eligible for the shared-decode verify layouts.
+    pub(crate) fn shared_rows_ready(&self) -> bool {
+        self.lane_indices.is_some() && lane_order_enabled()
+    }
+
     pub fn forward(&self, x: &Array) -> Result<Vec<Array>> {
         let elements = x
             .shape()
@@ -1254,6 +1334,26 @@ impl Exl3Group {
                     let mut shape = x.shape().to_vec();
                     *shape.last_mut().context("empty grouped input shape")? = width;
                     Array::concatenate(&batch.iter().collect::<Vec<_>>(), 0)?.reshape(&shape)
+                })
+                .collect();
+        }
+        if let Some((first, _)) = crate::contracts::dense_shared_chunks(
+            matrix_rows,
+            self.shared_rows_ready(),
+            dense_shared_enabled(),
+        ) {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let head = self.forward_qmv_batch(&matrix.slice(0, 0, first)?, first)?;
+            let tail =
+                self.forward_qmv_batch(&matrix.slice(0, first, matrix_rows)?, matrix_rows - first)?;
+            return head
+                .iter()
+                .zip(&tail)
+                .zip(&self.widths)
+                .map(|((head, tail), &width)| {
+                    let mut shape = x.shape().to_vec();
+                    *shape.last_mut().context("empty grouped input shape")? = width;
+                    Array::concatenate(&[head, tail], 0)?.reshape(&shape)
                 })
                 .collect();
         }
@@ -1428,10 +1528,19 @@ impl Exl3Group {
             grouped_mb3_enabled(),
         )
         .context("invalid grouped batch QMV rows")?;
+        // Q27D-04: the lane-ordered rows of one verify block share each decoded tile.
+        let shared = lane_order
+            && self.shared_rows_ready()
+            && crate::contracts::dense_shared_rows(matrix_rows, true, dense_shared_enabled());
+        let (mb, batch_groups) = if shared {
+            (matrix_rows, 1)
+        } else {
+            (mb, batch_groups)
+        };
         if mb == 2 {
             nt = nt.min(2);
         }
-        if mb == 3 {
+        if mb >= 3 {
             nt = 1;
         }
         let header = codebook_header(self.cb)
@@ -1449,8 +1558,17 @@ impl Exl3Group {
         let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
         let partials = array::metal_kernel(
             &format!(
-                "mlxl3_rs_grouped_batch_{}_{}_{}_{}_{}_{}_{}_{}",
-                self.rows, self.cols, self.k, self.cb as u32, nt, mb, self.simdgroups, splits,
+                "mlxl3_rs_grouped_batch_{}_{}_{}_{}_{}_{}_{}_{}{}",
+                self.rows,
+                self.cols,
+                self.k,
+                self.cb as u32,
+                nt,
+                mb,
+                self.simdgroups,
+                splits,
+                // MLX caches libraries by name; the lane header must not reuse a stock one.
+                if shared { "_shared" } else { "" },
             ),
             &["xhat", "trellis", "tile_map", "tile_sub"],
             &["yhat"],
@@ -2050,6 +2168,10 @@ mod prepared_tests;
 #[cfg(test)]
 #[path = "linear/reference_mb34_tests.rs"]
 mod reference_mb34_tests;
+
+#[cfg(test)]
+#[path = "linear/q27_kernel_lab.rs"]
+mod q27_kernel_lab;
 
 #[cfg(test)]
 mod tests {

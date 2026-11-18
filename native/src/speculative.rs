@@ -516,6 +516,33 @@ pub fn dflash_proposals(
     }
 }
 
+/// Q27D-08 (D1): widest adaptive DFlash2 block for the dense 27B once its verification
+/// shares the decode of up to four rows (`MLXL3_DENSE_SHARED_VERIFY`): three proposals keep
+/// the block at four verified rows, below the five-row cost step. `None` keeps the policy.
+pub fn dflash_width_cap(dense: bool, shared_verify: bool, mode: usize) -> Option<usize> {
+    (dense && shared_verify && mode == 1).then_some(3)
+}
+
+#[test]
+fn dflash_width_cap_only_limits_dense_adaptive_blocks() {
+    for mode in 0..=4 {
+        for dense in [false, true] {
+            for shared in [false, true] {
+                let cap = dflash_width_cap(dense, shared, mode);
+                assert_eq!(cap.is_some(), dense && shared && mode == 1);
+                if let Some(cap) = cap {
+                    assert_eq!(cap, 3);
+                    // The capped block still reserves the corrective token.
+                    for output in 0..10 {
+                        let width = dflash_proposals(1, 4096, output, 8, 8, 8).map(|n| n.min(cap));
+                        assert!(width.is_none_or(|n| n <= 3 && n < output.max(1)));
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Accepts the longest proposal prefix selected by the target.
 ///
 /// `target_tokens[i]` is the target's token after the first `i` proposals.

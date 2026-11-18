@@ -1,0 +1,359 @@
+{
+  "status": "passed",
+  "arms": {
+    "base": {}
+  },
+  "order": [
+    "base"
+  ],
+  "modes": [
+    "ar",
+    "dflash:1",
+    "dflash:2",
+    "dflash:3"
+  ],
+  "sampler": "greedy",
+  "sampled": false,
+  "tokens": 128,
+  "repeats": 1,
+  "context": 4096,
+  "cases": [
+    "fr",
+    "code"
+  ],
+  "engine": "target/release/mlxl3-rs",
+  "engine_sha256": "d1578f33c2a5d532918a8596395e219dc3853b2cee8fdd0321c55467d23192ea",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "mtp_head": null,
+  "dflash_draft": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2",
+  "before": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t75%; charging; 1:02 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      3.03857421875,
+      3.58349609375,
+      3.76123046875
+    ]
+  },
+  "passes": [
+    {
+      "arm": "base",
+      "conditions": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t75%; charging; 1:02 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "load": [
+          3.03857421875,
+          3.58349609375,
+          3.76123046875
+        ]
+      },
+      "status": "complete",
+      "results": {
+        "ar": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 9.344528908544104,
+              "decode_seconds": 13.590840292,
+              "prefill_seconds": 0.71882425,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 9353157500,
+              "mlx_peak_bytes": 9573632628,
+              "process_footprint_bytes": 9972045152,
+              "dflash_block_seconds": 0.0
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 8.831300798166332,
+              "decode_seconds": 14.380667458,
+              "prefill_seconds": 1.091099083,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 9354206076,
+              "mlx_peak_bytes": 9699067113,
+              "process_footprint_bytes": 10116240736,
+              "dflash_block_seconds": 0.0
+            }
+          ]
+        },
+        "dflash:1": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 6.45936007463053,
+              "decode_seconds": 19.661390375,
+              "prefill_seconds": 0.741503083,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 10622862738,
+              "mlx_peak_bytes": 10867990316,
+              "process_footprint_bytes": 11497625864,
+              "dflash_proposed_tokens": 138,
+              "dflash_accepted_tokens": 81,
+              "dflash_blocks": 45,
+              "dflash_block_seconds": 19.540508997
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 5.834432417739934,
+              "decode_seconds": 21.767327291999997,
+              "prefill_seconds": 1.180047625,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 10624441746,
+              "mlx_peak_bytes": 10968231657,
+              "process_footprint_bytes": 11633826032,
+              "dflash_proposed_tokens": 138,
+              "dflash_accepted_tokens": 76,
+              "dflash_blocks": 51,
+              "dflash_block_seconds": 21.766337623000002
+            }
+          ]
+        },
+        "dflash:2": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 7.022905984480127,
+              "decode_seconds": 18.083682208,
+              "prefill_seconds": 0.791265708,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 10623010194,
+              "mlx_peak_bytes": 10853838172,
+              "process_footprint_bytes": 11451799888,
+              "dflash_proposed_tokens": 104,
+              "dflash_accepted_tokens": 74,
+              "dflash_blocks": 52,
+              "dflash_block_seconds": 17.977774746
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 6.796370189022509,
+              "decode_seconds": 18.686445333,
+              "prefill_seconds": 1.079279125,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 10624441746,
+              "mlx_peak_bytes": 10968231657,
+              "process_footprint_bytes": 11605236024,
+              "dflash_proposed_tokens": 112,
+              "dflash_accepted_tokens": 71,
+              "dflash_blocks": 56,
+              "dflash_block_seconds": 18.685404917000003
+            }
+          ]
+        },
+        "dflash:3": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 4.349737696902854,
+              "decode_seconds": 29.197162875,
+              "prefill_seconds": 0.774021834,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 10623501714,
+              "mlx_peak_bytes": 10877756092,
+              "process_footprint_bytes": 11526052176,
+              "dflash_proposed_tokens": 255,
+              "dflash_accepted_tokens": 89,
+              "dflash_blocks": 37,
+              "dflash_block_seconds": 29.092055837
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 4.055588099283406,
+              "decode_seconds": 31.314817208,
+              "prefill_seconds": 1.048119709,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 10624769424,
+              "mlx_peak_bytes": 10968231657,
+              "process_footprint_bytes": 11626879288,
+              "dflash_proposed_tokens": 294,
+              "dflash_accepted_tokens": 85,
+              "dflash_blocks": 42,
+              "dflash_block_seconds": 31.31393482999999
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "ar/fr": {
+      "decode_tps": {
+        "base": 9.344528908544104
+      },
+      "pass_means": [
+        9.344528908544104
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "ar/code": {
+      "decode_tps": {
+        "base": 8.831300798166332
+      },
+      "pass_means": [
+        8.831300798166332
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "dflash:1/fr": {
+      "decode_tps": {
+        "base": 6.45936007463053
+      },
+      "pass_means": [
+        6.45936007463053
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 138,
+          "dflash_accepted_tokens": 81,
+          "dflash_blocks": 45,
+          "dflash_block_seconds": 19.540508997
+        }
+      }
+    },
+    "dflash:1/code": {
+      "decode_tps": {
+        "base": 5.834432417739934
+      },
+      "pass_means": [
+        5.834432417739934
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 138,
+          "dflash_accepted_tokens": 76,
+          "dflash_blocks": 51,
+          "dflash_block_seconds": 21.766337623000002
+        }
+      }
+    },
+    "dflash:2/fr": {
+      "decode_tps": {
+        "base": 7.022905984480127
+      },
+      "pass_means": [
+        7.022905984480127
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 104,
+          "dflash_accepted_tokens": 74,
+          "dflash_blocks": 52,
+          "dflash_block_seconds": 17.977774746
+        }
+      }
+    },
+    "dflash:2/code": {
+      "decode_tps": {
+        "base": 6.796370189022509
+      },
+      "pass_means": [
+        6.796370189022509
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 112,
+          "dflash_accepted_tokens": 71,
+          "dflash_blocks": 56,
+          "dflash_block_seconds": 18.685404917000003
+        }
+      }
+    },
+    "dflash:3/fr": {
+      "decode_tps": {
+        "base": 4.349737696902854
+      },
+      "pass_means": [
+        4.349737696902854
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 255,
+          "dflash_accepted_tokens": 89,
+          "dflash_blocks": 37,
+          "dflash_block_seconds": 29.092055837
+        }
+      }
+    },
+    "dflash:3/code": {
+      "decode_tps": {
+        "base": 4.055588099283406
+      },
+      "pass_means": [
+        4.055588099283406
+      ],
+      "gain_percent_vs_first": {
+        "base": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "base": {
+          "dflash_proposed_tokens": 294,
+          "dflash_accepted_tokens": 85,
+          "dflash_blocks": 42,
+          "dflash_block_seconds": 31.31393482999999
+        }
+      }
+    }
+  },
+  "problems": [],
+  "after": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t77%; charging; 1:32 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      3.2490234375,
+      3.29638671875,
+      3.57861328125
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+=== snapshot_restore_replays_logits_and_state_exactly (27B)
+
+running 1 test
+test qwen35::tests::snapshot_restore_replays_logits_and_state_exactly ... FAILED
+
+failures:
+
+---- qwen35::tests::snapshot_restore_replays_logits_and_state_exactly stdout ----
+Error: model directory models/Qwen3.6-35B-A3B-EXL3-2.49bpw
+
+Caused by:
+    No such file or directory (os error 2)
+
+
+failures:
+    qwen35::tests::snapshot_restore_replays_logits_and_state_exactly
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 793 filtered out; finished in 0.00s
+
+exit=101 seconds=0
+=== dflash_capture_verification_and_commits_match_serial_states (27B)
+
+running 1 test
+test qwen35::tests::dflash_capture_verification_and_commits_match_serial_states ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 793 filtered out; finished in 120.04s
+
+exit=0 seconds=120
+=== mtp_recursive_sessions_match_greedy_and_exact_caches (27B)
+
+running 1 test
+test qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 793 filtered out; finished in 19.52s
+
+exit=0 seconds=20
+=== mtp_prefill_verification_and_rollback_match_target (27B)
+
+running 1 test
+test qwen35::tests::mtp_prefill_verification_and_rollback_match_target ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 793 filtered out; finished in 271.08s
+
+exit=0 seconds=271
+=== long_prefix_verification_keeps_exact_state (27B)
+
+running 1 test
+test qwen35::tests::long_prefix_verification_keeps_exact_state ... FAILED
+
+failures:
+
+---- qwen35::tests::long_prefix_verification_keeps_exact_state stdout ----
+Error: loading tokenizer.json: No such file or directory (os error 2)
+
+
+failures:
+    qwen35::tests::long_prefix_verification_keeps_exact_state
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 793 filtered out; finished in 0.00s
+
+exit=101 seconds=0
+=== dense_lane_order_matches_stock_prefixes (27B)
+
+running 1 test
+test qwen35::tests::dense_lane_order_matches_stock_prefixes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 793 filtered out; finished in 117.83s
+
+exit=0 seconds=118
+=== verification_widths_match_token_major (35B, cwd main checkout)
+
+running 1 test
+test qwen35::tests::verification_widths_match_token_major ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 793 filtered out; finished in 9.96s
+
+exit=0 seconds=10
