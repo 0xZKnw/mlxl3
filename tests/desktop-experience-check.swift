@@ -446,11 +446,19 @@ extension DesktopExperienceCheck {
         try await Task.sleep(for: .milliseconds(150))
         func click(_ x: CGFloat, _ y: CGFloat) async throws {
             progress("click \(Int(x)),\(Int(y))")
-            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-                let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: bounds.height - y),
+            func event(_ type: NSEvent.EventType) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: bounds.height - y),
                     modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                     windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
-                window.sendEvent(event)
+            }
+            // A control that tracks the mouse (the search field) reads the mouse-up from the
+            // event queue inside sendEvent(mouseDown); queue it first so that loop ends, then
+            // deliver it ourselves if nothing consumed it.
+            let app = NSApplication.shared
+            app.postEvent(event(.leftMouseUp), atStart: false)
+            window.sendEvent(event(.leftMouseDown))
+            if let up = app.nextEvent(matching: .leftMouseUp, until: .distantPast, inMode: .default, dequeue: true) {
+                window.sendEvent(up)
             }
             try await Task.sleep(for: .milliseconds(100))
         }
