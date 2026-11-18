@@ -15,11 +15,13 @@ final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
     let localServer = LocalServer()
+    let decision = DecisionStudio()
     let quantizer = QuantizationModel()
     private var quantizationObservation: AnyCancellable?
     private var labConfiguration: ((GenerationStats) -> LabSample)?
     private var modeTransition: Task<Void, Never>?
     private var serverObservation: AnyCancellable?
+    private var decisionObservation: AnyCancellable?
     private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = []
     @Published var selectedModelName: String?
@@ -329,6 +331,8 @@ final class StudioModel: ObservableObject {
         dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        decisionObservation = decision.server.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        decision.prepareForLoad = { [weak self] in await self?.releaseChatModelForDecision() }
         selectedMode = currentConversation?.agent == true ? .agent : .chat
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
@@ -1109,7 +1113,7 @@ final class StudioModel: ObservableObject {
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
         conversation.agent = selectedMode == .agent
-        if selectedMode == .lab || selectedMode == .server {
+        if selectedMode.standalone {
             let count = conversations.count
             selectMode(.chat)
             // Changing modes already creates a Chat when that history is empty.
@@ -2422,7 +2426,16 @@ extension StudioModel {
     func selectMode(_ mode: StudioMode) {
         guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
         voice.stop()
+        if mode == .decision {
+            decision.refresh(registered: models)
+            selectedMode = mode
+            return
+        }
         if mode == .server || mode == .lab { selectedMode = mode; return }
+        if selectedMode == .decision || decision.active || decision.server.active {
+            // The decision model leaves memory to the chat model.
+            decision.shutdown()
+        }
         if localServer.active {
             localServer.stop()
             modeTransition = Task {
@@ -2526,6 +2539,17 @@ extension StudioModel {
             do { try await Task.detached { try store.checkpoint(messageID: messageID) }.value }
             catch { featureError = error.localizedDescription }
         }
+    }
+
+    /// Frees the GPU for a decision model: the chat server and the chat model stop first.
+    func releaseChatModelForDecision() async {
+        if isGenerating { stopGeneration() }
+        if localServer.active {
+            localServer.stop()
+            while localServer.active { try? await Task.sleep(for: .milliseconds(50)) }
+        }
+        await bridge.stopAndWait()
+        ejectModel()
     }
 
     func startServer(port: Int, host: String = "127.0.0.1", context: Int? = nil) {

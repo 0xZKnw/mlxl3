@@ -1755,6 +1755,75 @@ fn run(cli: Cli) -> Result<()> {
                 bail!("the Desktop bridge requires chat and an inference backend");
             }
         }
+        Command::Decide {
+            model,
+            request,
+            trace,
+        } => {
+            #[cfg(all(feature = "mlx", feature = "chat"))]
+            {
+                let path = cli::resolve_model_path(cli.registry.as_deref(), &model)?;
+                let text = match request {
+                    Some(file) => std::fs::read_to_string(&file)
+                        .with_context(|| format!("reading {}", file.display()))?,
+                    None => {
+                        let mut text = String::new();
+                        io::stdin().read_to_string(&mut text)?;
+                        text
+                    }
+                };
+                let value: mlxl3_native::d1::Json =
+                    serde_json::from_str(&text).context("the request is not JSON")?;
+                if let Some(folder) = &trace {
+                    std::fs::create_dir_all(folder)?;
+                }
+                let mut engine = mlxl3_native::d1::runtime::Engine::load(&path, &model)?;
+                let answer = engine.decide(&value, true, trace.as_deref())?;
+                println!("{}", serde_json::to_string(&answer)?);
+            }
+            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            {
+                let _ = (request, trace);
+                bail!("decisions with {model:?} require a build with --features mlx,chat");
+            }
+        }
+        Command::DecideBridge { model } => {
+            #[cfg(all(feature = "mlx", feature = "chat"))]
+            {
+                let path = cli::resolve_model_path(cli.registry.as_deref(), &model)?;
+                mlxl3_native::d1_server::run_bridge(
+                    &path,
+                    &model,
+                    io::stdin().lock(),
+                    io::stdout().lock(),
+                )?;
+            }
+            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            bail!("the decision bridge for {model:?} requires a build with --features mlx,chat");
+        }
+        Command::DecideServe {
+            model,
+            host,
+            port,
+            api_key,
+            api_key_stdin,
+        } => {
+            let api_key = if api_key_stdin {
+                read_server_key(io::stdin().lock())?
+            } else {
+                api_key
+            };
+            #[cfg(all(feature = "mlx", feature = "chat"))]
+            {
+                let path = cli::resolve_model_path(cli.registry.as_deref(), &model)?;
+                mlxl3_native::d1_server::serve(path, model, &host, port, api_key)?;
+            }
+            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            {
+                let _ = (host, port, api_key);
+                bail!("the decision API for {model:?} requires a build with --features mlx,chat");
+            }
+        }
         Command::Serve {
             model,
             host,

@@ -12,7 +12,7 @@ direct-metal = ["dep:metal", "dep:objc"]
 # MLX uses the Metal device query without enabling the standalone native engine.
 mlx = ["dep:metal"]
 hybrid-dispatch = ["chat"]
-chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib", "dep:image", "dep:base64"]
+chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib", "dep:image", "dep:base64", "dep:fancy-regex", "dep:regex", "dep:unicode-normalization"]
 
 [lib]
 path = "native/src/lib.rs"
@@ -54,6 +54,10 @@ time = { version = "0.3", features = ["formatting"] }
 tokenizers = { version = "0.23.1", optional = true }
 minijinja = { version = "2.24", optional = true }
 minijinja-contrib = { version = "2.24", features = ["pycompat"], optional = true }
+# d1 parsing port: CPython `re` lookarounds/backreferences and NFKD folding.
+fancy-regex = { version = "0.17", optional = true }
+regex = { version = "1.13", optional = true }
+unicode-normalization = { version = "0.1.26", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 metal = { version = "0.33", optional = true }

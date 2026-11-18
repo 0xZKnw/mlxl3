@@ -696,7 +696,7 @@ impl Attention {
         })
     }
 
-    fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+    fn forward(&mut self, x: &Array, offset: i32, set: Option<&SetMask>) -> Result<Array> {
         let time = *x
             .shape()
             .get(1)
@@ -733,6 +733,22 @@ impl Attention {
             let key_count = keys.shape()[2];
             let mask = crate::lfm3::sliding_mask(time, key_count, window)?.astype(q.dtype())?;
             Array::sdpa_mask(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), &mask)?
+        } else if let Some(set) = set {
+            // d1 `set` attention: state queries see every key, question queries their mask.
+            let scale = (self.head_dim as f32).powf(-0.5);
+            ensure!(
+                self.keys.is_none() && set.state > 0 && set.state <= time,
+                "set attention reads one whole sequence"
+            );
+            let head = Array::sdpa(&q.slice(2, 0, set.state)?, &keys, &values, scale, false)?;
+            if set.state == time {
+                head
+            } else {
+                let mask = set.mask.astype(q.dtype())?;
+                let tail =
+                    Array::sdpa_mask(&q.slice(2, set.state, time)?, &keys, &values, scale, &mask)?;
+                Array::concatenate(&[&head, &tail], 2)?
+            }
         } else {
             Array::sdpa(
                 &q,
@@ -874,6 +890,13 @@ impl Attention {
         self.keys = None;
         self.values = None;
     }
+}
+
+/// d1 `set` attention on full-attention layers: the first `state` queries see every key,
+/// the others take `mask` (`[T - state, T]`, additive).
+pub(crate) struct SetMask {
+    state: i32,
+    mask: Array,
 }
 
 /// LFM3-PLD: cache candidates of one verified layer, committed for a prefix.
@@ -1307,10 +1330,10 @@ impl Layer {
         })
     }
 
-    fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+    fn forward(&mut self, x: &Array, offset: i32, set: Option<&SetMask>) -> Result<Array> {
         let normalized = x.rms_norm(&self.operator_norm, self.eps)?;
         let mut mixed = match &mut self.operator {
-            Operator::Attention(attention) => attention.forward(&normalized, offset)?,
+            Operator::Attention(attention) => attention.forward(&normalized, offset, set)?,
             Operator::Conv(conv) => conv.forward(&normalized)?,
         };
         if let Some(norm) = &self.post_operator_norm {
@@ -1987,7 +2010,7 @@ impl Lfm2 {
                 None => self.embed_tokens(tokens)?,
             };
             for layer in &mut self.layers {
-                hidden = layer.forward(&hidden, self.offset)?;
+                hidden = layer.forward(&hidden, self.offset, None)?;
             }
             let hidden = hidden.rms_norm(&self.norm, self.eps)?;
             let value = finish(self, &hidden, time)?;
@@ -2000,6 +2023,68 @@ impl Lfm2 {
                 self.reset();
                 Err(error.context("LFM2 forward failed; its cache was reset"))
             }
+        }
+    }
+
+    /// One whole d1 sequence under `set` attention: the final hidden states `[1, T, D]`.
+    /// `mask` is `[T - state, T]`, additive, for the question tokens' queries on the
+    /// full-attention layers; convolutions and sliding layers stay causal. No cache survives.
+    pub(crate) fn decide_hidden(
+        &mut self,
+        tokens: &[u32],
+        embedded: Option<Array>,
+        state: usize,
+        mask: &[f32],
+    ) -> Result<Array> {
+        ensure!(
+            tokens.len() >= 24 && self.supports_batched_prefill(),
+            "a decision sequence needs at least 24 tokens and dense feed-forward layers"
+        );
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab_size as u32),
+            "LFM2 token is outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len()).context("decision sequence is too large")?;
+        ensure!(
+            time <= self.context_limit,
+            "decision sequence exceeds the context"
+        );
+        ensure!(
+            state > 0
+                && state <= tokens.len()
+                && mask.len() == (tokens.len() - state) * tokens.len(),
+            "invalid set attention layout"
+        );
+        self.reset();
+        let result = (|| -> Result<Array> {
+            let set = SetMask {
+                state: state as i32,
+                mask: if state == tokens.len() {
+                    Array::zeros(&[1, 1])?
+                } else {
+                    Array::from_f32(mask, &[time - state as i32, time])?
+                },
+            };
+            let mut hidden = match embedded {
+                Some(hidden) => hidden,
+                None => self.embed_tokens(tokens)?,
+            };
+            for layer in &mut self.layers {
+                hidden = layer.forward(&hidden, 0, Some(&set))?;
+            }
+            let hidden = hidden.rms_norm(&self.norm, self.eps)?;
+            hidden.eval()?;
+            Ok(hidden)
+        })();
+        self.reset();
+        result.context("LFM decision pass failed")
+    }
+
+    /// Vocabulary logits of hidden rows `[S, D]`, through the same head as generation.
+    pub(crate) fn project_rows(&self, rows: &Array) -> Result<Array> {
+        match &self.head {
+            Some(head) => head.forward(rows),
+            None => rows.matmul(&self.embeddings.table()?.transpose(&[1, 0])?),
         }
     }
 
@@ -2048,7 +2133,7 @@ impl Lfm2 {
                         let position = self.offset + row as i32;
                         let mixed = match &mut layer.operator {
                             Operator::Attention(attention) => {
-                                attention.forward(&input, position)?
+                                attention.forward(&input, position, None)?
                             }
                             Operator::Conv(conv) => conv.forward(&input)?,
                         };

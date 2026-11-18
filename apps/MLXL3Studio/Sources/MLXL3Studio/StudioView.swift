@@ -453,7 +453,9 @@ private struct ChatWorkspaceView: View {
                 .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
                 .padding(.horizontal, 24)
             }
-            if studio.selectedMode == .server {
+            if studio.selectedMode == .decision {
+                DecisionWorkspaceView(decision: studio.decision)
+            } else if studio.selectedMode == .server {
                 ServerWorkspaceView(server: studio.localServer)
             } else if studio.selectedMode == .lab {
                 LabWorkspaceView()
@@ -492,7 +494,7 @@ private struct WorkspaceHeader: View {
                 DownloadNotificationButton(library: studio.modelLibrary)
             }
 
-            Text(studio.selectedMode == .server || studio.selectedMode == .lab ? studio.selectedMode.title
+            Text(studio.selectedMode.standalone ? studio.selectedMode == .decision ? L("Décision", "Decision") : studio.selectedMode.title
                  : studio.currentConversation?.messages.isEmpty == false ? (studio.currentConversation?.title ?? "Conversation") : studio.selectedMode.title)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(StudioTheme.secondary)
@@ -501,12 +503,16 @@ private struct WorkspaceHeader: View {
 
             Spacer(minLength: 12)
 
-            ModelSelectionMenu()
+            if studio.selectedMode != .decision {
+                ModelSelectionMenu()
+            }
 
             HStack(spacing: 3) {
-                ConversationDisplayControl()
-                MTPToolbarControl()
-                if studio.dflash2Available {
+                if studio.selectedMode != .decision {
+                    ConversationDisplayControl()
+                    MTPToolbarControl()
+                }
+                if studio.dflash2Available && studio.selectedMode != .decision {
                     MTPTuningToolbarControl(dflash: true)
                 }
                 if studio.selectedMode == .chat || studio.selectedMode == .agent {

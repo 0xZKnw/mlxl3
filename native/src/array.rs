@@ -1474,6 +1474,22 @@ impl Array {
         ensure!(eps.is_finite() && eps > 0., "invalid layer norm epsilon");
         self.unary(28, &[], eps, 0)
     }
+    /// NHWC convolution with a 3x3 kernel, stride 2 and padding 1; `weight` is
+    /// `[out, 3, 3, in / groups]`. Output side `ceil(side / 2)`.
+    pub fn conv2d_stride2(&self, weight: &Self, groups: i32) -> Result<Self> {
+        ensure!(
+            self.shape().len() == 4
+                && weight.shape().len() == 4
+                && groups > 0
+                && self.shape()[3] % groups == 0
+                && weight.shape()[0] % groups == 0
+                && weight.shape()[1] == 3
+                && weight.shape()[2] == 3
+                && weight.shape()[3] * groups == self.shape()[3],
+            "invalid stride-2 convolution shape"
+        );
+        self.binary(weight, 15, groups, 0.)
+    }
     pub fn conv2d_depthwise(&self, weight: &Self) -> Result<Self> {
         ensure!(
             self.shape().len() == 4
