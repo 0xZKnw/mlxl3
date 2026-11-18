@@ -98,6 +98,33 @@ pub(crate) enum Command {
         #[arg(long, default_value_t = 0)]
         context_length: i32,
     },
+    /// Answer named questions over a state with a Liquid d1 decision model: one pass, no token generated.
+    Decide {
+        model: String,
+        /// JSON request `{"state", "questions", "media"}`; standard input when omitted.
+        #[arg(long)]
+        request: Option<PathBuf>,
+        /// Folder receiving ids, slots and raw values of every sequence (parity checks).
+        #[arg(long)]
+        trace: Option<PathBuf>,
+    },
+    /// Resident JSON-lines decision bridge consumed by MLXL3 Desktop.
+    DecideBridge {
+        model: String,
+    },
+    /// Serve a d1 decision model over HTTP: `POST /v1/decide`.
+    DecideServe {
+        model: String,
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        #[arg(long, default_value_t = 8100)]
+        port: u16,
+        #[arg(long, default_value = "")]
+        api_key: String,
+        /// Read a private bearer key from standard input, up to 512 bytes.
+        #[arg(long, conflicts_with = "api_key")]
+        api_key_stdin: bool,
+    },
     /// Serve an EXL3 model through an OpenAI-compatible HTTP API.
     Serve {
         model: String,

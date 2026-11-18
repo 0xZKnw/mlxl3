@@ -5,17 +5,20 @@ import Metal
 import SwiftUI
 
 enum StudioMode: String, CaseIterable, Identifiable, Codable {
-  case chat, agent, server, lab
+  case chat, agent, decision, server, lab
   var id: String { rawValue }
   var title: String { rawValue.capitalized }
   var icon: String {
     switch self {
     case .chat: "bubble.left.and.bubble.right"
     case .agent: "terminal"
+    case .decision: "checklist.checked"
     case .server: "server.rack"
     case .lab: "chart.xyaxis.line"
     }
   }
+  /// Modes with their own workspace instead of a conversation.
+  var standalone: Bool { self == .decision || self == .server || self == .lab }
 }
 
 struct LabSample: Codable, Identifiable, Sendable {
@@ -78,7 +81,12 @@ final class LocalServer: ObservableObject {
   private var resolution: Task<Void, Never>?
   var active: Bool { process != nil || resolution != nil }
 
-  func start(model: String, port: Int, context: Int, host: String = "127.0.0.1", executable: URL? = nil) {
+  /// `mlxl3 decide-serve`: a d1 decision model on `POST /v1/decide`, same readiness and key handling.
+  func startDecision(modelPath: String, port: Int, host: String = "127.0.0.1", executable: URL? = nil) {
+    start(model: modelPath, port: port, context: 0, host: host, executable: executable, decision: true)
+  }
+
+  func start(model: String, port: Int, context: Int, host: String = "127.0.0.1", executable: URL? = nil, decision: Bool = false) {
     guard !active else { return }
     let launchTicket = UUID()
     ticket = launchTicket
@@ -90,11 +98,11 @@ final class LocalServer: ObservableObject {
       }.value
       guard !Task.isCancelled, let self, self.ticket == launchTicket else { return }
       self.resolution = nil
-      self.launch(model: model, port: port, context: context, host: host, executable: resolved)
+      self.launch(model: model, port: port, context: context, host: host, executable: resolved, decision: decision)
     }
   }
 
-  private func launch(model: String, port: Int, context: Int, host: String, executable: URL?) {
+  private func launch(model: String, port: Int, context: Int, host: String, executable: URL?, decision: Bool) {
     guard (1024...65535).contains(port), (0...Int(Int32.max)).contains(context),
       ["127.0.0.1", "0.0.0.0"].contains(host), let executable else {
       busy = false
@@ -118,10 +126,12 @@ final class LocalServer: ObservableObject {
       self.error = error.localizedDescription
       return
     }
-    process.arguments = [
-      "serve", model, "--host", host, "--port", String(port), "--api-key-stdin",
-      "--context-length", String(context),
-    ]
+    process.arguments = decision
+      ? ["decide-serve", model, "--host", host, "--port", String(port), "--api-key-stdin"]
+      : [
+        "serve", model, "--host", host, "--port", String(port), "--api-key-stdin",
+        "--context-length", String(context),
+      ]
     process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
     process.standardInput = secret
     process.standardOutput = output

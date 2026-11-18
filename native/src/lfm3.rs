@@ -474,6 +474,7 @@ mod runtime {
     pub struct Lfm3 {
         pub(crate) language: Lfm2,
         vision: Option<Vision>,
+        audio: Option<crate::lfm3_audio::AudioEncoder>,
         images: Vec<(usize, Array)>,
         image_token: u32,
     }
@@ -481,7 +482,8 @@ mod runtime {
         pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
             let config: Value =
                 serde_json::from_slice(&std::fs::read(checkpoint.path.join("config.json"))?)?;
-            let vl = checkpoint.model_type == "lfm3_vl";
+            let omni = checkpoint.model_type == "lfm3_omni";
+            let vl = omni || checkpoint.model_type == "lfm3_vl";
             ensure!(
                 vl || checkpoint.model_type == "lfm3",
                 "expected LFM3 checkpoint"
@@ -494,6 +496,16 @@ mod runtime {
                 if vl { "model.language_model" } else { "model" },
             )?;
             let vision = vl.then(|| Vision::load(checkpoint, &config)).transpose()?;
+            let audio = omni
+                .then(|| {
+                    let hidden = i32::try_from(
+                        config["text_config"]["hidden_size"]
+                            .as_i64()
+                            .context("missing LFM3 hidden size")?,
+                    )?;
+                    crate::lfm3_audio::AudioEncoder::load(checkpoint, &config, hidden)
+                })
+                .transpose()?;
             let image_token = if vl {
                 u32::try_from(
                     config["image_token_id"]
@@ -506,9 +518,49 @@ mod runtime {
             Ok(Self {
                 language,
                 vision,
+                audio,
                 images: Vec::new(),
                 image_token,
             })
+        }
+        pub fn supports_audio(&self) -> bool {
+            self.audio.is_some()
+        }
+        /// A clip's features in the language model's space, `[tokens, hidden]`.
+        pub fn audio_features(&self, clip: &crate::lfm3_audio::Clip) -> Result<Array> {
+            self.audio
+                .as_ref()
+                .context("this LFM3 checkpoint does not take audio")?
+                .features(clip)
+        }
+        /// Encoder output and projected features in float32, for parity checks.
+        pub fn audio_features_f32(&self, clip: &crate::lfm3_audio::Clip) -> Result<(Array, Array)> {
+            self.audio
+                .as_ref()
+                .context("this LFM3 checkpoint does not take audio")?
+                .features_f32(clip)
+        }
+        /// Media features `[count, hidden]` placed at token positions of the next sequence:
+        /// each item fills `count` consecutive tokens from its start. Replaces any earlier media.
+        pub fn place_features(&mut self, placements: Vec<(usize, Array)>) -> Result<()> {
+            ensure!(
+                self.language.position() == 0,
+                "media require an empty model cache"
+            );
+            let mut spans: Vec<(usize, usize)> = placements
+                .iter()
+                .map(|(start, features)| (*start, *start + features.shape()[0] as usize))
+                .collect();
+            spans.sort_unstable();
+            ensure!(
+                spans.windows(2).all(|w| w[0].1 <= w[1].0)
+                    && placements
+                        .iter()
+                        .all(|(_, f)| f.shape().len() == 2 && f.shape()[0] > 0),
+                "media features overlap or are empty"
+            );
+            self.images = placements;
+            Ok(())
         }
         pub fn supports_images(&self) -> bool {
             self.vision.is_some()
@@ -570,6 +622,29 @@ mod runtime {
                     Err(error)
                 }
             }
+        }
+        /// One d1 decision sequence under `set` attention: final hidden states `[1, T, D]`.
+        /// Media prepared by `prepare_images` fill their placeholders and stay prepared for
+        /// the request's next sequence (same prefix); the caller resets the model when done.
+        pub fn decide_hidden(
+            &mut self,
+            tokens: &[u32],
+            state: usize,
+            mask: &[f32],
+        ) -> Result<Array> {
+            self.language.reset();
+            let result = self.embedded(tokens).and_then(|hidden| {
+                self.language
+                    .decide_hidden(tokens, Some(hidden), state, mask)
+            });
+            if result.is_err() {
+                self.reset();
+            }
+            result
+        }
+        /// Vocabulary logits of final hidden rows `[S, D]`.
+        pub fn project_rows(&self, rows: &Array) -> Result<Array> {
+            self.language.project_rows(rows)
         }
         /// LFM3-CERT-HEAD: see `Lfm2::enable_certified_head`.
         pub fn enable_certified_head(&mut self) -> Result<bool> {

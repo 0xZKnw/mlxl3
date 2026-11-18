@@ -15,11 +15,13 @@ final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
     let localServer = LocalServer()
+    let decision = DecisionStudio()
     let quantizer = QuantizationModel()
     private var quantizationObservation: AnyCancellable?
     private var labConfiguration: ((GenerationStats) -> LabSample)?
     private var modeTransition: Task<Void, Never>?
     private var serverObservation: AnyCancellable?
+    private var decisionObservation: AnyCancellable?
     private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = []
     @Published var selectedModelName: String?
@@ -83,6 +85,8 @@ final class StudioModel: ObservableObject {
     }
     @Published var showInspector = false
     @Published var showModelManager = false
+    /// Set to open the model manager on its Hugging Face page (a recommended model's details).
+    @Published var modelManagerShowsHub = false
     @Published var showAppSettings = false
     @Published var appSettingsPage: SettingsPage = .general
     @Published private(set) var modelInstallState: ModelInstallState = .idle
@@ -329,6 +333,8 @@ final class StudioModel: ObservableObject {
         dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        decisionObservation = decision.server.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        decision.prepareForLoad = { [weak self] in await self?.releaseChatModelForDecision() }
         selectedMode = currentConversation?.agent == true ? .agent : .chat
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
@@ -366,6 +372,30 @@ final class StudioModel: ObservableObject {
 
     var selectedModel: LocalModel? {
         models.first { $0.name == selectedModelName }
+    }
+
+    /// Library models the chat engine can load: decision models only run in the Decision mode.
+    var chatModels: [LocalModel] { models.filter { !decision.isDecisionModel($0) } }
+
+    func isDecisionModel(_ model: LocalModel) -> Bool { decision.isDecisionModel(model) }
+
+    /// Opens a decision model from the library in the Decision mode and loads it.
+    func openInDecision(_ model: LocalModel) {
+        guard isDecisionModel(model) else { return }
+        showModelManager = false
+        if selectedMode != .decision { selectMode(.decision) }
+        guard selectedMode == .decision else { return }
+        decision.refresh(registered: models)
+        if let entry = decision.models.first(where: { !$0.custom && $0.name == model.name }) {
+            decision.open(path: entry.path)
+        }
+    }
+
+    /// Shows a recommended model's Hugging Face details, ready to download.
+    func openRecommendedModel(_ model: RecommendedHubModel) {
+        modelLibrary.open(model.id, revision: model.revision, preferredVariant: model.preferredVariant)
+        modelManagerShowsHub = true
+        openModelManager()
     }
 
     var dflash2Available: Bool {
@@ -894,8 +924,11 @@ final class StudioModel: ObservableObject {
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
             switch result {
-            case let .success(models):
-                self.models = models
+            case let .success(all):
+                self.models = all
+                // Decision models stay out of the chat selection and its automatic loading.
+                self.decision.refresh(registered: all)
+                let models = self.chatModels
                 guard !models.isEmpty else {
                     self.ejectModel()
                     self.selectedModelName = nil
@@ -1045,6 +1078,10 @@ final class StudioModel: ObservableObject {
 
     func selectModel(_ name: String) {
         guard !quantizer.converting, !isGenerating || mtpAutoTuneActive, !localServer.active, modeTransition == nil else { return }
+        if let model = models.first(where: { $0.name == name }), isDecisionModel(model) {
+            openInDecision(model)
+            return
+        }
         if name == selectedModelName, bridge.isRunning {
             switch engineState {
             case .loading, .ready, .generating: return
@@ -1109,7 +1146,7 @@ final class StudioModel: ObservableObject {
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
         conversation.agent = selectedMode == .agent
-        if selectedMode == .lab || selectedMode == .server {
+        if selectedMode.standalone {
             let count = conversations.count
             selectMode(.chat)
             // Changing modes already creates a Chat when that history is empty.
@@ -1483,7 +1520,9 @@ final class StudioModel: ObservableObject {
             catch {
                 if operation == dflashOperationID {
                     dflashDownloadError = (downloadCompatible
-                        ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ") : "") + error.localizedDescription
+                        ? (flashDraft
+                            ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ")
+                            : L("Impossible de préparer le draft DFlash2 : ", "Unable to prepare the DFlash2 draft: ")) : "") + error.localizedDescription
                     dflash2Enabled = false
                 }
             }
@@ -1879,9 +1918,18 @@ final class StudioModel: ObservableObject {
         restoreDFlashSelection()
     }
 
+    /// Downloads the pinned draft matching the active model (Flash Next, Qwen3.6-35B or Qwen3.8-27B),
+    /// ignoring any local draft chosen before, then enables DFlash2 with it.
     func downloadCompatibleDFlashDraft() {
-        guard selectedModel?.modelType == "qwen4_exp" else { return }
+        guard selectedModel?.modelType == "qwen4_exp" || dflash2Available else { return }
         setDFlash2Enabled(true, downloadCompatible: true)
+    }
+
+    /// The active model takes the dense Qwen3.8-27B DFlash2 draft.
+    var dflashDraftIsQwen38Dense: Bool {
+        guard let model = selectedModel, model.modelType == "qwen3_5" else { return false }
+        let name = (model.name + " " + model.path).lowercased()
+        return name.contains("qwen3.8-27b") || name.contains("qwen3.8_27b") || name.contains("qwen38-27b")
     }
 
     func chooseDFlashDraft() {
@@ -2422,7 +2470,16 @@ extension StudioModel {
     func selectMode(_ mode: StudioMode) {
         guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
         voice.stop()
+        if mode == .decision {
+            decision.refresh(registered: models)
+            selectedMode = mode
+            return
+        }
         if mode == .server || mode == .lab { selectedMode = mode; return }
+        if selectedMode == .decision || decision.active || decision.server.active {
+            // The decision model leaves memory to the chat model.
+            decision.shutdown()
+        }
         if localServer.active {
             localServer.stop()
             modeTransition = Task {
@@ -2526,6 +2583,17 @@ extension StudioModel {
             do { try await Task.detached { try store.checkpoint(messageID: messageID) }.value }
             catch { featureError = error.localizedDescription }
         }
+    }
+
+    /// Frees the GPU for a decision model: the chat server and the chat model stop first.
+    func releaseChatModelForDecision() async {
+        if isGenerating { stopGeneration() }
+        if localServer.active {
+            localServer.stop()
+            while localServer.active { try? await Task.sleep(for: .milliseconds(50)) }
+        }
+        await bridge.stopAndWait()
+        ejectModel()
     }
 
     func startServer(port: Int, host: String = "127.0.0.1", context: Int? = nil) {

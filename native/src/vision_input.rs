@@ -105,13 +105,31 @@ pub fn file_data_url(path: &std::path::Path) -> Result<String> {
 }
 
 pub fn decode_image(url: &str) -> Result<PreparedImage> {
-    decode_image_with_budget(url, MAX_PIXELS, MAX_IMAGE_TOKENS)
+    decode_image_with_budget(url, MAX_PIXELS, MAX_IMAGE_TOKENS, None)
+}
+
+/// `decode_image`, the picture first bounded at `cap` pixels (bicubic), as d1 serves pictures.
+pub fn decode_image_capped(url: &str, cap: u64) -> Result<PreparedImage> {
+    decode_image_with_budget(url, MAX_PIXELS, MAX_IMAGE_TOKENS, Some(cap))
+}
+
+/// The size a picture of `width` x `height` takes once bounded at `cap` pixels,
+/// as d1's `cap_pixels` computes it: unchanged within the cap, else both sides scaled.
+pub fn capped_dimensions(width: u32, height: u32, cap: u64) -> (u32, u32) {
+    let pixels = u64::from(width) * u64::from(height);
+    if cap == 0 || pixels <= cap {
+        return (width, height);
+    }
+    let scale = (cap as f64 / pixels as f64).sqrt();
+    let side = |n: u32| ((f64::from(n) * scale) as u32).max(1);
+    (side(width), side(height))
 }
 
 fn decode_image_with_budget(
     url: &str,
     remaining_pixels: u64,
     remaining_tokens: u64,
+    cap: Option<u64>,
 ) -> Result<PreparedImage> {
     let (header, encoded) = url.split_once(",").context("image requires a data URL")?;
     ensure!(
@@ -142,7 +160,11 @@ fn decode_image_with_budget(
     if orientation.to_exif() >= 5 {
         std::mem::swap(&mut width, &mut height);
     }
-    let (height, width) = resized_shape(height, width)?;
+    let capped = cap.map(|cap| capped_dimensions(width, height, cap));
+    let (height, width) = match capped {
+        Some((w, h)) => resized_shape(h, w)?,
+        None => resized_shape(height, width)?,
+    };
     ensure!(
         fits_image_budget(height, width, remaining_pixels, remaining_tokens),
         "conversation images exceed the aggregate pixel or token limit"
@@ -150,7 +172,12 @@ fn decode_image_with_budget(
     // Admission precedes decoding, RGB conversion, resampling and patch storage.
     let mut image = image::DynamicImage::from_decoder(decoder).context("decoding image")?;
     image.apply_orientation(orientation);
-    let image = image.to_rgb8();
+    let mut image = image.to_rgb8();
+    if let Some((w, h)) = capped
+        && image.dimensions() != (w, h)
+    {
+        image = image::imageops::resize(&image, w, h, FilterType::CatmullRom);
+    }
     // The native image decoder uses antialiased Catmull-Rom bicubic resampling.
     let image = if image.dimensions() == (width, height) {
         image
@@ -244,6 +271,7 @@ pub fn prepare_messages(
                                 .context("missing image URL")?,
                             MAX_PIXELS - total_pixels,
                             MAX_IMAGE_TOKENS - total_tokens,
+                            None,
                         )?;
                         total_pixels += u64::from(image.height) * u64::from(image.width) * 256;
                         total_tokens += image.token_count() as u64;
@@ -294,7 +322,7 @@ mod tests {
         // A previous admitted image reserves its pixels before this decode.
         for remaining in [0, MAX_PIXELS - 1] {
             assert!(
-                decode_image_with_budget(&url, remaining, MAX_IMAGE_TOKENS)
+                decode_image_with_budget(&url, remaining, MAX_IMAGE_TOKENS, None)
                     .err()
                     .unwrap()
                     .to_string()
@@ -312,7 +340,7 @@ mod tests {
         PATCH_ALLOCATIONS.with(|n| n.set(0));
         for (pixels, tokens) in [(65_535, 64), (65_536, 63), (0, 0)] {
             assert!(
-                decode_image_with_budget(&url, pixels, tokens)
+                decode_image_with_budget(&url, pixels, tokens, None)
                     .err()
                     .unwrap()
                     .to_string()
@@ -320,11 +348,11 @@ mod tests {
             );
             PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 0));
         }
-        let image = decode_image_with_budget(&url, 65_536, 64).unwrap();
+        let image = decode_image_with_budget(&url, 65_536, 64, None).unwrap();
         assert_eq!(image.token_count(), 64);
         PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 1));
         // The next image sees the remaining budget before allocating patches.
-        assert!(decode_image_with_budget(&url, 0, 0).is_err());
+        assert!(decode_image_with_budget(&url, 0, 0, None).is_err());
         PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 1));
         let input = json!({"role":"user","content":"eight", "images": vec![url; 8]});
         let (_, images) = prepare_messages(&[input], true).unwrap();

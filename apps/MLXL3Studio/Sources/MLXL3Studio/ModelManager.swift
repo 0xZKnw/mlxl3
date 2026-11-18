@@ -27,14 +27,14 @@ struct ModelSelectionMenu: View {
     var body: some View {
         HStack(spacing: 3) {
             Menu {
-                ForEach(studio.models) { model in
+                ForEach(studio.chatModels) { model in
                     Button { studio.selectModel(model.name) } label: {
                         if model.name == studio.selectedModelName {
                             Label(model.name, systemImage: "checkmark")
                         } else { Text(model.name) }
                     }
                 }
-                if !studio.models.isEmpty { Divider() }
+                if !studio.chatModels.isEmpty { Divider() }
                 Button(action: studio.openModelManager) {
                     Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
                 }
@@ -139,7 +139,10 @@ struct ModelManagerView: View {
         }
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
-        .onAppear { if studio.quantizer.converting { quantize = true } }
+        .onAppear {
+            if studio.quantizer.converting { quantize = true } else { showHubIfRequested() }
+        }
+        .onChange(of: studio.modelManagerShowsHub) { showHubIfRequested() }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onExitCommand { studio.showModelManager = false }
@@ -168,6 +171,13 @@ struct ModelManagerView: View {
                             "Trash keeps the files until you empty it."))
             }
         }
+    }
+
+    private func showHubIfRequested() {
+        guard studio.modelManagerShowsHub else { return }
+        studio.modelManagerShowsHub = false
+        quantize = false
+        discover = true
     }
 
     private func navigation(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
@@ -224,7 +234,8 @@ struct ModelManagerView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(model.name).font(.system(size: 14, weight: .medium)).textSelection(.enabled)
                                     Text(
-                                        "\(model.architectureLabel) · EXL3 · "
+                                        (studio.isDecisionModel(model) ? L("DÉCISION · ", "DECISION · ") : "")
+                                            + "\(model.architectureLabel) · EXL3 · "
                                             + (model.bits.map { String(format: "%.2f BPW", $0) } ?? "—")
                                     )
                                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
@@ -233,7 +244,16 @@ struct ModelManagerView: View {
                                 Text(model.size).font(.system(size: 18, weight: .regular, design: .serif))
                             }
                             HStack(spacing: 10) {
-                                if studio.loadedModel?.name == model.name {
+                                if studio.isDecisionModel(model) {
+                                    Button { studio.openInDecision(model) } label: {
+                                        Label(L("Ouvrir dans Décision", "Open in Decision"), systemImage: "checklist.checked")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .padding(.horizontal, 12).frame(height: 26)
+                                    }
+                                    .buttonStyle(GlassPillButtonStyle())
+                                    .disabled(studio.isGenerating || studio.modelInstallState.isWorking)
+                                    .accessibilityIdentifier("library.openDecision")
+                                } else if studio.loadedModel?.name == model.name {
                                     Label(L("Chargé", "Loaded"), systemImage: "checkmark.circle").font(
                                         .system(size: 12)
                                     ).foregroundStyle(StudioTheme.secondary)
