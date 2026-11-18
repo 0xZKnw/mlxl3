@@ -2876,6 +2876,242 @@ pub(crate) fn exl3_lane_order(
         }
 }
 
+/// `MLXL3_DENSE_SHARED_VERIFY`: absent or `1` enables the shared-decode verify layouts;
+/// any other value keeps the stock layouts (Q27D-2026-11-17-04).
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn dense_shared_verify_enabled(value: Option<&str>) -> bool {
+    value.is_none_or(|value| value == "1")
+}
+
+/// One decoded tile serves all three or four lane-ordered rows (MB = rows, NT = 1).
+/// Per-row accumulators and their order are those of the single-row kernel.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_shared_rows(rows: i32, lane: bool, enabled: bool) -> bool {
+    enabled && lane && matches!(rows, 3 | 4)
+}
+
+/// Five to eight rows as two consecutive chunks of two to four rows, each decoded once.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_shared_chunks(rows: i32, lane: bool, enabled: bool) -> Option<(i32, i32)> {
+    (enabled && lane && (5..=8).contains(&rows)).then(|| ((rows + 1) / 2, rows / 2))
+}
+
+/// Dense MLP rows batched through the shared-decode layouts (three to eight rows).
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_mlp_shared_batch(rows: usize, hidden: i32, ready: bool, enabled: bool) -> bool {
+    enabled && ready && hidden == 5120 && (3..=8).contains(&rows)
+}
+
+#[test]
+fn dense_shared_layouts_cover_three_to_eight_rows_only() {
+    for (value, expected) in [
+        (None, true),
+        (Some("1"), true),
+        (Some("0"), false),
+        (Some(""), false),
+        (Some("true"), false),
+    ] {
+        assert_eq!(dense_shared_verify_enabled(value), expected);
+    }
+    for rows in [i32::MIN, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 23, 24, i32::MAX] {
+        assert_eq!(dense_shared_rows(rows, true, true), matches!(rows, 3 | 4));
+        assert!(!dense_shared_rows(rows, false, true) && !dense_shared_rows(rows, true, false));
+        let chunks = dense_shared_chunks(rows, true, true);
+        assert_eq!(chunks.is_some(), (5..=8).contains(&rows));
+        if let Some((first, second)) = chunks {
+            assert_eq!(first + second, rows);
+            assert!((2..=4).contains(&first) && (2..=4).contains(&second) && first >= second);
+        }
+        assert!(dense_shared_chunks(rows, false, true).is_none());
+        assert!(dense_shared_chunks(rows, true, false).is_none());
+    }
+    assert_eq!(dense_shared_chunks(5, true, true), Some((3, 2)));
+    assert_eq!(dense_shared_chunks(6, true, true), Some((3, 3)));
+    assert_eq!(dense_shared_chunks(7, true, true), Some((4, 3)));
+    assert_eq!(dense_shared_chunks(8, true, true), Some((4, 4)));
+    for rows in 0..=10usize {
+        assert_eq!(
+            dense_mlp_shared_batch(rows, 5120, true, true),
+            (3..=8).contains(&rows)
+        );
+        assert!(!dense_mlp_shared_batch(rows, 2048, true, true));
+        assert!(!dense_mlp_shared_batch(rows, 5120, false, true));
+        assert!(!dense_mlp_shared_batch(rows, 5120, true, false));
+    }
+    assert!(!dense_mlp_shared_batch(usize::MAX, 5120, true, true));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dense_shared_layouts_partition_every_row_once() {
+    let rows: i32 = kani::any();
+    let lane: bool = kani::any();
+    let enabled: bool = kani::any();
+    if dense_shared_rows(rows, lane, enabled) {
+        assert!(enabled && lane && (rows == 3 || rows == 4));
+    }
+    match dense_shared_chunks(rows, lane, enabled) {
+        Some((first, second)) => {
+            assert!(enabled && lane && (5..=8).contains(&rows));
+            assert!(first + second == rows && first >= second);
+            assert!((2..=4).contains(&first) && (2..=4).contains(&second));
+            let row: i32 = kani::any();
+            kani::assume(0 <= row && row < rows);
+            assert!((row < first) != (row >= first && row - first < second));
+            kani::cover!(rows == 5);
+            kani::cover!(rows == 8);
+        }
+        None => assert!(!enabled || !lane || !(5..=8).contains(&rows)),
+    }
+}
+
+/// `MLXL3_DENSE_TENSOR_ROWS` (Q27D-16, not bit-exact): absent, `0` or `off` keeps the QMV
+/// kernels; an integer 2..=16 sends verification products of at least that many rows to the
+/// M5 TensorOps kernel. Anything else is rejected.
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn dense_tensor_rows_setting(value: Option<&str>) -> Option<Option<i32>> {
+    match value {
+        None | Some("0") | Some("off") => Some(None),
+        Some(text) => text
+            .parse::<i32>()
+            .ok()
+            .filter(|rows| (2..=16).contains(rows))
+            .map(Some),
+    }
+}
+
+/// K splits for the lane TensorOps kernel: about 1024 simdgroups, at most 8, never empty.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn tensor_lane_splits(groups: i32, tiles_k: i32) -> i32 {
+    // Q27D-17 lab 8: about 512 simdgroups beat 1024 with the 32x32 shape.
+    tensor_lane_splits_for(groups, tiles_k, 512, 8)
+}
+
+/// Splits aiming at `target` simdgroups, at most `limit`, never more than the K tiles.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn tensor_lane_splits_for(groups: i32, tiles_k: i32, target: i32, limit: i32) -> i32 {
+    if groups <= 0 || tiles_k <= 0 || target <= 0 || limit <= 0 {
+        return 1;
+    }
+    let wanted = (target + groups - 1) / groups;
+    wanted.clamp(1, limit).min(tiles_k)
+}
+
+#[test]
+fn tensor_lane_splits_stay_bounded() {
+    assert_eq!(tensor_lane_splits(1088, 320), 1);
+    assert_eq!(tensor_lane_splits(160, 1088), 4);
+    assert_eq!(tensor_lane_splits(7760, 320), 1);
+    assert_eq!(tensor_lane_splits(1, 3), 3);
+    assert_eq!(tensor_lane_splits_for(160, 1088, 1024, 8), 7);
+    assert_eq!(tensor_lane_splits(0, 3), 1);
+    for groups in 1..200 {
+        let splits = tensor_lane_splits(groups, 320);
+        assert!((1..=8).contains(&splits));
+    }
+}
+
+/// Small-row TensorOps dispatch: eligible projection, threshold set, rows in `[threshold, 24)`.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_tensor_rows(rows: i32, eligible: bool, threshold: Option<i32>) -> bool {
+    eligible && threshold.is_some_and(|first| rows >= first && rows < 24)
+}
+
+#[test]
+fn dense_tensor_rows_is_opt_in_and_bounded() {
+    assert_eq!(dense_tensor_rows_setting(None), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("off")), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("0")), Some(None));
+    assert_eq!(dense_tensor_rows_setting(Some("5")), Some(Some(5)));
+    for bad in ["1", "17", "-3", "x", ""] {
+        assert_eq!(dense_tensor_rows_setting(Some(bad)), None, "{bad}");
+    }
+    for rows in -1..=30 {
+        assert_eq!(
+            dense_tensor_rows(rows, true, Some(5)),
+            (5..24).contains(&rows)
+        );
+        assert!(!dense_tensor_rows(rows, false, Some(5)));
+        assert!(!dense_tensor_rows(rows, true, None));
+    }
+}
+
+/// DFlash2 selector transition weight: absent keeps PERF-79's 0.25; values are finite in [0, 4].
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn dflash_edge_scale(value: Option<&str>) -> Option<f32> {
+    match value {
+        None => Some(0.25),
+        Some(text) => text
+            .parse::<f32>()
+            .ok()
+            .filter(|scale| scale.is_finite() && (0.0..=4.0).contains(scale)),
+    }
+}
+
+#[test]
+fn dflash_edge_scale_is_bounded() {
+    assert_eq!(dflash_edge_scale(None), Some(0.25));
+    assert_eq!(dflash_edge_scale(Some("1")), Some(1.0));
+    assert_eq!(dflash_edge_scale(Some("0.5")), Some(0.5));
+    for bad in ["", "x", "nan", "inf", "-0.1", "4.5"] {
+        assert_eq!(dflash_edge_scale(Some(bad)), None, "{bad}");
+    }
+}
+
+/// `MLXL3_QWEN_KV_INPLACE`: absent or `1` keeps dense attention K/V in place (Q27D-11).
+#[cfg(any(feature = "mlx", test, kani))]
+pub fn qwen_kv_inplace_enabled(value: Option<&str>) -> bool {
+    value.is_none_or(|value| value == "1")
+}
+
+/// Cached length after appending `time` rows; `None` on invalid input or i32 overflow.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn qwen_kv_end(len: i32, time: i32) -> Option<i32> {
+    (len >= 0 && time > 0)
+        .then(|| len.checked_add(time))
+        .flatten()
+}
+
+/// Buffer capacity for `end` cached rows: the next multiple of 256.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn qwen_kv_capacity(end: i32) -> Option<i32> {
+    (end > 0)
+        .then(|| end.checked_add(255).map(|n| n / 256 * 256))
+        .flatten()
+}
+
+#[test]
+fn qwen_kv_inplace_bounds_are_exact() {
+    for (value, expected) in [
+        (None, true),
+        (Some("1"), true),
+        (Some("0"), false),
+        (Some(""), false),
+    ] {
+        assert_eq!(qwen_kv_inplace_enabled(value), expected);
+    }
+    assert_eq!(qwen_kv_end(0, 1), Some(1));
+    assert_eq!(qwen_kv_end(255, 3), Some(258));
+    assert_eq!(qwen_kv_end(-1, 1), None);
+    assert_eq!(qwen_kv_end(0, 0), None);
+    assert_eq!(qwen_kv_end(i32::MAX, 1), None);
+    for end in [1, 255, 256, 257, 4096, 16_384, 16_385] {
+        let capacity = qwen_kv_capacity(end).unwrap();
+        assert!(capacity >= end && capacity - end < 256 && capacity % 256 == 0);
+    }
+    assert_eq!(qwen_kv_capacity(0), None);
+    assert_eq!(qwen_kv_capacity(i32::MAX), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn qwen_kv_capacity_covers_end_with_bounded_slack() {
+    let end: i32 = kani::any();
+    if let Some(capacity) = qwen_kv_capacity(end) {
+        assert!(end > 0 && capacity >= end && capacity - end < 256 && capacity % 256 == 0);
+    }
+}
+
 /// Within each tile16, group four values used by the same SIMD lane.
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn exl3_lane_source_index(index: u32) -> u32 {

@@ -1,0 +1,209 @@
+{
+  "status": "passed",
+  "arms": {
+    "default": {}
+  },
+  "order": [
+    "default"
+  ],
+  "modes": [
+    "ar",
+    "dflash:1"
+  ],
+  "sampler": "greedy",
+  "sampled": false,
+  "tokens": 128,
+  "repeats": 1,
+  "context": 4096,
+  "cases": [
+    "fr",
+    "code"
+  ],
+  "engine": "target/release/mlxl3-rs",
+  "engine_sha256": "3aad27be5ca316ab0e024aaef651253c371eb7699fad978adfe0491aa5ed2033",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "mtp_head": null,
+  "dflash_draft": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2",
+  "before": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      3.50830078125,
+      4.33740234375,
+      4.15869140625
+    ]
+  },
+  "passes": [
+    {
+      "arm": "default",
+      "conditions": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "load": [
+          3.54736328125,
+          4.33154296875,
+          4.15771484375
+        ]
+      },
+      "status": "complete",
+      "results": {
+        "ar": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 9.628841306760195,
+              "decode_seconds": 13.189541291,
+              "prefill_seconds": 0.722014833,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 9357335420,
+              "mlx_peak_bytes": 9586346620,
+              "process_footprint_bytes": 9833026816,
+              "dflash_block_seconds": 0.0
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 9.43843053789985,
+              "decode_seconds": 13.455626917,
+              "prefill_seconds": 1.076594666,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 9357335420,
+              "mlx_peak_bytes": 9710039536,
+              "process_footprint_bytes": 10192901376,
+              "dflash_block_seconds": 0.0
+            }
+          ]
+        },
+        "dflash:1": {
+          "fr": [
+            {
+              "token_hash": "8cf08b778aaf725c",
+              "generated_tokens": 128,
+              "decode_tps": 19.548165199548034,
+              "decode_seconds": 6.496773416,
+              "prefill_seconds": 0.746302667,
+              "prompt_tokens": 64,
+              "mlx_active_bytes": 10627040658,
+              "mlx_peak_bytes": 11021160048,
+              "process_footprint_bytes": 11527444552,
+              "dflash_proposed_tokens": 255,
+              "dflash_accepted_tokens": 89,
+              "dflash_blocks": 37,
+              "dflash_block_seconds": 6.382659459000002
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "cff24a554c249db7",
+              "generated_tokens": 128,
+              "decode_tps": 18.385426249006965,
+              "decode_seconds": 6.907645125,
+              "prefill_seconds": 1.134093583,
+              "prompt_tokens": 79,
+              "mlx_active_bytes": 10627390864,
+              "mlx_peak_bytes": 11037254212,
+              "process_footprint_bytes": 11662252080,
+              "dflash_proposed_tokens": 280,
+              "dflash_accepted_tokens": 87,
+              "dflash_blocks": 40,
+              "dflash_block_seconds": 6.906673164999999
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "distinct_hashes": {
+    "fr": 1,
+    "code": 1
+  },
+  "summary": {
+    "ar/fr": {
+      "decode_tps": {
+        "default": 9.628841306760195
+      },
+      "pass_means": [
+        9.628841306760195
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "ar/code": {
+      "decode_tps": {
+        "default": 9.43843053789985
+      },
+      "pass_means": [
+        9.43843053789985
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "dflash:1/fr": {
+      "decode_tps": {
+        "default": 19.548165199548034
+      },
+      "pass_means": [
+        19.548165199548034
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_proposed_tokens": 255,
+          "dflash_accepted_tokens": 89,
+          "dflash_blocks": 37,
+          "dflash_block_seconds": 6.382659459000002
+        }
+      }
+    },
+    "dflash:1/code": {
+      "decode_tps": {
+        "default": 18.385426249006965
+      },
+      "pass_means": [
+        18.385426249006965
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_proposed_tokens": 280,
+          "dflash_accepted_tokens": 87,
+          "dflash_blocks": 40,
+          "dflash_block_seconds": 6.906673164999999
+        }
+      }
+    }
+  },
+  "problems": [],
+  "after": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      3.22509765625,
+      4.10595703125,
+      4.08251953125
+    ]
+  }
+}

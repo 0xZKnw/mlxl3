@@ -1,0 +1,23 @@
+pass 0 arm exact
+  ar: fr 9.76, code 9.65
+  mtp:1: fr 13.44, code 11.69
+  dflash:1: fr 12.72, code 12.13
+pass 1 arm default
+  ar: fr 9.38, code 9.32
+  mtp:1: fr 13.65, code 11.82
+  dflash:1: fr 19.70, code 18.47
+pass 2 arm default
+  ar: fr 9.23, code 9.30
+  mtp:1: fr 13.42, code 11.92
+  dflash:1: fr 19.80, code 18.58
+pass 3 arm exact
+  ar: fr 9.79, code 9.77
+  mtp:1: fr 14.27, code 12.38
+  dflash:1: fr 13.92, code 13.19
+{"status": "passed", "problems": []}
+ar/fr exact 9.77 default 9.30 default -4.8% drift exact +0.3% default -1.6%
+ar/code exact 9.71 default 9.31 default -4.1% drift exact +1.3% default -0.3%
+mtp:1/fr exact 13.86 default 13.54 default -2.3% drift exact +6.2% default -1.6%
+mtp:1/code exact 12.03 default 11.87 default -1.3% drift exact +5.9% default +0.9%
+dflash:1/fr exact 13.32 default 19.75 default +48.2% drift exact +9.4% default +0.5%
+dflash:1/code exact 12.66 default 18.53 default +46.3% drift exact +8.7% default +0.6%

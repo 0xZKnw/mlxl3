@@ -269,7 +269,18 @@ pub fn prompt_lookup(
     width: usize,
     allow_context: impl Fn(&[u32]) -> bool,
 ) -> Option<&[u32]> {
-    if history.len() < 9 || !(1..=3).contains(&width) {
+    prompt_lookup_bounded(history, anchor, width, 3, allow_context)
+}
+
+/// `prompt_lookup` with widths up to `limit` (Q27D-19: DFlash2 copies of up to seven IDs).
+pub fn prompt_lookup_bounded(
+    history: &[u32],
+    anchor: u32,
+    width: usize,
+    limit: usize,
+    allow_context: impl Fn(&[u32]) -> bool,
+) -> Option<&[u32]> {
+    if history.len() < 9 || width == 0 || width > limit.min(7) {
         return None;
     }
     let history = &history[history.len().saturating_sub(LOOKUP_WINDOW)..];
@@ -417,8 +428,21 @@ impl DFlashCopy {
     }
 
     pub fn propose(&self, anchor: u32, width: usize) -> Option<&[u32]> {
+        self.propose_up_to(anchor, width, 3)
+    }
+
+    /// Q27D-19: wider copies when verification of long blocks is cheap (TensorOps mode).
+    pub fn propose_up_to(&self, anchor: u32, width: usize, limit: usize) -> Option<&[u32]> {
         self.enabled
-            .then(|| prompt_lookup(&self.history[..self.len], anchor, width.min(3), |_| true))
+            .then(|| {
+                prompt_lookup_bounded(
+                    &self.history[..self.len],
+                    anchor,
+                    width.min(limit),
+                    limit,
+                    |_| true,
+                )
+            })
             .flatten()
     }
 
@@ -513,6 +537,33 @@ pub fn dflash_proposals(
             .checked_sub(1)
             .map(|n| n.min(if mode == 2 { 2 } else { 7 })),
         _ => None,
+    }
+}
+
+/// Q27D-08 (D1): widest adaptive DFlash2 block for the dense 27B once its verification
+/// shares the decode of up to four rows (`MLXL3_DENSE_SHARED_VERIFY`): three proposals keep
+/// the block at four verified rows, below the five-row cost step. `None` keeps the policy.
+pub fn dflash_width_cap(dense: bool, shared_verify: bool, mode: usize) -> Option<usize> {
+    (dense && shared_verify && mode == 1).then_some(3)
+}
+
+#[test]
+fn dflash_width_cap_only_limits_dense_adaptive_blocks() {
+    for mode in 0..=4 {
+        for dense in [false, true] {
+            for shared in [false, true] {
+                let cap = dflash_width_cap(dense, shared, mode);
+                assert_eq!(cap.is_some(), dense && shared && mode == 1);
+                if let Some(cap) = cap {
+                    assert_eq!(cap, 3);
+                    // The capped block still reserves the corrective token.
+                    for output in 0..10 {
+                        let width = dflash_proposals(1, 4096, output, 8, 8, 8).map(|n| n.min(cap));
+                        assert!(width.is_none_or(|n| n <= 3 && n < output.max(1)));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1036,6 +1087,22 @@ mod tests {
             );
         }
         assert_eq!(prompt_lookup(&[8; 9], 8, 3, |_| true), Some(&[8][..]));
+        // Q27D-19: the bounded form serves widths up to seven and keeps the shared limit.
+        let long = [
+            1, 2, 3, 4, 5, 6, 7, 8, 71, 72, 73, 74, 75, 76, 77, 1, 2, 3, 4, 5, 6, 7,
+        ];
+        for width in 1..=7 {
+            assert_eq!(
+                prompt_lookup_bounded(&long, 8, width, 7, |_| true),
+                Some(&[71, 72, 73, 74, 75, 76, 77][..width])
+            );
+        }
+        assert_eq!(prompt_lookup_bounded(&long, 8, 8, 7, |_| true), None);
+        assert_eq!(prompt_lookup_bounded(&long, 8, 4, 3, |_| true), None);
+        assert_eq!(
+            prompt_lookup_bounded(&long, 8, 4, usize::MAX, |_| true),
+            Some(&[71, 72, 73, 74][..])
+        );
         // A matching anchor at the end has no known continuation.
         assert_eq!(
             prompt_lookup(&[1, 2, 3, 4, 5, 6, 7, 8], 8, 1, |_| true),

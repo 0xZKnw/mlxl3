@@ -1,0 +1,23 @@
+pass 0 arm mlx
+  ar: fr 9.06, code 8.68
+  mtp:1: fr 13.20, code 10.61
+  dflash:1: fr 18.45, code 17.81
+pass 1 arm fused
+  ar: fr 9.56, code 9.00
+  mtp:1: fr 14.05, code 12.45
+  dflash:1: fr 19.19, code 18.34
+pass 2 arm fused
+  ar: fr 9.67, code 9.53
+  mtp:1: fr 13.90, code 12.24
+  dflash:1: fr 20.57, code 19.70
+pass 3 arm mlx
+  ar: fr 9.94, code 9.95
+  mtp:1: fr 13.23, code 11.65
+  dflash:1: fr 18.14, code 17.67
+{"status": "passed", "problems": []}
+ar/fr mlx 9.50 fused 9.62 fused +1.2% drift mlx +9.8% fused +1.2%
+ar/code mlx 9.31 fused 9.26 fused -0.5% drift mlx +14.7% fused +5.8%
+mtp:1/fr mlx 13.22 fused 13.98 fused +5.8% drift mlx +0.2% fused -1.1%
+mtp:1/code mlx 11.13 fused 12.34 fused +10.9% drift mlx +9.8% fused -1.7%
+dflash:1/fr mlx 18.30 fused 19.88 fused +8.6% drift mlx -1.7% fused +7.2%
+dflash:1/code mlx 17.74 fused 19.02 fused +7.2% drift mlx -0.8% fused +7.4%

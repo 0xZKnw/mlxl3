@@ -213,6 +213,11 @@ impl Projection {
         matches!(self.weights, ProjectionWeights::Exl3(_))
     }
 
+    /// EXL3 projection eligible for the shared-decode verify layouts (Q27D-04).
+    pub(crate) fn shared_rows_ready(&self) -> bool {
+        matches!(&self.weights, ProjectionWeights::Exl3(linear) if linear.shared_rows_ready())
+    }
+
     /// The F16 weight of a bias-free dense projection (LFM3-CERT-HEAD).
     pub(crate) fn dense_weight(&self) -> Option<&Array> {
         match (&self.weights, &self.bias) {

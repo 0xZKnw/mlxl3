@@ -1,0 +1,41 @@
+pass 0 arm exact
+  ar: fr 9.87, code 9.86
+  mtp:1: fr 14.50, code 12.22
+  mtp:3: fr 13.74, code 11.98
+  dflash:1: fr 13.58, code 12.85
+  dflash:2: fr 12.82, code 12.45
+  dflash:3: fr 8.83, code 7.73
+pass 1 arm tensor
+  ar: fr 9.69, code 9.76
+  mtp:1: fr 14.29, code 12.39
+  mtp:3: fr 15.43, code 12.58
+  dflash:1: fr 15.99, code 13.41
+  dflash:2: fr 13.34, code 12.50
+  dflash:3: fr 17.90, code 16.35
+pass 2 arm tensor
+  ar: fr 9.84, code 9.83
+  mtp:1: fr 14.05, code 11.86
+  mtp:3: fr 14.94, code 12.17
+  dflash:1: fr 15.80, code 13.34
+  dflash:2: fr 13.31, code 12.44
+  dflash:3: fr 17.34, code 15.61
+pass 3 arm exact
+  ar: fr 9.47, code 9.31
+  mtp:1: fr 14.24, code 12.49
+  mtp:3: fr 14.26, code 12.12
+  dflash:1: fr 13.84, code 13.11
+  dflash:2: fr 13.74, code 12.86
+  dflash:3: fr 9.05, code 7.86
+{"status": "passed", "problems": []}
+ar/fr exact 9.67 tensor 9.77 tensor +1.0% drift exact -4.1% tensor +1.5%
+ar/code exact 9.58 tensor 9.79 tensor +2.2% drift exact -5.5% tensor +0.6%
+mtp:1/fr exact 14.37 tensor 14.17 tensor -1.4% drift exact -1.7% tensor -1.6%
+mtp:1/code exact 12.36 tensor 12.13 tensor -1.8% drift exact +2.2% tensor -4.3%
+mtp:3/fr exact 14.00 tensor 15.19 tensor +8.5% drift exact +3.8% tensor -3.2%
+mtp:3/code exact 12.05 tensor 12.38 tensor +2.7% drift exact +1.2% tensor -3.3%
+dflash:1/fr exact 13.71 tensor 15.89 tensor +15.9% drift exact +1.9% tensor -1.1%
+dflash:1/code exact 12.98 tensor 13.38 tensor +3.1% drift exact +2.0% tensor -0.5%
+dflash:2/fr exact 13.28 tensor 13.32 tensor +0.3% drift exact +7.2% tensor -0.2%
+dflash:2/code exact 12.65 tensor 12.47 tensor -1.4% drift exact +3.3% tensor -0.5%
+dflash:3/fr exact 8.94 tensor 17.62 tensor +97.1% drift exact +2.4% tensor -3.1%
+dflash:3/code exact 7.80 tensor 15.98 tensor +105.0% drift exact +1.7% tensor -4.6%

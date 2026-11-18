@@ -1,0 +1,18 @@
+pass 0 arm base
+  ar: fr 9.73, code 9.67
+  mtp:1: fr 13.25, code 11.20
+  mtp:2: fr 8.26, code 8.00
+  mtp:3: fr 9.21, code 8.82
+{"status": "error", "problems": null}
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/scripts/q27-decode-bench.py", line 304, in <module>
+    main()
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/scripts/q27-decode-bench.py", line 255, in main
+    entry["results"] = run_pass(args, arms[name], toggled, modes, log)
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/scripts/q27-decode-bench.py", line 179, in run_pass
+    bridge.generate(CASES[case], 32, mode)
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/scripts/q27-decode-bench.py", line 120, in generate
+    self.set_dflash(level if kind == "dflash" else None)
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/scripts/q27-decode-bench.py", line 111, in set_dflash
+    raise RuntimeError(f"bridge error: {event}")
+RuntimeError: bridge error: {'dflash_active': False, 'message': 'No such file or directory (os error 2)', 'request_id': 'dflash-17', 'type': 'error'}

@@ -1,0 +1,132 @@
+{
+  "status": "passed",
+  "arms": {
+    "default": {}
+  },
+  "order": [
+    "default"
+  ],
+  "modes": [
+    "ar"
+  ],
+  "sampler": "greedy",
+  "sampled": false,
+  "tokens": 128,
+  "repeats": 1,
+  "context": 4096,
+  "cases": [
+    "fr",
+    "code"
+  ],
+  "engine": "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/decode-boosts/build/engine-v2.0.15-check/mlxl3",
+  "engine_sha256": "cb06816b959076c979ad337b9434c7deadfacbedf1796c83e5c53e58fea4a2e6",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/LFM3-1.7B-EXL3--8bpw",
+  "mtp_head": null,
+  "dflash_draft": null,
+  "before": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      2.0791015625,
+      2.9013671875,
+      3.5
+    ]
+  },
+  "passes": [
+    {
+      "arm": "default",
+      "conditions": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "load": [
+          2.0791015625,
+          2.9013671875,
+          3.5
+        ]
+      },
+      "status": "complete",
+      "results": {
+        "ar": {
+          "fr": [
+            {
+              "token_hash": "f9c0b6221cabd6df",
+              "generated_tokens": 128,
+              "decode_tps": 65.16948886311138,
+              "decode_seconds": 1.948764709,
+              "prefill_seconds": 0.047623875,
+              "prompt_tokens": 24,
+              "mlx_active_bytes": 2668170128,
+              "mlx_peak_bytes": 2672409464,
+              "process_footprint_bytes": 3307293504,
+              "dflash_block_seconds": 0.0
+            }
+          ],
+          "code": [
+            {
+              "token_hash": "b901cb09a3ff1e85",
+              "generated_tokens": 128,
+              "decode_tps": 65.00759104389905,
+              "decode_seconds": 1.953618,
+              "prefill_seconds": 0.0466575,
+              "prompt_tokens": 32,
+              "mlx_active_bytes": 2670218128,
+              "mlx_peak_bytes": 2674457496,
+              "process_footprint_bytes": 3307080512,
+              "dflash_block_seconds": 0.0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "distinct_hashes": {
+    "fr": 1,
+    "code": 1
+  },
+  "summary": {
+    "ar/fr": {
+      "decode_tps": {
+        "default": 65.16948886311138
+      },
+      "pass_means": [
+        65.16948886311138
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    },
+    "ar/code": {
+      "decode_tps": {
+        "default": 65.00759104389905
+      },
+      "pass_means": [
+        65.00759104389905
+      ],
+      "gain_percent_vs_first": {
+        "default": 0.0
+      },
+      "drift_percent": {},
+      "counters": {
+        "default": {
+          "dflash_block_seconds": 0.0
+        }
+      }
+    }
+  },
+  "problems": [],
+  "after": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "load": [
+      2.15283203125,
+      2.90283203125,
+      3.4970703125
+    ]
+  }
+}

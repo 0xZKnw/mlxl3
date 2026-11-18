@@ -1369,6 +1369,10 @@ fn codec_loop() -> Result<()> {
 }
 
 fn main() -> std::process::ExitCode {
+    // Q27D-23: TensorOps verification for the dense Qwen3.8-27B on M5 (not bit-exact, quality
+    // measured in Q27D-16/18); `MLXL3_DENSE_TENSOR_ROWS=0` restores the exact kernels.
+    #[cfg(feature = "mlx")]
+    mlxl3_native::linear::set_dense_tensor_product_default(3);
     if let Err(error) = run(Cli::parse()) {
         eprintln!("Error: {error:#}");
         std::process::ExitCode::from(2)
@@ -2517,6 +2521,9 @@ struct DFlashChat {
     mode: usize,
     copy: Option<mlxl3_native::speculative::DFlashCopy>,
     lookup_blocks: usize,
+    width_cap: Option<usize>,
+    /// Q27D-16: TensorOps verification makes wide blocks nearly as cheap as narrow ones.
+    wide: bool,
 }
 
 #[cfg(all(
@@ -2947,11 +2954,24 @@ impl DFlashChat {
             mode: 1,
             copy: None,
             lookup_blocks: 0,
+            width_cap: None,
+            wide: false,
         }
     }
 
     fn configure(&mut self, mode: usize, family: mlxl3_native::dflash::Family, prompt: &[u32]) {
         self.mode = mode;
+        // Q27D-16: with TensorOps verification wide blocks are cheap again; keep the policy.
+        let tensor = mlxl3_native::linear::dense_tensor_rows_threshold()
+            .ok()
+            .flatten()
+            .is_some_and(|first| first <= 8);
+        self.width_cap = mlxl3_native::speculative::dflash_width_cap(
+            family == mlxl3_native::dflash::Family::Qwen38Dense,
+            mlxl3_native::linear::dense_shared_enabled() && !tensor,
+            mode,
+        );
+        self.wide = tensor && family == mlxl3_native::dflash::Family::Qwen38Dense && mode == 1;
         self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
             .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
@@ -2964,13 +2984,14 @@ impl DFlashChat {
                 (accepted + a, proposed + p)
             });
         mlxl3_native::speculative::dflash_proposals(
-            self.mode,
+            if self.wide { 3 } else { self.mode },
             context_remaining,
             output_remaining,
             self.recent.len(),
             accepted,
             proposed,
         )
+        .map(|width| self.width_cap.map_or(width, |cap| width.min(cap)))
     }
 
     fn prefill(
@@ -2998,6 +3019,23 @@ impl DFlashChat {
         context_limit: usize,
         output_remaining: usize,
     ) -> Result<u32> {
+        self.advance_sampled(target, draft, anchor, context_limit, output_remaining, None)
+    }
+
+    /// Q27D-09 (D2): `advance` under a non-greedy target policy. The draft
+    /// still proposes deterministically; the target then verifies with the
+    /// exact speculative rejection sampling MTP uses (`crate::sampling`).
+    /// A greedy policy keeps the greedy verification unchanged.
+    fn advance_sampled(
+        &mut self,
+        target: &mut mlxl3_native::qwen35::Qwen35Moe,
+        draft: &mlxl3_native::dflash::DFlashWeights,
+        anchor: u32,
+        context_limit: usize,
+        output_remaining: usize,
+        draw: Option<mlxl3_native::sampling::Draw<'_>>,
+    ) -> Result<u32> {
+        let mut draw = draw.filter(|draw| !draw.sampler.is_greedy());
         anyhow::ensure!(output_remaining > 0, "DFlash reached the output limit");
         if let Some(token) = self.pending.pop_front() {
             return Ok(token);
@@ -3008,18 +3046,20 @@ impl DFlashChat {
             .context("DFlash reached the context limit")?;
         if proposals_count == 0 {
             // This is the last deliverable token. No later draft needs captures.
-            return target
-                .forward(anchor)?
+            let logits = target.forward(anchor)?;
+            if let Some(draw) = draw.as_mut() {
+                return draw.sample_last_row(&logits);
+            }
+            return logits
                 .chat_greedy_ids()?
                 .into_iter()
                 .next()
                 .context("model returned no logits");
         }
         let block_started = Instant::now();
-        let copied = self
-            .copy
-            .as_ref()
-            .and_then(|copy| copy.propose(anchor, proposals_count));
+        let copied = self.copy.as_ref().and_then(|copy| {
+            copy.propose_up_to(anchor, proposals_count, if self.wide { 7 } else { 3 })
+        });
         let is_copy = copied.is_some();
         let proposals = if let Some(tokens) = copied {
             tokens.to_vec()
@@ -3034,9 +3074,14 @@ impl DFlashChat {
             .collect::<Vec<_>>();
         let position = target.offset();
         let (target_logits, captured) = target.verify_tokens_exact_with_dflash_capture(&verify)?;
-        let target_tokens = target_logits.chat_greedy_ids()?;
-        let acceptance = mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
-            .context("invalid DFlash target verification")?;
+        let acceptance = if let Some(draw) = draw.as_mut() {
+            draw.speculative_accept_logits(&proposals, &target_logits)
+                .context("invalid DFlash sampled verification")?
+        } else {
+            let target_tokens = target_logits.chat_greedy_ids()?;
+            mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
+                .context("invalid DFlash target verification")?
+        };
         let accepted = acceptance.accepted_draft_tokens;
         self.proposed += proposals.len();
         self.accepted += accepted;
@@ -3069,13 +3114,23 @@ impl DFlashChat {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn dflash_context_copy_enabled(family: Option<mlxl3_native::dflash::Family>) -> bool {
-    family == Some(mlxl3_native::dflash::Family::Qwen36Moe)
-        && std::env::var("MLXL3_DFLASH_CONTEXT_COPY").as_deref() == Ok("1")
+    // Q27D-23: on by default for the dense 27B (+9 % on copies, outputs unchanged);
+    // the 35B stays opt-in. `MLXL3_DFLASH_CONTEXT_COPY=0` turns it off, `1` turns it on.
+    let setting = std::env::var("MLXL3_DFLASH_CONTEXT_COPY");
+    match family {
+        Some(mlxl3_native::dflash::Family::Qwen38Dense) => setting.as_deref() != Ok("0"),
+        Some(mlxl3_native::dflash::Family::Qwen36Moe) => setting.as_deref() == Ok("1"),
+        _ => false,
+    }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
-fn dflash_runtime_key(base: &str, copy: bool) -> String {
-    format!("{base}:dflash-v4:copy={}", u8::from(copy))
+fn dflash_runtime_key(base: &str, copy: bool, cap: Option<usize>) -> String {
+    // Q27D-08: a capped adaptive mode is a different policy; older Tune choices stay apart.
+    match cap {
+        None => format!("{base}:dflash-v4:copy={}", u8::from(copy)),
+        Some(cap) => format!("{base}:dflash-v4:copy={}:cap={cap}", u8::from(copy)),
+    }
 }
 
 #[cfg(all(
@@ -3981,12 +4036,17 @@ fn bridge_generate_round(
                     let NativeChatModel::Qwen(target) = &mut *model else {
                         bail!("DFlash2 requires a supported Qwen target")
                     };
-                    dflash_next = Some(session.advance(
+                    dflash_next = Some(session.advance_sampled(
                         target,
                         weights,
                         next,
                         context_limit,
                         budget - generated.len(),
+                        Some(mlxl3_native::sampling::Draw {
+                            sampler,
+                            history: &history,
+                            random: &mut *random,
+                        }),
                     )?);
                 } else if let NativeChatModel::Flash(target) = &mut *model
                     && target.dflash2_active()
@@ -4686,8 +4746,15 @@ fn native_bridge(
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
     let executable = std::env::current_exe()?.display().to_string();
     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
-    let dflash_tuning_key =
-        dflash_runtime_key(&tuning_key, dflash_context_copy_enabled(dflash_family));
+    let dflash_tuning_key = dflash_runtime_key(
+        &tuning_key,
+        dflash_context_copy_enabled(dflash_family),
+        mlxl3_native::speculative::dflash_width_cap(
+            dflash_family == Some(mlxl3_native::dflash::Family::Qwen38Dense),
+            mlxl3_native::linear::dense_shared_enabled(),
+            1,
+        ),
+    );
     let memory = mlxl3_native::array::memory_stats(false)?;
     emit_event(json!({
         "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
@@ -5016,9 +5083,12 @@ fn native_bridge(
                             (1..=3).contains(&request.dflash_mode),
                             "DFlash mode must be 1, 2 or 3"
                         );
+                        // Q27D-09: packed Qwen drafts verify sampled policies exactly;
+                        // the Flash Next DFlash2 path stays greedy-only.
                         anyhow::ensure!(
-                            request.greedy_unpenalized(),
-                            "DFlash2 requires greedy sampling and repetition penalty 1.0"
+                            request.greedy_unpenalized()
+                                || !matches!(&model, NativeChatModel::Flash(_)),
+                            "Flash DFlash2 requires greedy sampling and repetition penalty 1.0"
                         );
                         let draft_started = Instant::now();
                         if let NativeChatModel::Flash(target) = &mut model {
@@ -5497,17 +5567,26 @@ mod tests {
     #[test]
     fn dflash_runtime_key_distinguishes_copy_policy() {
         assert_eq!(
-            dflash_runtime_key("model:runtime", false),
+            dflash_runtime_key("model:runtime", false, None),
             "model:runtime:dflash-v4:copy=0"
         );
         assert_eq!(
-            dflash_runtime_key("model:runtime", true),
+            dflash_runtime_key("model:runtime", true, None),
             "model:runtime:dflash-v4:copy=1"
         );
+        assert_eq!(
+            dflash_runtime_key("model:runtime", false, Some(3)),
+            "model:runtime:dflash-v4:copy=0:cap=3"
+        );
         assert!(!dflash_context_copy_enabled(None));
-        assert!(!dflash_context_copy_enabled(Some(
-            mlxl3_native::dflash::Family::Qwen38Dense
-        )));
+        if std::env::var_os("MLXL3_DFLASH_CONTEXT_COPY").is_none() {
+            assert!(dflash_context_copy_enabled(Some(
+                mlxl3_native::dflash::Family::Qwen38Dense
+            )));
+            assert!(!dflash_context_copy_enabled(Some(
+                mlxl3_native::dflash::Family::Qwen36Moe
+            )));
+        }
     }
 
     #[test]
@@ -6104,6 +6183,251 @@ mod tests {
         eprintln!(
             "35 nonempty completions with budgets/cache/Auto/fixed modes exact; {copies} verified copy blocks"
         );
+        Ok(())
+    }
+
+    fn q27_dflash_fixture() -> Result<(
+        NativeChatModel,
+        mlxl3_native::tokenizer::ChatTokenizer,
+        mlxl3_native::dflash::DFlashWeights,
+    )> {
+        let path = std::path::PathBuf::from(std::env::var("MLXL3_DFLASH_TEST_MODEL")?);
+        let model = NativeChatModel::load(&path)?;
+        let tokenizer = mlxl3_native::tokenizer::ChatTokenizer::load(&path)?;
+        let package = mlxl3_native::dflash::inspect(std::env::var("MLXL3_DFLASH_TEST_DRAFT")?)?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
+        Ok((model, tokenizer, weights))
+    }
+
+    /// Q27D-09 (D2): sampled DFlash2 keeps the target policy exactly.
+    #[test]
+    #[ignore = "requires MLXL3_DFLASH_TEST_MODEL/DRAFT (Qwen + packed DFlash2) and Apple GPU; run alone"]
+    fn bridge_dflash_sampling_matches_autoregressive_policy() -> Result<()> {
+        use mlxl3_native::sampling::Sampler;
+        let (mut model, tokenizer, weights) = q27_dflash_fixture()?;
+        let messages = vec![json!({"role":"user", "content":
+            "List ten distinct uses of a paperclip, one per line, then explain which is most surprising."})];
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        let mut run = |sampler, draft: Option<&RoundDraft>, mode, seed| {
+            let mut random = seed;
+            bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "dflash-sampling",
+                &messages,
+                &[],
+                96,
+                sampler,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                draft,
+                None,
+                1,
+                mode,
+                &mut cache,
+                "dflash-sampling",
+                false,
+                false,
+            )
+        };
+        // Greedy: every mode (including the capped adaptive one) equals autoregressive IDs.
+        let greedy = Sampler::new(0., 1, 1., 1., 0.)?;
+        assert!(greedy.is_greedy());
+        let reference = run(greedy, None, 1, 3)?;
+        assert_eq!(reference.stats.generated_tokens, 96);
+        for mode in 1..=3 {
+            let actual = run(greedy, Some(&weights), mode, 3)?;
+            assert_eq!(actual.raw, reference.raw, "greedy mode {mode}");
+            assert_eq!(actual.token_hash, reference.token_hash);
+            assert!(actual.stats.dflash_accepted_tokens.unwrap() > 0);
+        }
+        // Deterministic but penalized: the sampled verifier runs and every delivered
+        // token is a point mass, so DFlash2 must reproduce autoregressive decoding.
+        // A misaligned row, penalty prefix or corrective token diverges here.
+        let penalized = Sampler::new(0., 0, 1., 1.1, 0.5)?;
+        assert!(!penalized.is_greedy());
+        let reference = run(penalized, None, 1, 7)?;
+        assert_eq!(reference.stats.generated_tokens, 96);
+        for mode in 1..=3 {
+            let actual = run(penalized, Some(&weights), mode, 7)?;
+            assert_eq!(actual.raw, reference.raw, "penalized mode {mode}");
+            assert_eq!(actual.token_hash, reference.token_hash);
+            assert!(actual.stats.dflash_accepted_tokens.unwrap() > 0);
+        }
+        // Stochastic presets: DFlash2 must run, accept drafts, finish and be seed-reproducible.
+        let mut accepted = 0;
+        for (sampler, label) in [
+            (Sampler::new(0.2, 80, 1., 1.05, 0.)?, "desktop"),
+            (Sampler::new(0.6, 20, 0.95, 1., 0.)?, "qwen"),
+        ] {
+            for mode in 1..=2 {
+                let first = run(sampler, Some(&weights), mode, 11)?;
+                let again = run(sampler, Some(&weights), mode, 11)?;
+                assert!(!first.raw.is_empty());
+                assert_eq!(first.raw, again.raw, "seeded {label} mode {mode}");
+                let (proposed, hits) = (
+                    first.stats.dflash_proposed_tokens.unwrap(),
+                    first.stats.dflash_accepted_tokens.unwrap(),
+                );
+                assert!(hits <= proposed);
+                accepted += hits;
+                eprintln!(
+                    "stochastic DFlash2 {label} mode {mode}: {} tokens, {hits}/{proposed} accepted",
+                    first.stats.generated_tokens
+                );
+            }
+        }
+        assert!(accepted > 0, "sampled DFlash2 must accept drafts");
+        Ok(())
+    }
+
+    /// Q27D-10 (D6 + D3): synchronized block timings and per-position draft confidence,
+    /// seven proposals per block, greedy target. Diagnostic only.
+    #[test]
+    #[ignore = "requires MLXL3_DFLASH_TEST_MODEL/DRAFT and Apple GPU; writes MLXL3_DFLASH_PROFILE_REPORT"]
+    fn dflash_block_profile_and_confidence() -> Result<()> {
+        use mlxl3_native::array::synchronize;
+        let output = std::path::PathBuf::from(std::env::var("MLXL3_DFLASH_PROFILE_REPORT")?);
+        anyhow::ensure!(!output.exists(), "preserve previous profile reports");
+        let (mut model, tokenizer, weights) = q27_dflash_fixture()?;
+        let cancelled = AtomicBool::new(false);
+        let prompts = [
+            "Explique en quelques paragraphes pourquoi le ciel est bleu.",
+            "Write a Rust function that parses an ISO 8601 date like 2026-11-16.",
+            "Write a short story about a lighthouse keeper who finds a message in a bottle.",
+            "Explain step by step how to solve the quadratic equation 3x^2 - 5x - 2 = 0.",
+            "Résume les causes de la Révolution française en cinq points détaillés.",
+            "Write a Python class implementing an LRU cache with tests.",
+            "Describe how a compiler turns source code into machine code.",
+            "Donne une recette de crêpes avec les quantités et les étapes.",
+        ];
+        let budget =
+            std::env::var("MLXL3_DFLASH_PROFILE_TOKENS").map_or(Ok(128usize), |v| v.parse())?;
+        let vocab = 248_320usize;
+        let mut blocks = Vec::new();
+        let mut outputs: Vec<Vec<u32>> = Vec::new();
+        for (index, prompt) in prompts.iter().enumerate() {
+            let tokens = tokenizer.encode(
+                &tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?,
+            )?;
+            model.reset();
+            let (logits, session, _) = prefill_round(
+                &mut model,
+                &tokens,
+                &[],
+                Some(&weights),
+                &mut None,
+                "profile",
+                false,
+                &cancelled,
+            )?;
+            let mut session = session.context("missing DFlash session")?;
+            let NativeChatModel::Qwen(target) = &mut model else {
+                bail!("requires a Qwen target")
+            };
+            let mut anchor = logits.chat_greedy_ids()?[0];
+            let mut generated = vec![anchor];
+            let mut produced = 1usize;
+            while produced + 1 < budget {
+                let k = 7usize.min(budget - produced - 1);
+                synchronize()?;
+                let t0 = Instant::now();
+                let input = target.dflash_input(anchor, weights.family.mask())?;
+                let draft = weights.forward_hidden(&input, &session.cache, target.offset())?;
+                draft.hidden.eval()?;
+                draft.selector.eval()?;
+                synchronize()?;
+                let draft_ms = t0.elapsed().as_secs_f64() * 1e3;
+                let t1 = Instant::now();
+                let draft_logits = target.dflash_logits(&draft.hidden, k)?;
+                let proposals = weights.select_greedy(&draft_logits, &draft.selector, anchor)?;
+                let head_ms = t1.elapsed().as_secs_f64() * 1e3;
+                // Diagnostic readback after the timed part.
+                let rows = draft_logits.log_probs()?.to_f32()?;
+                anyhow::ensure!(
+                    rows.len() == k * vocab && proposals.len() == k,
+                    "short draft rows"
+                );
+                let mut confidence = Vec::with_capacity(k);
+                // Q27D-32: draft top-4 ids per position for offline tree simulation.
+                let top_ids = rows
+                    .chunks(vocab)
+                    .map(|row| {
+                        let mut order: Vec<u32> = (0..vocab as u32).collect();
+                        order.select_nth_unstable_by(3, |&a, &b| {
+                            row[b as usize].total_cmp(&row[a as usize])
+                        });
+                        let mut top = order[..4].to_vec();
+                        top.sort_by(|&a, &b| row[b as usize].total_cmp(&row[a as usize]));
+                        top
+                    })
+                    .collect::<Vec<_>>();
+                for (row, &token) in rows.chunks(vocab).zip(&proposals) {
+                    let (best, top) =
+                        row.iter()
+                            .enumerate()
+                            .fold((0usize, f32::NEG_INFINITY), |acc, (i, &v)| {
+                                if v > acc.1 { (i, v) } else { acc }
+                            });
+                    let mut second = f32::NEG_INFINITY;
+                    for (i, &v) in row.iter().enumerate() {
+                        if i != best && v > second {
+                            second = v;
+                        }
+                    }
+                    confidence.push(json!({"chosen": row[token as usize], "top": top,
+                        "second": second, "argmax": best as u32 == token}));
+                }
+                let verify = std::iter::once(anchor)
+                    .chain(proposals.iter().copied())
+                    .collect::<Vec<_>>();
+                let position = target.offset();
+                synchronize()?;
+                let t2 = Instant::now();
+                let (target_logits, captured) =
+                    target.verify_tokens_exact_with_dflash_capture(&verify)?;
+                let target_tokens = target_logits.chat_greedy_ids()?;
+                let verify_ms = t2.elapsed().as_secs_f64() * 1e3;
+                let acceptance =
+                    mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
+                        .context("invalid DFlash target verification")?;
+                let retained = acceptance.accepted_draft_tokens + 1;
+                let t3 = Instant::now();
+                target.commit_dflash_verification(retained, verify.len())?;
+                session.cache.append_captured(
+                    &weights,
+                    &captured.slice(0, 0, i32::try_from(retained)?)?,
+                    position,
+                )?;
+                session.cache.eval()?;
+                synchronize()?;
+                let commit_ms = t3.elapsed().as_secs_f64() * 1e3;
+                blocks.push(json!({"prompt": index, "offset": position, "proposals": k,
+                    "accepted": acceptance.accepted_draft_tokens, "draft_ms": draft_ms,
+                    "head_select_ms": head_ms, "verify_ms": verify_ms, "commit_ms": commit_ms,
+                    "confidence": confidence, "anchor": anchor, "anchor_index": generated.len() - 1,
+                    "chain": proposals, "top_ids": top_ids}));
+                generated.extend(
+                    proposals[..acceptance.accepted_draft_tokens]
+                        .iter()
+                        .copied(),
+                );
+                generated.push(acceptance.target_token);
+                anchor = acceptance.target_token;
+                produced += retained;
+            }
+            eprintln!(
+                "prompt {index}: {produced} tokens, {} blocks so far",
+                blocks.len()
+            );
+            outputs.push(generated);
+        }
+        let report = json!({"status": "complete", "budget": budget, "blocks": blocks,
+            "outputs": outputs});
+        std::fs::write(&output, serde_json::to_vec_pretty(&report)?)?;
         Ok(())
     }
 

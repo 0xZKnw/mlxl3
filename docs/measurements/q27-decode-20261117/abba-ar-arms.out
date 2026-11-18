@@ -1,0 +1,19 @@
+pass 0 arm zero
+  ar: fr 9.94, code 9.82
+pass 1 arm three
+  ar: fr 9.85, code 9.70
+pass 2 arm none
+  ar: fr 9.63, code 9.41
+pass 3 arm noblock
+  ar: fr 9.40, code 9.36
+pass 4 arm noblock
+  ar: fr 9.61, code 9.39
+pass 5 arm none
+  ar: fr 9.32, code 9.35
+pass 6 arm three
+  ar: fr 9.68, code 9.63
+pass 7 arm zero
+  ar: fr 9.64, code 9.34
+{"status": "passed", "problems": []}
+ar/fr zero 9.79 three 9.77 none 9.47 noblock 9.51 three -0.2% none -3.2% noblock -2.9% drift zero -3.1% three -1.7% none -3.2% noblock +2.3%
+ar/code zero 9.58 three 9.67 none 9.38 noblock 9.38 three +0.9% none -2.1% noblock -2.2% drift zero -4.9% three -0.7% none -0.6% noblock +0.3%

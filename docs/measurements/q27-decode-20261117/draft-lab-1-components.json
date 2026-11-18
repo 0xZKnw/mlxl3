@@ -1,0 +1,100 @@
+{
+  "forward_context1024_ms": 14.40406775,
+  "forward_empty_ms": 12.53093225,
+  "layers": 5,
+  "projections": [
+    {
+      "finite": true,
+      "gb_per_s": 13.357277925607201,
+      "groups": 10,
+      "input": 5120,
+      "mb": 3.6864,
+      "ms": 0.275984375,
+      "name": "attention_dynamic",
+      "output": 1280
+    },
+    {
+      "finite": true,
+      "gb_per_s": 73.69921124560719,
+      "groups": 48,
+      "input": 5120,
+      "mb": 17.69472,
+      "ms": 0.24009375,
+      "name": "qkv",
+      "output": 6144
+    },
+    {
+      "finite": true,
+      "gb_per_s": 71.62948007590133,
+      "groups": 40,
+      "input": 4096,
+      "mb": 11.79648,
+      "ms": 0.16468750000000001,
+      "name": "attention_output",
+      "output": 5120
+    },
+    {
+      "finite": true,
+      "gb_per_s": 54.71881905673715,
+      "groups": 10,
+      "input": 5120,
+      "mb": 3.6864,
+      "ms": 0.067369875,
+      "name": "mlp_dynamic",
+      "output": 1280
+    },
+    {
+      "finite": true,
+      "gb_per_s": 82.11426665659381,
+      "groups": 136,
+      "input": 5120,
+      "mb": 50.13504,
+      "ms": 0.610552125,
+      "name": "gate",
+      "output": 17408
+    },
+    {
+      "finite": true,
+      "gb_per_s": 81.29387444618239,
+      "groups": 136,
+      "input": 5120,
+      "mb": 50.13504,
+      "ms": 0.6167136249999999,
+      "name": "up",
+      "output": 17408
+    },
+    {
+      "finite": true,
+      "gb_per_s": 81.59777545127147,
+      "groups": 40,
+      "input": 17408,
+      "mb": 50.13504,
+      "ms": 0.6144167500000001,
+      "name": "down",
+      "output": 5120
+    },
+    {
+      "finite": true,
+      "gb_per_s": 21.744663594470047,
+      "groups": 2,
+      "input": 5120,
+      "mb": 0.73728,
+      "ms": 0.03390625,
+      "name": "selector",
+      "output": 256
+    },
+    {
+      "finite": true,
+      "gb_per_s": 82.06009481742998,
+      "groups": 40,
+      "input": 25600,
+      "mb": 73.728,
+      "ms": 0.8984635,
+      "name": "context",
+      "output": 5120
+    }
+  ],
+  "q4_network_ms": 12.949090000000002,
+  "q4_per_layer_ms": 2.589818,
+  "status": "complete"
+}
