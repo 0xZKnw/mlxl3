@@ -406,23 +406,41 @@ struct RepoFile {
 
 /// The LFS oid hashes the payload; a Git blob oid hashes its length-prefixed content.
 /// Metadata must come from the same resolved commit as the download URL.
+
+#[derive(Debug, PartialEq, Eq)]
+enum ContentIdentityRejection {
+    MissingBlob,
+    Invalid,
+}
+
+/// Allocation-free core of `RepoFile::content_identity`: an LFS SHA-256 wins
+/// over the Git blob id, and the chosen hash must be 64 (LFS) or 40 (Git) hex digits.
+fn checked_content_identity<'a>(
+    lfs_sha256: Option<&'a str>,
+    blob_id: Option<&'a str>,
+) -> std::result::Result<(&'a str, bool), ContentIdentityRejection> {
+    let (hash, lfs) = match lfs_sha256 {
+        Some(hash) => (hash, true),
+        None => (blob_id.ok_or(ContentIdentityRejection::MissingBlob)?, false),
+    };
+    if hash.len() == if lfs { 64 } else { 40 } && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        Ok((hash, lfs))
+    } else {
+        Err(ContentIdentityRejection::Invalid)
+    }
+}
+
 impl RepoFile {
     fn content_identity(&self) -> Result<(&str, bool)> {
-        let (hash, lfs) = match &self.lfs {
-            Some(lfs) => (lfs.sha256.as_str(), true),
-            None => (
-                self.blob_id
-                    .as_deref()
-                    .context("missing Git blob identity")?,
-                false,
-            ),
-        };
-        ensure!(
-            hash.len() == if lfs { 64 } else { 40 }
-                && hash.bytes().all(|byte| byte.is_ascii_hexdigit()),
-            "invalid checkpoint content identity"
-        );
-        Ok((hash, lfs))
+        match checked_content_identity(
+            self.lfs.as_ref().map(|lfs| lfs.sha256.as_str()),
+            self.blob_id.as_deref(),
+        ) {
+            Ok(identity) => Ok(identity),
+            Err(ContentIdentityRejection::MissingBlob) => bail!("missing Git blob identity"),
+            Err(ContentIdentityRejection::Invalid) => bail!("invalid checkpoint content identity"),
+        }
     }
 
     fn matches(&self, path: &Path, cancelled: &AtomicBool) -> Result<bool> {
@@ -2358,85 +2376,50 @@ mod verification {
     use super::*;
 
     // Bounded metadata admission only: not a proof of hashing or filesystem I/O.
+    // Proves the allocation-free core that `RepoFile::content_identity` wraps.
+    // Bounded so that CBMC finishes: the length comes from the lengths around
+    // both accepted widths, and every character is a fixed mixed-case hex digit
+    // except one symbolic ASCII character at a symbolic position.
     #[kani::proof]
-    #[kani::unwind(140)]
+    #[kani::unwind(70)]
     fn checkpoint_digest_family_and_syntax_are_required() {
+        const DIGITS: &[u8; 22] = b"0123456789abcdefABCDEF";
         let lfs: bool = kani::any();
         let present: bool = kani::any();
-        let length: u8 = kani::any();
-        kani::assume(length <= 65);
-        let bytes: [u8; 65] = kani::any();
-        let mut hash = String::new();
+        let length: u8 = [0, 39, 40, 41, 63, 64, 65][kani::any_where(|choice: &usize| *choice < 7)];
+        let probe: u8 = kani::any_where(|probe: &u8| *probe < length.max(1));
+        let character = kani::any::<u8>() & 0x7f;
+        let mut bytes = [0u8; 65];
         let mut hexadecimal = true;
-        for &byte in &bytes[..usize::from(length)] {
-            // Scope: independently symbolic ASCII metadata, including mixed
-            // valid/invalid characters. Unicode is rejected by production too.
-            let character = byte & 0x7f;
-            hash.push(char::from(character));
-            hexadecimal &= matches!(character, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F');
+        for (index, slot) in (0u8..).zip(bytes.iter_mut()) {
+            *slot = DIGITS[usize::from(index) % DIGITS.len()];
         }
-        let file = RepoFile {
-            rfilename: String::new(),
-            size: 0,
-            lfs: lfs.then(|| LfsFile {
-                sha256: hash.clone(),
-            }),
-            blob_id: present.then_some(hash),
-        };
+        if length > 0 {
+            bytes[usize::from(probe)] = character;
+            hexadecimal = character.is_ascii_hexdigit();
+        }
+        // SAFETY: every byte is below 0x80, so the slice is ASCII and valid UTF-8.
+        // Skipping validation keeps CBMC out of the UTF-8 decoder loop.
+        let hash = unsafe { core::str::from_utf8_unchecked(&bytes[..usize::from(length)]) };
+        let result = checked_content_identity(lfs.then_some(hash), present.then_some(hash));
         let expected = hexadecimal
             && if lfs {
                 length == 64
             } else {
                 present && length == 40
             };
-        assert_eq!(file.content_identity().is_ok(), expected);
+        assert_eq!(result.is_ok(), expected);
+        if let Ok((identity, from_lfs)) = result {
+            assert_eq!(from_lfs, lfs);
+            assert_eq!(identity.len(), usize::from(length));
+        }
+        if !lfs && !present {
+            assert_eq!(result, Err(ContentIdentityRejection::MissingBlob));
+        }
         kani::cover!(lfs && expected);
         kani::cover!(!lfs && expected);
+        kani::cover!(length == 64 && !hexadecimal);
         kani::cover!(!expected);
-    }
-
-    #[kani::proof]
-    #[kani::unwind(130)]
-    fn flash_sidecar_collection_preserves_present_files_and_size() {
-        let ngram: bool = kani::any();
-        let mtp: bool = kani::any();
-        let mut files = BTreeMap::from([
-            ("config.json".into(), 10),
-            ("quantization_config.json".into(), 5),
-            ("model.safetensors".into(), 100),
-        ]);
-        if ngram {
-            files.insert("ngram_embedding.safetensors".into(), 26_240_152_672);
-        }
-        if mtp {
-            files.insert(
-                "mtp_hyper_connection_mixer_patch.safetensors".into(),
-                13_128_048,
-            );
-        }
-        let choices = variants(&files);
-        assert_eq!(choices.len(), 1);
-        let choice = &choices[0];
-        assert_eq!(
-            choice.files.contains_key("ngram_embedding.safetensors"),
-            ngram
-        );
-        assert_eq!(
-            choice
-                .files
-                .contains_key("mtp_hyper_connection_mixer_patch.safetensors"),
-            mtp
-        );
-        assert_eq!(
-            choice.files.len(),
-            3 + usize::from(ngram) + usize::from(mtp)
-        );
-        assert_eq!(
-            choice.size_bytes,
-            115 + u64::from(ngram) * 26_240_152_672 + u64::from(mtp) * 13_128_048
-        );
-        kani::cover!(ngram && mtp);
-        kani::cover!(!ngram && !mtp);
     }
 
     #[kani::proof]

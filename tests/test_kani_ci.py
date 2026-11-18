@@ -174,6 +174,10 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         # Replaced by the qwen_pipeline_* and pipeline_layer_* proofs when progressive
         # layer submission became the default in every mode.
         "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+        # Retired because CBMC could not finish it in the CI budget; the unit test
+        # hub::tests::flash_variants_include_present_sidecars_and_exact_total
+        # checks all four sidecar combinations and the exact total size.
+        "hub::verification::flash_sidecar_collection_preserves_present_files_and_size",
     }
     required = set(ci.required_names())
     assert set(baseline) - required == replaced | retired
@@ -198,6 +202,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "speculative::serial_verification_never_consumes_eos",
         "transaction::failed_export_restores_snapshot",
         "image_budget::image_admission_preserves_aggregate_bounds",
+        "convert_matmul::conversion_matmul_addresses_stay_inside_planned_arrays",
         "structured::proofs::validation_budget_never_wraps_or_accepts_cancellation",
         "qwen_profile::qwen_profile_preserves_overrides_and_dependencies",
         "router_network::router_network_padded_dispatch_bounds",
@@ -555,6 +560,7 @@ def fake_cargo(tmp_path, monkeypatch):
         " time.sleep(30)\n"
         "if name == os.environ.get('FAKE_EMPTY'): sys.exit(0)\n"
         f"if name == {ci.PARSER_HARNESS!r}: print('  - Stub: super :: parse_slot_capacity -> proof_two_byte_capacity')\n"
+        f"if name == {ci.FAILED_FILL_HARNESS!r}: print('  - Stub: super :: slru :: Slru :: clear -> reject_unreachable_slru_clear')\n"
         "if '--tests' in sys.argv and '--lib' not in sys.argv and '--bin' not in sys.argv:\n"
         " print('error: target `mlxl3-hybrid` in package `mlxl3-native` requires the features: `hybrid-dispatch`')\n"
         " sys.exit(101)\n"

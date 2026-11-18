@@ -1758,10 +1758,14 @@ fn prefill_spans_group_full_slices_and_keep_tail_and_checkpoint() {
 #[cfg(kani)]
 #[kani::proof]
 fn prefill_span_end_bounds_alignment_and_checkpoint() {
-    let start: usize = kani::any();
-    let len: usize = kani::any();
-    let slice: usize = kani::any();
-    let group: usize = kani::any();
+    // Bounded so that CBMC finishes: positions are 16-bit, the slice comes from
+    // a fixed set (zero, degenerate, odd and the production 256) and the group
+    // is at most 16 (production uses 1..=8). Overflow of the checked arithmetic
+    // is covered by the unit test with `usize::MAX`.
+    let start = usize::from(kani::any::<u16>());
+    let len = usize::from(kani::any::<u16>());
+    let slice = [0, 1, 3, 256][kani::any_where(|choice: &usize| *choice < 4)];
+    let group = kani::any_where(|group: &usize| *group <= 16);
     match prefill_span_end(start, len, slice, group) {
         // The span never exceeds `len`, so checked arithmetic cannot fail.
         None => assert!(slice == 0 || group == 0 || start >= len),
@@ -3401,6 +3405,7 @@ pub(crate) fn native_qwen_gdn_extents(
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::solver(kissat)]
 fn native_qwen_gdn_geometry_bounds_every_addressed_row_and_state() {
     let hidden: u32 = kani::any();
     let kh: u32 = kani::any();
@@ -3711,9 +3716,13 @@ pub(crate) fn model_gqa_widths(query_heads: u32, kv_heads: u32, head_dim: u32) -
 #[cfg(kani)]
 #[kani::proof]
 fn model_gqa_widths_reject_invalid_groups_and_overflow() {
-    let q: u32 = kani::any();
-    let k: u32 = kani::any();
-    let d: u32 = kani::any();
+    // Bound: q, k and d are drawn from u16 so the symbolic `q % k` stays
+    // tractable for CBMC. Every rejected group or head size remains reachable;
+    // width overflow needs q > 2^24 and is proved by the companion harness
+    // `model_gqa_widths_reject_head_width_overflow` below.
+    let q = u32::from(kani::any::<u16>());
+    let k = u32::from(kani::any::<u16>());
+    let d = u32::from(kani::any::<u16>());
     let result = model_gqa_widths(q, k, d);
     let q_width = u64::from(q) * u64::from(d);
     let k_width = u64::from(k) * u64::from(d);
@@ -3730,6 +3739,24 @@ fn model_gqa_widths_reject_invalid_groups_and_overflow() {
     }
     kani::cover!(result == Some([2048, 512]));
     kani::cover!(q > 0 && k > 0 && result.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn model_gqa_widths_reject_head_width_overflow() {
+    // Full u32 query heads with a single KV head: the group check is trivial,
+    // so this proves the checked width products over the whole u32 range.
+    let q: u32 = kani::any();
+    let d: u32 = [64, 128, 256][kani::any_where(|choice: &usize| *choice < 3)];
+    let result = model_gqa_widths(q, 1, d);
+    let q_width = u64::from(q) * u64::from(d);
+    assert_eq!(result.is_some(), q > 0 && q_width <= u64::from(u32::MAX));
+    if let Some([a, b]) = result {
+        assert_eq!(u64::from(a), q_width);
+        assert_eq!(b, d);
+    }
+    kani::cover!(q > 0 && result.is_none());
+    kani::cover!(result == Some([u32::MAX / 256 * 256, 256]));
 }
 
 #[test]
