@@ -55,6 +55,10 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
             variants = [{'id': '', 'label': 'Root', 'size_bytes': 128,
                          'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3',
                                      'architecture_supported': True, 'maximum_context': 262144}}]
+        elif query.startswith('0xzknw/d1-') and query.endswith('bpw'):
+            variants = [{'id': '', 'label': 'Root', 'size_bytes': 128,
+                         'preview': {'model_type': 'lfm3_omni' if 'Omni' in query else 'lfm3_vl',
+                                     'architecture_supported': True, 'maximum_context': 128000}}]
         elif query == 'fixture/multi-exl3':
             variants = [{'id': bits, 'label': bits, 'size_bytes': 128,
                          'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3', 'architecture_supported': True,

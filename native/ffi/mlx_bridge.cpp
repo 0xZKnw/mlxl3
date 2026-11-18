@@ -759,6 +759,7 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
         }
         case 9: return mx::divide(a, b);
         case 14: return mx::conv2d(a, b, {1, 1}, {b.shape(1)/2, b.shape(2)/2}, {1, 1}, arg);
+        case 15: return mx::conv2d(a, b, {2, 2}, {1, 1}, {1, 1}, arg);
         case 10: {
           thread_local auto geglu = mx::compile([](const std::vector<mx::array>& x) {
             auto gate = x[0];

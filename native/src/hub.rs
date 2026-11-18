@@ -301,6 +301,7 @@ fn model_type_supported(model_type: Option<&str>) -> bool {
                 | "lfm2_moe"
                 | "lfm3"
                 | "lfm3_vl"
+                | "lfm3_omni"
                 | "gemma4"
                 | "bailing_hybrid"
         )
@@ -1354,7 +1355,10 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
             if weights.contains(name)
                 || matches!(
                     file,
-                    "ngram_embedding.safetensors" | "mtp_hyper_connection_mixer_patch.safetensors"
+                    "ngram_embedding.safetensors"
+                        | "mtp_hyper_connection_mixer_patch.safetensors"
+                        // d1 decision models read their answer temperatures from here.
+                        | "calibration.json"
                 )
                 || (quant_label.is_none() && file == "model.safetensors.index.json")
             {
@@ -2198,6 +2202,46 @@ mod tests {
                 "sidecars cannot replace the main weights"
             );
         }
+    }
+
+    #[test]
+    fn decision_variants_keep_calibration_and_extra_weights_in_their_folder() {
+        let files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("tokenizer.json".into(), 20),
+            ("processor_config.json".into(), 3),
+            ("quantization_config.json".into(), 5),
+            ("calibration.json".into(), 4),
+            ("model.safetensors".into(), 100),
+            ("model-extra.safetensors".into(), 50),
+            ("source_config.json".into(), 9_000),
+            ("other/calibration.json".into(), 9_000),
+            ("sub/config.json".into(), 11),
+            ("sub/quantization_config.json".into(), 6),
+            ("sub/model.safetensors".into(), 200),
+        ]);
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 2);
+        let root = choices.iter().find(|choice| choice.id.is_empty()).unwrap();
+        assert_eq!(
+            root.files.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "calibration.json",
+                "config.json",
+                "model-extra.safetensors",
+                "model.safetensors",
+                "processor_config.json",
+                "quantization_config.json",
+                "tokenizer.json",
+            ]
+        );
+        assert_eq!(root.size_bytes, 192);
+        // A calibration file in a parent folder belongs to another model.
+        let sub = choices.iter().find(|choice| choice.id == "sub").unwrap();
+        assert!(!sub.files.contains_key("calibration.json"));
+        assert!(
+            model_preview(&serde_json::json!({"model_type": "lfm3_omni"})).architecture_supported
+        );
     }
 
     #[test]

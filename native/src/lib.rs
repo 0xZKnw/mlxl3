@@ -33,6 +33,12 @@ pub use contracts::{switch_glu_layout, switch_glu_route_rows};
 mod ar20_kernel_policy;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar30_router_policy;
+#[cfg(feature = "chat")]
+pub mod d1;
+#[cfg(feature = "chat")]
+pub mod d1_parsing;
+#[cfg(all(feature = "mlx", feature = "chat"))]
+pub mod d1_server;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dec_one;
 #[cfg(any(feature = "mlx", test, kani))]
@@ -102,6 +108,7 @@ pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;
+pub mod lfm3_audio;
 #[cfg(feature = "mlx")]
 mod lfm3_cert_head;
 #[cfg(feature = "mlx")]

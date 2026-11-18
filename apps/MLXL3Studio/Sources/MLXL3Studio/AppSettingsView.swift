@@ -185,7 +185,7 @@ struct AppSettingsView: View {
                             )
                         ) {
                             Text(L("Dernier modèle sélectionné", "Last selected model")).tag("")
-                            ForEach(studio.models) { model in
+                            ForEach(studio.chatModels) { model in
                                 Text(model.name).tag(model.path)
                             }
                             if !studio.startupModelPath.isEmpty

@@ -235,6 +235,7 @@ queue_rest() {
     queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" \
         tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
     queue_studio_model_check studio-modes StudioModesCombined.swift tests/studio-modes-check.swift
+    queue_app_check decision tests/decision-studio-check.swift
     queue_studio_model_check idle-unload ModelIdleUnloadCombined.swift tests/model-idle-unload-check.swift -warnings-as-errors
     queue_studio_model_check unload-control ModelUnloadControlCombined.swift tests/model-unload-control-check.swift -warnings-as-errors
     queue_studio_model_check mtp-autotune MTPAutoTuneCombined.swift tests/mtp-autotune-check.swift -warnings-as-errors
@@ -347,6 +348,9 @@ run_rest() {
     "${test_python}" tests/check-agent-protocol.py "${test_dir}/agent-sandbox-check"
     await_compile studio-modes
     "${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py"
+    # Decision mode: drafts, discovery, decide-bridge lifecycle and decide-serve launch on a fake engine.
+    await_compile decision
+    "${test_dir}/decision-check" "$PWD/tests/fake-decision-engine.py"
     # Check the production idle deadline and lifecycle without waiting minutes or
     # loading a model. File concatenation gives the fixture private event access.
     await_compile idle-unload
