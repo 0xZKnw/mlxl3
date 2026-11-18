@@ -1487,7 +1487,9 @@ final class StudioModel: ObservableObject {
             catch {
                 if operation == dflashOperationID {
                     dflashDownloadError = (downloadCompatible
-                        ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ") : "") + error.localizedDescription
+                        ? (flashDraft
+                            ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ")
+                            : L("Impossible de préparer le draft DFlash2 : ", "Unable to prepare the DFlash2 draft: ")) : "") + error.localizedDescription
                     dflash2Enabled = false
                 }
             }
@@ -1883,9 +1885,18 @@ final class StudioModel: ObservableObject {
         restoreDFlashSelection()
     }
 
+    /// Downloads the pinned draft matching the active model (Flash Next, Qwen3.6-35B or Qwen3.8-27B),
+    /// ignoring any local draft chosen before, then enables DFlash2 with it.
     func downloadCompatibleDFlashDraft() {
-        guard selectedModel?.modelType == "qwen4_exp" else { return }
+        guard selectedModel?.modelType == "qwen4_exp" || dflash2Available else { return }
         setDFlash2Enabled(true, downloadCompatible: true)
+    }
+
+    /// The active model takes the dense Qwen3.8-27B DFlash2 draft.
+    var dflashDraftIsQwen38Dense: Bool {
+        guard let model = selectedModel, model.modelType == "qwen3_5" else { return false }
+        let name = (model.name + " " + model.path).lowercased()
+        return name.contains("qwen3.8-27b") || name.contains("qwen3.8_27b") || name.contains("qwen38-27b")
     }
 
     func chooseDFlashDraft() {

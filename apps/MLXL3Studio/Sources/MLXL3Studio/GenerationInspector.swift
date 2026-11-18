@@ -160,11 +160,10 @@ struct GenerationInspector: View {
                                     Text(error).font(.system(size: 12)).foregroundStyle(.red)
                                 }
                                 if studio.selectedModel?.modelType == "qwen4_exp" {
-                                    Button(
-                                        L("Télécharger le draft compatible", "Download the compatible draft"),
-                                        action: studio.downloadCompatibleDFlashDraft
+                                    DFlashDraftButton(
+                                        title: L("Télécharger le draft compatible", "Download the compatible draft"),
+                                        icon: "arrow.down.circle", action: studio.downloadCompatibleDFlashDraft
                                     )
-                                    .buttonStyle(GlassPillButtonStyle())
                                     .disabled(
                                         !studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating
                                             || studio.dflashDownloading)
@@ -175,19 +174,33 @@ struct GenerationInspector: View {
                                     )
                                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 } else {
+                                    DFlashDraftButton(
+                                        title: studio.dflashDraftIsQwen38Dense
+                                            ? L("Télécharger le draft Qwen3.8-27B", "Download the Qwen3.8-27B draft")
+                                            : L("Télécharger le draft compatible", "Download the compatible draft"),
+                                        icon: "arrow.down.circle", action: studio.downloadCompatibleDFlashDraft
+                                    )
+                                    .accessibilityIdentifier("dflash.download")
+                                    .disabled(
+                                        !studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating
+                                            || studio.dflashDownloading)
                                     Text(
-                                        L(
-                                            "Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
-                                            "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."
-                                        )
+                                        studio.dflashDraftIsQwen38Dense
+                                            ? L(
+                                                "Draft incoai/Qwen3.8-27B-Splash : environ 1 Go, version épinglée et vérifiée. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                                "incoai/Qwen3.8-27B-Splash draft: about 1 GB, pinned and verified. The target verifies every token. Tune selects the best mode on this Mac.")
+                                            : L(
+                                                "Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                                "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."
+                                            )
                                     )
                                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 }
-                                Button(
-                                    L("Choisir un draft local…", "Choose a local draft…"),
-                                    action: studio.chooseDFlashDraft
+                                DFlashDraftButton(
+                                    title: L("Choisir un draft local…", "Choose a local draft…"),
+                                    icon: "folder", action: studio.chooseDFlashDraft
                                 )
-                                .buttonStyle(GlassPillButtonStyle()).disabled(
+                                .disabled(
                                     !studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
                             }
                             .id("dflash-tuning")
@@ -594,5 +607,22 @@ private struct RecommendedSamplingMenu: View {
         .disabled(studio.isGenerating || studio.samplingLocked)
         .accessibilityIdentifier("generation.recommendedSampling")
         .padding(.bottom, 8)
+    }
+}
+
+
+/// The DFlash2 draft actions, styled like Tune's "Compare speeds" button.
+private struct DFlashDraftButton: View {
+    let title: String
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 12).frame(height: 32)
+        }
+        .buttonStyle(StudioToolbarStyle())
     }
 }
