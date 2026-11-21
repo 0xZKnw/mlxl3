@@ -30478,3 +30478,38 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
     - Ma file a été arrêtée : `decode-R3` passé (empreinte `ec84d901be285027`), `decode-SL` tué (code 143), logs dans `slim/q-aborted-run2/`.
     - **Les mesures de vitesse de l'autre session entre 23:08 et 23:15 sont faussées par ce chevauchement.**
     - La file attend désormais qu'aucun autre moteur ou test MLXL3 ne tourne avant chaque étape (`slim/queue.sh`).
+- Révision 2026-11-22 — **A VALIDÉ (parité bit à bit), B INTERROMPU (non mesuré)** :
+  - **File GPU, 4ᵉ passage** (21–22 novembre, 23:34 → 23:57, secteur 100 %, binaire de test `ccc2367a…`, moteur `d46fab25…` ; logs `build/inkling2-mini-exl3-20261121/slim/q/`, analyse `slim/analyze.py` → `q/analysis.json`). Tous les résultats sont identiques au bit entre R3 et slim :
+    - empreinte `decode_profile` (128 décodes gloutons, prompt de l'oracle court) **`ec84d901be285027`** pour les deux, mêmes tokens ;
+    - `dump_draft_case` (tête 8 bits) : `features.f32`, `x.f32`, `base.f32`, `meta.json` identiques par `cmp`, 7 propositions identiques ;
+    - `speculative_profile` (largeurs 2 et 3, 64 tokens) : tout identique hors temps — acceptation 0,508 / 0,412, positions acceptées, 64 tokens égaux à l'AR, état 0,8379 ;
+    - `eval_against_reference` (en0, chat0, tête 8 bits, 1 024 positions) : tableaux de KL identiques (en0 0,011168584…, chat0 0,167124…) ;
+    - refus attendu de `HEAD_BITS=16` sur slim (« this checkpoint stores a 8-bit output head; MLXL3_INKLING_HEAD_BITS=16 is unavailable ») ;
+    - texte CLI identique (déjà identique au 1ᵉʳ passage).
+  - **Chevauchements** (correction non affectée, temps non retenus) :
+    - `evalh8-SL` (23:41:38–23:45:01) et `cli-R3` (23:47:32–23:56:33) ont tourné pendant les ablations de vitesse de l'autre session (`p7/ablate`, 23:42:37–23:45:37 et ≈ 23:48). Sa garde ne voyait pas mes binaires (`test-bin-1`, `engine-bin-1`), renommés ensuite `mlxl3_native-<hex>` et `mlxl3-rs`.
+    - Ma garde avait un défaut (`awk` renvoie 0, attente infinie entre 23:16 et 23:34), corrigé.
+    - Même chose de 00:09:53 à 00:11:52 : leur capture de hessiennes (`p8-bin`, invisible pour ma garde) a chevauché ma porte rel22. Elle ne contient que des empreintes, donc aucune reprise nécessaire.
+  - **B (embeddings 8 bits) : INTERROMPU, non mesuré.** B0 (R3 FULL, 12 lignes, binaire `mlxl3_native-00000000051a3c4e` = `ccc2367a…`) a été lancé à 23:57:45, puis arrêté par l'app ou l'utilisateur pendant son exécution, sans résultat. B1 n'a pas été lancé. Le critère « même KL » reste non évalué. L'option `MLXL3_INKLING_EMBED_BITS` (défaut 16, évaluation seulement) est conservée dans le moteur.
+  - **Décision** : A retenu, publié à la demande de l'utilisateur (« publie le dans le hf à la place de l'autre », « fais un nv moteur aussi qui pourra charger la version »). Moteur 2.0.22 (RELEASE-2026-11-22-ENGINE-2.0.22) et révision HF slim. Desktop 2.0.12 reste épinglé sur `0a455840`.
+
+### RELEASE-2026-11-22-ENGINE-2.0.22 — EN COURS (demandes utilisateur « vas y bah publie le dans le hf à la place de l'autre », « fais un nv moteur aussi qui pourra charger la version », « la v2.0.22 publie la direct » ; Desktop 2.0.13 à faire ensuite)
+
+- Source : branche `claude/inkling2-slim`, commit `ca96f92f5` (chargeur des poids Inkling stockés en 8 bits, SIZE-2026-11-21-INK2M-SLIM), rebasé sur `main` `c9ebc069b` ; version moteur 2.0.21 → **2.0.22** (`Cargo.toml`/`Cargo.lock`). Desktop inchangé.
+- Contrôles (procédure 2.0.21, réduite aux parties touchées) : construction de l'archive avant tout, puis fmt, Clippy strict des 3 variantes, tests des 3 variantes, inventaire MLX, pytest complet ; côté GPU, porte d'empreintes de 2.0.21 avec le binaire de test 2.0.22, empreintes R3/slim et R3 avec le binaire de test 2.0.21 publié, bridge du binaire **extrait** (slim glouton, T=1, `dspark: false` ; R3 glouton), `smoke-release.py` sur slim, refus de slim par 2.0.21. **Non refait (justifié)** : régression des autres modèles (seuls `inkling2*.rs` et des fonctions ajoutées au pont/`array.rs` changent), suite Desktop (Desktop non modifié), campagne de vitesse (aucun gain de vitesse annoncé).
+- Scripts et logs : `build/inkling2-mini-exl3-20261121/slim/rel22/` (`cpu.sh`, `gpu.sh`, `cpu-summary.txt`, `gpu-summary.txt`).
+- Incident de script : le premier `gpu.sh` copiait l'ancien binaire de test. Le changement de version renomme le binaire, `mlxl3_native-0e0432374418b063` au lieu de `fd39924…`. Arrêté avant tout résultat (`gpu-summary-wrongbin.txt`), relancé avec `0e04323…` (SHA-256 `2f1424b0…`).
+- Révision 2026-11-22 — **contrôles passés**. Archive `MLXL3-Engine-v2.0.22-arm64.tar.gz` (69 058 643 o, `ba12fb08…80c3` ; `.sha256` 100 o `ed6a2d45…1d6d` ; `mlxl3` 14 995 072 o `78220a23…0168`), construite à `ca96f92f5` sans modification locale.
+  - Archive extraite : 4 fichiers conformes au manifeste (version 2.0.22, Desktop ≥ 1.4.0, macOS ≥ 26.2.0, rien en trop), signatures strictes et arm64, metallib = MLX 0.32.2, `runtime-info` 2.0.22 / `ca96f92f528a`.
+  - CPU : fmt OK ; Clippy strict `mlx,chat`, `chat`, `direct-metal,chat` (toutes cibles) OK. Tests MLX (8 cibles) **672 / 0 / 344**, dont la bibliothèque 555 / 0 / 326 ; CPU **600 / 0 / 10** ; direct-metal **619 / 0 / 144**. Inventaire MLX 341 OK.
+    - Différence avec les comptes publiés de 2.0.21 (686 / 343, 616 / 10, 635 / 144) : comptes non refaits sur la base, méthode de comptage probablement différente. Le changement n'enlève aucun test.
+  - pytest : premier lancement en erreur de collecte. Le `.venv` du checkout principal importait l'ancien `src/` de `windows-exl3-desktop` (`pytest-wrong-src.log`). Relancé avec `PYTHONPATH=<worktree>/src`, résultat ci-dessous.
+  - GPU (test-bin 2.0.22 `2f1424b0…`, `gpu-summary.txt`) :
+    - porte d'empreintes 2.0.21 **6 / 6 identiques** (`4cc7ad95aff66139`, `20c59539832e972a`, `21751eb3a17fe320`, `73f8b3c2b5d2f92c`, petit modèle `140afb3d9cef3e4a` / `af45501d5c09f625`) ;
+    - empreinte `ec84d901be285027` pour R3 en 2.0.22, slim en 2.0.22 **et R3 avec le binaire de test 2.0.21 publié** (`1c97fff7…`) ;
+    - bridge du binaire extrait, sans variable : slim glouton `passed` (DSpark 63/100, 171/239, 111/172), T=1 `passed` (70/108, 226/366, 108/187), `dspark: false` `passed` (aucune statistique DSpark), R3 glouton `passed`. Réflexions, réponses et hash du 2ᵉ tour (`b2a664d162ce40c5`) identiques entre R3 et slim ; `ready.dspark_supported` true ;
+    - `smoke-release.py` slim `passed` ;
+    - 2.0.21 publié refuse slim (« model.llm.unembed.weight: expected floating-point weights »).
+  - Temps de ces runs non retenus : chevauchement 00:09:53–00:11:52 avec une capture de l'autre session, signalé par elle.
+  - pytest complet (`PYTHONPATH=<worktree>/src`) : **2 842 passés, 0 échec, 121 sautés** (`pytest.log`).
+- HF : révision slim publiée **`a5763a01f6e34c84bdf1a5812c890ff3978d5d75`** (`hf upload`, `build/inkling2-mini-exl3-20261121/hf/upload-slim.log`, fiche `hf/make_card_slim.py`) ; 21 fichiers vérifiés côté HF (SHA-256 LFS des poids, fiche/NOTICE/configs identiques octet pour octet), seul `.gitattributes` en plus. Desktop 2.0.12 reste épinglé sur `0a455840`.
