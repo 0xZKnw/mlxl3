@@ -2136,6 +2136,12 @@ fn inkling_has_drafter(model: &NativeChatModel) -> bool {
     matches!(model, NativeChatModel::Inkling(_, Some(_)))
 }
 
+/// SPEED-INK2M-P6a: Inkling 2 is warmed up at load unless `MLXL3_INKLING_WARMUP=0`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_warmup_enabled() -> bool {
+    std::env::var("MLXL3_INKLING_WARMUP").as_deref() != Ok("0")
+}
+
 /// DSpark for Inkling 2 Mini is on unless `MLXL3_INKLING_DSPARK=0`.
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_dspark_enabled() -> bool {
@@ -2175,6 +2181,14 @@ impl NativeChatModel {
                 } else {
                     None
                 };
+                let mut target = target;
+                let mut draft = draft;
+                // SPEED-INK2M-P6a: pay the Metal kernel compilation while loading, not on the first
+                // request (`MLXL3_INKLING_WARMUP=0` skips it)
+                if inkling_warmup_enabled() {
+                    mlxl3_native::inkling2_draft::warm_up(&mut target, draft.as_deref_mut())
+                        .context("warming up Inkling 2")?;
+                }
                 Ok(Self::Inkling(Box::new(target), draft))
             }
             "lfm3" | "lfm3_vl" => Ok(Self::Lfm3(Box::new(

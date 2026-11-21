@@ -636,6 +636,49 @@ impl Inkling2Draft {
     }
 }
 
+/// SPEED-INK2M-P6a: runs every kernel shape a generation uses once (long prefill on the TensorOps
+/// expert path, short prefill, plain decode step, DSpark verifications of 2 to 4 rows, the committed
+/// width-0 step with features, the drafter's context and proposals), then resets both models and
+/// releases the buffer cache. The first request after loading otherwise paid the Metal kernel
+/// compilation (about 8.5 s measured on Inkling 2 Mini). No state survives: logits after it are
+/// identical to logits of a model that never ran it.
+pub fn warm_up(target: &mut Inkling2, draft: Option<&mut Inkling2Draft>) -> Result<()> {
+    // ordinary text token ids, inside every vocabulary of the family
+    let tokens: Vec<u32> = (0..72u32).map(|i| 1000 + 37 * i).collect();
+    target.reset();
+    target.forward_tokens(&tokens)?.eval()?;
+    target.reset();
+    target.forward_tokens(&tokens[..16])?.eval()?;
+    target.forward(tokens[16])?.eval()?;
+    if let Some(draft) = draft {
+        let taps = draft.taps().to_vec();
+        target.reset();
+        draft.reset();
+        let (_, features) = target.forward_with_features(&tokens, &taps)?;
+        draft.append_context(&features)?;
+        let rows = features.shape()[0];
+        let mut last = features.slice(0, rows - 1, rows)?;
+        for count in 1..=draft.max_proposals().min(3) {
+            let anchor = Array::from_u32(&[tokens[count]], &[1])?;
+            let proposals = draft.propose(target, &anchor, &last, count)?.to_u32()?;
+            let mut block = vec![tokens[count]];
+            block.extend(&proposals);
+            let (logits, features) = target.verify(&block, &taps)?;
+            logits.eval()?;
+            target.commit(1)?;
+            draft.append_context(&features.slice(0, 0, 1)?)?;
+            last = features.slice(0, 0, 1)?;
+        }
+        let (logits, features) = target.forward_with_features(&tokens[..1], &taps)?;
+        logits.eval()?;
+        draft.append_context(&features)?;
+        draft.reset();
+    }
+    target.reset();
+    crate::array::synchronize()?;
+    crate::array::clear_cache()
+}
+
 /// One draw per row of `logits` (`[rows, vocab]`) from softmax(logits / temperature):
 /// argmax(logits / T + G) with G = -log(-log U), U ~ uniform[0, 1) seeded by `seed` (U = 0 gives -inf
 /// and is never chosen). Returns `[rows]` token ids on the GPU.
@@ -1199,6 +1242,66 @@ mod tests {
             path,
             v.iter().flat_map(|x| x.to_le_bytes()).collect::<Vec<u8>>(),
         )?;
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P6a: `warm_up` leaves no state: the logits of a prompt and three decode steps, and
+    /// a DSpark session's first proposals, are bit-identical before and after it; also reports how long
+    /// the first and the second warm-up take.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn warm_up_leaves_no_state() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let run = |target: &mut Inkling2, draft: &mut Inkling2Draft| -> Result<Vec<u32>> {
+            target.reset();
+            draft.reset();
+            let mut bits = Vec::new();
+            let logits = target.forward_tokens(&prompt)?;
+            bits.extend(logits.to_f32()?.iter().map(|v| v.to_bits()));
+            for t in [1234u32, 278, 13] {
+                bits.extend(target.forward(t)?.to_f32()?.iter().map(|v| v.to_bits()));
+            }
+            let mut session = DsparkSession::new(draft, DsparkSession::DEFAULT_WIDTH)?;
+            let logits = session.prefill(target, draft, &prompt, &|| false)?;
+            let mut next = *logits.chat_greedy_ids()?.first().context("prefill")?;
+            for _ in 0..6 {
+                let mut choose = |proposals: &[u32],
+                                  _drafts: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let a =
+                        crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                            .context("acceptance")?;
+                    Ok((a.accepted_draft_tokens, a.target_token))
+                };
+                next = session.advance(target, draft, next, 4096, 64, &mut choose)?;
+                bits.push(next);
+            }
+            Ok(bits)
+        };
+        let before = run(&mut target, &mut draft)?;
+        let t = Instant::now();
+        warm_up(&mut target, Some(&mut draft))?;
+        let first = t.elapsed().as_secs_f64();
+        let t = Instant::now();
+        warm_up(&mut target, Some(&mut draft))?;
+        let second = t.elapsed().as_secs_f64();
+        let after = run(&mut target, &mut draft)?;
+        ensure!(
+            !before.is_empty() && before.len() == after.len(),
+            "runs differ in length"
+        );
+        ensure!(
+            before == after,
+            "warm_up changed the logits or the DSpark tokens"
+        );
+        println!(
+            "warm_up leaves no state ({} values compared); warm-up {first:.2} s, again {second:.2} s",
+            before.len()
+        );
         Ok(())
     }
 
