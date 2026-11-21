@@ -24,6 +24,35 @@ extension StudioModel {
           userInfo: [NSLocalizedDescriptionKey: message])
       }
     }
+    // APP-F2: the DSpark counters of a complete event are decoded and summarized (accepted drafts plus
+    // the target token per block); missing or inconsistent counters give no summary.
+    func decodedStats(_ extra: String) throws -> GenerationStats? {
+      try JSONDecoder().decode(BridgeEvent.self, from: Data(
+        (#"{"type":"complete","request_id":"r","stats":{"ttft_seconds":1,"prefill_tps":1,"decode_tps":1,"prompt_tokens":3,"generated_tokens":104"#
+          + extra + "}}").utf8)).stats
+    }
+    let dspark = try decodedStats(#","dspark_proposed_tokens":120,"dspark_accepted_tokens":64,"dspark_blocks":40"#)?.dsparkAcceptance
+    try check(dspark?.accepted == 64 && dspark?.proposed == 120
+                && dspark.map { abs($0.tokensPerBlock - 2.6) < 1e-12 } == true,
+              "DSpark counters not decoded: \(String(describing: dspark))")
+    for extra in ["", #","dspark_proposed_tokens":0,"dspark_accepted_tokens":0,"dspark_blocks":0"#,
+                  #","dspark_proposed_tokens":10,"dspark_accepted_tokens":11,"dspark_blocks":4"#,
+                  #","dspark_proposed_tokens":10,"dspark_accepted_tokens":4"#,
+                  #","mtp_proposed_tokens":10,"mtp_accepted_tokens":4,"mtp_blocks":3"#] {
+      try check(try decodedStats(extra)?.dsparkAcceptance == nil, "DSpark summary from \(extra)")
+    }
+    // APP-F2b: the engine announces DSpark and the request carries the user's choice
+    let dsparkReady = try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"ready","dspark_supported":true}"#.utf8))
+    try check(dsparkReady.dsparkSupported == true, "dspark_supported not decoded")
+    try check(try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"ready"}"#.utf8)).dsparkSupported == nil,
+              "older engines must leave dspark_supported unknown")
+    for enabled in [true, false] {
+      var request = GenerationRequest(requestID: "r", conversationID: "c", messages: [], maxTokens: 8,
+                                      temperature: 1, topK: 0, repetitionPenalty: 1)
+      request.dspark = enabled
+      let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+      try check(encoded?["dspark"] as? Bool == enabled, "dspark not encoded as \(enabled)")
+    }
     func wait(_ description: String, until condition: () -> Bool) async throws {
       for _ in 0..<300 {
         if condition() { return }

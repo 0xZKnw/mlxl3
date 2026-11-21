@@ -37,6 +37,7 @@
 #include "mlx/fast.h"
 #include "mlx/ops.h"
 #include "mlx/primitives.h"
+#include "mlx/random.h"
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
@@ -587,6 +588,14 @@ int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
 int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) noexcept {
   return protect([&] { auto s = shape(dims, rank); byte_count(s, dtype(type));
     *out = new mx::array(mx::zeros(s, dtype(type))); });
+}
+// DSPARK-INK2M-P3: uniform [0, 1) float32 noise from an explicit seed (reproducible draws).
+int mlxl3_array_random_uniform(const int32_t* dims, size_t rank, uint64_t seed, void** out) noexcept {
+  return protect([&] {
+    auto s = shape(dims, rank);
+    byte_count(s, mx::float32);
+    *out = new mx::array(mx::random::uniform(s, mx::float32, mx::random::key(seed)));
+  });
 }
 int mlxl3_array_uninitialized(const int32_t* dims, size_t rank, int type, void** out) noexcept {
   return protect([&] {

@@ -2108,6 +2108,34 @@ enum NativeChatModel {
     Flash(Box<mlxl3_native::qwen4::FlashNext>),
 }
 
+/// DSPARK-INK2M-P3: draw DSpark proposals from the draft law. Only for plain softmax sampling (the GPU
+/// draw has no top-k, top-p or penalties); opt-in with `MLXL3_INKLING_DSPARK_SAMPLED=1` while measured.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_sampled_drafts(sampler: &mlxl3_native::sampling::Sampler) -> bool {
+    !sampler.is_greedy()
+        && sampler.top_k == 0
+        && sampler.top_p >= 1.0
+        && sampler.repetition_penalty == 1.0
+        && sampler.presence_penalty == 0.0
+        && std::env::var("MLXL3_INKLING_DSPARK_SAMPLED").as_deref() == Ok("1")
+}
+
+/// Seed of the draft noise, derived from the request's random state by splitmix64 so the draft draws
+/// do not replay the verification's xorshift sequence.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn draft_noise_seed(random: u64) -> u64 {
+    let mut z = random ^ 0x9e37_79b9_7f4a_7c15;
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z ^ (z >> 31)
+}
+
+/// The loaded model is Inkling 2 with its DSpark drafter (`ready.dspark_supported`).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_has_drafter(model: &NativeChatModel) -> bool {
+    matches!(model, NativeChatModel::Inkling(_, Some(_)))
+}
+
 /// DSpark for Inkling 2 Mini is on unless `MLXL3_INKLING_DSPARK=0`.
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_dspark_enabled() -> bool {
@@ -2415,6 +2443,10 @@ struct BridgeRequest {
     mtp_head_path: String,
     #[serde(default = "default_mtp_depth")]
     mtp_depth: usize,
+    /// Inkling 2 DSpark drafter; on unless a request turns it off (older apps omit the field).
+    #[serde(default = "reuse_cache_by_default")]
+    #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+    dspark: bool,
 }
 
 #[cfg(all(
@@ -2579,6 +2611,31 @@ struct DFlashChat {
 ))]
 fn reuse_cache_by_default() -> bool {
     true
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+thread_local! {
+    /// DSpark choice of the request being served (the bridge serves one request at a time).
+    static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// Sets the DSpark choice for the duration of one request; dropping it restores the default (on).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct DsparkRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl DsparkRequest {
+    fn set(enabled: bool) -> Self {
+        DSPARK_REQUESTED.with(|cell| cell.set(enabled));
+        Self
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for DsparkRequest {
+    fn drop(&mut self) {
+        DSPARK_REQUESTED.with(|cell| cell.set(true));
+    }
 }
 
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
@@ -3471,6 +3528,10 @@ struct NativeStats {
     dspark_accepted_tokens: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     dspark_blocks: Option<usize>,
+    /// Inkling 2 DSpark timings and per-position acceptance of this round.
+    #[cfg(feature = "mlx")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dspark_profile: Option<mlxl3_native::inkling2_draft::SpecStats>,
     mtp_lookup_blocks: Option<usize>,
     mtp_depth_blocks: Option<[usize; 4]>,
     /// `[width][accepted]` head cycles; width 0 is a plain target step.
@@ -4067,12 +4128,28 @@ fn bridge_generate_round(
     #[cfg(feature = "mlx")]
     let mut dspark = match &*model {
         NativeChatModel::Inkling(_, Some(drafter))
-            if tools.is_empty() && mtp.is_none() && draft.is_none() =>
+            if tools.is_empty()
+                && mtp.is_none()
+                && draft.is_none()
+                && DSPARK_REQUESTED.with(std::cell::Cell::get) =>
         {
-            Some(mlxl3_native::inkling2_draft::DsparkSession::new(
+            let session = mlxl3_native::inkling2_draft::DsparkSession::new(
                 drafter,
                 mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH,
-            )?)
+            )?;
+            let session = if inkling_sampled_drafts(&sampler) {
+                session.with_sampled_drafts(sampler.temperature, draft_noise_seed(*random))?
+            } else {
+                session
+            };
+            // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps width 3
+            Some(
+                if std::env::var("MLXL3_INKLING_DSPARK_ADAPTIVE").as_deref() != Ok("0") {
+                    session.with_adaptive_width()
+                } else {
+                    session
+                },
+            )
         }
         _ => None,
     };
@@ -4321,6 +4398,7 @@ fn bridge_generate_round(
                     (dspark.as_mut(), &mut *model)
                 {
                     let mut choose = |proposals: &[u32],
+                                      drafts: Option<&[Vec<f32>]>,
                                       verified: &mlxl3_native::array::Array|
                      -> Result<(usize, u32)> {
                         let acceptance = if sampler.is_greedy() {
@@ -4330,12 +4408,39 @@ fn bridge_generate_round(
                             )
                             .context("invalid DSpark verification")?
                         } else {
-                            mlxl3_native::sampling::Draw {
+                            // DSPARK-INK2M-P3: proposals drawn from the draft law q are verified with
+                            // min(1, p/q) and the residual max(0, p - q); deterministic proposals (or a
+                            // draw the host law gives zero mass) keep the point-mass rule, exact too
+                            let laws = drafts
+                                .map(|rows| {
+                                    rows.iter()
+                                        .enumerate()
+                                        .map(|(i, row)| {
+                                            sampler.distribution(
+                                                row.clone(),
+                                                &history,
+                                                &proposals[..i],
+                                            )
+                                        })
+                                        .collect::<Result<Vec<_>>>()
+                                })
+                                .transpose()?
+                                .filter(|laws| {
+                                    laws.len() == proposals.len()
+                                        && laws
+                                            .iter()
+                                            .zip(proposals)
+                                            .all(|(law, &token)| law.probability(token) > 0.)
+                                });
+                            let mut draw = mlxl3_native::sampling::Draw {
                                 sampler,
                                 history: &history,
                                 random: &mut *random,
+                            };
+                            match laws {
+                                Some(laws) => draw.accept_drafts_logits(proposals, &laws, verified),
+                                None => draw.speculative_accept_logits(proposals, verified),
                             }
-                            .speculative_accept_logits(proposals, verified)
                             .context("invalid DSpark sampled verification")?
                         };
                         Ok((acceptance.accepted_draft_tokens, acceptance.target_token))
@@ -4569,6 +4674,8 @@ fn bridge_generate_round(
         dspark_accepted_tokens: dspark.as_ref().map(|s| s.stats.accepted),
         #[cfg(feature = "mlx")]
         dspark_blocks: dspark.as_ref().map(|s| s.stats.blocks),
+        #[cfg(feature = "mlx")]
+        dspark_profile: dspark.as_ref().map(|s| s.stats.clone()),
         #[cfg(feature = "mlx")]
         mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.stats().0),
         #[cfg(feature = "mlx")]
@@ -5122,6 +5229,7 @@ fn native_bridge(
         "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
+        "dspark_supported":inkling_has_drafter(&model),
         "mtp_sampling_supported":true,
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
@@ -5497,6 +5605,8 @@ fn native_bridge(
                         proposals,
                         draft_path,
                     )?;
+                    #[cfg(feature = "mlx")]
+                    let _dspark = DsparkRequest::set(request.dspark);
                     bridge_generate(
                         &mut model,
                         &tokenizer,

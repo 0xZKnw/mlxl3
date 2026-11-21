@@ -706,10 +706,25 @@ impl Distribution {
         if p >= q || unit(next()) * q < p {
             return Ok(Verdict::Accept);
         }
+        // q looked up once in a dense table: `probability` scans the whole support, and calling it for
+        // every token of a 200k vocabulary made each rejection quadratic (minutes per block)
+        let draft_support = draft.support();
+        let size = draft_support
+            .iter()
+            .map(|&(token, _)| token as usize + 1)
+            .max()
+            .unwrap_or(0);
+        let mut draft_mass = vec![0f64; size];
+        for &(token, mass) in &draft_support {
+            draft_mass[token as usize] += mass;
+        }
         let residual: Vec<(u32, f64)> = self
             .support()
             .into_iter()
-            .map(|(token, mass)| (token, (mass - draft.probability(token)).max(0.)))
+            .map(|(token, mass)| {
+                let q = draft_mass.get(token as usize).copied().unwrap_or(0.);
+                (token, (mass - q).max(0.))
+            })
             .filter(|&(_, mass)| mass > 0.)
             .collect();
         let residual = if residual.is_empty() {
@@ -1735,6 +1750,44 @@ mod tests {
         let u1 = ((((first as f64 + 0.5) / GRID as f64) * (1u64 << 53) as f64) as u64) << 11;
         let u2 = (((second as f64 + 0.5) / GRID as f64) * u64::MAX as f64) as u64;
         (u1, u2)
+    }
+
+    /// DSPARK-INK2M-P3: a rejection over a full 200 000-token vocabulary builds the residual in linear
+    /// time (it scanned the whole draft support for every token, minutes per rejection) and still draws
+    /// a token of the residual.
+    #[test]
+    fn verify_draft_rejection_is_linear_in_the_vocabulary() -> Result<()> {
+        const VOCAB: u32 = 200_000;
+        let tokens: Vec<u32> = (0..VOCAB).collect();
+        // target nearly uniform; draft puts half its mass on token 7, so a draw of 7 is mostly rejected
+        let target = Distribution::Weighted {
+            weights: vec![1.0; VOCAB as usize],
+            total: f64::from(VOCAB),
+            tokens: tokens.clone(),
+        };
+        let mut weights = vec![1.0; VOCAB as usize];
+        weights[7] = f64::from(VOCAB);
+        let draft = Distribution::Weighted {
+            total: weights.iter().sum(),
+            weights,
+            tokens,
+        };
+        let started = std::time::Instant::now();
+        let mut random = 0x1234_5678_9abc_def1u64;
+        let mut rejected = 0;
+        for _ in 0..8 {
+            if let Verdict::Reject(token) = target.verify_draft(&draft, 7, &mut random)? {
+                ensure!(token != 7 && token < VOCAB, "residual drew {token}");
+                rejected += 1;
+            }
+        }
+        ensure!(rejected > 0, "no rejection exercised");
+        ensure!(
+            started.elapsed() < std::time::Duration::from_secs(10),
+            "rejections took {:?}",
+            started.elapsed()
+        );
+        Ok(())
     }
 
     /// Q3: Σ_x q(x)·law(output | x drawn from q) equals p on a uniform

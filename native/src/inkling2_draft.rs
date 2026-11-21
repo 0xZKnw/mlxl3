@@ -479,7 +479,38 @@ impl Inkling2Draft {
         last_feature: &Array,
         count: usize,
     ) -> Result<Array> {
-        Ok(self.propose_inner(target, anchor, last_feature, count)?.0)
+        Ok(self
+            .propose_with(target, anchor, last_feature, count, None)?
+            .0)
+    }
+
+    /// DSPARK-INK2M-P3: proposals drawn from the draft law softmax(logits / temperature) by Gumbel-max on
+    /// the GPU (noise from `seed`, `seed + 1`, ... per position). Returns the `[count]` tokens and the
+    /// `[count, vocab]` draft logits they were drawn from (before the temperature).
+    pub fn propose_sampled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        seed: u64,
+    ) -> Result<(Array, Array)> {
+        ensure!(
+            temperature.is_finite() && temperature > 0.,
+            "sampled DSpark proposals need a positive temperature"
+        );
+        let (tokens, _, _, rows) = self.propose_with(
+            target,
+            anchor,
+            last_feature,
+            count,
+            Some((temperature, seed)),
+        )?;
+        Ok((
+            tokens,
+            rows.context("sampled proposals without draft rows")?,
+        ))
     }
 
     fn propose_inner(
@@ -489,6 +520,20 @@ impl Inkling2Draft {
         last_feature: &Array,
         count: usize,
     ) -> Result<(Array, Array, Array)> {
+        let (tokens, x, base, _) = self.propose_with(target, anchor, last_feature, count, None)?;
+        Ok((tokens, x, base))
+    }
+
+    /// Greedy proposals when `sampled` is `None`, Gumbel-max draws from softmax(logits / T) with noise
+    /// seeded by `seed + position` otherwise (then also the stacked draft logits).
+    fn propose_with(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        sampled: Option<(f32, u64)>,
+    ) -> Result<(Array, Array, Array, Option<Array>)> {
         ensure!(
             count >= 1 && count < self.config.block_size,
             "DSpark proposal count outside the trained block"
@@ -541,6 +586,7 @@ impl Inkling2Draft {
         let mut state = Array::zeros_dtype(&[1, rank], Dtype::Float32)?;
         let mut previous = anchor.try_clone()?;
         let mut tokens = Vec::with_capacity(count);
+        let mut rows = Vec::with_capacity(if sampled.is_some() { count } else { 0 });
         for i in 0..count as i32 {
             let inputs = Array::concatenate(
                 &[
@@ -569,13 +615,43 @@ impl Inkling2Draft {
             .add(&self.fold_bias)?
             .astype(Dtype::Float32)?;
             let logits = base.slice(0, i, i + 1)?.add(&bias)?.softcap(self.softcap)?;
-            previous = logits.argmax()?;
+            previous = match sampled {
+                None => logits.argmax()?,
+                Some((temperature, seed)) => {
+                    let previous = gumbel_draw(&logits, temperature, seed.wrapping_add(i as u64))?;
+                    rows.push(logits);
+                    previous
+                }
+            };
             tokens.push(previous.try_clone()?);
         }
         let _ = self.vocab;
         let tokens = Array::concatenate(&tokens.iter().collect::<Vec<_>>(), 0)?;
-        Ok((tokens, x, base))
+        let rows = if rows.is_empty() {
+            None
+        } else {
+            Some(Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?)
+        };
+        Ok((tokens, x, base, rows))
     }
+}
+
+/// One draw per row of `logits` (`[rows, vocab]`) from softmax(logits / temperature):
+/// argmax(logits / T + G) with G = -log(-log U), U ~ uniform[0, 1) seeded by `seed` (U = 0 gives -inf
+/// and is never chosen). Returns `[rows]` token ids on the GPU.
+pub fn gumbel_draw(logits: &Array, temperature: f32, seed: u64) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(shape.len() == 2, "Gumbel draw expects [rows, vocab] logits");
+    let gumbel = Array::random_uniform(shape, seed)?
+        .log()?
+        .scalar_mul(-1.0)?
+        .log()?
+        .scalar_mul(-1.0)?;
+    logits
+        .astype(Dtype::Float32)?
+        .scalar_mul(1.0 / temperature)?
+        .add(&gumbel)?
+        .argmax()
 }
 
 fn target_vocab(target: &Inkling2) -> Result<i32> {
@@ -594,12 +670,19 @@ pub struct DsparkSession {
     /// The token `advance` returned last (the caller delivers it, then passes it back as `next`).
     expected: Option<u32>,
     last_feature: Option<Array>,
+    /// DSPARK-INK2M-P3: `(temperature, xorshift state)` when proposals are drawn from the draft law.
+    sampled: Option<(f32, u64)>,
+    /// DSPARK-INK2M-P4: adaptive width (`None` = always `width`).
+    policy: Option<WidthPolicy>,
     pub stats: SpecStats,
 }
 
-/// Target-side choice of one block: `(proposals, verified logits [1, 1 + n, vocab])` -> accepted count and
-/// the target token after them.
-pub type BlockChoice<'a> = dyn FnMut(&[u32], &Array) -> Result<(usize, u32)> + 'a;
+/// Target-side choice of one block: `(proposals, draft log-probabilities, verified logits [1, 1 + n, vocab])`
+/// -> accepted count and the target token after them. The draft rows (`[n]` rows of `vocab` log
+/// probabilities) are given only when the proposals were drawn from the draft law (DSPARK-INK2M-P3);
+/// otherwise the proposals are deterministic.
+pub type BlockChoice<'a> =
+    dyn FnMut(&[u32], Option<&[Vec<f32>]>, &Array) -> Result<(usize, u32)> + 'a;
 
 impl DsparkSession {
     pub const DEFAULT_WIDTH: usize = 3;
@@ -616,11 +699,36 @@ impl DsparkSession {
             pending: Default::default(),
             expected: None,
             last_feature: None,
+            sampled: None,
+            policy: None,
             stats: SpecStats {
                 accepted_at: vec![0; width],
                 ..SpecStats::default()
             },
         })
+    }
+
+    /// Draw proposals from softmax(draft logits / `temperature`) instead of taking the draft's argmax. Only
+    /// for plain softmax sampling (no top-k, top-p or penalties); `seed` starts the noise sequence.
+    pub fn with_sampled_drafts(mut self, temperature: f32, seed: u64) -> Result<Self> {
+        ensure!(
+            temperature.is_finite() && temperature > 0.,
+            "sampled DSpark proposals need a positive temperature"
+        );
+        // xorshift needs a non-zero state
+        self.sampled = Some((temperature, seed | 1));
+        Ok(self)
+    }
+
+    pub fn samples_drafts(&self) -> bool {
+        self.sampled.is_some()
+    }
+
+    /// Choose each block's width (0 to the session width) from the acceptance observed so far.
+    pub fn with_adaptive_width(mut self) -> Self {
+        self.policy = Some(WidthPolicy::new(self.width));
+        self.stats.width_blocks = vec![0; self.width + 1];
+        self
     }
 
     /// Resets both models and prefills `tokens` by chunks, giving the drafter its context. Returns the
@@ -687,43 +795,83 @@ impl DsparkSession {
         // `next` is the anchor: the target has not seen it yet
         let offset = usize::try_from(target.offset())?;
         ensure!(offset < context_limit, "Inkling context is full");
-        let count = self
-            .width
-            .min(remaining - 1)
-            .min(context_limit - offset - 1);
+        let width = match self.policy.as_mut() {
+            Some(policy) => policy.next_width(),
+            None => self.width,
+        };
+        let count = width.min(remaining - 1).min(context_limit - offset - 1);
         let last_feature = self
             .last_feature
             .take()
             .context("DSpark session without context")?;
         let t = Instant::now();
+        let mut draft_rows: Option<Vec<Vec<f32>>> = None;
         let proposals = if count == 0 {
             Vec::new()
         } else {
             let anchor = Array::from_u32(&[next], &[1])?;
-            draft
-                .propose(target, &anchor, &last_feature, count)?
-                .to_u32()?
+            match self.sampled.as_mut() {
+                None => draft
+                    .propose(target, &anchor, &last_feature, count)?
+                    .to_u32()?,
+                Some((temperature, state)) => {
+                    *state ^= *state << 13;
+                    *state ^= *state >> 7;
+                    *state ^= *state << 17;
+                    let (tokens, logits) = draft.propose_sampled(
+                        target,
+                        &anchor,
+                        &last_feature,
+                        count,
+                        *temperature,
+                        *state,
+                    )?;
+                    let vocab = usize::try_from(logits.shape()[1])?;
+                    let values = logits.log_probs()?.to_f32()?;
+                    ensure!(
+                        values.len() == count * vocab,
+                        "draft rows do not match the proposals"
+                    );
+                    draft_rows = Some(values.chunks_exact(vocab).map(<[f32]>::to_vec).collect());
+                    tokens.to_u32()?
+                }
+            }
         };
         self.stats.draft_ms += t.elapsed().as_secs_f64() * 1e3;
         let t = Instant::now();
         let mut block = Vec::with_capacity(1 + proposals.len());
         block.push(next);
         block.extend(&proposals);
-        let (logits, features) = target.verify(&block, &self.taps)?;
-        let (accepted, token) = choose(&proposals, &logits)?;
+        // DSPARK-INK2M-P4b: without proposals the anchor is always kept, so the committed decode
+        // forward (features captured) replaces the rollback-ready verification and its commit
+        let committed = proposals.is_empty();
+        let (logits, features) = if committed {
+            target.forward_with_features(&block, &self.taps)?
+        } else {
+            target.verify(&block, &self.taps)?
+        };
+        let (accepted, token) = choose(&proposals, draft_rows.as_deref(), &logits)?;
         ensure!(
             accepted <= proposals.len(),
             "DSpark accepted more than proposed"
         );
         self.stats.verify_ms += t.elapsed().as_secs_f64() * 1e3;
         let t = Instant::now();
-        target.commit(accepted + 1)?;
+        if !committed {
+            target.commit(accepted + 1)?;
+        }
         draft.append_context(&features.slice(0, 0, accepted as i32 + 1)?)?;
         self.last_feature = Some(features.slice(0, accepted as i32, accepted as i32 + 1)?);
         self.stats.commit_ms += t.elapsed().as_secs_f64() * 1e3;
         self.stats.blocks += 1;
         self.stats.proposed += proposals.len();
         self.stats.accepted += accepted;
+        if let Some(policy) = self.policy.as_mut() {
+            policy.observe(proposals.len(), accepted);
+            if let Some(slot) = self.stats.width_blocks.get_mut(proposals.len()) {
+                *slot += 1;
+            }
+        }
         for slot in self.stats.accepted_at.iter_mut().take(accepted) {
             *slot += 1;
         }
@@ -732,6 +880,106 @@ impl DsparkSession {
         let first = self.pending.pop_front().context("empty DSpark block")?;
         self.expected = Some(first);
         Ok(first)
+    }
+}
+
+/// DSPARK-INK2M-P4: the DSpark width of each block, chosen from the acceptance observed so far.
+///
+/// `acceptance[i]` estimates the probability that proposal `i` is accepted given that proposals `0..i`
+/// were (exponential average over the blocks that reached it). A block of width `w` delivers
+/// E(w) = 1 + sum over i < w of the product of acceptance[0..=i] tokens and costs C(w) = 1 + (VERIFY_COST +
+/// DRAFT_COST) * w plain decoding steps (one extra verified row, about +0.2 of a step on Inkling 2 Mini
+/// because every row reads its own experts, and one draft position, about +0.07). The width maximizing
+/// E(w) / C(w) is used; width 0 is a plain step. Every `PROBE_EVERY` blocks the full width is tried so the
+/// estimates of the positions not used meanwhile stay current. The choice depends only on the accepted
+/// counts, never on timings, so a generation stays reproducible; the acceptance rule, and so the law of
+/// every token, does not depend on the width.
+#[derive(Clone, Debug)]
+pub struct WidthPolicy {
+    acceptance: Vec<f64>,
+    blocks: usize,
+}
+
+impl WidthPolicy {
+    pub const ALPHA: f64 = 0.15;
+    pub const PRIOR: f64 = 0.75;
+    pub const PROBE_EVERY: usize = 8;
+    pub const VERIFY_COST: f64 = 0.20;
+    pub const DRAFT_COST: f64 = 0.07;
+
+    pub fn new(max_width: usize) -> Self {
+        Self {
+            acceptance: vec![Self::PRIOR; max_width],
+            blocks: 0,
+        }
+    }
+
+    pub fn max_width(&self) -> usize {
+        self.acceptance.len()
+    }
+
+    /// Tokens a block of `width` delivers on average under the current estimates.
+    pub fn expected_tokens(&self, width: usize) -> f64 {
+        let mut reach = 1.0;
+        let mut total = 1.0;
+        for &a in self.acceptance.iter().take(width) {
+            reach *= a;
+            total += reach;
+        }
+        total
+    }
+
+    /// Cost of a block of `width`, in plain decoding steps.
+    pub fn cost(width: usize) -> f64 {
+        1.0 + (Self::VERIFY_COST + Self::DRAFT_COST) * width as f64
+    }
+
+    /// The width with the most tokens per unit of cost (the smaller one on a tie).
+    pub fn best(&self) -> usize {
+        (0..=self.max_width())
+            .map(|w| (w, self.expected_tokens(w) / Self::cost(w)))
+            .fold((0, f64::MIN), |best, (w, rate)| {
+                if rate > best.1 + 1e-12 {
+                    (w, rate)
+                } else {
+                    best
+                }
+            })
+            .0
+    }
+
+    /// The width of the next block: the best one, or the full width on a probe block.
+    pub fn next_width(&mut self) -> usize {
+        self.blocks += 1;
+        if self.blocks.is_multiple_of(Self::PROBE_EVERY) {
+            self.max_width()
+        } else {
+            self.best()
+        }
+    }
+
+    /// Records a block of `width` proposals of which the first `accepted` were accepted.
+    pub fn observe(&mut self, width: usize, accepted: usize) {
+        for (i, a) in self.acceptance.iter_mut().enumerate().take(width) {
+            // proposal i is reached only when all the earlier ones were accepted
+            if i > accepted {
+                break;
+            }
+            let hit = if accepted > i { 1.0 } else { 0.0 };
+            *a = (1.0 - Self::ALPHA) * *a + Self::ALPHA * hit;
+        }
+    }
+
+    pub fn acceptance(&self) -> &[f64] {
+        &self.acceptance
+    }
+
+    #[cfg(test)]
+    fn with_acceptance(acceptance: Vec<f64>) -> Self {
+        Self {
+            acceptance,
+            blocks: 0,
+        }
     }
 }
 
@@ -747,6 +995,9 @@ pub struct SpecStats {
     pub verify_ms: f64,
     pub commit_ms: f64,
     pub prefill_ms: f64,
+    /// DSPARK-INK2M-P4: blocks verified at each width (index = width), filled when the width adapts.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub width_blocks: Vec<usize>,
 }
 
 fn argmax_rows(logits: &Array) -> Result<Vec<u32>> {
@@ -951,6 +1202,76 @@ mod tests {
         Ok(())
     }
 
+    /// DSPARK-INK2M-P4b: a width-0 DSpark step (committed forward with features) gives the logits of the
+    /// plain decode step bit for bit, over several consecutive tokens, and features close to those of the
+    /// verification path on the same token.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn width_zero_step_is_the_plain_decode_step() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let draft = Inkling2Draft::load(&dir, &target)?;
+        let taps = draft.taps().to_vec();
+        let steps = [1234u32, 278, 13, 9001];
+        // plain decode
+        target.reset();
+        target.forward_tokens(&prompt)?.eval()?;
+        let mut plain = Vec::new();
+        for &t in &steps {
+            plain.push(target.forward(t)?.to_f32()?);
+        }
+        // width-0 DSpark steps
+        target.reset();
+        target.forward_tokens(&prompt)?.eval()?;
+        let mut committed = Vec::new();
+        let mut committed_features = Vec::new();
+        for &t in &steps {
+            let (logits, features) = target.forward_with_features(&[t], &taps)?;
+            committed.push(logits.to_f32()?);
+            committed_features.push(features.to_f32()?);
+        }
+        for (i, (a, b)) in plain.iter().zip(&committed).enumerate() {
+            ensure!(
+                !a.is_empty() && a.len() == b.len() && a.iter().all(|v| v.is_finite()),
+                "step {i}: logits shape or finiteness"
+            );
+            ensure!(
+                a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits()),
+                "step {i}: width-0 logits differ from the plain decode step"
+            );
+        }
+        // the verification path on the same tokens: features at the path's tolerance
+        target.reset();
+        target.forward_tokens(&prompt)?.eval()?;
+        let mut worst = 0f64;
+        for (i, &t) in steps.iter().enumerate() {
+            let (_, features) = target.verify(&[t], &taps)?;
+            target.commit(1)?;
+            let f = features.to_f32()?;
+            let g = &committed_features[i];
+            ensure!(
+                f.len() == g.len() && !f.is_empty(),
+                "step {i}: feature shape"
+            );
+            let (mut num, mut den) = (0f64, 0f64);
+            for (x, y) in f.iter().zip(g) {
+                num += f64::from(x - y).powi(2);
+                den += f64::from(*x).powi(2);
+            }
+            worst = worst.max((num / den.max(1e-30)).sqrt());
+        }
+        println!(
+            "width-0 logits identical to plain decode on {} steps; feature rel RMSE vs verify {worst:.2e}",
+            steps.len()
+        );
+        ensure!(
+            worst < 0.05,
+            "features differ from the verification path: {worst}"
+        );
+        Ok(())
+    }
+
     /// Wall time of each step of a cold, then a warm DSpark bridge session (prefill, then `advance` calls),
     /// with an evaluation after each step so the time lands where it is spent.
     #[test]
@@ -985,7 +1306,10 @@ mod tests {
             let mut steps = Vec::new();
             for _ in 0..24 {
                 let t = Instant::now();
-                let mut choose = |proposals: &[u32], verified: &Array| -> Result<(usize, u32)> {
+                let mut choose = |proposals: &[u32],
+                                  _drafts: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
                     let a =
                         crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
                             .context("acceptance")?;
@@ -1000,6 +1324,130 @@ mod tests {
             );
         }
         println!("{}", serde_json::to_string_pretty(&report)?);
+        Ok(())
+    }
+
+    /// DSPARK-INK2M-P4: the width follows the acceptance (high acceptance: wide blocks; the measured
+    /// sampled free-text acceptance 0.37 / 0.40 / 0.45: width 1; rejections: plain steps), probes at
+    /// full width every `PROBE_EVERY` blocks, observes only the positions a block reached, and is a pure
+    /// function of the accepted counts.
+    #[test]
+    fn width_policy_follows_acceptance_and_probes() {
+        let prior = WidthPolicy::new(3);
+        assert_eq!(prior.max_width(), 3);
+        assert!((prior.expected_tokens(0) - 1.0).abs() < 1e-12);
+        assert!((prior.expected_tokens(2) - 2.3125).abs() < 1e-12);
+        assert!((WidthPolicy::cost(3) - 1.81).abs() < 1e-12);
+        assert_eq!(
+            prior.best(),
+            3,
+            "prior 0.75: full width (1.51 tokens per step)"
+        );
+        assert_eq!(
+            WidthPolicy::with_acceptance(vec![0.37, 0.40, 0.45]).best(),
+            1
+        );
+        assert_eq!(WidthPolicy::with_acceptance(vec![0.75, 0.8, 0.8]).best(), 3);
+        assert_eq!(WidthPolicy::with_acceptance(vec![0.1, 0.9, 0.9]).best(), 0);
+        // every rejection at the first position drives the policy to plain steps
+        let mut policy = WidthPolicy::new(3);
+        for _ in 0..200 {
+            let width = policy.next_width();
+            policy.observe(width, 0);
+        }
+        // width 1 pays off only above 1 + a0 = cost(1) = 1.27; once below, only the probes update a0
+        assert!(policy.acceptance()[0] < 0.15, "{:?}", policy.acceptance());
+        assert_eq!(policy.best(), 0);
+        // probes: the full width every PROBE_EVERY blocks, the best width otherwise
+        let widths: Vec<usize> = (0..16).map(|_| policy.next_width()).collect();
+        for (i, &w) in widths.iter().enumerate() {
+            let probe = (policy.blocks - 16 + i + 1).is_multiple_of(WidthPolicy::PROBE_EVERY);
+            assert_eq!(w, if probe { 3 } else { 0 }, "block {i}");
+        }
+        // only reached positions are updated
+        let mut p = WidthPolicy::with_acceptance(vec![0.5, 0.5, 0.5]);
+        p.observe(3, 1);
+        assert!((p.acceptance()[0] - 0.575).abs() < 1e-12);
+        assert!((p.acceptance()[1] - 0.425).abs() < 1e-12);
+        assert!((p.acceptance()[2] - 0.5).abs() < 1e-12);
+        p.observe(0, 0);
+        p.observe(1, 1);
+        assert!(
+            (p.acceptance()[1] - 0.425).abs() < 1e-12,
+            "width 1 never reaches position 1"
+        );
+        // same accepted counts, same widths
+        let run = |seed: u64| {
+            let mut p = WidthPolicy::new(3);
+            let mut state = seed;
+            (0..300)
+                .map(|_| {
+                    let w = p.next_width();
+                    state = state
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    let accepted = ((state >> 33) as usize % (w + 1)).min(w);
+                    p.observe(w, accepted);
+                    w
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(run(7), run(7));
+    }
+
+    /// DSPARK-INK2M-P3: the GPU Gumbel draw follows softmax(logits / T): 40 000 independent rows per
+    /// case against the exact probabilities (Pearson chi-square, 5 degrees of freedom, p < 1e-4 bound
+    /// 25.7), and a fixed seed gives a fixed draw.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn gumbel_draw_follows_the_tempered_softmax() -> Result<()> {
+        const ROWS: i32 = 40_000;
+        let logits = [2.0f32, 1.0, 0.5, 0.0, -1.0, -3.0];
+        let vocab = logits.len() as i32;
+        for (temperature, seed) in [(1.0f32, 11u64), (0.7, 12), (1.6, 13)] {
+            let row: Vec<f32> = (0..ROWS).flat_map(|_| logits).collect();
+            let batch = Array::from_f32(&row, &[ROWS, vocab])?;
+            let draws = gumbel_draw(&batch, temperature, seed)?
+                .reshape(&[-1])?
+                .to_u32()?;
+            ensure!(draws.len() == ROWS as usize, "one draw per row");
+            let mut counts = vec![0f64; logits.len()];
+            for &token in &draws {
+                ensure!(
+                    (token as usize) < logits.len(),
+                    "draw outside the vocabulary"
+                );
+                counts[token as usize] += 1.0;
+            }
+            let weights: Vec<f64> = logits
+                .iter()
+                .map(|&v| (f64::from(v) / f64::from(temperature)).exp())
+                .collect();
+            let total: f64 = weights.iter().sum();
+            let chi2: f64 = weights
+                .iter()
+                .zip(&counts)
+                .map(|(w, c)| {
+                    let expected = w / total * f64::from(ROWS);
+                    (c - expected).powi(2) / expected
+                })
+                .sum();
+            println!("T={temperature} counts={counts:?} chi2={chi2:.2}");
+            ensure!(
+                chi2 < 25.7,
+                "Gumbel draws do not follow softmax(logits / T): chi2 {chi2}"
+            );
+        }
+        let single = Array::from_f32(&logits, &[1, vocab])?;
+        let first = gumbel_draw(&single, 1.0, 99)?.to_u32()?;
+        ensure!(
+            first == gumbel_draw(&single, 1.0, 99)?.to_u32()?,
+            "same seed, different draw"
+        );
+        let distinct: std::collections::HashSet<u32> = (0..64)
+            .map(|s| Ok(gumbel_draw(&single, 1.0, s)?.to_u32()?[0]))
+            .collect::<Result<_>>()?;
+        ensure!(distinct.len() > 1, "the seed does not change the draw");
         Ok(())
     }
 

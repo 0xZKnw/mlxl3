@@ -1499,6 +1499,9 @@ pub struct RunProfile {
     pub eval: Duration,
 }
 
+/// Default MLX buffer-cache limit while Inkling 2 is loaded (APP-F1).
+pub const INKLING_CACHE_LIMIT: u64 = 1 << 30;
+
 pub struct Inkling2 {
     profile: RunProfile,
     /// Rows of an uncommitted `verify` call.
@@ -1545,6 +1548,9 @@ impl Inkling2 {
     }
 
     pub fn from_checkpoint_with(checkpoint: &Checkpoint, precision: Precision) -> Result<Self> {
+        // APP-F1: without a limit the MLX buffer cache grew by 3.4-3.9 GB during a long generation
+        // (`MLXL3_ALLOCATOR_CACHE_MIB` still overrides it)
+        crate::array::set_default_cache_limit(INKLING_CACHE_LIMIT)?;
         let precision = precision.validate()?;
         let root: RootConfig =
             serde_json::from_reader(File::open(checkpoint.path.join("config.json"))?)?;

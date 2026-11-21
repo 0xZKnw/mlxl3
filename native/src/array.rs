@@ -151,6 +151,12 @@ unsafe extern "C" {
         out: *mut *mut c_void,
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_random_uniform(
+        dims: *const i32,
+        rank: usize,
+        seed: u64,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_uninitialized(
         dims: *const i32,
         rank: usize,
@@ -1059,6 +1065,14 @@ impl Array {
     }
     pub fn zeros(shape: &[i32]) -> Result<Self> {
         Self::zeros_dtype(shape, Dtype::Float32)
+    }
+    /// Float32 noise uniform on [0, 1), fully determined by `seed`.
+    pub fn random_uniform(shape: &[i32], seed: u64) -> Result<Self> {
+        bytes_for(shape, Dtype::Float32)?;
+        initialize()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_random_uniform(shape.as_ptr(), shape.len(), seed, out)
+        })
     }
     pub fn zeros_dtype(shape: &[i32], dtype: Dtype) -> Result<Self> {
         bytes_for(shape, dtype)?;

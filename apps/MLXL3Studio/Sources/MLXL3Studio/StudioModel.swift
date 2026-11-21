@@ -131,6 +131,10 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpDownloadTotal = 0.0
     @Published private(set) var mtpError: String?
     @Published private(set) var mtpSupported: Bool?
+    /// The loaded model ships a DSpark drafter (Inkling 2); nil until the engine reports it.
+    @Published private(set) var dsparkSupported: Bool?
+    /// DSpark on or off, kept across launches (on by default).
+    @Published private(set) var dsparkEnabled = true
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -282,6 +286,7 @@ final class StudioModel: ObservableObject {
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
+        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? true
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
@@ -359,7 +364,7 @@ final class StudioModel: ObservableObject {
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
             self.dflashSupported = nil
-            self.mtpActive = nil; self.mtpSupported = nil; self.mtpSamplingSupported = nil; self.dflashSamplingSupported = nil; self.mtpAutoDownloadSupported = nil
+            self.mtpActive = nil; self.mtpSupported = nil; self.dsparkSupported = nil; self.mtpSamplingSupported = nil; self.dflashSamplingSupported = nil; self.mtpAutoDownloadSupported = nil
             self.runtimeIdentity = nil
             self.runtimeQwenProfile = nil
             if self.activeRequestID != nil {
@@ -634,6 +639,12 @@ final class StudioModel: ObservableObject {
         guard !isGenerating && !isTuningMTP else { return }
         memorySaverEnabled = enabled
         preferences.set(enabled, forKey: "studio.memorySaverEnabled")
+    }
+
+    /// Turns the DSpark drafter on or off for the next requests and remembers the choice.
+    func setDSparkEnabled(_ enabled: Bool) {
+        dsparkEnabled = enabled
+        preferences.set(enabled, forKey: "studio.dsparkEnabled")
     }
 
     private var canAutomaticallyUnloadModel: Bool {
@@ -1125,6 +1136,7 @@ final class StudioModel: ObservableObject {
         dflashSupported = nil
         mtpActive = nil
         mtpSupported = nil
+        dsparkSupported = nil
         mtpSamplingSupported = nil
         dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
@@ -1336,6 +1348,7 @@ final class StudioModel: ObservableObject {
                     mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
                     memorySaver: memorySaverEnabled && memorySaverSupported,
+                    dspark: dsparkEnabled,
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
                 )
@@ -2097,6 +2110,7 @@ final class StudioModel: ObservableObject {
         dflashSupported = nil
         mtpActive = nil
         mtpSupported = nil
+        dsparkSupported = nil
         mtpSamplingSupported = nil
         dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
@@ -2228,6 +2242,7 @@ final class StudioModel: ObservableObject {
             dflashConfigureSupported = event.dflashConfigureSupported == true
             dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
+            dsparkSupported = event.dsparkSupported
             mtpSamplingSupported = event.mtpSamplingSupported
             dflashSamplingSupported = event.dflashSamplingSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported

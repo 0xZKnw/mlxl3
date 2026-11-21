@@ -125,7 +125,7 @@ final class ModelLibrary: ObservableObject {
       ]),
       // Thinking Machines Inkling 2 Mini: looped MoE, experts EXL3 3/4 bits, DSpark drafter in the same repo.
       .init(id: "Inkling", models: [
-        .init(id: "0xzknw/Inkling-2-Mini-EXL3-3.33bpw", title: "Inkling 2 Mini", parameters: "26B · A3.4B · Loop", quantization: "3.33 bpw · DSpark", symbol: "repeat", revision: "d1248f8abc322dbaf82cd571f6e7eaca9f7d6dee", preferredVariant: ""),
+        .init(id: "0xzknw/Inkling-2-Mini-EXL3-3.33bpw", title: "Inkling 2 Mini", parameters: "26B · A3.4B · Loop", quantization: "3.33 bpw · DSpark", symbol: "repeat", revision: "0a4558409fc77d6491979505c0668e7469f7b3f7", preferredVariant: ""),
       ]),
     ]
     /// Liquid d1 decision models: they load in the Decision mode, not in Chat.

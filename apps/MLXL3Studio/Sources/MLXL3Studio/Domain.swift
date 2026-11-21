@@ -65,8 +65,20 @@ struct GenerationStats: Codable, Hashable, Sendable {
     var mtpProposedTokens: Int? = nil
     var mtpAcceptedTokens: Int? = nil
     var mtpBlocks: Int? = nil
+    /// Inkling 2 DSpark drafter (engine 2.0.20+).
+    var dsparkProposedTokens: Int? = nil
+    var dsparkAcceptedTokens: Int? = nil
+    var dsparkBlocks: Int? = nil
     var dflashBlockSeconds: Double? = nil
     var memory: EngineMemoryStats? = nil
+
+    /// DSpark accepted/proposed drafts and the tokens each verified block delivered (accepted drafts plus
+    /// the target's own token), or nil when the round did not use DSpark.
+    var dsparkAcceptance: (accepted: Int, proposed: Int, tokensPerBlock: Double)? {
+        guard let accepted = dsparkAcceptedTokens, let proposed = dsparkProposedTokens,
+              let blocks = dsparkBlocks, proposed > 0, blocks > 0, accepted <= proposed else { return nil }
+        return (accepted, proposed, Double(accepted + blocks) / Double(blocks))
+    }
 
     var cacheHitPercent: Double {
         let cached = cachedPromptTokens ?? 0
@@ -96,6 +108,9 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case mtpProposedTokens = "mtp_proposed_tokens"
         case mtpAcceptedTokens = "mtp_accepted_tokens"
         case mtpBlocks = "mtp_blocks"
+        case dsparkProposedTokens = "dspark_proposed_tokens"
+        case dsparkAcceptedTokens = "dspark_accepted_tokens"
+        case dsparkBlocks = "dspark_blocks"
         case dflashBlockSeconds = "dflash_block_seconds"
         case memory
     }
@@ -163,6 +178,8 @@ struct BridgeEvent: Decodable {
     var dflashTuningKey: String? = nil
     var dflashFamily: String? = nil
     var mtpSupported: Bool? = nil
+    /// The model ships a DSpark drafter the engine can use (Inkling 2, engine 2.0.21+).
+    var dsparkSupported: Bool? = nil
     var mtpSamplingSupported: Bool? = nil
     var dflashSamplingSupported: Bool? = nil
     var mtpAutoDownloadSupported: Bool? = nil
@@ -229,6 +246,7 @@ struct BridgeEvent: Decodable {
         case dflashTuneSupported = "dflash_tune_supported", dflashConfigureSupported = "dflash_configure_supported"
         case dflashTuningKey = "dflash_tuning_key", dflashFamily = "dflash_family"
         case mtpSupported = "mtp_supported"
+        case dsparkSupported = "dspark_supported"
         case mtpSamplingSupported = "mtp_sampling_supported"
         case dflashSamplingSupported = "dflash_sampling_supported"
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
@@ -310,6 +328,8 @@ struct GenerationRequest: Encodable {
     var mtpHeadPath: String = ""
     var mtpDepth: Int = 1
     var memorySaver: Bool = false
+    /// DSpark drafter on (default) or off; older engines ignore the field.
+    var dspark: Bool = true
     var allowedTools: [String]? = nil
     var responseSchema: String? = nil
 
@@ -330,6 +350,7 @@ struct GenerationRequest: Encodable {
         case mtpHeadPath = "mtp_head_path"
         case mtpDepth = "mtp_depth"
         case memorySaver = "memory_saver"
+        case dspark
         case allowedTools = "allowed_tools"
         case responseSchema = "response_schema"
     }
