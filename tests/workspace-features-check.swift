@@ -21,9 +21,9 @@ import SwiftUI
         let history = root.appendingPathComponent("history.json")
         let studio = StudioModel(conversationFileURL: history, isPreview: true, preferences: preferences)
         let recommended = ModelLibrary.recommendedModels
-        check(ModelLibrary.recommendedFamilies.map(\.id) == ["LFM", "Decision", "Qwen"], "Recommended families are grouped in a stable order")
-        check(ModelLibrary.recommendedFamilies.map { $0.models.map(\.id) } == [["0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw", "0xzknw/LFM3-1.7B-EXL3-8bpw", "0xzknw/LFM3-VL-2B-EXL3-8bpw", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], ["0xzknw/d1-2B-EXL3-8bpw", "0xzknw/d1-Omni-2B-EXL3-8bpw"], ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3"]], "Families point at the standalone models")
-        check(Set(recommended.map(\.id)).count == 9 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
+        check(ModelLibrary.recommendedFamilies.map(\.id) == ["LFM", "Decision", "Qwen", "Inkling"], "Recommended families are grouped in a stable order")
+        check(ModelLibrary.recommendedFamilies.map { $0.models.map(\.id) } == [["0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw", "0xzknw/LFM3-1.7B-EXL3-8bpw", "0xzknw/LFM3-VL-2B-EXL3-8bpw", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], ["0xzknw/d1-2B-EXL3-8bpw", "0xzknw/d1-Omni-2B-EXL3-8bpw"], ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3"], ["0xzknw/Inkling-2-Mini-EXL3-3.33bpw"]], "Families point at the standalone models")
+        check(Set(recommended.map(\.id)).count == 10 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
         check(recommended.prefix(3).allSatisfy { $0.preferredVariant == "" }, "LFM3 cards select their standalone root checkpoint")
         let catalogue = ModelLibrary()
         for model in recommended {

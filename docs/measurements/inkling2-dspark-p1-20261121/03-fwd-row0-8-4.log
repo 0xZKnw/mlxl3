@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3551.6862499999997,
+    "tok_s": 18.019609699477257
+  },
+  {
+    "acceptance": 0.55,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w2",
+    "ms": 2727.727,
+    "speedup": 1.3020680771939421,
+    "state_rel_vs_teacher_forced": 0.007219937380625024,
+    "stats": {
+      "accepted": 33,
+      "accepted_at": [
+        20,
+        13
+      ],
+      "blocks": 30,
+      "commit_ms": 7.278586999999999,
+      "draft_ms": 196.89279300000004,
+      "prefill_ms": 307.074,
+      "proposed": 60,
+      "verify_ms": 2216.4060390000004
+    },
+    "tok_s": 23.462758553183658,
+    "tokens_per_block": 2.1
+  },
+  {
+    "acceptance": 0.42857142857142855,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w3",
+    "ms": 2815.158792,
+    "speedup": 1.26162909889596,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 36,
+      "accepted_at": [
+        16,
+        11,
+        9
+      ],
+      "blocks": 28,
+      "commit_ms": 6.884789999999999,
+      "draft_ms": 190.50783500000006,
+      "prefill_ms": 307.10479200000003,
+      "proposed": 84,
+      "verify_ms": 2310.5922530000003
+    },
+    "tok_s": 22.734063947608394,
+    "tokens_per_block": 2.2857142857142856
+  },
+  {
+    "acceptance": 0.36893203883495146,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w4",
+    "ms": 2922.33875,
+    "speedup": 1.2153574769523212,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 38,
+      "accepted_at": [
+        15,
+        11,
+        8,
+        4
+      ],
+      "blocks": 26,
+      "commit_ms": 6.739167000000001,
+      "draft_ms": 189.954998,
+      "prefill_ms": 306.05791700000003,
+      "proposed": 103,
+      "verify_ms": 2419.513749
+    },
+    "tok_s": 21.90026738002225,
+    "tokens_per_block": 2.4615384615384617
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 40.97s
+

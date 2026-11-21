@@ -3152,6 +3152,11 @@ fn expert_mapped_layout(
         1
     } else if use_nt4 {
         4
+    } else if m5 && local_tiles == 1152 && matches!(tiles_k, 72 | 144) && output_tiles % 4 == 0 {
+        // Inkling 2 Mini decode (2304 -> 2 x 1152 on 8 routes and 1152 -> 2304): measured faster than the
+        // generic NT = 2 of large tile counts; NT does not change a tile's accumulation order, so the
+        // outputs are the same bits (SPEED-2026-11-21-INK2M-P5)
+        4
     } else if local_tiles >= 1024 {
         if local_tiles % 2 == 0 { 2 } else { 1 }
     } else if local_tiles % 4 == 0 {

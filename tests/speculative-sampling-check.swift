@@ -468,6 +468,7 @@ extension StudioModel {
       "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw": [[0.1, 50, 1, 1.05, 0]],
       "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw": qwen36,
       "turboderp/Qwen3.8-27B-exl3": qwen38, "turboderp/Qwen3.8-Flash-Next-exl3": qwen38,
+      "0xzknw/Inkling-2-Mini-EXL3-3.33bpw": [[1.0, 0, 1, 1, 0]],
     ]
     for (repository, presets) in SamplingPresets.byRepository {
       try check(presets.map(values) == oracle[repository], "Preset values differ for " + repository)

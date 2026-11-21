@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3543.986667,
+    "tok_s": 18.05875868437628
+  },
+  {
+    "acceptance": 0.5161290322580645,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w2",
+    "ms": 3040.139833,
+    "speedup": 1.1657314668657217,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 32,
+      "accepted_at": [
+        22,
+        10
+      ],
+      "blocks": 31,
+      "commit_ms": 7.261957999999998,
+      "draft_ms": 409.2895419999999,
+      "prefill_ms": 362.932459,
+      "proposed": 62,
+      "verify_ms": 2260.579998
+    },
+    "tok_s": 21.05166325091205,
+    "tokens_per_block": 2.032258064516129
+  },
+  {
+    "acceptance": 0.42168674698795183,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w3",
+    "ms": 3050.732708,
+    "speedup": 1.1616837678720688,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 35,
+      "accepted_at": [
+        20,
+        10,
+        5
+      ],
+      "blocks": 28,
+      "commit_ms": 6.920167,
+      "draft_ms": 396.020625,
+      "prefill_ms": 364.588958,
+      "proposed": 83,
+      "verify_ms": 2283.130789
+    },
+    "tok_s": 20.978566831558684,
+    "tokens_per_block": 2.25
+  },
+  {
+    "acceptance": 0.3211009174311927,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w4",
+    "ms": 3335.57825,
+    "speedup": 1.0624804460815753,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 35,
+      "accepted_at": [
+        20,
+        9,
+        4,
+        2
+      ],
+      "blocks": 28,
+      "commit_ms": 7.040835,
+      "draft_ms": 419.844417,
+      "prefill_ms": 365.30308299999996,
+      "proposed": 109,
+      "verify_ms": 2543.3144579999994
+    },
+    "tok_s": 19.18707798265563,
+    "tokens_per_block": 2.25
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 43.64s
+

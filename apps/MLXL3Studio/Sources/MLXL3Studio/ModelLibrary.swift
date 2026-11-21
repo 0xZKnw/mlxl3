@@ -123,6 +123,10 @@ final class ModelLibrary: ObservableObject {
         .init(id: "turboderp/Qwen3.8-27B-exl3", title: "Qwen3.8", parameters: "27B", quantization: "2.00 bpw", symbol: "square.stack.3d.up", revision: "e5e1f4b37c77641e465e24adf5f44d01bdd48de2", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-Flash-Next-exl3", title: "Qwen3.8", parameters: "Flash Next", quantization: "2.05 bpw · SSD", symbol: "bolt", revision: "65c895314393431c09050b2e04e250836b3a6eb4", preferredVariant: nil),
       ]),
+      // Thinking Machines Inkling 2 Mini: looped MoE, experts EXL3 3/4 bits, DSpark drafter in the same repo.
+      .init(id: "Inkling", models: [
+        .init(id: "0xzknw/Inkling-2-Mini-EXL3-3.33bpw", title: "Inkling 2 Mini", parameters: "26B · A3.4B · Loop", quantization: "3.33 bpw · DSpark", symbol: "repeat", revision: "d1248f8abc322dbaf82cd571f6e7eaca9f7d6dee", preferredVariant: ""),
+      ]),
     ]
     /// Liquid d1 decision models: they load in the Decision mode, not in Chat.
     static let decisionModels: [RecommendedHubModel] = [

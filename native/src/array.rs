@@ -269,6 +269,60 @@ unsafe extern "C" {
         offset: i32,
         out: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_eval_many(inputs: *const *mut c_void, count: usize) -> i32;
+    fn mlxl3_graph_stats(
+        inputs: *const *mut c_void,
+        count: usize,
+        out: *mut std::ffi::c_char,
+        capacity: usize,
+    ) -> i32;
+    fn mlxl3_array_fused(
+        operation: i32,
+        inputs: *const *mut c_void,
+        count: usize,
+        scalar: f32,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_quantize(
+        w: *mut c_void,
+        group: i32,
+        bits: i32,
+        out_w: *mut *mut c_void,
+        out_scales: *mut *mut c_void,
+        out_biases: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_qmm(
+        x: *mut c_void,
+        w: *mut c_void,
+        scales: *mut c_void,
+        biases: *mut c_void,
+        group: i32,
+        bits: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_metal_kernel_prepare(
+        name: *const c_char,
+        input_names: *const *const c_char,
+        ninputs: usize,
+        output_names: *const *const c_char,
+        noutputs: usize,
+        header: *const c_char,
+        source: *const c_char,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_metal_kernel_run(
+        kernel: *mut c_void,
+        inputs: *const *mut c_void,
+        ninputs: usize,
+        output_dims: *const i32,
+        output_ranks: *const usize,
+        output_types: *const i32,
+        noutputs: usize,
+        grid: *const i32,
+        threadgroup: *const i32,
+        outputs: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_metal_kernel_free(kernel: *mut c_void);
     fn mlxl3_metal_kernel(
         name: *const c_char,
         input_names: *const *const c_char,
@@ -1424,6 +1478,129 @@ impl Array {
             .map(|x| u16::from_ne_bytes(*x))
             .collect())
     }
+    // ---- Inkling 2 Mini
+    pub fn sqrt(&self) -> Result<Self> {
+        self.unary(40, &[], 0., 0)
+    }
+    pub fn log(&self) -> Result<Self> {
+        self.unary(41, &[], 0., 0)
+    }
+    pub fn scalar_add(&self, scalar: f32) -> Result<Self> {
+        self.unary(42, &[], scalar, 0)
+    }
+    /// `min(x, scalar)`
+    pub fn clamp_max(&self, scalar: f32) -> Result<Self> {
+        self.unary(43, &[], scalar, 0)
+    }
+    /// `max(x, scalar)`
+    pub fn clamp_min(&self, scalar: f32) -> Result<Self> {
+        self.unary(44, &[], scalar, 0)
+    }
+    pub fn sub(&self, other: &Self) -> Result<Self> {
+        self.binary(other, 40, 0, 0.)
+    }
+    pub fn maximum(&self, other: &Self) -> Result<Self> {
+        self.binary(other, 41, 0, 0.)
+    }
+    pub fn minimum(&self, other: &Self) -> Result<Self> {
+        self.binary(other, 42, 0, 0.)
+    }
+    fn fused(operation: i32, inputs: &[&Self], scalar: f32) -> Result<Self> {
+        let pointers: Vec<_> = inputs.iter().map(|a| a.handle.as_ptr()).collect();
+        Self::output(|out| unsafe {
+            mlxl3_array_fused(operation, pointers.as_ptr(), pointers.len(), scalar, out)
+        })
+    }
+    /// `x * min(t / (|x * scale| + 1e-6), 1)` over the last axis, in FP32 (one compiled kernel graph).
+    pub fn l2_clip_scaled(&self, scale: &Self, threshold: f32) -> Result<Self> {
+        ensure!(
+            threshold.is_finite() && threshold > 0.,
+            "invalid L2 clip threshold"
+        );
+        Self::fused(0, &[self, scale], threshold)
+    }
+    /// `x * min(t / (|x| + 1e-6), 1)` over the last axis, in FP32.
+    pub fn l2_clip(&self, threshold: f32) -> Result<Self> {
+        ensure!(
+            threshold.is_finite() && threshold > 0.,
+            "invalid L2 clip threshold"
+        );
+        Self::fused(1, &[self], threshold)
+    }
+    /// `(self + other) * scale`.
+    pub fn add_scaled(&self, other: &Self, scale: f32) -> Result<Self> {
+        ensure!(scale.is_finite(), "array scalar must be finite");
+        Self::fused(2, &[self, other], scale)
+    }
+    /// `(h - tanh(s @ forget) * h) + tanh(s @ gain) * m` (Inkling loop message gate).
+    pub fn message_gate(
+        states: &Self,
+        forget: &Self,
+        gain: &Self,
+        hidden: &Self,
+        message: &Self,
+    ) -> Result<Self> {
+        Self::fused(3, &[states, forget, gain, hidden, message], 0.)
+    }
+    /// MLX affine quantization of a `[out, in]` weight: `(packed, scales, biases)`.
+    pub fn quantize_affine(&self, group: i32, bits: i32) -> Result<(Self, Self, Self)> {
+        ensure!(
+            matches!(bits, 2 | 3 | 4 | 5 | 6 | 8) && matches!(group, 32 | 64 | 128),
+            "unsupported affine quantization"
+        );
+        let (mut w, mut s, mut b) = (
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        checked(unsafe {
+            mlxl3_array_quantize(self.handle.as_ptr(), group, bits, &mut w, &mut s, &mut b)
+        })?;
+        Ok((Self::owned(w)?, Self::owned(s)?, Self::owned(b)?))
+    }
+    /// `x @ dequantize(w).T` for a weight produced by `quantize_affine`.
+    pub fn quantized_matmul(
+        &self,
+        w: &Self,
+        scales: &Self,
+        biases: &Self,
+        group: i32,
+        bits: i32,
+    ) -> Result<Self> {
+        Self::output(|out| unsafe {
+            mlxl3_array_qmm(
+                self.handle.as_ptr(),
+                w.handle.as_ptr(),
+                scales.handle.as_ptr(),
+                biases.handle.as_ptr(),
+                group,
+                bits,
+                out,
+            )
+        })
+    }
+    /// Diagnostic histogram of the unevaluated MLX primitives behind `arrays` ("Name count" lines, then
+    /// "total N"). Evaluates nothing.
+    pub fn graph_stats(arrays: &[&Self]) -> Result<String> {
+        let pointers: Vec<_> = arrays.iter().map(|a| a.handle.as_ptr()).collect();
+        let mut buffer = vec![0u8; 1 << 16];
+        checked(unsafe {
+            mlxl3_graph_stats(
+                pointers.as_ptr(),
+                pointers.len(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+            )
+        })?;
+        let end = buffer.iter().position(|&b| b == 0).unwrap_or(buffer.len());
+        Ok(String::from_utf8_lossy(&buffer[..end]).into_owned())
+    }
+    /// Evaluates every array in one MLX call (one synchronization).
+    pub fn eval_many(arrays: &[&Self]) -> Result<()> {
+        let pointers: Vec<_> = arrays.iter().map(|a| a.handle.as_ptr()).collect();
+        checked(unsafe { mlxl3_array_eval_many(pointers.as_ptr(), pointers.len()) })
+    }
+
     fn unary(&self, op: i32, args: &[i32], scalar: f32, flag: i32) -> Result<Self> {
         Self::output(|out| unsafe {
             mlxl3_array_unary(
@@ -1959,6 +2136,211 @@ pub(crate) fn metal_kernel_initialized(
     // Take ownership of every returned handle even if one metadata read fails.
     let converted: Vec<_> = pointers.into_iter().map(Array::owned).collect();
     converted.into_iter().collect()
+}
+
+/// A custom Metal kernel built once (`metal_kernel` formats, copies and looks its source up on every call).
+/// Same kernel, same outputs; only the per-call CPU work goes away.
+pub struct PreparedKernel {
+    /// None with `MLXL3_KERNEL_CACHE=0`: every run then goes through `metal_kernel` with `legacy`.
+    handle: Option<NonNull<c_void>>,
+    legacy: Option<LegacyKernel>,
+    inputs: usize,
+    outputs: usize,
+}
+
+struct LegacyKernel {
+    name: String,
+    input_names: Vec<String>,
+    output_names: Vec<String>,
+    header: String,
+    source: String,
+}
+
+fn kernel_cache_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_KERNEL_CACHE").map_or(true, |v| v != "0"))
+}
+
+impl PreparedKernel {
+    pub fn new(
+        name: &str,
+        input_names: &[&str],
+        output_names: &[&str],
+        header: &str,
+        source: &str,
+    ) -> Result<Self> {
+        ensure!(
+            !input_names.is_empty() && !output_names.is_empty(),
+            "kernel needs inputs and outputs"
+        );
+        if !kernel_cache_enabled() {
+            return Ok(Self {
+                handle: None,
+                legacy: Some(LegacyKernel {
+                    name: name.to_string(),
+                    input_names: input_names.iter().map(|s| s.to_string()).collect(),
+                    output_names: output_names.iter().map(|s| s.to_string()).collect(),
+                    header: header.to_string(),
+                    source: source.to_string(),
+                }),
+                inputs: input_names.len(),
+                outputs: output_names.len(),
+            });
+        }
+        let name = CString::new(name)?;
+        let header = CString::new(header)?;
+        let source = CString::new(source)?;
+        let strings = |names: &[&str]| {
+            names
+                .iter()
+                .map(|x| CString::new(*x))
+                .collect::<std::result::Result<Vec<_>, _>>()
+        };
+        let (input_strings, output_strings) = (strings(input_names)?, strings(output_names)?);
+        let in_names: Vec<_> = input_strings.iter().map(|x| x.as_ptr()).collect();
+        let out_names: Vec<_> = output_strings.iter().map(|x| x.as_ptr()).collect();
+        let mut handle = std::ptr::null_mut();
+        initialize()?;
+        checked(unsafe {
+            mlxl3_metal_kernel_prepare(
+                name.as_ptr(),
+                in_names.as_ptr(),
+                in_names.len(),
+                out_names.as_ptr(),
+                out_names.len(),
+                header.as_ptr(),
+                source.as_ptr(),
+                &mut handle,
+            )
+        })?;
+        Ok(Self {
+            handle: Some(NonNull::new(handle).context("null prepared kernel")?),
+            legacy: None,
+            inputs: input_names.len(),
+            outputs: output_names.len(),
+        })
+    }
+
+    /// Same contract as `metal_kernel` for the launch arguments.
+    pub fn run(
+        &self,
+        inputs: &[&Array],
+        output_shapes: &[&[i32]],
+        output_dtypes: &[Dtype],
+        grid: [i32; 3],
+        threadgroup: [i32; 3],
+    ) -> Result<Vec<Array>> {
+        ensure!(
+            inputs.len() == self.inputs
+                && output_shapes.len() == self.outputs
+                && output_dtypes.len() == self.outputs,
+            "prepared kernel argument count mismatch"
+        );
+        ensure!(
+            grid.into_iter().chain(threadgroup).all(|x| x > 0),
+            "kernel launch dimensions must be positive"
+        );
+        for (s, dt) in output_shapes.iter().zip(output_dtypes) {
+            bytes_for(s, *dt)?;
+        }
+        let handle = match (&self.handle, &self.legacy) {
+            (Some(handle), _) => handle,
+            (None, Some(legacy)) => {
+                let input_names: Vec<&str> =
+                    legacy.input_names.iter().map(String::as_str).collect();
+                let output_names: Vec<&str> =
+                    legacy.output_names.iter().map(String::as_str).collect();
+                return metal_kernel(
+                    &legacy.name,
+                    &input_names,
+                    &output_names,
+                    &legacy.header,
+                    &legacy.source,
+                    inputs,
+                    &output_shapes.iter().map(|s| s.to_vec()).collect::<Vec<_>>(),
+                    output_dtypes,
+                    grid,
+                    threadgroup,
+                );
+            }
+            (None, None) => bail!("prepared kernel without a handle"),
+        };
+        let in_ptrs: Vec<_> = inputs.iter().map(|x| x.handle.as_ptr()).collect();
+        let dims: Vec<i32> = output_shapes
+            .iter()
+            .flat_map(|s| s.iter().copied())
+            .collect();
+        let ranks: Vec<usize> = output_shapes.iter().map(|s| s.len()).collect();
+        let dtypes: Vec<i32> = output_dtypes.iter().map(|x| *x as i32).collect();
+        let mut pointers = vec![std::ptr::null_mut(); self.outputs];
+        checked(unsafe {
+            mlxl3_metal_kernel_run(
+                handle.as_ptr(),
+                in_ptrs.as_ptr(),
+                in_ptrs.len(),
+                dims.as_ptr(),
+                ranks.as_ptr(),
+                dtypes.as_ptr(),
+                pointers.len(),
+                grid.as_ptr(),
+                threadgroup.as_ptr(),
+                pointers.as_mut_ptr(),
+            )
+        })?;
+        // Take ownership of every returned handle even if one metadata read fails.
+        let converted: Vec<_> = pointers.into_iter().map(Array::owned).collect();
+        converted.into_iter().collect()
+    }
+}
+
+impl Drop for PreparedKernel {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle {
+            unsafe { mlxl3_metal_kernel_free(handle.as_ptr()) }
+        }
+    }
+}
+
+/// Parameters that select one generated kernel at a call site (unused entries stay 0).
+pub type KernelKey = [i64; 16];
+
+/// The prepared kernel of `(site, key)` on this thread, built by `build` the first time. `key` must hold every
+/// value the generated name, header and source depend on. `MLXL3_KERNEL_CACHE=0` rebuilds on every call (the
+/// previous behaviour, for A/B checks).
+pub fn prepared_kernel(
+    site: &'static str,
+    key: KernelKey,
+    build: impl FnOnce() -> Result<PreparedKernel>,
+) -> Result<Rc<PreparedKernel>> {
+    thread_local! {
+        static KERNELS: std::cell::RefCell<std::collections::HashMap<(&'static str, KernelKey), Rc<PreparedKernel>>> =
+            std::cell::RefCell::new(std::collections::HashMap::new());
+    }
+    if !kernel_cache_enabled() {
+        // the previous behaviour: format the source and go through `metal_kernel` on every call
+        return Ok(Rc::new(build()?));
+    }
+    if let Some(found) = KERNELS.with(|k| k.borrow().get(&(site, key)).cloned()) {
+        return Ok(found);
+    }
+    let built = Rc::new(build()?);
+    KERNELS.with(|k| {
+        let mut kernels = k.borrow_mut();
+        // bounded: shapes that vary with the batch size would otherwise grow the map without limit
+        if kernels.len() >= 512 {
+            kernels.clear();
+        }
+        kernels.insert((site, key), built.clone());
+    });
+    Ok(built)
+}
+
+/// `values` padded to a `KernelKey`.
+pub fn kernel_key(values: &[i64]) -> Result<KernelKey> {
+    ensure!(values.len() <= 16, "kernel key has more than 16 values");
+    let mut key = [0i64; 16];
+    key[..values.len()].copy_from_slice(values);
+    Ok(key)
 }
 
 #[cfg(test)]

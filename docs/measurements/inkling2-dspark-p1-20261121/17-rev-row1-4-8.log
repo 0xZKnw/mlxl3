@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3695.269084,
+    "tok_s": 17.31944238570097
+  },
+  {
+    "acceptance": 0.55,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w2",
+    "ms": 2885.082458,
+    "speedup": 1.2808192271085517,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 33,
+      "accepted_at": [
+        21,
+        12
+      ],
+      "blocks": 30,
+      "commit_ms": 7.564793000000001,
+      "draft_ms": 247.30675099999996,
+      "prefill_ms": 372.457667,
+      "proposed": 60,
+      "verify_ms": 2257.6707079999996
+    },
+    "tok_s": 22.183074810404605,
+    "tokens_per_block": 2.1
+  },
+  {
+    "acceptance": 0.42168674698795183,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w3",
+    "ms": 2988.388208,
+    "speedup": 1.2365425195119095,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 35,
+      "accepted_at": [
+        20,
+        10,
+        5
+      ],
+      "blocks": 28,
+      "commit_ms": 7.740459999999999,
+      "draft_ms": 247.07108100000005,
+      "prefill_ms": 373.51179099999996,
+      "proposed": 83,
+      "verify_ms": 2359.9798339999998
+    },
+    "tok_s": 21.41622692415603,
+    "tokens_per_block": 2.25
+  },
+  {
+    "acceptance": 0.34285714285714286,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w4",
+    "ms": 3168.469709,
+    "speedup": 1.1662630302267472,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 36,
+      "accepted_at": [
+        19,
+        10,
+        5,
+        2
+      ],
+      "blocks": 27,
+      "commit_ms": 7.441666000000001,
+      "draft_ms": 249.38070800000003,
+      "prefill_ms": 381.610291,
+      "proposed": 105,
+      "verify_ms": 2529.9509199999998
+    },
+    "tok_s": 20.19902535858518,
+    "tokens_per_block": 2.3333333333333335
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 48.18s
+

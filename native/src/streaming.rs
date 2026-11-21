@@ -77,6 +77,18 @@ impl ThinkingSplitter {
                 self.drop_newline = true;
             }
             "<|channel>" => self.channel_header = Some(String::new()),
+            // Inkling 2: <|message_model|><|content_thinking|>...<|end_message|>
+            // <|message_model|><|content_text|>answer. The message and content headers are structure,
+            // not text; <|end_message|> closes a thinking block.
+            "<|content_thinking|>" => {
+                self.mode = Channel::Thinking;
+                self.drop_newline = false;
+            }
+            "<|end_message|>" => {
+                self.mode = Channel::Answer;
+                self.drop_newline = false;
+            }
+            "<|message_model|>" | "<|content_text|>" => {}
             _ => self.fragment(control.to_owned(), &mut out),
         }
         out
@@ -265,6 +277,63 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn inkling_message_markers_split_thinking_and_answer() {
+        // token-by-token stream as the bridge feeds it: text pieces plus the declared control tokens
+        let stream: [(&str, Option<&str>); 9] = [
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("<|content_thinking|>", Some("<|content_thinking|>")),
+            ("The user asks", None),
+            (" in French.", None),
+            ("<|end_message|>", Some("<|end_message|>")),
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("<|content_text|>", Some("<|content_text|>")),
+            ("Le ciel", None),
+            (" est bleu.", None),
+        ];
+        let mut parser =
+            ThinkingSplitter::new("<|message_system|><|content_text|>x<|end_message|>");
+        let mut thinking = String::new();
+        let mut answer = String::new();
+        for (text, control) in stream {
+            for fragment in parser.feed_token(text, control) {
+                match fragment.channel {
+                    Channel::Thinking => thinking.push_str(&fragment.text),
+                    Channel::Answer => answer.push_str(&fragment.text),
+                }
+            }
+        }
+        for fragment in parser.finish() {
+            answer.push_str(&fragment.text);
+        }
+        assert_eq!(thinking, "The user asks in French.");
+        assert_eq!(answer, "Le ciel est bleu.");
+        // without thinking (reasoning effort 0) the answer keeps every character
+        let mut parser = ThinkingSplitter::new("");
+        let mut answer = String::new();
+        for (text, control) in [
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("<|content_text|>", Some("<|content_text|>")),
+            ("\nBonjour", None),
+        ] {
+            for fragment in parser.feed_token(text, control) {
+                assert_eq!(fragment.channel, Channel::Answer);
+                answer.push_str(&fragment.text);
+            }
+        }
+        assert_eq!(answer, "\nBonjour");
+        // a marker text without the control id is ordinary text (never searched in decoded text)
+        let mut parser = ThinkingSplitter::new("");
+        let out = parser.feed_token("<|content_thinking|>", None);
+        assert_eq!(
+            out,
+            [Fragment {
+                channel: Channel::Answer,
+                text: "<|content_thinking|>".into()
+            }]
+        );
     }
 
     #[test]

@@ -59,6 +59,12 @@ enum SamplingPresets {
               temperature: 0.1, topK: 50, repetitionPenalty: 1.05),
     ]
 
+    // Inkling 2 Mini generation_config.json: sampling at temperature 1 over the whole vocabulary.
+    private static let inkling2: [SamplingPreset] = [
+        .init(id: "general", french: "Recommandé", english: "Recommended",
+              temperature: 1.0, topK: 0),
+    ]
+
     /// Every catalog repository, including the alternative quantizations.
     static let byRepository: [String: [SamplingPreset]] = [
         "0xzknw/LFM3-1.7B-Heretic-NX-EXL3-8bpw": lfm3Heretic,
@@ -72,6 +78,7 @@ enum SamplingPresets {
         "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw": qwen36,
         "turboderp/Qwen3.8-27B-exl3": qwen38,
         "turboderp/Qwen3.8-Flash-Next-exl3": qwen38,
+        "0xzknw/Inkling-2-Mini-EXL3-3.33bpw": inkling2,
     ]
 
     /// The catalog repository a local model was downloaded from. The engine

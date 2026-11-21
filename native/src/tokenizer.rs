@@ -231,7 +231,16 @@ impl ChatTokenizer {
             .filter(|(_, token)| {
                 matches!(
                     token.content.as_str(),
-                    "<think>" | "</think>" | "<|channel>" | "<|channel>thought" | "<channel|>"
+                    "<think>"
+                        | "</think>"
+                        | "<|channel>"
+                        | "<|channel>thought"
+                        | "<channel|>"
+                        // Inkling 2 message structure (see streaming::ThinkingSplitter)
+                        | "<|message_model|>"
+                        | "<|content_thinking|>"
+                        | "<|content_text|>"
+                        | "<|end_message|>"
                 )
             })
             .map(|(id, token)| (id, token.content))
@@ -297,7 +306,12 @@ impl ChatTokenizer {
             documents => Option::<bool>::None,
         };
         let values = if let Some(thinking) = thinking {
-            context! { enable_thinking => thinking, ..values }
+            // Inkling 2 reads `reasoning_effort` (0 = no thinking, default 0.9); other templates ignore it
+            if thinking {
+                context! { enable_thinking => thinking, ..values }
+            } else {
+                context! { enable_thinking => thinking, reasoning_effort => 0.0, ..values }
+            }
         } else {
             values
         };

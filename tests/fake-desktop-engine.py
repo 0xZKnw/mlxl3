@@ -59,6 +59,11 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
             variants = [{'id': '', 'label': 'Root', 'size_bytes': 128,
                          'preview': {'model_type': 'lfm3_omni' if 'Omni' in query else 'lfm3_vl',
                                      'architecture_supported': True, 'maximum_context': 128000}}]
+        elif query.startswith('0xzknw/Inkling-2-Mini-') and query.endswith('bpw'):
+            variants = [{'id': '', 'label': 'Root', 'size_bytes': 128,
+                         # the real config has no max_position_embeddings (model_max_length only)
+                         'preview': {'model_type': 'inkling2_loop',
+                                     'architecture_supported': True, 'maximum_context': None}}]
         elif query == 'fixture/multi-exl3':
             variants = [{'id': bits, 'label': bits, 'size_bytes': 128,
                          'preview': {'model_type': 'lfm3_vl' if 'VL' in query else 'lfm3', 'architecture_supported': True,

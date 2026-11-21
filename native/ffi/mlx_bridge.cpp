@@ -36,6 +36,7 @@
 #include "mlx/device.h"
 #include "mlx/fast.h"
 #include "mlx/ops.h"
+#include "mlx/primitives.h"
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
@@ -724,6 +725,12 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
             mx::add(mx::array(1.0f), mx::erf(mx::multiply(x, mx::array(0.7071067811865475f))))), a.dtype());
         }
         case 28: return mx::fast::layer_norm(a, std::nullopt, std::nullopt, scalar);
+        // Inkling 2 Mini
+        case 40: return mx::sqrt(a);
+        case 41: return mx::log(a);
+        case 42: return mx::add(a, mx::array(scalar, a.dtype()));
+        case 43: return mx::minimum(a, mx::array(scalar, a.dtype()));
+        case 44: return mx::maximum(a, mx::array(scalar, a.dtype()));
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -792,6 +799,10 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           return mix({a, b})[0];
         }
         case 13: return mx::power(a, b);
+        // Inkling 2 Mini
+        case 40: return mx::subtract(a, b);
+        case 41: return mx::maximum(a, b);
+        case 42: return mx::minimum(a, b);
       }
       throw std::invalid_argument("invalid binary operation");
     };
@@ -856,6 +867,133 @@ int mlxl3_array_rope_freqs(void* input, void* freqs, int dims, int offset,
                            void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::fast::rope(
     arr(input), dims, false, std::nullopt, 1.0f, offset, arr(freqs))); });
+}
+// ---- Inkling 2 Mini (fused ops, affine copies, graph diagnostics, prepared kernels)
+int mlxl3_array_fused(int operation, void* const* inputs, size_t count, float scalar,
+                      void** out) noexcept {
+  return protect([&] {
+    auto in = arrays(inputs, count);
+    auto run = [&]() -> mx::array {
+      switch (operation) {
+        case 0: {  // scaled L2 clip: x * min(t / (|x * s| + 1e-6), 1) with x cast to f32
+          if (count != 2) throw std::invalid_argument("scaled L2 clip takes x and scale");
+          thread_local auto f = mx::compile([](const std::vector<mx::array>& v) {
+            auto x = mx::multiply(mx::astype(v[0], mx::float32), v[1]);
+            auto norm = mx::add(mx::sqrt(mx::sum(mx::multiply(x, x), -1, true)), mx::array(1e-6f, mx::float32));
+            return std::vector<mx::array>{
+              mx::multiply(x, mx::minimum(mx::divide(v[2], norm), mx::array(1.0f, mx::float32)))};
+          });
+          return f({in[0], in[1], mx::array({scalar})})[0];
+        }
+        case 1: {  // L2 clip without scale
+          if (count != 1) throw std::invalid_argument("L2 clip takes x");
+          thread_local auto f = mx::compile([](const std::vector<mx::array>& v) {
+            auto x = mx::astype(v[0], mx::float32);
+            auto norm = mx::add(mx::sqrt(mx::sum(mx::multiply(x, x), -1, true)), mx::array(1e-6f, mx::float32));
+            return std::vector<mx::array>{
+              mx::multiply(x, mx::minimum(mx::divide(v[1], norm), mx::array(1.0f, mx::float32)))};
+          });
+          return f({in[0], mx::array({scalar})})[0];
+        }
+        case 2: {  // (a + b) * c
+          if (count != 2) throw std::invalid_argument("residual scale takes two arrays");
+          thread_local auto f = mx::compile([](const std::vector<mx::array>& v) {
+            auto sum = mx::add(v[0], v[1]);
+            return std::vector<mx::array>{mx::multiply(sum, mx::astype(v[2], sum.dtype()))};
+          });
+          return f({in[0], in[1], mx::array({scalar})})[0];
+        }
+        case 3: {  // loop message gate tail: (h - tanh(s @ F) * h) + tanh(s @ G) * m
+          if (count != 5) throw std::invalid_argument("message gate takes s, F, G, h, m");
+          thread_local auto f = mx::compile([](const std::vector<mx::array>& v) {
+            auto forget = mx::tanh(mx::matmul(v[0], v[1]));
+            auto gain = mx::tanh(mx::matmul(v[0], v[2]));
+            return std::vector<mx::array>{
+              mx::add(mx::subtract(v[3], mx::multiply(forget, v[3])), mx::multiply(gain, v[4]))};
+          });
+          return f(in)[0];
+        }
+      }
+      throw std::invalid_argument("invalid fused operation");
+    };
+    *out = new mx::array(run());
+  });
+}
+int mlxl3_array_quantize(void* w, int group, int bits, void** out_w, void** out_scales,
+                         void** out_biases) noexcept {
+  return protect([&] {
+    auto q = mx::quantize(arr(w), group, bits, "affine");
+    if (q.size() != 3) throw std::runtime_error("unexpected affine quantize outputs");
+    *out_w = new mx::array(q[0]);
+    *out_scales = new mx::array(q[1]);
+    *out_biases = new mx::array(q[2]);
+  });
+}
+int mlxl3_array_qmm(void* x, void* w, void* scales, void* biases, int group, int bits,
+                    void** out) noexcept {
+  return protect([&] {
+    *out = new mx::array(mx::quantized_matmul(arr(x), arr(w), arr(scales), arr(biases), true,
+                                              group, bits, "affine"));
+  });
+}
+int mlxl3_graph_stats(void* const* inputs, size_t count, char* out, size_t capacity) noexcept {
+  return protect([&] {
+    if (!out || capacity == 0) throw std::invalid_argument("graph stats need an output buffer");
+    std::map<std::string, size_t> names; size_t total = 0;
+    std::vector<mx::array> stack = arrays(inputs, count);
+    std::map<std::uintptr_t, bool> visited;
+    while (!stack.empty()) {
+      mx::array a = std::move(stack.back()); stack.pop_back();
+      if (!a.has_primitive() || a.is_available()) continue;
+      // one count per array; the outputs of a multi-output primitive share its address
+      std::uintptr_t key = a.siblings().empty() ? a.id() : reinterpret_cast<std::uintptr_t>(&a.primitive());
+      if (!visited.emplace(key, true).second) continue;
+      ++names[a.primitive().name()]; ++total;
+      for (const auto& input : a.inputs()) stack.push_back(input);
+    }
+    std::vector<std::pair<std::string, size_t>> rows(names.begin(), names.end());
+    std::sort(rows.begin(), rows.end(), [](const auto& x, const auto& y) { return x.second > y.second; });
+    std::string text;
+    for (const auto& [name, n] : rows) text += name + " " + std::to_string(n) + "\n";
+    text += "total " + std::to_string(total) + "\n";
+    if (text.size() + 1 > capacity) throw std::length_error("graph stats buffer too small");
+    std::memcpy(out, text.c_str(), text.size() + 1);
+  });
+}
+int mlxl3_array_eval_many(void* const* inputs, size_t count) noexcept {
+  return protect([&] { mx::eval(arrays(inputs, count)); });
+}
+int mlxl3_metal_kernel_prepare(const char* name, const char* const* input_names, size_t ninputs,
+                              const char* const* output_names, size_t noutputs, const char* header,
+                              const char* source, void** out) noexcept {
+  return protect([&] {
+    if (!name || !header || !source || !out || ninputs == 0 || noutputs == 0)
+      throw std::invalid_argument("invalid prepared kernel description");
+    *out = new mx::fast::CustomKernelFunction(mx::fast::metal_kernel(
+      name, strings(input_names, ninputs), strings(output_names, noutputs), source, header, true, false,
+      mx::CompileOptions{}));
+  });
+}
+int mlxl3_metal_kernel_run(void* kernel, void* const* inputs, size_t ninputs, const int32_t* output_dims,
+                          const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
+                          const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
+  return protect([&] {
+    if (!kernel) throw std::invalid_argument("null prepared kernel");
+    std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+    for (size_t i = 0; i < noutputs; ++i) {
+      shapes.push_back(shape(output_dims + offset, output_ranks[i])); offset += output_ranks[i];
+      types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
+    }
+    auto result = (*static_cast<mx::fast::CustomKernelFunction*>(kernel))(arrays(inputs, ninputs), shapes, types,
+      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
+    if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
+    std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);
+    for (auto& value : result) owned.push_back(std::make_unique<mx::array>(std::move(value)));
+    for (size_t i = 0; i < noutputs; ++i) outputs[i] = owned[i].release();
+  });
+}
+void mlxl3_metal_kernel_free(void* kernel) noexcept {
+  delete static_cast<mx::fast::CustomKernelFunction*>(kernel);
 }
 int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const char* const* output_names, const char* header, const char* source,

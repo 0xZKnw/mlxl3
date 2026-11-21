@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3539.081584,
+    "tok_s": 18.083787694903844
+  },
+  {
+    "acceptance": 0.55,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w2",
+    "ms": 2706.876167,
+    "speedup": 1.307441259096209,
+    "state_rel_vs_teacher_forced": 0.007219937380625024,
+    "stats": {
+      "accepted": 33,
+      "accepted_at": [
+        20,
+        13
+      ],
+      "blocks": 30,
+      "commit_ms": 7.016584,
+      "draft_ms": 178.38387600000001,
+      "prefill_ms": 307.471459,
+      "proposed": 60,
+      "verify_ms": 2213.9237490000005
+    },
+    "tok_s": 23.643490153053612,
+    "tokens_per_block": 2.1
+  },
+  {
+    "acceptance": 0.4567901234567901,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w3",
+    "ms": 2724.878542,
+    "speedup": 1.298803425345481,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 37,
+      "accepted_at": [
+        16,
+        12,
+        9
+      ],
+      "blocks": 27,
+      "commit_ms": 6.501497,
+      "draft_ms": 169.122875,
+      "prefill_ms": 309.04087499999997,
+      "proposed": 81,
+      "verify_ms": 2240.1423789999994
+    },
+    "tok_s": 23.487285401361568,
+    "tokens_per_block": 2.3703703703703702
+  },
+  {
+    "acceptance": 0.36893203883495146,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w4",
+    "ms": 3121.4105839999997,
+    "speedup": 1.1338084141000018,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 38,
+      "accepted_at": [
+        15,
+        11,
+        7,
+        5
+      ],
+      "blocks": 26,
+      "commit_ms": 7.245998999999999,
+      "draft_ms": 187.44529500000004,
+      "prefill_ms": 312.97275,
+      "proposed": 103,
+      "verify_ms": 2613.6662480000005
+    },
+    "tok_s": 20.50355064728005,
+    "tokens_per_block": 2.4615384615384617
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 34.38s
+

@@ -106,6 +106,10 @@ mod hc_gdn_policy_tests;
 mod hc_workspace_policy;
 pub mod hub;
 #[cfg(feature = "mlx")]
+pub mod inkling2;
+#[cfg(feature = "mlx")]
+pub mod inkling2_draft;
+#[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;
 pub mod lfm3_audio;

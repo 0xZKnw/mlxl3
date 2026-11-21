@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3740.6220000000003,
+    "tok_s": 17.109453989202862
+  },
+  {
+    "acceptance": 0.5161290322580645,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w2",
+    "ms": 3027.1399579999998,
+    "speedup": 1.235695095667592,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 32,
+      "accepted_at": [
+        21,
+        11
+      ],
+      "blocks": 31,
+      "commit_ms": 9.894499999999997,
+      "draft_ms": 194.12161999999995,
+      "prefill_ms": 389.969584,
+      "proposed": 62,
+      "verify_ms": 2433.055415
+    },
+    "tok_s": 21.142068384008297,
+    "tokens_per_block": 2.032258064516129
+  },
+  {
+    "acceptance": 0.42168674698795183,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w3",
+    "ms": 3072.4075000000003,
+    "speedup": 1.2174888910406578,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 35,
+      "accepted_at": [
+        20,
+        10,
+        5
+      ],
+      "blocks": 28,
+      "commit_ms": 9.153251000000001,
+      "draft_ms": 189.96162399999997,
+      "prefill_ms": 411.96104099999997,
+      "proposed": 83,
+      "verify_ms": 2461.2472890000004
+    },
+    "tok_s": 20.830570163625755,
+    "tokens_per_block": 2.25
+  },
+  {
+    "acceptance": 0.34285714285714286,
+    "ar_same_prefix": 64,
+    "ar_same_tokens": 64,
+    "mode": "dspark_w4",
+    "ms": 3227.6609160000003,
+    "speedup": 1.15892657170311,
+    "state_rel_vs_teacher_forced": 0.008187861262760224,
+    "stats": {
+      "accepted": 36,
+      "accepted_at": [
+        19,
+        10,
+        5,
+        2
+      ],
+      "blocks": 27,
+      "commit_ms": 7.605,
+      "draft_ms": 188.67766400000002,
+      "prefill_ms": 389.524792,
+      "proposed": 105,
+      "verify_ms": 2641.766041
+    },
+    "tok_s": 19.828600855418976,
+    "tokens_per_block": 2.3333333333333335
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 37.77s
+

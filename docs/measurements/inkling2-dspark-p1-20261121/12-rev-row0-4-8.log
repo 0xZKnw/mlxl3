@@ -1,0 +1,88 @@
+
+running 1 test
+[
+  {
+    "mode": "ar",
+    "ms": 3706.168833,
+    "tok_s": 17.268506342760016
+  },
+  {
+    "acceptance": 0.5862068965517241,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w2",
+    "ms": 2870.4233329999997,
+    "speedup": 1.2911575760940208,
+    "state_rel_vs_teacher_forced": 0.007219937380625024,
+    "stats": {
+      "accepted": 34,
+      "accepted_at": [
+        20,
+        14
+      ],
+      "blocks": 29,
+      "commit_ms": 7.631213000000002,
+      "draft_ms": 253.13674899999995,
+      "prefill_ms": 315.48416699999996,
+      "proposed": 58,
+      "verify_ms": 2294.0806270000003
+    },
+    "tok_s": 22.29636279228225,
+    "tokens_per_block": 2.1724137931034484
+  },
+  {
+    "acceptance": 0.48717948717948717,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w3",
+    "ms": 2775.844459,
+    "speedup": 1.3351500373097815,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 38,
+      "accepted_at": [
+        16,
+        13,
+        9
+      ],
+      "blocks": 26,
+      "commit_ms": 7.017542999999997,
+      "draft_ms": 231.886081,
+      "prefill_ms": 320.020875,
+      "proposed": 78,
+      "verify_ms": 2216.846836
+    },
+    "tok_s": 23.056046887820237,
+    "tokens_per_block": 2.4615384615384617
+  },
+  {
+    "acceptance": 0.3939393939393939,
+    "ar_same_prefix": 28,
+    "ar_same_tokens": 29,
+    "mode": "dspark_w4",
+    "ms": 2935.332541,
+    "speedup": 1.2626061208510957,
+    "state_rel_vs_teacher_forced": 0.3260247587392117,
+    "stats": {
+      "accepted": 39,
+      "accepted_at": [
+        15,
+        12,
+        7,
+        5
+      ],
+      "blocks": 25,
+      "commit_ms": 6.309039000000001,
+      "draft_ms": 230.32412499999998,
+      "prefill_ms": 323.105792,
+      "proposed": 99,
+      "verify_ms": 2375.5099569999998
+    },
+    "tok_s": 21.803321806324767,
+    "tokens_per_block": 2.56
+  }
+]
+test inkling2_draft::tests::speculative_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 58.23s
+

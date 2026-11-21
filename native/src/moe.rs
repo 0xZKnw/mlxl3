@@ -50,6 +50,36 @@ fn butterfly<'a>(mut source: &'a str, mut target: &'a str, round_after_four: boo
 enum GluActivation {
     Silu,
     Gelu,
+    /// Inkling 2: `softcap(g, gate_cap) * sigmoid(g) * softcap(u, up_cap)`, `softcap(x, c) = c * tanh(x / c)`.
+    SoftcapSilu {
+        gate_cap: f32,
+        up_cap: f32,
+    },
+}
+
+impl GluActivation {
+    /// Metal expression of the activation from `gate_value` and `up_value`, and the kernel-name tag
+    /// that identifies it (every constant baked into the source is also in the name).
+    fn metal(self) -> (String, String) {
+        match self {
+            Self::Silu => (
+                "float(half((gate_value / (1.0f + exp(-gate_value))) * up_value))".into(),
+                "silu".into(),
+            ),
+            Self::Gelu => (
+                "float(half(half(0.5f * gate_value * (1.0f + tanh(0.7978845608028654f * (gate_value + 0.044715f * gate_value * gate_value * gate_value)))) * half(up_value)))".into(),
+                "gelu".into(),
+            ),
+            Self::SoftcapSilu { gate_cap, up_cap } => (
+                format!(
+                    "float(half((tanh(gate_value / {gate_cap:?}f) * {gate_cap:?}f) \
+                     * (1.0f / (1.0f + exp(-gate_value))) \
+                     * (tanh(up_value / {up_cap:?}f) * {up_cap:?}f)))"
+                ),
+                format!("softcap_g{:08x}_u{:08x}", gate_cap.to_bits(), up_cap.to_bits()),
+            ),
+        }
+    }
 }
 
 struct RoutePlan {
@@ -480,11 +510,7 @@ fn glu_down_input(
     } else {
         "up_b[tid] * HAD_SCALE"
     };
-    let activated = if gelu {
-        "float(half(half(0.5f * gate_value * (1.0f + tanh(0.7978845608028654f * (gate_value + 0.044715f * gate_value * gate_value * gate_value)))) * half(up_value)))"
-    } else {
-        "float(half((gate_value / (1.0f + exp(-gate_value))) * up_value))"
-    };
+    let (activated, tag) = activation.metal();
     let down_finish = if gelu {
         "float(half(down_b[tid]))"
     } else {
@@ -533,10 +559,7 @@ fn glu_down_input(
         "#
     );
     Ok(array::metal_kernel(
-        &format!(
-            "mlxl3_rs_moe_glu_down_h{hidden}_{}_l{logical_hidden}_v2",
-            if gelu { "gelu" } else { "silu" }
-        ),
+        &format!("mlxl3_rs_moe_glu_down_h{hidden}_{tag}_l{logical_hidden}_v2"),
         &["ygu", "gu_svh", "down_suh", "selected"],
         &["xhat"],
         "",
@@ -675,6 +698,30 @@ impl Exl3SwitchGlu {
             ["gate_proj", "up_proj", "down_proj"],
             GluActivation::Gelu,
             Some(logical_hidden),
+        )
+    }
+
+    /// Inkling 2 routed experts: `{prefix}.{e}.{gate,up,down}_proj`, softcapped SwiGLU.
+    pub fn from_inkling_checkpoint(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        experts: i32,
+        top_k: i32,
+        gate_cap: f32,
+        up_cap: f32,
+    ) -> Result<Self> {
+        ensure!(
+            gate_cap.is_finite() && gate_cap > 0. && up_cap.is_finite() && up_cap > 0.,
+            "invalid Inkling activation softcaps"
+        );
+        Self::from_checkpoint_names(
+            checkpoint,
+            prefix,
+            experts,
+            top_k,
+            ["gate_proj", "up_proj", "down_proj"],
+            GluActivation::SoftcapSilu { gate_cap, up_cap },
+            None,
         )
     }
 

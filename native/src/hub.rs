@@ -304,6 +304,7 @@ fn model_type_supported(model_type: Option<&str>) -> bool {
                 | "lfm3_omni"
                 | "gemma4"
                 | "bailing_hybrid"
+                | "inkling2_loop"
         )
     )
 }
@@ -1359,6 +1360,8 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
                         | "mtp_hyper_connection_mixer_patch.safetensors"
                         // d1 decision models read their answer temperatures from here.
                         | "calibration.json"
+                        // Inkling 2 Mini ships its DSpark drafter next to the weights.
+                        | "mtp.safetensors"
                 )
                 || (quant_label.is_none() && file == "model.safetensors.index.json")
             {
@@ -2202,6 +2205,58 @@ mod tests {
                 "sidecars cannot replace the main weights"
             );
         }
+    }
+
+    #[test]
+    fn inkling_variant_downloads_its_dspark_drafter_and_is_supported() {
+        // the published Inkling 2 Mini layout (sizes shortened)
+        let files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("generation_config.json".into(), 1),
+            ("tokenizer.json".into(), 20),
+            ("tokenizer_config.json".into(), 2),
+            ("special_tokens_map.json".into(), 1),
+            ("chat_template.jinja".into(), 3),
+            ("processor_config.json".into(), 1),
+            ("quantization_config.json".into(), 5),
+            ("quantization_report.json".into(), 9_000),
+            ("model.safetensors.index.json".into(), 4),
+            ("model-00001-of-00002.safetensors".into(), 100),
+            ("model-00002-of-00002.safetensors".into(), 50),
+            ("mtp.safetensors".into(), 30),
+            ("source_config.json".into(), 9_000),
+            ("source_hf_quant_config.json".into(), 9_000),
+            ("tiktoken/tokenizer.model".into(), 9_000),
+            ("README.md".into(), 2),
+            ("NOTICE".into(), 9_000),
+        ]);
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 1);
+        let root = &choices[0];
+        assert!(root.id.is_empty());
+        assert!(
+            root.files.contains_key("mtp.safetensors"),
+            "the drafter must come with the weights"
+        );
+        for skipped in [
+            "quantization_report.json",
+            "source_config.json",
+            "source_hf_quant_config.json",
+            "NOTICE",
+        ] {
+            assert!(
+                !root.files.contains_key(skipped),
+                "{skipped} is not needed to run"
+            );
+        }
+        assert_eq!(
+            root.size_bytes,
+            10 + 1 + 20 + 2 + 1 + 3 + 1 + 5 + 4 + 100 + 50 + 30 + 2
+        );
+        assert!(
+            model_preview(&serde_json::json!({"model_type": "inkling2_loop", "text_config": {}}))
+                .architecture_supported
+        );
     }
 
     #[test]
