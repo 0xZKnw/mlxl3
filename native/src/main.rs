@@ -2108,6 +2108,12 @@ enum NativeChatModel {
     Flash(Box<mlxl3_native::qwen4::FlashNext>),
 }
 
+/// DSpark for Inkling 2 Mini is on unless `MLXL3_INKLING_DSPARK=0`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_dspark_enabled() -> bool {
+    std::env::var("MLXL3_INKLING_DSPARK").as_deref() != Ok("0")
+}
+
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl NativeChatModel {
     fn load(path: &std::path::Path) -> Result<Self> {
@@ -2129,7 +2135,7 @@ impl NativeChatModel {
             "inkling2_loop" => {
                 let target = mlxl3_native::inkling2::Inkling2::from_checkpoint(checkpoint)?;
                 let draft = if checkpoint.path.join("mtp.safetensors").is_file()
-                    && std::env::var("MLXL3_INKLING_DSPARK").as_deref() != Ok("0")
+                    && inkling_dspark_enabled()
                 {
                     Some(Box::new(
                         mlxl3_native::inkling2_draft::Inkling2Draft::load(
