@@ -416,6 +416,16 @@ final class StudioModel: ObservableObject {
     var mtpAvailable: Bool {
         mtpSupported ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(selectedModel?.modelType ?? "")
     }
+    /// A model with a DSpark drafter (Inkling 2) shows a DSpark toolbar control; when it has no MTP head either,
+    /// the DSpark control replaces the disabled MTP one.
+    var dsparkToolbarVisible: Bool { dsparkSupported == true }
+    var mtpToolbarVisible: Bool { !(dsparkToolbarVisible && !mtpAvailable && !isTuningMTPDepth) }
+    /// DSpark acceptance of the latest answer in the open conversation that used DSpark.
+    var latestDSparkAcceptance: (accepted: Int, proposed: Int, tokensPerBlock: Double)? {
+        currentConversation?.messages
+            .last { $0.role == .assistant && $0.stats?.dsparkAcceptance != nil }?
+            .stats?.dsparkAcceptance
+    }
     var mtpBuiltIn: Bool { selectedModel?.modelType == "qwen4_exp" }
     var mtpEffectiveHeadPath: String { mtpBuiltIn ? selectedModel?.path ?? "" : mtpHeadPath }
     // Saved intent can survive an incompatible model; applicability is not engine activity.

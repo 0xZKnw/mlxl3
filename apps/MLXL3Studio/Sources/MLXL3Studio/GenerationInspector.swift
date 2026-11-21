@@ -115,17 +115,7 @@ struct GenerationInspector: View {
 
                         if studio.dsparkSupported == true {
                             SettingCard(title: L("Accélération DSpark", "DSpark acceleration"), icon: "bolt.fill", grouped: false) {
-                                Toggle(L("DSpark", "DSpark"), isOn: Binding(
-                                    get: { studio.dsparkEnabled },
-                                    set: { studio.setDSparkEnabled($0) }
-                                ))
-                                Text(
-                                    L(
-                                        "Brouillon fourni avec le modèle. La largeur des blocs suit l'acceptation pour éviter de ralentir le décodage ; la loi d'échantillonnage reste exacte.",
-                                        "Drafter shipped with the model. The block width follows the acceptance so decoding is not slowed down; the sampling law stays exact."
-                                    )
-                                )
-                                .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                                DSparkSettingsContent()
                             }
                             .id("dspark-settings")
                         }

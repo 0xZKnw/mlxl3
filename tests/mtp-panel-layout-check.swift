@@ -17,6 +17,12 @@ extension StudioModel {
         dflashDownloadError = state == "error" ? "Fixture error" : nil
     }
 
+    fileprivate func seedDSpark(supported: Bool?, enabled: Bool, mtp: Bool?) {
+        dsparkSupported = supported
+        dsparkEnabled = enabled
+        mtpSupported = mtp
+    }
+
     fileprivate func seedDFlashLayout(results: Bool) {
         dflashSupported = true
         dflashDownloading = false
@@ -97,6 +103,58 @@ extension StudioModel {
                     failures.append("\(language.rawValue)-dflash-\(state): DFlash2 toolbar exceeds its compact bounds (\(size))")
                 }
             }
+            // DSpark: the toolbar shows it for a model with a DSpark drafter, in place of a disabled MTP control
+            // when the model has no MTP head; other models keep the MTP control exactly as before.
+            for (supported, mtp, wantsDSpark, wantsMTP) in [(Bool?.some(true), Bool?.some(false), true, false),
+                                                           (true, true, true, true),
+                                                           (nil, true, false, true), (false, false, false, true),
+                                                           (nil, false, false, true)] {
+                studio.seedDSpark(supported: supported, enabled: true, mtp: mtp)
+                cases += 1
+                if studio.dsparkToolbarVisible != wantsDSpark || studio.mtpToolbarVisible != wantsMTP {
+                    failures.append("dspark=\(String(describing: supported)) mtp=\(String(describing: mtp)): toolbar shows DSpark \(studio.dsparkToolbarVisible), MTP \(studio.mtpToolbarVisible)")
+                }
+            }
+            for enabled in [false, true] {
+                studio.seedDSpark(supported: true, enabled: enabled, mtp: false)
+                let host = NSHostingView(rootView: DSparkToolbarControl().environmentObject(studio)
+                    .studioAppearance(.dark).background(StudioTheme.canvas))
+                let size = host.fittingSize
+                cases += 1
+                if !size.width.isFinite || size.width > 110 || size.height > 30 || size.height <= 0 {
+                    failures.append("\(language.rawValue)-dspark-\(enabled): DSpark toolbar exceeds its compact bounds (\(size))")
+                }
+                for width in [200, 244, 280, 320] {
+                    let view = DSparkSettingsContent().environmentObject(studio)
+                        .frame(width: CGFloat(width), alignment: .leading)
+                        .padding(16).background(StudioTheme.canvas)
+                        .studioAppearance(.dark)
+                        .foregroundStyle(StudioTheme.ink)
+                    let host = NSHostingView(rootView: view)
+                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width + 32, height: 600),
+                        styleMask: .borderless, backing: .buffered, defer: false)
+                    window.isReleasedWhenClosed = false; window.contentView = host
+                    host.frame = NSRect(x: 0, y: 0, width: width + 32, height: 600)
+                    try await Task.sleep(for: .milliseconds(100)); host.layoutSubtreeIfNeeded()
+                    let height = host.fittingSize.height - 32
+                    // Switch, state and the wrapped explanation.
+                    let limit: CGFloat = 200
+                    cases += 1
+                    let label = "\(language.rawValue)-dspark-\(width)-enabled\(enabled)"
+                    print("\(label): height=\(height), limit=\(limit)")
+                    if !height.isFinite || height <= 0 || height > limit {
+                        failures.append(label + ": DSpark panel consumed excessive vertical space")
+                    }
+                    if let output = ProcessInfo.processInfo.environment["MLXL3_MTP_LAYOUT_SNAPSHOTS"] {
+                        let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                        host.cacheDisplay(in: host.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(
+                            to: URL(fileURLWithPath: output).appendingPathComponent(label + ".png"))
+                    }
+                    window.close()
+                }
+            }
+            studio.seedDSpark(supported: nil, enabled: true, mtp: true)
             for results in [false, true] {
                 studio.seedDFlashLayout(results: results)
                 for width in [200, 244, 280, 320] {
@@ -183,6 +241,6 @@ extension StudioModel {
             throw NSError(domain: "MTPPanelLayoutCheck", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: failures.joined(separator: "; ")])
         }
-        print("MTP and DFlash2 layout checks passed: \(cases) toolbar and panel cases, FR/EN, 200–320pt, with/without results")
+        print("MTP, DFlash2 and DSpark layout checks passed: \(cases) toolbar and panel cases, FR/EN, 200–320pt, with/without results")
     }
 }
