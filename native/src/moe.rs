@@ -642,7 +642,10 @@ pub struct Exl3SwitchGlu {
     input: i32,
     hidden: i32,
     top_k: i32,
+    /// Bits per weight of the gate/up projections (one trellis, so always equal).
     k: usize,
+    /// Bits per weight of the down projections; equal to `k` for single-width checkpoints.
+    down_k: usize,
     cb: Codebook,
     activation: GluActivation,
     logical_hidden: i32,
@@ -749,10 +752,15 @@ impl Exl3SwitchGlu {
         let gates = names(gate);
         let ups = names(up);
         let downs = names(down);
-        let all = gates.iter().chain(&ups).chain(&downs);
         let mut k = None;
+        let mut down_k = None;
         let mut cb = None;
-        for name in all {
+        for (name, is_down) in gates
+            .iter()
+            .chain(&ups)
+            .map(|name| (name, false))
+            .chain(downs.iter().map(|name| (name, true)))
+        {
             let trellis = checkpoint
                 .tensors
                 .get(&format!("{name}.trellis"))
@@ -762,11 +770,18 @@ impl Exl3SwitchGlu {
                 "{name}: expert trellis must contain 16-bit integers"
             );
             let bits = *trellis.shape.last().context("empty expert trellis")? / 16;
+            // gate and up share one trellis: one width; down may use its own width
+            let width = if is_down { &mut down_k } else { &mut k };
             ensure!(
-                k.is_none_or(|value| value == bits),
-                "mixed expert bit widths"
+                width.is_none_or(|value| value == bits),
+                "{}",
+                if is_down {
+                    "mixed down-projection bit widths"
+                } else {
+                    "mixed gate/up bit widths"
+                }
             );
-            k = Some(bits);
+            *width = Some(bits);
             let mode = if checkpoint.tensors.contains_key(&format!("{name}.mul1")) {
                 Codebook::Mul1
             } else if checkpoint.tensors.contains_key(&format!("{name}.mcg")) {
@@ -846,6 +861,7 @@ impl Exl3SwitchGlu {
             stacked(&downs, "svh", "sv")?,
             top_k,
             k.context("checkpoint has no experts")?,
+            down_k.context("checkpoint has no down projections")?,
             cb.context("checkpoint has no expert codebook")?,
             activation,
             logical_hidden,
@@ -873,6 +889,7 @@ impl Exl3SwitchGlu {
             down_svh,
             top_k,
             k,
+            k,
             cb,
             GluActivation::Silu,
             None,
@@ -889,6 +906,7 @@ impl Exl3SwitchGlu {
         down_svh: Array,
         top_k: i32,
         k: usize,
+        down_k: usize,
         cb: Codebook,
         activation: GluActivation,
         logical_hidden: Option<i32>,
@@ -904,6 +922,9 @@ impl Exl3SwitchGlu {
         let [gu_tiles, down_tiles, packed] =
             crate::contracts::switch_glu_layout(experts, top_k, input, hidden, k)
                 .context("invalid or overflowing SwitchGLU dimensions")?;
+        let [_, _, down_packed] =
+            crate::contracts::switch_glu_layout(experts, top_k, input, hidden, down_k)
+                .context("invalid down-projection bit width")?;
         ensure!(
             projections == 2 && scale_experts == experts && scale_projections == 2,
             "invalid SwitchGLU dimensions"
@@ -912,7 +933,7 @@ impl Exl3SwitchGlu {
             down_suh.shape() == [experts, hidden]
                 && down_svh.shape() == [experts, input]
                 && gu_trellis.shape() == [input / 16, gu_tiles, packed]
-                && down_trellis.shape() == [hidden / 16, down_tiles, packed],
+                && down_trellis.shape() == [hidden / 16, down_tiles, down_packed],
             "SwitchGLU trellis/scales disagree"
         );
         ensure!(
@@ -943,6 +964,7 @@ impl Exl3SwitchGlu {
             hidden,
             top_k,
             k,
+            down_k,
             cb,
             activation,
             logical_hidden: logical_hidden.unwrap_or(hidden),
@@ -966,14 +988,21 @@ impl Exl3SwitchGlu {
         if matches!(self.activation, GluActivation::Gelu) {
             return self.forward_gelu(x, &selected, scores, rows);
         }
-        if rows >= 64 && self.experts <= 256 && self.k != 7 && array::supports_exl3_tensor_ops()? {
+        if rows >= 64
+            && self.experts <= 256
+            && self.k != 7
+            && self.down_k != 7
+            && array::supports_exl3_tensor_ops()?
+        {
             return self.forward_segmented(x, &selected, scores, rows);
         }
-        let lane_order = crate::contracts::q36_expert_lane_shape(
-            [rows, self.input, self.hidden, self.experts, self.top_k],
-            self.k,
-            self.cb == Codebook::Mcg,
-        );
+        // the Q36 lane layout is tuned for one width shared by every projection
+        let lane_order = self.k == self.down_k
+            && crate::contracts::q36_expert_lane_shape(
+                [rows, self.input, self.hidden, self.experts, self.top_k],
+                self.k,
+                self.cb == Codebook::Mcg,
+            );
         let x_gu = routed_inputs_small(
             x,
             &self.gu_suh,
@@ -1010,7 +1039,7 @@ impl Exl3SwitchGlu {
             self.input,
             1,
             0,
-            self.k,
+            self.down_k,
             self.cb,
             lane_order,
         )?;
@@ -1019,6 +1048,7 @@ impl Exl3SwitchGlu {
 
     pub(crate) fn q36_final_row_bank(&self) -> bool {
         self.k == 2
+            && self.down_k == 2
             && self.cb == Codebook::Mcg
             && self.input == 2048
             && self.hidden == 512
@@ -1057,6 +1087,7 @@ impl Exl3SwitchGlu {
             && self.logical_hidden == 512
             && self.cb == Codebook::Mcg
             && matches!(self.k, 2 | 3)
+            && self.down_k == self.k
             && matches!(self.activation, GluActivation::Silu)
             && array::is_m5_gpu()?;
         #[cfg(test)]
@@ -1121,7 +1152,7 @@ impl Exl3SwitchGlu {
             self.input,
             self.experts,
             0,
-            self.k,
+            self.down_k,
             self.cb,
         )?;
         finish_and_reduce(
@@ -1190,7 +1221,7 @@ impl Exl3SwitchGlu {
             self.input,
             1,
             0,
-            self.k,
+            self.down_k,
             self.cb,
             false,
             false,
@@ -1323,6 +1354,249 @@ mod tests {
         for dtype in [Dtype::Int16, Dtype::UInt16] {
             make(dtype, dtype, 2)?;
         }
+        Ok(())
+    }
+
+    /// Disposable EXL3 expert bank: gate/up at `k` bits, down at `down_k` bits, default codebook,
+    /// deterministic words and scales. `up_k` overrides the up width (admission tests).
+    fn split_width_checkpoint(
+        dir: &std::path::Path,
+        prefix: &str,
+        experts: usize,
+        [input, hidden]: [usize; 2],
+        [k, up_k, down_k]: [usize; 3],
+    ) -> Result<Checkpoint> {
+        let file = dir.join("experts.safetensors");
+        let mut header = serde_json::Map::new();
+        let mut payload = Vec::new();
+        let mut state = 0x9e37_79b9_u32;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for e in 0..experts {
+            for (name, rows, cols, bits) in [
+                ("gate_proj", input, hidden, k),
+                ("up_proj", input, hidden, up_k),
+                ("down_proj", hidden, input, down_k),
+            ] {
+                let words = rows / 16 * (cols / 16) * 16 * bits;
+                let start = payload.len();
+                for _ in 0..words {
+                    payload.extend((next() as u16).to_le_bytes());
+                }
+                header.insert(
+                    format!("{prefix}.{e}.{name}.trellis"),
+                    serde_json::json!({"dtype":"U16","shape":[rows / 16, cols / 16, 16 * bits],
+                        "data_offsets":[start, payload.len()]}),
+                );
+                for (scale, len) in [("suh", rows), ("svh", cols)] {
+                    let start = payload.len();
+                    for _ in 0..len {
+                        // signed scales in [0.5, 1.5): the sign carries the Hadamard flip
+                        let unit = (next() % 1024) as f32 / 1024.0;
+                        let value = if next() & 1 == 0 {
+                            0.5 + unit
+                        } else {
+                            -0.5 - unit
+                        };
+                        payload.extend(f16::from_f32(value).to_le_bytes());
+                    }
+                    header.insert(
+                        format!("{prefix}.{e}.{name}.{scale}"),
+                        serde_json::json!({"dtype":"F16","shape":[len],"data_offsets":[start, payload.len()]}),
+                    );
+                }
+            }
+        }
+        let json = serde_json::to_vec(&header)?;
+        let mut bytes = (json.len() as u64).to_le_bytes().to_vec();
+        bytes.extend(json);
+        bytes.extend(payload);
+        std::fs::write(&file, bytes)?;
+        Ok(Checkpoint {
+            path: dir.to_path_buf(),
+            model_type: "qwen3_5_moe".into(),
+            bits: None,
+            size_bytes: 0,
+            modules: Vec::new(),
+            tensors: crate::checkpoint::read_header(&file)?,
+        })
+    }
+
+    /// Width rules are checked from the safetensors metadata, before any tensor payload is read:
+    /// gate and up share one trellis and must agree, down may differ but must be a valid width.
+    #[test]
+    fn split_widths_are_admitted_only_when_gate_and_up_agree() -> Result<()> {
+        let prefix = "model.layers.0.mlp.experts";
+        for (widths, expected) in [
+            ([3, 4, 3], Some("mixed gate/up bit widths")),
+            ([4, 3, 4], Some("mixed gate/up bit widths")),
+            ([3, 3, 7], Some("invalid down-projection bit width")),
+            ([3, 3, 9], Some("invalid down-projection bit width")),
+            (
+                [7, 7, 3],
+                Some("invalid or overflowing SwitchGLU dimensions"),
+            ),
+        ] {
+            let dir = tempfile::tempdir()?;
+            let checkpoint = split_width_checkpoint(dir.path(), prefix, 2, [128, 128], widths)?;
+            let error = match Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, 2, 1) {
+                Ok(_) => anyhow::bail!("accepted widths {widths:?}"),
+                Err(error) => format!("{error:#}"),
+            };
+            let expected = expected.context("case without expectation")?;
+            ensure!(
+                error.contains(expected),
+                "widths {widths:?}: expected {expected:?}, got {error:?}"
+            );
+        }
+        // one expert whose down width differs from the others is still a mixed down bank
+        let dir = tempfile::tempdir()?;
+        let mut checkpoint = split_width_checkpoint(dir.path(), prefix, 2, [128, 128], [3, 3, 4])?;
+        checkpoint
+            .tensors
+            .get_mut(&format!("{prefix}.1.down_proj.trellis"))
+            .context("down trellis")?
+            .shape = vec![8, 8, 48];
+        let error = Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, 2, 1)
+            .err()
+            .context("accepted mixed down widths")?;
+        ensure!(format!("{error:#}").contains("mixed down-projection bit widths"));
+        Ok(())
+    }
+
+    /// A bank with gate/up at 3 bits and down at 4 bits against an independent oracle: each routed
+    /// expert's three projections through `Exl3Linear`, the activation in FP32, the weighted sum.
+    /// Covers the small-M path and the segmented TensorOps path (64 rows or more), SiLU and the
+    /// Inkling soft-capped SiLU.
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn split_down_width_matches_per_expert_linears() -> Result<()> {
+        const EXPERTS: usize = 4;
+        const INPUT: i32 = 256;
+        const HIDDEN: i32 = 128;
+        const TOP_K: i32 = 2;
+        let prefix = "model.layers.0.mlp.experts";
+        let dir = tempfile::tempdir()?;
+        let checkpoint = split_width_checkpoint(
+            dir.path(),
+            prefix,
+            EXPERTS,
+            [INPUT as usize, HIDDEN as usize],
+            [3, 3, 4],
+        )?;
+        let linear = |e: usize, name: &str| {
+            crate::linear::Exl3Linear::from_checkpoint(&checkpoint, &format!("{prefix}.{e}.{name}"))
+        };
+        let oracle = (0..EXPERTS)
+            .map(|e| {
+                Ok([
+                    linear(e, "gate_proj")?,
+                    linear(e, "up_proj")?,
+                    linear(e, "down_proj")?,
+                ])
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let caps = (30.0f32, 20.0f32);
+        let mut cases = 0;
+        for inkling in [false, true] {
+            let bank = if inkling {
+                Exl3SwitchGlu::from_inkling_checkpoint(
+                    &checkpoint,
+                    prefix,
+                    EXPERTS as i32,
+                    TOP_K,
+                    caps.0,
+                    caps.1,
+                )?
+            } else {
+                Exl3SwitchGlu::from_checkpoint(&checkpoint, prefix, EXPERTS as i32, TOP_K)?
+            };
+            ensure!(
+                bank.k == 3 && bank.down_k == 4,
+                "widths not read from the checkpoint"
+            );
+            for rows in [1, 5, 72] {
+                let values = (0..rows * INPUT)
+                    .map(|i| f16::from_f32(((i * 37 % 101) as f32 - 50.0) / 64.0).to_bits())
+                    .collect::<Vec<_>>();
+                let x = Array::from_f16_bits(&values, &[rows, INPUT])?;
+                let routes = (0..rows * TOP_K)
+                    .map(|slot| {
+                        ((slot / TOP_K) * 3 + (slot % TOP_K) + slot / 7) as u32 % EXPERTS as u32
+                    })
+                    .collect::<Vec<_>>();
+                // two distinct experts per row
+                let routes = routes
+                    .chunks(2)
+                    .flat_map(|pair| {
+                        let second = if pair[1] == pair[0] {
+                            (pair[0] + 1) % EXPERTS as u32
+                        } else {
+                            pair[1]
+                        };
+                        [pair[0], second]
+                    })
+                    .collect::<Vec<_>>();
+                let weights = (0..rows * TOP_K)
+                    .map(|slot| f16::from_f32(0.25 + 0.5 * ((slot % 3) as f32) / 2.0).to_bits())
+                    .collect::<Vec<_>>();
+                let selected = Array::from_u32(&routes, &[rows, TOP_K])?;
+                let scores = Array::from_f16_bits(&weights, &[rows, TOP_K])?;
+                let actual = bank
+                    .forward(&x, &selected, &scores)?
+                    .astype(Dtype::Float32)?;
+                ensure!(actual.shape() == [rows, INPUT], "bank output shape");
+                let actual = actual.to_f32()?;
+                let mut expected = vec![0f32; (rows * INPUT) as usize];
+                for row in 0..rows {
+                    let xr = x.slice(0, row, row + 1)?;
+                    for j in 0..TOP_K {
+                        let slot = (row * TOP_K + j) as usize;
+                        let [gate, up, down] = &oracle[routes[slot] as usize];
+                        let g = gate.forward(&xr)?.astype(Dtype::Float32)?;
+                        let u = up.forward(&xr)?.astype(Dtype::Float32)?;
+                        let h = if inkling {
+                            g.scalar_mul(1.0 / caps.0)?
+                                .tanh()?
+                                .scalar_mul(caps.0)?
+                                .mul(&g.sigmoid()?)?
+                                .mul(&u.scalar_mul(1.0 / caps.1)?.tanh()?.scalar_mul(caps.1)?)?
+                        } else {
+                            g.mul(&g.sigmoid()?)?.mul(&u)?
+                        };
+                        let d = down.forward(&h.astype(Dtype::Float16)?)?.to_f32()?;
+                        let w = f16::from_bits(weights[slot]).to_f32();
+                        for (i, value) in d.iter().enumerate() {
+                            expected[row as usize * INPUT as usize + i] += w * value;
+                        }
+                    }
+                }
+                ensure!(
+                    actual.iter().chain(&expected).all(|v| v.is_finite()),
+                    "non-finite bank or oracle output"
+                );
+                let scale = expected.iter().fold(0f32, |m, v| m.max(v.abs()));
+                let worst = actual
+                    .iter()
+                    .zip(&expected)
+                    .fold(0f32, |m, (a, b)| m.max((a - b).abs()));
+                let rel = worst / scale;
+                println!(
+                    "inkling={inkling} rows={rows}: max |bank - oracle| / max |oracle| = {rel:.2e}"
+                );
+                ensure!(
+                    scale > 0.0 && rel < 2e-2,
+                    "split-width bank differs from the oracle: {rel}"
+                );
+                cases += 1;
+            }
+        }
+        ensure!(cases == 6, "cases run: {cases}");
         Ok(())
     }
 

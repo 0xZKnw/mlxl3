@@ -511,6 +511,11 @@ private struct StatsRow: View {
             if let accepted = stats.mtpAcceptedTokens, let proposed = stats.mtpProposedTokens, proposed > 0 {
                 MetricChip(icon: "checkmark.circle", value: "\(accepted)/\(proposed)", label: String(format: "MTP %.0f%%", 100 * Double(accepted) / Double(proposed)))
             }
+            if let dspark = stats.dsparkAcceptance {
+                MetricChip(icon: "checkmark.circle", value: "\(dspark.accepted)/\(dspark.proposed)",
+                           label: String(format: L("DSpark %.0f%% · %.2f tok/bloc", "DSpark %.0f%% · %.2f tok/block"),
+                                         100 * Double(dspark.accepted) / Double(dspark.proposed), dspark.tokensPerBlock))
+            }
             if let blocks = stats.dflashBlocks, blocks > 0, let seconds = stats.dflashBlockSeconds {
                 MetricChip(icon: "square.stack", value: String(format: "%.1f ms", seconds * 1000 / Double(blocks)), label: L("par bloc", "per block"))
             }

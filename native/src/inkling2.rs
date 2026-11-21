@@ -1499,6 +1499,9 @@ pub struct RunProfile {
     pub eval: Duration,
 }
 
+/// Default MLX buffer-cache limit while Inkling 2 is loaded (APP-F1).
+pub const INKLING_CACHE_LIMIT: u64 = 1 << 30;
+
 pub struct Inkling2 {
     profile: RunProfile,
     /// Rows of an uncommitted `verify` call.
@@ -1545,6 +1548,9 @@ impl Inkling2 {
     }
 
     pub fn from_checkpoint_with(checkpoint: &Checkpoint, precision: Precision) -> Result<Self> {
+        // APP-F1: without a limit the MLX buffer cache grew by 3.4-3.9 GB during a long generation
+        // (`MLXL3_ALLOCATOR_CACHE_MIB` still overrides it)
+        crate::array::set_default_cache_limit(INKLING_CACHE_LIMIT)?;
         let precision = precision.validate()?;
         let root: RootConfig =
             serde_json::from_reader(File::open(checkpoint.path.join("config.json"))?)?;
@@ -2632,6 +2638,99 @@ mod tests {
             }));
         }
         println!("{}", serde_json::to_string_pretty(&report)?);
+        Ok(())
+    }
+
+    /// DIAG-2026-11-21-INK2M-LOCALREF. With `MLXL3_INKLING_EVAL_WRITE=1`: writes the logits of every
+    /// `stride`-th position of each row (`MLXL3_INKLING_ROWS`) as FP32 under `MLXL3_INKLING_REF_DUMP`.
+    /// Otherwise: KL(reference || model) and top-1 agreement of the loaded model against those files.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL, MLXL3_INKLING_ROWS and MLXL3_INKLING_REF_DUMP"]
+    fn eval_against_reference() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let dump = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_REF_DUMP")?);
+        let write = std::env::var_os("MLXL3_INKLING_EVAL_WRITE").is_some();
+        let stride: i32 = std::env::var("MLXL3_INKLING_STRIDE")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(4);
+        let only: Option<String> = std::env::var("MLXL3_INKLING_EVAL_ROWS").ok();
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut model = Inkling2::load_with(&dir, Precision::from_env_or(Precision::FULL)?)?;
+        let vocab = model.unpadded_vocab();
+        if write {
+            std::fs::create_dir_all(&dump)?;
+        }
+        let mut report = Vec::new();
+        for row in rows["rows"].as_array().context("rows")? {
+            let name = row["name"].as_str().context("name")?;
+            if only
+                .as_ref()
+                .is_some_and(|list| !list.split(',').any(|n| n == name))
+            {
+                continue;
+            }
+            let domain = row["domain"].as_str().unwrap_or(name);
+            let tokens: Vec<u32> = serde_json::from_value(row["tokens"].clone())?;
+            let time = tokens.len() as i32;
+            ensure!(
+                stride >= 1 && time >= stride,
+                "{name}: row shorter than the stride"
+            );
+            let positions: Vec<i32> = (stride - 1..time).step_by(stride as usize).collect();
+            let count = positions.len() as i32;
+            model.reset();
+            let logits = model
+                .forward_all(&tokens)?
+                .reshape(&[time, vocab])?
+                .take(&Array::from_i32(&positions, &[count])?, 0)?;
+            let file = dump.join(format!("{name}.f32"));
+            if write {
+                let values = logits.to_f32()?;
+                ensure!(
+                    values.len() == (count * vocab) as usize
+                        && values.iter().all(|x| x.is_finite()),
+                    "{name}: empty or non-finite reference logits"
+                );
+                std::fs::write(
+                    &file,
+                    values
+                        .iter()
+                        .flat_map(|x| x.to_le_bytes())
+                        .collect::<Vec<u8>>(),
+                )?;
+                report.push(serde_json::json!({"row": name, "positions": count, "written": file}));
+                continue;
+            }
+            let bytes =
+                std::fs::read(&file).with_context(|| format!("reference {}", file.display()))?;
+            ensure!(
+                bytes.len() == (count * vocab) as usize * 4,
+                "{name}: reference file does not match the row"
+            );
+            let reference = Array::from_bytes(&bytes, &[count, vocab], Dtype::Float32)?;
+            drop(bytes);
+            let lr = reference.log_probs()?;
+            let lm = logits.log_probs()?;
+            let kl = lr.exp()?.mul(&lr.sub(&lm)?)?.sum(1, false)?.to_f32()?;
+            let same: Vec<u32> = reference.argmax()?.reshape(&[-1])?.to_u32()?;
+            let ours: Vec<u32> = logits.argmax()?.reshape(&[-1])?.to_u32()?;
+            ensure!(
+                kl.len() == count as usize && kl.iter().all(|x| x.is_finite()),
+                "{name}: invalid KL"
+            );
+            let agree = same.iter().zip(&ours).filter(|(a, b)| a == b).count();
+            report.push(serde_json::json!({
+                "row": name, "domain": domain, "positions": count,
+                "kl_mean": kl.iter().map(|&x| x as f64).sum::<f64>() / count as f64,
+                "kl_max": kl.iter().cloned().fold(0f32, f32::max),
+                "top1": agree as f64 / count as f64, "kl": kl,
+            }));
+        }
+        ensure!(!report.is_empty(), "no row evaluated");
+        println!("{}", serde_json::to_string(&report)?);
         Ok(())
     }
 }

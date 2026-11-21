@@ -45,3 +45,5 @@ These reports are historical: check their dates, revisions, and limitations befo
 - [release-engine-v2.0.17](release-engine-v2.0.17.md)
 - [release-engine-v2.0.18](release-engine-v2.0.18.md)
 - [release-engine-v2.0.19](release-engine-v2.0.19.md)
+- [release-engine-v2.0.20](release-engine-v2.0.20.md)
+- [release-engine-v2.0.21](release-engine-v2.0.21.md)
