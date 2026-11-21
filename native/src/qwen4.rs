@@ -1548,6 +1548,17 @@ impl FlashNext {
         logits.context("empty Flash MTP prefill")
     }
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
+        self.forward_prompt_chunk(tokens, true)?
+            .context("empty Flash token batch")
+    }
+
+    /// Advance all recurrent and attention states. The caller can discard the
+    /// vocabulary projection when a later chunk supplies the prompt logits.
+    pub fn forward_prompt_chunk(
+        &mut self,
+        tokens: &[u32],
+        final_logits: bool,
+    ) -> Result<Option<Array>> {
         ensure!(
             !tokens.is_empty()
                 && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
@@ -1559,11 +1570,70 @@ impl FlashNext {
             last = self.forward_inner(
                 token,
                 None,
-                !self.prefill_heads || index + 1 == tokens.len(),
+                flash_support::prompt_row_needs_head(
+                    self.prefill_heads,
+                    final_logits,
+                    index + 1,
+                    tokens.len(),
+                ),
             )?;
         }
-        last.context("empty Flash token batch")
+        Ok(last)
     }
+    /// Prefill an intermediate chat span. Only the expert stage groups rows.
+    #[cfg(feature = "chat")]
+    pub fn prefill_experts(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<()> {
+        ensure!(
+            self.verification.is_none()
+                && !tokens.is_empty()
+                && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
+                && tokens.iter().all(|&t| t < 248320),
+            "invalid Flash expert prefill"
+        );
+        if self.lookahead_depth > 0 || !self.prefill_heads {
+            self.forward_prompt_chunk(tokens, false)?;
+            return Ok(());
+        }
+        let result = (|| {
+            for tile in tokens.chunks(4) {
+                let mut streams = tile
+                    .iter()
+                    .map(|&t| self.streams(t))
+                    .collect::<Result<Vec<_>>>()?;
+                for layer in &mut self.layers {
+                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                    let prepared = streams
+                        .iter()
+                        .zip(tile)
+                        .map(|(stream, &token)| layer.prepare(stream, token))
+                        .collect::<Result<Vec<_>>>()?;
+                    let inputs = prepared
+                        .iter()
+                        .map(|(_, input, _)| input)
+                        .collect::<Vec<_>>();
+                    let outputs = layer
+                        .moe
+                        .forward_draft_rows(&Array::concatenate(&inputs, 0)?)?;
+                    for (index, (stream, _, gate)) in prepared.iter().enumerate() {
+                        let row = i32::try_from(index)?;
+                        streams[index] = Hc::write(stream, &outputs.slice(0, row, row + 1)?, gate)?;
+                    }
+                }
+                let hidden = streams.pop().context("empty Flash prefill tile")?;
+                hidden.eval()?;
+                self.drain()?;
+                ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+                self.last_hidden = Some(hidden);
+                self.offset += i32::try_from(tile.len())?;
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
     pub fn reset(&mut self) {
         for layer in &mut self.layers {
             layer.reset();
@@ -1953,6 +2023,48 @@ mod tests {
         }
         Ok(result)
     }
+    #[test]
+    #[ignore = "requires Flash Next checkpoint and Apple GPU"]
+    fn intermediate_prompt_chunk_matches_serial_states_and_continuation() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut model = FlashNext::from_checkpoint(&c)?;
+        let prefix = [18, 37, 18, 55, 89, 112, 900, 71];
+        for &token in &prefix {
+            model.forward(token)?;
+        }
+        let expected_state = state_bytes(&model)?;
+        let expected = tensor_state_bytes(&model.forward(28)?)?;
+        model.reset();
+        ensure!(model.forward_prompt_chunk(&[], false).is_err());
+        ensure!(model.forward_prompt_chunk(&[18, 248320], false).is_err());
+        ensure!(model.offset() == 0);
+        ensure!(model.forward_prompt_chunk(&prefix, false)?.is_none());
+        ensure!(state_bytes(&model)? == expected_state);
+        let last = model.forward_tokens(&[28])?;
+        ensure!(last.shape().iter().product::<i32>() == 248320);
+        ensure!(tensor_state_bytes(&last)? == expected);
+        #[cfg(feature = "chat")]
+        {
+            model.reset();
+            let cancelled = AtomicBool::new(true);
+            ensure!(model.prefill_experts(&prefix, &cancelled).is_err());
+            ensure!(model.offset() == 0);
+            cancelled.store(false, Ordering::Relaxed);
+            ensure!(model.prefill_experts(&[18, 248320], &cancelled).is_err());
+            ensure!(model.offset() == 0);
+            model.prefill_experts(&prefix, &cancelled)?;
+            ensure!(
+                state_bytes(&model)? == expected_state,
+                "grouped expert state mismatch"
+            );
+            ensure!(
+                tensor_state_bytes(&model.forward(28)?)? == expected,
+                "grouped expert logits mismatch"
+            );
+        }
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU and Flash checkpoint; LES full logits, states and commits"]
     fn flash_lookahead_preserves_full_logits_states_and_pair_commits() -> Result<()> {

@@ -2268,6 +2268,21 @@ impl NativeChatModel {
         Ok((self.forward_many(tokens)?, None))
     }
 
+    /// Flash has no reusable chat checkpoint at intermediate span boundaries.
+    fn advance_flash_prompt(&mut self, chunk: &[u32], cancelled: &AtomicBool) -> Result<bool> {
+        let Self::Flash(target) = self else {
+            return Ok(false);
+        };
+        if std::env::var("MLXL3_FLASH_PREFILL_EXPERT4").as_deref() == Ok("1") {
+            target.prefill_experts(chunk, cancelled)?;
+        } else if std::env::var("MLXL3_FLASH_PROMPT_FINAL_HEAD").as_deref() == Ok("1") {
+            target.forward_prompt_chunk(chunk, false)?;
+        } else {
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
     fn prefill_chunk_size(&self) -> usize {
         match self {
             Self::Gemma4(_) | Self::Lfm3(_) => 256,
@@ -2802,6 +2817,9 @@ fn prefill_round(
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
+        }
+        if draft.is_none() && end < tokens.len() && model.advance_flash_prompt(chunk, cancelled)? {
+            continue;
         }
         logits = Some(
             if let Some((session, weights)) = dflash.as_mut().zip(draft) {
@@ -5657,6 +5675,12 @@ fn native_chat(
             let (chunk, group) = (model.prefill_chunk_size(), model.prefill_group()?);
             let mut start = 0;
             while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk, group) {
+                if end < tokens.len()
+                    && model.advance_flash_prompt(&tokens[start..end], &AtomicBool::new(false))?
+                {
+                    start = end;
+                    continue;
+                }
                 last = Some(model.forward_span(&tokens[start..end], false)?.0);
                 model.eval_state()?;
                 start = end;

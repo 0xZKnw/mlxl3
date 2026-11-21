@@ -3,6 +3,45 @@ use anyhow::Result;
 
 pub const PREFILL_CHUNK: usize = 8;
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn prompt_row_needs_head(
+    headonly: bool,
+    final_logits: bool,
+    end: usize,
+    len: usize,
+) -> bool {
+    !headonly || (final_logits && end == len)
+}
+
+#[test]
+fn flash_prompt_heads_match_the_observable_chunk_boundaries() {
+    for end in 1..=8 {
+        assert!(!prompt_row_needs_head(true, false, end, 8));
+        assert_eq!(prompt_row_needs_head(true, true, end, 8), end == 8);
+        for final_logits in [false, true] {
+            assert!(prompt_row_needs_head(false, final_logits, end, 8));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn intermediate_prompt_rows_elide_only_unneeded_heads() {
+    let headonly: bool = kani::any();
+    let final_logits: bool = kani::any();
+    let len: usize = kani::any();
+    let end: usize = kani::any();
+    kani::assume(end > 0 && end <= len);
+    let head = prompt_row_needs_head(headonly, final_logits, end, len);
+    if headonly {
+        assert_eq!(head, final_logits && end >= len);
+    } else {
+        assert!(head);
+    }
+    kani::cover!(head && final_logits && headonly);
+    kani::cover!(!head && end == len && !final_logits);
+}
+
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn index_key_groups(
     shape: [u32; 2],
