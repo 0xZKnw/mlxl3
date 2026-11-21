@@ -938,6 +938,13 @@ int mlxl3_array_quantize(void* w, int group, int bits, void** out_w, void** out_
     *out_biases = new mx::array(q[2]);
   });
 }
+// Inverse of mlxl3_array_quantize: the [out, in] weight in the dtype of the scales.
+int mlxl3_array_dequantize(void* w, void* scales, void* biases, int group, int bits,
+                           void** out) noexcept {
+  return protect([&] {
+    *out = new mx::array(mx::dequantize(arr(w), arr(scales), arr(biases), group, bits, "affine"));
+  });
+}
 int mlxl3_array_qmm(void* x, void* w, void* scales, void* biases, int group, int bits,
                     void** out) noexcept {
   return protect([&] {

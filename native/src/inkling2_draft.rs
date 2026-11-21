@@ -49,6 +49,35 @@ pub struct DraftConfig {
     pub o_bias: bool,
 }
 
+/// `(prefix, input, output)` of every dense draft projection, in load order (the nine `DraftLinear` of a layer);
+/// used by the slim exporter.
+#[cfg(test)]
+pub(crate) fn draft_projections(c: &DraftConfig) -> Vec<(String, i32, i32)> {
+    let (h, q_dim, kv_dim, inter) = (
+        c.hidden_size,
+        c.num_attention_heads * c.head_dim,
+        c.num_key_value_heads * c.head_dim,
+        c.intermediate_size,
+    );
+    let mut list = Vec::new();
+    for layer in 0..c.num_hidden_layers {
+        let a = format!("layers.{layer}.self_attn");
+        let m = format!("layers.{layer}.mlp");
+        list.extend([
+            (format!("{a}.q_proj"), h, q_dim),
+            (format!("{a}.k_proj"), h, kv_dim),
+            (format!("{a}.v_proj"), h, kv_dim),
+            (format!("{a}.k_proj_ctx"), h, kv_dim),
+            (format!("{a}.v_proj_ctx"), h, kv_dim),
+            (format!("{a}.o_proj"), q_dim, h),
+            (format!("{m}.gate_proj"), h, inter),
+            (format!("{m}.up_proj"), h, inter),
+            (format!("{m}.down_proj"), inter, h),
+        ]);
+    }
+    list
+}
+
 fn f32_weight(checkpoint: &Checkpoint, name: &str, shape: &[i32]) -> Result<Array> {
     let weight = checkpoint_array(checkpoint, name)?;
     ensure!(
@@ -335,36 +364,35 @@ impl Inkling2Draft {
         let rnn_context_t = rnn
             .slice(1, 2 * rank, 2 * rank + 2 * h)?
             .transpose(&[1, 0])?;
-        let head = target
-            .head_weight()
-            .context("the DSpark fold needs a dense target head")?;
-        let hidden_out = f32_weight(&ckpt, "markov_head.hidden_out.weight", &[h, rank])?;
-        let hidden_bias = f32_weight(&ckpt, "markov_head.hidden_out.bias", &[h])?;
         let vocab = target.unpadded_vocab();
-        // lm_head @ hidden_out and lm_head @ hidden_bias in FP32 by blocks of rows: a whole FP32 copy of the
-        // head would take 1.8 GB and push the target's mapped weights out of RAM before its first forward.
-        const FOLD_ROWS: i32 = 16384;
-        let (mut fold_parts, mut bias_parts) = (Vec::new(), Vec::new());
-        let mut start = 0;
-        while start < vocab {
-            let end = (start + FOLD_ROWS).min(vocab);
-            let rows = head.slice(0, start, end)?.astype(Dtype::Float32)?;
-            let part = rows.matmul(&hidden_out)?.astype(Dtype::Float16)?;
-            let bias = rows
-                .matmul(&hidden_bias.reshape(&[h, 1])?)?
-                .reshape(&[end - start])?
-                .astype(Dtype::Float16)?;
-            Array::eval_many(&[&part, &bias])?;
-            fold_parts.push(part);
-            bias_parts.push(bias);
-            start = end;
-        }
-        let fold = Array::concatenate(&fold_parts.iter().collect::<Vec<_>>(), 0)?;
-        let fold_bias = Array::concatenate(&bias_parts.iter().collect::<Vec<_>>(), 0)?;
-        drop((fold_parts, bias_parts));
+        // SIZE-2026-11-21-INK2M-SLIM: a checkpoint whose head is stored in 8 bits ships the fold computed from
+        // the FP16 head (`fold_from_head`), since it cannot be recomputed from the affine copy.
+        let (fold, fold_bias) = if ckpt.tensors.contains_key(FOLD_WEIGHT) {
+            let fold = checkpoint_array(&ckpt, FOLD_WEIGHT)?;
+            let fold_bias = checkpoint_array(&ckpt, FOLD_BIAS)?;
+            ensure!(
+                fold.dtype() == Dtype::Float16
+                    && fold.shape() == [vocab, rank]
+                    && fold_bias.dtype() == Dtype::Float16
+                    && fold_bias.shape() == [vocab],
+                "invalid stored DSpark fold"
+            );
+            Array::eval_many(&[&fold, &fold_bias])?;
+            (fold, fold_bias)
+        } else {
+            let head = target
+                .head_weight()
+                .context("the DSpark fold needs a dense target head")?;
+            let hidden_out = f32_weight(&ckpt, "markov_head.hidden_out.weight", &[h, rank])?;
+            let hidden_bias = f32_weight(&ckpt, "markov_head.hidden_out.bias", &[h])?;
+            fold_from_head(head, &hidden_out, &hidden_bias, vocab)?
+        };
         let fold_t = fold.transpose(&[1, 0])?;
         // draft-only affine copies; the target head stays the EXL3/FP16 one used for verification
         let (head_q, fold_q) = if c.head_bits < 16 {
+            let head = target.head_weight().context(
+                "MLXL3_INKLING_DSPARK_HEAD_BITS below 16 needs the dense target head (this checkpoint stores an affine head)",
+            )?;
             (
                 Some(DraftLinear::quantized(
                     &head.slice(0, 0, vocab)?,
@@ -384,7 +412,7 @@ impl Inkling2Draft {
             markov_embed: half_weight(
                 &ckpt,
                 "markov_head.markov_w1.weight",
-                Some(&[target_vocab(target)?, rank]),
+                Some(&[target.padded_vocab(), rank]),
             )?,
             rnn_recurrent_t,
             rnn_context_t,
@@ -654,8 +682,39 @@ pub fn gumbel_draw(logits: &Array, temperature: f32, seed: u64) -> Result<Array>
         .argmax()
 }
 
-fn target_vocab(target: &Inkling2) -> Result<i32> {
-    Ok(target.head_weight().context("dense target head")?.shape()[0])
+/// Names of the precomputed fold in `mtp.safetensors` (SIZE-2026-11-21-INK2M-SLIM).
+pub(crate) const FOLD_WEIGHT: &str = "markov_head.fold.weight";
+pub(crate) const FOLD_BIAS: &str = "markov_head.fold.bias";
+
+/// `lm_head @ hidden_out` (`[vocab, rank]`) and `lm_head @ hidden_bias` (`[vocab]`) over the unpadded rows of the
+/// FP16 head, in FP32 by blocks of rows, rounded to FP16: a whole FP32 copy of the head would take 1.8 GB and push
+/// the target's mapped weights out of RAM before its first forward.
+pub(crate) fn fold_from_head(
+    head: &Array,
+    hidden_out: &Array,
+    hidden_bias: &Array,
+    vocab: i32,
+) -> Result<(Array, Array)> {
+    const FOLD_ROWS: i32 = 16384;
+    let h = hidden_bias.shape()[0];
+    let (mut fold_parts, mut bias_parts) = (Vec::new(), Vec::new());
+    let mut start = 0;
+    while start < vocab {
+        let end = (start + FOLD_ROWS).min(vocab);
+        let rows = head.slice(0, start, end)?.astype(Dtype::Float32)?;
+        let part = rows.matmul(hidden_out)?.astype(Dtype::Float16)?;
+        let bias = rows
+            .matmul(&hidden_bias.reshape(&[h, 1])?)?
+            .reshape(&[end - start])?
+            .astype(Dtype::Float16)?;
+        Array::eval_many(&[&part, &bias])?;
+        fold_parts.push(part);
+        bias_parts.push(bias);
+        start = end;
+    }
+    let fold = Array::concatenate(&fold_parts.iter().collect::<Vec<_>>(), 0)?;
+    let fold_bias = Array::concatenate(&bias_parts.iter().collect::<Vec<_>>(), 0)?;
+    Ok((fold, fold_bias))
 }
 
 /// DSpark in the Desktop bridge: one draft block per anchor, the verified tokens delivered one per call
@@ -1199,6 +1258,108 @@ mod tests {
             path,
             v.iter().flat_map(|x| x.to_le_bytes()).collect::<Vec<u8>>(),
         )?;
+        Ok(())
+    }
+
+    /// SIZE-2026-11-21-INK2M-SLIM exporter (not a check): writes into the new directory `MLXL3_INKLING_SLIM_OUT`
+    /// the tensors a slim checkpoint stores in place of dense ones, each computed by the load path it replaces:
+    /// `head.safetensors` = the 8-bit head copy of `Precision::DEFAULT` (`Linear::quantized` of the unpadded FP16
+    /// rows), `mtp-replacements.safetensors` = the draft projections at `MLXL3_INKLING_DSPARK_BITS=8`
+    /// (`DraftLinear::load`) and the fold of `fold_from_head`, plus `export.json`.
+    #[test]
+    #[ignore = "writes files; requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_SLIM_OUT"]
+    fn export_slim_tensors() -> Result<()> {
+        use crate::inkling2::{Precision, write_safetensors};
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let out = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_SLIM_OUT")?);
+        std::fs::create_dir(&out).context("MLXL3_INKLING_SLIM_OUT must not exist yet")?;
+        let target = Inkling2::load_with(&dir, Precision::FULL)?;
+        let vocab = target.unpadded_vocab();
+        let head = target
+            .head_weight()
+            .context("the source checkpoint must have a dense head")?;
+        let affine = |linear: DraftLinear, name: &str| -> Result<[Array; 3]> {
+            match linear {
+                DraftLinear::Affine {
+                    w,
+                    scales,
+                    biases,
+                    bits: 8,
+                } => Ok([w, scales, biases]),
+                _ => anyhow::bail!("{name}: expected an 8-bit affine copy"),
+            }
+        };
+        let head_q = affine(
+            DraftLinear::quantized(&head.slice(0, 0, vocab)?, 8)?,
+            "head",
+        )?;
+        let names = ["weight", "scales", "biases"];
+        let named = |prefix: &str, arrays: [Array; 3]| -> Vec<(String, Array)> {
+            names
+                .iter()
+                .zip(arrays)
+                .map(|(n, a)| (format!("{prefix}.{n}"), a))
+                .collect()
+        };
+        let head_tensors = named("model.llm.unembed", head_q);
+        write_safetensors(
+            &out.join("head.safetensors"),
+            &head_tensors
+                .iter()
+                .map(|(n, a)| (n.clone(), a))
+                .collect::<Vec<_>>(),
+        )?;
+        let root: Root = serde_json::from_reader(File::open(dir.join("config.json"))?)?;
+        let c = root.mtp_config;
+        let path = dir.join("mtp.safetensors");
+        let ckpt = Checkpoint {
+            path: dir.clone(),
+            model_type: "inkling2_dspark".into(),
+            bits: None,
+            size_bytes: std::fs::metadata(&path)?.len(),
+            modules: Vec::new(),
+            tensors: checkpoint::read_header(&path)?,
+        };
+        let mut tensors = Vec::new();
+        let projections = draft_projections(&c);
+        for (prefix, input, output) in &projections {
+            let arrays = affine(
+                DraftLinear::load(&ckpt, prefix, *input, *output, 8)?,
+                prefix,
+            )?;
+            tensors.extend(named(prefix, arrays));
+        }
+        let (h, rank) = (c.hidden_size, c.markov_rank);
+        let hidden_out = f32_weight(&ckpt, "markov_head.hidden_out.weight", &[h, rank])?;
+        let hidden_bias = f32_weight(&ckpt, "markov_head.hidden_out.bias", &[h])?;
+        let (fold, fold_bias) = fold_from_head(head, &hidden_out, &hidden_bias, vocab)?;
+        Array::eval_many(&[&fold, &fold_bias])?;
+        ensure!(
+            fold.shape() == [vocab, rank] && fold_bias.shape() == [vocab],
+            "fold shapes"
+        );
+        tensors.push((FOLD_WEIGHT.to_string(), fold));
+        tensors.push((FOLD_BIAS.to_string(), fold_bias));
+        write_safetensors(
+            &out.join("mtp-replacements.safetensors"),
+            &tensors
+                .iter()
+                .map(|(n, a)| (n.clone(), a))
+                .collect::<Vec<_>>(),
+        )?;
+        let report = serde_json::json!({
+            "trial": "SIZE-2026-11-21-INK2M-SLIM",
+            "source": dir,
+            "head": {"prefix": "model.llm.unembed", "bits": 8, "group": crate::inkling2::AFFINE_GROUP, "rows": vocab},
+            "draft_projections": projections.iter().map(|(p, i, o)| serde_json::json!([p, i, o])).collect::<Vec<_>>(),
+            "draft_bits": 8,
+            "fold": [FOLD_WEIGHT, FOLD_BIAS],
+        });
+        std::fs::write(
+            out.join("export.json"),
+            serde_json::to_string_pretty(&report)?,
+        )?;
+        println!("{report}");
         Ok(())
     }
 
