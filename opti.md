@@ -30513,3 +30513,22 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - Temps de ces runs non retenus : chevauchement 00:09:53–00:11:52 avec une capture de l'autre session, signalé par elle.
   - pytest complet (`PYTHONPATH=<worktree>/src`) : **2 842 passés, 0 échec, 121 sautés** (`pytest.log`).
 - HF : révision slim publiée **`a5763a01f6e34c84bdf1a5812c890ff3978d5d75`** (`hf upload`, `build/inkling2-mini-exl3-20261121/hf/upload-slim.log`, fiche `hf/make_card_slim.py`) ; 21 fichiers vérifiés côté HF (SHA-256 LFS des poids, fiche/NOTICE/configs identiques octet pour octet), seul `.gitattributes` en plus. Desktop 2.0.12 reste épinglé sur `0a455840`.
+
+### RELEASE-2026-11-22-DESKTOP-2.0.13 — EN COURS (demandes utilisateur « fais une version desktop aussi pour fix le truc du dspark, l'ui est pas comme pour dflash2 », « la nouvelle version desktop tu la feras après » ; pas un essai d'optimisation)
+
+- Constat : la barre d'outils affichait toujours `MTPToolbarControl` (grisé pour Inkling, sans tête MTP) et aucun contrôle DSpark. DSpark n'avait qu'un `Toggle` simple dans l'inspecteur, alors que MTP et DFlash2 ont un bouton On/Off dans la barre d'outils, avec panneau, interrupteur et ligne d'état.
+- Changement (commit `57699d7e5` sur `claude/inkling2-slim`, au-dessus de `main` `114f4a0da`) :
+  - `DSparkSettingsContent.swift` (nouveau) : `DSparkToolbarControl` et `DSparkSettingsContent` (interrupteur « Activer DSpark » verrouillé pendant la génération, état, acceptation de la dernière réponse DSpark, explication).
+  - `StudioModel` : `dsparkToolbarVisible`, `mtpToolbarVisible` (MTP masqué seulement si DSpark est disponible et MTP non), `latestDSparkAcceptance`.
+  - `StudioView` : DSpark dans la barre d'outils. `GenerationInspector` : la carte utilise le panneau partagé.
+  - `ModelLibrary` : Inkling épinglé sur la révision slim `a5763a01`. `Info.plist` 2.0.13 / 66.
+  - `tests/mtp-panel-layout-check.swift` : visibilité par modèle, bornes du bouton, hauteur du panneau en FR/EN, 200–320 pt.
+- Contrôles :
+  - `scripts/check-desktop.sh` complet avec `MLXL3_MACOS_SDK=…/MacOSX26.5.sdk` : **passé en 502 s**, dont « MTP, DFlash2 and DSpark layout checks passed: 78 » (panneau DSpark 105–135 pt, limite 200). Logs `build/inkling2-mini-exl3-20261121/slim/desk13/`.
+  - Premier lancement avec le SDK par défaut (27.x) : échec de compilation sur un fichier inchangé (`AgentStudio.swift`, plugin `SwiftUIMacros` introuvable), log `check-desktop-default-sdk.log`. Problème de chaîne d'outils, comme noté pour les releases précédentes, qui utilisent le SDK 26.5.
+  - Mutation (`mtpToolbarVisible` toujours vrai) détectée par le test (« toolbar shows DSpark true, MTP true »), puis code restauré.
+- Révision 2026-11-22 — **DMG construit et vérifié** (`scripts/build-macos-dmg.sh`, SDK 26.5, 3 min 56 s) : `MLXL3-Desktop-v2.0.13-b66-Apple-Silicon.dmg` 250 548 087 o `17bf9819…cb3d`, `.sha256` 110 o `6421fa99…8a21`.
+  - `hdiutil verify` valide ; app montée : `codesign --deep --strict` OK, 2.0.13 / 66 ; `build-info` commit `57699d7e5e7a`, `tracked_changes: false`, moteur 2.0.22 (`mlxl3` `a05a102b…fe4f`) ; `runtime-info` 2.0.22 / `57699d7e5e7a`.
+  - `libmlx.dylib`, `libjaccl.dylib`, `mlx.metallib` identiques au bit à l'archive 2.0.22 publiée ; `mlxl3` construit depuis le même code moteur, 196 octets diffèrent (commit inscrit, signature).
+  - La construction du DMG reconstruit aussi `dist/MLXL3-Engine-v2.0.22-arm64.tar.gz` (69 058 693 o) : remplacé localement par l'archive publiée retéléchargée (contrôle `.sha256` OK). Aucune conséquence pour la release déjà publiée.
+  - Smoke du moteur intégré, lancé depuis le DMG monté (`smoke-release.py`, slim) : passé à 00:48–00:49, après la capture de l'autre session (créneau convenu par message). Log `desk13/smoke-dmg-slim.log`.
