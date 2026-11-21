@@ -3,6 +3,45 @@ use anyhow::Result;
 
 pub const PREFILL_CHUNK: usize = 8;
 
+/// A serial suffix lets demand-driven expert eviction adapt before decode.
+pub fn group_prompt_span(total: usize, end: usize, serial_tail: bool) -> bool {
+    end < total && (!serial_tail || total < 256 || total - end >= 48)
+}
+
+#[test]
+fn serial_tail_only_changes_the_end_of_long_prompts() {
+    for total in [0, 1, 255, 256, 654, usize::MAX] {
+        for end in [
+            0,
+            8,
+            total.saturating_sub(48),
+            total.saturating_sub(47),
+            total,
+            usize::MAX,
+        ] {
+            assert_eq!(group_prompt_span(total, end, false), end < total);
+            let expected = end < total && (total < 256 || (end as u128 + 48 <= total as u128));
+            assert_eq!(group_prompt_span(total, end, true), expected);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn serial_tail_keeps_last_logits_and_groups_only_complete_prefixes() {
+    let total: usize = kani::any();
+    let end: usize = kani::any();
+    let tail: bool = kani::any();
+    let grouped = group_prompt_span(total, end, tail);
+    assert_eq!(
+        grouped,
+        end < total && (!tail || total < 256 || end as u128 + 48 <= total as u128)
+    );
+    kani::cover!(grouped && tail && total >= 256);
+    kani::cover!(!grouped && tail && end < total);
+    kani::cover!(!grouped && end == total);
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn prompt_row_needs_head(
     headonly: bool,

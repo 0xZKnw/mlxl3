@@ -2065,6 +2065,52 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "requires Flash Next checkpoint and Apple GPU"]
+    fn long_prompt_serial_tail_preserves_state_and_full_continuation_logits() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut model = FlashNext::from_checkpoint(&checkpoint)?;
+        let tokens: Vec<_> = (0..257).map(|i| 18 + ((i * 193) % 8000) as u32).collect();
+        let mut oracle = None;
+        for hybrid in [false, true] {
+            model.reset();
+            let mut end = 0;
+            let mut groups = 0;
+            let mut serial = 0;
+            let mut logits = None;
+            for chunk in tokens.chunks(flash_support::PREFILL_CHUNK) {
+                end += chunk.len();
+                if hybrid && flash_support::group_prompt_span(tokens.len(), end, true) {
+                    model.prefill_experts(chunk, &AtomicBool::new(false))?;
+                    groups += 1;
+                } else {
+                    logits = Some(model.forward_tokens(chunk)?);
+                    serial += 1;
+                }
+            }
+            ensure!(model.offset() == 257);
+            let last = logits.context("missing final logits")?;
+            ensure!(last.shape().iter().product::<i32>() == 248320);
+            let actual = (
+                tensor_state_bytes(&last)?,
+                state_bytes(&model)?,
+                tensor_state_bytes(&model.forward(28)?)?,
+            );
+            if hybrid {
+                ensure!(groups == 26 && serial == 7);
+                ensure!(
+                    oracle.as_ref() == Some(&actual),
+                    "mixed prefill differs from serial"
+                );
+            } else {
+                oracle = Some(actual);
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU and Flash checkpoint; LES full logits, states and commits"]
     fn flash_lookahead_preserves_full_logits_states_and_pair_commits() -> Result<()> {

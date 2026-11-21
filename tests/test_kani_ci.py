@@ -299,6 +299,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "ssd_reads::direct_tests::native_direct_destination_requires_exact_shared_extent",
         "ssd_reads::direct_tests::native_direct_reads_require_depth_zero_without_prefetch",
         "ssd_reads::direct_tests::native_direct_flag_preserves_qualified_default_and_exact_override",
+        "flash_support::serial_tail_keeps_last_logits_and_groups_only_complete_prefixes",
         "flash_support::intermediate_prompt_rows_elide_only_unneeded_heads",
         "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
         "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",

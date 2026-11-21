@@ -2269,11 +2269,22 @@ impl NativeChatModel {
     }
 
     /// Flash has no reusable chat checkpoint at intermediate span boundaries.
-    fn advance_flash_prompt(&mut self, chunk: &[u32], cancelled: &AtomicBool) -> Result<bool> {
+    fn advance_flash_prompt(
+        &mut self,
+        chunk: &[u32],
+        total: usize,
+        end: usize,
+        cancelled: &AtomicBool,
+    ) -> Result<bool> {
         let Self::Flash(target) = self else {
             return Ok(false);
         };
         if std::env::var("MLXL3_FLASH_PREFILL_EXPERT4").as_deref() == Ok("1") {
+            let serial_tail =
+                std::env::var("MLXL3_FLASH_PREFILL_SERIAL_TAIL").as_deref() == Ok("1");
+            if !mlxl3_native::flash_support::group_prompt_span(total, end, serial_tail) {
+                return Ok(false);
+            }
             target.prefill_experts(chunk, cancelled)?;
         } else if std::env::var("MLXL3_FLASH_PROMPT_FINAL_HEAD").as_deref() == Ok("1") {
             target.forward_prompt_chunk(chunk, false)?;
@@ -2818,7 +2829,10 @@ fn prefill_round(
             model.reset();
             bail!("generation cancelled");
         }
-        if draft.is_none() && end < tokens.len() && model.advance_flash_prompt(chunk, cancelled)? {
+        if draft.is_none()
+            && end < tokens.len()
+            && model.advance_flash_prompt(chunk, tokens.len(), end, cancelled)?
+        {
             continue;
         }
         logits = Some(
@@ -5676,7 +5690,12 @@ fn native_chat(
             let mut start = 0;
             while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk, group) {
                 if end < tokens.len()
-                    && model.advance_flash_prompt(&tokens[start..end], &AtomicBool::new(false))?
+                    && model.advance_flash_prompt(
+                        &tokens[start..end],
+                        tokens.len(),
+                        end,
+                        &AtomicBool::new(false),
+                    )?
                 {
                     start = end;
                     continue;
