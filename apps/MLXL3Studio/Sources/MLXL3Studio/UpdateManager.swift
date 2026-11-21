@@ -543,6 +543,7 @@ final class UpdateManager: ObservableObject {
             progress(initial)
             if try await verifyAsset(at: destination, asset: release.asset) {
                 try Task.checkCancellation()
+                pruneCache(cacheRoot, keeping: destination)
                 return destination
             }
         }
@@ -567,10 +568,24 @@ final class UpdateManager: ObservableObject {
                 try FileManager.default.removeItem(at: destination)
             }
             try FileManager.default.moveItem(at: staged, to: destination)
+            pruneCache(cacheRoot, keeping: destination)
             return destination
         } catch {
             try? FileManager.default.removeItem(at: staged)
             throw error
+        }
+    }
+
+    /// Drops older downloads of the same family (Desktop DMG or engine archive)
+    /// once a newer one is verified; other families and unrelated files stay.
+    nonisolated static func pruneCache(_ root: URL, keeping kept: URL) {
+        let name = kept.lastPathComponent
+        guard let family = ["MLXL3-Desktop-", "MLXL3-Engine-"].first(where: { name.hasPrefix($0) }),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        else { return }
+        for entry in entries where entry.lastPathComponent.hasPrefix(family) && entry.lastPathComponent != name {
+            try? FileManager.default.removeItem(at: entry)
         }
     }
 
@@ -814,14 +829,15 @@ expected_version="$6"
 expected_build="$7"
 replacing=0
 cleanup() {
-    local status="$?"
+    # `status` is read-only in zsh: assigning it aborted cleanup and leaked mounts.
+    local exit_code="$?"
     if (( replacing )); then
         /bin/rm -rf "$destination_app"
         [[ ! -e "$backup_app" ]] || /bin/mv "$backup_app" "$destination_app"
     fi
     /bin/rm -rf "$staged_app"
     /usr/bin/hdiutil detach "$mount_path" -quiet >/dev/null 2>&1 || true
-    return "$status"
+    return "$exit_code"
 }
 trap cleanup EXIT
 trap 'exit 23' HUP INT TERM
@@ -870,6 +886,8 @@ fi
 /usr/bin/open -n "$destination_app" || exit 25
 replacing=0
 echo "new application installed; previous application retained"
+# Keep a single backup: the one replaced by this update is no longer needed.
+/bin/rm -rf "${backup_app}.previous-${$}"
 
 /bin/rm -f "$0"
 """#
