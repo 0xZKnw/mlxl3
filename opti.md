@@ -30789,3 +30789,32 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
 - Révision 2026-11-22 — **publication** (demande utilisateur « publie les releases », sans attendre la fin de la CI) : `main` `442625ec0 → 2cc470254` (fast-forward). `engine-v2.0.25` (https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.25) et `v2.0.15` (https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.15), tags sur la source `9c36fa4eb` ; `releases/latest` = `v2.0.15`. Assets retéléchargés : archive, `.sha256` (`shasum -c` OK), `mlxl3` `e97a0892…5714` ; DMG et `.sha256` (`shasum -c` OK). Discord `success` ×2 ; Windows Desktop `success` ×2, installeur `MLXL3-Desktop-v2.0.15-Windows-x64-setup.exe` (+ `.sha256`) joint à `v2.0.15`.
 - CI `2cc470254` : Apple, EXL3, Flash, Native Rust **`success`** ; **Regression `failure`** : job `desktop-preferences` (`check-desktop.sh --preferences-only`), « Desktop fixture exceeded its 90-second limit » pendant `response-check` sur le runner virtualisé. Cause : mes deux scénarios de suivi du défilement (~8–10 s chacun en local) ajoutés à l'invocation par défaut ; aucun contrôle en échec sur le fond (les contrôles d'aperçu passaient au moment de l'arrêt). **Défaut introduit par cette session (test seulement)** ; artefacts publiés non concernés (les tests ne sont pas livrés). Correctif : scénarios sortis de l'invocation par défaut et lancés dans leur propre processus `--check-scroll-follow` par `run_response_ui` ; en local, défaut 45 s et suivi 22 s (contre ~66 s pour l'ensemble). Précision des notes Desktop (bouton **Sandbox**, plein écran une fois le bloc terminé) dans le même commit.
 
+
+### 2026-11-22 · IMAGE21-STUDIO-M5 · validation fonctionnelle locale
+
+Suite du checkpoint EXL3 de Qwen-Image-2.1 (source d26bb612, 3,999249 bpw).
+Base Studio 418836fe. Le contrôle CUDA précédent reconstruisait le débruiteur en BF16.
+Cette validation exerce le shader QMM Metal sur poids compressés et le chemin de génération de Studio.
+Un M5 de 24 Gio, un modèle à la fois. Oracle NumPy indépendant sur 3/4/5 bits,
+128 entrées, 256 sorties et 1/32/35 lignes, seuil d'erreur relative L2 de 0,004.
+Neuf comparaisons physiques conformes (maximum 0,000613). Premier PNG 512 × 512 à deux étapes par le moteur Python.
+En cours : exercice du paquet Desktop local sur 512 × 512, 40 étapes, contrôle de l'image et des erreurs.
+Aucune comparaison de vitesse, de consommation ou de fidélité de l'image avec BF16 prévue.
+
+**Validé sur le M5**. Depuis la barre latérale de Studio, sélection du dossier local
+et génération effective d’une théière bleue dans la fenêtre, graine 987406473, 512 × 512,
+40 étapes (3 min 59 s pour le débruitage sur un essai). PNG affiché et enregistré,
+251 076 octets, SHA-256 7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd.
+Commande de construction locale `scripts/build-desktop-test.sh`, signature vérifiée.
+SHA-256 du binaire bc43dd94793e510e6d8985c8698e9a9ca7091640ff92e1eb59f968425192271d,
+du manifeste 1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0.
+Test physique final `python tests/image21-metal.py` avec MLX 0.32.4 : neuf matrices/tailles
+comparées et six entrées invalides rejetées, aucun contrôle sauté. Le test Swift a vérifié
+le double appel, le dossier sans manifeste et une nouvelle tentative. Format et lint Python réussis.
+CrossHair indisponible, pas de preuve formelle du parcours GPU. Première compilation Swift
+interrompue sur le constructeur de NSBitmapImageRep, corrigée avant le test utilisateur.
+VRAM, RSS et comparaison BF16 de cette génération non mesurées. Édition, 768, 1024,
+autres GPU et CI distante non testés. Paquet de test signé localement.
+Preuves locales dans le dossier de travail `build/image21-studio/` du dépôt de départ :
+`gui-worker.log`, `kernel-test-final.log`, `studio-build-final.log`, `generation-m5.png`.
+[Utilisation et composants](docs/studio-image21.md).

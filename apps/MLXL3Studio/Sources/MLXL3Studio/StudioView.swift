@@ -105,6 +105,7 @@ struct StudioView: View {
 }
 
 private struct SidebarView: View {
+    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var studio: StudioModel
     @State private var search = ""
 
@@ -130,6 +131,13 @@ private struct SidebarView: View {
             SidebarModePicker()
                 .padding(.horizontal, 10)
                 .disabled(studio.isGenerating)
+
+            Button { openWindow(id: "image-generation") } label: {
+                Label(L("Générer une image", "Generate an image"), systemImage: "photo")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StudioControlStyle(cornerRadius: 8))
+            .padding(.horizontal, 10).padding(.top, 8)
 
             SidebarProjectMenu()
                 .padding(.horizontal, 10).padding(.top, 8)

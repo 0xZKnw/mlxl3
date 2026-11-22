@@ -78,5 +78,11 @@ struct MLXL3StudioApp: App {
             }
         }
 
+        Window(L("Générer une image", "Generate an image"), id: "image-generation") {
+            ImageGenerationView()
+        }
+        .defaultSize(width: 680, height: 670)
+        .defaultLaunchBehavior(.suppressed)
+
     }
 }
