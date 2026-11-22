@@ -311,8 +311,43 @@ private struct MCPToolActivityRow: View {
     @State private var expanded = false
     @State private var fullOutput = false
 
+    @State private var fullArguments = false
+
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
+            // What ran (the program of a JavaScript call), then what came back.
+            if let arguments = activity.arguments, !arguments.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(activity.toolName == "javascript" ? L("Code exécuté", "Code run") : L("Arguments", "Arguments"))
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .tracking(0.65)
+                        .foregroundStyle(StudioTheme.quiet)
+                    if fullArguments {
+                        ScrollView([.vertical, .horizontal]) {
+                            Text(arguments).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }.frame(maxHeight: 240)
+                    } else {
+                        Text(arguments).lineLimit(12).textSelection(.enabled)
+                    }
+                    HStack {
+                        if arguments.split(separator: "\n", omittingEmptySubsequences: false).count > 12 {
+                            Button(fullArguments ? L("Réduire", "Show less") : L("Voir tout le code", "Show all code")) {
+                                fullArguments.toggle()
+                            }
+                        }
+                        Button(L("Copier le code", "Copy code")) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(arguments, forType: .string)
+                        }
+                    }.buttonStyle(.borderless)
+                }
+                .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
+                .foregroundStyle(StudioTheme.contrast.opacity(0.58))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+                .accessibilityIdentifier("tool.arguments")
+            }
             if let result = activity.result, !result.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     if fullOutput {
@@ -342,7 +377,7 @@ private struct MCPToolActivityRow: View {
             HStack(spacing: 8) {
                 stateIcon
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(activity.toolName)
+                    Text(activity.toolName == "invalid_tool_call" ? L("Appel d’outil illisible", "Unreadable tool call") : activity.toolName)
                         .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                     if let server = activity.serverName {

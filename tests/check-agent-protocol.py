@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     root.mkdir()
 
     # The structured-tools checks name their harness; `permissions=False` omits the file.
-    def exchange(messages, raw=None, permissions=None):
+    def exchange(messages, raw=None, permissions=None, long_calls=False):
         payload = raw if raw is not None else ''.join(json.dumps(item) + '\n' for item in messages)
         arguments = [helper, '--agent-tools', str(root)]
         if permissions is None:
@@ -36,6 +36,8 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         if permissions is not False:
             metadata.write_text(json.dumps({'permissions': permissions}))
             arguments.append(str(metadata))
+            if long_calls:
+                arguments.append('long-calls')
         result = subprocess.run(arguments, input=payload, text=True,
                                 capture_output=True, timeout=12, check=False)
         return result, [json.loads(line) for line in result.stdout.splitlines()]
@@ -154,6 +156,44 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     text = responses[0]['result']['content'][0]['text']
     check(not responses[0]['result']['isError'] and text.endswith('tests: 42 passed\n\nExit status: 0') and 'bytes of output omitted' in text
           and text.startswith('line-0-') and (root / 'run-done.txt').exists(), f'Structured run finishes a talkative command: {text[:80]!r}…{text[-80:]!r}')
+    # `state` survives between calls and server processes, beside the permissions file.
+    state_file = Path(directory) / 'js-state.json'
+    _, first = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "state.k = 'v'; return 1"}}, 1)], permissions=js_policy)
+    _, second = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return state.k'}}, 1)], permissions=js_policy)
+    check(first[0]['result']['content'][0]['text'] == 'Result:\n1' and second[0]['result']['content'][0]['text'] == 'Result:\nv'
+          and json.loads(state_file.read_text()) == {'k': 'v'} and not (root / 'js-state.json').exists(),
+          f"state kept between calls, outside the workspace: {second[0]['result']['content'][0]['text']!r}")
+    _, listed = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17), long_calls=True)
+    _, fresh = exchange([request('tools/list')], permissions=False)
+    long_description, fresh_description = listed[0]['result']['tools'][0]['description'], fresh[0]['result']['tools'][0]['description']
+    check('Limits per call: 20 s' in long_description and '`state` is an object kept between calls' in long_description
+          and 'Each call starts fresh.' in fresh_description and 'Limits per call: 10 s' in fresh_description, 'Call wall and state stated in the description')
+    _, unchanged = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17))
+    check('Limits per call: 10 s' in unchanged[0]['result']['tools'][0]['description'], 'Without long calls the wall stays 10 s')
+    # Internet through the host: offered only with the setting, refused before any request.
+    online = dict(js_policy, internet=True, internetHosts=['github.com'])
+    _, listed = exchange([request('tools/list')], permissions=online)
+    _, offline = exchange([request('tools/list')], permissions=js_policy)
+    check('fetch(url: string)' in listed[0]['result']['tools'][0]['description'] and 'fetch(' not in offline[0]['result']['tools'][0]['description'],
+          'fetch offered only with Internet')
+    _, refused = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "return fetch('https://example.org/')"}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "return fetch('http://github.com/')"}}, 2),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "return typeof fetch"}}, 3),
+    ], permissions=online)
+    _, hidden = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return typeof fetch"}}, 1)], permissions=js_policy)
+    check(refused[0]['result']['isError'] and 'not in the allowed hosts' in refused[0]['result']['content'][0]['text']
+          and refused[1]['result']['isError'] and 'only https' in refused[1]['result']['content'][0]['text']
+          and refused[2]['result']['content'][0]['text'] == 'Result:\nfunction'
+          and hidden[0]['result']['content'][0]['text'] == 'Result:\nundefined', 'Internet refusals and visibility through MCP')
+    if os.environ.get('MLXL3_NETWORK_TESTS') == '1':
+        # The production path: MCP server, supervisor arguments, curl, a real GitHub file.
+        _, live = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code':
+            "const r = fetch('https://raw.githubusercontent.com/octocat/Hello-World/master/README'); return r.status + ' ' + r.text.trim()"}}, 1)],
+            permissions=dict(online, internetHosts=['raw.githubusercontent.com']))
+        check(live[0]['result']['content'][0]['text'] == 'Result:\n200 Hello World!', f"Live fetch through MCP: {live[0]['result']['content'][0]['text']!r}")
+    else:
+        print('Live MCP network check not run (set MLXL3_NETWORK_TESTS=1)')
     # search(): a grep error is a tool error (it used to be an empty list), CRLF files match.
     (root / 'win.txt').write_bytes(b'alpha one\r\nbeta two\r\ngamma one\r\n')
     _, responses = exchange([

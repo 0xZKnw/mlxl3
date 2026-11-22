@@ -141,6 +141,14 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
+    /// Output tokens of one Agent turn, all tool rounds and reasoning included: finite, and
+    /// far above the 4,096 that a reasoning model used up before it could act.
+    static let agentTokenBudget = 32_768
+    /// Tool rounds of one Agent turn before its final answer (chat keeps the engine's 5).
+    static let agentToolRounds = 24
+    /// The engine accepts `tool_rounds` and a per-server MCP deadline (reported at ready):
+    /// Agent calls may then last as long as their commands. Kept across model loads.
+    private(set) var engineLongToolCalls = false
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -756,11 +764,16 @@ final class StudioModel: ObservableObject {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
     }
 
+    /// The sandbox answered; web search (Exa) is optional and its absence never blocks Agent.
+    var agentToolsReady: Bool {
+        bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.keys.allSatisfy { $0 == "exa" }
+    }
+
     var canAttemptSend: Bool { canSend || (!engineState.isReady && !isGenerating && hasDraftContent) }
 
     var canSend: Bool {
         !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
-            && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
+            && (selectedMode != .agent || agentToolsReady)
             && engineState.isReady && (!isTuningMTP || mtpAutoTuneActive) && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (conversationImages.isEmpty || canImportImages) && imageInputWithinLimits
             && hasDraftContent
@@ -795,7 +808,7 @@ final class StudioModel: ObservableObject {
             return L("Limite de 8 images et 8 Mio par conversation. Retirez des images ou ouvrez une nouvelle conversation.", "Limit of 8 images and 8 MiB per conversation. Remove images or start a new conversation.")
         }
         if localServer.active || (selectedMode != .chat && selectedMode != .agent) { return L("Choisissez Chat ou Agent pour envoyer", "Choose Chat or Agent to send") }
-        if selectedMode == .agent && (!bridgeUsesAgentRegistry || mcpToolCount == 0 || !mcpErrors.isEmpty) { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
+        if selectedMode == .agent && !agentToolsReady { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
         return nil
     }
 
@@ -1379,7 +1392,7 @@ final class StudioModel: ObservableObject {
                     requestID: requestID,
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
-                    maxTokens: selectedMode == .agent ? 4096 : -1,
+                    maxTokens: selectedMode == .agent ? Self.agentTokenBudget : -1,
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
@@ -1396,7 +1409,8 @@ final class StudioModel: ObservableObject {
                     dspark: dsparkEnabled,
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
-                    reasoningEffort: requestReasoningEffort
+                    reasoningEffort: requestReasoningEffort,
+                    toolRounds: selectedMode == .agent ? Self.agentToolRounds : nil
                 )
             )
         } catch {
@@ -2283,6 +2297,9 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
+            let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
+            let rewriteAgentRegistry = longCalls != engineLongToolCalls
+            engineLongToolCalls = longCalls
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
@@ -2323,6 +2340,11 @@ final class StudioModel: ObservableObject {
                 modules: info.modules,
                 residentGB: info.residentGB
             )
+            // A sandbox entry written for another engine gets this one's deadline before the
+            // reconnection below reads it.
+            if rewriteAgentRegistry && bridgeUsesAgentRegistry {
+                do { _ = try prepareAgentRegistry() } catch { featureError = error.localizedDescription }
+            }
             if mcpEnabled || bridgeUsesAgentRegistry { updateMCPConnection() }
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
             else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
@@ -2372,7 +2394,8 @@ final class StudioModel: ObservableObject {
             message.startTool(
                 id: callID,
                 serverName: event.serverName,
-                toolName: toolName
+                toolName: toolName,
+                arguments: event.arguments?.text
             )
             schedulePersistence()
         case "tool_result":
@@ -2409,7 +2432,7 @@ final class StudioModel: ObservableObject {
             if event.contextFull == true {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
-                message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
+                message?.fail(L("Limite de 32 768 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "32,768-token Agent limit reached. Partial output was kept; continue in another turn."))
             }
             if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
@@ -2461,6 +2484,8 @@ final class StudioModel: ObservableObject {
             ? L("Contexte plein. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", message)
             : message
         activeMessage()?.fail(detail)
+        // A failed Agent turn may have changed files: checkpoint them like a finished one.
+        finishAgentTurn()
         activeRequestID = nil
         activeResponseID = nil
         if readyInfo == nil || !bridge.isRunning {
@@ -2631,9 +2656,11 @@ extension StudioModel {
         try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
             .write(to: registry, options: .atomic)
         let config: [String: Any] = ["version": 1, "mcpServers": [
-            "exa": ["enabled": false, "url": "https://mcp.exa.ai/mcp"],
-            "sandbox": ["enabled": true, "command": Bundle.main.executableURL?.path ?? CommandLine.arguments[0],
-                "args": ["--agent-tools", root.path, store.metadata.appendingPathComponent("project.json").path]]]]
+            // Web search only when this task allows Internet (Sandbox panel).
+            "exa": ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"],
+            "sandbox": AgentSandbox.serverEntry(
+                executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
+                project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls)]]
         try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
         return registry
     }

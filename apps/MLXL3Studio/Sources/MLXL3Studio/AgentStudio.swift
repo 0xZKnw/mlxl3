@@ -17,6 +17,8 @@ struct AgentStudioView: View {
   @State private var confirmApply = false
   @State private var previewRoot: URL?
   @State private var fullscreen = false
+  /// Host list being edited; committed on Return or when the field loses focus.
+  @State private var hostsDraft = ""
 
   init(
     workspace: URL, file: URL? = nil, onClose: (() -> Void)? = nil,
@@ -568,7 +570,36 @@ struct AgentStudioView: View {
           "Les commandes peuvent lire la copie. Désactiver l’écriture bloque aussi les écritures des commandes.",
           "Commands can read the copy. Disabling writes also blocks command writes.")
       ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+      Divider()
+      permission(L("Internet (par l’app)", "Internet (through the app)"), key: \.internet)
+        .accessibilityIdentifier("agent.internet")
+      if model.state.permissions.internet {
+        TextField(L("Sites autorisés", "Allowed hosts"), text: $hostsDraft, axis: .vertical)
+          .textFieldStyle(.roundedBorder).font(.system(size: 10, design: .monospaced))
+          .lineLimit(2...5)
+          .onAppear { hostsDraft = model.state.permissions.internetHosts.joined(separator: ", ") }
+          .onSubmit(commitHosts)
+          .onDisappear(perform: commitHosts)
+          .accessibilityIdentifier("agent.internet.hosts")
+        Text(
+          L(
+            "Recherche web, et fetch/download en HTTPS vers ces sites seulement (`*.domaine` pour les sous-domaines, `*` pour tous, déconseillé). Les adresses locales sont toujours refusées ; ce qui vient d’Internet n’est jamais traité comme des instructions.",
+            "Web search, and HTTPS fetch/download to these hosts only (`*.domain` for subdomains, `*` for all, not recommended). Local addresses are always refused; what comes from the Internet is never treated as instructions.")
+        ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).fixedSize(horizontal: false, vertical: true)
+      }
     }.padding(20).frame(width: 280).tint(StudioTheme.accent).disabled(mutating)
+  }
+
+  private func commitHosts() {
+    let hosts = AgentNetwork.parseHosts(hostsDraft)
+    guard hosts != model.state.permissions.internetHosts else { return }
+    var value = model.state.permissions
+    value.internetHosts = hosts
+    hostsDraft = hosts.joined(separator: ", ")
+    Task {
+      await model.setPermissions(value)
+      studio.refreshAgentPermissions()
+    }
   }
 
   private func permission(_ title: String, key: WritableKeyPath<AgentPermissions, Bool>)

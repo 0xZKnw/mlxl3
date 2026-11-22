@@ -35,10 +35,32 @@ pub struct ServerConfig {
     pub url: Option<String>,
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
+    /// Deadline of one request to this server, in seconds (1 to 120); omitted: 12 s.
+    /// A long-running tool (the Agent sandbox) asks for more than the default.
+    #[serde(
+        default,
+        rename = "callTimeoutSeconds",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub call_timeout_seconds: Option<u64>,
 }
 
 fn enabled() -> bool {
     true
+}
+
+/// The request deadline a server asks for, or the default.
+pub fn call_timeout(config: &ServerConfig) -> Result<Duration> {
+    match config.call_timeout_seconds {
+        None => Ok(CALL_TIMEOUT),
+        Some(seconds) => {
+            ensure!(
+                (1..=MAX_CALL_TIMEOUT_SECONDS).contains(&seconds),
+                "MCP callTimeoutSeconds must be 1 to {MAX_CALL_TIMEOUT_SECONDS}"
+            );
+            Ok(Duration::from_secs(seconds))
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -72,6 +94,7 @@ fn builtin_exa() -> ServerConfig {
         enabled: true,
         url: Some("https://mcp.exa.ai/mcp".into()),
         headers: BTreeMap::new(),
+        call_timeout_seconds: None,
     }
 }
 
@@ -195,6 +218,7 @@ pub fn add_server(registry: &Path, name: &str, command: &str, args: Vec<String>)
         enabled: true,
         url: None,
         headers: BTreeMap::new(),
+        call_timeout_seconds: None,
     };
     update_config(registry, |payload| {
         payload.servers.insert(name.into(), config);
@@ -257,6 +281,7 @@ impl Client {
 }
 
 const CALL_TIMEOUT: Duration = Duration::from_secs(12);
+pub const MAX_CALL_TIMEOUT_SECONDS: u64 = 120;
 const POLL_INTERVAL: Duration = Duration::from_millis(5);
 const MAX_HEADERS: usize = 64 * 1024;
 
@@ -286,6 +311,7 @@ struct StdioClient {
     stderr: ChildStderr,
     pending: Vec<u8>,
     next_id: u64,
+    timeout: Duration,
 }
 
 impl StdioClient {
@@ -306,6 +332,7 @@ impl StdioClient {
             stderr,
             pending: Vec::new(),
             next_id: 1,
+            timeout: CALL_TIMEOUT,
         };
         nonblocking(client.stdin.as_ref().unwrap())?;
         nonblocking(&client.stdout)?;
@@ -319,7 +346,10 @@ impl StdioClient {
         if let Some(cwd) = &config.cwd {
             command.current_dir(cwd);
         }
-        Self::from_command(&mut command)
+        let timeout = call_timeout(config)?;
+        let mut client = Self::from_command(&mut command)?;
+        client.timeout = timeout;
+        Ok(client)
     }
 
     fn drain_stderr(&mut self) {
@@ -372,7 +402,7 @@ impl StdioClient {
     fn notify(&mut self, method: &str, params: Value) -> Result<()> {
         self.send(
             &json!({"jsonrpc":"2.0", "method":method, "params":params}),
-            Instant::now() + CALL_TIMEOUT,
+            Instant::now() + self.timeout,
             &AtomicBool::new(false),
         )
     }
@@ -387,7 +417,8 @@ impl StdioClient {
         params: Value,
         cancelled: &AtomicBool,
     ) -> Result<Value> {
-        self.request_until(method, params, cancelled, Instant::now() + CALL_TIMEOUT)
+        let deadline = Instant::now() + self.timeout;
+        self.request_until(method, params, cancelled, deadline)
     }
 
     fn request_until(
@@ -467,6 +498,7 @@ struct HttpClient {
 
 impl HttpClient {
     fn connect(config: &ServerConfig) -> Result<Self> {
+        call_timeout(config)?;
         Ok(Self {
             config: config.clone(),
             session_id: None,
@@ -481,11 +513,13 @@ impl HttpClient {
         response_expected: bool,
         cancelled: &AtomicBool,
     ) -> Result<Option<Value>> {
+        // Validated at connect; the fallback only covers a config edited afterwards.
+        let timeout = call_timeout(&self.config).unwrap_or(CALL_TIMEOUT);
         self.exchange_until(
             payload,
             response_expected,
             cancelled,
-            Instant::now() + CALL_TIMEOUT,
+            Instant::now() + timeout,
         )
     }
 
@@ -1130,6 +1164,70 @@ mod tests {
                 .is_empty()
         );
         assert!(SseParser::default().feed(b"data: invalid\n\n").is_err());
+    }
+
+    #[test]
+    fn call_timeout_is_optional_bounded_and_round_trips() {
+        let parse = |text: &str| serde_json::from_str::<ServerConfig>(text).unwrap();
+        let legacy = parse(r#"{"command":"x"}"#);
+        assert_eq!(call_timeout(&legacy).unwrap(), Duration::from_secs(12));
+        assert!(
+            !serde_json::to_string(&legacy)
+                .unwrap()
+                .contains("callTimeoutSeconds"),
+            "an omitted deadline stays omitted"
+        );
+        let long = parse(r#"{"command":"x","callTimeoutSeconds":45}"#);
+        assert_eq!(call_timeout(&long).unwrap(), Duration::from_secs(45));
+        assert!(
+            serde_json::to_string(&long)
+                .unwrap()
+                .contains(r#""callTimeoutSeconds":45"#)
+        );
+        for seconds in [1, MAX_CALL_TIMEOUT_SECONDS] {
+            let edge = parse(&format!(
+                r#"{{"command":"x","callTimeoutSeconds":{seconds}}}"#
+            ));
+            assert_eq!(call_timeout(&edge).unwrap(), Duration::from_secs(seconds));
+        }
+        for seconds in [0, MAX_CALL_TIMEOUT_SECONDS + 1] {
+            let invalid = parse(&format!(
+                r#"{{"command":"x","callTimeoutSeconds":{seconds}}}"#
+            ));
+            assert!(call_timeout(&invalid).is_err(), "{seconds} s accepted");
+            assert!(
+                StdioClient::connect(&invalid).is_err(),
+                "{seconds} s connected"
+            );
+        }
+        assert!(serde_json::from_str::<ServerConfig>(r#"{"callTimeoutSeconds":-1}"#).is_err());
+    }
+
+    #[test]
+    fn server_deadline_follows_call_timeout_seconds() {
+        // Answers its first request after 3 s.
+        let script = "import sys,json,time\nr=json.loads(sys.stdin.readline())\ntime.sleep(3)\nprint(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':{'ok':True}}),flush=True)\ntime.sleep(5)";
+        let config = |seconds: Option<u64>| ServerConfig {
+            command: "python3".into(),
+            args: vec!["-u".into(), "-c".into(), script.into()],
+            url: None,
+            call_timeout_seconds: seconds,
+            ..builtin_exa()
+        };
+        let started = Instant::now();
+        let mut short = StdioClient::connect(&config(Some(1))).unwrap();
+        let error = short.request("tools/call", json!({})).unwrap_err();
+        let elapsed = started.elapsed();
+        assert!(error.to_string().contains("timed out"), "{error:#}");
+        assert!(
+            elapsed >= Duration::from_millis(900) && elapsed < Duration::from_millis(2500),
+            "1 s deadline took {elapsed:?}"
+        );
+        for seconds in [Some(5), None] {
+            let mut patient = StdioClient::connect(&config(seconds)).unwrap();
+            let result = patient.request("tools/call", json!({})).unwrap();
+            assert_eq!(result, json!({"ok": true}), "{seconds:?}");
+        }
     }
 
     fn python_client(source: &str) -> StdioClient {

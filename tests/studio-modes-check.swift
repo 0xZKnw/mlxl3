@@ -120,13 +120,15 @@ extension StudioModel {
     limited.send()
     try await wait { !limited.isGenerating }
     check(
-      limited.currentConversation!.messages.last!.error?.contains("4 096") == true,
+      limited.currentConversation!.messages.last!.error?.contains("32 768") == true,
       "Budget exhaustion keeps the partial output and reports truncation")
     let limitedRequest =
       try JSONSerialization.jsonObject(
         with: Data(limited.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    // Finite, but no longer the 4,096 tokens a reasoning model spent before acting.
     check(
-      limitedRequest["max_tokens"] as? Int == 4096, "Agent sends a finite production token budget")
+      limitedRequest["max_tokens"] as? Int == 32_768 && limitedRequest["tool_rounds"] as? Int == 24,
+      "Agent sends a finite production token budget and its tool-round limit: \(limitedRequest["max_tokens"] ?? "nil") \(limitedRequest["tool_rounds"] ?? "nil")")
     limited.stopServices()
     await limited.bridge.stopAndWait()
     return count
@@ -216,6 +218,19 @@ extension StudioModel {
     check(
       !workspace.path.hasPrefix(registry.deletingLastPathComponent().path),
       "Commands cannot write their configuration")
+    // Web search follows the task's Internet setting; the sandbox entry is unchanged.
+    var online = restricted
+    online.internet = true
+    try project.setPermissions(online)
+    let onlineServers =
+      (try JSONSerialization.jsonObject(
+        with: Data(contentsOf: try studio.modesRegistryForCheck().deletingLastPathComponent().appendingPathComponent("mcp.json")))
+        as! [String: Any])["mcpServers"] as! [String: [String: Any]]
+    check(
+      onlineServers["exa"]?["enabled"] as? Bool == true && onlineServers["sandbox"]?["args"] as? [String] == servers["sandbox"]?["args"] as? [String],
+      "Internet enables web search for this task only")
+    try project.setPermissions(restricted)
+    _ = try studio.modesRegistryForCheck()
     func launches() throws -> [[String: Any]] {
       try String(contentsOf: root.appendingPathComponent("mode-launches.jsonl"), encoding: .utf8)
         .split(separator: "\n").map {

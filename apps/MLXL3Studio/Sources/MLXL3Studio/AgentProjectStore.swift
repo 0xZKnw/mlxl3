@@ -31,7 +31,10 @@ struct AgentProjectStore: Sendable {
   static let excludedNames: Set<String> = [
     ".git", ".venv", "venv", "node_modules", ".build", "target", "dist", "build", ".DS_Store",
     ".ssh", ".aws",
+    // Agent test material (downloaded repositories, archives): never part of a review.
+    scratchFolder,
   ]
+  static let scratchFolder = ".mlxl3-scratch"
 
   func state() throws -> AgentProjectState {
     let url = metadata.appendingPathComponent("project.json")

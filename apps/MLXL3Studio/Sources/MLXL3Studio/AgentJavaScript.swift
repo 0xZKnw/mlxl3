@@ -18,17 +18,35 @@ enum AgentHarness: String, Codable, CaseIterable, Sendable {
 enum AgentJavaScript {
   static let toolName = "javascript"
   static let maximumCode = 32_768
-  /// Wall time of one call, below the engine's 12 s MCP call deadline.
+  /// Default wall time of one call, below the 12 s MCP call deadline of older engines.
   static let seconds = 10.0
+  /// Longest wall an engine with per-server MCP deadlines may grant (commands: 30 s + 3).
+  static let longestWall = 33.0
   static let maximumCalls = 200
   static let maximumFileBytes = 256 * 1024
   static let maximumFootprint: UInt64 = 512 * 1024 * 1024
   static let maximumText = 32_768
+  /// `JSON.stringify(state)` length kept between calls (characters; the protocol escapes
+  /// non-ASCII, so a line stays far below `LineBuffer.maximum`).
+  static let maximumState = 256 * 1024
   static let engine = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
 
   struct Outcome: Codable, Equatable {
     let text: String
     let isError: Bool
+  }
+
+  /// Per-call settings from the MCP server.
+  struct Settings: Sendable {
+    /// Wall time of the whole call, host functions included.
+    var wall = AgentJavaScript.seconds
+    /// File keeping `state` between calls (outside the workspace); nil: no persistence.
+    var stateFile: URL?
+  }
+
+  /// Wall of one call for `commandSeconds`, when the engine accepts a longer MCP deadline.
+  static func wall(commandSeconds: Int, longCalls: Bool) -> Double {
+    longCalls ? min(longestWall, max(seconds, Double(commandSeconds) + 3)) : seconds
   }
 
   /// Host functions offered under `permissions`, in documentation order.
@@ -38,12 +56,18 @@ enum AgentJavaScript {
     if permissions.write { names.append("write") }
     if permissions.read && permissions.write { names.append("edit") }
     if permissions.run { names.append("run") }
+    if permissions.internet {
+      names.append("fetch")
+      if permissions.write { names.append("download") }
+    }
     return names
   }
 
-  static func toolDescription(_ permissions: AgentPermissions) -> String {
-    let signatures: [String: String] = [
-      "list": "list(): string[]  // every file path in the project, relative, sorted",
+  static func toolDescription(
+    _ permissions: AgentPermissions, wall: Double = seconds, persistent: Bool = false
+  ) -> String {
+    var signatures: [String: String] = [
+      "list": "list(): string[]  // every file path in the project, relative, sorted (a warning says when capped)",
       "read": "read(path: string): string  // whole UTF-8 file, at most 256 KiB",
       "search":
         "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E, throws on an invalid regex or path; at most 200 matches, 50 per file (a warning says when capped)",
@@ -52,13 +76,21 @@ enum AgentJavaScript {
       "edit":
         "edit(path: string, find: string, replace: string): void  // `find` must occur exactly once",
       "run":
-        "run(command: string): {status: number, stopped: boolean, omitted: number, output: string}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(seconds))) s; past 32 KiB, output keeps its first 8 KiB and last 24 KiB (omitted: bytes cut)",
+        "run(command: string): {status: number, stopped: boolean, omitted: number, output: string}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(wall))) s; past 32 KiB, output keeps its first 8 KiB and last 24 KiB (omitted: bytes cut)",
     ]
+    let hosts = permissions.internetHosts.prefix(16).joined(separator: ", ")
+      + (permissions.internetHosts.count > 16 ? ", ..." : "")
+    signatures["fetch"] =
+      "fetch(url: string): {status: number, url: string, type: string, text: string}  // HTTPS GET to the allowed hosts (\(hosts)), text only, at most 2 MiB; redirects are checked"
+    signatures["download"] =
+      "download(url: string, path: string): {status: number, url: string, bytes: number}  // saves into the project, at most 100 MiB; put test material under .mlxl3-scratch/ (never part of the reviewed changes), e.g. https://codeload.github.com/OWNER/REPO/zip/refs/heads/main then run(\"unzip ...\")"
     let api = functions(permissions).compactMap { signatures[$0] }.joined(separator: "\n")
     return """
       Run JavaScript in your private macOS sandbox to work on the project. The code is the body of an async function: `return` a value to see it, and use console.log for notes. Batch steps: one call can read, edit and verify. These functions are synchronous (await is optional) and throw an Error on failure:
       \(api)
-      No network, files outside the project, require/import or timers. Limits per call: \(Int(seconds)) s, \(maximumCalls) function calls, 32 KiB of output. Each call starts fresh: keep state in files. Writing is \(permissions.write ? "enabled" : "disabled").
+      \(permissions.internet ? "No direct network (fetch and download go through the host), files outside the project, require/import or timers." : "No network, files outside the project, require/import or timers.") Limits per call: \(Int(wall)) s, \(maximumCalls) function calls, 32 KiB of output. \(persistent
+        ? "`state` is an object kept between calls (JSON values, \(maximumState / 1024) Ki characters); everything else starts fresh."
+        : "Each call starts fresh.") Writing is \(permissions.write ? "enabled" : "disabled").
       """
   }
 
@@ -115,9 +147,27 @@ enum AgentJavaScript {
 
   /// Runs `code` with the host functions `permissions` allow. Never throws for model errors:
   /// they are part of the outcome the model reads.
-  static func execute(root: URL, code: String, permissions: AgentPermissions) throws -> Outcome {
+  static func execute(
+    root: URL, code: String, permissions: AgentPermissions, settings: Settings = Settings()
+  ) throws -> Outcome {
     guard !code.isEmpty, code.utf8.count <= maximumCode, !code.contains("\0") else {
       return Outcome(text: "Error: code must be 1 to \(maximumCode) bytes of text.", isError: true)
+    }
+    guard settings.wall.isFinite, (1...longestWall).contains(settings.wall) else {
+      throw CocoaError(.fileReadCorruptFile)
+    }
+    let seconds = settings.wall
+    // `state` from the previous call; an unreadable file starts over, and says so.
+    var state: Any = [String: Any]()
+    var stateNote: String?
+    if let file = settings.stateFile, FileManager.default.fileExists(atPath: file.path) {
+      if let data = try? Data(contentsOf: file), data.count <= 6 * maximumState,
+        let value = try? JSONSerialization.jsonObject(with: data), value is [String: Any]
+      {
+        state = value
+      } else {
+        stateNote = "the saved state could not be read; `state` starts empty"
+      }
     }
     guard FileManager.default.isExecutableFile(atPath: engine) else {
       return Outcome(
@@ -183,7 +233,10 @@ enum AgentJavaScript {
     _ = fcntl(output[0], F_SETFL, O_NONBLOCK)
     _ = fcntl(errors[0], F_SETFL, O_NONBLOCK)
 
-    let request: [String: Any] = ["code": code, "api": functions(permissions)]
+    let request: [String: Any] = [
+      "code": code, "api": functions(permissions), "state": state,
+      "persist": settings.stateFile != nil,
+    ]
     guard writeLine(request, to: input[1]) else {
       return Outcome(text: "Error: the JavaScript sandbox did not start.", isError: true)
     }
@@ -245,18 +298,33 @@ enum AgentJavaScript {
       ]
       _ = poll(&descriptors, 2, 20)
     }
-    if let finished { return outcome(finished) }
+    if let finished {
+      var warnings = stateNote.map { [$0] } ?? []
+      if let file = settings.stateFile {
+        if let text = finished["state"] as? String, let data = text.data(using: .utf8),
+          (try? JSONSerialization.jsonObject(with: data)) is [String: Any]
+        {
+          do { try data.write(to: file, options: .atomic) } catch {
+            warnings.append("state was not saved: \(error.localizedDescription)")
+          }
+        } else {
+          warnings.append("state was not saved: \((finished["stateError"] as? String) ?? "it is not a JSON object")")
+        }
+      }
+      return outcome(finished, warnings: warnings)
+    }
     var text = "Error: \(failure ?? "the program failed")."
     let detail = String(decoding: diagnostics, as: UTF8.self).trimmingCharacters(
       in: .whitespacesAndNewlines)
     if !detail.isEmpty { text += "\n" + String(detail.prefix(600)) }
+    if settings.stateFile != nil { text += "\nChanges to `state` in this call were not saved." }
     return Outcome(text: text, isError: true)
   }
 
   /// Text the model reads: console output, then the result or the error.
-  static func outcome(_ message: [String: Any]) -> Outcome {
+  static func outcome(_ message: [String: Any], warnings: [String] = []) -> Outcome {
     var parts: [String] = []
-    let logs = (message["logs"] as? [String]) ?? []
+    let logs = ((message["logs"] as? [String]) ?? []) + warnings.map { "warning: " + $0 }
     if !logs.isEmpty { parts.append(logs.joined(separator: "\n")) }
     let error = message["error"] as? String
     if let value = message["value"] as? String { parts.append("Result:\n" + value) }
@@ -373,15 +441,27 @@ enum AgentJavaScript {
     }
     switch op {
     case "list":
+      // NUL-separated bytes: any file name survives ("\r\n" is one Swift `Character`).
       guard
         let result = sandboxed(
-          "find . -type f -not -path './.git/*' -print", limit: maximumFileBytes),
-        !result.interrupted, result.status == 0
-      else { return failure("the file list is too long or unavailable; use search or run") }
-      let paths = result.output.split(separator: "\n").map {
-        $0.hasPrefix("./") ? String($0.dropFirst(2)) : String($0)
+          "find . -type f -not -path './.git/*' -print0", limit: maximumFileBytes)
+      else { return failure("the file list is unavailable") }
+      let raw = result.raw ?? Data(result.output.utf8)
+      let full = result.interrupted && raw.count >= maximumFileBytes
+      guard full || (!result.interrupted && result.status == 0) else {
+        return failure("the file list did not finish in time; use search or run")
+      }
+      var names = raw.split(separator: 0, omittingEmptySubsequences: true)
+      if full, raw.last != 0, !names.isEmpty { names.removeLast() }  // cut inside a name
+      let paths = names.map { name -> String in
+        let path = String(decoding: name, as: UTF8.self)
+        return path.hasPrefix("./") ? String(path.dropFirst(2)) : path
       }.sorted()
-      return ["ok": true, "value": paths]
+      var reply: [String: Any] = ["ok": true, "value": paths]
+      if full {
+        reply["note"] = "stopped at 256 KiB of paths, \(paths.count) shown; use search(regex, path) or run(\"find ...\") for the rest"
+      }
+      return reply
     case "read":
       guard let path = text(0), AgentSandbox.validPath(path) else {
         return failure("use a relative path inside the project")
@@ -482,6 +562,33 @@ enum AgentJavaScript {
           "omitted": result.omitted ?? 0,
         ],
       ]
+    case "fetch":
+      guard let address = text(0) else { return failure("the URL must be a string") }
+      let body = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "mlxl3-fetch-\(UUID().uuidString)")
+      defer { try? FileManager.default.removeItem(at: body) }
+      do {
+        let fetched = try AgentNetwork.get(
+          address, hosts: permissions.internetHosts, deadline: deadline - 0.2,
+          limit: AgentNetwork.maximumFetchBytes, output: body)
+        let data = (try? Data(contentsOf: body)) ?? Data()
+        guard let content = AgentNetwork.text(data, type: fetched.type) else {
+          return failure("\(fetched.type.isEmpty ? "binary" : fetched.type) content: use download(url, path)")
+        }
+        return [
+          "ok": true,
+          "value": ["status": fetched.status, "url": fetched.url, "type": fetched.type, "text": content],
+        ]
+      } catch { return failure(String(describing: error)) }
+    case "download":
+      guard let address = text(0), let path = text(1), AgentSandbox.validPath(path) else {
+        return failure("use a URL and a relative path inside the project")
+      }
+      do {
+        let fetched = try AgentNetwork.download(
+          address, to: path, root: root, hosts: permissions.internetHosts, deadline: deadline - 0.2)
+        return ["ok": true, "value": ["status": fetched.status, "url": fetched.url, "bytes": fetched.bytes]]
+      } catch { return failure(String(describing: error)) }
     default:
       return failure("unknown function \(op)")
     }
@@ -601,8 +708,13 @@ enum AgentJavaScript {
   /// `--agent-js <root> <read|-> <write|-> <run|-> <seconds>`: reads the code on stdin and
   /// prints the outcome as JSON. A separate process survives loss of the MCP transport and
   /// reaps its interpreter.
+  /// `--agent-js <root> <read|-> <write|-> <run|-> <commandSeconds> <wall> <state file|->
+  /// <-|net:host,host>` (Internet off, or on with its allowed hosts).
   static func supervisorMode(arguments: [String]) -> Never {
-    guard arguments.count == 7, let seconds = Int(arguments[6]), (1...30).contains(seconds) else {
+    guard arguments.count == 10, let seconds = Int(arguments[6]), (1...30).contains(seconds),
+      arguments[9] == "-" || arguments[9].hasPrefix("net:"),
+      let wall = Double(arguments[7]), wall.isFinite, (1...longestWall).contains(wall)
+    else {
       exit(2)
     }
     var permissions = AgentPermissions()
@@ -611,6 +723,8 @@ enum AgentJavaScript {
     permissions.run = arguments[5] == "run"
     permissions.commandSeconds = seconds
     permissions.harness = .javascript
+    permissions.internet = arguments[9] != "-"
+    permissions.internetHosts = AgentNetwork.parseHosts(String(arguments[9].dropFirst(4)))
     var code = Data()
     while code.count <= maximumCode {
       let chunk = FileHandle.standardInput.availableData
@@ -623,7 +737,10 @@ enum AgentJavaScript {
         ? Outcome(text: "Error: code must be 1 to \(maximumCode) bytes of text.", isError: true)
         : try execute(
           root: URL(fileURLWithPath: arguments[2]), code: String(decoding: code, as: UTF8.self),
-          permissions: permissions)
+          permissions: permissions,
+          settings: Settings(
+            wall: wall,
+            stateFile: arguments[8] == "-" ? nil : URL(fileURLWithPath: arguments[8])))
       try FileHandle.standardOutput.write(contentsOf: JSONEncoder().encode(result))
       exit(0)
     } catch { exit(1) }
@@ -679,8 +796,24 @@ enum AgentJavaScript {
         if (!standard.has(name)) { try { delete globalThis[name]; } catch (_) {} }
       }
       const logs = [], calls = [];
-      let logSize = 0, callCount = 0;
-      const finish = (fields) => send(JSON.stringify(Object.assign({ done: true, logs, calls }, fields)));
+      let logSize = 0, callCount = 0, persist = false;
+      // `state` goes back to the host with every finished call (also after an error).
+      const finish = (fields) => {
+        const message = Object.assign({ done: true, logs, calls }, fields);
+        if (persist) {
+          try {
+            const value = globalThis.state;
+            if (value === null || typeof value !== "object" || Array.isArray(value)) {
+              message.stateError = "`state` must stay an object";
+            } else {
+              const text = JSON.stringify(value);
+              if (text.length > 262144) message.stateError = "`state` is larger than 256 Ki characters";
+              else message.state = text;
+            }
+          } catch (error) { message.stateError = "`state` is not JSON: " + ((error && error.message) || error); }
+        }
+        send(JSON.stringify(message));
+      };
       // Fail closed: no shell helper (files, scripts, realms, timers) may survive.
       const leftover = shell.concat(Object.getOwnPropertyNames(globalThis))
         .filter((name) => !standard.has(name) && present(name));
@@ -750,6 +883,9 @@ enum AgentJavaScript {
             : "edit: the text to find occurs " + count + " times in " + path + "; include more context");
           host("write", [path, source.replace(find, () => replace)], label("write", path));
         },
+        fetch: (url) => host("fetch", [text(url, "url", "fetch")], label("fetch", url)),
+        download: (url, path) => host("download",
+          [text(url, "url", "download"), text(path, "path", "download")], label("download", url)),
         // Fixed key order: the status stays readable even when a long output is cut.
         run: (command) => {
           const r = host("run", [text(command, "command", "run")], label("run", command));
@@ -759,6 +895,9 @@ enum AgentJavaScript {
 
       let request;
       try { request = JSON.parse(receive()); } catch (_) { finish({ error: "invalid request" }); return; }
+      persist = request.persist === true;
+      const saved = request.state;
+      globalThis.state = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
       for (const name of request.api) {
         Object.defineProperty(globalThis, name, { value: api[name], writable: false, configurable: false });
       }

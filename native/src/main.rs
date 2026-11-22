@@ -2488,6 +2488,10 @@ struct BridgeRequest {
     #[serde(default)]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
     reasoning_effort: Option<String>,
+    /// Tool rounds before the final answer (`tool_call::tool_rounds`); omitted = 5, the
+    /// chat default. The Agent mode asks for more.
+    #[serde(default)]
+    tool_rounds: Option<usize>,
 }
 
 #[cfg(all(
@@ -2748,6 +2752,35 @@ fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
                 json!({"type":"generate", "reasoning_effort":invalid})
             )
             .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_tool_rounds_are_optional_and_bounded() -> Result<()> {
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert_eq!(
+        mlxl3_native::tool_call::tool_rounds(legacy.tool_rounds)?,
+        5,
+        "older apps keep five rounds"
+    );
+    let agent: BridgeRequest =
+        serde_json::from_value(json!({"type":"generate", "tool_rounds":24}))?;
+    assert_eq!(mlxl3_native::tool_call::tool_rounds(agent.tool_rounds)?, 24);
+    for rounds in [0, 65] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "tool_rounds":rounds}))?;
+        assert!(mlxl3_native::tool_call::tool_rounds(request.tool_rounds).is_err());
+    }
+    for invalid in [json!(-1), json!("24"), json!(2.5)] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(
+                json!({"type":"generate", "tool_rounds":invalid})
+            )
+            .is_err(),
+            "{invalid}"
         );
     }
     Ok(())
@@ -4428,7 +4461,16 @@ fn bridge_generate_round(
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
-    let mut filter = (!tools.is_empty()).then(StreamFilter::new);
+    // The prompt says which call format the model will use: Inkling 2 declares its tools
+    // in a `tool_declare` system message, and may write text before a call.
+    let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
+    let mut filter = (!tools.is_empty()).then(|| {
+        if inkling_tools {
+            StreamFilter::inkling()
+        } else {
+            StreamFilter::new()
+        }
+    });
     let mut last_tool_progress: Option<Instant> = None;
     let mut decoded = String::new();
     let mut answer = String::new();
@@ -4984,6 +5026,7 @@ fn bridge_generate(
     reuse: bool,
     allowed_tools: Option<&[String]>,
     response_schema: Option<&str>,
+    tool_rounds: usize,
 ) -> Result<()> {
     let schema = response_schema
         .map(mlxl3_native::structured::Schema::parse)
@@ -5006,16 +5049,11 @@ fn bridge_generate(
         }
     }
     let original_length = dialogue.len();
-    // Inkling 2 calls tools as `<|content_invoke_tool_json|>` messages, which `tool_call` does not parse
-    // yet: offering tools would stream unexecuted calls, so Inkling answers without them for now.
-    #[cfg(feature = "mlx")]
-    let tools_supported = !matches!(model, NativeChatModel::Inkling(..));
-    #[cfg(not(feature = "mlx"))]
-    let tools_supported = true;
+    // Every model is offered its tools; Inkling 2's `<|content_invoke_tool_json|>` calls are
+    // parsed by `tool_call` like the other formats.
     let tools: Vec<_> = mcp
         .chat_tools()
         .into_iter()
-        .filter(|_| tools_supported)
         .filter(|tool| {
             tool["function"]["name"]
                 .as_str()
@@ -5026,7 +5064,15 @@ fn bridge_generate(
     let mut summary: Option<NativeStats> = None;
     let mut round_stats = Vec::new();
     let mut tool_seconds = 0.;
-    for round in 0..5 {
+    // `tool_rounds` rounds may run tools; one more round answers from their results, so
+    // the limit ends in an answer, not in an error. (JSON output has no tools: it keeps its
+    // three validation attempts.)
+    let tool_rounds = if schema.is_some() {
+        mlxl3_native::tool_call::DEFAULT_TOOL_ROUNDS
+    } else {
+        tool_rounds
+    };
+    for round in 0..=tool_rounds {
         emit_event(json!({
             "type":"generation_status", "request_id":request_id,
             "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
@@ -5089,13 +5135,20 @@ fn bridge_generate(
         } else {
             None
         };
-        let calls = if tools.is_empty() {
-            Vec::new()
+        // A call the parser cannot read goes back to the model instead of ending the turn.
+        let (calls, unreadable) = if tools.is_empty() {
+            (Vec::new(), None)
         } else {
-            mlxl3_native::tool_call::parse_answer(&output.tool_text)?
+            match mlxl3_native::tool_call::parse_answer(&output.tool_text) {
+                Ok(calls) => (calls, None),
+                Err(error) => (Vec::new(), Some(error)),
+            }
         };
         let context_full = output.stats.context_used >= context_limit;
-        if calls.is_empty() || context_full {
+        let final_round = round == tool_rounds;
+        if (calls.is_empty() && unreadable.is_none()) || context_full || final_round {
+            // At the limit nothing more runs: the turn ends on what the model wrote.
+            let limited = final_round && (!calls.is_empty() || unreadable.is_some());
             let assistant = validated_json
                 .clone()
                 .unwrap_or_else(|| output.answer.clone());
@@ -5123,12 +5176,36 @@ fn bridge_generate(
                 "assistant_context":assistant, "cache_context":output.raw,
                 "token_hash":output.token_hash,
                 "stats":stats, "round_stats":round_stats, "context_full":context_full,
-                "stop_reason":output.stop_reason.as_str(),
+                "stop_reason":if limited { "tool_round_limit" } else { output.stop_reason.as_str() },
                 "turn_context":turn_context,
                 "elapsed_seconds":started.elapsed().as_secs_f64(),
                 "first_text_seconds":first_text,
                 "tool_rounds":round
             }));
+        }
+        if let Some(error) = unreadable {
+            let call_id = format!("mcp-{round}-{}-invalid", dialogue.len());
+            let text = mlxl3_native::tool_call::unreadable_call_message(&error);
+            emit_event(json!({
+                "type":"tool_start", "request_id":request_id,
+                "tool_call_id":call_id, "tool_name":"invalid_tool_call", "server_name":null
+            }))?;
+            emit_event(json!({
+                "type":"tool_result", "request_id":request_id,
+                "tool_call_id":call_id, "tool_name":"invalid_tool_call",
+                "server_name":null, "text":text, "is_error":true
+            }))?;
+            let note = if round + 1 == tool_rounds {
+                format!(
+                    "{text}\n\n{}",
+                    mlxl3_native::tool_call::round_limit_note(tool_rounds)
+                )
+            } else {
+                text
+            };
+            dialogue.push(json!({"role":"assistant", "content":output.tool_text}));
+            dialogue.push(json!({"role":"user", "content":note}));
+            continue;
         }
         let tool_calls: Vec<_> = calls
             .iter()
@@ -5150,7 +5227,8 @@ fn bridge_generate(
             emit_event(json!({
                 "type":"tool_start", "request_id":request_id,
                 "tool_call_id":call_id, "tool_name":call.name,
-                "server_name":server
+                "server_name":server,
+                "arguments":mlxl3_native::tool_call::shown_arguments(&call.arguments)
             }))?;
             let tool_started = Instant::now();
             anyhow::ensure!(
@@ -5163,9 +5241,14 @@ fn bridge_generate(
             let budget = 8192usize.min((context_limit / 8).max(256));
             let result_tokens = tokenizer.encode(&result.text)?;
             if result_tokens.len() > budget {
+                // Start and end: a command's errors and summary come last.
+                let (head, tail) =
+                    mlxl3_native::tool_call::kept_token_ranges(result_tokens.len(), budget, 32);
+                let omitted = result_tokens.len() - head.len() - tail.len();
                 result.text = format!(
-                    "{}\n[Tool output truncated to fit context]",
-                    tokenizer.decode(&result_tokens[..budget])?
+                    "{}\n[... {omitted} tokens of tool output omitted to fit the context ...]\n{}",
+                    tokenizer.decode(&result_tokens[head])?,
+                    tokenizer.decode(&result_tokens[tail])?
                 );
             }
             emit_event(json!({
@@ -5178,8 +5261,20 @@ fn bridge_generate(
                 "role":"tool", "name":call.name, "content":result.text
             }));
         }
+        if round + 1 == tool_rounds
+            && let Some(content) = dialogue
+                .last_mut()
+                .and_then(|message| message.get_mut("content"))
+        {
+            let text = content.as_str().unwrap_or_default().to_owned();
+            *content = json!(format!(
+                "{text}\n\n{}",
+                mlxl3_native::tool_call::round_limit_note(tool_rounds)
+            ));
+        }
     }
-    bail!("the model exceeded the limit of 5 consecutive MCP tool rounds")
+    // The final round always returns; JSON validation exhausts its own attempts first.
+    bail!("the tool loop ended without an answer")
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -5346,6 +5441,8 @@ fn native_bridge(
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
         "reasoning_effort_supported":true,
+        // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server.
+        "tool_rounds_supported":true, "mcp_call_timeout_supported":true,
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
         "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
@@ -5763,6 +5860,7 @@ fn native_bridge(
                         request.reuse_prompt_cache && !request.memory_saver,
                         request.allowed_tools.as_deref(),
                         request.response_schema.as_deref(),
+                        mlxl3_native::tool_call::tool_rounds(request.tool_rounds)?,
                     )
                 })();
                 // Runs after the whole turn (including tools), not between decode

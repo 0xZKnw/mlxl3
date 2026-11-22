@@ -212,10 +212,7 @@ impl ChatTokenizer {
                 Err(Error::new(ErrorKind::InvalidOperation, message))
             },
         );
-        environment.add_filter("tojson", |value: minijinja::Value| {
-            serde_json::to_string(&value)
-                .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))
-        });
+        environment.add_filter("tojson", python_tojson);
         environment.add_function("strftime_now", |format: String| {
             if format == "%Y-%m-%d" {
                 Ok(time::OffsetDateTime::now_utc().date().to_string())
@@ -384,8 +381,313 @@ impl ChatTokenizer {
     }
 }
 
+fn json_error(error: impl std::fmt::Display) -> Error {
+    Error::new(ErrorKind::InvalidOperation, error.to_string())
+}
+
+/// `tojson` as transformers defines it (`json.dumps`, `ensure_ascii=False`). Without options
+/// it keeps the engine's compact output, byte for byte, for every template; with
+/// `sort_keys`, `separators`, `indent` or `ensure_ascii` (Inkling 2 declares its tools with
+/// `sort_keys=true, separators=(",", ":")`) it writes what Python writes.
+fn python_tojson(
+    value: minijinja::Value,
+    options: minijinja::value::Kwargs,
+) -> std::result::Result<String, Error> {
+    if options.args().next().is_none() {
+        return serde_json::to_string(&value).map_err(json_error);
+    }
+    let sort_keys = options.get::<Option<bool>>("sort_keys")?.unwrap_or(false);
+    let ensure_ascii = options
+        .get::<Option<bool>>("ensure_ascii")?
+        .unwrap_or(false);
+    let indent = options.get::<Option<usize>>("indent")?;
+    let separators = options.get::<Option<minijinja::Value>>("separators")?;
+    options.assert_all_used()?;
+    let (item, key) = match separators.filter(|pair| !pair.is_none()) {
+        Some(pair) => {
+            let parts = pair
+                .try_iter()?
+                .map(|part| part.as_str().map(str::to_owned))
+                .collect::<Option<Vec<_>>>();
+            match parts.as_deref() {
+                Some([item, key]) => (item.clone(), key.clone()),
+                _ => return Err(json_error("tojson separators must be two strings")),
+            }
+        }
+        None => (
+            if indent.is_some() { "," } else { ", " }.to_owned(),
+            ": ".to_owned(),
+        ),
+    };
+    let mut out = Vec::new();
+    let formatter = PythonJson {
+        item: &item,
+        key: &key,
+        indent,
+        level: 0,
+        has_value: false,
+        ensure_ascii,
+    };
+    let mut serializer = serde_json::Serializer::with_formatter(&mut out, formatter);
+    if sort_keys {
+        // serde_json maps are ordered by key (UTF-8 bytes: code point order, as Python sorts).
+        serde_json::to_value(&value)
+            .map_err(json_error)?
+            .serialize(&mut serializer)
+            .map_err(json_error)?;
+    } else {
+        value.serialize(&mut serializer).map_err(json_error)?;
+    }
+    String::from_utf8(out).map_err(json_error)
+}
+
+/// `json.dumps` layout: item and key separators, optional indentation, optional ASCII.
+struct PythonJson<'a> {
+    item: &'a str,
+    key: &'a str,
+    indent: Option<usize>,
+    level: usize,
+    has_value: bool,
+    ensure_ascii: bool,
+}
+
+impl PythonJson<'_> {
+    fn newline<W: ?Sized + std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        if let Some(width) = self.indent {
+            writer.write_all(b"\n")?;
+            writer.write_all(" ".repeat(width * self.level).as_bytes())?;
+        }
+        Ok(())
+    }
+}
+
+impl serde_json::ser::Formatter for PythonJson<'_> {
+    fn begin_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.level += 1;
+        self.has_value = false;
+        writer.write_all(b"[")
+    }
+
+    fn end_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.level -= 1;
+        if self.has_value {
+            self.newline(writer)?;
+        }
+        writer.write_all(b"]")
+    }
+
+    fn begin_array_value<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> std::io::Result<()> {
+        if !first {
+            writer.write_all(self.item.as_bytes())?;
+        }
+        self.newline(writer)
+    }
+
+    fn end_array_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
+        self.has_value = true;
+        Ok(())
+    }
+
+    fn begin_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.level += 1;
+        self.has_value = false;
+        writer.write_all(b"{")
+    }
+
+    fn end_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.level -= 1;
+        if self.has_value {
+            self.newline(writer)?;
+        }
+        writer.write_all(b"}")
+    }
+
+    fn begin_object_key<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> std::io::Result<()> {
+        if !first {
+            writer.write_all(self.item.as_bytes())?;
+        }
+        self.newline(writer)
+    }
+
+    fn begin_object_value<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        writer.write_all(self.key.as_bytes())
+    }
+
+    fn end_object_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
+        self.has_value = true;
+        Ok(())
+    }
+
+    fn write_string_fragment<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> std::io::Result<()> {
+        if !self.ensure_ascii {
+            return writer.write_all(fragment.as_bytes());
+        }
+        for character in fragment.chars() {
+            if character.is_ascii() {
+                writer.write_all(&[character as u8])?;
+            } else {
+                for unit in character.encode_utf16(&mut [0; 2]) {
+                    write!(writer, "\\u{unit:04x}")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    /// `tojson` against Python's `json.dumps` (outputs computed with Python 3, embedded).
+    #[test]
+    fn tojson_options_match_python_json_dumps() {
+        let mut environment = Environment::new();
+        environment.add_filter("tojson", python_tojson);
+        let value = r#"{"name": "sandbox.javascript", "description": "Run JS é \"q\" \u2028", "parameters": {"type": "object", "properties": {"code": {"type": "string"}}, "required": ["code"]}, "n": [1, 2.5, true, none, []], "e": {}}"#;
+        let render = |filter: &str| {
+            let source = format!("{{{{ {value} | {filter} }}}}");
+            environment.render_str(&source, context! {}).unwrap()
+        };
+        let python = [
+            (
+                "tojson(sort_keys=true, separators=(\",\", \":\"))",
+                "{\"description\":\"Run JS é \\\"q\\\" \u{2028}\",\"e\":{},\"n\":[1,2.5,true,null,[]],\"name\":\"sandbox.javascript\",\"parameters\":{\"properties\":{\"code\":{\"type\":\"string\"}},\"required\":[\"code\"],\"type\":\"object\"}}",
+            ),
+            // minijinja (no `preserve_order`) iterates maps by key, so an unsorted dump equals
+            // Python's sorted one; what these cases check is the layout.
+            (
+                "tojson(separators=(\",\", \":\"))",
+                "{\"description\":\"Run JS é \\\"q\\\" \u{2028}\",\"e\":{},\"n\":[1,2.5,true,null,[]],\"name\":\"sandbox.javascript\",\"parameters\":{\"properties\":{\"code\":{\"type\":\"string\"}},\"required\":[\"code\"],\"type\":\"object\"}}",
+            ),
+            (
+                "tojson(sort_keys=true)",
+                "{\"description\": \"Run JS é \\\"q\\\" \u{2028}\", \"e\": {}, \"n\": [1, 2.5, true, null, []], \"name\": \"sandbox.javascript\", \"parameters\": {\"properties\": {\"code\": {\"type\": \"string\"}}, \"required\": [\"code\"], \"type\": \"object\"}}",
+            ),
+            (
+                "tojson(indent=2)",
+                "{\n  \"description\": \"Run JS é \\\"q\\\" \u{2028}\",\n  \"e\": {},\n  \"n\": [\n    1,\n    2.5,\n    true,\n    null,\n    []\n  ],\n  \"name\": \"sandbox.javascript\",\n  \"parameters\": {\n    \"properties\": {\n      \"code\": {\n        \"type\": \"string\"\n      }\n    },\n    \"required\": [\n      \"code\"\n    ],\n    \"type\": \"object\"\n  }\n}",
+            ),
+            (
+                "tojson(ensure_ascii=true, sort_keys=true, separators=(\",\", \":\"))",
+                "{\"description\":\"Run JS \\u00e9 \\\"q\\\" \\u2028\",\"e\":{},\"n\":[1,2.5,true,null,[]],\"name\":\"sandbox.javascript\",\"parameters\":{\"properties\":{\"code\":{\"type\":\"string\"}},\"required\":[\"code\"],\"type\":\"object\"}}",
+            ),
+        ];
+        for (filter, expected) in python {
+            assert_eq!(render(filter), expected, "{filter}");
+        }
+        // Without options: the engine's compact output, exactly what it wrote before.
+        let mut legacy = Environment::new();
+        legacy.add_filter("tojson", |value: minijinja::Value| {
+            serde_json::to_string(&value).map_err(json_error)
+        });
+        let source = format!("{{{{ {value} | tojson }}}}");
+        assert_eq!(
+            render("tojson"),
+            legacy.render_str(&source, context! {}).unwrap()
+        );
+        let scalar = environment
+            .render_str(
+                "{{ \"sandbox.javascript\" | tojson(sort_keys=true, separators=(\",\", \":\")) }}",
+                context! {},
+            )
+            .unwrap();
+        assert_eq!(scalar, "\"sandbox.javascript\"");
+        for invalid in [
+            "tojson(separators=(\",\",))",
+            "tojson(separators=7)",
+            "tojson(colour=1)",
+        ] {
+            let source = format!("{{{{ 1 | {invalid} }}}}");
+            assert!(
+                environment.render_str(&source, context! {}).is_err(),
+                "{invalid}"
+            );
+        }
+    }
+
+    /// The tool loop's prompt against transformers' `apply_chat_template(..., tools=...)`:
+    /// tool declarations, a call with parsed arguments and its result, byte for byte.
+    #[test]
+    #[ignore = "requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download"]
+    fn local_transformers_tool_prompt_matches() -> Result<()> {
+        let model = std::env::var("MLXL3_TOKENIZER_MODEL").context("set MLXL3_TOKENIZER_MODEL")?;
+        let tokenizer = ChatTokenizer::load(Path::new(&model))?;
+        let tools = json!([{"type":"function","function":{
+            "name":"sandbox.javascript","description":"Run JavaScript é \"q\"",
+            "parameters":{"type":"object","properties":{"code":{"type":"string","maxLength":32768}},
+                "required":["code"],"additionalProperties":false}}}]);
+        let messages = json!([
+            {"role":"system","content":"You are a local coding agent."},
+            {"role":"user","content":"List the files 🦀."},
+            {"role":"assistant","content":"Je liste.","tool_calls":[{"type":"function","function":{
+                "name":"sandbox.javascript","arguments":{"code":"return list()"}}}]},
+            {"role":"tool","name":"sandbox.javascript","content":"Result:\n[\"a.txt\"]"}
+        ]);
+        let output = std::process::Command::new(std::env::var("MLXL3_TEST_PYTHON").unwrap_or("python3".into()))
+            .env("HF_HUB_OFFLINE", "1").env("TRANSFORMERS_OFFLINE", "1")
+            .arg("-c").arg(r#"
+import json, sys
+from transformers import AutoTokenizer
+t = AutoTokenizer.from_pretrained(sys.argv[1], local_files_only=True, trust_remote_code=False)
+print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads(sys.argv[3]), tokenize=False, add_generation_prompt=True)))
+"#).arg(&model).arg(messages.to_string()).arg(tools.to_string()).output()?;
+        ensure!(
+            output.status.success(),
+            "transformers failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let reference: String = serde_json::from_slice(&output.stdout)?;
+        let tools = tools.as_array().context("tools")?.clone();
+        assert_eq!(tokenizer.render_values(&messages, Some(&tools))?, reference);
+        Ok(())
+    }
+
+    /// The real Inkling 2 template with the engine's tool loop messages: tools declared, the
+    /// call rendered in its native format from parsed arguments, the result under its name.
+    #[test]
+    #[ignore = "requires MLXL3_INKLING_MODEL (an Inkling 2 checkpoint folder); no GPU"]
+    fn inkling_template_renders_the_tool_loop() -> Result<()> {
+        let path = std::env::var("MLXL3_INKLING_MODEL").context("MLXL3_INKLING_MODEL")?;
+        let tokenizer = ChatTokenizer::load(Path::new(&path))?;
+        let tools = [serde_json::json!({"type":"function","function":{
+            "name":"sandbox.javascript","description":"Run JavaScript",
+            "parameters":{"type":"object","properties":{"code":{"type":"string"}},"required":["code"]}}})];
+        let messages = serde_json::json!([
+            {"role":"system","content":"You are a local coding agent."},
+            {"role":"user","content":"List the files."},
+            {"role":"assistant","content":"Je liste.","tool_calls":[{"type":"function","function":{
+                "name":"sandbox.javascript","arguments":{"code":"return list()"}}}]},
+            {"role":"tool","name":"sandbox.javascript","content":"Result:\n[\"a.txt\"]"}
+        ]);
+        let rendered = tokenizer.render_values(&messages, Some(&tools))?;
+        assert!(rendered.contains("<|message_system|>tool_declare<|content_xml|>[{\"description\":\"Run JavaScript\",\"name\":\"sandbox.javascript\""), "{rendered}");
+        assert!(rendered.contains("<|message_model|><|content_text|>Je liste.<|end_message|><|message_model|>sandbox.javascript<|content_invoke_tool_json|>{\"name\":\"sandbox.javascript\",\"args\":{\"code\":\"return list()\"}}<|end_message|><|content_model_end_sampling|>"), "{rendered}");
+        assert!(rendered.contains("<|message_tool|>sandbox.javascript<|content_text|>Result:\n[\"a.txt\"]<|end_message|>"), "{rendered}");
+        // What the model writes back is what the parser reads.
+        let call = r#"sandbox.javascript<|content_invoke_tool_json|>{"name":"sandbox.javascript","args":{"code":"return list()"}}"#;
+        let parsed = crate::tool_call::parse_answer(call)?;
+        assert_eq!(parsed[0].name, "sandbox.javascript");
+        assert_eq!(
+            parsed[0].arguments,
+            serde_json::json!({"code":"return list()"})
+        );
+        Ok(())
+    }
+
     use super::*;
     use serde_json::json;
 

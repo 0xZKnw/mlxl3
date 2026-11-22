@@ -199,6 +199,11 @@ struct BridgeEvent: Decodable {
     var imagesSupported: Bool? = nil
     /// Engines that pass a request's `reasoning_effort` to the chat template.
     var reasoningEffortSupported: Bool? = nil
+    /// Engines that accept `tool_rounds` and a per-server MCP `callTimeoutSeconds`.
+    var toolRoundsSupported: Bool? = nil
+    var mcpCallTimeoutSupported: Bool? = nil
+    /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
+    var arguments: ToolArguments? = nil
     var bridgeProtocol: Int? = nil
     var memorySaverSupported: Bool? = nil
     var mcpToolCatalog: [MCPToolDescriptor]? = nil
@@ -261,6 +266,9 @@ struct BridgeEvent: Decodable {
         case workspaceFeatures = "workspace_features"
         case imagesSupported = "images_supported"
         case reasoningEffortSupported = "reasoning_effort_supported"
+        case toolRoundsSupported = "tool_rounds_supported"
+        case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
+        case arguments
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"
     }
@@ -279,6 +287,54 @@ struct ToolActivity: Codable, Hashable, Identifiable, Sendable {
     let toolName: String
     var state: State
     var result: String?
+    /// What the tool was given, as display text (absent in conversations saved before).
+    var arguments: String? = nil
+}
+
+/// `tool_start` arguments as display text: the `code` of a JavaScript call as written,
+/// any other value as compact JSON with sorted keys.
+struct ToolArguments: Decodable, Sendable {
+    let text: String
+
+    private indirect enum Node: Decodable {
+        case null, bool(Bool), number(Double), string(String), array([Node]), object([String: Node])
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() { self = .null }
+            else if let value = try? container.decode(Bool.self) { self = .bool(value) }
+            else if let value = try? container.decode(Double.self) { self = .number(value) }
+            else if let value = try? container.decode(String.self) { self = .string(value) }
+            else if let value = try? container.decode([Node].self) { self = .array(value) }
+            else { self = .object(try container.decode([String: Node].self)) }
+        }
+
+        var json: Any {
+            switch self {
+            case .null: NSNull()
+            case let .bool(value): value
+            case let .number(value): value
+            case let .string(value): value
+            case let .array(values): values.map(\.json)
+            case let .object(values): values.mapValues(\.json)
+            }
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let node = try Node(from: decoder)
+        switch node {
+        case let .string(value):
+            text = value
+        case let .object(values) where values.count == 1:
+            if case let .string(code)? = values["code"] { text = code; return }
+            fallthrough
+        default:
+            let data = try? JSONSerialization.data(
+                withJSONObject: node.json, options: [.sortedKeys, .fragmentsAllowed, .withoutEscapingSlashes])
+            text = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
+        }
+    }
 }
 
 struct PromptMessage: Codable, Hashable {
@@ -337,6 +393,8 @@ struct GenerationRequest: Encodable {
     var responseSchema: String? = nil
     /// Omitted (nil) keeps the chat template's default level; older engines ignore it.
     var reasoningEffort: String? = nil
+    /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
+    var toolRounds: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -359,6 +417,7 @@ struct GenerationRequest: Encodable {
         case allowedTools = "allowed_tools"
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
+        case toolRounds = "tool_rounds"
     }
 }
 
@@ -455,7 +514,7 @@ final class ChatMessage: ObservableObject, Identifiable {
         streamRevision &+= 1
     }
 
-    func startTool(id: String, serverName: String?, toolName: String) {
+    func startTool(id: String, serverName: String?, toolName: String, arguments: String? = nil) {
         objectWillChange.send()
         endProcessing()
         parts.append(AssistantPart(kind: .tool, toolID: id))
@@ -465,7 +524,8 @@ final class ChatMessage: ObservableObject, Identifiable {
                 serverName: serverName,
                 toolName: toolName,
                 state: .running,
-                result: nil
+                result: nil,
+                arguments: arguments
             )
         )
         streamRevision &+= 1
