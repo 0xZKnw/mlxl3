@@ -30536,3 +30536,21 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - **Moteur** : `engine-v2.0.22` publié (https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.22), tag sur `ca96f92f5`, `latest=false`. Les 3 fichiers (`mlxl3`, archive, `.sha256`) ont été retéléchargés et contrôlés ; la release « latest » est restée v2.0.12 jusqu'à la Desktop. `main` avancé `c9ebc069b → 114f4a0da`. Discord `success`. Windows : exécuté, rien joint (tag moteur). CI `114f4a0da` : Apple, EXL3, Native Rust, Flash `success` ; Regression `cancelled` (job `desktop-and-protocol` interrompu par le push suivant sur `main`, refait vert sur `cf88c3b3e`).
   - **Desktop** : `v2.0.13` publié (https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.13), tag sur `57699d7e5`, latest. DMG retéléchargé, `.sha256` OK. `main` avancé `114f4a0da → cf88c3b3e`. Discord `success`. Windows `success`, installeur joint (`MLXL3-Desktop-v2.0.13-Windows-x64-setup.exe`, 25 898 553 o, et son `.sha256`). CI `cf88c3b3e` : Apple, EXL3, Regression, Flash, Native Rust **tous `success`**.
   - Non vérifié : le bouton DSpark n'a pas été utilisé à la main dans l'app installée, et le téléchargement complet de la révision slim par l'app n'a pas été refait.
+- Révision 2026-11-22 — **reprise de B préenregistrée** (« Oui, relance-la ») : même protocole et même critère ; binaire de test du moteur 2.0.22 publié (`2f1424b0…`), garde contre les processus de l'autre session.
+- Révision 2026-11-22 — **B (embeddings 8 bits) MESURÉ : critère « même KL » REMPLI** (01:34–01:41, secteur 100 %, binaire `2f1424b0…`, un seul modèle GPU à la fois, créneau entre deux étapes de l'autre session, sans mesure de vitesse ; logs `slim/q-b/`, analyse `slim/analyze_b.py` → `q-b/analysis.json`, runs `localref/runs/SLIM-B0.json`, `SLIM-B1-embed8.json`).
+  - **B0 (contrôle)** : R3 FULL avec le binaire 2.0.22 redonne `runs/R3.json` **au bit près** (12 lignes, 6 144 valeurs).
+  - **B1 contre B0**, Δ apparié et IC 95 % bootstrap :
+
+    | | Positions | B0 | B1 | Δ [IC 95 %] |
+    |---|---|---|---|---|
+    | **Prose** | 4 608 | 0,013738 | 0,013925 | **+0,00019 [−0,00023 ; +0,00063]** (+1,4 %) |
+    | en | 1 536 | | | −0,00012 [−0,00050 ; +0,00020] |
+    | fr | 1 536 | | | +0,00049 [−0,00023 ; +0,00126] |
+    | code | 1 536 | | | +0,00019 [−0,00077 ; +0,00114] |
+    | Chat | 1 536 | 0,0996 | 0,1014 | +0,0018 [−0,0154 ; +0,0187] |
+    | Chat écrit par le modèle | 411 | 0,0182 | 0,0201 | +0,0020 [−0,0081 ; +0,0137] |
+    | Tout | 6 144 | 0,03520 | 0,03579 | +0,0006 [−0,0038 ; +0,0050] |
+
+    Top-1 : prose 95,07 → 95,31 %, global 94,68 → 94,76 %.
+  - Critère fixé avant mesure (Δ prose ≤ +0,0007 et borne haute ≤ +0,0014) : **rempli**. Le coût des embeddings 8 bits n'est pas mesurable avec ce jeu ; aucune différence significative, quel que soit le domaine.
+  - Gain de taille attendu si on les stocke : 926 318 592 → 492 106 752 octets (**−434 Mo**). Le stockage demanderait un chemin moteur « lignes 8 bits puis déquantification » (équivalent exact de l'option mesurée), un moteur, une révision HF et un épinglage Desktop. **Non fait** : décision utilisateur requise (préenregistrement).
