@@ -30575,3 +30575,28 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - Desktop 2.0.14 épinglé sur la nouvelle révision, avec le moteur 2.0.23 intégré.
 - Taille attendue : 13 535 683 700 − 434 211 840 ≈ **13,10 Go** de poids.
 - Kani non tenté (préférence utilisateur).
+- Révision 2026-11-22 — **contrôles passés, publié**. Les étapes :
+  - **Code** (commit `8c792b139`, moteur 2.0.23) : `Embeddings {Dense, Affine}` ; `rows` = `take` des 3 tableaux puis `dequantize_affine`, utilisée par `embed_tokens` et `run` ; refus d'une autre largeur. Test `stored_embeddings_equal_the_rounded_table` passé ; mutation (refus de largeur désactivé) détectée par « other width accepted », puis restaurée. Inventaire MLX régénéré.
+  - **Export** : `export_slim_embeddings`, binaire `cc3cd6f1…`, 0,43 s, `embed.safetensors` 492 107 048 o.
+  - **Repack** : `slim/make_embed8.py`, pytest 5 passés + 8 de `make_slim`, une mutation (index) détectée. `models/Inkling-2-Mini-EXL3-R3-slim2/` : poids **13 101 471 236 o** (slim 13 535 683 700, R3 14 751 503 376) ; shard 1 2 787 052 300 o `b1ca6d03…`, 2 226 tenseurs recopiés octet pour octet ; shards 2–4 et `mtp.safetensors` identiques.
+  - **Porte GPU** (`slim/rel23/`, `analyze23.py` → `analysis.json`), tout est vrai :
+    - empreintes denses 6 / 6 inchangées ;
+    - slim sans option `ec84d901be285027` inchangée ;
+    - **slim2 = slim + `EMBED_BITS=8` = R3 + `EMBED_BITS=8` : `d582053e10aac428`** ;
+    - drafter identique par `cmp`, DSpark identique hors temps, KL 2 lignes identique au bit (R3 + EMBED8 contre slim2) ;
+    - refus `EMBED_BITS=16` ; 2.0.22 refuse slim2 ;
+    - smoke OK ; bridge glouton et `dspark: false` `passed`.
+  - **Bridge T=1 `failed` sur le 2ᵉ tour** (« empty follow-up answer », budget de 120 tokens épuisé par la réflexion échantillonnée). Audit (`rel23/audit-*`) :
+    - le même échec se produit sur **slim (embeddings BF16)** avec le même moteur ;
+    - SL + `EMBED_BITS=8` passe sur un autre tirage ;
+    - slim2 avec un budget de 600 tokens : réponse correcte (« … Wellington. ») ;
+    - le tirage change d'un lancement à l'autre.
+
+    Conclusion : défaut de budget du harnais, déjà latent pour 2.0.21 et 2.0.22, sans lien avec les embeddings 8 bits. Signalé tel quel dans les notes.
+  - **CPU** : fmt ; Clippy des 3 variantes ; tests MLX **673 / 0 / 345**, CPU **600 / 0 / 10**, direct-metal **619 / 0 / 144** ; inventaire 341 ; pytest **2 842 / 0 / 121**.
+  - **HF** : révision **`dde31cd0aea4ca0f61eaa5649559ef01e5baf25a`** (`hf/make_card_slim2.py`, `hf/upload-slim2.log`) ; 21 fichiers vérifiés (SHA-256 LFS, fiche/NOTICE/configs identiques octet pour octet).
+  - **Archive** `MLXL3-Engine-v2.0.23-arm64.tar.gz` : 69 058 312 o `6d3ad2f5…2075`, `.sha256` `a7cf8702…5190`, `mlxl3` `fc99c040…453f` ; 4 fichiers conformes, signatures, metallib, `runtime-info` 2.0.23 / `8c792b13921b`.
+
+### RELEASE-2026-11-22-ENGINE-2.0.23 — PUBLICATION EN COURS (demande utilisateur « Oui, fais-le »)
+
+- Source `8c792b139` (chargeur des embeddings stockés), notes `docs/releases/engine/release-engine-v2.0.23.md`. Contrôles : ceux de SIZE-2026-11-22-INK2M-EMBED8 ci-dessus.
