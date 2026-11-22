@@ -29,10 +29,14 @@ thread_local! {
     static DENSE_HESSIANS: std::cell::RefCell<Option<HessianMap>> = const { std::cell::RefCell::new(None) };
 }
 
+/// Routes of one MoE call: rows and the `[rows, top_k]` expert ids.
+#[cfg(test)]
+type MoeRoutes = Vec<(usize, Vec<u32>)>;
+
 #[cfg(test)]
 thread_local! {
     /// SPEED-2026-11-22-INK2M-P11 D3 (tests only): when set, every MoE call appends its routes `[rows, top_k]`.
-    static MOE_ROUTES: std::cell::RefCell<Option<Vec<(usize, Vec<u32>)>>> = const { std::cell::RefCell::new(None) };
+    static MOE_ROUTES: std::cell::RefCell<Option<MoeRoutes>> = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -856,6 +860,53 @@ struct VisitState {
     /// before the call, and the four `[K - 1 + T, C]` convolution windows.
     pending_kv: Option<(Array, Array, i32)>,
     pending_conv: [Option<Array>; 4],
+    /// In-place K/V storage (SPEED-INK2M-P12); `keys`/`values` are then views of it.
+    kv_buffer: Option<KvBuffer>,
+}
+
+/// `[1, Hkv, cap, D]` FP16 buffers: rows `[base, base + len)` hold the committed keys/values, row `zero` is
+/// known to be zero. An attended call reads the view `[base - 1, base + len + T)`: the zero sink row, the
+/// past and the chunk, the same rows in the same order as the concatenation.
+struct KvBuffer {
+    keys: Array,
+    values: Array,
+    base: i32,
+    len: i32,
+    zero: i32,
+}
+
+const KV_STEP: i32 = 256;
+
+/// Buffer rows for a call that needs `needed` rows (sink, past, chunk of `time` rows). Full visits grow by
+/// steps of 256; sliding visits keep room for a 256-row (or larger) chunk after a full window.
+fn kv_capacity(needed: i32, window: Option<i32>, time: i32) -> Option<i32> {
+    let rows = match window {
+        Some(window) => needed.max(window.checked_add(time.max(KV_STEP))?),
+        None => needed,
+    };
+    if needed < 1 || time < 1 || rows < needed {
+        return None;
+    }
+    rows.checked_add(KV_STEP - 1).map(|r| r / KV_STEP * KV_STEP)
+}
+
+#[cfg(test)]
+thread_local! {
+    static KV_INPLACE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+    /// Mutation for the parity test: skip the sink rewrite of sliding visits.
+    static KV_SKIP_SINK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// K/V stored in place (`MLXL3_INKLING_KV_INPLACE=0` keeps the concatenation); lean layout only.
+fn kv_inplace() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = KV_INPLACE_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled && lean();
+    }
+    static INPLACE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *INPLACE.get_or_init(|| {
+        lean() && std::env::var("MLXL3_INKLING_KV_INPLACE").map_or(true, |v| v != "0")
+    })
 }
 
 impl VisitState {
@@ -863,6 +914,33 @@ impl VisitState {
     /// `window - 1` real keys.
     fn commit(&mut self, rows: i32, calls: i32, window: Option<i32>, kernel: i32) -> Result<()> {
         let (keys, values, before) = self.pending_kv.take().context("no pending Inkling call")?;
+        if let Some(buffer) = &mut self.kv_buffer {
+            // in place: only the logical rows move; same kept rows as the trims below
+            drop((keys, values));
+            ensure!(
+                before == buffer.len + 1 && (1..=calls).contains(&rows),
+                "Inkling in-place cache and pending call disagree"
+            );
+            let total = buffer.len + rows;
+            match window {
+                Some(window) if total > window - 1 => {
+                    buffer.base += total - (window - 1);
+                    buffer.len = window - 1;
+                }
+                _ => buffer.len = total,
+            }
+            ensure!(buffer.len > 0, "Inkling cache would be empty");
+            let end = buffer.base + buffer.len;
+            self.keys = Some(buffer.keys.slice(2, buffer.base, end)?);
+            self.values = Some(buffer.values.slice(2, buffer.base, end)?);
+            for i in 0..4 {
+                let window = self.pending_conv[i]
+                    .take()
+                    .context("missing pending convolution")?;
+                self.conv[i] = Some(state_after(&window, kernel, rows)?);
+            }
+            return Ok(());
+        }
         let cut = |a: Array| -> Result<Array> {
             if rows == calls {
                 Ok(a)
@@ -937,6 +1015,8 @@ struct Attention {
     qk_clip: f32,
     rel_clip: f32,
     eps: f32,
+    /// `[1, Hkv, 1, D]` FP16 zeros: the sink row written into in-place buffers.
+    zero_row: Array,
 }
 
 impl Attention {
@@ -1055,6 +1135,11 @@ impl Attention {
             qk_clip: c.qk_l2_clip_threshold,
             rel_clip: c.rel_l2_clip_threshold,
             eps: c.rms_norm_eps,
+            zero_row: {
+                let zero = Array::zeros_dtype(&[1, kv_heads, 1, head_dim], Dtype::Float16)?;
+                zero.eval()?;
+                zero
+            },
         })
     }
 
@@ -1219,6 +1304,9 @@ impl Attention {
         v: &Array,
         start: i32,
     ) -> Result<(Array, Array)> {
+        if kv_inplace() {
+            return self.append_inplace(state, k, v, start);
+        }
         if lean() {
             // lean layout: the cache holds the real rows only; one concatenation builds [sink, past, chunk]
             let zero = Array::zeros_dtype(&[1, self.kv_heads, 1, self.head_dim], Dtype::Float16)?;
@@ -1257,6 +1345,82 @@ impl Attention {
         };
         let before = state.keys.as_ref().map_or(1, |k| k.shape()[2]);
         state.pending_kv = Some((keys.try_clone()?, values.try_clone()?, before));
+        Ok((keys, values))
+    }
+
+    /// `append` with the keys/values written into a per-visit buffer: returns views of it with the same rows
+    /// as the lean concatenation `[sink, past, chunk]`.
+    fn append_inplace(
+        &self,
+        state: &mut VisitState,
+        k: &Array,
+        v: &Array,
+        start: i32,
+    ) -> Result<(Array, Array)> {
+        let time = k.shape()[2];
+        ensure!(
+            time >= 1 && v.shape()[2] == time,
+            "Inkling cache chunk is empty"
+        );
+        // drop the views of the previous buffer so MLX can update it in place
+        state.keys = None;
+        state.values = None;
+        let previous = state.kv_buffer.take();
+        if previous.is_none() {
+            ensure!(start == 0, "Inkling cache must start at position zero");
+        }
+        let (base, len) = previous.as_ref().map_or((1, 0), |b| (b.base, b.len));
+        let end = base
+            .checked_add(len)
+            .and_then(|e| e.checked_add(time))
+            .context("Inkling cache overflow")?;
+        let mut buffer = match previous {
+            Some(b) if b.keys.shape()[2] >= end => b,
+            previous => {
+                // new buffer: zero sink row at 0, the committed rows copied once to [1, 1 + len)
+                let needed = len
+                    .checked_add(time)
+                    .and_then(|n| n.checked_add(1))
+                    .context("Inkling cache overflow")?;
+                let capacity =
+                    kv_capacity(needed, self.window, time).context("Inkling cache overflow")?;
+                let shape = [1, self.kv_heads, capacity, self.head_dim];
+                let mut keys = Array::zeros_dtype(&shape, Dtype::Float16)?;
+                let mut values = Array::zeros_dtype(&shape, Dtype::Float16)?;
+                if let Some(old) = previous.filter(|old| old.len > 0) {
+                    let to = old.base + old.len;
+                    keys = keys.slice_update(&old.keys.slice(2, old.base, to)?, &[0, 0, 1, 0])?;
+                    values =
+                        values.slice_update(&old.values.slice(2, old.base, to)?, &[0, 0, 1, 0])?;
+                }
+                KvBuffer {
+                    keys,
+                    values,
+                    base: 1,
+                    len,
+                    zero: 0,
+                }
+            }
+        };
+        #[cfg(test)]
+        let skip_sink = KV_SKIP_SINK.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let skip_sink = false;
+        if buffer.zero != buffer.base - 1 && !skip_sink {
+            // the row just before the window left it: it becomes the sink row
+            let at = [0, 0, buffer.base - 1, 0];
+            buffer.keys = buffer.keys.slice_update(&self.zero_row, &at)?;
+            buffer.values = buffer.values.slice_update(&self.zero_row, &at)?;
+            buffer.zero = buffer.base - 1;
+        }
+        let at = [0, 0, buffer.base + buffer.len, 0];
+        buffer.keys = buffer.keys.slice_update(k, &at)?;
+        buffer.values = buffer.values.slice_update(v, &at)?;
+        let end = buffer.base + buffer.len + time;
+        let keys = buffer.keys.slice(2, buffer.base - 1, end)?;
+        let values = buffer.values.slice(2, buffer.base - 1, end)?;
+        state.pending_kv = Some((keys.try_clone()?, values.try_clone()?, buffer.len + 1));
+        state.kv_buffer = Some(buffer);
         Ok((keys, values))
     }
 }
@@ -1973,6 +2137,9 @@ impl Inkling2 {
 
     fn commit_rows(&mut self, rows: i32, calls: i32) -> Result<()> {
         for (visit, state) in self.states.iter_mut().enumerate() {
+            if ablated("loop") && state.pending_kv.is_none() {
+                continue;
+            }
             let window = self.layers[self.visits[visit]].attention.window;
             state.commit(rows, calls, window, self.kernel)?;
         }
@@ -2066,7 +2233,9 @@ impl Inkling2 {
             .iter()
             .map(Array::try_clone)
             .collect::<Result<Vec<_>>>()?;
-        for pass in 0..self.passes {
+        // timing-only ablation: one pass of the loop (meaningless outputs)
+        let passes = if ablated("loop") { 1 } else { self.passes };
+        for pass in 0..passes {
             let bank = if pass == 0 {
                 None
             } else {
@@ -2121,7 +2290,10 @@ impl Inkling2 {
             hidden = run_layer(layer, &hidden, &mut blocks, None, visit)?;
             visit += 1;
         }
-        ensure!(visit == self.visits.len(), "Inkling visit count mismatch");
+        ensure!(
+            visit == self.visits.len() || ablated("loop"),
+            "Inkling visit count mismatch"
+        );
         let partial = hidden.rms_norm_without_weight(self.eps)?;
         let mut sources: Vec<&Array> = blocks.iter().collect();
         sources.push(&partial);
@@ -2589,6 +2761,218 @@ mod tests {
         Ok(())
     }
 
+    /// Real tokens of `MLXL3_INKLING_ROWS` (`rows.json` of the local reference) end to end.
+    fn text_tokens() -> Result<Vec<u32>> {
+        let path = std::env::var("MLXL3_INKLING_ROWS")?;
+        let rows: serde_json::Value = serde_json::from_reader(File::open(path)?)?;
+        let mut tokens = Vec::new();
+        for row in rows["rows"].as_array().context("rows")? {
+            let row: Vec<u32> = serde_json::from_value(row["tokens"].clone())?;
+            tokens.extend(row);
+        }
+        ensure!(!tokens.is_empty(), "no tokens in MLXL3_INKLING_ROWS");
+        Ok(tokens)
+    }
+
+    #[test]
+    fn kv_capacity_rounds_and_keeps_room() {
+        // full visits: the needed rows rounded up to 256
+        assert_eq!(kv_capacity(1, None, 1), Some(256));
+        assert_eq!(kv_capacity(256, None, 1), Some(256));
+        assert_eq!(kv_capacity(257, None, 1), Some(512));
+        assert_eq!(kv_capacity(1 + 1200 + 128, None, 128), Some(1536));
+        // sliding visits: a full window plus a 256-row chunk, or the chunk itself when larger
+        assert_eq!(kv_capacity(2, Some(1024), 1), Some(1280));
+        assert_eq!(kv_capacity(1 + 1023 + 128, Some(1024), 128), Some(1280));
+        assert_eq!(kv_capacity(1 + 1023 + 1200, Some(1024), 1200), Some(2304));
+        assert_eq!(kv_capacity(1 + 63 + 1, Some(64), 1), Some(512));
+        for needed in 1..3000 {
+            for (window, time) in [(None, 1), (None, 128), (Some(64), 1), (Some(1024), 4)] {
+                let cap = kv_capacity(needed, window, time).unwrap();
+                let floor = window.map_or(needed, |w| needed.max(w + time.max(256)));
+                assert!(cap >= floor && cap % 256 == 0 && cap < floor + 256);
+            }
+        }
+        // invalid or overflowing requests are refused
+        assert_eq!(kv_capacity(0, None, 1), None);
+        assert_eq!(kv_capacity(1, None, 0), None);
+        assert_eq!(kv_capacity(i32::MAX, None, 1), None);
+        assert_eq!(kv_capacity(2, Some(i32::MAX), 1), None);
+    }
+
+    /// Decode cost against the context (SPEED-INK2M-P12 D2): prefill of real tokens by 128-row chunks up
+    /// to each level of `MLXL3_INKLING_CONTEXTS`, then `MLXL3_INKLING_STEPS` greedy steps there. FNV-1a of
+    /// every logit row read (prefill chunks and steps) for bitwise A/B checks.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn decode_context_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let contexts: Vec<usize> = std::env::var("MLXL3_INKLING_CONTEXTS")
+            .unwrap_or_else(|_| "256,1024,2048,4096,8192".into())
+            .split(',')
+            .map(str::parse)
+            .collect::<Result<_, _>>()?;
+        let steps: usize = std::env::var("MLXL3_INKLING_STEPS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(32);
+        ensure!(
+            !contexts.is_empty() && contexts.windows(2).all(|w| w[0] < w[1]) && steps > 0,
+            "contexts must increase and steps must be positive"
+        );
+        let text = text_tokens()?;
+        ensure!(
+            text.len() >= contexts[contexts.len() - 1],
+            "not enough tokens for the last context"
+        );
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let argmax_of = |v: &[f32]| {
+            v.iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map_or(0, |(i, _)| i as u32)
+        };
+        // warm-up of the chunk and step shapes
+        model.forward_tokens(&text[..128])?;
+        for i in 0..8 {
+            model.forward(text[128 + i])?;
+        }
+        model.reset();
+        crate::array::memory_stats(true)?;
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        let mut fed = 0usize;
+        let mut points = Vec::new();
+        for &context in &contexts {
+            let t = Instant::now();
+            let mut last = None;
+            while (model.offset() as usize) < context {
+                let n = (context - model.offset() as usize).min(128);
+                let logits = model.forward_tokens(&text[fed..fed + n])?.to_f32()?;
+                fed += n;
+                ensure!(
+                    logits.len() == model.unpadded_vocab() as usize
+                        && logits.iter().all(|x| x.is_finite()),
+                    "invalid prefill logits"
+                );
+                for x in &logits {
+                    fnv(&mut hash, &x.to_le_bytes());
+                }
+                last = Some(logits);
+            }
+            let prefill = t.elapsed().as_secs_f64() * 1e3;
+            let mut next = argmax_of(&last.context("no prefill chunk for this context")?);
+            model.take_profile();
+            let (mut total, mut build, mut eval) = (Vec::new(), Vec::new(), Vec::new());
+            for _ in 0..steps {
+                let t = Instant::now();
+                let logits = model.forward(next)?;
+                total.push(t.elapsed().as_secs_f64() * 1e3);
+                let p = model.take_profile();
+                build.push(p.build.as_secs_f64() * 1e3);
+                eval.push(p.eval.as_secs_f64() * 1e3);
+                let values = logits.to_f32()?;
+                ensure!(
+                    values.iter().all(|x| x.is_finite()),
+                    "invalid decode logits"
+                );
+                for x in &values {
+                    fnv(&mut hash, &x.to_le_bytes());
+                }
+                next = argmax_of(&values);
+                fnv(&mut hash, &next.to_le_bytes());
+            }
+            let (t25, t50, t75) = quantiles(total);
+            let (_, b50, _) = quantiles(build);
+            let (_, e50, _) = quantiles(eval);
+            let memory = crate::array::memory_stats(false)?;
+            points.push(serde_json::json!({"context": context, "prefill_ms": prefill, "steps": steps,
+                "decode_ms_p25": t25, "decode_ms_median": t50, "decode_ms_p75": t75,
+                "build_ms_median": b50, "eval_ms_median": e50, "fingerprint": format!("{hash:016x}"),
+                "mlx_peak_bytes": memory.mlx_peak_bytes, "mlx_active_bytes": memory.mlx_active_bytes,
+                "kv_inplace": kv_inplace()}));
+        }
+        println!("{}", serde_json::to_string_pretty(&points)?);
+        Ok(())
+    }
+
+    /// K/V in place against the concatenation (SPEED-INK2M-P12 K1), same process and model: chunked
+    /// prefill past the sliding window and buffer compactions, teacher-forced steps, verify calls with
+    /// partial commits. Logits and features must be equal to the bit; skipping the sink rewrite must not.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn kv_inplace_keeps_the_bits() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let prefix: usize = std::env::var("MLXL3_INKLING_PREFIX")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(1500);
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_tokens()?.into_iter().map(|t| t % vocab).collect();
+        ensure!(text.len() >= prefix + 64, "not enough tokens");
+        let taps = vec![1, model.visit_count()];
+        let script = |model: &mut Inkling2, inplace: bool, skip_sink: bool| -> Result<Vec<f32>> {
+            KV_INPLACE_OVERRIDE.with(|f| f.set(Some(inplace)));
+            KV_SKIP_SINK.with(|f| f.set(skip_sink));
+            model.reset();
+            let mut out = Vec::new();
+            let mut fed = 0usize;
+            while fed < prefix {
+                let n = (prefix - fed).min(128);
+                out.extend(model.forward_tokens(&text[fed..fed + n])?.to_f32()?);
+                fed += n;
+            }
+            for _ in 0..6 {
+                out.extend(model.forward(text[fed])?.to_f32()?);
+                fed += 1;
+            }
+            for (rows, keep) in [(2, 1), (3, 3), (4, 2), (4, 4), (3, 1), (2, 2), (4, 1)] {
+                let (logits, features) = model.verify(&text[fed..fed + rows], &taps)?;
+                out.extend(logits.to_f32()?);
+                out.extend(features.astype(Dtype::Float32)?.to_f32()?);
+                model.commit(keep)?;
+                fed += keep;
+                for _ in 0..2 {
+                    out.extend(model.forward(text[fed])?.to_f32()?);
+                    fed += 1;
+                }
+            }
+            KV_INPLACE_OVERRIDE.with(|f| f.set(None));
+            KV_SKIP_SINK.with(|f| f.set(false));
+            Ok(out)
+        };
+        let concatenated = script(&mut model, false, false)?;
+        let inplace = script(&mut model, true, false)?;
+        let mutated = script(&mut model, true, true)?;
+        ensure!(
+            !concatenated.is_empty() && concatenated.iter().all(|x| x.is_finite()),
+            "empty or non-finite reference"
+        );
+        ensure!(
+            inplace.len() == concatenated.len() && mutated.len() == concatenated.len(),
+            "value counts differ"
+        );
+        let differ = |a: &[f32], b: &[f32]| {
+            a.iter()
+                .zip(b)
+                .filter(|(x, y)| x.to_bits() != y.to_bits())
+                .count()
+        };
+        let (same, mutation) = (
+            differ(&concatenated, &inplace),
+            differ(&concatenated, &mutated),
+        );
+        println!(
+            "values {} in-place differing {same} mutation differing {mutation}",
+            concatenated.len()
+        );
+        ensure!(same == 0, "in-place K/V changed {same} values");
+        ensure!(mutation > 0, "the sink mutation was not detected");
+        Ok(())
+    }
+
     /// Speculative commit mechanics on a model where batched and single-row numerics agree (tiny export with
     /// decisive routing): verify blocks with arbitrary proposals, commit partial prefixes, cross the sliding
     /// window, then compare the next-token logits with a teacher-forced AR pass over the committed tokens.
@@ -2692,7 +3076,9 @@ mod tests {
                     MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
                     let (logits, _) = model.verify(block, &taps)?;
                     logits.eval()?;
-                    let routes = MOE_ROUTES.with(|c| c.borrow_mut().take()).context("routes")?;
+                    let routes = MOE_ROUTES
+                        .with(|c| c.borrow_mut().take())
+                        .context("routes")?;
                     model.commit(t)?;
                     for (r, ids) in routes {
                         ensure!(r == t && ids.len() % t == 0, "unexpected MoE call shape");
