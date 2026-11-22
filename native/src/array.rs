@@ -157,6 +157,12 @@ unsafe extern "C" {
         seed: u64,
         out: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_gumbel_noise(
+        dims: *const i32,
+        rank: usize,
+        seed: u64,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_uninitialized(
         dims: *const i32,
         rank: usize,
@@ -1080,6 +1086,15 @@ impl Array {
         initialize()?;
         Self::output(|out| unsafe {
             mlxl3_array_random_uniform(shape.as_ptr(), shape.len(), seed, out)
+        })
+    }
+    /// Float32 standard Gumbel noise from 32 random bits per value, fully determined by `seed`: finite,
+    /// within [-2.82, 22.88] (SPEED-INK2M-P14).
+    pub fn gumbel_noise(shape: &[i32], seed: u64) -> Result<Self> {
+        bytes_for(shape, Dtype::Float32)?;
+        initialize()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_gumbel_noise(shape.as_ptr(), shape.len(), seed, out)
         })
     }
     pub fn zeros_dtype(shape: &[i32], dtype: Dtype) -> Result<Self> {

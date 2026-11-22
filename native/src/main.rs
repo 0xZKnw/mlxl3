@@ -2130,6 +2130,30 @@ fn draft_noise_seed(random: u64) -> u64 {
     z ^ (z >> 31)
 }
 
+/// SPEED-INK2M-P14: GPU token choice for Inkling decoding and whether it runs one step ahead, from the
+/// sampler and `MLXL3_INKLING_GPU_DRAW` / `MLXL3_INKLING_PIPELINE` ("0" turns either off; without the
+/// GPU draw nothing runs ahead). `None` keeps the CPU sampler.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_device_draw(
+    sampler: &mlxl3_native::sampling::Sampler,
+    draw: Option<&str>,
+    pipeline: Option<&str>,
+) -> Option<(mlxl3_native::inkling2::DrawRule, bool)> {
+    if draw == Some("0") {
+        return None;
+    }
+    mlxl3_native::inkling2::DrawRule::for_sampler(sampler).map(|rule| (rule, pipeline != Some("0")))
+}
+
+/// Seed of the GPU draws, derived from the request's random state apart from the draft noise and the
+/// CPU acceptance draws.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_draw_seeds(random: u64) -> mlxl3_native::inkling2::DrawSeeds {
+    mlxl3_native::inkling2::DrawSeeds::new(draft_noise_seed(
+        random.rotate_left(29) ^ 0x5851_f42d_4c95_7f2d,
+    ))
+}
+
 /// The loaded model is Inkling 2 with its DSpark drafter (`ready.dspark_supported`).
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_has_drafter(model: &NativeChatModel) -> bool {
@@ -4263,6 +4287,17 @@ fn bridge_generate_round(
             } else {
                 session
             };
+            // SPEED-INK2M-P14: width-0 blocks draw on the GPU, one step ahead
+            let session = match inkling_device_draw(
+                &sampler,
+                std::env::var("MLXL3_INKLING_GPU_DRAW").ok().as_deref(),
+                std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
+            ) {
+                Some((rule, pipelined)) => {
+                    session.with_device_draw(rule, inkling_draw_seeds(*random), pipelined)
+                }
+                None => session,
+            };
             // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps width 3
             Some(
                 if std::env::var("MLXL3_INKLING_DSPARK_ADAPTIVE").as_deref() != Ok("0") {
@@ -4423,6 +4458,28 @@ fn bridge_generate_round(
             cancelled,
         )?
     };
+    // SPEED-INK2M-P14: plain Inkling decoding chooses its tokens on the GPU, one step ahead
+    #[cfg(feature = "mlx")]
+    let mut inkling_decode = match (
+        &*model,
+        inkling_device_draw(
+            &sampler,
+            std::env::var("MLXL3_INKLING_GPU_DRAW").ok().as_deref(),
+            std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
+        ),
+    ) {
+        (NativeChatModel::Inkling(..), Some((rule, pipelined)))
+            if dspark.is_none() && tools.is_empty() && mtp.is_none() && draft.is_none() =>
+        {
+            Some(mlxl3_native::inkling2::DeviceDecode::start(
+                &logits,
+                rule,
+                inkling_draw_seeds(*random),
+                pipelined,
+            )?)
+        }
+        _ => None,
+    };
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     #[cfg(feature = "mlx")]
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
@@ -4455,7 +4512,14 @@ fn bridge_generate_round(
             token
         } else {
             #[cfg(feature = "mlx")]
-            let sampled = select_token(&logits, &history, &sampler, random)?;
+            let sampled = if let (Some(decode), NativeChatModel::Inkling(target, _)) =
+                (inkling_decode.as_mut(), &mut *model)
+            {
+                // the step consuming this token runs when one more token will be delivered
+                decode.next_token(target, generated.len() + 1 < budget)?
+            } else {
+                select_token(&logits, &history, &sampler, random)?
+            };
             #[cfg(not(feature = "mlx"))]
             let sampled = if device_greedy {
                 match device_greedy_next.take() {
@@ -4670,7 +4734,7 @@ fn bridge_generate_round(
                         );
                     }
                     dflash_next = Some(step.id);
-                } else {
+                } else if inkling_decode.is_none() {
                     logits = model.forward(next)?;
                 }
             }
@@ -6046,6 +6110,42 @@ mod tests {
         }
         assert!(inkling_width_policy(Some("fast"), 8, false, 3).is_err());
         assert!(inkling_width_policy(None, 8, false, 4).is_err());
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: the GPU draw follows the sampler, "0" turns the draw or the pipeline off, and
+    /// nothing runs ahead without the GPU draw.
+    #[test]
+    fn inkling_device_draw_follows_sampler_and_flags() -> Result<()> {
+        use mlxl3_native::{inkling2::DrawRule, sampling::Sampler};
+        let app = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        let greedy = Sampler::greedy();
+        assert_eq!(
+            inkling_device_draw(&app, None, None),
+            Some((DrawRule::Softmax(1.0), true))
+        );
+        assert_eq!(
+            inkling_device_draw(&greedy, Some("1"), Some("1")),
+            Some((DrawRule::Greedy, true))
+        );
+        assert_eq!(
+            inkling_device_draw(&app, None, Some("0")),
+            Some((DrawRule::Softmax(1.0), false))
+        );
+        assert_eq!(inkling_device_draw(&app, Some("0"), None), None);
+        assert_eq!(inkling_device_draw(&greedy, Some("0"), Some("1")), None);
+        for sampler in [
+            Sampler::new(1.0, 40, 1.0, 1.0, 0.0)?,
+            Sampler::new(1.0, 0, 0.9, 1.0, 0.0)?,
+            Sampler::new(0.7, 0, 1.0, 1.05, 0.0)?,
+            Sampler::new(0.7, 0, 1.0, 1.0, 0.3)?,
+        ] {
+            assert_eq!(
+                inkling_device_draw(&sampler, None, None),
+                None,
+                "{sampler:?}"
+            );
+        }
         Ok(())
     }
 

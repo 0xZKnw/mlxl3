@@ -597,6 +597,19 @@ int mlxl3_array_random_uniform(const int32_t* dims, size_t rank, uint64_t seed, 
     *out = new mx::array(mx::random::uniform(s, mx::float32, mx::random::key(seed)));
   });
 }
+// SPEED-INK2M-P14: Gumbel noise -log(-log1p(-V)) from 32 random bits, V = b * 2^-32 + 2^-33 kept below
+// one, so G is finite and reaches 22.87 (random::uniform stops at 1 - 2^-24, G <= 16.64).
+int mlxl3_array_gumbel_noise(const int32_t* dims, size_t rank, uint64_t seed, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null gumbel output");
+    auto s = shape(dims, rank);
+    byte_count(s, mx::float32);
+    auto bits = mx::random::bits(s, 4, mx::random::key(seed));
+    auto v = mx::add(mx::multiply(mx::astype(bits, mx::float32), mx::array(0x1p-32f)), mx::array(0x1p-33f));
+    v = mx::minimum(v, mx::array(std::nextafter(1.0f, 0.0f)));
+    *out = new mx::array(mx::negative(mx::log(mx::negative(mx::log1p(mx::negative(v))))));
+  });
+}
 int mlxl3_array_uninitialized(const int32_t* dims, size_t rank, int type, void** out) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null uninitialized array output");
