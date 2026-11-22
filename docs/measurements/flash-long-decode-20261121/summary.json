@@ -1,0 +1,1548 @@
+{
+  "hardware": "Apple M5, 24 GiB",
+  "mlx_version": "0.32.2",
+  "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+  "checkpoint_config_sha256": "d4a35225fc5236c8a2d64d01fd273f2f41192be5ff43e5c50ef1ef50e28ccda2",
+  "quantization_bpw": 2.05,
+  "expert_cache_gib": "3 except E and G at 5",
+  "prompt_sha256": "08f29b554ac450448993bd44724c2479c0a160d21aff6793c18b5b268e3132f5",
+  "prompt_tokens": 654,
+  "generation": "32 greedy tokens, 31 decode intervals; lowercase short warmups excluded from medians",
+  "cli": "run MODEL --prompt <heldout.txt contents> --max-tokens 32",
+  "environment": {
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "A": "MLXL3_FLASH_PREFILL_EXPERT4=0",
+    "B": "MLXL3_FLASH_PREFILL_EXPERT4=1",
+    "D": "MLXL3_FLASH_PREFILL_EXPERT4=1 and MLXL3_FLASH_PREFILL_SERIAL_TAIL=1",
+    "E": "serial as A with MLXL3_SSD_CACHE_GIB=5",
+    "F": "D with MLXL3_ALLOCATOR_CACHE_MIB=64",
+    "G": "D with MLXL3_SSD_CACHE_GIB=5"
+  },
+  "trace_base": "f1764339",
+  "production_source": "1ecea496cb8dfdb3199c95c9fbadc63a2ccbeeaa",
+  "upstream_base": "36849a1a473fdeac5b0ca7d0f13718f4ad49ac84",
+  "instrumented_reproduction": {
+    "binary_sha256": "35cf84c2d2dbb938596c3e8d9ea00f3ae07e40092d5c380d10c7e8c711575656",
+    "samples": [
+      {
+        "arm": "a",
+        "prefill_tps": 6.0,
+        "decode_tps": 6.3,
+        "ttft_ms": 10434,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t47%; charging; 1:42 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.25M  free = 1320.75M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t47%; charging; 1:42 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 63,
+        "generated_ids": [
+          1596,
+          1144,
+          4087,
+          1156,
+          579,
+          1622,
+          25,
+          328
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.1116648330000007,
+            "cache_misses": 853,
+            "demanded_expert_bytes": 1064554236,
+            "process_decompressions": 26,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "b",
+        "prefill_tps": 9.7,
+        "decode_tps": 8.8,
+        "ttft_ms": 6480,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t47%; charging; 1:42 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t47%; charging; 1:42 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 63,
+        "generated_ids": [
+          1596,
+          1144,
+          4087,
+          1156,
+          579,
+          1622,
+          25,
+          328
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 0.7955694580000001,
+            "cache_misses": 830,
+            "demanded_expert_bytes": 1035849960,
+            "process_decompressions": 1,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 7.0,
+        "decode_tps": 5.9,
+        "ttft_ms": 92964,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t47%; charging; 1:42 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t49%; charging; 1:35 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.156003166000005,
+            "cache_misses": 1247,
+            "demanded_expert_bytes": 1556270964,
+            "process_decompressions": 393,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.4535394589999981,
+            "cache_misses": 1257,
+            "demanded_expert_bytes": 1568751084,
+            "process_decompressions": 18,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 2.6533889159999973,
+            "cache_misses": 2415,
+            "demanded_expert_bytes": 3013948980,
+            "process_decompressions": 29,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "B",
+        "prefill_tps": 8.3,
+        "decode_tps": 5.7,
+        "ttft_ms": 78913,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t49%; charging; 1:35 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t51%; charging; 1:25 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.234944291000005,
+            "cache_misses": 1388,
+            "demanded_expert_bytes": 1732240656,
+            "process_decompressions": 449,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.6738917499999957,
+            "cache_misses": 1455,
+            "demanded_expert_bytes": 1815857460,
+            "process_decompressions": 497,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 2.537595499999995,
+            "cache_misses": 2542,
+            "demanded_expert_bytes": 3172446504,
+            "process_decompressions": 0,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "B",
+        "prefill_tps": 8.1,
+        "decode_tps": 5.4,
+        "ttft_ms": 80271,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t51%; charging; 1:25 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t53%; charging; 1:22 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.3576945840000008,
+            "cache_misses": 1388,
+            "demanded_expert_bytes": 1732240656,
+            "process_decompressions": 469,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.3785882079999965,
+            "cache_misses": 1455,
+            "demanded_expert_bytes": 1815857460,
+            "process_decompressions": 507,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 2.9613953329999987,
+            "cache_misses": 2542,
+            "demanded_expert_bytes": 3172446504,
+            "process_decompressions": 22,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 5.6,
+        "decode_tps": 6.3,
+        "ttft_ms": 115766,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t53%; charging; 1:22 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t56%; charging; 1:15 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 0.7741889170000036,
+            "cache_misses": 1247,
+            "demanded_expert_bytes": 1556270964,
+            "process_decompressions": 25,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 0.8898107499999952,
+            "cache_misses": 1257,
+            "demanded_expert_bytes": 1568751084,
+            "process_decompressions": 20,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 3.229900083000004,
+            "cache_misses": 2415,
+            "demanded_expert_bytes": 3013948980,
+            "process_decompressions": 27,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      }
+    ],
+    "medians": {
+      "A": {
+        "prefill_tps": 6.3,
+        "decode_tps": 6.1,
+        "ttft_ms": 104365.0
+      },
+      "B": {
+        "prefill_tps": 8.2,
+        "decode_tps": 5.550000000000001,
+        "ttft_ms": 79592.0
+      }
+    }
+  },
+  "instrumented_tail": {
+    "binary_sha256": "e71da38742942f03db27bb0f0bcd9ae915f2cf1922ef7b311136a387dfdc8cac",
+    "samples": [
+      {
+        "arm": "D",
+        "prefill_tps": 7.9,
+        "decode_tps": 5.3,
+        "ttft_ms": 83122,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t62%; charging; 1:07 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t63%; charging; 1:07 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.8805954590000056,
+            "cache_misses": 1281,
+            "demanded_expert_bytes": 1598703372,
+            "process_decompressions": 639,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.0400532909999924,
+            "cache_misses": 1296,
+            "demanded_expert_bytes": 1617423552,
+            "process_decompressions": 656,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 2.912965749999998,
+            "cache_misses": 2427,
+            "demanded_expert_bytes": 3028925124,
+            "process_decompressions": 521,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 4.5,
+        "decode_tps": 4.5,
+        "ttft_ms": 145543,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t63%; charging; 1:07 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 727.75M  free = 1320.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t66%; charging; 1:09 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 712.75M  free = 1335.25M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.6051922499999876,
+            "cache_misses": 1247,
+            "demanded_expert_bytes": 1556270964,
+            "process_decompressions": 582,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.5342866670000035,
+            "cache_misses": 1257,
+            "demanded_expert_bytes": 1568751084,
+            "process_decompressions": 374,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 3.6836970000000235,
+            "cache_misses": 2415,
+            "demanded_expert_bytes": 3013948980,
+            "process_decompressions": 27,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "B",
+        "prefill_tps": 5.6,
+        "decode_tps": 4.2,
+        "ttft_ms": 116339,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t66%; charging; 1:09 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 712.75M  free = 1335.25M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t69%; charging; 1:03 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 713.06M  free = 1334.94M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.9774332080000079,
+            "cache_misses": 1388,
+            "demanded_expert_bytes": 1732240656,
+            "process_decompressions": 463,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 1.7733994589999895,
+            "cache_misses": 1455,
+            "demanded_expert_bytes": 1815857460,
+            "process_decompressions": 512,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 3.7078503750000067,
+            "cache_misses": 2542,
+            "demanded_expert_bytes": 3172446504,
+            "process_decompressions": 387,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      },
+      {
+        "arm": "D",
+        "prefill_tps": 7.9,
+        "decode_tps": 4.1,
+        "ttft_ms": 82612,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t69%; charging; 1:03 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 713.06M  free = 1334.94M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t71%; charging; 0:59 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 713.06M  free = 1334.94M  (encrypted)"
+          }
+        },
+        "prompt_tokens": 654,
+        "generated_ids": [
+          63611,
+          222460,
+          177571,
+          644,
+          52543,
+          13,
+          436,
+          82458,
+          59006,
+          401,
+          9056,
+          11424,
+          3424,
+          3387,
+          12178,
+          191441,
+          401,
+          324,
+          55702,
+          28472,
+          13,
+          7305,
+          44454,
+          4799,
+          540,
+          3424,
+          42278,
+          12178,
+          25,
+          19014,
+          35324,
+          18
+        ],
+        "intervals": [
+          {
+            "token_from": 1,
+            "token_to": 8,
+            "elapsed_seconds": 1.7184948330000083,
+            "cache_misses": 1281,
+            "demanded_expert_bytes": 1598703372,
+            "process_decompressions": 175,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 8,
+            "token_to": 16,
+            "elapsed_seconds": 2.042271624999998,
+            "cache_misses": 1296,
+            "demanded_expert_bytes": 1617423552,
+            "process_decompressions": 190,
+            "process_swapins_logical_bytes": 0
+          },
+          {
+            "token_from": 16,
+            "token_to": 32,
+            "elapsed_seconds": 3.857158209000005,
+            "cache_misses": 2427,
+            "demanded_expert_bytes": 3028925124,
+            "process_decompressions": 0,
+            "process_swapins_logical_bytes": 0
+          }
+        ]
+      }
+    ],
+    "medians": {
+      "A": {
+        "prefill_tps": 4.5,
+        "decode_tps": 4.5,
+        "ttft_ms": 145543
+      },
+      "B": {
+        "prefill_tps": 5.6,
+        "decode_tps": 4.2,
+        "ttft_ms": 116339
+      },
+      "D": {
+        "prefill_tps": 7.9,
+        "decode_tps": 4.699999999999999,
+        "ttft_ms": 82867.0
+      }
+    }
+  },
+  "production_cli": {
+    "binary_sha256": "88f8f53eac6707735f22d9ac1da2a195d41237a3f4e810152cbec6b4185f5cae",
+    "samples": [
+      {
+        "arm": "a",
+        "prefill_tps": 4.6,
+        "decode_tps": 6.4,
+        "ttft_ms": 13680,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t77%; charging; 1:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t77%; charging; 1:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "b",
+        "prefill_tps": 6.1,
+        "decode_tps": 4.4,
+        "ttft_ms": 10421,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t77%; charging; 1:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t77%; charging; 1:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 5.4,
+        "decode_tps": 6.1,
+        "ttft_ms": 120262,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t77%; charging; 1:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "D",
+        "prefill_tps": 8.4,
+        "decode_tps": 4.9,
+        "ttft_ms": 78043,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 697.06M  free = 1350.94M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; 3:02 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 742.56M  free = 1305.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "D",
+        "prefill_tps": 8.8,
+        "decode_tps": 5.0,
+        "ttft_ms": 74595,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; 3:02 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 742.56M  free = 1305.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; 2:57 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 742.56M  free = 1305.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 5.6,
+        "decode_tps": 6.1,
+        "ttft_ms": 116552,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; 2:57 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 742.56M  free = 1305.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t77%; discharging; 3:17 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 742.56M  free = 1305.44M  (encrypted)"
+          }
+        }
+      }
+    ],
+    "medians": {
+      "A": {
+        "prefill_tps": 5.5,
+        "decode_tps": 6.1,
+        "ttft_ms": 118407.0
+      },
+      "D": {
+        "prefill_tps": 8.600000000000001,
+        "decode_tps": 4.95,
+        "ttft_ms": 76319.0
+      }
+    }
+  },
+  "production_bridge": {
+    "status": "complete",
+    "parity": true,
+    "passes": [
+      {
+        "arm": "D",
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 782,
+          "decode_seconds": 22.449636625000004,
+          "decode_tokens": 127,
+          "decode_tps": 5.65710715596048,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 85.402590375,
+          "end_to_end_ttft_seconds": 62.952961334,
+          "evaluated_prompt_tokens": 654,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 6593757824,
+            "mlx_cache_bytes": 536273426,
+            "mlx_peak_bytes": 6632646096,
+            "process_compressed_lifetime_logical_bytes": 956039168,
+            "process_compressed_logical_bytes": 946192384,
+            "process_compressed_peak_logical_bytes": 948158464,
+            "process_decompressions": 43050,
+            "process_footprint_bytes": 7666309120,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7668619264
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 62.949110875,
+          "prefill_tps": 10.389344518283476,
+          "prepare_seconds": 0.001189958,
+          "prompt_tokens": 654,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 62.952904959
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278"
+      },
+      {
+        "arm": "A",
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 782,
+          "decode_seconds": 19.7190815,
+          "decode_tokens": 127,
+          "decode_tps": 6.440462249724968,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 123.310482958,
+          "end_to_end_ttft_seconds": 103.591423292,
+          "evaluated_prompt_tokens": 654,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 6593790592,
+            "mlx_cache_bytes": 513036234,
+            "mlx_peak_bytes": 6605949736,
+            "process_compressed_lifetime_logical_bytes": 635125760,
+            "process_compressed_logical_bytes": 628031488,
+            "process_compressed_peak_logical_bytes": 629653504,
+            "process_decompressions": 24405,
+            "process_footprint_bytes": 7636604784,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7636604784
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 103.588551083,
+          "prefill_tps": 6.313439015823135,
+          "prepare_seconds": 0.001194959,
+          "prompt_tokens": 654,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 103.59136712600001
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278"
+      }
+    ]
+  },
+  "limitations": [
+    "Expert byte counts are logical demand, not measured physical SSD traffic.",
+    "Cold prompt cache per request; macOS file cache and clock rates are uncontrolled.",
+    "Two CLI observations per production arm on one long prompt; the bridge has one longer generation per arm.",
+    "The allocator-cap run crossed a host sleep and used battery power. Comparisons across campaigns are confounded by system load and power state."
+  ],
+  "production_cli_allocator64": {
+    "binary_sha256": "88f8f53eac6707735f22d9ac1da2a195d41237a3f4e810152cbec6b4185f5cae",
+    "samples": [
+      {
+        "arm": "F",
+        "prefill_tps": 6.8,
+        "decode_tps": 4.0,
+        "ttft_ms": 96575,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t76%; discharging; 2:57 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 747.00M  free = 1301.00M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t75%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 723.12M  free = 1324.88M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 4.9,
+        "decode_tps": 5.2,
+        "ttft_ms": 132241,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t75%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 723.12M  free = 1324.88M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t74%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "D",
+        "prefill_tps": 7.3,
+        "decode_tps": 4.3,
+        "ttft_ms": 90071,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t74%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t73%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "F",
+        "prefill_tps": 11.6,
+        "decode_tps": 6.3,
+        "ttft_ms": 56247,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t73%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t72%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 7.6,
+        "decode_tps": 9.7,
+        "ttft_ms": 86305,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t72%; discharging; (no estimate) present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t71%; discharging; 2:04 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.12M  free = 1340.88M  (encrypted)"
+          }
+        }
+      }
+    ],
+    "medians": {
+      "A": {
+        "prefill_tps": 6.25,
+        "decode_tps": 7.449999999999999,
+        "ttft_ms": 109273.0
+      },
+      "D": {
+        "prefill_tps": 7.3,
+        "decode_tps": 4.3,
+        "ttft_ms": 90071
+      },
+      "F": {
+        "prefill_tps": 9.2,
+        "decode_tps": 5.15,
+        "ttft_ms": 76411.0
+      }
+    }
+  },
+  "production_cli_cache5": {
+    "binary_sha256": "88f8f53eac6707735f22d9ac1da2a195d41237a3f4e810152cbec6b4185f5cae",
+    "samples": [
+      {
+        "arm": "a",
+        "prefill_tps": 7.7,
+        "decode_tps": 8.8,
+        "ttft_ms": 8173,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 2:14 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 2:14 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "b",
+        "prefill_tps": 11.7,
+        "decode_tps": 10.5,
+        "ttft_ms": 5377,
+        "text_sha256": "117bc4fcf35a5d8b69afe2896db555c904823870f0bd643900fb79170c81d789",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 2:14 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 2:14 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "G",
+        "prefill_tps": 13.2,
+        "decode_tps": 9.2,
+        "ttft_ms": 49677,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 2:14 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 1:54 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "E",
+        "prefill_tps": 8.2,
+        "decode_tps": 7.1,
+        "ttft_ms": 79745,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 1:54 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 707.56M  free = 1340.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 1:34 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 7.3,
+        "decode_tps": 9.7,
+        "ttft_ms": 90156,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 1:34 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 1:43 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "D",
+        "prefill_tps": 11.7,
+        "decode_tps": 6.4,
+        "ttft_ms": 56005,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 1:43 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 1:45 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "E",
+        "prefill_tps": 5.6,
+        "decode_tps": 4.4,
+        "ttft_ms": 116438,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 1:45 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 2:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          }
+        }
+      },
+      {
+        "arm": "G",
+        "prefill_tps": 11.5,
+        "decode_tps": 4.6,
+        "ttft_ms": 56857,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14",
+        "conditions": {
+          "before": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 2:05 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          },
+          "after": {
+            "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t65%; discharging; 1:55 remaining present: true",
+            "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+            "swap": "total = 2048.00M  used = 699.56M  free = 1348.44M  (encrypted)"
+          }
+        }
+      }
+    ],
+    "medians": {
+      "A": {
+        "prefill_tps": 7.3,
+        "decode_tps": 9.7,
+        "ttft_ms": 90156
+      },
+      "D": {
+        "prefill_tps": 11.7,
+        "decode_tps": 6.4,
+        "ttft_ms": 56005
+      },
+      "E": {
+        "prefill_tps": 6.8999999999999995,
+        "decode_tps": 5.75,
+        "ttft_ms": 98091.5
+      },
+      "G": {
+        "prefill_tps": 12.35,
+        "decode_tps": 6.8999999999999995,
+        "ttft_ms": 53267.0
+      }
+    }
+  },
+  "production_bridge_cache5": {
+    "status": "complete",
+    "parity": true,
+    "passes": [
+      {
+        "arm": "G",
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 782,
+          "decode_seconds": 15.8369735,
+          "decode_tokens": 127,
+          "decode_tps": 8.01920897322964,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 74.589193417,
+          "end_to_end_ttft_seconds": 58.752252209000005,
+          "evaluated_prompt_tokens": 654,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 8748585856,
+            "mlx_cache_bytes": 536270870,
+            "mlx_peak_bytes": 8787488208,
+            "process_compressed_lifetime_logical_bytes": 834174976,
+            "process_compressed_logical_bytes": 823328768,
+            "process_compressed_peak_logical_bytes": 824852480,
+            "process_decompressions": 35874,
+            "process_footprint_bytes": 9820446184,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 9822789096
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 58.748453333,
+          "prefill_tps": 11.132207962871375,
+          "prepare_seconds": 0.001307458,
+          "prompt_tokens": 654,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 58.752206917
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278"
+      },
+      {
+        "arm": "A",
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 782,
+          "decode_seconds": 19.283280583999996,
+          "decode_tokens": 127,
+          "decode_tps": 6.586016287362239,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 100.996920167,
+          "end_to_end_ttft_seconds": 81.71367233299999,
+          "evaluated_prompt_tokens": 654,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 6593823360,
+            "mlx_cache_bytes": 508122602,
+            "mlx_peak_bytes": 6605982504,
+            "process_compressed_lifetime_logical_bytes": 78970880,
+            "process_compressed_logical_bytes": 78479360,
+            "process_compressed_peak_logical_bytes": 78970880,
+            "process_decompressions": 3546,
+            "process_footprint_bytes": 7599560560,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7599560560
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 81.710304833,
+          "prefill_tps": 8.003886429461364,
+          "prepare_seconds": 0.001015125,
+          "prompt_tokens": 654,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 81.713625833
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278"
+      },
+      {
+        "arm": "E",
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 782,
+          "decode_seconds": 16.508768583000005,
+          "decode_tokens": 127,
+          "decode_tps": 7.6928814745624905,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 87.58796825,
+          "end_to_end_ttft_seconds": 71.079213166,
+          "evaluated_prompt_tokens": 654,
+          "generated_tokens": 128,
+          "memory": {
+            "mlx_active_bytes": 8748635008,
+            "mlx_cache_bytes": 508157862,
+            "mlx_peak_bytes": 8760794152,
+            "process_compressed_lifetime_logical_bytes": 1277968384,
+            "process_compressed_logical_bytes": 1263747072,
+            "process_compressed_peak_logical_bytes": 1266827264,
+            "process_decompressions": 52664,
+            "process_footprint_bytes": 9783287200,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 9783287200
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 71.076995542,
+          "prefill_tps": 9.201289320305412,
+          "prepare_seconds": 0.000851334,
+          "prompt_tokens": 654,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 71.079182333
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278"
+      }
+    ]
+  },
+  "diagnostic_patch_sha256": "b4453b852d0475dd632f006e63e323dc61312f6729ac10d945c333bdf6f7c86c",
+  "qualification_dates": [
+    "2026-11-21",
+    "2026-11-22"
+  ],
+  "diagnostic_note": "In this source, a grouped reservation advances the frequency-decay clock once and counts each expert once across multiple token rows. Cache misses in 31 decode intervals were 4919 (serial), 5385 (grouped) and 5004 (grouped with serial suffix).",
+  "local_checks": {
+    "release_lib_mlx_chat": {
+      "passed": 555,
+      "ignored": 327
+    },
+    "release_lib_cpu": {
+      "passed": 481,
+      "ignored": 9
+    },
+    "physical_257_token_state_logits_and_continuation": {
+      "passed_separately_at": "3 GiB, 3 GiB with allocator cap 64 MiB, 5 GiB"
+    },
+    "kani": {
+      "selector_harnesses": 1,
+      "failed": 0,
+      "covered": 3,
+      "total_cover": 3,
+      "domain": "all usize endpoints and boolean modes; CPU policy only"
+    },
+    "portable_manifest": {
+      "passed": 8
+    },
+    "linux_only_kani_runner_tests": {
+      "skipped": 68
+    },
+    "boundary_mutation": "detected",
+    "other_passed": [
+      "cargo fmt --check",
+      "Clippy mlx,chat all targets with -D warnings",
+      "MLX source inventory (341 files)",
+      "Ruff lint and format on changed Python test"
+    ]
+  }
+}
